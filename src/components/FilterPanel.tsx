@@ -1,41 +1,57 @@
 
 import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
-import { Slider } from "@/components/ui/slider";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Slider } from "@/components/ui/slider";
 import { FilterOptions } from "@/types";
-import { Search } from "lucide-react";
+import { X, SlidersHorizontal } from "lucide-react";
+import { useMarketplace } from "@/hooks/use-marketplace";
 
 interface FilterPanelProps {
   onFilterChange: (filters: FilterOptions) => void;
   totalListings: number;
   filteredCount: number;
-  categories: string[];
-  locations: string[];
 }
 
-const FilterPanel: React.FC<FilterPanelProps> = ({
+const FilterPanel = ({
   onFilterChange,
   totalListings,
   filteredCount,
-  categories,
-  locations,
-}) => {
-  const [search, setSearch] = useState("");
+}: FilterPanelProps) => {
+  const { useListingMetadata } = useMarketplace();
+  const { data: metadata } = useListingMetadata();
+  const categories = metadata?.categories || [];
+  const locations = metadata?.locations || [];
+  
+  const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedLocations, setSelectedLocations] = useState<string[]>([]);
-  const [revenueRange, setRevenueRange] = useState<[number, number]>([0, 10000000]); // 0 - $10M
-  const [ebitdaRange, setEbitdaRange] = useState<[number, number]>([0, 2000000]); // 0 - $2M
+  const [revenueRange, setRevenueRange] = useState<[number, number]>([0, 10000000]);
+  const [ebitdaRange, setEbitdaRange] = useState<[number, number]>([0, 2000000]);
+  const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
+
+  // Helper function to format currency values
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+      maximumFractionDigits: 0,
+    }).format(value);
+  };
   
-  // Format revenue and EBITDA for display
-  const formatCurrency = (value: number): string => {
-    if (value >= 1000000) {
-      return `$${(value / 1000000).toFixed(1)}M`;
-    } else if (value >= 1000) {
-      return `$${(value / 1000).toFixed(0)}K`;
-    }
+  // Helper function to format slider values
+  const formatSliderValue = (value: number) => {
     return `$${value}`;
   };
 
@@ -51,127 +67,160 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
   // Apply filters when they change
   useEffect(() => {
     const filters: FilterOptions = {
-      search: search.trim() || undefined,
-      category: selectedCategories.length > 0
-        ? selectedCategories.join(",")
-        : undefined,
-      location: selectedLocations.length > 0
-        ? selectedLocations.join(",")
-        : undefined,
+      search: searchTerm,
+      category: selectedCategories.length > 0 ? selectedCategories.join(",") : undefined,
+      location: selectedLocations.length > 0 ? selectedLocations.join(",") : undefined,
       revenueMin: revenueRange[0] > 0 ? revenueRange[0] : undefined,
       revenueMax: revenueRange[1] < 10000000 ? revenueRange[1] : undefined,
       ebitdaMin: ebitdaRange[0] > 0 ? ebitdaRange[0] : undefined,
       ebitdaMax: ebitdaRange[1] < 2000000 ? ebitdaRange[1] : undefined,
     };
-    
+
     onFilterChange(filters);
-  }, [search, selectedCategories, selectedLocations, revenueRange, ebitdaRange]);
+  }, [
+    searchTerm,
+    selectedCategories,
+    selectedLocations,
+    revenueRange,
+    ebitdaRange,
+    onFilterChange,
+  ]);
 
-  const handleCategoryChange = (category: string, checked: boolean) => {
-    if (checked) {
-      setSelectedCategories([...selectedCategories, category]);
-    } else {
-      setSelectedCategories(selectedCategories.filter(c => c !== category));
-    }
-  };
-
-  const handleLocationChange = (location: string, checked: boolean) => {
-    if (checked) {
-      setSelectedLocations([...selectedLocations, location]);
-    } else {
-      setSelectedLocations(selectedLocations.filter(l => l !== location));
-    }
-  };
-
-  const handleResetFilters = () => {
-    setSearch("");
+  const clearAllFilters = () => {
+    setSearchTerm("");
     setSelectedCategories([]);
     setSelectedLocations([]);
     setRevenueRange([0, 10000000]);
     setEbitdaRange([0, 2000000]);
   };
 
-  return (
-    <div className="bg-white rounded-lg border border-border p-4 h-full sticky top-24">
-      <div className="space-y-6">
-        {/* Search */}
-        <div>
-          <Label htmlFor="search" className="text-sm font-medium mb-1.5 block">
-            Keyword Search
-          </Label>
-          <div className="relative">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              id="search"
-              placeholder="Search listings..."
-              className="pl-9"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
-        </div>
+  const handleCategoryChange = (category: string) => {
+    setSelectedCategories((prev) => {
+      if (prev.includes(category)) {
+        return prev.filter((c) => c !== category);
+      } else {
+        return [...prev, category];
+      }
+    });
+  };
 
-        {/* Categories */}
-        <div>
-          <Label className="text-sm font-medium mb-1.5 block">
-            Categories
-          </Label>
-          <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
-            {categories.map((category) => (
-              <div key={category} className="flex items-center space-x-2">
-                <Checkbox
-                  id={`category-${category}`}
-                  checked={selectedCategories.includes(category)}
-                  onCheckedChange={(checked) => 
-                    handleCategoryChange(category, checked as boolean)
-                  }
-                />
-                <label
-                  htmlFor={`category-${category}`}
-                  className="text-sm leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                >
-                  {category}
-                </label>
-              </div>
-            ))}
-          </div>
-        </div>
+  const handleLocationChange = (location: string) => {
+    setSelectedLocations((prev) => {
+      if (prev.includes(location)) {
+        return prev.filter((l) => l !== location);
+      } else {
+        return [...prev, location];
+      }
+    });
+  };
 
-        {/* Locations */}
-        <div>
-          <Label className="text-sm font-medium mb-1.5 block">
-            Locations
-          </Label>
-          <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
-            {locations.map((location) => (
-              <div key={location} className="flex items-center space-x-2">
-                <Checkbox
-                  id={`location-${location}`}
-                  checked={selectedLocations.includes(location)}
-                  onCheckedChange={(checked) => 
-                    handleLocationChange(location, checked as boolean)
-                  }
-                />
-                <label
-                  htmlFor={`location-${location}`}
-                  className="text-sm leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                >
-                  {location}
-                </label>
-              </div>
-            ))}
-          </div>
-        </div>
+  const filterContent = (
+    <div className="space-y-6">
+      {/* Search Input */}
+      <div className="space-y-2">
+        <Label htmlFor="search">Search</Label>
+        <Input
+          id="search"
+          placeholder="Search businesses..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
+      </div>
 
-        {/* Revenue Range */}
-        <div>
-          <div className="flex justify-between mb-1.5">
-            <Label className="text-sm font-medium">Revenue</Label>
-            <span className="text-sm text-muted-foreground">
-              {formatCurrency(revenueRange[0])} - {formatCurrency(revenueRange[1])}
-            </span>
-          </div>
-          <Slider
+      <Separator />
+
+      {/* Categories Filter */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <Label>Category</Label>
+          {selectedCategories.length > 0 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-auto p-0 text-xs text-muted-foreground hover:text-foreground"
+              onClick={() => setSelectedCategories([])}
+            >
+              Clear
+            </Button>
+          )}
+        </div>
+        <div className="space-y-2">
+          {categories.map((category) => (
+            <div key={category} className="flex items-center space-x-2">
+              <Checkbox
+                id={`category-${category}`}
+                checked={selectedCategories.includes(category)}
+                onCheckedChange={() => handleCategoryChange(category)}
+              />
+              <label
+                htmlFor={`category-${category}`}
+                className="text-sm cursor-pointer leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              >
+                {category}
+              </label>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <Separator />
+
+      {/* Location Filter */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <Label>Location</Label>
+          {selectedLocations.length > 0 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-auto p-0 text-xs text-muted-foreground hover:text-foreground"
+              onClick={() => setSelectedLocations([])}
+            >
+              Clear
+            </Button>
+          )}
+        </div>
+        <div className="space-y-2 max-h-40 overflow-y-auto pr-2">
+          {locations.map((location) => (
+            <div key={location} className="flex items-center space-x-2">
+              <Checkbox
+                id={`location-${location}`}
+                checked={selectedLocations.includes(location)}
+                onCheckedChange={() => handleLocationChange(location)}
+              />
+              <label
+                htmlFor={`location-${location}`}
+                className="text-sm cursor-pointer leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              >
+                {location}
+              </label>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <Separator />
+
+      {/* Revenue Filter */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <Label>Revenue</Label>
+          {(revenueRange[0] > 0 || revenueRange[1] < 10000000) && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-auto p-0 text-xs text-muted-foreground hover:text-foreground"
+              onClick={() => setRevenueRange([0, 10000000])}
+            >
+              Clear
+            </Button>
+          )}
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-sm">{formatCurrency(revenueRange[0])}</span>
+          <span className="text-sm">{formatCurrency(revenueRange[1])}</span>
+        </div>
+        <Slider
             defaultValue={[0, 10000000]}
             min={0}
             max={10000000}
@@ -180,17 +229,30 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
             onValueChange={handleSliderChange(setRevenueRange)}
             className="mt-6 mb-8"
           />
-        </div>
+      </div>
 
-        {/* EBITDA Range */}
-        <div>
-          <div className="flex justify-between mb-1.5">
-            <Label className="text-sm font-medium">EBITDA</Label>
-            <span className="text-sm text-muted-foreground">
-              {formatCurrency(ebitdaRange[0])} - {formatCurrency(ebitdaRange[1])}
-            </span>
-          </div>
-          <Slider
+      <Separator />
+
+      {/* EBITDA Filter */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <Label>EBITDA</Label>
+          {(ebitdaRange[0] > 0 || ebitdaRange[1] < 2000000) && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-auto p-0 text-xs text-muted-foreground hover:text-foreground"
+              onClick={() => setEbitdaRange([0, 2000000])}
+            >
+              Clear
+            </Button>
+          )}
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-sm">{formatCurrency(ebitdaRange[0])}</span>
+          <span className="text-sm">{formatCurrency(ebitdaRange[1])}</span>
+        </div>
+        <Slider
             defaultValue={[0, 2000000]}
             min={0}
             max={2000000}
@@ -199,32 +261,114 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
             onValueChange={handleSliderChange(setEbitdaRange)}
             className="mt-6"
           />
-        </div>
-        
-        {/* Results summary */}
-        <div className="border-t border-border pt-4">
-          <div className="text-sm">
-            Showing <span className="font-medium">{filteredCount}</span> of{" "}
-            <span className="font-medium">{totalListings}</span> listings
-          </div>
-          {(selectedCategories.length > 0 || 
-           selectedLocations.length > 0 || 
-           search || 
-           revenueRange[0] > 0 || 
-           revenueRange[1] < 10000000 ||
-           ebitdaRange[0] > 0 ||
-           ebitdaRange[1] < 2000000) && (
-            <Button 
-              variant="link" 
-              className="px-0 text-sm h-auto"
-              onClick={handleResetFilters}
-            >
-              Reset all filters
-            </Button>
-          )}
-        </div>
+      </div>
+
+      {/* Clear All Button */}
+      <div className="pt-4">
+        <Button
+          variant="outline"
+          onClick={clearAllFilters}
+          className="w-full"
+        >
+          Clear All Filters
+        </Button>
       </div>
     </div>
+  );
+
+  const isFiltersActive =
+    searchTerm ||
+    selectedCategories.length > 0 ||
+    selectedLocations.length > 0 ||
+    revenueRange[0] > 0 ||
+    revenueRange[1] < 10000000 ||
+    ebitdaRange[0] > 0 ||
+    ebitdaRange[1] < 2000000;
+
+  return (
+    <>
+      {/* Desktop Filter Panel */}
+      <div className="hidden lg:block">
+        <div className="bg-white border rounded-lg p-6">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-lg font-medium">Filters</h2>
+            {isFiltersActive && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={clearAllFilters}
+                className="h-8 px-2 text-xs"
+              >
+                <X className="h-3 w-3 mr-1" />
+                Clear all
+              </Button>
+            )}
+          </div>
+
+          {filterContent}
+
+          <div className="mt-6 pt-4 border-t">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">
+                Showing{" "}
+                <Badge variant="outline" className="font-normal ml-1">
+                  {filteredCount}
+                </Badge>{" "}
+                of{" "}
+                <Badge variant="outline" className="font-normal">
+                  {totalListings}
+                </Badge>
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Mobile Filter Button & Sheet */}
+      <div className="lg:hidden w-full mb-4">
+        <Sheet open={isMobileFilterOpen} onOpenChange={setIsMobileFilterOpen}>
+          <SheetTrigger asChild>
+            <Button
+              variant="outline"
+              className="w-full"
+              aria-label="Filter"
+            >
+              <SlidersHorizontal className="h-4 w-4 mr-2" />
+              Filters
+              {isFiltersActive && (
+                <Badge
+                  variant="secondary"
+                  className="ml-2 rounded-full h-6 w-6 p-0 text-xs flex items-center justify-center"
+                >
+                  !
+                </Badge>
+              )}
+            </Button>
+          </SheetTrigger>
+          <SheetContent className="w-full max-w-full sm:max-w-md">
+            <SheetHeader className="mb-6">
+              <SheetTitle>Filters</SheetTitle>
+            </SheetHeader>
+            <div className="overflow-y-auto max-h-[calc(100vh-8rem)] pr-2">
+              {filterContent}
+            </div>
+            <div className="absolute bottom-0 left-0 right-0 p-4 border-t bg-white">
+              <div className="flex justify-between items-center mb-4">
+                <span className="text-sm">
+                  Showing {filteredCount} of {totalListings} listings
+                </span>
+              </div>
+              <Button
+                className="w-full"
+                onClick={() => setIsMobileFilterOpen(false)}
+              >
+                View Results
+              </Button>
+            </div>
+          </SheetContent>
+        </Sheet>
+      </div>
+    </>
   );
 };
 

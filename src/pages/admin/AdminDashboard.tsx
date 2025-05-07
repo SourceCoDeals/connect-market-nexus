@@ -1,34 +1,14 @@
 
-import { useState, useEffect } from "react";
+import { useAdmin } from "@/hooks/use-admin";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Store, Users, MessageSquare, TrendingUp } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
+import { cn } from "@/lib/utils";
 
 const AdminDashboard = () => {
-  const [isLoading, setIsLoading] = useState(true);
-  const [stats, setStats] = useState({
-    activeListings: 0,
-    pendingUsers: 0,
-    connectionRequests: 0,
-    approvedConnections: 0,
-  });
-
-  useEffect(() => {
-    const loadData = async () => {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1200));
-      
-      setStats({
-        activeListings: 12,
-        pendingUsers: 5,
-        connectionRequests: 8,
-        approvedConnections: 15,
-      });
-      
-      setIsLoading(false);
-    };
-    
-    loadData();
-  }, []);
+  const { useAdminStats, useRecentActivities } = useAdmin();
+  const { data: stats, isLoading: isLoadingStats } = useAdminStats();
+  const { data: activities = [], isLoading: isLoadingActivities } = useRecentActivities();
 
   const renderSkeleton = () => (
     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
@@ -46,13 +26,24 @@ const AdminDashboard = () => {
     </div>
   );
 
+  const renderActivitySkeleton = () => (
+    <div className="space-y-4">
+      {[1, 2, 3, 4].map((_, i) => (
+        <div key={i} className="border-l-4 border-muted pl-4 py-1">
+          <div className="h-4 w-3/4 bg-muted rounded skeleton"></div>
+          <div className="h-3 w-1/3 bg-muted rounded skeleton mt-1"></div>
+        </div>
+      ))}
+    </div>
+  );
+
   return (
     <div className="p-8 max-w-7xl mx-auto">
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-3xl font-bold">Admin Dashboard</h1>
       </div>
 
-      {isLoading ? (
+      {isLoadingStats ? (
         renderSkeleton()
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
@@ -61,7 +52,7 @@ const AdminDashboard = () => {
               <CardDescription className="flex items-center">
                 <Store className="h-4 w-4 mr-1" /> Listings
               </CardDescription>
-              <CardTitle>{stats.activeListings}</CardTitle>
+              <CardTitle>{stats?.totalListings || 0}</CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground">
@@ -75,7 +66,7 @@ const AdminDashboard = () => {
               <CardDescription className="flex items-center">
                 <Users className="h-4 w-4 mr-1" /> Users
               </CardDescription>
-              <CardTitle>{stats.pendingUsers}</CardTitle>
+              <CardTitle>{stats?.pendingUsers || 0}</CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground">
@@ -89,7 +80,7 @@ const AdminDashboard = () => {
               <CardDescription className="flex items-center">
                 <MessageSquare className="h-4 w-4 mr-1" /> Connections
               </CardDescription>
-              <CardTitle>{stats.connectionRequests}</CardTitle>
+              <CardTitle>{stats?.pendingConnections || 0}</CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground">
@@ -103,11 +94,11 @@ const AdminDashboard = () => {
               <CardDescription className="flex items-center">
                 <TrendingUp className="h-4 w-4 mr-1" /> Activity
               </CardDescription>
-              <CardTitle>{stats.approvedConnections}</CardTitle>
+              <CardTitle>{stats?.totalUsers || 0}</CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground">
-                Total approved connections
+                Total registered users
               </p>
             </CardContent>
           </Card>
@@ -123,24 +114,38 @@ const AdminDashboard = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              <div className="border-l-4 border-primary pl-4 py-1">
-                <p className="text-sm">New user registered: <span className="font-medium">John Smith</span></p>
-                <p className="text-xs text-muted-foreground">5 minutes ago</p>
+            {isLoadingActivities ? (
+              renderActivitySkeleton()
+            ) : activities.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-6">
+                No recent activity to display
+              </p>
+            ) : (
+              <div className="space-y-4">
+                {activities.map((activity) => (
+                  <div
+                    key={activity.id}
+                    className={cn(
+                      "border-l-4 pl-4 py-1",
+                      activity.type === "signup"
+                        ? "border-green-500"
+                        : activity.type === "connection_request"
+                        ? "border-blue-500"
+                        : activity.type === "listing_creation"
+                        ? "border-purple-500"
+                        : "border-gray-500"
+                    )}
+                  >
+                    <p className="text-sm">{activity.description}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {formatDistanceToNow(new Date(activity.timestamp), {
+                        addSuffix: true,
+                      })}
+                    </p>
+                  </div>
+                ))}
               </div>
-              <div className="border-l-4 border-primary pl-4 py-1">
-                <p className="text-sm">New connection request for <span className="font-medium">Manufacturing Business</span></p>
-                <p className="text-xs text-muted-foreground">2 hours ago</p>
-              </div>
-              <div className="border-l-4 border-primary pl-4 py-1">
-                <p className="text-sm">User <span className="font-medium">Alice Johnson</span> approved</p>
-                <p className="text-xs text-muted-foreground">3 hours ago</p>
-              </div>
-              <div className="border-l-4 border-primary pl-4 py-1">
-                <p className="text-sm">New listing created: <span className="font-medium">E-commerce Business</span></p>
-                <p className="text-xs text-muted-foreground">1 day ago</p>
-              </div>
-            </div>
+            )}
           </CardContent>
         </Card>
       </div>

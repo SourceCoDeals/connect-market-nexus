@@ -1,5 +1,5 @@
 
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,8 @@ import {
   Store, 
   Users, 
   MessageSquare, 
-  LogOut
+  LogOut,
+  ShoppingBag
 } from "lucide-react";
 
 interface AdminNavbarProps {
@@ -17,6 +18,7 @@ interface AdminNavbarProps {
 
 const AdminNavbar: React.FC<AdminNavbarProps> = ({ className }) => {
   const { logout, user } = useAuth();
+  const location = useLocation();
   
   const navItems = [
     {
@@ -25,21 +27,31 @@ const AdminNavbar: React.FC<AdminNavbarProps> = ({ className }) => {
       icon: <LayoutDashboard className="h-5 w-5 mr-2" />,
     },
     {
-      title: "Listings",
-      href: "/admin/listings",
-      icon: <Store className="h-5 w-5 mr-2" />,
-    },
-    {
       title: "Users",
       href: "/admin/users",
       icon: <Users className="h-5 w-5 mr-2" />,
+    },
+    {
+      title: "Listings",
+      href: "/admin/listings",
+      icon: <Store className="h-5 w-5 mr-2" />,
     },
     {
       title: "Connection Requests",
       href: "/admin/requests",
       icon: <MessageSquare className="h-5 w-5 mr-2" />,
     },
+    {
+      title: "View Marketplace",
+      href: "/marketplace",
+      icon: <ShoppingBag className="h-5 w-5 mr-2" />,
+      external: true,
+    },
   ];
+
+  const isActive = (path: string) => {
+    return location.pathname === path;
+  };
 
   return (
     <div className={cn("bg-white border-r border-border h-screen", className)}>
@@ -56,9 +68,12 @@ const AdminNavbar: React.FC<AdminNavbarProps> = ({ className }) => {
             <Link
               key={item.href}
               to={item.href}
+              target={item.external ? "_blank" : undefined}
               className={cn(
-                "flex items-center px-3 py-2 rounded-md text-sm font-medium",
-                "transition-colors hover:bg-muted",
+                "flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors",
+                isActive(item.href)
+                  ? "bg-gray-100 text-gray-900" 
+                  : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
               )}
             >
               {item.icon}

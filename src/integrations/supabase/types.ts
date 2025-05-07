@@ -9,6 +9,44 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      connection_requests: {
+        Row: {
+          admin_comment: string | null
+          created_at: string
+          id: string
+          listing_id: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          admin_comment?: string | null
+          created_at?: string
+          id?: string
+          listing_id: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          admin_comment?: string | null
+          created_at?: string
+          id?: string
+          listing_id?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "connection_requests_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "listings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       engagement_scores: {
         Row: {
           connections_requested: number
@@ -55,6 +93,51 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      listings: {
+        Row: {
+          category: string
+          created_at: string
+          description: string
+          ebitda: number
+          files: string[] | null
+          id: string
+          location: string
+          owner_notes: string | null
+          revenue: number
+          tags: string[] | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          description: string
+          ebitda: number
+          files?: string[] | null
+          id?: string
+          location: string
+          owner_notes?: string | null
+          revenue: number
+          tags?: string[] | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          description?: string
+          ebitda?: number
+          files?: string[] | null
+          id?: string
+          location?: string
+          owner_notes?: string | null
+          revenue?: number
+          tags?: string[] | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       profiles: {
         Row: {
@@ -136,6 +219,35 @@ export type Database = {
           website?: string | null
         }
         Relationships: []
+      }
+      saved_listings: {
+        Row: {
+          created_at: string
+          id: string
+          listing_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          listing_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          listing_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "saved_listings_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "listings"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_activity: {
         Row: {

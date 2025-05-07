@@ -1,244 +1,294 @@
 
-import { useState, useEffect } from "react";
-import { useAuth } from "@/context/AuthContext";
-import { Listing, ConnectionRequest } from "@/types";
-import { Button } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCaption,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { format } from "date-fns";
+import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Eye } from "lucide-react";
-
-// Mock data for listings (same as in Marketplace.tsx)
-const MOCK_LISTINGS: Listing[] = [
-  {
-    id: "listing-1",
-    title: "Profitable SaaS Company in Marketing Space",
-    category: "Technology",
-    location: "California",
-    revenue: 2500000,
-    ebitda: 750000,
-    description: "Established SaaS company with recurring revenue streams and loyal customer base.",
-    tags: ["SaaS", "Recurring Revenue", "B2B"],
-    ownerNotes: "Looking for strategic buyer with industry expertise.",
-    createdAt: "2023-01-15T12:00:00Z",
-    updatedAt: "2023-02-20T14:30:00Z",
-  },
-  {
-    id: "listing-2",
-    title: "Manufacturing Business with Strong Local Presence",
-    category: "Manufacturing",
-    location: "Texas",
-    revenue: 5800000,
-    ebitda: 1200000,
-    description: "Well-established manufacturing business with proprietary processes and strong client relationships.",
-    tags: ["Manufacturing", "B2B", "Industrial"],
-    ownerNotes: "Owner retiring after 25 years in business.",
-    createdAt: "2023-03-10T09:15:00Z",
-    updatedAt: "2023-03-25T11:45:00Z",
-  },
-  {
-    id: "listing-3",
-    title: "Chain of Premium Pet Supply Stores",
-    category: "Retail",
-    location: "Florida",
-    revenue: 3700000,
-    ebitda: 620000,
-    description: "Established chain of three premium pet supply stores in affluent areas with loyal customer base.",
-    tags: ["Retail", "E-commerce", "Pets"],
-    ownerNotes: "Seeking buyer interested in expanding to additional locations.",
-    createdAt: "2023-02-05T15:20:00Z",
-    updatedAt: "2023-04-12T10:30:00Z",
-  },
-];
-
-// Mock connection requests
-const MOCK_REQUESTS: ConnectionRequest[] = [
-  {
-    id: "request-1",
-    userId: "buyer-1",
-    listingId: "listing-1",
-    status: "pending",
-    createdAt: "2023-04-10T14:25:00Z",
-    updatedAt: "2023-04-10T14:25:00Z",
-  },
-  {
-    id: "request-2",
-    userId: "buyer-1",
-    listingId: "listing-2",
-    status: "approved",
-    adminComment: "The owner is interested in discussing further. We'll be in touch soon with next steps.",
-    createdAt: "2023-03-28T11:10:00Z",
-    updatedAt: "2023-04-05T09:30:00Z",
-  },
-  {
-    id: "request-3",
-    userId: "buyer-1",
-    listingId: "listing-3",
-    status: "rejected",
-    adminComment: "The owner has decided to pursue other options at this time.",
-    createdAt: "2023-03-15T16:45:00Z",
-    updatedAt: "2023-03-20T13:20:00Z",
-  },
-];
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { useMarketplace } from "@/hooks/use-marketplace";
+import { formatDistanceToNow } from "date-fns";
+import { Building2, MapPin, Bookmark, ExternalLink } from "lucide-react";
 
 const MyRequests = () => {
-  const { user } = useAuth();
-  const [requests, setRequests] = useState<ConnectionRequest[]>([]);
-  const [listings, setListings] = useState<Record<string, Listing>>({});
-  const [isLoading, setIsLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState("connections");
+  const { useUserConnections, useSavedListings } = useMarketplace();
+  
+  const { data: connections = [], isLoading: isLoadingConnections } = useUserConnections();
+  const { data: savedListings = [], isLoading: isLoadingSaved } = useSavedListings();
 
-  useEffect(() => {
-    const loadData = async () => {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Load requests for the current user
-      setRequests(MOCK_REQUESTS.filter(req => req.userId === user?.id));
-      
-      // Create a map of listings by ID for easy lookup
-      const listingsMap: Record<string, Listing> = {};
-      MOCK_LISTINGS.forEach(listing => {
-        listingsMap[listing.id] = listing;
-      });
-      setListings(listingsMap);
-      
-      setIsLoading(false);
-    };
-    
-    loadData();
-  }, [user?.id]);
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(value);
+  };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case "pending":
-        return <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">Pending</Badge>;
       case "approved":
-        return <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Approved</Badge>;
+        return <Badge className="bg-green-500">Approved</Badge>;
       case "rejected":
-        return <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">Rejected</Badge>;
+        return <Badge className="bg-red-500">Rejected</Badge>;
+      case "pending":
       default:
-        return <Badge variant="outline">{status}</Badge>;
+        return <Badge className="bg-yellow-500">Pending</Badge>;
     }
   };
 
-  const formatDate = (dateString: string) => {
-    try {
-      return format(new Date(dateString), "MMM d, yyyy");
-    } catch (error) {
-      return "Invalid date";
-    }
-  };
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-background">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <h1 className="text-3xl font-bold mb-6">My Connection Requests</h1>
-          <div className="border rounded-md">
-            <div className="h-12 bg-muted/30 rounded-t-md skeleton"></div>
-            {Array(3).fill(0).map((_, index) => (
-              <div key={`skeleton-${index}`} className="border-t h-16 p-4 flex items-center">
-                <div className="grid grid-cols-5 gap-4 w-full">
-                  <div className="h-4 bg-muted skeleton"></div>
-                  <div className="h-4 bg-muted skeleton"></div>
-                  <div className="h-4 bg-muted skeleton"></div>
-                  <div className="h-4 w-20 bg-muted rounded-full skeleton"></div>
-                  <div className="h-4 bg-muted skeleton"></div>
-                </div>
+  const renderConnectionsSkeletons = () => {
+    return Array(3)
+      .fill(0)
+      .map((_, index) => (
+        <Card key={`skeleton-conn-${index}`} className="mb-4">
+          <CardHeader className="pb-2">
+            <div className="h-6 w-3/4 bg-muted rounded animate-pulse mb-2"></div>
+            <div className="flex gap-2">
+              <div className="h-5 w-20 bg-muted rounded animate-pulse"></div>
+              <div className="h-5 w-24 bg-muted rounded animate-pulse"></div>
+            </div>
+          </CardHeader>
+          <CardContent className="pb-0">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div>
+                <div className="h-4 w-20 bg-muted rounded animate-pulse mb-1"></div>
+                <div className="h-5 w-16 bg-muted rounded animate-pulse"></div>
               </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  }
+              <div>
+                <div className="h-4 w-20 bg-muted rounded animate-pulse mb-1"></div>
+                <div className="h-5 w-16 bg-muted rounded animate-pulse"></div>
+              </div>
+              <div className="col-span-2">
+                <div className="h-4 w-20 bg-muted rounded animate-pulse mb-1"></div>
+                <div className="h-5 w-24 bg-muted rounded animate-pulse"></div>
+              </div>
+            </div>
+          </CardContent>
+          <CardFooter className="flex justify-between pt-4">
+            <div className="h-5 w-32 bg-muted rounded animate-pulse"></div>
+            <div className="h-9 w-24 bg-muted rounded animate-pulse"></div>
+          </CardFooter>
+        </Card>
+      ));
+  };
+
+  const renderSavedSkeletons = () => {
+    return Array(3)
+      .fill(0)
+      .map((_, index) => (
+        <Card key={`skeleton-saved-${index}`} className="mb-4">
+          <CardHeader className="pb-2">
+            <div className="h-6 w-3/4 bg-muted rounded animate-pulse mb-2"></div>
+            <div className="flex gap-2">
+              <div className="h-5 w-20 bg-muted rounded animate-pulse"></div>
+              <div className="h-5 w-24 bg-muted rounded animate-pulse"></div>
+            </div>
+          </CardHeader>
+          <CardContent className="pb-0">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div>
+                <div className="h-4 w-20 bg-muted rounded animate-pulse mb-1"></div>
+                <div className="h-5 w-16 bg-muted rounded animate-pulse"></div>
+              </div>
+              <div>
+                <div className="h-4 w-20 bg-muted rounded animate-pulse mb-1"></div>
+                <div className="h-5 w-16 bg-muted rounded animate-pulse"></div>
+              </div>
+              <div className="col-span-2">
+                <div className="h-4 w-32 bg-muted rounded animate-pulse mb-1"></div>
+                <div className="h-5 w-24 bg-muted rounded animate-pulse"></div>
+              </div>
+            </div>
+          </CardContent>
+          <CardFooter className="pt-4">
+            <div className="h-9 w-32 bg-muted rounded animate-pulse"></div>
+          </CardFooter>
+        </Card>
+      ));
+  };
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <h1 className="text-3xl font-bold mb-6">My Connection Requests</h1>
-        
-        {requests.length === 0 ? (
-          <div className="bg-muted/30 border border-border rounded-lg p-8 text-center">
-            <h3 className="text-lg font-medium mb-2">No connection requests</h3>
-            <p className="text-muted-foreground mb-4">
-              You haven't requested connections to any listings yet
-            </p>
-            <Button asChild>
-              <Link to="/marketplace">Browse Marketplace</Link>
-            </Button>
-          </div>
-        ) : (
-          <div className="border rounded-md">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Listing</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Request Date</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {requests.map(request => {
-                  const listing = listings[request.listingId];
-                  return (
-                    <TableRow key={request.id}>
-                      <TableCell className="font-medium">
-                        {listing ? listing.title : "Unknown Listing"}
-                      </TableCell>
-                      <TableCell>
-                        {listing ? listing.category : "N/A"}
-                      </TableCell>
-                      <TableCell>
-                        {formatDate(request.createdAt)}
-                      </TableCell>
-                      <TableCell>
-                        {getStatusBadge(request.status)}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          asChild
-                        >
-                          <Link to={`/marketplace/${request.listingId}`}>
-                            <Eye className="mr-2 h-4 w-4" />
-                            View Listing
-                          </Link>
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-              <TableCaption>
-                A list of your connection requests to listings
-              </TableCaption>
-            </Table>
-          </div>
-        )}
-        
-        {requests.some(req => req.status === "approved") && (
-          <div className="mt-8 bg-green-50 border border-green-200 rounded-md p-4">
-            <h3 className="text-green-800 font-medium mb-2">
-              You have approved connection requests!
-            </h3>
-            <p className="text-green-700 text-sm">
-              Our team will be in touch with you shortly via email to coordinate the next steps.
-            </p>
-          </div>
-        )}
+    <div className="min-h-screen bg-background py-8">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold mb-2">My Requests</h1>
+          <p className="text-muted-foreground">
+            Manage your saved listings and connection requests
+          </p>
+        </div>
+
+        <Tabs defaultValue="connections" value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="mb-6">
+            <TabsTrigger value="connections">
+              Connection Requests
+              {connections.length > 0 && (
+                <Badge variant="secondary" className="ml-2">
+                  {connections.length}
+                </Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="saved">
+              Saved Listings
+              {savedListings.length > 0 && (
+                <Badge variant="secondary" className="ml-2">
+                  {savedListings.length}
+                </Badge>
+              )}
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="connections">
+            {isLoadingConnections ? (
+              renderConnectionsSkeletons()
+            ) : connections.length === 0 ? (
+              <div className="text-center py-12 bg-muted/30 border rounded-lg">
+                <Bookmark className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                <h3 className="text-lg font-medium mb-2">No connection requests</h3>
+                <p className="text-muted-foreground mb-4 max-w-md mx-auto">
+                  When you request to connect with a business owner, your requests
+                  will appear here.
+                </p>
+                <Button asChild>
+                  <Link to="/marketplace">Browse Marketplace</Link>
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {connections.map((connection) => (
+                  <Card key={connection.id}>
+                    <CardHeader className="pb-2">
+                      <Link to={`/marketplace/${connection.listing.id}`}>
+                        <CardTitle className="text-lg hover:text-primary transition-colors">
+                          {connection.listing.title}
+                        </CardTitle>
+                      </Link>
+                      <div className="flex flex-wrap gap-2 mt-1">
+                        <Badge variant="outline" className="bg-background font-normal">
+                          <Building2 className="h-3 w-3 mr-1" />
+                          {connection.listing.category}
+                        </Badge>
+                        <Badge variant="outline" className="bg-background font-normal">
+                          <MapPin className="h-3 w-3 mr-1" />
+                          {connection.listing.location}
+                        </Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="pb-0">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                        <div>
+                          <p className="text-xs text-muted-foreground">Annual Revenue</p>
+                          <p className="font-medium">
+                            {formatCurrency(connection.listing.revenue)}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Annual EBITDA</p>
+                          <p className="font-medium">
+                            {formatCurrency(connection.listing.ebitda)}
+                          </p>
+                        </div>
+                        <div className="col-span-2">
+                          <p className="text-xs text-muted-foreground">Requested</p>
+                          <p className="font-medium">
+                            {formatDistanceToNow(new Date(connection.requestedAt), {
+                              addSuffix: true,
+                            })}
+                          </p>
+                        </div>
+                      </div>
+                    </CardContent>
+                    <CardFooter className="flex justify-between pt-4">
+                      <div className="flex items-center">
+                        <p className="text-sm mr-2">Status:</p>
+                        {getStatusBadge(connection.status)}
+                      </div>
+                      <Button variant="outline" size="sm" asChild>
+                        <Link to={`/marketplace/${connection.listing.id}`}>
+                          <ExternalLink className="h-4 w-4 mr-2" />
+                          View Details
+                        </Link>
+                      </Button>
+                    </CardFooter>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="saved">
+            {isLoadingSaved ? (
+              renderSavedSkeletons()
+            ) : savedListings.length === 0 ? (
+              <div className="text-center py-12 bg-muted/30 border rounded-lg">
+                <Bookmark className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                <h3 className="text-lg font-medium mb-2">No saved listings</h3>
+                <p className="text-muted-foreground mb-4 max-w-md mx-auto">
+                  When you save a listing, it will appear here for easy access later.
+                </p>
+                <Button asChild>
+                  <Link to="/marketplace">Browse Marketplace</Link>
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {savedListings.map((saved) => (
+                  <Card key={saved.id}>
+                    <CardHeader className="pb-2">
+                      <Link to={`/marketplace/${saved.listing.id}`}>
+                        <CardTitle className="text-lg hover:text-primary transition-colors">
+                          {saved.listing.title}
+                        </CardTitle>
+                      </Link>
+                      <div className="flex flex-wrap gap-2 mt-1">
+                        <Badge variant="outline" className="bg-background font-normal">
+                          <Building2 className="h-3 w-3 mr-1" />
+                          {saved.listing.category}
+                        </Badge>
+                        <Badge variant="outline" className="bg-background font-normal">
+                          <MapPin className="h-3 w-3 mr-1" />
+                          {saved.listing.location}
+                        </Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="pb-0">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                        <div>
+                          <p className="text-xs text-muted-foreground">Annual Revenue</p>
+                          <p className="font-medium">
+                            {formatCurrency(saved.listing.revenue)}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Annual EBITDA</p>
+                          <p className="font-medium">
+                            {formatCurrency(saved.listing.ebitda)}
+                          </p>
+                        </div>
+                        <div className="col-span-2">
+                          <p className="text-xs text-muted-foreground">Saved</p>
+                          <p className="font-medium">
+                            {formatDistanceToNow(new Date(saved.savedAt), {
+                              addSuffix: true,
+                            })}
+                          </p>
+                        </div>
+                      </div>
+                    </CardContent>
+                    <CardFooter className="pt-4">
+                      <Button variant="outline" size="sm" asChild>
+                        <Link to={`/marketplace/${saved.listing.id}`}>
+                          <ExternalLink className="h-4 w-4 mr-2" />
+                          View Details
+                        </Link>
+                      </Button>
+                    </CardFooter>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );

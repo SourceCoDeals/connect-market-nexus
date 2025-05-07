@@ -1,144 +1,145 @@
 
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState } from "react";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useState } from "react";
+import { Card, CardContent, CardFooter } from "@/components/ui/card";
+import { useMarketplace } from "@/hooks/use-marketplace";
+import { Bookmark, Building2, MapPin } from "lucide-react";
 import { Listing } from "@/types";
-import { Link } from "react-router-dom";
-import { cn } from "@/lib/utils";
 
 interface ListingCardProps {
   listing: Listing;
-  viewType?: "grid" | "list";
-  onRequestConnection: (listingId: string) => void;
-  alreadyRequested?: boolean;
+  viewType: "grid" | "list";
 }
 
-const formatCurrency = (value: number): string => {
-  if (value >= 1000000) {
-    return `$${(value / 1000000).toFixed(1)}M`;
-  } else if (value >= 1000) {
-    return `$${(value / 1000).toFixed(0)}K`;
-  }
-  return `$${value}`;
-};
+const ListingCard = ({ listing, viewType }: ListingCardProps) => {
+  const { useRequestConnection, useConnectionStatus, useSaveListingMutation, useSavedStatus } = useMarketplace();
+  const { mutate: requestConnection, isPending: isRequesting } = useRequestConnection();
+  const { data: connectionStatus } = useConnectionStatus(listing.id);
+  const { mutate: toggleSave, isPending: isSaving } = useSaveListingMutation();
+  const { data: isSaved } = useSavedStatus(listing.id);
 
-const ListingCard: React.FC<ListingCardProps> = ({
-  listing,
-  viewType = "grid",
-  onRequestConnection,
-  alreadyRequested = false,
-}) => {
-  const [isRequesting, setIsRequesting] = useState(false);
-
-  const handleRequestConnection = () => {
-    setIsRequesting(true);
-    setTimeout(() => {
-      onRequestConnection(listing.id);
-      setIsRequesting(false);
-    }, 1000);
+  const handleRequestConnection = (e: React.MouseEvent) => {
+    e.preventDefault();
+    requestConnection(listing.id);
   };
 
-  if (viewType === "list") {
-    return (
-      <Card className="overflow-hidden transition-all hover:border-primary/50">
-        <div className="flex flex-col md:flex-row">
-          <div className="flex-1 p-6">
-            <div className="flex justify-between items-start">
-              <div>
-                <CardTitle className="mb-2 line-clamp-1">
-                  <Link to={`/marketplace/${listing.id}`} className="hover:text-primary transition-colors">
-                    {listing.title}
-                  </Link>
-                </CardTitle>
-                <div className="flex flex-wrap gap-2 mb-2">
-                  <Badge variant="outline" className="bg-muted">
-                    {listing.category}
-                  </Badge>
-                  <Badge variant="outline" className="bg-muted">
-                    {listing.location}
-                  </Badge>
-                </div>
-              </div>
-              <div className="flex flex-col items-end space-y-1">
-                <div className="bg-muted/50 px-2 py-1 rounded text-sm">
-                  Revenue: <span className="font-medium">{formatCurrency(listing.revenue)}</span>
-                </div>
-                <div className="bg-muted/50 px-2 py-1 rounded text-sm">
-                  EBITDA: <span className="font-medium">{formatCurrency(listing.ebitda)}</span>
-                </div>
-              </div>
-            </div>
-            <p className="text-sm text-muted-foreground mt-2 line-clamp-2">
-              {listing.description}
-            </p>
-          </div>
-          <div className="p-4 md:p-6 flex items-end justify-center md:border-l border-border bg-muted/20">
-            <Button
-              onClick={handleRequestConnection}
-              disabled={isRequesting || alreadyRequested}
-              className="min-w-[180px]"
-            >
-              {isRequesting
-                ? "Sending request..."
-                : alreadyRequested
-                ? "Connection Requested"
-                : "Request Connection"}
-            </Button>
-          </div>
-        </div>
-      </Card>
-    );
-  }
+  const handleToggleSave = (e: React.MouseEvent) => {
+    e.preventDefault();
+    toggleSave({
+      listingId: listing.id,
+      action: isSaved ? "unsave" : "save",
+    });
+  };
+
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(value);
+  };
 
   return (
-    <Card className={cn(
-      "overflow-hidden h-full flex flex-col transition-all hover:border-primary/50",
-    )}>
-      <CardHeader className="pb-2">
-        <div className="flex flex-wrap gap-2 mb-2">
-          <Badge variant="outline" className="bg-muted/50">
-            {listing.category}
-          </Badge>
-          <Badge variant="outline" className="bg-muted/50">
-            {listing.location}
-          </Badge>
-        </div>
-        <CardTitle className="line-clamp-1">
-          <Link to={`/marketplace/${listing.id}`} className="hover:text-primary transition-colors">
-            {listing.title}
-          </Link>
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="flex-1">
-        <div className="grid grid-cols-2 gap-2 mb-4">
-          <div className="bg-muted/30 p-2 rounded">
-            <div className="text-xs text-muted-foreground">Revenue</div>
-            <div className="font-medium">{formatCurrency(listing.revenue)}</div>
-          </div>
-          <div className="bg-muted/30 p-2 rounded">
-            <div className="text-xs text-muted-foreground">EBITDA</div>
-            <div className="font-medium">{formatCurrency(listing.ebitda)}</div>
-          </div>
-        </div>
-        <p className="text-sm text-muted-foreground line-clamp-3">
-          {listing.description}
-        </p>
-      </CardContent>
-      <CardFooter className="pt-2">
-        <Button
-          onClick={handleRequestConnection}
-          disabled={isRequesting || alreadyRequested}
-          className="w-full"
+    <Link to={`/marketplace/${listing.id}`}>
+      <Card
+        className={`h-full overflow-hidden transition-all hover:shadow-md ${
+          viewType === "list" ? "flex" : ""
+        }`}
+      >
+        <div
+          className={`flex flex-col ${
+            viewType === "list" ? "flex-row w-full" : ""
+          }`}
         >
-          {isRequesting
-            ? "Sending request..."
-            : alreadyRequested
-            ? "Connection Requested"
-            : "Request Connection"}
-        </Button>
-      </CardFooter>
-    </Card>
+          <CardContent
+            className={`p-6 flex-1 ${viewType === "list" ? "w-2/3" : ""}`}
+          >
+            <div className="flex flex-wrap gap-2 mb-2">
+              <Badge variant="outline" className="bg-background font-normal">
+                <Building2 className="h-3 w-3 mr-1" />
+                {listing.category}
+              </Badge>
+              <Badge variant="outline" className="bg-background font-normal">
+                <MapPin className="h-3 w-3 mr-1" />
+                {listing.location}
+              </Badge>
+            </div>
+
+            <h3 className="text-lg font-semibold line-clamp-2 mb-4">
+              {listing.title}
+            </h3>
+
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              <div>
+                <p className="text-xs text-muted-foreground">Annual Revenue</p>
+                <p className="font-semibold">{formatCurrency(listing.revenue)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Annual EBITDA</p>
+                <p className="font-semibold">{formatCurrency(listing.ebitda)}</p>
+              </div>
+            </div>
+
+            <p className="text-sm text-muted-foreground line-clamp-3">
+              {listing.description}
+            </p>
+          </CardContent>
+
+          <CardFooter
+            className={`p-4 pt-0 border-t mt-auto ${
+              viewType === "list" ? "w-1/3 border-l border-t-0 p-6" : ""
+            }`}
+          >
+            <div
+              className={`flex ${
+                viewType === "list" ? "flex-col gap-3 w-full" : "w-full"
+              }`}
+            >
+              <Button
+                className={`${viewType === "list" ? "w-full" : "flex-1"}`}
+                disabled={
+                  isRequesting ||
+                  connectionStatus?.exists ||
+                  connectionStatus?.status === "approved" ||
+                  connectionStatus?.status === "rejected"
+                }
+                onClick={handleRequestConnection}
+              >
+                {connectionStatus?.exists
+                  ? connectionStatus?.status === "pending"
+                    ? "Requested"
+                    : connectionStatus?.status === "approved"
+                    ? "Connected"
+                    : "Rejected"
+                  : isRequesting
+                  ? "Requesting..."
+                  : "Request Connection"}
+              </Button>
+
+              <Button
+                variant="outline"
+                size="icon"
+                className="ml-2"
+                onClick={handleToggleSave}
+                disabled={isSaving}
+              >
+                <Bookmark
+                  className={`h-5 w-5 ${
+                    isSaved ? "fill-current text-primary" : ""
+                  }`}
+                />
+                <span className="sr-only">
+                  {isSaved ? "Unsave" : "Save"} listing
+                </span>
+              </Button>
+            </div>
+          </CardFooter>
+        </div>
+      </Card>
+    </Link>
   );
 };
 

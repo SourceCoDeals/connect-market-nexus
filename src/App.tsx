@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -25,6 +26,9 @@ import NotFound from "@/pages/NotFound";
 
 // Admin pages
 import AdminDashboard from "@/pages/admin/AdminDashboard";
+import AdminUsers from "@/pages/admin/AdminUsers";
+import AdminListings from "@/pages/admin/AdminListings";
+import AdminRequests from "@/pages/admin/AdminRequests";
 
 // Protection components
 import ProtectedRoute from "@/components/ProtectedRoute";
@@ -74,7 +78,9 @@ const App = () => (
             }>
               <Route index element={<Navigate to="/admin/dashboard" replace />} />
               <Route path="dashboard" element={<AdminDashboard />} />
-              {/* Other admin routes would go here */}
+              <Route path="users" element={<AdminUsers />} />
+              <Route path="listings" element={<AdminListings />} />
+              <Route path="requests" element={<AdminRequests />} />
               <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
             </Route>
             
