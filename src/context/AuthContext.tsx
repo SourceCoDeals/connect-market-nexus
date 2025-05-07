@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { User, UserRole } from "@/types";
 import { toast } from "@/hooks/use-toast";
@@ -71,16 +70,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const userData: User = {
               id: profileData.id,
               email: profileData.email,
-              firstName: profileData.first_name,
-              lastName: profileData.last_name,
+              first_name: profileData.first_name,
+              last_name: profileData.last_name,
               company: profileData.company || '',
               website: profileData.website || '',
-              phone: profileData.phone_number || '',
+              phone_number: profileData.phone_number || '',
               role: profileData.is_admin ? 'admin' : 'buyer',
-              isEmailVerified: profileData.email_verified,
-              isApproved: profileData.approval_status === 'approved',
-              buyerType: profileData.buyer_type as any || 'corporate',
-              createdAt: profileData.created_at,
+              email_verified: profileData.email_verified,
+              approval_status: profileData.approval_status,
+              is_admin: profileData.is_admin,
+              buyer_type: profileData.buyer_type as any || 'corporate',
+              created_at: profileData.created_at,
+              updated_at: profileData.updated_at,
             };
             
             setUser(userData);
@@ -121,16 +122,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const userData: User = {
               id: profile.id,
               email: profile.email,
-              firstName: profile.first_name,
-              lastName: profile.last_name,
+              first_name: profile.first_name,
+              last_name: profile.last_name,
               company: profile.company || '',
               website: profile.website || '',
-              phone: profile.phone_number || '',
+              phone_number: profile.phone_number || '',
               role: profile.is_admin ? 'admin' : 'buyer',
-              isEmailVerified: profile.email_verified,
-              isApproved: profile.approval_status === 'approved',
-              buyerType: profile.buyer_type as any || 'corporate',
-              createdAt: profile.created_at,
+              email_verified: profile.email_verified,
+              approval_status: profile.approval_status,
+              is_admin: profile.is_admin,
+              buyer_type: profile.buyer_type as any || 'corporate',
+              created_at: profile.created_at,
+              updated_at: profile.updated_at,
             };
             
             setUser(userData);
@@ -214,16 +217,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const userData: User = {
           id: profile.id,
           email: profile.email,
-          firstName: profile.first_name,
-          lastName: profile.last_name,
+          first_name: profile.first_name,
+          last_name: profile.last_name,
           company: profile.company || '',
           website: profile.website || '',
-          phone: profile.phone_number || '',
+          phone_number: profile.phone_number || '',
           role: profile.is_admin ? 'admin' : 'buyer',
-          isEmailVerified: profile.email_verified,
-          isApproved: profile.approval_status === 'approved',
-          buyerType: profile.buyer_type as any || 'corporate',
-          createdAt: profile.created_at,
+          email_verified: profile.email_verified,
+          approval_status: profile.approval_status,
+          is_admin: profile.is_admin,
+          buyer_type: profile.buyer_type as any || 'corporate',
+          created_at: profile.created_at,
+          updated_at: profile.updated_at,
         };
         
         setUser(userData);
@@ -306,12 +311,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         password: password,
         options: {
           data: {
-            first_name: userData.firstName || '',
-            last_name: userData.lastName || '',
+            first_name: userData.first_name || '',
+            last_name: userData.last_name || '',
             company: userData.company || '',
             website: userData.website || '',
-            phone: userData.phone || '',
-            buyer_type: userData.buyerType || 'corporate',
+            phone_number: userData.phone_number || '',
+            buyer_type: userData.buyer_type || 'corporate',
           },
         },
       });
@@ -349,11 +354,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { error } = await supabase
         .from('profiles')
         .update({
-          first_name: data.firstName,
-          last_name: data.lastName,
+          first_name: data.first_name,
+          last_name: data.last_name,
           company: data.company,
           website: data.website,
-          phone_number: data.phone,
+          phone_number: data.phone_number,
           updated_at: new Date().toISOString(),
         })
         .eq('id', user.id);

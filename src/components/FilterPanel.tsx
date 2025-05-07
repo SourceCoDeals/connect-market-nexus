@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,17 +21,21 @@ interface FilterPanelProps {
   onFilterChange: (filters: FilterOptions) => void;
   totalListings: number;
   filteredCount: number;
+  categories?: string[];
+  locations?: string[];
 }
 
 const FilterPanel = ({
   onFilterChange,
   totalListings,
   filteredCount,
+  categories,
+  locations,
 }: FilterPanelProps) => {
   const { useListingMetadata } = useMarketplace();
   const { data: metadata } = useListingMetadata();
-  const categories = metadata?.categories || [];
-  const locations = metadata?.locations || [];
+  const categoriesList = categories || metadata?.categories || [];
+  const locationsList = locations || metadata?.locations || [];
   
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
@@ -145,7 +148,7 @@ const FilterPanel = ({
           )}
         </div>
         <div className="space-y-2">
-          {categories.map((category) => (
+          {categoriesList.map((category) => (
             <div key={category} className="flex items-center space-x-2">
               <Checkbox
                 id={`category-${category}`}
@@ -181,7 +184,7 @@ const FilterPanel = ({
           )}
         </div>
         <div className="space-y-2 max-h-40 overflow-y-auto pr-2">
-          {locations.map((location) => (
+          {locationsList.map((location) => (
             <div key={location} className="flex items-center space-x-2">
               <Checkbox
                 id={`location-${location}`}

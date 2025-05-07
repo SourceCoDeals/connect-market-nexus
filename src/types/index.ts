@@ -32,6 +32,17 @@ export interface User {
   funding_source?: string;
   needs_loan?: string;
   ideal_target?: string;
+  
+  // Computed properties (aliases for snake_case properties)
+  get firstName(): string { return this.first_name; }
+  get lastName(): string { return this.last_name; }
+  get phoneNumber(): string { return this.phone_number; }
+  get isAdmin(): boolean { return this.is_admin; }
+  get buyerType(): BuyerType { return this.buyer_type; }
+  get emailVerified(): boolean { return this.email_verified; }
+  get isApproved(): boolean { return this.approval_status === 'approved'; }
+  get createdAt(): string { return this.created_at; }
+  get updatedAt(): string { return this.updated_at; }
 }
 
 export interface Listing {
@@ -47,6 +58,11 @@ export interface Listing {
   files?: string[];
   created_at: string;
   updated_at: string;
+  
+  // Computed properties (aliases for snake_case properties)
+  get ownerNotes(): string { return this.owner_notes; }
+  get createdAt(): string { return this.created_at; }
+  get updatedAt(): string { return this.updated_at; }
 }
 
 export interface ConnectionRequest {

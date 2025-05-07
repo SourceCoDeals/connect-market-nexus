@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useMarketplace } from "@/hooks/use-marketplace";
 import { FilterOptions } from "@/types";
@@ -63,8 +62,6 @@ const Marketplace = () => {
                 onFilterChange={handleFilterChange}
                 totalListings={listings.length}
                 filteredCount={listings.length}
-                categories={[]}
-                locations={[]}
               />
             </div>
             

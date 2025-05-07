@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useAdmin } from "@/hooks/use-admin";
 import { Button } from "@/components/ui/button";
@@ -60,7 +59,7 @@ const AdminRequests = () => {
     if (selectedRequest && actionType) {
       updateRequest({
         id: selectedRequest.id,
-        status: actionType,
+        status: actionType === "approve" ? "approved" : "rejected",
         comment: adminComment,
       });
     }

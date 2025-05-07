@@ -85,7 +85,7 @@ const AdminNavbar: React.FC<AdminNavbarProps> = ({ className }) => {
         <div className="pt-4 border-t border-border">
           {user && (
             <div className="mb-4">
-              <p className="text-sm font-medium truncate">{user.firstName} {user.lastName}</p>
+              <p className="text-sm font-medium truncate">{user.first_name} {user.last_name}</p>
               <p className="text-xs text-muted-foreground truncate">{user.email}</p>
             </div>
           )}

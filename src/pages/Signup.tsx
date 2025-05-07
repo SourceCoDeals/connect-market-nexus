@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
@@ -171,21 +170,19 @@ const Signup = () => {
     if (!validateStep()) return;
     
     // Prepare user data for signup
-    const userData: Partial<User> = {
-      email: formData.email,
-      firstName: formData.firstName,
-      lastName: formData.lastName,
-      company: formData.company,
-      website: formData.website,
-      phone: formData.phone,
-      role: "buyer",
-      isEmailVerified: false,
-      isApproved: false,
-      buyerType: formData.buyerType as BuyerType,
-      additionalInfo: formData.additionalInfo,
+    const { firstName, lastName, email, company, website, phone, buyerType, additionalInfo } = formData;
+    const signupData: Partial<User> = {
+      first_name: firstName,
+      last_name: lastName,
+      email: email,
+      company: company,
+      website: website,
+      phone_number: phone,
+      buyer_type: buyerType as BuyerType,
+      // Add any other required fields...
     };
     
-    await signup(userData, formData.password);
+    await signup(signupData, formData.password);
   };
 
   const renderStepContent = () => {

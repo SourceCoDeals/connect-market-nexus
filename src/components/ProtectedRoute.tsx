@@ -32,7 +32,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     return <Navigate to="/unauthorized" replace />;
   }
 
-  if (requireApproved && !user.isApproved && !isAdmin) {
+  if (requireApproved && user.approval_status !== 'approved' && !isAdmin) {
     return <Navigate to="/pending-approval" replace />;
   }
 

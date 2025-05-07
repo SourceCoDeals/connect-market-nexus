@@ -48,7 +48,7 @@ const Navbar = () => {
                 <DropdownMenuLabel>
                   <div className="flex flex-col space-y-1">
                     <p className="text-sm font-medium leading-none">
-                      {user.firstName} {user.lastName}
+                      {user.first_name} {user.last_name}
                     </p>
                     <p className="text-xs leading-none text-muted-foreground">
                       {user.email}
@@ -139,7 +139,7 @@ const Navbar = () => {
                     </div>
                     <div>
                       <p className="text-sm font-medium">
-                        {user.firstName} {user.lastName}
+                        {user.first_name} {user.last_name}
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {user.email}
