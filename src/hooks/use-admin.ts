@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { User } from '@/types';
 import { AdminListing, AdminConnectionRequest, AdminStats } from '@/types/admin';
+import { ApprovalStatus } from "@/types";
 
 export function useAdmin() {
   const queryClient = useQueryClient();
