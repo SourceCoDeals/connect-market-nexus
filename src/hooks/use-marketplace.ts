@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { toast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -15,39 +14,56 @@ export function useMarketplace() {
       queryKey: ["listings", filters],
       queryFn: async () => {
         try {
+          console.log("Fetching listings with filters:", filters);
           let query = supabase.from("listings").select("*");
           
           // Apply filters
           if (filters) {
-            if (filters.category) {
-              const categories = filters.category.split(",");
-              query = query.in("category", categories);
+            if (filters.category && filters.category !== "") {
+              console.log("Filtering by category:", filters.category);
+              if (filters.category.includes(",")) {
+                const categories = filters.category.split(",");
+                query = query.in("category", categories);
+              } else {
+                query = query.eq("category", filters.category);
+              }
             }
             
-            if (filters.location) {
-              const locations = filters.location.split(",");
-              query = query.in("location", locations);
+            if (filters.location && filters.location !== "") {
+              console.log("Filtering by location:", filters.location);
+              if (filters.location.includes(",")) {
+                const locations = filters.location.split(",");
+                query = query.in("location", locations);
+              } else {
+                query = query.eq("location", filters.location);
+              }
             }
             
             if (filters.revenueMin !== undefined) {
+              console.log("Filtering by min revenue:", filters.revenueMin);
               query = query.gte("revenue", filters.revenueMin);
             }
             
             if (filters.revenueMax !== undefined) {
+              console.log("Filtering by max revenue:", filters.revenueMax);
               query = query.lte("revenue", filters.revenueMax);
             }
             
             if (filters.ebitdaMin !== undefined) {
+              console.log("Filtering by min ebitda:", filters.ebitdaMin);
               query = query.gte("ebitda", filters.ebitdaMin);
             }
             
             if (filters.ebitdaMax !== undefined) {
+              console.log("Filtering by max ebitda:", filters.ebitdaMax);
               query = query.lte("ebitda", filters.ebitdaMax);
             }
             
-            if (filters.search) {
+            if (filters.search && filters.search.trim() !== "") {
+              const searchTerm = filters.search.trim();
+              console.log("Filtering by search term:", searchTerm);
               query = query.or(
-                `title.ilike.%${filters.search}%,description.ilike.%${filters.search}%,category.ilike.%${filters.search}%,location.ilike.%${filters.search}%`
+                `title.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%,category.ilike.%${searchTerm}%,location.ilike.%${searchTerm}%`
               );
             }
           }
@@ -55,21 +71,29 @@ export function useMarketplace() {
           // Order by newest first
           query = query.order("created_at", { ascending: false });
           
+          console.log("Executing Supabase query for listings");
           const { data, error } = await query;
           
-          if (error) throw error;
+          if (error) {
+            console.error("Supabase listings query error:", error);
+            throw error;
+          }
+          
+          console.log(`Received ${data?.length || 0} listings from Supabase`);
           
           // Convert raw data to Listing objects with computed properties
-          return data.map(item => createListingFromData(item));
+          return data ? data.map(item => createListingFromData(item)) : [];
         } catch (error: any) {
+          console.error("Error in useListings hook:", error);
           toast({
             variant: "destructive",
             title: "Error loading listings",
-            description: error.message,
+            description: error.message || "Failed to load marketplace listings",
           });
-          return [];
+          throw error;
         }
       },
+      refetchOnWindowFocus: false,
     });
   };
   
@@ -369,26 +393,35 @@ export function useMarketplace() {
       queryKey: ["listing-metadata"],
       queryFn: async () => {
         try {
+          console.log("Fetching listing metadata");
           const { data: categoryData, error: categoryError } = await supabase
             .from("listings")
             .select("category");
           
-          if (categoryError) throw categoryError;
+          if (categoryError) {
+            console.error("Error fetching categories:", categoryError);
+            throw categoryError;
+          }
           
           const { data: locationData, error: locationError } = await supabase
             .from("listings")
             .select("location");
           
-          if (locationError) throw locationError;
+          if (locationError) {
+            console.error("Error fetching locations:", locationError);
+            throw locationError;
+          }
           
           // Extract unique categories and locations
           const categories = [
-            ...new Set(categoryData.map((item) => item.category)),
-          ].sort();
-          const locations = [
-            ...new Set(locationData.map((item) => item.location)),
+            ...new Set(categoryData.map((item) => item.category).filter(Boolean)),
           ].sort();
           
+          const locations = [
+            ...new Set(locationData.map((item) => item.location).filter(Boolean)),
+          ].sort();
+          
+          console.log("Metadata retrieved:", { categories, locations });
           return { categories, locations };
         } catch (error: any) {
           console.error("Error fetching listing metadata:", error);

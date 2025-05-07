@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMarketplace } from "@/hooks/use-marketplace";
 import { FilterOptions } from "@/types";
 import ListingCard from "@/components/ListingCard";
@@ -7,16 +7,30 @@ import FilterPanel from "@/components/FilterPanel";
 import { Button } from "@/components/ui/button";
 import { LayoutGrid, LayoutList } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { toast } from "@/hooks/use-toast";
 
 const Marketplace = () => {
   const [filters, setFilters] = useState<FilterOptions>({});
   const [viewType, setViewType] = useState<"grid" | "list">("grid");
   
   const { useListings, useListingMetadata } = useMarketplace();
-  const { data: listings = [], isLoading } = useListings(filters);
-  const { data: metadata } = useListingMetadata();
+  const { data: listings = [], isLoading, error } = useListings(filters);
+  const { data: metadata, isLoading: isMetadataLoading } = useListingMetadata();
   
+  // Error handling
+  useEffect(() => {
+    if (error) {
+      console.error("Error loading marketplace listings:", error);
+      toast({
+        variant: "destructive",
+        title: "Error loading listings",
+        description: "There was a problem loading the marketplace listings. Please try again later.",
+      });
+    }
+  }, [error]);
+
   const handleFilterChange = (newFilters: FilterOptions) => {
+    console.log("Applying filters:", newFilters);
     setFilters(newFilters);
   };
 
@@ -64,8 +78,8 @@ const Marketplace = () => {
                 onFilterChange={handleFilterChange}
                 totalListings={listings.length}
                 filteredCount={listings.length}
-                categories={metadata?.categories}
-                locations={metadata?.locations}
+                categories={metadata?.categories || []}
+                locations={metadata?.locations || []}
               />
             </div>
             
@@ -74,11 +88,11 @@ const Marketplace = () => {
               {/* View type and sorting */}
               <div className="flex justify-between items-center">
                 <div className="text-sm text-muted-foreground">
-                  {listings.length} listings found
+                  {isLoading ? "Loading listings..." : `${listings.length} listings found`}
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-sm">View:</span>
-                  <Tabs defaultValue="grid" onValueChange={(v) => setViewType(v as "grid" | "list")}>
+                  <Tabs value={viewType} onValueChange={(v) => setViewType(v as "grid" | "list")}>
                     <TabsList>
                       <TabsTrigger value="grid">
                         <LayoutGrid className="h-4 w-4" />
@@ -93,24 +107,30 @@ const Marketplace = () => {
               
               {/* Listings grid/list */}
               {isLoading ? (
-                <div className={viewType === "grid" ? "marketplace-grid" : "marketplace-list"}>
+                <div className={viewType === "grid" ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4" : "flex flex-col gap-4"}>
                   {renderSkeletons()}
                 </div>
               ) : listings.length === 0 ? (
                 <div className="bg-muted/30 border border-border rounded-lg p-8 text-center">
                   <h3 className="text-lg font-medium mb-2">No listings found</h3>
                   <p className="text-muted-foreground mb-4">
-                    Try adjusting your filters to see more results
+                    {Object.keys(filters).length > 0 
+                      ? "Try adjusting your filters to see more results" 
+                      : "There are currently no listings available"}
                   </p>
-                  <Button
-                    variant="outline"
-                    onClick={() => handleFilterChange({})}
-                  >
-                    Clear all filters
-                  </Button>
+                  {Object.keys(filters).length > 0 && (
+                    <Button
+                      variant="outline"
+                      onClick={() => handleFilterChange({})}
+                    >
+                      Clear all filters
+                    </Button>
+                  )}
                 </div>
               ) : (
-                <div className={viewType === "grid" ? "marketplace-grid" : "marketplace-list"}>
+                <div className={viewType === "grid" 
+                  ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4" 
+                  : "flex flex-col gap-4"}>
                   {listings.map((listing) => (
                     <ListingCard
                       key={listing.id}
