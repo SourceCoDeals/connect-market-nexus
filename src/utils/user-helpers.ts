@@ -47,10 +47,12 @@ export const createListingFromData = (data: any): Listing => {
         }).format(this.ebitda);
       },
       get createdAt() {
-        return new Date(this.created_at);
+        // Return the ISO string rather than a Date object
+        return this.created_at;
       },
       get updatedAt() {
-        return new Date(this.updated_at);
+        // Return the ISO string rather than a Date object
+        return this.updated_at;
       }
     };
     
