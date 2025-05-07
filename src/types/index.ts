@@ -63,6 +63,12 @@ export interface Listing {
   readonly ownerNotes: string;
   readonly createdAt: string;
   readonly updatedAt: string;
+  readonly multiples?: {
+    revenue: string;
+    value: string;
+  };
+  readonly revenueFormatted?: string;
+  readonly ebitdaFormatted?: string;
 }
 
 export interface ConnectionRequest {

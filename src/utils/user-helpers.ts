@@ -25,6 +25,9 @@ export const createListingFromData = (data: any): Listing => {
       updated_at: data.updated_at || new Date().toISOString(),
       
       // Computed properties
+      get ownerNotes() {
+        return this.owner_notes || "";
+      },
       get multiples() {
         const multiple = this.ebitda !== 0 ? (this.revenue / this.ebitda) : 0;
         return {
