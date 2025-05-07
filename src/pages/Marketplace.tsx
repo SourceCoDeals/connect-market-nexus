@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { LayoutGrid, LayoutList } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/hooks/use-toast";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const Marketplace = () => {
   const [filters, setFilters] = useState<FilterOptions>({});
@@ -109,6 +110,19 @@ const Marketplace = () => {
               {isLoading ? (
                 <div className={viewType === "grid" ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4" : "flex flex-col gap-4"}>
                   {renderSkeletons()}
+                </div>
+              ) : error ? (
+                <div className="bg-muted/30 border border-border rounded-lg p-8 text-center">
+                  <h3 className="text-lg font-medium mb-2">Failed to load listings</h3>
+                  <p className="text-muted-foreground mb-4">
+                    There was a problem loading the marketplace listings. Please try again later.
+                  </p>
+                  <Button
+                    variant="outline"
+                    onClick={() => window.location.reload()}
+                  >
+                    Retry
+                  </Button>
                 </div>
               ) : listings.length === 0 ? (
                 <div className="bg-muted/30 border border-border rounded-lg p-8 text-center">

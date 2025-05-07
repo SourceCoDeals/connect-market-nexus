@@ -81,19 +81,27 @@ export function useMarketplace() {
           
           console.log(`Received ${data?.length || 0} listings from Supabase`);
           
+          if (!data || data.length === 0) {
+            return [];
+          }
+          
           // Convert raw data to Listing objects with computed properties
-          return data ? data.map(item => createListingFromData(item)) : [];
+          return data.map(item => {
+            try {
+              return createListingFromData(item);
+            } catch (err) {
+              console.error("Error creating listing from data:", err);
+              return null;
+            }
+          }).filter(Boolean) as Listing[];
         } catch (error: any) {
           console.error("Error in useListings hook:", error);
-          toast({
-            variant: "destructive",
-            title: "Error loading listings",
-            description: error.message || "Failed to load marketplace listings",
-          });
           throw error;
         }
       },
       refetchOnWindowFocus: false,
+      retry: 2,
+      staleTime: 1000 * 60 * 3, // 3 minutes
     });
   };
   
@@ -414,11 +422,17 @@ export function useMarketplace() {
           
           // Extract unique categories and locations
           const categories = [
-            ...new Set(categoryData.map((item) => item.category).filter(Boolean)),
+            ...new Set(categoryData
+              .filter(item => item && item.category) // Filter out null values
+              .map(item => item.category)
+            ),
           ].sort();
           
           const locations = [
-            ...new Set(locationData.map((item) => item.location).filter(Boolean)),
+            ...new Set(locationData
+              .filter(item => item && item.location) // Filter out null values
+              .map(item => item.location)
+            ),
           ].sort();
           
           console.log("Metadata retrieved:", { categories, locations });
@@ -428,6 +442,9 @@ export function useMarketplace() {
           return { categories: [], locations: [] };
         }
       },
+      refetchOnWindowFocus: false,
+      retry: 2,
+      staleTime: 1000 * 60 * 10, // 10 minutes
     });
   };
 

@@ -1,59 +1,62 @@
 
-import { User, UserRole, ApprovalStatus, BuyerType } from "@/types";
+import { Listing } from "@/types";
 
 /**
- * Creates a User object with computed properties from profile data
+ * Converts raw listing data from Supabase to a Listing object with computed properties
  */
-export function createUserFromProfile(profileData: any): User {
-  const approvalStatus = profileData.approval_status as ApprovalStatus;
-  return {
-    id: profileData.id,
-    email: profileData.email,
-    first_name: profileData.first_name,
-    last_name: profileData.last_name,
-    company: profileData.company || '',
-    website: profileData.website || '',
-    phone_number: profileData.phone_number || '',
-    role: profileData.is_admin ? 'admin' as UserRole : 'buyer' as UserRole,
-    email_verified: profileData.email_verified,
-    approval_status: approvalStatus,
-    is_admin: profileData.is_admin,
-    buyer_type: profileData.buyer_type as BuyerType || 'corporate',
-    created_at: profileData.created_at,
-    updated_at: profileData.updated_at,
-    company_name: profileData.company_name,
-    estimated_revenue: profileData.estimated_revenue,
-    fund_size: profileData.fund_size,
-    investment_size: profileData.investment_size,
-    aum: profileData.aum,
-    is_funded: profileData.is_funded,
-    funded_by: profileData.funded_by,
-    target_company_size: profileData.target_company_size,
-    funding_source: profileData.funding_source,
-    needs_loan: profileData.needs_loan,
-    ideal_target: profileData.ideal_target,
-    // Computed properties
-    get firstName() { return this.first_name; },
-    get lastName() { return this.last_name; },
-    get phoneNumber() { return this.phone_number; },
-    get isAdmin() { return this.is_admin; },
-    get buyerType() { return this.buyer_type; },
-    get emailVerified() { return this.email_verified; },
-    get isApproved() { return this.approval_status === 'approved'; },
-    get createdAt() { return this.created_at; },
-    get updatedAt() { return this.updated_at; }
-  };
-}
-
-/**
- * Creates a Listing object with computed properties from database data
- */
-export function createListingFromData(listingData: any) {
-  return {
-    ...listingData,
-    // Computed properties
-    get ownerNotes() { return this.owner_notes; },
-    get createdAt() { return this.created_at; },
-    get updatedAt() { return this.updated_at; }
-  };
-}
+export const createListingFromData = (data: any): Listing => {
+  if (!data) {
+    throw new Error("Cannot create listing from null data");
+  }
+  
+  try {
+    const listing: Listing = {
+      id: data.id,
+      title: data.title || "Untitled Listing",
+      description: data.description || "",
+      revenue: Number(data.revenue) || 0,
+      ebitda: Number(data.ebitda) || 0,
+      category: data.category || "Other",
+      location: data.location || "Not specified",
+      tags: Array.isArray(data.tags) ? data.tags : [],
+      owner_notes: data.owner_notes || "",
+      files: Array.isArray(data.files) ? data.files : [],
+      created_at: data.created_at || new Date().toISOString(),
+      updated_at: data.updated_at || new Date().toISOString(),
+      
+      // Computed properties
+      get multiples() {
+        const multiple = this.ebitda !== 0 ? (this.revenue / this.ebitda) : 0;
+        return {
+          revenue: multiple.toFixed(2),
+          value: multiple > 0 ? `${multiple.toFixed(2)}x` : "N/A"
+        };
+      },
+      get revenueFormatted() {
+        return new Intl.NumberFormat('en-US', {
+          style: 'currency',
+          currency: 'USD',
+          maximumFractionDigits: 0,
+        }).format(this.revenue);
+      },
+      get ebitdaFormatted() {
+        return new Intl.NumberFormat('en-US', {
+          style: 'currency',
+          currency: 'USD',
+          maximumFractionDigits: 0,
+        }).format(this.ebitda);
+      },
+      get createdAt() {
+        return new Date(this.created_at);
+      },
+      get updatedAt() {
+        return new Date(this.updated_at);
+      }
+    };
+    
+    return listing;
+  } catch (err) {
+    console.error("Error creating listing from data:", err, data);
+    throw err;
+  }
+};
