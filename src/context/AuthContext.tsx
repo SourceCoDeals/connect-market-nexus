@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { User, UserRole } from "@/types";
+import { User, UserRole, ApprovalStatus } from "@/types";
 import { toast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -75,13 +75,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               company: profileData.company || '',
               website: profileData.website || '',
               phone_number: profileData.phone_number || '',
-              role: profileData.is_admin ? 'admin' : 'buyer',
+              role: profileData.is_admin ? 'admin' as UserRole : 'buyer' as UserRole,
               email_verified: profileData.email_verified,
-              approval_status: profileData.approval_status,
+              approval_status: profileData.approval_status as ApprovalStatus,
               is_admin: profileData.is_admin,
               buyer_type: profileData.buyer_type as any || 'corporate',
               created_at: profileData.created_at,
               updated_at: profileData.updated_at,
+              // Computed properties
+              get firstName() { return this.first_name; },
+              get lastName() { return this.last_name; },
+              get phoneNumber() { return this.phone_number; },
+              get isAdmin() { return this.is_admin; },
+              get buyerType() { return this.buyer_type; },
+              get emailVerified() { return this.email_verified; },
+              get isApproved() { return this.approval_status === 'approved'; },
+              get createdAt() { return this.created_at; },
+              get updatedAt() { return this.updated_at; }
             };
             
             setUser(userData);
@@ -127,13 +137,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               company: profile.company || '',
               website: profile.website || '',
               phone_number: profile.phone_number || '',
-              role: profile.is_admin ? 'admin' : 'buyer',
+              role: profile.is_admin ? 'admin' as UserRole : 'buyer' as UserRole,
               email_verified: profile.email_verified,
-              approval_status: profile.approval_status,
+              approval_status: profile.approval_status as ApprovalStatus,
               is_admin: profile.is_admin,
               buyer_type: profile.buyer_type as any || 'corporate',
               created_at: profile.created_at,
               updated_at: profile.updated_at,
+              // Computed properties
+              get firstName() { return this.first_name; },
+              get lastName() { return this.last_name; },
+              get phoneNumber() { return this.phone_number; },
+              get isAdmin() { return this.is_admin; },
+              get buyerType() { return this.buyer_type; },
+              get emailVerified() { return this.email_verified; },
+              get isApproved() { return this.approval_status === 'approved'; },
+              get createdAt() { return this.created_at; },
+              get updatedAt() { return this.updated_at; }
             };
             
             setUser(userData);
@@ -193,7 +213,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return;
         }
         
-        if (profile.approval_status === 'pending') {
+        if (profile.approval_status === 'pending' as ApprovalStatus) {
           toast({
             variant: "destructive",
             title: "Account pending approval",
@@ -204,7 +224,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return;
         }
         
-        if (profile.approval_status === 'rejected') {
+        if (profile.approval_status === 'rejected' as ApprovalStatus) {
           toast({
             variant: "destructive",
             title: "Account rejected",
@@ -222,13 +242,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           company: profile.company || '',
           website: profile.website || '',
           phone_number: profile.phone_number || '',
-          role: profile.is_admin ? 'admin' : 'buyer',
+          role: profile.is_admin ? 'admin' as UserRole : 'buyer' as UserRole,
           email_verified: profile.email_verified,
-          approval_status: profile.approval_status,
+          approval_status: profile.approval_status as ApprovalStatus,
           is_admin: profile.is_admin,
           buyer_type: profile.buyer_type as any || 'corporate',
           created_at: profile.created_at,
           updated_at: profile.updated_at,
+          // Computed properties
+          get firstName() { return this.first_name; },
+          get lastName() { return this.last_name; },
+          get phoneNumber() { return this.phone_number; },
+          get isAdmin() { return this.is_admin; },
+          get buyerType() { return this.buyer_type; },
+          get emailVerified() { return this.email_verified; },
+          get isApproved() { return this.approval_status === 'approved'; },
+          get createdAt() { return this.created_at; },
+          get updatedAt() { return this.updated_at; }
         };
         
         setUser(userData);

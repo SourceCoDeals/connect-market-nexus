@@ -34,15 +34,15 @@ export interface User {
   ideal_target?: string;
   
   // Computed properties (aliases for snake_case properties)
-  get firstName(): string { return this.first_name; }
-  get lastName(): string { return this.last_name; }
-  get phoneNumber(): string { return this.phone_number; }
-  get isAdmin(): boolean { return this.is_admin; }
-  get buyerType(): BuyerType { return this.buyer_type; }
-  get emailVerified(): boolean { return this.email_verified; }
-  get isApproved(): boolean { return this.approval_status === 'approved'; }
-  get createdAt(): string { return this.created_at; }
-  get updatedAt(): string { return this.updated_at; }
+  readonly firstName: string;
+  readonly lastName: string;
+  readonly phoneNumber: string;
+  readonly isAdmin: boolean;
+  readonly buyerType: BuyerType;
+  readonly emailVerified: boolean;
+  readonly isApproved: boolean;
+  readonly createdAt: string;
+  readonly updatedAt: string;
 }
 
 export interface Listing {
@@ -60,9 +60,9 @@ export interface Listing {
   updated_at: string;
   
   // Computed properties (aliases for snake_case properties)
-  get ownerNotes(): string { return this.owner_notes; }
-  get createdAt(): string { return this.created_at; }
-  get updatedAt(): string { return this.updated_at; }
+  readonly ownerNotes: string;
+  readonly createdAt: string;
+  readonly updatedAt: string;
 }
 
 export interface ConnectionRequest {
