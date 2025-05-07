@@ -39,6 +39,15 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
     return `$${value}`;
   };
 
+  // Helper function to handle slider value changes - fixes the type mismatch
+  const handleSliderChange = (
+    setter: React.Dispatch<React.SetStateAction<[number, number]>>
+  ) => {
+    return (value: number[]) => {
+      setter([value[0], value[1]] as [number, number]);
+    };
+  };
+
   // Apply filters when they change
   useEffect(() => {
     const filters: FilterOptions = {
@@ -168,7 +177,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
             max={10000000}
             step={100000}
             value={revenueRange}
-            onValueChange={setRevenueRange}
+            onValueChange={handleSliderChange(setRevenueRange)}
             className="mt-6 mb-8"
           />
         </div>
@@ -187,7 +196,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
             max={2000000}
             step={50000}
             value={ebitdaRange}
-            onValueChange={setEbitdaRange}
+            onValueChange={handleSliderChange(setEbitdaRange)}
             className="mt-6"
           />
         </div>
