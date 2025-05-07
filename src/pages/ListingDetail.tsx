@@ -1,34 +1,40 @@
-
-import { useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useEffect } from "react";
+import { Link, useParams } from "react-router-dom";
+import { format, formatDistanceToNow } from "date-fns";
+import { useMarketplace } from "@/hooks/use-marketplace";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useMarketplace } from "@/hooks/use-marketplace";
 import {
-  Building2,
-  MapPin,
-  DollarSign,
-  TrendingUp,
-  Clock,
-  ArrowLeft,
   Bookmark,
+  Building2,
+  Calendar,
+  Check,
+  CheckCircle,
+  ChevronLeft,
+  Clock,
+  DollarSign,
+  FileText,
+  MapPin,
+  Send,
+  Tag,
+  XCircle,
 } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
 
 const ListingDetail = () => {
   const { id } = useParams<{ id: string }>();
   const { useListing, useRequestConnection, useConnectionStatus, useSaveListingMutation, useSavedStatus } = useMarketplace();
-  
   const { data: listing, isLoading } = useListing(id);
   const { mutate: requestConnection, isPending: isRequesting } = useRequestConnection();
-  const { data: connectionStatus, isLoading: isCheckingConnection } = useConnectionStatus(id);
+  const { data: connectionStatus } = useConnectionStatus(id);
   const { mutate: toggleSave, isPending: isSaving } = useSaveListingMutation();
-  const { data: isSaved, isLoading: isCheckingSaved } = useSavedStatus(id);
-  
-  const [expandDescription, setExpandDescription] = useState(false);
+  const { data: isSaved } = useSavedStatus(id);
 
-  const formatCurrency = (value: number = 0) => {
+  useEffect(() => {
+    document.title = listing ? `${listing.title} | Marketplace` : "Listing Detail | Marketplace";
+  }, [listing]);
+
+  const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("en-US", {
       style: "currency",
       currency: "USD",
@@ -37,247 +43,215 @@ const ListingDetail = () => {
     }).format(value);
   };
 
-  const handleRequestConnection = () => {
-    if (id) {
-      requestConnection(id);
-    }
+  const formatDate = (dateString: string) => {
+    return format(new Date(dateString), "MMMM d, yyyy");
   };
 
-  const handleToggleSave = () => {
-    if (id) {
-      toggleSave({
-        listingId: id,
-        action: isSaved ? "unsave" : "save",
-      });
-    }
-  };
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-background py-8 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-4xl mx-auto">
-          <div className="h-6 w-24 bg-muted rounded animate-pulse mb-4"></div>
-          <div className="h-10 w-3/4 bg-muted rounded animate-pulse mb-6"></div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <div className="col-span-2 space-y-6">
-              <Card>
-                <CardHeader>
-                  <div className="h-6 w-32 bg-muted rounded animate-pulse"></div>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    <div className="h-4 w-full bg-muted rounded animate-pulse"></div>
-                    <div className="h-4 w-full bg-muted rounded animate-pulse"></div>
-                    <div className="h-4 w-2/3 bg-muted rounded animate-pulse"></div>
-                  </div>
-                </CardContent>
-              </Card>
-              
-              <Card>
-                <CardHeader>
-                  <div className="h-6 w-32 bg-muted rounded animate-pulse"></div>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    <div className="h-4 w-full bg-muted rounded animate-pulse"></div>
-                    <div className="h-4 w-full bg-muted rounded animate-pulse"></div>
-                    <div className="h-4 w-1/2 bg-muted rounded animate-pulse"></div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-            
-            <div className="col-span-1 space-y-6">
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="space-y-6">
-                    <div>
-                      <div className="h-4 w-24 bg-muted rounded animate-pulse mb-2"></div>
-                      <div className="h-6 w-32 bg-muted rounded animate-pulse"></div>
-                    </div>
-                    <div>
-                      <div className="h-4 w-24 bg-muted rounded animate-pulse mb-2"></div>
-                      <div className="h-6 w-32 bg-muted rounded animate-pulse"></div>
-                    </div>
-                    <div>
-                      <div className="h-4 w-24 bg-muted rounded animate-pulse mb-2"></div>
-                      <div className="h-6 w-32 bg-muted rounded animate-pulse"></div>
-                    </div>
-                    <div className="h-10 w-full bg-muted rounded animate-pulse"></div>
-                    <div className="h-10 w-full bg-muted rounded animate-pulse"></div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (!listing) {
-    return (
-      <div className="min-h-screen bg-background py-8 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-4xl mx-auto text-center py-12">
-          <h1 className="text-3xl font-bold mb-4">Listing Not Found</h1>
-          <p className="text-muted-foreground mb-6">
-            The listing you're looking for doesn't exist or has been removed.
-          </p>
-          <Button asChild>
-            <Link to="/marketplace">Return to Marketplace</Link>
-          </Button>
-        </div>
-      </div>
-    );
-  }
+  const connectionExists = connectionStatus?.exists || false;
+  const connectionStatusValue = connectionStatus?.status || "";
 
   return (
-    <div className="min-h-screen bg-background py-8 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-4xl mx-auto">
-        <div className="mb-6">
-          <Button variant="ghost" size="sm" asChild className="mb-2">
-            <Link to="/marketplace">
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to Marketplace
-            </Link>
-          </Button>
-          <h1 className="text-3xl font-bold">{listing.title}</h1>
-          <div className="flex flex-wrap gap-2 mt-2">
-            <Badge variant="outline" className="bg-background font-normal">
-              <Building2 className="h-3 w-3 mr-1" />
-              {listing.category}
-            </Badge>
-            <Badge variant="outline" className="bg-background font-normal">
-              <MapPin className="h-3 w-3 mr-1" />
-              {listing.location}
-            </Badge>
-            <Badge variant="outline" className="bg-background font-normal">
-              <Clock className="h-3 w-3 mr-1" />
-              Added {formatDistanceToNow(new Date(listing.created_at), { addSuffix: true })}
-            </Badge>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {isLoading ? (
+        <div className="animate-pulse">
+          <div className="mb-6">
+            <div className="h-8 bg-muted rounded-md w-64 mb-2"></div>
+            <div className="h-12 bg-muted rounded-md w-full mb-4"></div>
+            <div className="h-8 bg-muted rounded-md w-48"></div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-2 space-y-8">
+              <div className="bg-muted rounded-md h-64"></div>
+              <div className="bg-muted rounded-md h-48"></div>
+            </div>
+
+            <div className="space-y-6">
+              <div className="bg-muted rounded-md h-48"></div>
+              <div className="bg-muted rounded-md h-32"></div>
+            </div>
           </div>
         </div>
+      ) : !listing ? (
+        <div className="text-center py-12">
+          <h2 className="text-2xl font-bold text-gray-900">Listing not found</h2>
+          <p className="mt-2 text-gray-600">
+            The listing you're looking for doesn't exist or has been removed.
+          </p>
+          <Button className="mt-4" asChild>
+            <Link to="/marketplace">Back to Marketplace</Link>
+          </Button>
+        </div>
+      ) : (
+        <>
+          <div className="mb-6">
+            <Link
+              to="/marketplace"
+              className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-4"
+            >
+              <ChevronLeft className="mr-1 h-4 w-4" />
+              Back to Marketplace
+            </Link>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="col-span-2 space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Business Description</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className={expandDescription ? "" : "max-h-40 overflow-hidden relative"}>
-                  <p className="whitespace-pre-line">{listing.description}</p>
-                  {!expandDescription && listing.description.length > 300 && (
-                    <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-white to-transparent" />
-                  )}
+            <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+              <div>
+                <div className="flex flex-wrap gap-2 mb-2">
+                  <Badge variant="outline" className="bg-background font-normal">
+                    <Building2 className="h-3 w-3 mr-1" />
+                    {listing.category}
+                  </Badge>
+                  <Badge variant="outline" className="bg-background font-normal">
+                    <MapPin className="h-3 w-3 mr-1" />
+                    {listing.location}
+                  </Badge>
                 </div>
-                {listing.description.length > 300 && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setExpandDescription(!expandDescription)}
-                    className="mt-2"
-                  >
-                    {expandDescription ? "Show less" : "Read more"}
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
+                <h1 className="text-3xl font-bold">{listing.title}</h1>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Listed {formatDistanceToNow(new Date(listing.createdAt), { addSuffix: true })}
+                </p>
+              </div>
 
-            {listing.owner_notes && (
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Button
+                  variant={isSaved ? "default" : "outline"}
+                  className="flex-1"
+                  onClick={() =>
+                    toggleSave({
+                      listingId: listing.id,
+                      action: isSaved ? "unsave" : "save",
+                    })
+                  }
+                  disabled={isSaving}
+                >
+                  {isSaved ? (
+                    <>
+                      <Check className="mr-2 h-4 w-4" /> Saved
+                    </>
+                  ) : (
+                    <>
+                      <Bookmark className="mr-2 h-4 w-4" /> Save Listing
+                    </>
+                  )}
+                </Button>
+
+                <Button
+                  variant="default"
+                  className="flex-1"
+                  disabled={
+                    isRequesting ||
+                    (connectionExists && connectionStatusValue === "pending") ||
+                    (connectionExists && connectionStatusValue === "approved")
+                  }
+                  onClick={() => requestConnection(listing.id)}
+                >
+                  {connectionExists ? (
+                    connectionStatusValue === "pending" ? (
+                      <>
+                        <Clock className="mr-2 h-4 w-4" /> Request Pending
+                      </>
+                    ) : connectionStatusValue === "approved" ? (
+                      <>
+                        <CheckCircle className="mr-2 h-4 w-4" /> Connected
+                      </>
+                    ) : (
+                      <>
+                        <XCircle className="mr-2 h-4 w-4" /> Rejected
+                      </>
+                    )
+                  ) : (
+                    <>
+                      <Send className="mr-2 h-4 w-4" /> Request Connection
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-2 space-y-8">
               <Card>
                 <CardHeader>
-                  <CardTitle>Owner Notes</CardTitle>
+                  <CardTitle>Business Details</CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <p className="whitespace-pre-line">{listing.owner_notes}</p>
+                <CardContent className="prose max-w-none">
+                  <p>{listing.description}</p>
                 </CardContent>
               </Card>
-            )}
 
-            {listing.tags && listing.tags.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Tags</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex flex-wrap gap-2">
+              {listing.ownerNotes && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Additional Notes</CardTitle>
+                  </CardHeader>
+                  <CardContent className="prose max-w-none">
+                    <p>{listing.ownerNotes}</p>
+                  </CardContent>
+                </Card>
+              )}
+
+              {listing.tags && listing.tags.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Tags</CardTitle>
+                  </CardHeader>
+                  <CardContent className="flex flex-wrap gap-2">
                     {listing.tags.map((tag) => (
                       <Badge key={tag} variant="secondary">
+                        <Tag className="h-3 w-3 mr-1" />
                         {tag}
                       </Badge>
                     ))}
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+
+            <div className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Financial Overview</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <DollarSign className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm font-medium">Annual Revenue:</span>
+                      <span className="text-sm">{formatCurrency(listing.revenue)}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <DollarSign className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm font-medium">Annual EBITDA:</span>
+                      <span className="text-sm">{formatCurrency(listing.ebitda)}</span>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
-            )}
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Request Information</CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    Connect to learn more about this listing
+                  </p>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm font-medium">Listed On:</span>
+                    <span className="text-sm">{formatDate(listing.createdAt)}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm font-medium">Listing ID:</span>
+                    <span className="text-sm">{listing.id}</span>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </div>
-
-          <div className="col-span-1 space-y-6">
-            <Card>
-              <CardContent className="pt-6">
-                <div className="space-y-6">
-                  <div>
-                    <p className="text-sm text-muted-foreground flex items-center">
-                      <DollarSign className="h-4 w-4 mr-1" />
-                      Annual Revenue
-                    </p>
-                    <p className="text-xl font-semibold">{formatCurrency(listing.revenue)}</p>
-                  </div>
-
-                  <div>
-                    <p className="text-sm text-muted-foreground flex items-center">
-                      <TrendingUp className="h-4 w-4 mr-1" />
-                      Annual EBITDA
-                    </p>
-                    <p className="text-xl font-semibold">{formatCurrency(listing.ebitda)}</p>
-                  </div>
-
-                  <div className="pt-2">
-                    <Button
-                      className="w-full mb-3"
-                      disabled={isRequesting || isCheckingConnection || (connectionStatus && connectionStatus.exists)}
-                      onClick={handleRequestConnection}
-                    >
-                      {isCheckingConnection
-                        ? "Checking status..."
-                        : connectionStatus && connectionStatus.exists
-                        ? connectionStatus.status === "pending"
-                          ? "Connection Requested"
-                          : connectionStatus.status === "approved"
-                          ? "Connected"
-                          : "Connection Rejected"
-                        : isRequesting
-                        ? "Requesting..."
-                        : "Request Connection"}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="w-full"
-                      onClick={handleToggleSave}
-                      disabled={isCheckingSaved || isSaving}
-                    >
-                      <Bookmark
-                        className={`h-4 w-4 mr-2 ${
-                          isSaved ? "fill-current" : ""
-                        }`}
-                      />
-                      {isCheckingSaved
-                        ? "Loading..."
-                        : isSaving
-                        ? "Saving..."
-                        : isSaved
-                        ? "Saved"
-                        : "Save Listing"}
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      </div>
+        </>
+      )}
     </div>
   );
 };

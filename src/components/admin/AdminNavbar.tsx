@@ -45,7 +45,6 @@ const AdminNavbar: React.FC<AdminNavbarProps> = ({ className }) => {
       title: "View Marketplace",
       href: "/marketplace",
       icon: <ShoppingBag className="h-5 w-5 mr-2" />,
-      external: true,
     },
   ];
 
@@ -68,7 +67,6 @@ const AdminNavbar: React.FC<AdminNavbarProps> = ({ className }) => {
             <Link
               key={item.href}
               to={item.href}
-              target={item.external ? "_blank" : undefined}
               className={cn(
                 "flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors",
                 isActive(item.href)

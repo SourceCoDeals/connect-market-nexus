@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { toast } from '@/hooks/use-toast';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -36,34 +35,38 @@ export function useAdmin() {
 
   // Update user approval status
   const useUpdateUserStatus = () => {
+    const queryClient = useQueryClient();
+    
     return useMutation({
       mutationFn: async ({
         userId,
         status,
       }: {
         userId: string;
-        status: 'approved' | 'rejected';
+        status: ApprovalStatus;
       }) => {
-        const { error } = await supabase
-          .from('profiles')
+        const { data, error } = await supabase
+          .from("profiles")
           .update({ approval_status: status })
-          .eq('id', userId);
-
+          .eq("id", userId)
+          .select()
+          .single();
+        
         if (error) throw error;
-        return { userId, status };
+        return data;
       },
-      onSuccess: (data) => {
-        queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ["admin-users"] });
         toast({
-          title: 'User status updated',
-          description: `User has been ${data.status}`,
+          title: "Status updated",
+          description: "User status has been updated successfully.",
         });
       },
       onError: (error: any) => {
         toast({
-          variant: 'destructive',
-          title: 'Update failed',
-          description: error.message,
+          variant: "destructive",
+          title: "Update failed",
+          description: error.message || "Failed to update user status",
         });
       },
     });

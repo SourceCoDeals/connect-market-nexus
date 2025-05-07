@@ -54,7 +54,7 @@ export interface Listing {
   ebitda: number;
   description: string;
   tags: string[];
-  owner_notes: string;
+  owner_notes?: string;
   files?: string[];
   created_at: string;
   updated_at: string;

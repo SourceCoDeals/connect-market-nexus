@@ -5,6 +5,7 @@ import { User, UserRole, ApprovalStatus, BuyerType } from "@/types";
  * Creates a User object with computed properties from profile data
  */
 export function createUserFromProfile(profileData: any): User {
+  const approvalStatus = profileData.approval_status as ApprovalStatus;
   return {
     id: profileData.id,
     email: profileData.email,
@@ -15,7 +16,7 @@ export function createUserFromProfile(profileData: any): User {
     phone_number: profileData.phone_number || '',
     role: profileData.is_admin ? 'admin' as UserRole : 'buyer' as UserRole,
     email_verified: profileData.email_verified,
-    approval_status: profileData.approval_status as ApprovalStatus,
+    approval_status: approvalStatus,
     is_admin: profileData.is_admin,
     buyer_type: profileData.buyer_type as BuyerType || 'corporate',
     created_at: profileData.created_at,
@@ -39,6 +40,19 @@ export function createUserFromProfile(profileData: any): User {
     get buyerType() { return this.buyer_type; },
     get emailVerified() { return this.email_verified; },
     get isApproved() { return this.approval_status === 'approved'; },
+    get createdAt() { return this.created_at; },
+    get updatedAt() { return this.updated_at; }
+  };
+}
+
+/**
+ * Creates a Listing object with computed properties from database data
+ */
+export function createListingFromData(listingData: any) {
+  return {
+    ...listingData,
+    // Computed properties
+    get ownerNotes() { return this.owner_notes; },
     get createdAt() { return this.created_at; },
     get updatedAt() { return this.updated_at; }
   };

@@ -4,6 +4,7 @@ import { toast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Listing, FilterOptions } from "@/types";
+import { createListingFromData } from "@/utils/user-helpers";
 
 export function useMarketplace() {
   const queryClient = useQueryClient();
@@ -57,7 +58,9 @@ export function useMarketplace() {
           const { data, error } = await query;
           
           if (error) throw error;
-          return data as unknown as Listing[];
+          
+          // Convert raw data to Listing objects with computed properties
+          return data.map(item => createListingFromData(item));
         } catch (error: any) {
           toast({
             variant: "destructive",
@@ -85,7 +88,9 @@ export function useMarketplace() {
             .single();
           
           if (error) throw error;
-          return data as unknown as Listing;
+          
+          // Convert raw data to Listing object with computed properties
+          return createListingFromData(data);
         } catch (error: any) {
           toast({
             variant: "destructive",
@@ -103,9 +108,18 @@ export function useMarketplace() {
   const useRequestConnection = () => {
     return useMutation({
       mutationFn: async (listingId: string) => {
+        // Get the current user first
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          throw new Error("You must be logged in to request a connection");
+        }
+        
         const { data, error } = await supabase
           .from("connection_requests")
-          .insert([{ listing_id: listingId, user_id: (await supabase.auth.getUser()).data.user?.id }])
+          .insert([{ 
+            listing_id: listingId, 
+            user_id: user.id 
+          }])
           .select()
           .single();
         
@@ -140,10 +154,17 @@ export function useMarketplace() {
         if (!listingId) return { exists: false, status: "" };
         
         try {
+          // Get the current user first
+          const { data: { user } } = await supabase.auth.getUser();
+          if (!user) {
+            return { exists: false, status: "" };
+          }
+          
           const { data, error } = await supabase
             .from("connection_requests")
             .select("id, status")
             .eq("listing_id", listingId)
+            .eq("user_id", user.id)
             .single();
           
           if (error) {
@@ -174,12 +195,18 @@ export function useMarketplace() {
         listingId: string;
         action: "save" | "unsave";
       }) => {
+        // Get the current user first
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          throw new Error("You must be logged in to save listings");
+        }
+        
         if (action === "save") {
           const { data, error } = await supabase
             .from("saved_listings")
             .insert([{ 
               listing_id: listingId, 
-              user_id: (await supabase.auth.getUser()).data.user?.id 
+              user_id: user.id 
             }])
             .select()
             .single();
@@ -190,7 +217,8 @@ export function useMarketplace() {
           const { error } = await supabase
             .from("saved_listings")
             .delete()
-            .eq("listing_id", listingId);
+            .eq("listing_id", listingId)
+            .eq("user_id", user.id);
           
           if (error) throw error;
           return { listingId, action: "unsave" };
@@ -228,10 +256,17 @@ export function useMarketplace() {
         if (!listingId) return false;
         
         try {
+          // Get the current user first
+          const { data: { user } } = await supabase.auth.getUser();
+          if (!user) {
+            return false;
+          }
+          
           const { data, error } = await supabase
             .from("saved_listings")
             .select("id")
             .eq("listing_id", listingId)
+            .eq("user_id", user.id)
             .single();
           
           if (error) {
@@ -258,9 +293,16 @@ export function useMarketplace() {
       queryKey: ["saved-listings"],
       queryFn: async () => {
         try {
+          // Get the current user first
+          const { data: { user } } = await supabase.auth.getUser();
+          if (!user) {
+            return [];
+          }
+          
           const { data, error } = await supabase
             .from("saved_listings")
             .select("*, listings(*)")
+            .eq("user_id", user.id)
             .order("created_at", { ascending: false });
           
           if (error) throw error;
@@ -268,7 +310,7 @@ export function useMarketplace() {
           return data.map((savedItem) => ({
             id: savedItem.id,
             savedAt: savedItem.created_at,
-            listing: savedItem.listings as unknown as Listing,
+            listing: createListingFromData(savedItem.listings),
           }));
         } catch (error: any) {
           toast({
@@ -288,9 +330,16 @@ export function useMarketplace() {
       queryKey: ["user-connections"],
       queryFn: async () => {
         try {
+          // Get the current user first
+          const { data: { user } } = await supabase.auth.getUser();
+          if (!user) {
+            return [];
+          }
+          
           const { data, error } = await supabase
             .from("connection_requests")
             .select("*, listings(*)")
+            .eq("user_id", user.id)
             .order("created_at", { ascending: false });
           
           if (error) throw error;
@@ -300,7 +349,7 @@ export function useMarketplace() {
             requestedAt: request.created_at,
             status: request.status,
             adminComment: request.admin_comment,
-            listing: request.listings as unknown as Listing,
+            listing: createListingFromData(request.listings),
           }));
         } catch (error: any) {
           toast({

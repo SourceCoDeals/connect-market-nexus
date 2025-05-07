@@ -42,6 +42,10 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
     }).format(value);
   };
 
+  // Extract connection status safely with fallbacks
+  const connectionExists = connectionStatus?.exists || false;
+  const connectionStatusValue = connectionStatus?.status || "";
+
   return (
     <Link to={`/marketplace/${listing.id}`}>
       <Card
@@ -102,16 +106,16 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
                 className={`${viewType === "list" ? "w-full" : "flex-1"}`}
                 disabled={
                   isRequesting ||
-                  (connectionStatus && connectionStatus.exists) ||
-                  (connectionStatus && connectionStatus.status === "approved") ||
-                  (connectionStatus && connectionStatus.status === "rejected")
+                  (connectionExists && connectionStatusValue === "pending") ||
+                  (connectionExists && connectionStatusValue === "approved") ||
+                  (connectionExists && connectionStatusValue === "rejected")
                 }
                 onClick={handleRequestConnection}
               >
-                {connectionStatus && connectionStatus.exists
-                  ? connectionStatus.status === "pending"
+                {connectionExists
+                  ? connectionStatusValue === "pending"
                     ? "Requested"
-                    : connectionStatus.status === "approved"
+                    : connectionStatusValue === "approved"
                     ? "Connected"
                     : "Rejected"
                   : isRequesting

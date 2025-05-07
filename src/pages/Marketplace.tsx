@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useMarketplace } from "@/hooks/use-marketplace";
 import { FilterOptions } from "@/types";
@@ -11,8 +12,9 @@ const Marketplace = () => {
   const [filters, setFilters] = useState<FilterOptions>({});
   const [viewType, setViewType] = useState<"grid" | "list">("grid");
   
-  const { useListings } = useMarketplace();
+  const { useListings, useListingMetadata } = useMarketplace();
   const { data: listings = [], isLoading } = useListings(filters);
+  const { data: metadata } = useListingMetadata();
   
   const handleFilterChange = (newFilters: FilterOptions) => {
     setFilters(newFilters);
@@ -62,6 +64,8 @@ const Marketplace = () => {
                 onFilterChange={handleFilterChange}
                 totalListings={listings.length}
                 filteredCount={listings.length}
+                categories={metadata?.categories}
+                locations={metadata?.locations}
               />
             </div>
             
