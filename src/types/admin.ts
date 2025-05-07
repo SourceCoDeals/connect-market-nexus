@@ -1,7 +1,6 @@
 
 import { User } from "./index";
-
-export type ApprovalStatus = 'pending' | 'approved' | 'rejected';
+import { ApprovalStatus } from "./index";
 
 export interface AdminListing {
   id: string;
@@ -22,7 +21,7 @@ export interface AdminConnectionRequest {
   id: string;
   user_id: string;
   listing_id: string;
-  status: 'pending' | 'approved' | 'rejected';
+  status: ApprovalStatus;
   admin_comment?: string;
   created_at: string;
   updated_at: string;

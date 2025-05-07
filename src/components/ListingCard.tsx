@@ -102,16 +102,16 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
                 className={`${viewType === "list" ? "w-full" : "flex-1"}`}
                 disabled={
                   isRequesting ||
-                  connectionStatus?.exists ||
-                  connectionStatus?.status === "approved" ||
-                  connectionStatus?.status === "rejected"
+                  (connectionStatus && connectionStatus.exists) ||
+                  (connectionStatus && connectionStatus.status === "approved") ||
+                  (connectionStatus && connectionStatus.status === "rejected")
                 }
                 onClick={handleRequestConnection}
               >
-                {connectionStatus?.exists
-                  ? connectionStatus?.status === "pending"
+                {connectionStatus && connectionStatus.exists
+                  ? connectionStatus.status === "pending"
                     ? "Requested"
-                    : connectionStatus?.status === "approved"
+                    : connectionStatus.status === "approved"
                     ? "Connected"
                     : "Rejected"
                   : isRequesting

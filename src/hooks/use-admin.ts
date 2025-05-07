@@ -21,7 +21,7 @@ export function useAdmin() {
             .order('created_at', { ascending: false });
 
           if (error) throw error;
-          return data as User[];
+          return data as unknown as User[];
         } catch (error: any) {
           toast({
             variant: 'destructive',

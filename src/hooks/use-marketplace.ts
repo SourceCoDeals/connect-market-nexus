@@ -57,7 +57,7 @@ export function useMarketplace() {
           const { data, error } = await query;
           
           if (error) throw error;
-          return data as Listing[];
+          return data as unknown as Listing[];
         } catch (error: any) {
           toast({
             variant: "destructive",
@@ -85,7 +85,7 @@ export function useMarketplace() {
             .single();
           
           if (error) throw error;
-          return data as Listing;
+          return data as unknown as Listing;
         } catch (error: any) {
           toast({
             variant: "destructive",
@@ -105,7 +105,7 @@ export function useMarketplace() {
       mutationFn: async (listingId: string) => {
         const { data, error } = await supabase
           .from("connection_requests")
-          .insert([{ listing_id: listingId }])
+          .insert([{ listing_id: listingId, user_id: (await supabase.auth.getUser()).data.user?.id }])
           .select()
           .single();
         
@@ -137,7 +137,7 @@ export function useMarketplace() {
     return useQuery({
       queryKey: ["connection-status", listingId],
       queryFn: async () => {
-        if (!listingId) return false;
+        if (!listingId) return { exists: false, status: "" };
         
         try {
           const { data, error } = await supabase
@@ -149,7 +149,7 @@ export function useMarketplace() {
           if (error) {
             if (error.code === "PGRST116") {
               // No connection request found
-              return { exists: false, status: null };
+              return { exists: false, status: "" };
             }
             throw error;
           }
@@ -157,7 +157,7 @@ export function useMarketplace() {
           return { exists: true, status: data.status };
         } catch (error: any) {
           console.error("Error checking connection status:", error);
-          return { exists: false, status: null };
+          return { exists: false, status: "" };
         }
       },
       enabled: !!listingId,
@@ -177,7 +177,10 @@ export function useMarketplace() {
         if (action === "save") {
           const { data, error } = await supabase
             .from("saved_listings")
-            .insert([{ listing_id: listingId }])
+            .insert([{ 
+              listing_id: listingId, 
+              user_id: (await supabase.auth.getUser()).data.user?.id 
+            }])
             .select()
             .single();
           
@@ -265,7 +268,7 @@ export function useMarketplace() {
           return data.map((savedItem) => ({
             id: savedItem.id,
             savedAt: savedItem.created_at,
-            listing: savedItem.listings as Listing,
+            listing: savedItem.listings as unknown as Listing,
           }));
         } catch (error: any) {
           toast({
@@ -297,7 +300,7 @@ export function useMarketplace() {
             requestedAt: request.created_at,
             status: request.status,
             adminComment: request.admin_comment,
-            listing: request.listings as Listing,
+            listing: request.listings as unknown as Listing,
           }));
         } catch (error: any) {
           toast({

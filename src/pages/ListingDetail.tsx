@@ -237,12 +237,12 @@ const ListingDetail = () => {
                   <div className="pt-2">
                     <Button
                       className="w-full mb-3"
-                      disabled={isRequesting || isCheckingConnection || connectionStatus?.exists}
+                      disabled={isRequesting || isCheckingConnection || (connectionStatus && connectionStatus.exists)}
                       onClick={handleRequestConnection}
                     >
                       {isCheckingConnection
                         ? "Checking status..."
-                        : connectionStatus?.exists
+                        : connectionStatus && connectionStatus.exists
                         ? connectionStatus.status === "pending"
                           ? "Connection Requested"
                           : connectionStatus.status === "approved"
