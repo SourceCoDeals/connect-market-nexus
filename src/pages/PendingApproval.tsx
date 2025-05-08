@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { ClipboardCheck } from "lucide-react";
 
 const PendingApproval = () => {
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-muted/30">
@@ -27,7 +27,10 @@ const PendingApproval = () => {
         <CardContent className="space-y-4">
           <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4">
             <p className="text-sm text-yellow-800">
-              Thank you for registering! Your email has been verified, but your account requires admin approval before you can access the marketplace.
+              {user?.email_verified ? 
+                "Thank you for verifying your email! Your account requires admin approval before you can access the marketplace." :
+                "Please verify your email to complete your registration. Once verified, your account will need admin approval."
+              }
             </p>
           </div>
           <p className="text-sm text-center text-muted-foreground">

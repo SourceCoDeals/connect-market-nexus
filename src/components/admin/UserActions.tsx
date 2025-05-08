@@ -1,6 +1,6 @@
 
 import { useState } from "react";
-import { User } from "@/types";
+import { User, ApprovalStatus } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { UserDetailDialog } from "@/components/admin/UserDetailDialog";
 import { useAdmin } from "@/hooks/use-admin";
@@ -18,8 +18,8 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
     sendUserRejectionEmail
   } = useAdmin();
   
-  const { mutate: updateUserStatus } = useUpdateUserStatus();
-  const { mutate: updateAdminStatus } = useUpdateAdminStatus();
+  const { mutate: updateUserStatus, isPending: isUpdatingStatus } = useUpdateUserStatus();
+  const { mutate: updateAdminStatus, isPending: isUpdatingAdmin } = useUpdateAdminStatus();
   
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [actionType, setActionType] = useState<"approve" | "reject" | "makeAdmin" | "revokeAdmin" | null>(null);
@@ -152,6 +152,7 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
     isDialogOpen,
     setIsDialogOpen,
     selectedUser,
-    actionType
+    actionType,
+    isLoading: isUpdatingStatus || isUpdatingAdmin
   };
 }

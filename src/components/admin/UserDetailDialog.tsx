@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -24,6 +24,13 @@ export function UserDetailDialog({
   isLoading,
 }: UserDetailDialogProps) {
   const [rejectionReason, setRejectionReason] = useState("");
+  
+  // Reset reason when dialog opens/closes
+  useEffect(() => {
+    if (!isOpen) {
+      setRejectionReason("");
+    }
+  }, [isOpen]);
 
   const getTitle = () => {
     switch (actionType) {
@@ -95,7 +102,7 @@ export function UserDetailDialog({
         )}
 
         <DialogFooter className="sm:justify-between">
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" onClick={onClose} disabled={isLoading}>
             Cancel
           </Button>
           <Button 

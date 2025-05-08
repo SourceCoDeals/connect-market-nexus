@@ -35,7 +35,6 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   useEffect(() => {
     if (waitTime >= 5 && isLoading) {
       console.warn("Auth loading timeout reached, redirecting to login");
-      window.location.href = "/login";
     }
   }, [waitTime, isLoading]);
 

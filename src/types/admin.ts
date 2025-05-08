@@ -1,48 +1,31 @@
 
-import { User } from "@/types";
+import { User, Listing } from "@/types";
+
+export interface AdminConnectionRequest {
+  id: string;
+  user_id: string;
+  listing_id: string;
+  status: "pending" | "approved" | "rejected";
+  admin_comment?: string;
+  created_at: string;
+  updated_at: string;
+  user?: User | null;
+  listing?: Listing | null;
+}
+
+export interface AdminActivity {
+  id: string;
+  type: "signup" | "connection_request" | "listing_creation" | "admin_action";
+  description: string;
+  timestamp: string;
+  metadata?: Record<string, any>;
+}
 
 export interface AdminStats {
   totalUsers: number;
   pendingUsers: number;
+  approvedUsers: number;
   totalListings: number;
   pendingConnections: number;
-}
-
-export interface AdminUserActivity {
-  id: string;
-  type: "signup" | "approval" | "connection_request" | "listing_creation";
-  description: string;
-  timestamp: string;
-  user_id?: string;
-}
-
-export interface AdminListing {
-  id: string;
-  title: string;
-  category: string;
-  location: string;
-  revenue: number;
-  ebitda: number;
-  description: string;
-  tags: string[] | null;
-  owner_notes?: string | null;
-  files?: string[] | null;
-  created_at: string;
-  updated_at: string;
-  image_url?: string | null;
-}
-
-export interface AdminConnectionRequest {
-  id: string;
-  status: "pending" | "approved" | "rejected";
-  created_at: string;
-  user: User;
-  listing: {
-    id: string;
-    title: string;
-    category?: string;
-  };
-  admin_comment?: string | null;
-  user_id?: string;
-  listing_id?: string;
+  approvedConnections: number;
 }

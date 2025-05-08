@@ -1,138 +1,107 @@
-import { useState } from "react";
-import { toast } from "@/hooks/use-toast";
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/context/AuthContext";
 import { Listing, FilterOptions } from "@/types";
-import { createListingFromData } from "@/utils/user-helpers";
+import { toast } from "@/hooks/use-toast";
 
 export function useMarketplace() {
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   
-  // Fetch all listings
-  const useListings = (filters?: FilterOptions) => {
+  // Get all active listings with filter options
+  const useListings = (filters: FilterOptions = {}) => {
     return useQuery({
-      queryKey: ["listings", filters],
+      queryKey: ["marketplace-listings", filters],
       queryFn: async () => {
-        try {
-          console.log("Fetching listings with filters:", filters);
-          let query = supabase.from("listings").select("*");
-          
-          // Apply filters
-          if (filters) {
-            if (filters.category && filters.category !== "") {
-              console.log("Filtering by category:", filters.category);
-              if (filters.category.includes(",")) {
-                const categories = filters.category.split(",");
-                query = query.in("category", categories);
-              } else {
-                query = query.eq("category", filters.category);
-              }
-            }
-            
-            if (filters.location && filters.location !== "") {
-              console.log("Filtering by location:", filters.location);
-              if (filters.location.includes(",")) {
-                const locations = filters.location.split(",");
-                query = query.in("location", locations);
-              } else {
-                query = query.eq("location", filters.location);
-              }
-            }
-            
-            if (filters.revenueMin !== undefined) {
-              console.log("Filtering by min revenue:", filters.revenueMin);
-              query = query.gte("revenue", filters.revenueMin);
-            }
-            
-            if (filters.revenueMax !== undefined) {
-              console.log("Filtering by max revenue:", filters.revenueMax);
-              query = query.lte("revenue", filters.revenueMax);
-            }
-            
-            if (filters.ebitdaMin !== undefined) {
-              console.log("Filtering by min ebitda:", filters.ebitdaMin);
-              query = query.gte("ebitda", filters.ebitdaMin);
-            }
-            
-            if (filters.ebitdaMax !== undefined) {
-              console.log("Filtering by max ebitda:", filters.ebitdaMax);
-              query = query.lte("ebitda", filters.ebitdaMax);
-            }
-            
-            if (filters.search && filters.search.trim() !== "") {
-              const searchTerm = filters.search.trim();
-              console.log("Filtering by search term:", searchTerm);
-              query = query.or(
-                `title.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%,category.ilike.%${searchTerm}%,location.ilike.%${searchTerm}%`
-              );
-            }
-          }
-          
-          // Order by newest first
-          query = query.order("created_at", { ascending: false });
-          
-          console.log("Executing Supabase query for listings");
-          const { data, error } = await query;
-          
-          if (error) {
-            console.error("Supabase listings query error:", error);
-            throw error;
-          }
-          
-          console.log(`Received ${data?.length || 0} listings from Supabase`);
-          
-          if (!data || data.length === 0) {
-            return [];
-          }
-          
-          // Convert raw data to Listing objects with computed properties
-          return data.map(item => {
-            try {
-              return createListingFromData(item);
-            } catch (err) {
-              console.error("Error creating listing from data:", err);
-              return null;
-            }
-          }).filter(Boolean) as Listing[];
-        } catch (error: any) {
-          console.error("Error in useListings hook:", error);
+        let query = supabase
+          .from("listings")
+          .select("*")
+          .order("created_at", { ascending: false });
+        
+        // Apply filters if provided
+        if (filters.category) {
+          query = query.eq("category", filters.category);
+        }
+        
+        if (filters.location) {
+          query = query.eq("location", filters.location);
+        }
+        
+        if (filters.revenueMin) {
+          query = query.gte("revenue", filters.revenueMin);
+        }
+        
+        if (filters.revenueMax) {
+          query = query.lte("revenue", filters.revenueMax);
+        }
+        
+        if (filters.ebitdaMin) {
+          query = query.gte("ebitda", filters.ebitdaMin);
+        }
+        
+        if (filters.ebitdaMax) {
+          query = query.lte("ebitda", filters.ebitdaMax);
+        }
+        
+        if (filters.search) {
+          query = query.ilike("title", `%${filters.search}%`);
+        }
+        
+        const { data, error } = await query;
+        
+        if (error) {
+          console.error("Error fetching listings:", error);
           throw error;
         }
+        
+        return data as Listing[];
       },
-      refetchOnWindowFocus: false,
-      retry: 2,
-      staleTime: 1000 * 60 * 3, // 3 minutes
+      enabled: !!user
     });
   };
   
-  // Fetch a single listing by ID
-  const useListing = (id?: string) => {
+  // Get listing metadata (categories, locations, etc.)
+  const useListingMetadata = () => {
     return useQuery({
-      queryKey: ["listing", id],
+      queryKey: ["listing-metadata"],
       queryFn: async () => {
-        if (!id) return null;
+        const { data, error } = await supabase.from("listings").select("category, location");
         
-        try {
-          const { data, error } = await supabase
-            .from("listings")
-            .select("*")
-            .eq("id", id)
-            .single();
-          
-          if (error) throw error;
-          
-          // Convert raw data to Listing object with computed properties
-          return createListingFromData(data);
-        } catch (error: any) {
-          toast({
-            variant: "destructive",
-            title: "Error loading listing",
-            description: error.message,
-          });
-          return null;
+        if (error) {
+          console.error("Error fetching listing metadata:", error);
+          throw error;
         }
+        
+        // Extract unique categories and locations
+        const categories = [...new Set(data.map(item => item.category))].filter(Boolean).sort();
+        const locations = [...new Set(data.map(item => item.location))].filter(Boolean).sort();
+        
+        return { categories, locations };
       },
-      enabled: !!id,
+      enabled: !!user
+    });
+  };
+  
+  // Get a single listing by ID
+  const useListing = (listingId: string) => {
+    return useQuery({
+      queryKey: ["listing", listingId],
+      queryFn: async () => {
+        const { data, error } = await supabase
+          .from("listings")
+          .select("*")
+          .eq("id", listingId)
+          .single();
+        
+        if (error) {
+          console.error("Error fetching listing:", error);
+          throw error;
+        }
+        
+        return data as Listing;
+      },
+      enabled: !!listingId && !!user
     });
   };
   
@@ -140,323 +109,209 @@ export function useMarketplace() {
   const useRequestConnection = () => {
     return useMutation({
       mutationFn: async (listingId: string) => {
-        // Get the current user first
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
-          throw new Error("You must be logged in to request a connection");
-        }
+        if (!user) throw new Error("User not authenticated");
         
         const { data, error } = await supabase
           .from("connection_requests")
-          .insert([{ 
-            listing_id: listingId, 
-            user_id: user.id 
-          }])
-          .select()
-          .single();
+          .insert({
+            user_id: user.id,
+            listing_id: listingId,
+            status: "pending"
+          })
+          .select();
         
-        if (error) throw error;
-        return data;
+        if (error) {
+          console.error("Error requesting connection:", error);
+          throw error;
+        }
+        
+        return data[0];
       },
       onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ["user-connections"] });
+        // Invalidate connection status queries
+        queryClient.invalidateQueries({ queryKey: ["connection-status"] });
+        queryClient.invalidateQueries({ queryKey: ["user-connection-requests"] });
+        
         toast({
           title: "Connection requested",
-          description: "The owner has been notified of your interest.",
+          description: "Your connection request has been submitted and is pending approval.",
         });
       },
       onError: (error: any) => {
         toast({
           variant: "destructive",
           title: "Request failed",
-          description:
-            error.message === "duplicate key value violates unique constraint"
-              ? "You've already requested this connection."
-              : error.message,
+          description: error.message || "Failed to submit connection request",
         });
-      },
+      }
     });
   };
   
-  // Check if user has already requested a connection
-  const useConnectionStatus = (listingId?: string) => {
+  // Check if user has requested connection to a listing
+  const useConnectionStatus = (listingId: string) => {
     return useQuery({
       queryKey: ["connection-status", listingId],
       queryFn: async () => {
-        if (!listingId) return { exists: false, status: "" };
+        if (!user) return { exists: false, status: null };
         
-        try {
-          // Get the current user first
-          const { data: { user } } = await supabase.auth.getUser();
-          if (!user) {
-            return { exists: false, status: "" };
-          }
-          
-          const { data, error } = await supabase
-            .from("connection_requests")
-            .select("id, status")
-            .eq("listing_id", listingId)
-            .eq("user_id", user.id)
-            .single();
-          
-          if (error) {
-            if (error.code === "PGRST116") {
-              // No connection request found
-              return { exists: false, status: "" };
-            }
-            throw error;
-          }
-          
-          return { exists: true, status: data.status };
-        } catch (error: any) {
+        const { data, error } = await supabase
+          .from("connection_requests")
+          .select("status")
+          .eq("user_id", user.id)
+          .eq("listing_id", listingId)
+          .maybeSingle();
+        
+        if (error) {
           console.error("Error checking connection status:", error);
-          return { exists: false, status: "" };
+          throw error;
         }
+        
+        return { 
+          exists: !!data, 
+          status: data?.status || null
+        };
       },
-      enabled: !!listingId,
+      enabled: !!listingId && !!user
     });
   };
   
   // Save/unsave a listing
   const useSaveListingMutation = () => {
     return useMutation({
-      mutationFn: async ({
-        listingId,
-        action,
-      }: {
-        listingId: string;
-        action: "save" | "unsave";
+      mutationFn: async ({ 
+        listingId, 
+        action 
+      }: { 
+        listingId: string; 
+        action: "save" | "unsave" 
       }) => {
-        // Get the current user first
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
-          throw new Error("You must be logged in to save listings");
-        }
+        if (!user) throw new Error("User not authenticated");
         
         if (action === "save") {
           const { data, error } = await supabase
             .from("saved_listings")
-            .insert([{ 
-              listing_id: listingId, 
-              user_id: user.id 
-            }])
-            .select()
-            .single();
+            .insert({
+              user_id: user.id,
+              listing_id: listingId
+            })
+            .select();
           
-          if (error) throw error;
-          return data;
+          if (error) {
+            console.error("Error saving listing:", error);
+            throw error;
+          }
+          
+          return data[0];
         } else {
           const { error } = await supabase
             .from("saved_listings")
             .delete()
-            .eq("listing_id", listingId)
-            .eq("user_id", user.id);
+            .eq("user_id", user.id)
+            .eq("listing_id", listingId);
           
-          if (error) throw error;
-          return { listingId, action: "unsave" };
+          if (error) {
+            console.error("Error unsaving listing:", error);
+            throw error;
+          }
+          
+          return { user_id: user.id, listing_id: listingId };
         }
       },
       onSuccess: (_, variables) => {
+        queryClient.invalidateQueries({ queryKey: ["saved-status", variables.listingId] });
         queryClient.invalidateQueries({ queryKey: ["saved-listings"] });
+        
         toast({
-          title:
-            variables.action === "save" ? "Listing saved" : "Listing unsaved",
-          description:
-            variables.action === "save"
-              ? "This listing has been added to your saved items."
-              : "This listing has been removed from your saved items.",
+          title: variables.action === "save" ? "Listing saved" : "Listing unsaved",
+          description: variables.action === "save" 
+            ? "This listing has been added to your saved listings" 
+            : "This listing has been removed from your saved listings",
         });
       },
       onError: (error: any) => {
         toast({
           variant: "destructive",
           title: "Action failed",
-          description:
-            error.message === "duplicate key value violates unique constraint"
-              ? "This listing is already saved."
-              : error.message,
+          description: error.message || "Failed to update saved status",
         });
-      },
+      }
     });
   };
   
-  // Check if a listing is saved
-  const useSavedStatus = (listingId?: string) => {
+  // Check if user has saved a listing
+  const useSavedStatus = (listingId: string) => {
     return useQuery({
       queryKey: ["saved-status", listingId],
       queryFn: async () => {
-        if (!listingId) return false;
+        if (!user) return false;
         
-        try {
-          // Get the current user first
-          const { data: { user } } = await supabase.auth.getUser();
-          if (!user) {
-            return false;
-          }
-          
-          const { data, error } = await supabase
-            .from("saved_listings")
-            .select("id")
-            .eq("listing_id", listingId)
-            .eq("user_id", user.id)
-            .single();
-          
-          if (error) {
-            if (error.code === "PGRST116") {
-              // Not saved
-              return false;
-            }
-            throw error;
-          }
-          
-          return true;
-        } catch (error: any) {
+        const { data, error } = await supabase
+          .from("saved_listings")
+          .select("*")
+          .eq("user_id", user.id)
+          .eq("listing_id", listingId)
+          .maybeSingle();
+        
+        if (error) {
           console.error("Error checking saved status:", error);
-          return false;
+          throw error;
         }
+        
+        return !!data;
       },
-      enabled: !!listingId,
+      enabled: !!listingId && !!user
     });
   };
   
-  // Get all saved listings
-  const useSavedListings = () => {
+  // Get all connection requests for the current user
+  const useUserConnectionRequests = () => {
     return useQuery({
-      queryKey: ["saved-listings"],
+      queryKey: ["user-connection-requests"],
       queryFn: async () => {
-        try {
-          // Get the current user first
-          const { data: { user } } = await supabase.auth.getUser();
-          if (!user) {
-            return [];
-          }
-          
-          const { data, error } = await supabase
-            .from("saved_listings")
-            .select("*, listings(*)")
-            .eq("user_id", user.id)
-            .order("created_at", { ascending: false });
-          
-          if (error) throw error;
-          
-          return data.map((savedItem) => ({
-            id: savedItem.id,
-            savedAt: savedItem.created_at,
-            listing: createListingFromData(savedItem.listings),
-          }));
-        } catch (error: any) {
-          toast({
-            variant: "destructive",
-            title: "Error loading saved listings",
-            description: error.message,
-          });
-          return [];
+        if (!user) return [];
+        
+        // Get connection requests
+        const { data: requests, error } = await supabase
+          .from("connection_requests")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false });
+        
+        if (error) {
+          console.error("Error fetching user connection requests:", error);
+          throw error;
         }
-      },
-    });
-  };
-  
-  // Get user's connection requests
-  const useUserConnections = () => {
-    return useQuery({
-      queryKey: ["user-connections"],
-      queryFn: async () => {
-        try {
-          // Get the current user first
-          const { data: { user } } = await supabase.auth.getUser();
-          if (!user) {
-            return [];
-          }
-          
-          const { data, error } = await supabase
-            .from("connection_requests")
-            .select("*, listings(*)")
-            .eq("user_id", user.id)
-            .order("created_at", { ascending: false });
-          
-          if (error) throw error;
-          
-          return data.map((request) => ({
-            id: request.id,
-            requestedAt: request.created_at,
-            status: request.status,
-            adminComment: request.admin_comment,
-            listing: createListingFromData(request.listings),
-          }));
-        } catch (error: any) {
-          toast({
-            variant: "destructive",
-            title: "Error loading connection requests",
-            description: error.message,
-          });
-          return [];
-        }
-      },
-    });
-  };
-  
-  // Get unique listing categories and locations for filters
-  const useListingMetadata = () => {
-    return useQuery({
-      queryKey: ["listing-metadata"],
-      queryFn: async () => {
-        try {
-          console.log("Fetching listing metadata");
-          const { data: categoryData, error: categoryError } = await supabase
+        
+        // For each request, get the listing details
+        const requestsWithListings = await Promise.all(requests.map(async (request) => {
+          const { data: listing, error: listingError } = await supabase
             .from("listings")
-            .select("category");
+            .select("*")
+            .eq("id", request.listing_id)
+            .maybeSingle();
           
-          if (categoryError) {
-            console.error("Error fetching categories:", categoryError);
-            throw categoryError;
+          if (listingError) {
+            console.error("Error fetching listing:", listingError);
+            return { ...request, listing: null };
           }
           
-          const { data: locationData, error: locationError } = await supabase
-            .from("listings")
-            .select("location");
-          
-          if (locationError) {
-            console.error("Error fetching locations:", locationError);
-            throw locationError;
-          }
-          
-          // Extract unique categories and locations
-          const categories = [
-            ...new Set(categoryData
-              .filter(item => item && item.category) // Filter out null values
-              .map(item => item.category)
-            ),
-          ].sort();
-          
-          const locations = [
-            ...new Set(locationData
-              .filter(item => item && item.location) // Filter out null values
-              .map(item => item.location)
-            ),
-          ].sort();
-          
-          console.log("Metadata retrieved:", { categories, locations });
-          return { categories, locations };
-        } catch (error: any) {
-          console.error("Error fetching listing metadata:", error);
-          return { categories: [], locations: [] };
-        }
+          return { ...request, listing };
+        }));
+        
+        return requestsWithListings;
       },
-      refetchOnWindowFocus: false,
-      retry: 2,
-      staleTime: 1000 * 60 * 10, // 10 minutes
+      enabled: !!user
     });
   };
-
+  
   return {
     useListings,
+    useListingMetadata,
     useListing,
     useRequestConnection,
     useConnectionStatus,
     useSaveListingMutation,
     useSavedStatus,
-    useSavedListings,
-    useUserConnections,
-    useListingMetadata,
+    useUserConnectionRequests
   };
 }

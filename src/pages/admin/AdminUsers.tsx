@@ -24,7 +24,8 @@ const AdminUsers = () => {
     isDialogOpen,
     setIsDialogOpen,
     selectedUser,
-    actionType
+    actionType,
+    isLoading: isActionLoading
   } = UserActions({ onUserStatusUpdated: refetch });
   
   const filteredUsers = users.filter((user) => {
@@ -36,6 +37,8 @@ const AdminUsers = () => {
       user.company?.toLowerCase().includes(searchLower)
     );
   });
+
+  const pendingUsers = users.filter((u) => u.approval_status === "pending").length;
 
   return (
     <div className="p-8 max-w-7xl mx-auto">
@@ -57,15 +60,26 @@ const AdminUsers = () => {
           Total: {users.length}
         </Badge>
         <Badge className="bg-background text-foreground border">
-          Pending: {users.filter((u) => u.approval_status === "pending").length}
+          Pending: {pendingUsers}
         </Badge>
         <Badge className="bg-background text-foreground border">
           Approved: {users.filter((u) => u.approval_status === "approved").length}
         </Badge>
         <Badge className="bg-background text-foreground border">
+          Rejected: {users.filter((u) => u.approval_status === "rejected").length}
+        </Badge>
+        <Badge className="bg-background text-foreground border">
           Admins: {users.filter((u) => u.is_admin).length}
         </Badge>
       </div>
+
+      {pendingUsers > 0 && (
+        <div className="mb-6 bg-yellow-50 border border-yellow-200 rounded-md p-4">
+          <p className="text-yellow-800">
+            <span className="font-medium">Attention:</span> You have {pendingUsers} pending user{pendingUsers !== 1 ? 's' : ''} waiting for approval.
+          </p>
+        </div>
+      )}
 
       <UsersTable 
         users={filteredUsers}
@@ -73,7 +87,7 @@ const AdminUsers = () => {
         onReject={handleUserRejection}
         onMakeAdmin={handleMakeAdmin}
         onRevokeAdmin={handleRevokeAdmin}
-        isLoading={isLoading}
+        isLoading={isLoading || isActionLoading}
       />
 
       <UserDetailDialog
@@ -82,7 +96,7 @@ const AdminUsers = () => {
         onConfirm={confirmAction}
         selectedUser={selectedUser}
         actionType={actionType}
-        isLoading={false}
+        isLoading={isActionLoading}
       />
     </div>
   );
