@@ -30,7 +30,7 @@ import { useToast } from "@/hooks/use-toast";
 const AdminRequests = () => {
   const { toast } = useToast();
   const { useConnectionRequests, useUpdateConnectionRequest } = useAdmin();
-  const { data: requests = [], isLoading } = useConnectionRequests();
+  const { data: requests = [], isLoading, error } = useConnectionRequests();
   const { mutate: updateRequest, isPending: isUpdating } = useUpdateConnectionRequest();
   
   const [searchQuery, setSearchQuery] = useState("");
@@ -38,6 +38,10 @@ const AdminRequests = () => {
   const [actionType, setActionType] = useState<"approve" | "reject" | null>(null);
   const [adminComment, setAdminComment] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  
+  if (error) {
+    console.error("Connection requests error:", error);
+  }
   
   const filteredRequests = requests.filter((request) => {
     const searchLower = searchQuery.toLowerCase();
@@ -124,7 +128,7 @@ const AdminRequests = () => {
         renderSkeleton()
       ) : (
         <>
-          <div className="flex gap-4 mb-6">
+          <div className="flex gap-4 mb-6 flex-wrap">
             <Badge className="bg-background text-foreground border">
               Total: {requests.length}
             </Badge>

@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { toast } from '@/hooks/use-toast';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -201,23 +200,24 @@ export function useAdmin() {
       queryKey: ['admin-connection-requests'],
       queryFn: async () => {
         try {
+          // Use explicit join to get user and listing data
           const { data, error } = await supabase
             .from('connection_requests')
             .select(`
               *,
-              user:user_id (*),
-              listing:listing_id (*)
+              user:profiles!connection_requests_user_id_fkey (*),
+              listing:listings!connection_requests_listing_id_fkey (*)
             `)
             .order('created_at', { ascending: false });
 
-          if (error) throw error;
+          if (error) {
+            console.error("Error fetching connection requests:", error);
+            throw error;
+          }
           
-          return data.map((request: any) => ({
-            ...request,
-            user: request.user,
-            listing: request.listing
-          })) as AdminConnectionRequest[];
+          return data as AdminConnectionRequest[];
         } catch (error: any) {
+          console.error("Detailed error:", error);
           toast({
             variant: 'destructive',
             title: 'Error fetching connection requests',
@@ -262,10 +262,6 @@ export function useAdmin() {
       },
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: ['admin-connection-requests'] });
-        toast({
-          title: 'Connection request updated',
-          description: 'The connection request has been updated',
-        });
       },
       onError: (error: any) => {
         toast({
