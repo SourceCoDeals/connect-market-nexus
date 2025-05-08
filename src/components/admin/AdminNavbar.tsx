@@ -1,4 +1,3 @@
-
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
@@ -16,7 +15,7 @@ interface AdminNavbarProps {
   className?: string;
 }
 
-const AdminNavbar: React.FC<AdminNavbarProps> = ({ className }) => {
+export const AdminNavbar: React.FC<AdminNavbarProps> = ({ className }) => {
   const { logout, user } = useAuth();
   const location = useLocation();
   

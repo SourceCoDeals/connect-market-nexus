@@ -1,200 +1,61 @@
 
-import { supabase } from '@/integrations/supabase/client';
-import { User } from '@/types';
-import { useToast } from '@/hooks/use-toast';
-import { AdminConnectionRequest } from '@/types/admin';
+import { User } from "@/types";
+import { AdminConnectionRequest } from "@/types/admin";
 
 /**
- * Hook for sending admin emails
+ * Hook for sending email notifications from admin actions
  */
 export function useAdminEmail() {
-  const { toast } = useToast();
-
   /**
-   * Send approval email to user
+   * Send an email notification to a user when their account is approved
    */
   const sendUserApprovalEmail = async (user: User) => {
-    try {
-      console.log(`Sending approval email to ${user.email}`);
-      
-      // Call the edge function to send email
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-email-notification`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
-        },
-        body: JSON.stringify({
-          type: 'approval',
-          email: user.email,
-          firstName: user.first_name,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Email API response:', errorText);
-        throw new Error(`Failed to send approval email: ${response.status} ${errorText}`);
-      }
-
-      const data = await response.json();
-      console.log("Email sent successfully:", data);
-      return data;
-    } catch (error: any) {
-      console.error('Error sending approval email:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Email Error',
-        description: error.message || 'Failed to send approval email',
-      });
-      throw error;
-    }
+    console.log(`Would send approval email to ${user.email} for user ${user.first_name} ${user.last_name}`);
+    // This is a stub. In the future, we'll implement actual email sending.
+    return Promise.resolve();
   };
-
+  
   /**
-   * Send rejection email to user
+   * Send an email notification to a user when their account is rejected
    */
   const sendUserRejectionEmail = async (user: User, reason?: string) => {
-    try {
-      console.log(`Sending rejection email to ${user.email}`);
-      
-      // Call the edge function to send email
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-email-notification`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
-        },
-        body: JSON.stringify({
-          type: 'rejection',
-          email: user.email,
-          firstName: user.first_name,
-          data: {
-            rejectionReason: reason || 'Your application did not meet our current criteria.',
-          },
-        }),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Email API response:', errorText);
-        throw new Error(`Failed to send rejection email: ${response.status} ${errorText}`);
-      }
-
-      const data = await response.json();
-      console.log("Email sent successfully:", data);
-      return data;
-    } catch (error: any) {
-      console.error('Error sending rejection email:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Email Error',
-        description: error.message || 'Failed to send rejection email',
-      });
-      throw error;
-    }
+    console.log(`Would send rejection email to ${user.email} for user ${user.first_name} ${user.last_name}. Reason: ${reason || 'No reason provided'}`);
+    // This is a stub. In the future, we'll implement actual email sending.
+    return Promise.resolve();
   };
-
+  
   /**
-   * Send connection approval email to user
+   * Send an email notification to a user when their connection request is approved
    */
   const sendConnectionApprovalEmail = async (request: AdminConnectionRequest) => {
-    if (!request.user) {
-      console.error('Cannot send approval email: User information missing');
+    if (!request.user || !request.listing) {
+      console.error("Cannot send connection approval email: missing user or listing data");
       return;
     }
     
-    try {
-      console.log(`Sending connection approval email to ${request.user.email}`);
-      
-      // Call the edge function to send connection notification
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-connection-notification`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
-        },
-        body: JSON.stringify({
-          type: 'approved',
-          userId: request.user.id,
-          userEmail: request.user.email,
-          firstName: request.user.first_name,
-          listingName: request.listing?.title || 'Business listing',
-        }),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Email API response:', errorText);
-        throw new Error(`Failed to send connection approval email: ${response.status} ${errorText}`);
-      }
-
-      const data = await response.json();
-      console.log("Connection approval email sent successfully:", data);
-      return data;
-    } catch (error: any) {
-      console.error('Error sending connection approval email:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Email Error',
-        description: error.message || 'Failed to send connection approval email',
-      });
-      throw error;
-    }
+    console.log(`Would send connection approval email to ${request.user.email} for listing ${request.listing.title}`);
+    // This is a stub. In the future, we'll implement actual email sending.
+    return Promise.resolve();
   };
-
+  
   /**
-   * Send connection rejection email to user
+   * Send an email notification to a user when their connection request is rejected
    */
   const sendConnectionRejectionEmail = async (request: AdminConnectionRequest) => {
-    if (!request.user) {
-      console.error('Cannot send rejection email: User information missing');
+    if (!request.user || !request.listing) {
+      console.error("Cannot send connection rejection email: missing user or listing data");
       return;
     }
     
-    try {
-      console.log(`Sending connection rejection email to ${request.user.email}`);
-      
-      // Call the edge function to send connection notification
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-connection-notification`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
-        },
-        body: JSON.stringify({
-          type: 'rejected',
-          userId: request.user.id,
-          userEmail: request.user.email,
-          firstName: request.user.first_name,
-          listingName: request.listing?.title || 'Business listing',
-        }),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Email API response:', errorText);
-        throw new Error(`Failed to send connection rejection email: ${response.status} ${errorText}`);
-      }
-
-      const data = await response.json();
-      console.log("Connection rejection email sent successfully:", data);
-      return data;
-    } catch (error: any) {
-      console.error('Error sending connection rejection email:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Email Error',
-        description: error.message || 'Failed to send connection rejection email',
-      });
-      throw error;
-    }
+    console.log(`Would send connection rejection email to ${request.user.email} for listing ${request.listing.title}. Reason: ${request.admin_comment || 'No reason provided'}`);
+    // This is a stub. In the future, we'll implement actual email sending.
+    return Promise.resolve();
   };
-
+  
   return {
     sendUserApprovalEmail,
     sendUserRejectionEmail,
     sendConnectionApprovalEmail,
-    sendConnectionRejectionEmail,
+    sendConnectionRejectionEmail
   };
 }
