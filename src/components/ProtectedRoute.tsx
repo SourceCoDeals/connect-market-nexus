@@ -2,6 +2,7 @@
 import { useAuth } from "@/context/AuthContext";
 import { Navigate, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
+import { toast } from "@/hooks/use-toast";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -23,7 +24,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     if (isLoading && !authChecked) {
       const timer = setInterval(() => {
         setWaitTime(prev => prev + 1);
-      }, 1000);
+      }, 500); // Faster counter for better UX
       
       return () => clearInterval(timer);
     }
@@ -36,12 +37,19 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     return undefined;
   }, [isLoading, authChecked]);
 
-  // Force navigation after 3 seconds of loading if auth check is still not complete
-  if ((isLoading || !authChecked) && waitTime < 3) {
+  // Handle authentication state issues
+  useEffect(() => {
+    if (authChecked && !isLoading && !user) {
+      console.log(`ProtectedRoute: Auth check complete, no user found. Redirecting to login from ${location.pathname}`);
+    }
+  }, [authChecked, isLoading, user, location.pathname]);
+
+  // Force navigation after 2 seconds of loading if auth check is still not complete
+  if ((isLoading || !authChecked) && waitTime < 4) {
     return (
       <div className="flex flex-col items-center justify-center gap-4 min-h-screen">
         <div className="w-16 h-16 border-4 border-t-primary border-r-transparent border-b-transparent border-l-transparent rounded-full animate-spin"></div>
-        <p className="text-muted-foreground">Loading...</p>
+        <p className="text-muted-foreground">Loading authentication...</p>
         {waitTime > 1 && (
           <p className="text-sm text-muted-foreground">This is taking longer than expected...</p>
         )}
@@ -50,20 +58,30 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   }
 
   // If waited too long or auth check complete but no user, redirect to login
-  if ((waitTime >= 3 && isLoading) || (authChecked && !user)) {
-    console.log("Redirecting to login: auth checked =", authChecked, "user =", !!user);
-    return <Navigate to="/login" state={{ from: location }} replace />;
+  if ((waitTime >= 4 && isLoading) || (authChecked && !user)) {
+    console.log(`Redirecting to login: auth checked = ${authChecked}, user = ${!!user}, from path = ${location.pathname}`);
+    return <Navigate to="/login" state={{ from: location.pathname }} replace />;
   }
 
-  if (user && requireAdmin && !user.isAdmin) {
-    return <Navigate to="/unauthorized" replace />;
+  // Handle admin and approval requirements
+  if (user) {
+    if (requireAdmin && !user.isAdmin) {
+      console.log("User is not an admin, redirecting to unauthorized");
+      return <Navigate to="/unauthorized" replace />;
+    }
+
+    if (requireApproved && user.approval_status !== 'approved' && !user.isAdmin) {
+      console.log("User is not approved, redirecting to pending approval");
+      return <Navigate to="/pending-approval" replace />;
+    }
+
+    console.log(`Protected route access granted to ${location.pathname} for user ${user.email}`);
+    return <>{children}</>;
   }
 
-  if (user && requireApproved && user.approval_status !== 'approved' && !user.isAdmin) {
-    return <Navigate to="/pending-approval" replace />;
-  }
-
-  return <>{children}</>;
+  // This should never happen but as a final fallback
+  console.warn("Unexpected state in ProtectedRoute - redirecting to login");
+  return <Navigate to="/login" state={{ from: location.pathname }} replace />;
 };
 
 export default ProtectedRoute;

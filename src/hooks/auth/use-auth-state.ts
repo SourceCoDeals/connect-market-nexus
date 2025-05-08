@@ -10,19 +10,70 @@ export function useAuthState() {
   const [authChecked, setAuthChecked] = useState(false);
 
   useEffect(() => {
-    const checkUser = async () => {
+    // First set up the auth state change listener before checking the session
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        console.log("Auth state change:", event);
+        
+        // Update state synchronously to prevent race conditions
+        if (event === "SIGNED_OUT") {
+          console.log("User signed out, clearing state");
+          setUser(null);
+          localStorage.removeItem("user");
+          setIsLoading(false);
+          setAuthChecked(true);
+          return;
+        }
+        
+        if (event === "SIGNED_IN" && session) {
+          console.log("User signed in:", session.user.id);
+          // Use setTimeout to avoid Supabase auth deadlocks
+          setTimeout(async () => {
+            try {
+              const { data: profile, error } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', session.user.id)
+                .single();
+              
+              if (error) {
+                console.error("Error fetching profile after sign in:", error);
+                setUser(null);
+                setIsLoading(false);
+                setAuthChecked(true);
+                return;
+              }
+              
+              if (profile) {
+                const userData = createUserObject(profile);
+                console.log("Setting user data after sign in:", userData.email);
+                setUser(userData);
+                localStorage.setItem("user", JSON.stringify(userData));
+              }
+            } catch (err) {
+              console.error("Error in auth state change handler:", err);
+              setUser(null);
+            } finally {
+              setIsLoading(false);
+              setAuthChecked(true);
+            }
+          }, 0);
+        }
+      }
+    );
+    
+    const checkSession = async () => {
       try {
         setIsLoading(true);
         
-        // Set a shorter timeout to prevent prolonged loading
+        // Timeout to prevent infinite loading
         const timeoutId = setTimeout(() => {
-          console.warn("Auth check timeout - forcing reset");
+          console.warn("Auth check timeout - forcing completion");
           setIsLoading(false);
           setUser(null);
           setAuthChecked(true);
-        }, 3000);
+        }, 2000); // Shorter timeout for better UX
         
-        // Get current session
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         
         // Clear timeout as we got a response
@@ -43,17 +94,11 @@ export function useAuthState() {
             .single();
           
           if (profileError) {
-            if (profileError.code === 'PGRST116') {
-              console.warn("User profile not found, cleaning up session");
-              localStorage.removeItem("user");
-              setUser(null);
-            } else {
-              console.error("Profile error:", profileError);
-              throw profileError;
-            }
+            console.error("Profile error:", profileError);
+            setUser(null);
+            localStorage.removeItem("user");
           } else if (profileData) {
             console.log("Loaded profile data:", profileData.email);
-            // Create user object from profile data
             const userData = createUserObject(profileData);
             setUser(userData);
             localStorage.setItem("user", JSON.stringify(userData));
@@ -73,55 +118,10 @@ export function useAuthState() {
       }
     };
     
-    checkUser();
+    // Initialize by checking the session
+    checkSession();
     
-    // Set up auth state change subscription
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        console.log("Auth state change:", event);
-        
-        if (event === "SIGNED_IN" && session) {
-          // Use setTimeout to prevent deadlocks in Supabase auth
-          setTimeout(async () => {
-            try {
-              // Fetch user profile when signed in
-              const { data: profile, error } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('id', session.user.id)
-                .single();
-              
-              if (error) {
-                console.error("Error fetching user profile:", error);
-                if (error.code === 'PGRST116') {
-                  // Profile not found
-                  console.warn("User profile not found on sign in");
-                  setUser(null);
-                  return;
-                }
-                throw error;
-              }
-              
-              if (profile) {
-                const userData = createUserObject(profile);
-                setUser(userData);
-                localStorage.setItem("user", JSON.stringify(userData));
-              }
-            } catch (error) {
-              console.error("Error in auth state change handler:", error);
-              setUser(null);
-            } finally {
-              setIsLoading(false);
-            }
-          }, 0);
-        } else if (event === "SIGNED_OUT") {
-          setUser(null);
-          localStorage.removeItem("user");
-          setIsLoading(false);
-        }
-      }
-    );
-    
+    // Clean up the subscription when component unmounts
     return () => {
       subscription.unsubscribe();
     };
@@ -132,6 +132,6 @@ export function useAuthState() {
     isLoading,
     isAdmin: user?.role === "admin",
     isBuyer: user?.role === "buyer",
-    authChecked, // New property to indicate auth check is complete
+    authChecked,
   };
 }

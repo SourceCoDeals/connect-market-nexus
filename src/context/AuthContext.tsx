@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { User as AppUser } from "@/types";
 import { toast } from "@/hooks/use-toast";
-import { createUserObject, cleanupAuthState } from "@/lib/auth-helpers";
+import { createUserObject } from "@/lib/auth-helpers";
 import { useAuthState } from "@/hooks/auth/use-auth-state";
 import { useAuthActions } from "@/hooks/auth/use-auth-actions";
 
@@ -40,13 +40,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Use the dedicated auth state hook
   const { user, isLoading, isAdmin, isBuyer, authChecked } = useAuthState();
   
+  const authActionsSetUser = React.useCallback((newUser: AppUser | null) => {
+    // This is handled by useAuthState, but needed for useAuthActions
+    console.log("Auth actions setting user:", newUser?.email);
+  }, []);
+  
+  const authActionsSetLoading = React.useCallback((loading: boolean) => {
+    // This is handled by useAuthState, but needed for useAuthActions
+    console.log("Auth actions setting loading:", loading);
+  }, []);
+  
   // Connect auth actions with the auth state
   const { login, logout, signup, updateUserProfile } = useAuthActions(
-    (newUser) => {}, // The state is primarily managed by useAuthState
-    (loading) => {} // The loading state is primarily managed by useAuthState
+    authActionsSetUser,
+    authActionsSetLoading
   );
 
   const navigate = useNavigate();
+
+  // Update session when it changes
+  useEffect(() => {
+    const getSession = async () => {
+      const { data } = await supabase.auth.getSession();
+      setSession(data.session);
+    };
+    
+    getSession();
+    
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      console.log("Session updated in AuthContext");
+      setSession(newSession);
+    });
+    
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
 
   const refreshUserProfile = async () => {
     try {

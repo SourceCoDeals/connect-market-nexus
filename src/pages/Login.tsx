@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
 import { AlertCircle } from "lucide-react";
+import { cleanupAuthState } from "@/integrations/supabase/client";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -16,14 +17,28 @@ const Login = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
+  // Get redirect path from location state or default routes
+  const getRedirectPath = () => {
+    const from = location.state?.from;
+    if (from && typeof from === 'string' && from !== '/login') {
+      return from;
+    }
+    return user?.isAdmin ? "/admin" : "/marketplace";
+  };
+
+  // Cleanup auth state on mount to prevent auth issues
+  useEffect(() => {
+    console.log("Login page mounted, cleaning up previous auth state");
+    cleanupAuthState();
+  }, []);
+
   // Redirect if user is already logged in
   useEffect(() => {
     if (authChecked && user) {
-      console.log("User already logged in, redirecting");
-      const from = location.state?.from?.pathname || (user.isAdmin ? "/admin/dashboard" : "/marketplace");
-      navigate(from, { replace: true });
+      console.log("User already logged in, redirecting to", getRedirectPath());
+      navigate(getRedirectPath(), { replace: true });
     }
-  }, [user, navigate, location, authChecked]);
+  }, [user, navigate, authChecked]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,13 +55,31 @@ const Login = () => {
     }
     
     try {
+      console.log(`Attempting login with email: ${email}`);
       await login(email, password);
       // Redirection will be handled by the useEffect above
     } catch (err: any) {
       console.error("Login error:", err);
       setError(err.message || "Failed to sign in");
+      toast({
+        variant: "destructive",
+        title: "Login failed",
+        description: err.message || "Please check your credentials and try again"
+      });
     }
   };
+
+  // Show loading state while we check authentication
+  if (!authChecked && isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-muted/30">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-16 h-16 border-4 border-t-primary border-r-transparent border-b-transparent border-l-transparent rounded-full animate-spin"></div>
+          <p className="text-muted-foreground">Checking authentication...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-muted/30">

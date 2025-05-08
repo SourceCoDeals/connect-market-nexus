@@ -17,6 +17,7 @@ import ListingDetails from "@/pages/ListingDetail";
 import MyRequests from "@/pages/MyRequests";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import Index from "@/pages/Index";
+import NotFound from "@/pages/NotFound";
 
 function App() {
   return (
@@ -31,7 +32,14 @@ function App() {
         <Route path="/auth/callback" element={<VerifyEmailHandler />} />
         
         {/* Admin Routes */}
-        <Route path="/admin" element={<ProtectedRoute requireAdmin={true}><MainLayout /></ProtectedRoute>}>
+        <Route 
+          path="/admin" 
+          element={
+            <ProtectedRoute requireAdmin={true}>
+              <MainLayout />
+            </ProtectedRoute>
+          }
+        >
           <Route index element={<AdminDashboard />} />
           <Route path="users" element={<AdminUsers />} />
           <Route path="listings" element={<AdminListings />} />
@@ -39,11 +47,32 @@ function App() {
         </Route>
         
         {/* Marketplace Routes */}
-        <Route path="/marketplace" element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
+        <Route 
+          path="/marketplace" 
+          element={
+            <ProtectedRoute>
+              <MainLayout />
+            </ProtectedRoute>
+          }
+        >
           <Route index element={<Listings />} />
           <Route path="listings/:id" element={<ListingDetails />} />
-          <Route path="my-requests" element={<MyRequests />} />
         </Route>
+
+        {/* My Requests Route */}
+        <Route 
+          path="/my-requests" 
+          element={
+            <ProtectedRoute>
+              <MainLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<MyRequests />} />
+        </Route>
+
+        {/* 404 Route */}
+        <Route path="*" element={<NotFound />} />
       </Routes>
       <Toaster />
     </AuthProvider>

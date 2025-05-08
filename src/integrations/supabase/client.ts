@@ -13,7 +13,7 @@ export const supabase = createClient<Database>(
     auth: {
       persistSession: true,
       autoRefreshToken: true,
-      storageKey: 'supabase.auth.token',
+      storageKey: 'sb-vhzipqarkmmfuqadefep-auth-token',
       detectSessionInUrl: true,
       flowType: 'implicit',
     }
@@ -22,16 +22,28 @@ export const supabase = createClient<Database>(
 
 // Helper function to clean up auth state in case of issues
 export const cleanupAuthState = () => {
+  console.log("Cleaning up auth state");
+  
   // Remove all Supabase auth keys from localStorage
   Object.keys(localStorage).forEach((key) => {
-    if (key.startsWith('supabase.auth.') || key.includes('sb-') || key === 'user') {
+    if (key.startsWith('supabase.auth.') || 
+        key.includes('sb-') || 
+        key.startsWith('sb:') ||
+        key === 'supabase.auth.token' ||
+        key === 'user') {
+      console.log(`Removing localStorage key: ${key}`);
       localStorage.removeItem(key);
     }
   });
+  
   // Remove from sessionStorage if in use
   if (typeof sessionStorage !== 'undefined') {
     Object.keys(sessionStorage).forEach((key) => {
-      if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
+      if (key.startsWith('supabase.auth.') || 
+          key.includes('sb-') ||
+          key.startsWith('sb:') ||
+          key === 'supabase.auth.token') {
+        console.log(`Removing sessionStorage key: ${key}`);
         sessionStorage.removeItem(key);
       }
     });

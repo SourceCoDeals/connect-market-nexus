@@ -10,10 +10,17 @@ export function useAuthActions(setUser: (user: User | null) => void, setIsLoadin
   const login = async (email: string, password: string) => {
     setIsLoading(true);
     try {
-      // Clean up existing auth state
+      // Clean up existing auth state before login
       cleanupAuthState();
       
       console.log("Attempting login with email:", email);
+      
+      // Attempt global sign out first to prevent conflicts
+      try {
+        await supabase.auth.signOut();
+      } catch (e) {
+        // Ignore errors, just continue with login
+      }
       
       // Sign in
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -93,7 +100,7 @@ export function useAuthActions(setUser: (user: User | null) => void, setIsLoadin
       
       // Redirect based on user role
       if (profile.is_admin) {
-        navigate("/admin/dashboard");
+        navigate("/admin");
       } else {
         navigate("/marketplace");
       }
@@ -113,6 +120,8 @@ export function useAuthActions(setUser: (user: User | null) => void, setIsLoadin
   const logout = async () => {
     setIsLoading(true);
     try {
+      console.log("Starting logout process");
+      
       // Clean up auth state first
       cleanupAuthState();
       
@@ -130,11 +139,16 @@ export function useAuthActions(setUser: (user: User | null) => void, setIsLoadin
       // Force page reload to clear all state
       window.location.href = '/login';
     } catch (error: any) {
+      console.error("Logout error:", error);
       toast({
         variant: "destructive",
         title: "Error",
         description: error.message || "Failed to log out",
       });
+      
+      // Even if there's an error, still try to force logout
+      setUser(null);
+      window.location.href = '/login';
     } finally {
       setIsLoading(false);
     }
