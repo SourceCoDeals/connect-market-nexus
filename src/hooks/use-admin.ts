@@ -1,10 +1,10 @@
+
 import { useState } from 'react';
 import { toast } from '@/hooks/use-toast';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { User } from '@/types';
+import { User, ApprovalStatus } from '@/types';
 import { AdminListing, AdminConnectionRequest, AdminStats } from '@/types/admin';
-import { ApprovalStatus } from "@/types";
 
 export function useAdmin() {
   const queryClient = useQueryClient();
@@ -21,7 +21,23 @@ export function useAdmin() {
             .order('created_at', { ascending: false });
 
           if (error) throw error;
-          return data as unknown as User[];
+          
+          // Transform profiles data to match User interface
+          const users = (data || []).map(profile => ({
+            ...profile,
+            role: profile.is_admin ? 'admin' : 'buyer',
+            firstName: profile.first_name,
+            lastName: profile.last_name,
+            phoneNumber: profile.phone_number,
+            isAdmin: profile.is_admin,
+            buyerType: profile.buyer_type,
+            emailVerified: profile.email_verified,
+            isApproved: profile.approval_status === 'approved',
+            createdAt: profile.created_at,
+            updatedAt: profile.updated_at,
+          })) as User[];
+          
+          return users;
         } catch (error: any) {
           toast({
             variant: 'destructive',
@@ -240,9 +256,21 @@ export function useAdmin() {
             console.error("Error fetching listings for requests:", listingsError);
           }
 
-          // Create a map for quick user lookup
-          const usersMap = (usersData || []).reduce((acc, user) => {
-            acc[user.id] = user;
+          // Create a map for quick user lookup with transformed User data
+          const usersMap = (usersData || []).reduce((acc, profile) => {
+            acc[profile.id] = {
+              ...profile,
+              role: profile.is_admin ? 'admin' : 'buyer',
+              firstName: profile.first_name,
+              lastName: profile.last_name,
+              phoneNumber: profile.phone_number,
+              isAdmin: profile.is_admin,
+              buyerType: profile.buyer_type,
+              emailVerified: profile.email_verified,
+              isApproved: profile.approval_status === 'approved',
+              createdAt: profile.created_at,
+              updatedAt: profile.updated_at,
+            } as User;
             return acc;
           }, {} as Record<string, User>);
           
