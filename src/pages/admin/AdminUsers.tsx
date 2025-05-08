@@ -4,36 +4,30 @@ import { useAdmin } from "@/hooks/use-admin";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { Search, CheckCircle, XCircle, AlertTriangle } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
+import { Search } from "lucide-react";
 import { User } from "@/types";
+import { UsersTable } from "@/components/admin/UsersTable";
+import { UserDetailDialog } from "@/components/admin/UserDetailDialog";
+import { useToast } from "@/hooks/use-toast";
 
 const AdminUsers = () => {
-  const { useUsers, useUpdateUserStatus } = useAdmin();
+  const { toast } = useToast();
+  const {
+    useUsers,
+    useUpdateUserStatus,
+    useUpdateAdminStatus,
+    sendUserApprovalEmail,
+    sendUserRejectionEmail
+  } = useAdmin();
+  
   const { data: users = [], isLoading } = useUsers();
   const { mutate: updateUserStatus } = useUpdateUserStatus();
+  const { mutate: updateAdminStatus } = useUpdateAdminStatus();
   
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const [actionType, setActionType] = useState<"approve" | "reject" | null>(null);
+  const [actionType, setActionType] = useState<"approve" | "reject" | "makeAdmin" | "revokeAdmin" | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
   
   const filteredUsers = users.filter((user) => {
     const searchLower = searchQuery.toLowerCase();
@@ -45,47 +39,119 @@ const AdminUsers = () => {
     );
   });
   
-  const handleAction = (user: User, action: "approve" | "reject") => {
+  const handleUserApproval = (user: User) => {
     setSelectedUser(user);
-    setActionType(action);
+    setActionType("approve");
+    setIsDialogOpen(true);
   };
   
-  const confirmAction = () => {
-    if (selectedUser && actionType) {
-      updateUserStatus({
-        userId: selectedUser.id,
-        status: actionType === "approve" ? "approved" : "rejected",
-      });
-    }
-    setSelectedUser(null);
-    setActionType(null);
+  const handleUserRejection = (user: User) => {
+    setSelectedUser(user);
+    setActionType("reject");
+    setIsDialogOpen(true);
   };
   
-  const getStatusBadge = (status?: string) => {
-    switch (status) {
-      case "approved":
-        return <Badge className="bg-green-500">Approved</Badge>;
-      case "rejected":
-        return <Badge className="bg-red-500">Rejected</Badge>;
-      case "pending":
-      default:
-        return <Badge className="bg-yellow-500">Pending</Badge>;
+  const handleMakeAdmin = (user: User) => {
+    setSelectedUser(user);
+    setActionType("makeAdmin");
+    setIsDialogOpen(true);
+  };
+  
+  const handleRevokeAdmin = (user: User) => {
+    setSelectedUser(user);
+    setActionType("revokeAdmin");
+    setIsDialogOpen(true);
+  };
+  
+  const confirmAction = async (reason?: string) => {
+    if (!selectedUser) return;
+    
+    try {
+      switch (actionType) {
+        case "approve":
+          await updateUserStatus(
+            { userId: selectedUser.id, status: "approved" },
+            {
+              onSuccess: async () => {
+                try {
+                  // Send approval email
+                  await sendUserApprovalEmail(selectedUser);
+                  toast({
+                    title: "User approved",
+                    description: `${selectedUser.first_name} ${selectedUser.last_name} has been approved and notified via email.`,
+                  });
+                } catch (error) {
+                  console.error("Error sending approval email:", error);
+                  toast({
+                    title: "User approved",
+                    description: `${selectedUser.first_name} ${selectedUser.last_name} has been approved, but there was an error sending the email notification.`,
+                  });
+                }
+                setIsDialogOpen(false);
+              },
+            }
+          );
+          break;
+          
+        case "reject":
+          await updateUserStatus(
+            { userId: selectedUser.id, status: "rejected" },
+            {
+              onSuccess: async () => {
+                try {
+                  // Send rejection email with reason
+                  await sendUserRejectionEmail(selectedUser, reason);
+                  toast({
+                    title: "User rejected",
+                    description: `${selectedUser.first_name} ${selectedUser.last_name} has been rejected and notified via email.`,
+                  });
+                } catch (error) {
+                  console.error("Error sending rejection email:", error);
+                  toast({
+                    title: "User rejected",
+                    description: `${selectedUser.first_name} ${selectedUser.last_name} has been rejected, but there was an error sending the email notification.`,
+                  });
+                }
+                setIsDialogOpen(false);
+              },
+            }
+          );
+          break;
+          
+        case "makeAdmin":
+          await updateAdminStatus(
+            { userId: selectedUser.id, isAdmin: true },
+            {
+              onSuccess: () => {
+                toast({
+                  title: "Admin status granted",
+                  description: `${selectedUser.first_name} ${selectedUser.last_name} is now an admin.`,
+                });
+                setIsDialogOpen(false);
+              },
+            }
+          );
+          break;
+          
+        case "revokeAdmin":
+          await updateAdminStatus(
+            { userId: selectedUser.id, isAdmin: false },
+            {
+              onSuccess: () => {
+                toast({
+                  title: "Admin status revoked",
+                  description: `${selectedUser.first_name} ${selectedUser.last_name} is no longer an admin.`,
+                });
+                setIsDialogOpen(false);
+              },
+            }
+          );
+          break;
+      }
+    } catch (error) {
+      console.error("Error during user action:", error);
     }
   };
-
-  const renderSkeleton = () => (
-    <div className="space-y-4">
-      <div className="h-10 bg-muted rounded-md w-full max-w-sm animate-pulse"></div>
-      <div className="border rounded-md">
-        <div className="h-12 bg-muted/50 rounded-t-md animate-pulse"></div>
-        {Array(5)
-          .fill(0)
-          .map((_, i) => (
-            <div key={i} className="h-16 border-t bg-background animate-pulse"></div>
-          ))}
-      </div>
-    </div>
-  );
 
   return (
     <div className="p-8 max-w-7xl mx-auto">
@@ -102,145 +168,38 @@ const AdminUsers = () => {
         </div>
       </div>
 
-      {isLoading ? (
-        renderSkeleton()
-      ) : (
-        <>
-          <div className="flex gap-4 mb-6">
-            <Badge className="bg-background text-foreground border">
-              Total: {users.length}
-            </Badge>
-            <Badge className="bg-background text-foreground border">
-              Pending: {users.filter((u) => u.approval_status === "pending").length}
-            </Badge>
-            <Badge className="bg-background text-foreground border">
-              Approved: {users.filter((u) => u.approval_status === "approved").length}
-            </Badge>
-          </div>
+      <div className="flex gap-4 mb-6 flex-wrap">
+        <Badge className="bg-background text-foreground border">
+          Total: {users.length}
+        </Badge>
+        <Badge className="bg-background text-foreground border">
+          Pending: {users.filter((u) => u.approval_status === "pending").length}
+        </Badge>
+        <Badge className="bg-background text-foreground border">
+          Approved: {users.filter((u) => u.approval_status === "approved").length}
+        </Badge>
+        <Badge className="bg-background text-foreground border">
+          Admins: {users.filter((u) => u.is_admin).length}
+        </Badge>
+      </div>
 
-          <div className="border rounded-md">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Company</TableHead>
-                  <TableHead>Registered</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Email Verified</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredUsers.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8">
-                      No users found
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredUsers.map((user) => (
-                    <TableRow key={user.id}>
-                      <TableCell className="font-medium">
-                        {user.first_name} {user.last_name}
-                      </TableCell>
-                      <TableCell>{user.email}</TableCell>
-                      <TableCell>{user.company || "-"}</TableCell>
-                      <TableCell>
-                        {user.created_at
-                          ? formatDistanceToNow(new Date(user.created_at), {
-                              addSuffix: true,
-                            })
-                          : "-"}
-                      </TableCell>
-                      <TableCell>{getStatusBadge(user.approval_status)}</TableCell>
-                      <TableCell>
-                        {user.email_verified ? (
-                          <CheckCircle className="text-green-500 h-5 w-5" />
-                        ) : (
-                          <XCircle className="text-red-500 h-5 w-5" />
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {user.approval_status === "pending" ? (
-                          <div className="flex justify-end gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="border-green-500 hover:bg-green-500 hover:text-white"
-                              onClick={() => handleAction(user, "approve")}
-                            >
-                              Approve
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="border-red-500 hover:bg-red-500 hover:text-white"
-                              onClick={() => handleAction(user, "reject")}
-                            >
-                              Reject
-                            </Button>
-                          </div>
-                        ) : user.approval_status === "rejected" ? (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="border-green-500 hover:bg-green-500 hover:text-white"
-                            onClick={() => handleAction(user, "approve")}
-                          >
-                            Approve
-                          </Button>
-                        ) : (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="border-red-500 hover:bg-red-500 hover:text-white"
-                            onClick={() => handleAction(user, "reject")}
-                          >
-                            Revoke
-                          </Button>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </>
-      )}
+      <UsersTable 
+        users={filteredUsers}
+        onApprove={handleUserApproval}
+        onReject={handleUserRejection}
+        onMakeAdmin={handleMakeAdmin}
+        onRevokeAdmin={handleRevokeAdmin}
+        isLoading={isLoading}
+      />
 
-      {/* Confirmation Dialog */}
-      <AlertDialog open={Boolean(selectedUser && actionType)} onOpenChange={() => setSelectedUser(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-yellow-500" />
-              {actionType === "approve" ? "Approve User" : "Reject User"}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to {actionType === "approve" ? "approve" : "reject"}{" "}
-              {selectedUser?.first_name} {selectedUser?.last_name}?
-              {actionType === "approve"
-                ? " This will grant them access to the marketplace."
-                : " This will prevent them from accessing the marketplace."}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={confirmAction}
-              className={
-                actionType === "approve"
-                  ? "bg-green-500 hover:bg-green-600"
-                  : "bg-red-500 hover:bg-red-600"
-              }
-            >
-              {actionType === "approve" ? "Approve" : "Reject"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <UserDetailDialog
+        isOpen={isDialogOpen}
+        onClose={() => setIsDialogOpen(false)}
+        onConfirm={confirmAction}
+        selectedUser={selectedUser}
+        actionType={actionType}
+        isLoading={false}
+      />
     </div>
   );
 };
