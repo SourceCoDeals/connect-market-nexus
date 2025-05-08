@@ -12,6 +12,7 @@ import AdminUsers from "@/pages/admin/AdminUsers";
 import AdminListings from "@/pages/admin/AdminListings";
 import AdminRequests from "@/pages/admin/AdminRequests";
 import MainLayout from "@/components/MainLayout";
+import AdminLayout from "@/components/admin/AdminLayout";
 import Listings from "@/pages/Marketplace";
 import ListingDetails from "@/pages/ListingDetail";
 import MyRequests from "@/pages/MyRequests";
@@ -62,7 +63,7 @@ function App() {
           path="/admin" 
           element={
             <ProtectedRoute requireAdmin={true}>
-              <MainLayout />
+              <AdminLayout />
             </ProtectedRoute>
           }
         >

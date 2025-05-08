@@ -23,7 +23,7 @@ const AdminNavbar: React.FC<AdminNavbarProps> = ({ className }) => {
   const navItems = [
     {
       title: "Dashboard",
-      href: "/admin/dashboard",
+      href: "/admin",
       icon: <LayoutDashboard className="h-5 w-5 mr-2" />,
     },
     {
