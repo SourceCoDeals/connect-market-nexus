@@ -88,7 +88,7 @@ export function useAdminStats() {
           
           activities.push(...(signups || []).map((signup) => ({
             id: `signup-${signup.id}`,
-            type: 'signup',
+            type: "signup" as const,
             description: `New user registered: ${signup.first_name} ${signup.last_name}`,
             timestamp: signup.created_at,
             user_id: signup.id,
@@ -109,7 +109,7 @@ export function useAdminStats() {
           
           activities.push(...(connections || []).map((connection: any) => ({
             id: `connection-${connection.id}`,
-            type: 'connection_request',
+            type: "connection_request" as const,
             description: `New connection request for ${connection.listings?.title} from ${connection.profiles?.first_name} ${connection.profiles?.last_name}`,
             timestamp: connection.created_at,
             user_id: connection.user_id,
@@ -126,7 +126,7 @@ export function useAdminStats() {
           
           activities.push(...(listings || []).map((listing) => ({
             id: `listing-${listing.id}`,
-            type: 'listing_creation',
+            type: "listing_creation" as const,
             description: `New listing created: ${listing.title}`,
             timestamp: listing.created_at,
           })));
