@@ -42,6 +42,8 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     authChecked,
     waitTime,
     user: user?.email,
+    email_verified: user?.email_verified,
+    approval_status: user?.approval_status,
     path: location.pathname
   });
 
@@ -64,13 +66,21 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     return <Navigate to="/login" state={{ from: location.pathname }} replace />;
   }
 
-  // Handle admin and approval requirements
+  // Handle verification and approval requirements
   if (user) {
+    // Check if email is verified
+    if (!user.email_verified) {
+      console.log("User email not verified, redirecting to verify email page");
+      return <Navigate to="/verify-email" state={{ email: user.email }} replace />;
+    }
+    
+    // Check for admin requirement
     if (requireAdmin && !user.isAdmin) {
       console.log("User is not an admin, redirecting to unauthorized");
       return <Navigate to="/unauthorized" replace />;
     }
 
+    // Check for approval requirement
     if (requireApproved && user.approval_status !== 'approved' && !user.isAdmin) {
       console.log("User is not approved, redirecting to pending approval");
       return <Navigate to="/pending-approval" replace />;

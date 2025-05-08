@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -45,9 +46,9 @@ export default function VerifyEmailHandler() {
           if (error) {
             console.error('Verification error:', error);
             setTokenInvalidOrExpired(true);
-            // Check if we can extract email from token
+            
+            // Try to extract email from session if available
             try {
-              // In production, we might have the email in state if they are coming from signup
               const { data } = await supabase.auth.getSession();
               if (data?.session?.user?.email) {
                 setEmail(data.session.user.email);
@@ -64,6 +65,7 @@ export default function VerifyEmailHandler() {
           if (data.user) {
             setEmail(data.user.email);
             
+            // Get the profile data
             const { data: profileData, error: profileError } = await supabase
               .from('profiles')
               .select('approval_status, email_verified')
@@ -72,11 +74,15 @@ export default function VerifyEmailHandler() {
               
             if (profileError) throw profileError;
             
-            // Update status
+            console.log("Profile data after verification:", profileData);
+            
+            // Set approval status from profile
             setApprovalStatus(profileData.approval_status as ApprovalStatus);
             
-            // Update the profile to mark email as verified if it's not already
+            // Explicitly update profile email_verified field if needed
+            // This is a backup in case the trigger didn't fire
             if (!profileData.email_verified) {
+              console.log("Email verified flag needs to be updated");
               const { error: updateError } = await supabase
                 .from('profiles')
                 .update({ email_verified: true })
@@ -88,6 +94,8 @@ export default function VerifyEmailHandler() {
               } else {
                 console.log('Email verified flag updated successfully');
               }
+            } else {
+              console.log("Email was already marked as verified");
             }
           }
         } else {

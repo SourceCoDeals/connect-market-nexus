@@ -1,3 +1,4 @@
+
 import { useNavigate } from "react-router-dom";
 import { User } from "@/types";
 import { toast } from "@/hooks/use-toast";
@@ -50,6 +51,12 @@ export function useAuthActions(setUser: (user: User | null) => void, setIsLoadin
         throw new Error("User profile not found");
       }
       
+      console.log("User profile fetched:", {
+        email_verified: profile.email_verified,
+        approval_status: profile.approval_status
+      });
+      
+      // Check email verification status from the profile
       if (!profile.email_verified) {
         toast({
           variant: "destructive",
@@ -61,6 +68,7 @@ export function useAuthActions(setUser: (user: User | null) => void, setIsLoadin
         return;
       }
       
+      // Check approval status
       if (profile.approval_status === 'pending') {
         toast({
           variant: "destructive",

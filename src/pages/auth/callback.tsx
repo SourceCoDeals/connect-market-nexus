@@ -29,23 +29,29 @@ export default function AuthCallback() {
 
           if (profileError) throw profileError;
 
+          console.log("Auth callback - User profile:", profileData);
+
           // Redirect based on email verification and approval status
           if (profileData.email_verified) {
             if (profileData.approval_status === 'approved') {
               // User is verified and approved, redirect to marketplace
+              console.log("User verified and approved - redirecting to marketplace");
               navigate('/marketplace');
             } else {
               // User is verified but not approved, redirect to pending approval
+              console.log("User verified but not approved - redirecting to pending approval");
               navigate('/pending-approval');
             }
           } else {
             // User's email is not verified, redirect to verify email page
+            console.log("User not verified - redirecting to verify email page");
             navigate('/verify-email', { 
               state: { email: data.session.user.email } 
             });
           }
         } else {
           // No session, redirect to login
+          console.log("No session found - redirecting to login");
           navigate('/login');
         }
       } catch (err: any) {
