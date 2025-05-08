@@ -7,6 +7,7 @@ import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { useMarketplace } from "@/hooks/use-marketplace";
 import { Bookmark, Building2, MapPin } from "lucide-react";
 import { Listing } from "@/types";
+import { AspectRatio } from "@/components/ui/aspect-ratio";
 
 interface ListingCardProps {
   listing: Listing;
@@ -58,8 +59,40 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
             viewType === "list" ? "flex-row w-full" : ""
           }`}
         >
+          {viewType === "list" ? (
+            <div className="w-1/4 min-w-[180px]">
+              <AspectRatio ratio={4/3} className="bg-muted">
+                {listing.image_url ? (
+                  <img 
+                    src={listing.image_url} 
+                    alt={listing.title} 
+                    className="object-cover w-full h-full" 
+                  />
+                ) : (
+                  <div className="flex items-center justify-center w-full h-full bg-muted text-muted-foreground">
+                    <Building2 className="h-10 w-10 opacity-20" />
+                  </div>
+                )}
+              </AspectRatio>
+            </div>
+          ) : (
+            <AspectRatio ratio={16/9} className="bg-muted">
+              {listing.image_url ? (
+                <img 
+                  src={listing.image_url} 
+                  alt={listing.title} 
+                  className="object-cover w-full h-full" 
+                />
+              ) : (
+                <div className="flex items-center justify-center w-full h-full bg-muted text-muted-foreground">
+                  <Building2 className="h-10 w-10 opacity-20" />
+                </div>
+              )}
+            </AspectRatio>
+          )}
+          
           <CardContent
-            className={`p-6 flex-1 ${viewType === "list" ? "w-2/3" : ""}`}
+            className={`p-6 flex-1 ${viewType === "list" ? "w-2/4" : ""}`}
           >
             <div className="flex flex-wrap gap-2 mb-2">
               <Badge variant="outline" className="bg-background font-normal">
@@ -94,7 +127,7 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
 
           <CardFooter
             className={`p-4 pt-0 border-t mt-auto ${
-              viewType === "list" ? "w-1/3 border-l border-t-0 p-6" : ""
+              viewType === "list" ? "w-1/4 border-l border-t-0 p-6" : ""
             }`}
           >
             <div

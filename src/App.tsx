@@ -19,6 +19,7 @@ import Unauthorized from "@/pages/Unauthorized";
 
 // Main pages
 import Index from "@/pages/Index";
+import Profile from "@/pages/Profile";
 import Marketplace from "@/pages/Marketplace";
 import ListingDetail from "@/pages/ListingDetail";
 import MyRequests from "@/pages/MyRequests";
@@ -53,6 +54,11 @@ const App = () => (
               <Route path="/unauthorized" element={<Unauthorized />} />
               
               {/* Protected buyer routes */}
+              <Route path="/profile" element={
+                <ProtectedRoute>
+                  <Profile />
+                </ProtectedRoute>
+              } />
               <Route path="/marketplace" element={
                 <ProtectedRoute>
                   <Marketplace />

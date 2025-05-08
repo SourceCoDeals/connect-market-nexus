@@ -1,18 +1,16 @@
 
-import { useState } from 'react';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { formatDistanceToNow } from 'date-fns';
-import { User } from '@/types';
-import { CheckCircle, XCircle } from 'lucide-react';
+import { useState } from "react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { User } from "@/types";
+import { Check, Shield, ShieldOff, X } from "lucide-react";
+import { 
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger
+} from "@/components/ui/tooltip";
 
 interface UsersTableProps {
   users: User[];
@@ -23,169 +21,219 @@ interface UsersTableProps {
   isLoading: boolean;
 }
 
-export const UsersTable = ({
-  users,
-  onApprove,
+export function UsersTable({ 
+  users, 
+  onApprove, 
   onReject,
   onMakeAdmin,
   onRevokeAdmin,
-  isLoading,
-}: UsersTableProps) => {
-  const getStatusBadge = (status?: string) => {
-    switch (status) {
-      case "approved":
-        return <Badge className="bg-green-500">Approved</Badge>;
-      case "rejected":
-        return <Badge className="bg-red-500">Rejected</Badge>;
-      case "pending":
-      default:
-        return <Badge className="bg-yellow-500">Pending</Badge>;
-    }
+  isLoading 
+}: UsersTableProps) {
+  const [expandedUserId, setExpandedUserId] = useState<string | null>(null);
+  
+  const toggleExpand = (userId: string) => {
+    setExpandedUserId(expandedUserId === userId ? null : userId);
   };
-
-  const getBuyerTypeDisplay = (buyerType?: string) => {
-    switch (buyerType) {
-      case "corporate": return "Corporate";
-      case "privateEquity": return "Private Equity";
-      case "familyOffice": return "Family Office";
-      case "searchFund": return "Search Fund";
-      case "individual": return "Individual";
-      default: return buyerType || "-";
-    }
-  };
-
-  if (isLoading) {
-    return (
-      <div className="border rounded-md">
-        <div className="h-12 bg-muted/50 rounded-t-md animate-pulse"></div>
-        {Array(5)
-          .fill(0)
-          .map((_, i) => (
-            <div key={i} className="h-16 border-t bg-background animate-pulse"></div>
-          ))}
-      </div>
-    );
-  }
-
-  if (users.length === 0) {
-    return (
-      <div className="border rounded-md p-8 text-center text-muted-foreground">
-        No users found
-      </div>
-    );
-  }
 
   return (
-    <div className="border rounded-md overflow-x-auto">
+    <div className="rounded-md border">
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Name</TableHead>
-            <TableHead>Email</TableHead>
+            <TableHead className="w-[200px]">User</TableHead>
             <TableHead>Company</TableHead>
             <TableHead>Buyer Type</TableHead>
-            <TableHead>Registered</TableHead>
+            <TableHead className="text-center">Status</TableHead>
             <TableHead>Admin</TableHead>
-            <TableHead>Status</TableHead>
             <TableHead className="text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {users.map((user) => (
-            <TableRow key={user.id}>
-              <TableCell className="font-medium">
-                {user.first_name} {user.last_name}
-              </TableCell>
-              <TableCell>{user.email}</TableCell>
-              <TableCell>{user.company || "-"}</TableCell>
-              <TableCell>{getBuyerTypeDisplay(user.buyer_type)}</TableCell>
-              <TableCell>
-                {user.created_at
-                  ? formatDistanceToNow(new Date(user.created_at), {
-                      addSuffix: true,
-                    })
-                  : "-"}
-              </TableCell>
-              <TableCell>
-                {user.is_admin ? (
-                  <Badge variant="outline" className="bg-blue-100 border-blue-500 text-blue-700">
-                    Admin
-                  </Badge>
-                ) : (
-                  <Badge variant="outline" className="bg-gray-100 border-gray-300 text-gray-500">
-                    User
-                  </Badge>
-                )}
-              </TableCell>
-              <TableCell>{getStatusBadge(user.approval_status)}</TableCell>
-              <TableCell className="text-right">
-                <div className="flex justify-end gap-2">
-                  {/* Status Actions */}
-                  {user.approval_status === "pending" ? (
-                    <>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="border-green-500 hover:bg-green-500 hover:text-white"
-                        onClick={() => onApprove(user)}
-                      >
-                        Approve
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="border-red-500 hover:bg-red-500 hover:text-white"
-                        onClick={() => onReject(user)}
-                      >
-                        Reject
-                      </Button>
-                    </>
-                  ) : user.approval_status === "rejected" ? (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="border-green-500 hover:bg-green-500 hover:text-white"
-                      onClick={() => onApprove(user)}
-                    >
-                      Approve
-                    </Button>
-                  ) : (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="border-red-500 hover:bg-red-500 hover:text-white"
-                      onClick={() => onReject(user)}
-                    >
-                      Revoke
-                    </Button>
-                  )}
-
-                  {/* Admin Actions */}
-                  {!user.is_admin ? (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="border-blue-500 hover:bg-blue-500 hover:text-white ml-2"
-                      onClick={() => onMakeAdmin(user)}
-                    >
-                      Make Admin
-                    </Button>
-                  ) : (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="border-gray-500 hover:bg-gray-500 hover:text-white ml-2"
-                      onClick={() => onRevokeAdmin(user)}
-                    >
-                      Revoke Admin
-                    </Button>
-                  )}
-                </div>
+          {users.length === 0 ? (
+            <TableRow>
+              <TableCell colSpan={6} className="h-24 text-center">
+                No users found.
               </TableCell>
             </TableRow>
-          ))}
+          ) : (
+            users.map((user) => (
+              <>
+                <TableRow 
+                  key={user.id}
+                  className="cursor-pointer hover:bg-muted/50"
+                  onClick={() => toggleExpand(user.id)}
+                >
+                  <TableCell className="font-medium">
+                    <div className="flex flex-col">
+                      <span>{user.first_name} {user.last_name}</span>
+                      <span className="text-sm text-muted-foreground">{user.email}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell>{user.company || "—"}</TableCell>
+                  <TableCell>
+                    <Badge variant="outline" className="capitalize">
+                      {user.buyer_type || "—"}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-center">
+                    {user.approval_status === "approved" && (
+                      <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
+                        Approved
+                      </Badge>
+                    )}
+                    {user.approval_status === "pending" && (
+                      <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100">
+                        Pending
+                      </Badge>
+                    )}
+                    {user.approval_status === "rejected" && (
+                      <Badge className="bg-red-100 text-red-800 hover:bg-red-100">
+                        Rejected
+                      </Badge>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {user.is_admin ? (
+                      <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100">
+                        Admin
+                      </Badge>
+                    ) : "—"}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <TooltipProvider>
+                      <div className="flex items-center justify-end space-x-2" onClick={(e) => e.stopPropagation()}>
+                        {user.approval_status === "pending" && (
+                          <>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button 
+                                  variant="outline" 
+                                  size="icon" 
+                                  onClick={() => onApprove(user)}
+                                  disabled={isLoading}
+                                >
+                                  <Check className="h-4 w-4 text-green-600" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Approve User</p>
+                              </TooltipContent>
+                            </Tooltip>
+                            
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button 
+                                  variant="outline" 
+                                  size="icon" 
+                                  onClick={() => onReject(user)}
+                                  disabled={isLoading}
+                                >
+                                  <X className="h-4 w-4 text-red-600" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Reject User</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </>
+                        )}
+                        
+                        {user.is_admin ? (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button 
+                                variant="outline" 
+                                size="icon" 
+                                onClick={() => onRevokeAdmin(user)}
+                                disabled={isLoading}
+                              >
+                                <ShieldOff className="h-4 w-4 text-blue-600" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Revoke Admin Status</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        ) : (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button 
+                                variant="outline" 
+                                size="icon" 
+                                onClick={() => onMakeAdmin(user)}
+                                disabled={isLoading}
+                              >
+                                <Shield className="h-4 w-4 text-blue-600" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Make Admin</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
+                      </div>
+                    </TooltipProvider>
+                  </TableCell>
+                </TableRow>
+                {expandedUserId === user.id && (
+                  <TableRow>
+                    <TableCell colSpan={6} className="py-2 px-4 bg-muted/30">
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div>
+                          <div className="text-sm font-semibold">Contact Information</div>
+                          <div className="text-sm mt-1">
+                            <div><strong>Email:</strong> {user.email}</div>
+                            <div><strong>Phone:</strong> {user.phone_number || "—"}</div>
+                            <div><strong>Website:</strong> {user.website || "—"}</div>
+                          </div>
+                        </div>
+                        
+                        <div>
+                          <div className="text-sm font-semibold">Business Information</div>
+                          <div className="text-sm mt-1">
+                            <div><strong>Company:</strong> {user.company || "—"}</div>
+                            <div><strong>Buyer Type:</strong> {user.buyer_type || "—"}</div>
+                            {user.buyer_type === "corporate" && (
+                              <div><strong>Est. Revenue:</strong> {user.estimated_revenue || "—"}</div>
+                            )}
+                            {(user.buyer_type === "privateEquity" || user.buyer_type === "familyOffice") && (
+                              <div><strong>Fund Size:</strong> {user.fund_size || "—"}</div>
+                            )}
+                            {user.buyer_type === "familyOffice" && (
+                              <div><strong>AUM:</strong> {user.aum || "—"}</div>
+                            )}
+                          </div>
+                        </div>
+                        
+                        <div>
+                          <div className="text-sm font-semibold">Account Information</div>
+                          <div className="text-sm mt-1">
+                            <div><strong>Created:</strong> {new Date(user.created_at).toLocaleString()}</div>
+                            <div>
+                              <strong>Email Verified:</strong> 
+                              {user.email_verified ? "Yes" : "No"}
+                            </div>
+                            <div>
+                              <strong>Account Status:</strong> 
+                              <span className={`capitalize ${
+                                user.approval_status === "approved" ? "text-green-600" : 
+                                user.approval_status === "rejected" ? "text-red-600" : 
+                                "text-yellow-600"
+                              }`}>
+                                {user.approval_status}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )}
+              </>
+            ))
+          )}
         </TableBody>
       </Table>
     </div>
   );
-};
+}

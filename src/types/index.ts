@@ -32,6 +32,7 @@ export interface User {
   funding_source?: string;
   needs_loan?: string;
   ideal_target?: string;
+  bio?: string;
   
   // Computed properties (aliases for snake_case properties)
   readonly firstName: string;

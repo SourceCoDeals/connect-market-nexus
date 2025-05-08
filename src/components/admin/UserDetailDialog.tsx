@@ -1,264 +1,117 @@
 
-import { useState } from 'react';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Button } from '@/components/ui/button';
-import { User } from '@/types';
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
-import { formatDistanceToNow } from 'date-fns';
+import { useState } from "react";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { User } from "@/types";
+import { Loader2 } from "lucide-react";
 
 interface UserDetailDialogProps {
   isOpen: boolean;
   onClose: () => void;
   onConfirm: (reason?: string) => void;
   selectedUser: User | null;
-  actionType: 'approve' | 'reject' | 'makeAdmin' | 'revokeAdmin' | null;
+  actionType: "approve" | "reject" | "makeAdmin" | "revokeAdmin" | null;
   isLoading: boolean;
 }
 
-export const UserDetailDialog = ({
+export function UserDetailDialog({
   isOpen,
   onClose,
   onConfirm,
   selectedUser,
   actionType,
   isLoading,
-}: UserDetailDialogProps) => {
-  const [reason, setReason] = useState('');
+}: UserDetailDialogProps) {
+  const [rejectionReason, setRejectionReason] = useState("");
 
-  const getActionTitle = () => {
+  const getTitle = () => {
     switch (actionType) {
-      case 'approve':
-        return 'Approve User';
-      case 'reject':
-        return 'Reject User';
-      case 'makeAdmin':
-        return 'Make User an Admin';
-      case 'revokeAdmin':
-        return 'Remove Admin Privileges';
+      case "approve":
+        return "Approve User";
+      case "reject":
+        return "Reject User";
+      case "makeAdmin":
+        return "Make User Admin";
+      case "revokeAdmin":
+        return "Revoke Admin Status";
       default:
-        return 'User Details';
+        return "User Details";
     }
   };
 
-  const getActionDescription = () => {
-    switch (actionType) {
-      case 'approve':
-        return 'Approving this user will grant them access to the marketplace.';
-      case 'reject':
-        return 'Rejecting this user will deny them access to the marketplace.';
-      case 'makeAdmin':
-        return 'This will grant the user admin privileges, allowing them to manage users, listings, and requests.';
-      case 'revokeAdmin':
-        return 'This will remove admin privileges from the user.';
-      default:
-        return '';
-    }
-  };
-
-  const getButtonText = () => {
-    if (isLoading) return 'Processing...';
+  const getDescription = () => {
+    if (!selectedUser) return "";
     
     switch (actionType) {
-      case 'approve':
-        return 'Approve User';
-      case 'reject':
-        return 'Reject User';
-      case 'makeAdmin':
-        return 'Make Admin';
-      case 'revokeAdmin':
-        return 'Revoke Admin';
+      case "approve":
+        return `Are you sure you want to approve ${selectedUser.first_name} ${selectedUser.last_name}? This will grant them access to the marketplace.`;
+      case "reject":
+        return `Are you sure you want to reject ${selectedUser.first_name} ${selectedUser.last_name}? They will not be able to access the marketplace.`;
+      case "makeAdmin":
+        return `Are you sure you want to make ${selectedUser.first_name} ${selectedUser.last_name} an admin? This will grant them full administrative privileges.`;
+      case "revokeAdmin":
+        return `Are you sure you want to revoke admin status from ${selectedUser.first_name} ${selectedUser.last_name}? They will lose all administrative privileges.`;
       default:
-        return 'Confirm';
-    }
-  };
-
-  const getButtonColor = () => {
-    switch (actionType) {
-      case 'approve':
-        return 'bg-green-500 hover:bg-green-600';
-      case 'reject':
-        return 'bg-red-500 hover:bg-red-600';
-      case 'makeAdmin':
-        return 'bg-blue-500 hover:bg-blue-600';
-      case 'revokeAdmin':
-        return 'bg-gray-500 hover:bg-gray-600';
-      default:
-        return '';
+        return `User details for ${selectedUser.first_name} ${selectedUser.last_name}`;
     }
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-xl">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{getActionTitle()}</DialogTitle>
-          <DialogDescription>{getActionDescription()}</DialogDescription>
+          <DialogTitle>{getTitle()}</DialogTitle>
+          <DialogDescription>{getDescription()}</DialogDescription>
         </DialogHeader>
-        
-        {selectedUser && (
-          <div className="py-4 space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label className="text-sm font-medium">Name</Label>
-                <p className="text-sm mt-1">{selectedUser.first_name} {selectedUser.last_name}</p>
-              </div>
-              
-              <div>
-                <Label className="text-sm font-medium">Email</Label>
-                <p className="text-sm mt-1">{selectedUser.email}</p>
-              </div>
-              
-              <div>
-                <Label className="text-sm font-medium">Company</Label>
-                <p className="text-sm mt-1">{selectedUser.company || "Not specified"}</p>
-              </div>
-              
-              <div>
-                <Label className="text-sm font-medium">Phone</Label>
-                <p className="text-sm mt-1">{selectedUser.phone_number || "Not specified"}</p>
-              </div>
-              
-              <div>
-                <Label className="text-sm font-medium">Website</Label>
-                <p className="text-sm mt-1">
-                  {selectedUser.website ? (
-                    <a 
-                      href={selectedUser.website.startsWith('http') ? selectedUser.website : `https://${selectedUser.website}`}
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="text-blue-500 hover:underline"
-                    >
-                      {selectedUser.website}
-                    </a>
-                  ) : (
-                    "Not specified"
-                  )}
-                </p>
-              </div>
-              
-              <div>
-                <Label className="text-sm font-medium">Registered</Label>
-                <p className="text-sm mt-1">
-                  {selectedUser.created_at ? 
-                    formatDistanceToNow(new Date(selectedUser.created_at), { addSuffix: true }) : 
-                    "Unknown"
-                  }
-                </p>
-              </div>
-            </div>
-            
-            <Accordion type="single" collapsible>
-              <AccordionItem value="additional-info">
-                <AccordionTrigger>Additional Information</AccordionTrigger>
-                <AccordionContent>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label className="text-sm font-medium">Buyer Type</Label>
-                      <p className="text-sm mt-1">{selectedUser.buyer_type || "Not specified"}</p>
-                    </div>
-                    
-                    <div>
-                      <Label className="text-sm font-medium">Fund Size</Label>
-                      <p className="text-sm mt-1">{selectedUser.fund_size || "Not specified"}</p>
-                    </div>
-                    
-                    <div>
-                      <Label className="text-sm font-medium">AUM</Label>
-                      <p className="text-sm mt-1">{selectedUser.aum || "Not specified"}</p>
-                    </div>
-                    
-                    <div>
-                      <Label className="text-sm font-medium">Est. Revenue</Label>
-                      <p className="text-sm mt-1">{selectedUser.estimated_revenue || "Not specified"}</p>
-                    </div>
-                    
-                    <div>
-                      <Label className="text-sm font-medium">Investment Size</Label>
-                      <p className="text-sm mt-1">{selectedUser.investment_size || "Not specified"}</p>
-                    </div>
-                    
-                    <div>
-                      <Label className="text-sm font-medium">Is Funded</Label>
-                      <p className="text-sm mt-1">{selectedUser.is_funded || "Not specified"}</p>
-                    </div>
-                    
-                    <div>
-                      <Label className="text-sm font-medium">Funded By</Label>
-                      <p className="text-sm mt-1">{selectedUser.funded_by || "Not specified"}</p>
-                    </div>
-                    
-                    <div>
-                      <Label className="text-sm font-medium">Target Company Size</Label>
-                      <p className="text-sm mt-1">{selectedUser.target_company_size || "Not specified"}</p>
-                    </div>
-                    
-                    <div>
-                      <Label className="text-sm font-medium">Funding Source</Label>
-                      <p className="text-sm mt-1">{selectedUser.funding_source || "Not specified"}</p>
-                    </div>
-                    
-                    <div>
-                      <Label className="text-sm font-medium">Needs Loan</Label>
-                      <p className="text-sm mt-1">{selectedUser.needs_loan || "Not specified"}</p>
-                    </div>
-                    
-                    <div>
-                      <Label className="text-sm font-medium">Ideal Target</Label>
-                      <p className="text-sm mt-1">{selectedUser.ideal_target || "Not specified"}</p>
-                    </div>
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
-            </Accordion>
-            
-            {/* Show rejection reason field only for reject action */}
-            {actionType === 'reject' && (
-              <div className="space-y-2">
-                <Label htmlFor="rejectionReason">Rejection Reason</Label>
-                <Textarea
-                  id="rejectionReason"
-                  value={reason}
-                  onChange={(e) => setReason(e.target.value)}
-                  placeholder="Provide a reason for rejecting this user..."
-                  rows={3}
-                />
-                <p className="text-xs text-muted-foreground">This reason will be included in the rejection email sent to the user.</p>
-              </div>
-            )}
+
+        {actionType === "reject" && (
+          <div className="space-y-2">
+            <label htmlFor="reason" className="text-sm font-medium">
+              Rejection Reason (Optional)
+            </label>
+            <Textarea
+              id="reason"
+              value={rejectionReason}
+              onChange={(e) => setRejectionReason(e.target.value)}
+              placeholder="Please provide a reason for rejecting this user..."
+              className="min-h-[100px]"
+            />
+            <p className="text-xs text-muted-foreground">
+              This will be included in the email sent to the user.
+            </p>
           </div>
         )}
-        
-        <DialogFooter>
-          <Button
-            variant="outline"
-            onClick={onClose}
-            disabled={isLoading}
-          >
+
+        {(actionType === "makeAdmin" || actionType === "revokeAdmin") && (
+          <div className="bg-muted p-3 rounded-md text-sm">
+            <p className="font-medium">Important:</p>
+            <p>
+              {actionType === "makeAdmin"
+                ? "This action will grant the user full administrative access to the platform, including user management and listing approvals."
+                : "This action will remove all administrative privileges from this user. They will still have normal user access."}
+            </p>
+          </div>
+        )}
+
+        <DialogFooter className="sm:justify-between">
+          <Button variant="outline" onClick={onClose}>
             Cancel
           </Button>
-          <Button
-            onClick={() => onConfirm(reason)}
+          <Button 
+            onClick={() => onConfirm(actionType === "reject" ? rejectionReason : undefined)} 
             disabled={isLoading}
-            className={getButtonColor()}
+            variant={actionType === "reject" ? "destructive" : "default"}
           >
-            {getButtonText()}
+            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {actionType === "approve" && "Approve"}
+            {actionType === "reject" && "Reject"}
+            {actionType === "makeAdmin" && "Make Admin"}
+            {actionType === "revokeAdmin" && "Revoke Admin"}
+            {!actionType && "Confirm"}
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
-};
+}

@@ -446,6 +446,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           company: data.company,
           website: data.website,
           phone_number: data.phone_number,
+          bio: data.bio,
+          buyer_type: data.buyer_type,
+          fund_size: data.fund_size,
+          aum: data.aum,
+          estimated_revenue: data.estimated_revenue,
+          investment_size: data.investment_size,
+          target_company_size: data.target_company_size,
           updated_at: new Date().toISOString(),
         })
         .eq('id', user.id);

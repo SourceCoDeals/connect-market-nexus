@@ -38,14 +38,56 @@ export function useAdminListings() {
   // Create a listing
   const useCreateListing = () => {
     return useMutation({
-      mutationFn: async (listing: Omit<AdminListing, 'id' | 'created_at' | 'updated_at'>) => {
+      mutationFn: async ({
+        listing,
+        image
+      }: {
+        listing: Omit<AdminListing, 'id' | 'created_at' | 'updated_at'>;
+        image?: File | null;
+      }) => {
+        // Step 1: Create the listing
         const { data, error } = await supabase
           .from('listings')
-          .insert(listing)
+          .insert({
+            ...listing,
+            image_url: null // We'll update this after upload
+          })
           .select()
           .single();
 
         if (error) throw error;
+        
+        // Step 2: If image is provided, upload it
+        if (image) {
+          const fileExt = image.name.split('.').pop();
+          const filePath = `${data.id}-${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
+          
+          const { error: uploadError } = await supabase.storage
+            .from('listing-images')
+            .upload(filePath, image);
+            
+          if (uploadError) throw uploadError;
+          
+          // Get the public URL
+          const { data: publicURLData } = supabase.storage
+            .from('listing-images')
+            .getPublicUrl(filePath);
+            
+          // Update the listing with the image URL
+          const { error: updateError } = await supabase
+            .from('listings')
+            .update({ image_url: publicURLData.publicUrl })
+            .eq('id', data.id);
+            
+          if (updateError) throw updateError;
+          
+          // Return the updated data
+          return {
+            ...data,
+            image_url: publicURLData.publicUrl
+          };
+        }
+        
         return data;
       },
       onSuccess: () => {
@@ -71,18 +113,68 @@ export function useAdminListings() {
       mutationFn: async ({
         id,
         listing,
+        image
       }: {
         id: string;
         listing: Partial<AdminListing>;
+        image?: File | null;
       }) => {
+        // Step 1: Update the listing data
         const { data, error } = await supabase
           .from('listings')
-          .update({ ...listing, updated_at: new Date().toISOString() })
+          .update({
+            ...listing,
+            updated_at: new Date().toISOString(),
+          })
           .eq('id', id)
           .select()
           .single();
 
         if (error) throw error;
+        
+        // Step 2: If image is provided, upload it
+        if (image) {
+          // Delete old image if exists
+          if (data.image_url) {
+            // Extract the filename from the URL
+            const oldFilename = data.image_url.split('/').pop();
+            if (oldFilename) {
+              await supabase.storage
+                .from('listing-images')
+                .remove([oldFilename]);
+            }
+          }
+          
+          // Upload new image
+          const fileExt = image.name.split('.').pop();
+          const filePath = `${data.id}-${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
+          
+          const { error: uploadError } = await supabase.storage
+            .from('listing-images')
+            .upload(filePath, image);
+            
+          if (uploadError) throw uploadError;
+          
+          // Get the public URL
+          const { data: publicURLData } = supabase.storage
+            .from('listing-images')
+            .getPublicUrl(filePath);
+            
+          // Update the listing with the image URL
+          const { error: updateError } = await supabase
+            .from('listings')
+            .update({ image_url: publicURLData.publicUrl })
+            .eq('id', id);
+            
+          if (updateError) throw updateError;
+          
+          // Return the updated data
+          return {
+            ...data,
+            image_url: publicURLData.publicUrl
+          };
+        }
+        
         return data;
       },
       onSuccess: () => {
@@ -106,6 +198,25 @@ export function useAdminListings() {
   const useDeleteListing = () => {
     return useMutation({
       mutationFn: async (id: string) => {
+        // First, get the listing to check if it has an image
+        const { data: listing } = await supabase
+          .from('listings')
+          .select('image_url')
+          .eq('id', id)
+          .single();
+          
+        // Delete any associated image
+        if (listing?.image_url) {
+          // Extract the filename from the URL
+          const filename = listing.image_url.split('/').pop();
+          if (filename) {
+            await supabase.storage
+              .from('listing-images')
+              .remove([filename]);
+          }
+        }
+        
+        // Delete the listing
         const { error } = await supabase
           .from('listings')
           .delete()

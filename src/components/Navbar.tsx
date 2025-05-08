@@ -1,9 +1,8 @@
 
-import { useState } from "react";
-import { Link } from "react-router-dom";
-import { useAuth } from "@/context/AuthContext";
-import { cn } from "@/lib/utils";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/context/AuthContext";
+import { Building, Home, List, LogOut, User } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,188 +11,185 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Menu, User, LogOut, Settings, ClipboardList } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useMobile } from "@/hooks/use-mobile";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const Navbar = () => {
-  const { user, logout, isAdmin } = useAuth();
-  const [isOpen, setIsOpen] = useState(false);
+  const { user, isLoading, logout, isAdmin } = useAuth();
+  const navigate = useNavigate();
+  const isMobile = useMobile();
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate("/");
+    } catch (error) {
+      console.error("Logout error:", error);
+    }
+  };
+
+  const getInitials = (firstName: string, lastName: string) => {
+    return `${firstName?.charAt(0) || ""}${lastName?.charAt(0) || ""}`.toUpperCase();
+  };
 
   return (
-    <header className="sticky top-0 z-40 w-full bg-white border-b border-border">
-      <div className="container flex h-16 items-center justify-between px-4 md:px-6">
-        <div className="flex items-center space-x-4">
-          <Link to="/" className="flex items-center space-x-2">
-            <span className="text-xl font-bold">ConnectMarket</span>
-          </Link>
-          <nav className="hidden md:flex items-center space-x-6">
-            <Link to="/marketplace" className="text-sm font-medium transition-colors hover:text-primary">
-              Marketplace
+    <header className="bg-background border-b border-border">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6">
+        <div className="flex justify-between items-center h-16">
+          <div className="flex items-center">
+            <Link to="/" className="flex items-center">
+              <Building className="h-8 w-8 text-primary mr-2" />
+              <span className="text-xl font-bold">SourceCo</span>
+              <span className="text-xl text-muted-foreground ml-1 font-light">
+                Marketplace
+              </span>
             </Link>
-            <Link to="/my-requests" className="text-sm font-medium transition-colors hover:text-primary">
-              My Requests
-            </Link>
-          </nav>
-        </div>
-        
-        <div className="flex items-center space-x-4">
-          {user ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="rounded-full">
-                  <User className="h-5 w-5" />
-                  <span className="sr-only">User menu</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel>
-                  <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none">
-                      {user.first_name} {user.last_name}
-                    </p>
-                    <p className="text-xs leading-none text-muted-foreground">
-                      {user.email}
-                    </p>
-                  </div>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link to="/my-requests" className="flex w-full cursor-pointer items-center">
-                    <ClipboardList className="mr-2 h-4 w-4" />
-                    <span>My Requests</span>
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link to="/profile" className="flex w-full cursor-pointer items-center">
-                    <Settings className="mr-2 h-4 w-4" />
-                    <span>Profile</span>
-                  </Link>
-                </DropdownMenuItem>
-                {isAdmin && (
-                  <DropdownMenuItem asChild>
-                    <Link to="/admin/dashboard" className="flex w-full cursor-pointer items-center">
-                      <span className="mr-2 h-4 w-4 bg-primary rounded-sm text-white text-[10px] flex items-center justify-center font-medium">A</span>
-                      <span>Admin Portal</span>
-                    </Link>
-                  </DropdownMenuItem>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {isLoading ? (
+              <div className="flex items-center gap-4">
+                {!isMobile && (
+                  <>
+                    <Skeleton className="h-4 w-20" />
+                    <Skeleton className="h-4 w-20" />
+                    <Skeleton className="h-4 w-20" />
+                  </>
                 )}
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => logout()} className="cursor-pointer">
-                  <LogOut className="mr-2 h-4 w-4" />
-                  <span>Log out</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          ) : (
-            <div className="hidden md:flex items-center gap-3">
-              <Button asChild variant="outline">
-                <Link to="/login">Sign in</Link>
-              </Button>
-              <Button asChild>
-                <Link to="/signup">Sign up</Link>
-              </Button>
-            </div>
-          )}
-          
-          <button
-            className="md:hidden flex items-center justify-center w-8 h-8"
-            onClick={() => setIsOpen(!isOpen)}
-          >
-            <Menu className="h-5 w-5" />
-            <span className="sr-only">Toggle menu</span>
-          </button>
-        </div>
-      </div>
-      
-      {/* Mobile navigation */}
-      <div
-        className={cn(
-          "fixed inset-0 top-16 z-50 bg-white border-t border-border md:hidden transition-transform duration-300 transform",
-          isOpen ? "translate-y-0" : "translate-y-full",
-        )}
-      >
-        <div className="container py-4 px-4">
-          <nav className="flex flex-col gap-4">
-            <Link
-              to="/marketplace"
-              onClick={() => setIsOpen(false)}
-              className="py-2 text-base font-medium"
-            >
-              Marketplace
-            </Link>
-            <Link
-              to="/my-requests"
-              onClick={() => setIsOpen(false)}
-              className="py-2 text-base font-medium"
-            >
-              My Requests
-            </Link>
-            
-            {user ? (
+                <Skeleton className="h-9 w-9 rounded-full" />
+              </div>
+            ) : user ? (
               <>
-                <div className="h-px bg-border my-2"></div>
-                
-                <div className="py-2">
-                  <div className="flex items-center mb-2">
-                    <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center mr-3">
-                      <User className="h-5 w-5 text-primary" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium">
-                        {user.first_name} {user.last_name}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {user.email}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-                
-                {isAdmin && (
-                  <Link
-                    to="/admin/dashboard"
-                    onClick={() => setIsOpen(false)}
-                    className="py-2 text-base font-medium flex items-center"
-                  >
-                    <span className="mr-2 h-5 w-5 bg-primary rounded-sm text-white text-[11px] flex items-center justify-center font-medium">A</span>
-                    Admin Portal
-                  </Link>
+                {!isMobile && (
+                  <nav className="flex items-center space-x-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      asChild
+                    >
+                      <Link to="/">
+                        <Home className="h-4 w-4 mr-1" />
+                        Home
+                      </Link>
+                    </Button>
+
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      asChild
+                    >
+                      <Link to="/marketplace">
+                        <Building className="h-4 w-4 mr-1" />
+                        Marketplace
+                      </Link>
+                    </Button>
+
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      asChild
+                    >
+                      <Link to="/my-requests">
+                        <List className="h-4 w-4 mr-1" />
+                        My Requests
+                      </Link>
+                    </Button>
+
+                    {isAdmin && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="border-primary text-primary hover:bg-primary/5"
+                        onClick={() => navigate("/admin/dashboard")}
+                      >
+                        Admin Dashboard
+                      </Button>
+                    )}
+                  </nav>
                 )}
-                
-                <Link
-                  to="/profile"
-                  onClick={() => setIsOpen(false)}
-                  className="py-2 text-base font-medium flex items-center"
-                >
-                  <Settings className="mr-2 h-5 w-5" />
-                  Profile
-                </Link>
-                
-                <button
-                  onClick={() => {
-                    logout();
-                    setIsOpen(false);
-                  }}
-                  className="py-2 text-base font-medium flex items-center text-red-500"
-                >
-                  <LogOut className="mr-2 h-5 w-5" />
-                  Log out
-                </button>
+
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="relative h-9 w-9 rounded-full"
+                    >
+                      <Avatar className="h-9 w-9">
+                        <AvatarImage src={user?.avatar_url} alt={user?.first_name} />
+                        <AvatarFallback>
+                          {getInitials(user?.first_name, user?.last_name)}
+                        </AvatarFallback>
+                      </Avatar>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuLabel>
+                      <div className="flex flex-col space-y-1">
+                        <p className="text-sm font-medium leading-none">
+                          {user.first_name} {user.last_name}
+                        </p>
+                        <p className="text-xs leading-none text-muted-foreground">
+                          {user.email}
+                        </p>
+                      </div>
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    {isMobile && (
+                      <>
+                        <DropdownMenuItem asChild>
+                          <Link to="/">
+                            <Home className="mr-2 h-4 w-4" />
+                            <span>Home</span>
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                          <Link to="/marketplace">
+                            <Building className="mr-2 h-4 w-4" />
+                            <span>Marketplace</span>
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                          <Link to="/my-requests">
+                            <List className="mr-2 h-4 w-4" />
+                            <span>My Requests</span>
+                          </Link>
+                        </DropdownMenuItem>
+                        {isAdmin && (
+                          <DropdownMenuItem onSelect={() => navigate("/admin/dashboard")}>
+                            <Building className="mr-2 h-4 w-4" />
+                            <span>Admin Dashboard</span>
+                          </DropdownMenuItem>
+                        )}
+                        <DropdownMenuSeparator />
+                      </>
+                    )}
+                    <DropdownMenuItem asChild>
+                      <Link to="/profile">
+                        <User className="mr-2 h-4 w-4" />
+                        <span>Profile</span>
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={handleLogout}>
+                      <LogOut className="mr-2 h-4 w-4" />
+                      <span>Log Out</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </>
             ) : (
-              <div className="flex flex-col gap-3 mt-2">
-                <Button asChild>
-                  <Link to="/login" onClick={() => setIsOpen(false)}>
-                    Sign in
-                  </Link>
+              <div className="flex items-center space-x-2">
+                <Button variant="outline" asChild>
+                  <Link to="/login">Log In</Link>
                 </Button>
-                <Button asChild variant="outline">
-                  <Link to="/signup" onClick={() => setIsOpen(false)}>
-                    Sign up
-                  </Link>
+                <Button asChild>
+                  <Link to="/signup">Sign Up</Link>
                 </Button>
               </div>
             )}
-          </nav>
+          </div>
         </div>
       </div>
     </header>
