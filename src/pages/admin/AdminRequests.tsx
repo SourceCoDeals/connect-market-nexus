@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useAdmin } from "@/hooks/use-admin";
 import { Button } from "@/components/ui/button";
@@ -24,8 +25,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Search, CheckCircle, XCircle } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { AdminConnectionRequest } from "@/types/admin";
+import { useToast } from "@/hooks/use-toast";
 
 const AdminRequests = () => {
+  const { toast } = useToast();
   const { useConnectionRequests, useUpdateConnectionRequest } = useAdmin();
   const { data: requests = [], isLoading } = useConnectionRequests();
   const { mutate: updateRequest, isPending: isUpdating } = useUpdateConnectionRequest();
@@ -61,12 +64,19 @@ const AdminRequests = () => {
         id: selectedRequest.id,
         status: actionType === "approve" ? "approved" : "rejected",
         comment: adminComment,
+      }, {
+        onSuccess: () => {
+          toast({
+            title: `Request ${actionType === "approve" ? "approved" : "rejected"}`,
+            description: `Successfully ${actionType === "approve" ? "approved" : "rejected"} the connection request.`
+          });
+          setIsDialogOpen(false);
+          setSelectedRequest(null);
+          setActionType(null);
+          setAdminComment("");
+        }
       });
     }
-    setIsDialogOpen(false);
-    setSelectedRequest(null);
-    setActionType(null);
-    setAdminComment("");
   };
   
   const getStatusBadge = (status: string) => {
@@ -124,13 +134,17 @@ const AdminRequests = () => {
             <Badge className="bg-background text-foreground border">
               Approved: {requests.filter((r) => r.status === "approved").length}
             </Badge>
+            <Badge className="bg-background text-foreground border">
+              Rejected: {requests.filter((r) => r.status === "rejected").length}
+            </Badge>
           </div>
 
-          <div className="border rounded-md">
+          <div className="border rounded-md overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Buyer</TableHead>
+                  <TableHead>Email</TableHead>
                   <TableHead>Company</TableHead>
                   <TableHead>Listing</TableHead>
                   <TableHead>Category</TableHead>
@@ -142,7 +156,7 @@ const AdminRequests = () => {
               <TableBody>
                 {filteredRequests.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8">
+                    <TableCell colSpan={8} className="text-center py-8">
                       No connection requests found
                     </TableCell>
                   </TableRow>
@@ -152,6 +166,7 @@ const AdminRequests = () => {
                       <TableCell className="font-medium">
                         {request.user ? `${request.user.first_name} ${request.user.last_name}` : "Unknown User"}
                       </TableCell>
+                      <TableCell>{request.user?.email || "-"}</TableCell>
                       <TableCell>{request.user?.company || "-"}</TableCell>
                       <TableCell className="max-w-[180px] truncate">
                         {request.listing?.title || "Unknown Listing"}
@@ -233,9 +248,14 @@ const AdminRequests = () => {
               <p className="text-sm font-medium">Buyer:</p>
               <p className="text-sm">
                 {selectedRequest?.user
-                  ? `${selectedRequest.user.first_name} ${selectedRequest.user.last_name} (${selectedRequest.user.company || "No company"})`
+                  ? `${selectedRequest.user.first_name} ${selectedRequest.user.last_name} (${selectedRequest.user.email})`
                   : "Unknown User"}
               </p>
+            </div>
+            
+            <div className="grid grid-cols-1 gap-2">
+              <p className="text-sm font-medium">Company:</p>
+              <p className="text-sm">{selectedRequest?.user?.company || "No company"}</p>
             </div>
             
             <div className="grid grid-cols-1 gap-2">
@@ -259,6 +279,7 @@ const AdminRequests = () => {
             <Button
               variant="outline"
               onClick={() => setIsDialogOpen(false)}
+              disabled={isUpdating}
             >
               Cancel
             </Button>

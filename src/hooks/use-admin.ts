@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { toast } from '@/hooks/use-toast';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -204,8 +205,8 @@ export function useAdmin() {
             .from('connection_requests')
             .select(`
               *,
-              profiles:user_id (id, first_name, last_name, email, company),
-              listings:listing_id (*)
+              user:user_id (*),
+              listing:listing_id (*)
             `)
             .order('created_at', { ascending: false });
 
@@ -213,8 +214,8 @@ export function useAdmin() {
           
           return data.map((request: any) => ({
             ...request,
-            user: request.profiles,
-            listing: request.listings
+            user: request.user,
+            listing: request.listing
           })) as AdminConnectionRequest[];
         } catch (error: any) {
           toast({
