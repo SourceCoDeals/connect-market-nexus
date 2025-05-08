@@ -1,4 +1,3 @@
-
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { AdminConnectionRequest } from '@/types/admin';
@@ -142,6 +141,9 @@ export function useAdminRequests() {
           // Transform the user data using createUserObject
           const user = userData ? createUserObject(userData) : null;
           
+          // Ensure the status is of the correct type
+          const typedStatus = requestData.status as "pending" | "approved" | "rejected";
+          
           // Fix the missing properties by converting listingData to a proper Listing type
           const listing = listingData ? {
             ...listingData,
@@ -159,6 +161,7 @@ export function useAdminRequests() {
           
           const fullRequestData: AdminConnectionRequest = {
             ...requestData,
+            status: typedStatus,
             user,
             listing
           };

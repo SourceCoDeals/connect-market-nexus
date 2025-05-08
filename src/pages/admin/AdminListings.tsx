@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import {
   Card,
@@ -154,7 +155,7 @@ const AdminListings = () => {
           </DialogHeader>
           <ListingForm
             onSubmit={handleCreateListing}
-            isLoading={createListing.isLoading}
+            isLoading={createListing.isPending}
           />
         </DialogContent>
       </Dialog>
@@ -168,7 +169,7 @@ const AdminListings = () => {
           <ListingForm
             listing={selectedListing}
             onSubmit={handleUpdateListing}
-            isLoading={updateListing.isLoading}
+            isLoading={updateListing.isPending}
           />
         </DialogContent>
       </Dialog>
