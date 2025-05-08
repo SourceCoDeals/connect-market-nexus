@@ -7,18 +7,20 @@ import { createUserObject } from "@/lib/auth-helpers";
 export function useAuthState() {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [authChecked, setAuthChecked] = useState(false);
 
   useEffect(() => {
     const checkUser = async () => {
       try {
         setIsLoading(true);
         
-        // Set timeout to prevent indefinite loading
+        // Set a shorter timeout to prevent prolonged loading
         const timeoutId = setTimeout(() => {
           console.warn("Auth check timeout - forcing reset");
           setIsLoading(false);
           setUser(null);
-        }, 5000);
+          setAuthChecked(true);
+        }, 3000);
         
         // Get current session
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
@@ -42,9 +44,8 @@ export function useAuthState() {
           
           if (profileError) {
             if (profileError.code === 'PGRST116') {
-              console.warn("User profile not found, creating one");
-              // Profile not found, handle this case
-              await supabase.auth.signOut();
+              console.warn("User profile not found, cleaning up session");
+              localStorage.removeItem("user");
               setUser(null);
             } else {
               console.error("Profile error:", profileError);
@@ -68,6 +69,7 @@ export function useAuthState() {
         localStorage.removeItem("user");
       } finally {
         setIsLoading(false);
+        setAuthChecked(true);
       }
     };
     
@@ -75,7 +77,7 @@ export function useAuthState() {
     
     // Set up auth state change subscription
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      (event, session) => {
         console.log("Auth state change:", event);
         
         if (event === "SIGNED_IN" && session) {
@@ -94,7 +96,6 @@ export function useAuthState() {
                 if (error.code === 'PGRST116') {
                   // Profile not found
                   console.warn("User profile not found on sign in");
-                  await supabase.auth.signOut();
                   setUser(null);
                   return;
                 }
@@ -108,11 +109,15 @@ export function useAuthState() {
               }
             } catch (error) {
               console.error("Error in auth state change handler:", error);
+              setUser(null);
+            } finally {
+              setIsLoading(false);
             }
           }, 0);
         } else if (event === "SIGNED_OUT") {
           setUser(null);
           localStorage.removeItem("user");
+          setIsLoading(false);
         }
       }
     );
@@ -127,5 +132,6 @@ export function useAuthState() {
     isLoading,
     isAdmin: user?.role === "admin",
     isBuyer: user?.role === "buyer",
+    authChecked, // New property to indicate auth check is complete
   };
 }

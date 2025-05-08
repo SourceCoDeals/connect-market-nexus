@@ -13,14 +13,6 @@ export function useAuthActions(setUser: (user: User | null) => void, setIsLoadin
       // Clean up existing auth state
       cleanupAuthState();
       
-      // Try to sign out globally first to prevent auth conflicts
-      try {
-        await supabase.auth.signOut({ scope: 'global' });
-      } catch (err) {
-        // Continue even if this fails
-        console.warn("Global sign out failed:", err);
-      }
-      
       console.log("Attempting login with email:", email);
       
       // Sign in
@@ -112,7 +104,6 @@ export function useAuthActions(setUser: (user: User | null) => void, setIsLoadin
         title: "Login failed",
         description: error.message || "Something went wrong",
       });
-      setIsLoading(false);
       throw error;
     } finally {
       setIsLoading(false);
@@ -137,7 +128,7 @@ export function useAuthActions(setUser: (user: User | null) => void, setIsLoadin
       });
       
       // Force page reload to clear all state
-      window.location.href = '/';
+      window.location.href = '/login';
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -154,13 +145,6 @@ export function useAuthActions(setUser: (user: User | null) => void, setIsLoadin
     try {
       // Clean up existing auth state
       cleanupAuthState();
-      
-      // Try to sign out globally first
-      try {
-        await supabase.auth.signOut({ scope: 'global' });
-      } catch (err) {
-        // Continue even if this fails
-      }
       
       // Check required fields
       if (!userData.email || !password) {

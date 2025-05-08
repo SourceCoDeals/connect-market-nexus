@@ -12,17 +12,18 @@ const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const { user, login, isLoading } = useAuth();
+  const { user, login, isLoading, authChecked } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
   // Redirect if user is already logged in
   useEffect(() => {
-    if (user) {
-      const from = location.state?.from?.pathname || "/marketplace";
+    if (authChecked && user) {
+      console.log("User already logged in, redirecting");
+      const from = location.state?.from?.pathname || (user.isAdmin ? "/admin/dashboard" : "/marketplace");
       navigate(from, { replace: true });
     }
-  }, [user, navigate, location]);
+  }, [user, navigate, location, authChecked]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
