@@ -33,7 +33,7 @@ export function useAdmin() {
   
   // Admin dashboard stats and activities
   const {
-    useAdminStats: useStats,
+    useStats,
     useRecentActivities,
   } = useAdminStats();
   
