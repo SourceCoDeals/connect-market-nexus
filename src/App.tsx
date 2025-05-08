@@ -16,7 +16,7 @@ import AdminRequests from "@/pages/admin/AdminRequests";
 import Unauthorized from "@/pages/Unauthorized";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import VerifyEmail from "@/pages/VerifyEmail";
-import VerifyEmailHandler from "@/components/VerifyEmailHandler";
+import VerifyEmailHandler from "@/pages/VerifyEmailHandler";
 import PendingApproval from "@/pages/PendingApproval";
 import MyRequests from "@/pages/MyRequests";
 
