@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { AdminConnectionRequest } from '@/types/admin';
 import { toast } from '@/hooks/use-toast';
 import { useAdminEmail } from './use-admin-email';
+import { createUserObject } from '@/lib/auth-helpers';
 
 /**
  * Hook for managing connection requests in admin dashboard
@@ -32,7 +33,7 @@ export function useAdminRequests() {
             // Get user details
             const { data: userData, error: userError } = await supabase
               .from('profiles')
-              .select('id, email, first_name, last_name, company, phone_number')
+              .select('*')  // Select all fields to get complete user data
               .eq('id', request.user_id)
               .single();
             
@@ -43,9 +44,12 @@ export function useAdminRequests() {
               .eq('id', request.listing_id)
               .single();
             
+            // Transform the user data using createUserObject to ensure it matches the User type
+            const user = userError ? null : createUserObject(userData);
+            
             return {
               ...request,
-              user: userError ? null : userData,
+              user,
               listing: listingError ? null : listingData
             } as AdminConnectionRequest;
           }));
@@ -98,7 +102,7 @@ export function useAdminRequests() {
         
         if (!requestData) throw new Error('Request not found');
         
-        // Get user details
+        // Get complete user details
         const { data: userData } = await supabase
           .from('profiles')
           .select('*')
@@ -112,9 +116,12 @@ export function useAdminRequests() {
           .eq('id', requestData.listing_id)
           .single();
         
+        // Transform the user data using createUserObject
+        const user = userData ? createUserObject(userData) : null;
+        
         const fullRequestData: AdminConnectionRequest = {
           ...requestData,
-          user: userData,
+          user,
           listing: listingData
         } as AdminConnectionRequest;
         

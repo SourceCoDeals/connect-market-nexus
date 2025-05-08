@@ -4,19 +4,12 @@ import { useAdmin } from "@/hooks/use-admin";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Search } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
 import { AdminConnectionRequest } from "@/types/admin";
 import { ConnectionRequestsTable } from "@/components/admin/ConnectionRequestsTable";
 import { ConnectionRequestDialog } from "@/components/admin/ConnectionRequestDialog";
 
 const AdminRequests = () => {
-  const { toast } = useToast();
-  const { 
-    useConnectionRequests, 
-    useUpdateConnectionRequest,
-    sendConnectionApprovalEmail,
-    sendConnectionRejectionEmail
-  } = useAdmin();
+  const { useConnectionRequests, useUpdateConnectionRequest } = useAdmin();
   
   const { data: requests = [], isLoading, error } = useConnectionRequests();
   const { mutate: updateRequest, isPending: isUpdating } = useUpdateConnectionRequest();
@@ -52,37 +45,15 @@ const AdminRequests = () => {
     if (selectedRequest && actionType) {
       try {
         await updateRequest({
-          // Fix property name to match expected parameters in useUpdateConnectionRequest
+          // Use the correct property name to match expected parameters in useUpdateConnectionRequest
           requestId: selectedRequest.id,
           status: actionType === "approve" ? "approved" : "rejected",
           adminComment: comment,
-        }, {
-          onSuccess: async () => {
-            try {
-              // Send appropriate email notification
-              if (actionType === "approve") {
-                await sendConnectionApprovalEmail(selectedRequest);
-              } else {
-                await sendConnectionRejectionEmail(selectedRequest);
-              }
-              
-              toast({
-                title: `Request ${actionType === "approve" ? "approved" : "rejected"}`,
-                description: `Successfully ${actionType === "approve" ? "approved" : "rejected"} the connection request and sent notification.`
-              });
-            } catch (error) {
-              console.error("Error sending email:", error);
-              toast({
-                title: `Request ${actionType === "approve" ? "approved" : "rejected"}`,
-                description: `Successfully ${actionType === "approve" ? "approved" : "rejected"} the connection request, but failed to send notification.`
-              });
-            }
-            
-            setIsDialogOpen(false);
-            setSelectedRequest(null);
-            setActionType(null);
-          }
         });
+        
+        setIsDialogOpen(false);
+        setSelectedRequest(null);
+        setActionType(null);
       } catch (error) {
         console.error("Error updating request:", error);
       }
