@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -13,7 +14,7 @@ import AdminLayout from "@/components/admin/AdminLayout";
 import Login from "@/pages/Login";
 import Signup from "@/pages/Signup";
 import VerifyEmail from "@/pages/VerifyEmail";
-import VerifyEmailHandler from "@/pages/VerifyEmailHandler";
+import VerifyEmailHandler from "@/components/VerifyEmailHandler"; // Fixed path - points to the component
 import PendingApproval from "@/pages/PendingApproval";
 import Unauthorized from "@/pages/Unauthorized";
 

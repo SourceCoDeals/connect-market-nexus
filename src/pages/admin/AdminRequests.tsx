@@ -1,7 +1,5 @@
+
 import { useState } from "react";
-import {
-  useAdminRequests 
-} from "@/hooks/admin";
 import { useAdmin } from "@/hooks/use-admin";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -54,9 +52,10 @@ const AdminRequests = () => {
     if (selectedRequest && actionType) {
       try {
         await updateRequest({
-          id: selectedRequest.id,
+          // Fix property name to match expected parameters in useUpdateConnectionRequest
+          requestId: selectedRequest.id,
           status: actionType === "approve" ? "approved" : "rejected",
-          comment: comment,
+          adminComment: comment,
         }, {
           onSuccess: async () => {
             try {

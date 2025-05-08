@@ -1,5 +1,7 @@
 
 // Auth helper functions
+import { User, UserRole, ApprovalStatus, BuyerType } from "@/types";
+
 export const cleanupAuthState = () => {
   // Remove all Supabase auth keys from localStorage
   Object.keys(localStorage).forEach((key) => {
@@ -17,7 +19,12 @@ export const cleanupAuthState = () => {
   localStorage.removeItem("user");
 };
 
-export const createUserObject = (profile: any) => {
+export const createUserObject = (profile: any): User => {
+  // Ensure the role is a valid UserRole type
+  const role: UserRole = profile.is_admin ? 'admin' : 'buyer';
+  const buyerType: BuyerType = profile.buyer_type as BuyerType || 'corporate';
+  const approvalStatus: ApprovalStatus = profile.approval_status as ApprovalStatus;
+  
   return {
     id: profile.id,
     email: profile.email,
@@ -26,11 +33,11 @@ export const createUserObject = (profile: any) => {
     company: profile.company || '',
     website: profile.website || '',
     phone_number: profile.phone_number || '',
-    role: profile.is_admin ? 'admin' : 'buyer',
+    role: role,
     email_verified: profile.email_verified,
-    approval_status: profile.approval_status,
+    approval_status: approvalStatus,
     is_admin: profile.is_admin,
-    buyer_type: profile.buyer_type || 'corporate',
+    buyer_type: buyerType,
     created_at: profile.created_at,
     updated_at: profile.updated_at,
     // Additional profile fields

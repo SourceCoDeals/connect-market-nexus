@@ -18,28 +18,46 @@ export function useAdminRequests() {
       queryKey: ['admin-connection-requests'],
       queryFn: async () => {
         try {
-          const { data, error } = await supabase
+          // First get all connection requests
+          const { data: requests, error } = await supabase
             .from('connection_requests')
-            .select(`
-              *,
-              user:user_id (
-                id, email, first_name, last_name, company, phone_number
-              ),
-              listing:listing_id (
-                id, title, category
-              )
-            `)
+            .select('*')
             .order('created_at', { ascending: false });
 
           if (error) throw error;
-          return data as AdminConnectionRequest[];
+          
+          // For each request, fetch user and listing details separately 
+          // to avoid the relation error
+          const enhancedRequests = await Promise.all(requests.map(async (request) => {
+            // Get user details
+            const { data: userData, error: userError } = await supabase
+              .from('profiles')
+              .select('id, email, first_name, last_name, company, phone_number')
+              .eq('id', request.user_id)
+              .single();
+            
+            // Get listing details
+            const { data: listingData, error: listingError } = await supabase
+              .from('listings')
+              .select('id, title, category')
+              .eq('id', request.listing_id)
+              .single();
+            
+            return {
+              ...request,
+              user: userError ? null : userData,
+              listing: listingError ? null : listingData
+            } as AdminConnectionRequest;
+          }));
+
+          return enhancedRequests;
         } catch (error: any) {
           toast({
             variant: 'destructive',
             title: 'Error fetching connection requests',
             description: error.message,
           });
-          return [];
+          return [] as AdminConnectionRequest[];
         }
       },
     });
@@ -57,24 +75,7 @@ export function useAdminRequests() {
         status: 'approved' | 'rejected';
         adminComment?: string;
       }) => {
-        // Get the request details first for email notification
-        const { data: requestData, error: requestError } = await supabase
-          .from('connection_requests')
-          .select(`
-            *,
-            user:user_id (
-              id, email, first_name, last_name, company
-            ),
-            listing:listing_id (
-              id, title, category
-            )
-          `)
-          .eq('id', requestId)
-          .single();
-          
-        if (requestError) throw requestError;
-        
-        // Now update the request
+        // Update the request status
         const { data, error } = await supabase
           .from('connection_requests')
           .update({ 
@@ -83,27 +84,48 @@ export function useAdminRequests() {
             updated_at: new Date().toISOString()
           })
           .eq('id', requestId)
-          .select(`
-            *,
-            user:user_id (
-              id, email, first_name, last_name, company
-            ),
-            listing:listing_id (
-              id, title, category
-            )
-          `)
+          .select()
           .single();
 
         if (error) throw error;
         
+        // Get request details with user and listing for email notification
+        const { data: requestData } = await supabase
+          .from('connection_requests')
+          .select('*')
+          .eq('id', requestId)
+          .single();
+        
+        if (!requestData) throw new Error('Request not found');
+        
+        // Get user details
+        const { data: userData } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', requestData.user_id)
+          .single();
+        
+        // Get listing details
+        const { data: listingData } = await supabase
+          .from('listings')
+          .select('*')
+          .eq('id', requestData.listing_id)
+          .single();
+        
+        const fullRequestData: AdminConnectionRequest = {
+          ...requestData,
+          user: userData,
+          listing: listingData
+        } as AdminConnectionRequest;
+        
         // Send email notification based on status
         if (status === 'approved') {
-          await sendConnectionApprovalEmail(data as AdminConnectionRequest);
+          await sendConnectionApprovalEmail(fullRequestData);
         } else if (status === 'rejected') {
-          await sendConnectionRejectionEmail(data as AdminConnectionRequest);
+          await sendConnectionRejectionEmail(fullRequestData);
         }
         
-        return data;
+        return fullRequestData;
       },
       onSuccess: (data) => {
         queryClient.invalidateQueries({ queryKey: ['admin-connection-requests'] });

@@ -5,12 +5,13 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Loader2, CheckCircle, XCircle } from 'lucide-react';
+import { ApprovalStatus } from '@/types';
 
 export default function VerifyEmailHandler() {
   const [isVerifying, setIsVerifying] = useState(true);
   const [verificationSuccess, setVerificationSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [approvalStatus, setApprovalStatus] = useState<'pending' | 'approved' | 'rejected' | null>(null);
+  const [approvalStatus, setApprovalStatus] = useState<ApprovalStatus | null>(null);
   
   const location = useLocation();
   const navigate = useNavigate();
@@ -50,7 +51,7 @@ export default function VerifyEmailHandler() {
               
             if (profileError) throw profileError;
             
-            setApprovalStatus(profileData.approval_status);
+            setApprovalStatus(profileData.approval_status as ApprovalStatus);
           }
         } else {
           throw new Error('Unknown verification type');
