@@ -46,7 +46,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const setLoadingState = React.useCallback((loading: boolean) => {
     // This is a dummy function that's needed for the useAuthActions hook
     // The actual state management is handled by useAuthState
-    console.log("Auth actions setting loading:", loading);
   }, []);
   
   // Connect auth actions with the auth state
@@ -58,8 +57,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Update session when it changes
   useEffect(() => {
     const getSession = async () => {
-      const { data } = await supabase.auth.getSession();
-      setSession(data.session);
+      try {
+        const { data, error } = await supabase.auth.getSession();
+        if (!error) {
+          setSession(data.session);
+        } else {
+          console.error("Error getting session:", error);
+          setSession(null);
+        }
+      } catch (err) {
+        console.error("Unexpected error getting session:", err);
+        setSession(null);
+      }
     };
     
     getSession();
@@ -79,10 +88,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
       
       if (sessionError) {
-        throw sessionError;
+        console.error("Session error during refresh:", sessionError);
+        return;
       }
       
       if (!sessionData.session) {
+        console.log("No active session during refresh");
         return;
       }
       
@@ -100,6 +111,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       // We don't need to update state here as useAuthState handles it
       setSession(sessionData.session);
+      console.log("User profile refreshed successfully");
     } catch (error) {
       console.error("Error refreshing user profile:", error);
     }

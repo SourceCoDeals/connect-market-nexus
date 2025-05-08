@@ -12,7 +12,19 @@ export function useAuthState() {
   useEffect(() => {
     let isSubscribed = true;
     
-    // First set up the auth state change listener before checking the session
+    // First check if we have a user in localStorage to avoid flashing
+    try {
+      const cachedUser = localStorage.getItem("user");
+      if (cachedUser) {
+        const parsedUser = JSON.parse(cachedUser);
+        setUser(parsedUser);
+      }
+    } catch (err) {
+      console.error("Error parsing cached user:", err);
+      localStorage.removeItem("user");
+    }
+    
+    // Set up the auth state change listener before checking the session
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log("Auth state change:", event);
@@ -29,8 +41,8 @@ export function useAuthState() {
           return;
         }
         
-        if (event === "SIGNED_IN" && session) {
-          console.log("User signed in:", session.user.id);
+        if ((event === "SIGNED_IN" || event === "TOKEN_REFRESHED") && session) {
+          console.log(`User ${event}:`, session.user.id);
           // Use setTimeout to avoid Supabase auth deadlocks
           setTimeout(async () => {
             if (!isSubscribed) return;
@@ -43,22 +55,19 @@ export function useAuthState() {
                 .single();
               
               if (error) {
-                console.error("Error fetching profile after sign in:", error);
+                console.error(`Error fetching profile after ${event}:`, error);
                 setUser(null);
-                setIsLoading(false);
-                setAuthChecked(true);
-                return;
-              }
-              
-              if (profile && isSubscribed) {
+                localStorage.removeItem("user");
+              } else if (profile && isSubscribed) {
                 const userData = createUserObject(profile);
-                console.log("Setting user data after sign in:", userData.email);
+                console.log(`Setting user data after ${event}:`, userData.email);
                 setUser(userData);
                 localStorage.setItem("user", JSON.stringify(userData));
               }
             } catch (err) {
-              console.error("Error in auth state change handler:", err);
+              console.error(`Error in ${event} handler:`, err);
               setUser(null);
+              localStorage.removeItem("user");
             } finally {
               if (isSubscribed) {
                 setIsLoading(false);
@@ -79,7 +88,6 @@ export function useAuthState() {
           if (isSubscribed) {
             console.warn("Auth check timeout - forcing completion");
             setIsLoading(false);
-            setUser(null);
             setAuthChecked(true);
           }
         }, 2000); // Shorter timeout for better UX
@@ -91,7 +99,11 @@ export function useAuthState() {
         
         if (sessionError) {
           console.error("Session error:", sessionError);
-          throw sessionError;
+          setUser(null);
+          localStorage.removeItem("user");
+          setIsLoading(false);
+          setAuthChecked(true);
+          return;
         }
         
         if (session?.user && isSubscribed) {

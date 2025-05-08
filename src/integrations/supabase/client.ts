@@ -15,38 +15,46 @@ export const supabase = createClient<Database>(
       autoRefreshToken: true,
       storageKey: 'sb-vhzipqarkmmfuqadefep-auth-token',
       detectSessionInUrl: true,
-      flowType: 'implicit',
     }
   }
 );
 
 // Helper function to clean up auth state in case of issues
-export const cleanupAuthState = () => {
+export const cleanupAuthState = async () => {
   console.log("Cleaning up auth state");
   
-  // Remove all Supabase auth keys from localStorage
-  Object.keys(localStorage).forEach((key) => {
-    if (key.startsWith('supabase.auth.') || 
-        key.includes('sb-') || 
-        key.startsWith('sb:') ||
-        key === 'supabase.auth.token' ||
-        key === 'user') {
-      console.log(`Removing localStorage key: ${key}`);
-      localStorage.removeItem(key);
-    }
-  });
-  
-  // Remove from sessionStorage if in use
-  if (typeof sessionStorage !== 'undefined') {
-    Object.keys(sessionStorage).forEach((key) => {
+  try {
+    // Attempt to sign out (but don't wait for it)
+    supabase.auth.signOut().catch(() => {
+      // Ignore errors
+    });
+    
+    // Remove all Supabase auth keys from localStorage
+    Object.keys(localStorage).forEach((key) => {
       if (key.startsWith('supabase.auth.') || 
-          key.includes('sb-') ||
+          key.includes('sb-') || 
           key.startsWith('sb:') ||
-          key === 'supabase.auth.token') {
-        console.log(`Removing sessionStorage key: ${key}`);
-        sessionStorage.removeItem(key);
+          key === 'supabase.auth.token' ||
+          key === 'user') {
+        console.log(`Removing localStorage key: ${key}`);
+        localStorage.removeItem(key);
       }
     });
+    
+    // Remove from sessionStorage if in use
+    if (typeof sessionStorage !== 'undefined') {
+      Object.keys(sessionStorage).forEach((key) => {
+        if (key.startsWith('supabase.auth.') || 
+            key.includes('sb-') ||
+            key.startsWith('sb:') ||
+            key === 'supabase.auth.token') {
+          console.log(`Removing sessionStorage key: ${key}`);
+          sessionStorage.removeItem(key);
+        }
+      });
+    }
+  } catch (error) {
+    console.error("Error during auth cleanup:", error);
   }
 };
 

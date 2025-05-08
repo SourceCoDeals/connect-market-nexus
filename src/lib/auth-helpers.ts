@@ -50,11 +50,15 @@ export const createUserObject = (profile: any): User => {
 /**
  * Helper function to clean up authentication state
  */
-export const cleanupAuthState = () => {
-  // Use direct import instead of dynamic require
-  return supabase.auth.signOut().then(() => {
-    console.log("Cleaning up auth state");
+export const cleanupAuthState = async () => {
+  console.log("Auth helpers: Cleaning up auth state");
   
+  try {
+    // Attempt to sign out (but don't wait for it)
+    await supabase.auth.signOut().catch(() => {
+      // Ignore errors
+    });
+    
     // Remove all Supabase auth keys from localStorage
     Object.keys(localStorage).forEach((key) => {
       if (key.startsWith('supabase.auth.') || 
@@ -79,5 +83,7 @@ export const cleanupAuthState = () => {
         }
       });
     }
-  });
+  } catch (error) {
+    console.error("Error during auth cleanup:", error);
+  }
 };

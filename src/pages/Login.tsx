@@ -8,11 +8,13 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { toast } from "@/hooks/use-toast";
 import { AlertCircle } from "lucide-react";
 import { cleanupAuthState } from "@/lib/auth-helpers";
+import { supabase } from "@/integrations/supabase/client";
 
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { user, login, isLoading, authChecked } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -29,7 +31,15 @@ const Login = () => {
   // Cleanup auth state on mount to prevent auth issues
   useEffect(() => {
     console.log("Login page mounted, cleaning up previous auth state");
-    cleanupAuthState();
+    const cleanup = async () => {
+      try {
+        await cleanupAuthState();
+        console.log("Auth state cleaned up on login page mount");
+      } catch (error) {
+        console.error("Error cleaning up auth state:", error);
+      }
+    };
+    cleanup();
   }, []);
 
   // Redirect if user is already logged in
@@ -43,21 +53,101 @@ const Login = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setIsSubmitting(true);
     
     if (!email.trim()) {
       setError("Email is required");
+      setIsSubmitting(false);
       return;
     }
     
     if (!password) {
       setError("Password is required");
+      setIsSubmitting(false);
       return;
     }
     
     try {
       console.log(`Attempting login with email: ${email}`);
-      await login(email, password);
-      // Redirection will be handled by the useEffect above
+      
+      // Clean up auth state before attempting login
+      await cleanupAuthState();
+      
+      // Manual sign in to have more control
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      
+      if (signInError) {
+        throw signInError;
+      }
+      
+      if (!data || !data.user) {
+        throw new Error("Failed to login. No user data returned.");
+      }
+      
+      console.log("Login successful, user ID:", data.user.id);
+      
+      // Fetch user profile
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', data.user.id)
+        .single();
+      
+      if (profileError || !profile) {
+        throw profileError || new Error("Profile not found");
+      }
+      
+      // Handle approval status
+      if (!profile.email_verified) {
+        toast({
+          variant: "destructive",
+          title: "Email not verified",
+          description: "Please verify your email address before logging in.",
+        });
+        await supabase.auth.signOut();
+        navigate("/verify-email", { state: { email } });
+        return;
+      }
+      
+      if (profile.approval_status === 'pending') {
+        toast({
+          variant: "destructive",
+          title: "Account pending approval",
+          description: "Your account is awaiting admin approval.",
+        });
+        await supabase.auth.signOut();
+        navigate("/pending-approval");
+        return;
+      }
+      
+      if (profile.approval_status === 'rejected') {
+        toast({
+          variant: "destructive",
+          title: "Account rejected",
+          description: "Your account application has been rejected.",
+        });
+        await supabase.auth.signOut();
+        return;
+      }
+      
+      // Success message
+      toast({
+        title: "Welcome back",
+        description: "You have successfully logged in.",
+      });
+      
+      // Redirect based on user role
+      setTimeout(() => {
+        if (profile.is_admin) {
+          window.location.href = "/admin";
+        } else {
+          window.location.href = "/marketplace";
+        }
+      }, 100);
+      
     } catch (err: any) {
       console.error("Login error:", err);
       setError(err.message || "Failed to sign in");
@@ -66,6 +156,8 @@ const Login = () => {
         title: "Login failed",
         description: err.message || "Please check your credentials and try again"
       });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -112,7 +204,7 @@ const Login = () => {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                disabled={isLoading}
+                disabled={isSubmitting}
               />
             </div>
             <div className="space-y-2">
@@ -134,15 +226,15 @@ const Login = () => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                disabled={isLoading}
+                disabled={isSubmitting}
               />
             </div>
             <Button
               type="submit"
               className="w-full"
-              disabled={isLoading}
+              disabled={isSubmitting}
             >
-              {isLoading ? (
+              {isSubmitting ? (
                 <span className="flex items-center justify-center">
                   <svg
                     className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"

@@ -1,4 +1,3 @@
-
 import { useNavigate } from "react-router-dom";
 import { User } from "@/types";
 import { toast } from "@/hooks/use-toast";
@@ -15,13 +14,6 @@ export function useAuthActions(setUser: (user: User | null) => void, setIsLoadin
       await cleanupAuthState();
       
       console.log("Attempting login with email:", email);
-      
-      // Attempt global sign out first to prevent conflicts
-      try {
-        await supabase.auth.signOut();
-      } catch (e) {
-        // Ignore errors, just continue with login
-      }
       
       // Sign in
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -99,12 +91,15 @@ export function useAuthActions(setUser: (user: User | null) => void, setIsLoadin
         description: "You have successfully logged in.",
       });
       
-      // Redirect based on user role
-      if (profile.is_admin) {
-        navigate("/admin");
-      } else {
-        navigate("/marketplace");
-      }
+      // Use window.location for a full page refresh to prevent stale state
+      setTimeout(() => {
+        if (profile.is_admin) {
+          window.location.href = "/admin";
+        } else {
+          window.location.href = "/marketplace";
+        }
+      }, 100);
+      
     } catch (error: any) {
       console.error("Login process error:", error);
       toast({
@@ -124,10 +119,7 @@ export function useAuthActions(setUser: (user: User | null) => void, setIsLoadin
       console.log("Starting logout process");
       
       // Clean up auth state first
-      cleanupAuthState();
-      
-      // Sign out from Supabase
-      await supabase.auth.signOut();
+      await cleanupAuthState();
       
       // Update local state
       setUser(null);
