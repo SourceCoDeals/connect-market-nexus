@@ -62,7 +62,7 @@ export function useAdmin() {
     useUpdateConnectionRequest,
     
     // Admin dashboard stats
-    useAdminStats: useStats,
+    useStats,
     useRecentActivities,
     
     // Email notifications

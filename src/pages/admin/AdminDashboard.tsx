@@ -1,7 +1,4 @@
 import { useState } from "react";
-import { 
-  useAdminStats
-} from "@/hooks/admin";
 import { useAdmin } from "@/hooks/use-admin";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Store, Users, MessageSquare, TrendingUp } from "lucide-react";
@@ -9,8 +6,8 @@ import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
 
 const AdminDashboard = () => {
-  const { useAdminStats, useRecentActivities } = useAdmin();
-  const { data: stats, isLoading: isLoadingStats } = useAdminStats();
+  const { useStats, useRecentActivities } = useAdmin();
+  const { data: stats, isLoading: isLoadingStats } = useStats();
   const { data: activities = [], isLoading: isLoadingActivities } = useRecentActivities();
 
   const renderSkeleton = () => (
