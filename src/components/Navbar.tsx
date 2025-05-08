@@ -1,4 +1,3 @@
-
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
@@ -12,13 +11,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useMobile } from "@/hooks/use-mobile";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const Navbar = () => {
   const { user, isLoading, logout, isAdmin } = useAuth();
   const navigate = useNavigate();
-  const isMobile = useMobile();
+  const isMobile = useIsMobile();
 
   const handleLogout = async () => {
     try {
@@ -117,7 +116,6 @@ const Navbar = () => {
                       className="relative h-9 w-9 rounded-full"
                     >
                       <Avatar className="h-9 w-9">
-                        <AvatarImage src={user?.avatar_url} alt={user?.first_name} />
                         <AvatarFallback>
                           {getInitials(user?.first_name, user?.last_name)}
                         </AvatarFallback>

@@ -40,6 +40,9 @@ export interface AdminConnectionRequest {
   listing: {
     id: string;
     title: string;
+    category?: string;
   };
   admin_comment?: string | null;
+  user_id?: string;
+  listing_id?: string;
 }

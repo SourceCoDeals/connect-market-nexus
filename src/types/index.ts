@@ -59,6 +59,7 @@ export interface Listing {
   files?: string[];
   created_at: string;
   updated_at: string;
+  image_url?: string | null;
   
   // Computed properties (aliases for snake_case properties)
   readonly ownerNotes: string;

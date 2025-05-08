@@ -1,121 +1,164 @@
 
-import { useMutation } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from '@/hooks/use-toast';
 import { User } from '@/types';
-import { AdminConnectionRequest } from '@/types/admin';
-
-type EmailType = 
-  | "account_approved"
-  | "account_rejected"
-  | "connection_approved"
-  | "connection_rejected";
-
-interface SendEmailParams {
-  type: EmailType;
-  recipientEmail: string;
-  recipientName: string;
-  data?: {
-    listingName?: string;
-    rejectionReason?: string;
-    verificationLink?: string;
-  };
-}
+import { useToast } from '@/hooks/use-toast';
 
 /**
- * Hook for sending admin notification emails
+ * Hook for sending admin emails
  */
 export function useAdminEmail() {
-  const useSendEmail = () => {
-    return useMutation({
-      mutationFn: async (params: SendEmailParams) => {
-        const response = await fetch(`${window.location.origin}/functions/v1/send-notification-email`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
+  const { toast } = useToast();
+
+  /**
+   * Send approval email to user
+   */
+  const sendUserApprovalEmail = async (user: User) => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-email-notification`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
+        },
+        body: JSON.stringify({
+          type: 'approval',
+          email: user.email,
+          firstName: user.first_name,
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to send approval email');
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Error sending approval email:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Email Error',
+        description: error.message || 'Failed to send approval email',
+      });
+      throw error;
+    }
+  };
+
+  /**
+   * Send rejection email to user
+   */
+  const sendUserRejectionEmail = async (user: User, reason?: string) => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-email-notification`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
+        },
+        body: JSON.stringify({
+          type: 'rejection',
+          email: user.email,
+          firstName: user.first_name,
+          data: {
+            rejectionReason: reason || 'Your application did not meet our current criteria.',
           },
-          body: JSON.stringify(params),
-        });
-        
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Error sending email');
-        }
-        
-        return await response.json();
-      },
-      onError: (error: any) => {
-        toast({
-          variant: 'destructive',
-          title: 'Error sending email',
-          description: error.message,
-        });
-      },
-    });
-  };
+        }),
+      });
 
-  const sendUserApprovalEmail = (user: User) => {
-    return useSendEmail().mutateAsync({
-      type: 'account_approved',
-      recipientEmail: user.email,
-      recipientName: `${user.first_name} ${user.last_name}`,
-    });
-  };
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to send rejection email');
+      }
 
-  const sendUserRejectionEmail = (user: User, reason?: string) => {
-    return useSendEmail().mutateAsync({
-      type: 'account_rejected',
-      recipientEmail: user.email,
-      recipientName: `${user.first_name} ${user.last_name}`,
-      data: {
-        rejectionReason: reason,
-      },
-    });
-  };
-
-  const sendConnectionApprovalEmail = (request: AdminConnectionRequest) => {
-    if (!request.user || !request.listing) {
+      return data;
+    } catch (error) {
+      console.error('Error sending rejection email:', error);
       toast({
         variant: 'destructive',
-        title: 'Error sending email',
-        description: 'Missing user or listing information',
+        title: 'Email Error',
+        description: error.message || 'Failed to send rejection email',
       });
-      return Promise.reject('Missing user or listing information');
+      throw error;
     }
-    
-    return useSendEmail().mutateAsync({
-      type: 'connection_approved',
-      recipientEmail: request.user.email,
-      recipientName: `${request.user.first_name} ${request.user.last_name}`,
-      data: {
-        listingName: request.listing.title,
-      },
-    });
   };
 
-  const sendConnectionRejectionEmail = (request: AdminConnectionRequest) => {
-    if (!request.user || !request.listing) {
+  /**
+   * Send connection approval email to user
+   */
+  const sendConnectionApprovalEmail = async (user: User, listingName: string) => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-email-notification`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
+        },
+        body: JSON.stringify({
+          type: 'connection_approved',
+          email: user.email,
+          firstName: user.first_name,
+          data: {
+            listingName,
+          },
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to send connection approval email');
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Error sending connection approval email:', error);
       toast({
         variant: 'destructive',
-        title: 'Error sending email',
-        description: 'Missing user or listing information',
+        title: 'Email Error',
+        description: error.message || 'Failed to send connection approval email',
       });
-      return Promise.reject('Missing user or listing information');
+      throw error;
     }
-    
-    return useSendEmail().mutateAsync({
-      type: 'connection_rejected',
-      recipientEmail: request.user.email,
-      recipientName: `${request.user.first_name} ${request.user.last_name}`,
-      data: {
-        listingName: request.listing.title,
-      },
-    });
+  };
+
+  /**
+   * Send connection rejection email to user
+   */
+  const sendConnectionRejectionEmail = async (user: User, listingName: string) => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-email-notification`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
+        },
+        body: JSON.stringify({
+          type: 'connection_rejected',
+          email: user.email,
+          firstName: user.first_name,
+          data: {
+            listingName,
+          },
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to send connection rejection email');
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Error sending connection rejection email:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Email Error',
+        description: error.message || 'Failed to send connection rejection email',
+      });
+      throw error;
+    }
   };
 
   return {
-    useSendEmail,
     sendUserApprovalEmail,
     sendUserRejectionEmail,
     sendConnectionApprovalEmail,

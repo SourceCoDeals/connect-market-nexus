@@ -102,6 +102,7 @@ export type Database = {
           ebitda: number
           files: string[] | null
           id: string
+          image_url: string | null
           location: string
           owner_notes: string | null
           revenue: number
@@ -116,6 +117,7 @@ export type Database = {
           ebitda: number
           files?: string[] | null
           id?: string
+          image_url?: string | null
           location: string
           owner_notes?: string | null
           revenue: number
@@ -130,6 +132,7 @@ export type Database = {
           ebitda?: number
           files?: string[] | null
           id?: string
+          image_url?: string | null
           location?: string
           owner_notes?: string | null
           revenue?: number
@@ -143,6 +146,7 @@ export type Database = {
         Row: {
           approval_status: string
           aum: string | null
+          bio: string | null
           buyer_type: string | null
           company: string | null
           company_name: string | null
@@ -169,6 +173,7 @@ export type Database = {
         Insert: {
           approval_status?: string
           aum?: string | null
+          bio?: string | null
           buyer_type?: string | null
           company?: string | null
           company_name?: string | null
@@ -195,6 +200,7 @@ export type Database = {
         Update: {
           approval_status?: string
           aum?: string | null
+          bio?: string | null
           buyer_type?: string | null
           company?: string | null
           company_name?: string | null

@@ -1,5 +1,7 @@
-
 import { useState } from "react";
+import {
+  useAdminRequests 
+} from "@/hooks/admin";
 import { useAdmin } from "@/hooks/use-admin";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -18,7 +20,7 @@ const AdminRequests = () => {
     sendConnectionRejectionEmail
   } = useAdmin();
   
-  const { data: requests = [], isLoading, error } = useConnectionRequests();
+  const { data: requests = [], isLoading, error } = useAdminRequests();
   const { mutate: updateRequest, isPending: isUpdating } = useUpdateConnectionRequest();
   
   const [searchQuery, setSearchQuery] = useState("");

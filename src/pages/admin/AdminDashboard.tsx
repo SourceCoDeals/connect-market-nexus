@@ -1,4 +1,7 @@
-
+import { useState } from "react";
+import { 
+  useAdminStats
+} from "@/hooks/admin";
 import { useAdmin } from "@/hooks/use-admin";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Store, Users, MessageSquare, TrendingUp } from "lucide-react";

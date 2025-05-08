@@ -29,7 +29,7 @@ export function useAdminRequests() {
           }
 
           // If we successfully got the requests, now get the users and listings separately
-          const requests = requestsData as AdminConnectionRequest[];
+          const requests = requestsData as any[];
           
           // Get unique user IDs from requests
           const userIds = [...new Set(requests.map(r => r.user_id))];
@@ -58,7 +58,7 @@ export function useAdminRequests() {
           }
 
           // Create a map for quick user lookup with transformed User data
-          const usersMap = (usersData || []).reduce((acc, profile) => {
+          const usersMap = (usersData || []).reduce((acc: Record<string, User>, profile: any) => {
             acc[profile.id] = {
               ...profile,
               role: profile.is_admin ? 'admin' : 'buyer',
@@ -76,17 +76,28 @@ export function useAdminRequests() {
           }, {} as Record<string, User>);
           
           // Create a map for quick listing lookup
-          const listingsMap = (listingsData || []).reduce((acc, listing) => {
+          const listingsMap = (listingsData || []).reduce((acc: Record<string, AdminListing>, listing: any) => {
             acc[listing.id] = listing;
             return acc;
           }, {} as Record<string, AdminListing>);
           
           // Combine the data
-          return requests.map(request => ({
-            ...request,
-            user: usersMap[request.user_id] || null,
-            listing: listingsMap[request.listing_id] || null
-          }));
+          return requests.map(request => {
+            const user = usersMap[request.user_id] || null;
+            const listing = listingsMap[request.listing_id] 
+              ? {
+                  id: listingsMap[request.listing_id].id,
+                  title: listingsMap[request.listing_id].title,
+                  category: listingsMap[request.listing_id].category,
+                }
+              : { id: request.listing_id, title: 'Unknown Listing' };
+                
+            return {
+              ...request,
+              user,
+              listing,
+            } as AdminConnectionRequest;
+          });
           
         } catch (error: any) {
           console.error("Detailed error in connection requests:", error);
