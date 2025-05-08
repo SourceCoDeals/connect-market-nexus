@@ -20,7 +20,7 @@ const AdminRequests = () => {
     sendConnectionRejectionEmail
   } = useAdmin();
   
-  const { data: requests = [], isLoading, error } = useAdminRequests();
+  const { data: requests = [], isLoading, error } = useConnectionRequests();
   const { mutate: updateRequest, isPending: isUpdating } = useUpdateConnectionRequest();
   
   const [searchQuery, setSearchQuery] = useState("");

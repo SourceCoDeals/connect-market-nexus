@@ -2,6 +2,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { User } from '@/types';
 import { useToast } from '@/hooks/use-toast';
+import { AdminConnectionRequest } from '@/types/admin';
 
 /**
  * Hook for sending admin emails
@@ -33,7 +34,7 @@ export function useAdminEmail() {
       }
 
       return data;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error sending approval email:', error);
       toast({
         variant: 'destructive',
@@ -71,7 +72,7 @@ export function useAdminEmail() {
       }
 
       return data;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error sending rejection email:', error);
       toast({
         variant: 'destructive',
@@ -85,7 +86,12 @@ export function useAdminEmail() {
   /**
    * Send connection approval email to user
    */
-  const sendConnectionApprovalEmail = async (user: User, listingName: string) => {
+  const sendConnectionApprovalEmail = async (request: AdminConnectionRequest) => {
+    if (!request.user) {
+      console.error('Cannot send approval email: User information missing');
+      return;
+    }
+    
     try {
       const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-email-notification`, {
         method: 'POST',
@@ -95,10 +101,10 @@ export function useAdminEmail() {
         },
         body: JSON.stringify({
           type: 'connection_approved',
-          email: user.email,
-          firstName: user.first_name,
+          email: request.user.email,
+          firstName: request.user.first_name,
           data: {
-            listingName,
+            listingName: request.listing?.title || 'Business listing',
           },
         }),
       });
@@ -109,7 +115,7 @@ export function useAdminEmail() {
       }
 
       return data;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error sending connection approval email:', error);
       toast({
         variant: 'destructive',
@@ -123,7 +129,12 @@ export function useAdminEmail() {
   /**
    * Send connection rejection email to user
    */
-  const sendConnectionRejectionEmail = async (user: User, listingName: string) => {
+  const sendConnectionRejectionEmail = async (request: AdminConnectionRequest) => {
+    if (!request.user) {
+      console.error('Cannot send rejection email: User information missing');
+      return;
+    }
+    
     try {
       const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-email-notification`, {
         method: 'POST',
@@ -133,10 +144,10 @@ export function useAdminEmail() {
         },
         body: JSON.stringify({
           type: 'connection_rejected',
-          email: user.email,
-          firstName: user.first_name,
+          email: request.user.email,
+          firstName: request.user.first_name,
           data: {
-            listingName,
+            listingName: request.listing?.title || 'Business listing',
           },
         }),
       });
@@ -147,7 +158,7 @@ export function useAdminEmail() {
       }
 
       return data;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error sending connection rejection email:', error);
       toast({
         variant: 'destructive',
