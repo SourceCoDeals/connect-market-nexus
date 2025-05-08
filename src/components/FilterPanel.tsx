@@ -36,8 +36,8 @@ const FilterPanel = ({
     const filters: FilterOptions = {};
     
     if (searchTerm) filters.search = searchTerm;
-    if (category) filters.category = category;
-    if (location) filters.location = location;
+    if (category && category !== "all") filters.category = category;
+    if (location && location !== "all") filters.location = location;
     
     filters.revenueMin = revenueRange[0];
     filters.revenueMax = revenueRange[1];
@@ -91,7 +91,8 @@ const FilterPanel = ({
               <SelectValue placeholder="All categories" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All categories</SelectItem>
+              {/* Changed from empty string to "all" */}
+              <SelectItem value="all">All categories</SelectItem>
               {categories.map((cat) => (
                 <SelectItem key={cat} value={cat}>{cat}</SelectItem>
               ))}
@@ -107,7 +108,8 @@ const FilterPanel = ({
               <SelectValue placeholder="All locations" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All locations</SelectItem>
+              {/* Changed from empty string to "all" */}
+              <SelectItem value="all">All locations</SelectItem>
               {locations.map((loc) => (
                 <SelectItem key={loc} value={loc}>{loc}</SelectItem>
               ))}
