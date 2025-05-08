@@ -19,13 +19,30 @@ interface ConnectionNotificationRequest {
 }
 
 const handler = async (req: Request): Promise<Response> => {
+  console.log("Connection notification request received");
+  
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { type, userEmail, firstName, listingName }: ConnectionNotificationRequest = await req.json();
+    // Get request body
+    const text = await req.text();
+    console.log("Request body:", text);
+    
+    if (!text) {
+      throw new Error("Empty request body");
+    }
+    
+    const requestData: ConnectionNotificationRequest = JSON.parse(text);
+    console.log("Parsed request data:", requestData);
+    
+    const { type, userEmail, firstName, listingName } = requestData;
+    
+    if (!type || !userEmail || !firstName || !listingName) {
+      throw new Error("Missing required fields in request");
+    }
     
     let subject = '';
     let htmlContent = '';
@@ -53,6 +70,9 @@ const handler = async (req: Request): Promise<Response> => {
       `;
     }
 
+    console.log("Sending email to:", userEmail);
+    console.log("Email subject:", subject);
+    
     const emailResponse = await resend.emails.send({
       from: "SourceCo Marketplace <notifications@sourcecodeals.com>",
       to: [userEmail],
@@ -70,7 +90,7 @@ const handler = async (req: Request): Promise<Response> => {
       },
     });
   } catch (error: any) {
-    console.error("Error in send-notification-email function:", error);
+    console.error("Error in send-connection-notification function:", error);
     return new Response(
       JSON.stringify({ error: error.message }),
       {

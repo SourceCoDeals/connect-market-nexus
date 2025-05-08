@@ -1,30 +1,10 @@
 
-// Auth helper functions
-import { User, UserRole, ApprovalStatus, BuyerType } from "@/types";
+import { User } from '@/types';
 
-export const cleanupAuthState = () => {
-  // Remove all Supabase auth keys from localStorage
-  Object.keys(localStorage).forEach((key) => {
-    if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
-      localStorage.removeItem(key);
-    }
-  });
-  // Remove from sessionStorage if in use
-  Object.keys(sessionStorage || {}).forEach((key) => {
-    if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
-      sessionStorage.removeItem(key);
-    }
-  });
-  // Remove user data
-  localStorage.removeItem("user");
-};
-
+/**
+ * Helper function to create a consistent User object from profile data
+ */
 export const createUserObject = (profile: any): User => {
-  // Ensure the role is a valid UserRole type
-  const role: UserRole = profile.is_admin ? 'admin' : 'buyer';
-  const buyerType: BuyerType = profile.buyer_type as BuyerType || 'corporate';
-  const approvalStatus: ApprovalStatus = profile.approval_status as ApprovalStatus;
-  
   return {
     id: profile.id,
     email: profile.email,
@@ -33,14 +13,13 @@ export const createUserObject = (profile: any): User => {
     company: profile.company || '',
     website: profile.website || '',
     phone_number: profile.phone_number || '',
-    role: role,
+    role: profile.is_admin ? 'admin' as const : 'buyer' as const,
     email_verified: profile.email_verified,
-    approval_status: approvalStatus,
+    approval_status: profile.approval_status,
     is_admin: profile.is_admin,
-    buyer_type: buyerType,
+    buyer_type: profile.buyer_type || 'corporate',
     created_at: profile.created_at,
     updated_at: profile.updated_at,
-    // Additional profile fields
     company_name: profile.company_name,
     estimated_revenue: profile.estimated_revenue,
     fund_size: profile.fund_size,
@@ -55,14 +34,14 @@ export const createUserObject = (profile: any): User => {
     bio: profile.bio,
     
     // Computed properties
-    get firstName() { return this.first_name; },
-    get lastName() { return this.last_name; },
-    get phoneNumber() { return this.phone_number; },
-    get isAdmin() { return this.is_admin; },
-    get buyerType() { return this.buyer_type; },
-    get emailVerified() { return this.email_verified; },
-    get isApproved() { return this.approval_status === 'approved'; },
-    get createdAt() { return this.created_at; },
-    get updatedAt() { return this.updated_at; }
+    firstName: profile.first_name,
+    lastName: profile.last_name,
+    phoneNumber: profile.phone_number || '',
+    isAdmin: profile.is_admin,
+    buyerType: profile.buyer_type || 'corporate',
+    emailVerified: profile.email_verified,
+    isApproved: profile.approval_status === 'approved',
+    createdAt: profile.created_at,
+    updatedAt: profile.updated_at
   };
 };

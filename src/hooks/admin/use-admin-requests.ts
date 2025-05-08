@@ -35,27 +35,32 @@ export function useAdminRequests() {
               .from('profiles')
               .select('*')  // Select all fields to get complete user data
               .eq('id', request.user_id)
-              .single();
+              .maybeSingle();  // Use maybeSingle instead of single to prevent errors
+            
+            if (userError) console.error("Error fetching user data:", userError);
             
             // Get listing details
             const { data: listingData, error: listingError } = await supabase
               .from('listings')
-              .select('id, title, category')
+              .select('id, title, category, location, revenue, ebitda')
               .eq('id', request.listing_id)
-              .single();
+              .maybeSingle();  // Use maybeSingle instead of single to prevent errors
+            
+            if (listingError) console.error("Error fetching listing data:", listingError);
             
             // Transform the user data using createUserObject to ensure it matches the User type
-            const user = userError ? null : createUserObject(userData);
+            const user = userError || !userData ? null : createUserObject(userData);
             
             return {
               ...request,
               user,
-              listing: listingError ? null : listingData
+              listing: listingError || !listingData ? null : listingData
             } as AdminConnectionRequest;
           }));
 
           return enhancedRequests;
         } catch (error: any) {
+          console.error("Error fetching connection requests:", error);
           toast({
             variant: 'destructive',
             title: 'Error fetching connection requests',
@@ -79,60 +84,92 @@ export function useAdminRequests() {
         status: 'approved' | 'rejected';
         adminComment?: string;
       }) => {
-        // Update the request status
-        const { data, error } = await supabase
-          .from('connection_requests')
-          .update({ 
-            status, 
-            admin_comment: adminComment,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', requestId)
-          .select()
-          .single();
+        try {
+          console.log(`Updating request ${requestId} to status ${status}`);
+          
+          // Update the request status
+          const { data, error } = await supabase
+            .from('connection_requests')
+            .update({ 
+              status, 
+              admin_comment: adminComment,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', requestId)
+            .select();
 
-        if (error) throw error;
-        
-        // Get request details with user and listing for email notification
-        const { data: requestData } = await supabase
-          .from('connection_requests')
-          .select('*')
-          .eq('id', requestId)
-          .single();
-        
-        if (!requestData) throw new Error('Request not found');
-        
-        // Get complete user details
-        const { data: userData } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', requestData.user_id)
-          .single();
-        
-        // Get listing details
-        const { data: listingData } = await supabase
-          .from('listings')
-          .select('*')
-          .eq('id', requestData.listing_id)
-          .single();
-        
-        // Transform the user data using createUserObject
-        const user = userData ? createUserObject(userData) : null;
-        
-        const fullRequestData: AdminConnectionRequest = {
-          ...requestData,
-          user,
-          listing: listingData
-        } as AdminConnectionRequest;
-        
-        // Send email notification based on status
-        if (status === 'approved') {
-          await sendConnectionApprovalEmail(fullRequestData);
-        } else if (status === 'rejected') {
-          await sendConnectionRejectionEmail(fullRequestData);
+          if (error) throw error;
+          
+          if (!data || data.length === 0) {
+            throw new Error('Update successful but no data returned');
+          }
+          
+          console.log("Update successful:", data);
+          
+          // Get complete request data for email notification
+          const { data: requestData, error: requestError } = await supabase
+            .from('connection_requests')
+            .select('*')
+            .eq('id', requestId)
+            .maybeSingle();
+          
+          if (requestError || !requestData) {
+            throw new Error('Request not found after update');
+          }
+          
+          // Get complete user details
+          const { data: userData, error: userError } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', requestData.user_id)
+            .maybeSingle();
+          
+          if (userError) {
+            console.error("Error fetching user data for email:", userError);
+          }
+          
+          // Get listing details
+          const { data: listingData, error: listingError } = await supabase
+            .from('listings')
+            .select('*')
+            .eq('id', requestData.listing_id)
+            .maybeSingle();
+          
+          if (listingError) {
+            console.error("Error fetching listing data for email:", listingError);
+          }
+          
+          // Transform the user data using createUserObject
+          const user = userData ? createUserObject(userData) : null;
+          
+          const fullRequestData: AdminConnectionRequest = {
+            ...requestData,
+            user,
+            listing: listingData
+          };
+          
+          // Send email notification based on status
+          if (status === 'approved') {
+            try {
+              await sendConnectionApprovalEmail(fullRequestData);
+              console.log("Approval email sent successfully");
+            } catch (emailError) {
+              console.error("Error sending approval email:", emailError);
+            }
+          } else if (status === 'rejected') {
+            try {
+              await sendConnectionRejectionEmail(fullRequestData);
+              console.log("Rejection email sent successfully");
+            } catch (emailError) {
+              console.error("Error sending rejection email:", emailError);
+            }
+          }
+          
+          return fullRequestData;
+        } catch (error: any) {
+          console.error("Error updating connection request:", error);
+          throw error;
         }
-        
-        return fullRequestData;
       },
       onSuccess: (data) => {
         queryClient.invalidateQueries({ queryKey: ['admin-connection-requests'] });

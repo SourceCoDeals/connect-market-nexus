@@ -15,6 +15,9 @@ export function useAdminEmail() {
    */
   const sendUserApprovalEmail = async (user: User) => {
     try {
+      console.log(`Sending approval email to ${user.email}`);
+      
+      // Call the edge function to send email
       const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-email-notification`, {
         method: 'POST',
         headers: {
@@ -28,11 +31,14 @@ export function useAdminEmail() {
         }),
       });
 
-      const data = await response.json();
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to send approval email');
+        const errorText = await response.text();
+        console.error('Email API response:', errorText);
+        throw new Error(`Failed to send approval email: ${response.status} ${errorText}`);
       }
 
+      const data = await response.json();
+      console.log("Email sent successfully:", data);
       return data;
     } catch (error: any) {
       console.error('Error sending approval email:', error);
@@ -50,6 +56,9 @@ export function useAdminEmail() {
    */
   const sendUserRejectionEmail = async (user: User, reason?: string) => {
     try {
+      console.log(`Sending rejection email to ${user.email}`);
+      
+      // Call the edge function to send email
       const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-email-notification`, {
         method: 'POST',
         headers: {
@@ -66,11 +75,14 @@ export function useAdminEmail() {
         }),
       });
 
-      const data = await response.json();
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to send rejection email');
+        const errorText = await response.text();
+        console.error('Email API response:', errorText);
+        throw new Error(`Failed to send rejection email: ${response.status} ${errorText}`);
       }
 
+      const data = await response.json();
+      console.log("Email sent successfully:", data);
       return data;
     } catch (error: any) {
       console.error('Error sending rejection email:', error);
@@ -93,27 +105,32 @@ export function useAdminEmail() {
     }
     
     try {
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-email-notification`, {
+      console.log(`Sending connection approval email to ${request.user.email}`);
+      
+      // Call the edge function to send connection notification
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-connection-notification`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
         },
         body: JSON.stringify({
-          type: 'connection_approved',
-          email: request.user.email,
+          type: 'approved',
+          userId: request.user.id,
+          userEmail: request.user.email,
           firstName: request.user.first_name,
-          data: {
-            listingName: request.listing?.title || 'Business listing',
-          },
+          listingName: request.listing?.title || 'Business listing',
         }),
       });
 
-      const data = await response.json();
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to send connection approval email');
+        const errorText = await response.text();
+        console.error('Email API response:', errorText);
+        throw new Error(`Failed to send connection approval email: ${response.status} ${errorText}`);
       }
 
+      const data = await response.json();
+      console.log("Connection approval email sent successfully:", data);
       return data;
     } catch (error: any) {
       console.error('Error sending connection approval email:', error);
@@ -136,27 +153,32 @@ export function useAdminEmail() {
     }
     
     try {
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-email-notification`, {
+      console.log(`Sending connection rejection email to ${request.user.email}`);
+      
+      // Call the edge function to send connection notification
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-connection-notification`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
         },
         body: JSON.stringify({
-          type: 'connection_rejected',
-          email: request.user.email,
+          type: 'rejected',
+          userId: request.user.id,
+          userEmail: request.user.email,
           firstName: request.user.first_name,
-          data: {
-            listingName: request.listing?.title || 'Business listing',
-          },
+          listingName: request.listing?.title || 'Business listing',
         }),
       });
 
-      const data = await response.json();
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to send connection rejection email');
+        const errorText = await response.text();
+        console.error('Email API response:', errorText);
+        throw new Error(`Failed to send connection rejection email: ${response.status} ${errorText}`);
       }
 
+      const data = await response.json();
+      console.log("Connection rejection email sent successfully:", data);
       return data;
     } catch (error: any) {
       console.error('Error sending connection rejection email:', error);
