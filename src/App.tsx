@@ -18,6 +18,9 @@ import MyRequests from "@/pages/MyRequests";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import Index from "@/pages/Index";
 import NotFound from "@/pages/NotFound";
+import Unauthorized from "@/pages/Unauthorized";
+import Profile from "@/pages/Profile";
+import Dashboard from "@/pages/Dashboard";
 
 function App() {
   return (
@@ -30,6 +33,29 @@ function App() {
         <Route path="/pending-approval" element={<PendingApproval />} />
         <Route path="/verify-email" element={<VerifyEmail />} />
         <Route path="/auth/callback" element={<VerifyEmailHandler />} />
+        <Route path="/unauthorized" element={<Unauthorized />} />
+        
+        {/* Dashboard redirect */}
+        <Route 
+          path="/dashboard" 
+          element={
+            <ProtectedRoute>
+              <Dashboard />
+            </ProtectedRoute>
+          }
+        />
+        
+        {/* Profile Route */}
+        <Route 
+          path="/profile" 
+          element={
+            <ProtectedRoute>
+              <MainLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<Profile />} />
+        </Route>
         
         {/* Admin Routes */}
         <Route 

@@ -1,3 +1,4 @@
+
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
@@ -100,7 +101,7 @@ const Navbar = () => {
                         variant="outline"
                         size="sm"
                         className="border-primary text-primary hover:bg-primary/5"
-                        onClick={() => navigate("/admin/dashboard")}
+                        onClick={() => navigate("/admin")}
                       >
                         Admin Dashboard
                       </Button>
@@ -155,7 +156,7 @@ const Navbar = () => {
                           </Link>
                         </DropdownMenuItem>
                         {isAdmin && (
-                          <DropdownMenuItem onSelect={() => navigate("/admin/dashboard")}>
+                          <DropdownMenuItem onSelect={() => navigate("/admin")}>
                             <Building className="mr-2 h-4 w-4" />
                             <span>Admin Dashboard</span>
                           </DropdownMenuItem>

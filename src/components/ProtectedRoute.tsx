@@ -2,6 +2,7 @@
 import { useAuth } from "@/context/AuthContext";
 import { Navigate, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
+import { Loader2 } from "lucide-react";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -36,11 +37,19 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     return undefined;
   }, [isLoading, authChecked]);
 
+  console.log("ProtectedRoute: ", {
+    isLoading,
+    authChecked,
+    waitTime,
+    user: user?.email,
+    path: location.pathname
+  });
+
   // Force navigation after 3 seconds of loading if auth check is still not complete
   if ((isLoading || !authChecked) && waitTime < 6) {
     return (
       <div className="flex flex-col items-center justify-center gap-4 min-h-screen">
-        <div className="w-16 h-16 border-4 border-t-primary border-r-transparent border-b-transparent border-l-transparent rounded-full animate-spin"></div>
+        <Loader2 className="h-16 w-16 text-primary animate-spin" />
         <p className="text-muted-foreground">Loading authentication...</p>
         {waitTime > 1 && (
           <p className="text-sm text-muted-foreground">This is taking longer than expected... ({waitTime}s)</p>
