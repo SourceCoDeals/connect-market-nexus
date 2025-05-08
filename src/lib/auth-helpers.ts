@@ -1,5 +1,6 @@
 
 import { User } from '@/types';
+import { supabase } from '@/integrations/supabase/client';
 
 /**
  * Helper function to create a consistent User object from profile data
@@ -48,11 +49,35 @@ export const createUserObject = (profile: any): User => {
 
 /**
  * Helper function to clean up authentication state
- * This is exported for compatibility with other files that import it
- * but it delegates to the main implementation in supabase/client.ts
  */
 export const cleanupAuthState = () => {
-  // Import dynamically to avoid circular dependencies
-  const { cleanupAuthState: actualCleanup } = require('@/integrations/supabase/client');
-  return actualCleanup();
+  // Use direct import instead of dynamic require
+  return supabase.auth.signOut().then(() => {
+    console.log("Cleaning up auth state");
+  
+    // Remove all Supabase auth keys from localStorage
+    Object.keys(localStorage).forEach((key) => {
+      if (key.startsWith('supabase.auth.') || 
+          key.includes('sb-') || 
+          key.startsWith('sb:') ||
+          key === 'supabase.auth.token' ||
+          key === 'user') {
+        console.log(`Removing localStorage key: ${key}`);
+        localStorage.removeItem(key);
+      }
+    });
+    
+    // Remove from sessionStorage if in use
+    if (typeof sessionStorage !== 'undefined') {
+      Object.keys(sessionStorage).forEach((key) => {
+        if (key.startsWith('supabase.auth.') || 
+            key.includes('sb-') ||
+            key.startsWith('sb:') ||
+            key === 'supabase.auth.token') {
+          console.log(`Removing sessionStorage key: ${key}`);
+          sessionStorage.removeItem(key);
+        }
+      });
+    }
+  });
 };

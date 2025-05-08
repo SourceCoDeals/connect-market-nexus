@@ -1,3 +1,4 @@
+
 import { useNavigate } from "react-router-dom";
 import { User } from "@/types";
 import { toast } from "@/hooks/use-toast";
@@ -11,7 +12,7 @@ export function useAuthActions(setUser: (user: User | null) => void, setIsLoadin
     setIsLoading(true);
     try {
       // Clean up existing auth state before login
-      cleanupAuthState();
+      await cleanupAuthState();
       
       console.log("Attempting login with email:", email);
       

@@ -1,11 +1,8 @@
 
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { User as SupabaseUser, Session } from "@supabase/supabase-js";
+import { Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
-import { useNavigate } from "react-router-dom";
 import { User as AppUser } from "@/types";
-import { toast } from "@/hooks/use-toast";
-import { createUserObject } from "@/lib/auth-helpers";
 import { useAuthState } from "@/hooks/auth/use-auth-state";
 import { useAuthActions } from "@/hooks/auth/use-auth-actions";
 
@@ -40,23 +37,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Use the dedicated auth state hook
   const { user, isLoading, isAdmin, isBuyer, authChecked } = useAuthState();
   
-  const authActionsSetUser = React.useCallback((newUser: AppUser | null) => {
-    // This is handled by useAuthState, but needed for useAuthActions
+  const setUser = React.useCallback((newUser: AppUser | null) => {
+    // This is a dummy function that's needed for the useAuthActions hook
+    // The actual state management is handled by useAuthState
     console.log("Auth actions setting user:", newUser?.email);
   }, []);
   
-  const authActionsSetLoading = React.useCallback((loading: boolean) => {
-    // This is handled by useAuthState, but needed for useAuthActions
+  const setLoadingState = React.useCallback((loading: boolean) => {
+    // This is a dummy function that's needed for the useAuthActions hook
+    // The actual state management is handled by useAuthState
     console.log("Auth actions setting loading:", loading);
   }, []);
   
   // Connect auth actions with the auth state
   const { login, logout, signup, updateUserProfile } = useAuthActions(
-    authActionsSetUser,
-    authActionsSetLoading
+    setUser,
+    setLoadingState
   );
-
-  const navigate = useNavigate();
 
   // Update session when it changes
   useEffect(() => {

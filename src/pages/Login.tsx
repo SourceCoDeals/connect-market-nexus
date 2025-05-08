@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
 import { AlertCircle } from "lucide-react";
-import { cleanupAuthState } from "@/integrations/supabase/client";
+import { cleanupAuthState } from "@/lib/auth-helpers";
 
 const Login = () => {
   const [email, setEmail] = useState("");

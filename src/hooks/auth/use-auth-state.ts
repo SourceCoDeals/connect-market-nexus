@@ -10,10 +10,14 @@ export function useAuthState() {
   const [authChecked, setAuthChecked] = useState(false);
 
   useEffect(() => {
+    let isSubscribed = true;
+    
     // First set up the auth state change listener before checking the session
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      async (event, session) => {
         console.log("Auth state change:", event);
+        
+        if (!isSubscribed) return;
         
         // Update state synchronously to prevent race conditions
         if (event === "SIGNED_OUT") {
@@ -29,6 +33,8 @@ export function useAuthState() {
           console.log("User signed in:", session.user.id);
           // Use setTimeout to avoid Supabase auth deadlocks
           setTimeout(async () => {
+            if (!isSubscribed) return;
+            
             try {
               const { data: profile, error } = await supabase
                 .from('profiles')
@@ -44,7 +50,7 @@ export function useAuthState() {
                 return;
               }
               
-              if (profile) {
+              if (profile && isSubscribed) {
                 const userData = createUserObject(profile);
                 console.log("Setting user data after sign in:", userData.email);
                 setUser(userData);
@@ -54,8 +60,10 @@ export function useAuthState() {
               console.error("Error in auth state change handler:", err);
               setUser(null);
             } finally {
-              setIsLoading(false);
-              setAuthChecked(true);
+              if (isSubscribed) {
+                setIsLoading(false);
+                setAuthChecked(true);
+              }
             }
           }, 0);
         }
@@ -68,10 +76,12 @@ export function useAuthState() {
         
         // Timeout to prevent infinite loading
         const timeoutId = setTimeout(() => {
-          console.warn("Auth check timeout - forcing completion");
-          setIsLoading(false);
-          setUser(null);
-          setAuthChecked(true);
+          if (isSubscribed) {
+            console.warn("Auth check timeout - forcing completion");
+            setIsLoading(false);
+            setUser(null);
+            setAuthChecked(true);
+          }
         }, 2000); // Shorter timeout for better UX
         
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
@@ -84,7 +94,7 @@ export function useAuthState() {
           throw sessionError;
         }
         
-        if (session?.user) {
+        if (session?.user && isSubscribed) {
           console.log("Found existing session:", session.user.id);
           // Fetch user profile data
           const { data: profileData, error: profileError } = await supabase
@@ -97,7 +107,7 @@ export function useAuthState() {
             console.error("Profile error:", profileError);
             setUser(null);
             localStorage.removeItem("user");
-          } else if (profileData) {
+          } else if (profileData && isSubscribed) {
             console.log("Loaded profile data:", profileData.email);
             const userData = createUserObject(profileData);
             setUser(userData);
@@ -105,24 +115,31 @@ export function useAuthState() {
           }
         } else {
           console.log("No session found");
-          setUser(null);
-          localStorage.removeItem("user");
+          if (isSubscribed) {
+            setUser(null);
+            localStorage.removeItem("user");
+          }
         }
       } catch (error) {
         console.error("Auth check error:", error);
-        setUser(null);
-        localStorage.removeItem("user");
+        if (isSubscribed) {
+          setUser(null);
+          localStorage.removeItem("user");
+        }
       } finally {
-        setIsLoading(false);
-        setAuthChecked(true);
+        if (isSubscribed) {
+          setIsLoading(false);
+          setAuthChecked(true);
+        }
       }
     };
     
     // Initialize by checking the session
     checkSession();
     
-    // Clean up the subscription when component unmounts
+    // Clean up function
     return () => {
+      isSubscribed = false;
       subscription.unsubscribe();
     };
   }, []);
