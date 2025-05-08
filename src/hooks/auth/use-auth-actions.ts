@@ -1,4 +1,3 @@
-
 import { useNavigate } from "react-router-dom";
 import { User } from "@/types";
 import { toast } from "@/hooks/use-toast";
@@ -113,6 +112,7 @@ export function useAuthActions(setUser: (user: User | null) => void, setIsLoadin
         title: "Login failed",
         description: error.message || "Something went wrong",
       });
+      setIsLoading(false);
       throw error;
     } finally {
       setIsLoading(false);

@@ -45,7 +45,6 @@ const AdminRequests = () => {
     if (selectedRequest && actionType) {
       try {
         await updateRequest({
-          // Use the correct property name to match expected parameters in useUpdateConnectionRequest
           requestId: selectedRequest.id,
           status: actionType === "approve" ? "approved" : "rejected",
           adminComment: comment,

@@ -51,6 +51,7 @@ export default function VerifyEmailHandler() {
               
             if (profileError) throw profileError;
             
+            // Make sure to use the correct ApprovalStatus type
             setApprovalStatus(profileData.approval_status as ApprovalStatus);
           }
         } else {
