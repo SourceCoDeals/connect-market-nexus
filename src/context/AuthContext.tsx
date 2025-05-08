@@ -5,17 +5,19 @@ import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { User as AppUser } from "@/types";
 import { toast } from "@/hooks/use-toast";
-import { createUserObject } from "@/lib/auth-helpers";
+import { createUserObject, cleanupAuthState } from "@/lib/auth-helpers";
 
 interface AuthContextType {
   user: AppUser | null;
   session: Session | null;
   isLoading: boolean;
   isAuthenticated: boolean;
+  isAdmin: boolean; // Add missing property
   signup: (userData: Partial<AppUser>, password: string) => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshUserProfile: () => Promise<void>;
+  updateUserProfile: (data: Partial<AppUser>) => Promise<void>; // Add missing property
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -67,6 +69,57 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (error) {
       console.error("Error refreshing user profile:", error);
+    }
+  };
+
+  // Add updateUserProfile function
+  const updateUserProfile = async (data: Partial<AppUser>) => {
+    setIsLoading(true);
+    try {
+      const currentUser = user;
+      if (!currentUser || !currentUser.id) {
+        throw new Error("Not authenticated");
+      }
+      
+      // Update profile in Supabase
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          first_name: data.first_name,
+          last_name: data.last_name,
+          company: data.company,
+          website: data.website,
+          phone_number: data.phone_number,
+          bio: data.bio,
+          buyer_type: data.buyer_type,
+          fund_size: data.fund_size,
+          aum: data.aum,
+          estimated_revenue: data.estimated_revenue,
+          investment_size: data.investment_size,
+          target_company_size: data.target_company_size,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', currentUser.id);
+      
+      if (error) throw error;
+      
+      // Update local state
+      const updatedUser = { ...currentUser, ...data };
+      setUser(updatedUser);
+      localStorage.setItem("user", JSON.stringify(updatedUser));
+      
+      toast({
+        title: "Profile updated",
+        description: "Your profile has been updated successfully.",
+      });
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Update failed",
+        description: error.message || "Failed to update profile",
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -298,10 +351,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     session,
     isLoading,
     isAuthenticated: !!user && !!session,
+    isAdmin: user?.isAdmin || false, // Add isAdmin property
     signup,
     login,
     logout,
     refreshUserProfile,
+    updateUserProfile, // Add updateUserProfile
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

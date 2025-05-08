@@ -2,7 +2,6 @@
 import { Route, Routes } from "react-router-dom";
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from "@/context/AuthContext";
-import Dashboard from "@/pages/Dashboard";
 import Login from "@/pages/Login";
 import Signup from "@/pages/Signup";
 import PendingApproval from "@/pages/PendingApproval";
@@ -12,19 +11,19 @@ import AdminDashboard from "@/pages/admin/AdminDashboard";
 import AdminUsers from "@/pages/admin/AdminUsers";
 import AdminListings from "@/pages/admin/AdminListings";
 import AdminRequests from "@/pages/admin/AdminRequests";
-import AdminLayout from "@/components/layouts/AdminLayout";
-import MarketplaceLayout from "@/components/layouts/MarketplaceLayout";
-import Listings from "@/pages/marketplace/Listings";
-import ListingDetails from "@/pages/marketplace/ListingDetails";
-import MyRequests from "@/pages/marketplace/MyRequests";
+import MainLayout from "@/components/MainLayout";
+import Listings from "@/pages/Marketplace";
+import ListingDetails from "@/pages/ListingDetail";
+import MyRequests from "@/pages/MyRequests";
 import ProtectedRoute from "@/components/ProtectedRoute";
-import AdminRoute from "@/components/AdminRoute";
+import Index from "@/pages/Index";
 
 function App() {
   return (
     <AuthProvider>
       <Routes>
-        {/* Auth Routes */}
+        {/* Public Routes */}
+        <Route path="/" element={<Index />} />
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/pending-approval" element={<PendingApproval />} />
@@ -32,7 +31,7 @@ function App() {
         <Route path="/auth/callback" element={<VerifyEmailHandler />} />
         
         {/* Admin Routes */}
-        <Route path="/admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>
+        <Route path="/admin" element={<ProtectedRoute requireAdmin={true}><MainLayout /></ProtectedRoute>}>
           <Route index element={<AdminDashboard />} />
           <Route path="users" element={<AdminUsers />} />
           <Route path="listings" element={<AdminListings />} />
@@ -40,14 +39,11 @@ function App() {
         </Route>
         
         {/* Marketplace Routes */}
-        <Route path="/" element={<ProtectedRoute><MarketplaceLayout /></ProtectedRoute>}>
+        <Route path="/marketplace" element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
           <Route index element={<Listings />} />
           <Route path="listings/:id" element={<ListingDetails />} />
           <Route path="my-requests" element={<MyRequests />} />
         </Route>
-        
-        {/* Dashboard - Redirect to marketplace */}
-        <Route path="/dashboard" element={<Dashboard />} />
       </Routes>
       <Toaster />
     </AuthProvider>

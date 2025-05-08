@@ -142,10 +142,25 @@ export function useAdminRequests() {
           // Transform the user data using createUserObject
           const user = userData ? createUserObject(userData) : null;
           
+          // Fix the missing properties by converting listingData to a proper Listing type
+          const listing = listingData ? {
+            ...listingData,
+            // Add computed properties
+            ownerNotes: listingData.owner_notes || '',
+            createdAt: listingData.created_at,
+            updatedAt: listingData.updated_at,
+            multiples: {
+              revenue: listingData.revenue > 0 ? (listingData.ebitda / listingData.revenue).toFixed(2) : '0',
+              value: '0'
+            },
+            revenueFormatted: new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(listingData.revenue),
+            ebitdaFormatted: new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(listingData.ebitda)
+          } : null;
+          
           const fullRequestData: AdminConnectionRequest = {
             ...requestData,
             user,
-            listing: listingData
+            listing
           };
           
           // Send email notification based on status

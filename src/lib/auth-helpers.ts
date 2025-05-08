@@ -45,3 +45,23 @@ export const createUserObject = (profile: any): User => {
     updatedAt: profile.updated_at
   };
 };
+
+/**
+ * Helper function to clean up authentication state
+ */
+export const cleanupAuthState = () => {
+  // Remove any stored auth data
+  localStorage.removeItem("user");
+  localStorage.removeItem("sb-vhzipqarkmmfuqadefep-auth-token");
+  
+  // Clear any other auth-related storage items
+  const authKeys = Object.keys(localStorage).filter(key => 
+    key.startsWith('sb-') || 
+    key.includes('auth') || 
+    key === 'user'
+  );
+  
+  authKeys.forEach(key => {
+    localStorage.removeItem(key);
+  });
+};

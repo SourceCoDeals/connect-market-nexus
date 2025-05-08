@@ -31,7 +31,7 @@ export interface AdminStats {
   approvedConnections: number;
 }
 
-// Adding the missing AdminListing type
+// Adding the AdminListing type
 export interface AdminListing {
   id: string;
   title: string;
