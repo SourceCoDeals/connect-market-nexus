@@ -25,8 +25,8 @@ export interface AdminConnectionRequest {
   admin_comment?: string;
   created_at: string;
   updated_at: string;
-  user?: User;
-  listing?: AdminListing;
+  user?: User | null;
+  listing?: AdminListing | null;
 }
 
 export interface AdminUserActivity {

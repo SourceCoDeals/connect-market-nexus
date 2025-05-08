@@ -200,24 +200,67 @@ export function useAdmin() {
       queryKey: ['admin-connection-requests'],
       queryFn: async () => {
         try {
-          // Use explicit join to get user and listing data
-          const { data, error } = await supabase
+          // First try to get connection requests with user and listing data
+          const { data: requestsData, error: requestsError } = await supabase
             .from('connection_requests')
-            .select(`
-              *,
-              user:profiles!connection_requests_user_id_fkey (*),
-              listing:listings!connection_requests_listing_id_fkey (*)
-            `)
+            .select('*')
             .order('created_at', { ascending: false });
 
-          if (error) {
-            console.error("Error fetching connection requests:", error);
-            throw error;
+          if (requestsError) {
+            console.error("Error fetching connection requests:", requestsError);
+            throw requestsError;
+          }
+
+          // If we successfully got the requests, now get the users and listings separately
+          const requests = requestsData as AdminConnectionRequest[];
+          
+          // Get unique user IDs from requests
+          const userIds = [...new Set(requests.map(r => r.user_id))];
+          
+          // Fetch user data
+          const { data: usersData, error: usersError } = await supabase
+            .from('profiles')
+            .select('*')
+            .in('id', userIds);
+            
+          if (usersError) {
+            console.error("Error fetching users for requests:", usersError);
           }
           
-          return data as AdminConnectionRequest[];
+          // Get unique listing IDs from requests
+          const listingIds = [...new Set(requests.map(r => r.listing_id))];
+          
+          // Fetch listing data
+          const { data: listingsData, error: listingsError } = await supabase
+            .from('listings')
+            .select('*')
+            .in('id', listingIds);
+            
+          if (listingsError) {
+            console.error("Error fetching listings for requests:", listingsError);
+          }
+
+          // Create a map for quick user lookup
+          const usersMap = (usersData || []).reduce((acc, user) => {
+            acc[user.id] = user;
+            return acc;
+          }, {} as Record<string, User>);
+          
+          // Create a map for quick listing lookup
+          const listingsMap = (listingsData || []).reduce((acc, listing) => {
+            acc[listing.id] = listing;
+            return acc;
+          }, {} as Record<string, AdminListing>);
+          
+          // Combine the data
+          return requests.map(request => ({
+            ...request,
+            user: usersMap[request.user_id] || null,
+            listing: listingsMap[request.listing_id] || null
+          }));
+          
         } catch (error: any) {
-          console.error("Detailed error:", error);
+          console.error("Detailed error in connection requests:", error);
           toast({
             variant: 'destructive',
             title: 'Error fetching connection requests',
