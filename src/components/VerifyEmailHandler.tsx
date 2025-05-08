@@ -4,7 +4,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
-import { Loader2, CheckCircle, XCircle } from 'lucide-react';
+import { Loader2, CheckCircle, XCircle, RefreshCw } from 'lucide-react';
 import { ApprovalStatus } from '@/types';
 
 export default function VerifyEmailHandler() {
@@ -12,6 +12,8 @@ export default function VerifyEmailHandler() {
   const [verificationSuccess, setVerificationSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [approvalStatus, setApprovalStatus] = useState<ApprovalStatus | null>(null);
+  const [email, setEmail] = useState<string | null>(null);
+  const [tokenInvalidOrExpired, setTokenInvalidOrExpired] = useState(false);
   
   const location = useLocation();
   const navigate = useNavigate();
@@ -41,15 +43,31 @@ export default function VerifyEmailHandler() {
           
           console.log("Verification response:", { data, error });
           
-          if (error) throw error;
+          if (error) {
+            console.error('Verification error:', error);
+            setTokenInvalidOrExpired(true);
+            // Check if we can extract email from token
+            try {
+              // In production, we might have the email in state if they are coming from signup
+              const { data } = await supabase.auth.getSession();
+              if (data?.session?.user?.email) {
+                setEmail(data.session.user.email);
+              }
+            } catch (e) {
+              console.error('Error getting email from session:', e);
+            }
+            throw error;
+          }
           
           setVerificationSuccess(true);
           
           // If the user is now verified, check their approval status
           if (data.user) {
+            setEmail(data.user.email);
+            
             const { data: profileData, error: profileError } = await supabase
               .from('profiles')
-              .select('approval_status')
+              .select('approval_status, email_verified')
               .eq('id', data.user.id)
               .single();
               
@@ -58,11 +76,20 @@ export default function VerifyEmailHandler() {
             // Update status
             setApprovalStatus(profileData.approval_status as ApprovalStatus);
             
-            // Also update the profile to mark email as verified
-            await supabase
-              .from('profiles')
-              .update({ email_verified: true })
-              .eq('id', data.user.id);
+            // Update the profile to mark email as verified if it's not already
+            if (!profileData.email_verified) {
+              const { error: updateError } = await supabase
+                .from('profiles')
+                .update({ email_verified: true })
+                .eq('id', data.user.id);
+                
+              if (updateError) {
+                console.error('Error updating email_verified status:', updateError);
+                // Continue even if this update fails, as the auth token is verified
+              } else {
+                console.log('Email verified flag updated successfully');
+              }
+            }
           }
         } else {
           throw new Error('Unknown verification type');
@@ -95,6 +122,45 @@ export default function VerifyEmailHandler() {
       navigate('/login');
     }
   };
+
+  const handleResendVerification = async () => {
+    if (!email) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Email address is unknown. Please try signing up again.",
+      });
+      navigate('/signup');
+      return;
+    }
+
+    try {
+      setIsVerifying(true);
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: email
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Verification email sent",
+        description: "Please check your inbox and click the verification link.",
+      });
+      
+      // Navigate to verify email page to wait for verification
+      navigate('/verify-email', { state: { email } });
+    } catch (err: any) {
+      console.error('Error resending verification email:', err);
+      toast({
+        variant: "destructive",
+        title: "Failed to resend verification email",
+        description: err.message || "Please try again later.",
+      });
+    } finally {
+      setIsVerifying(false);
+    }
+  };
   
   if (isVerifying) {
     return (
@@ -123,6 +189,33 @@ export default function VerifyEmailHandler() {
     );
   }
   
+  if (tokenInvalidOrExpired) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen p-4">
+        <XCircle className="h-12 w-12 text-red-500 mb-4" />
+        <h1 className="text-2xl font-bold mb-2">Verification link expired</h1>
+        <p className="text-center text-muted-foreground mb-6">
+          The verification link has expired or is invalid. Please request a new verification email.
+        </p>
+        <div className="flex flex-col sm:flex-row gap-4">
+          <Button 
+            variant="default" 
+            onClick={handleResendVerification} 
+            disabled={isVerifying}
+            className="flex items-center gap-2"
+          >
+            {isVerifying && <Loader2 className="h-4 w-4 animate-spin" />}
+            <RefreshCw className="h-4 w-4 mr-1" /> 
+            Resend verification email
+          </Button>
+          <Button variant="outline" onClick={() => navigate('/login')}>
+            Back to login
+          </Button>
+        </div>
+      </div>
+    );
+  }
+  
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-4">
       <XCircle className="h-12 w-12 text-red-500 mb-4" />
@@ -130,7 +223,11 @@ export default function VerifyEmailHandler() {
       <p className="text-center text-muted-foreground mb-6">
         {error || 'We could not verify your email. The link may have expired or is invalid.'}
       </p>
-      <Button onClick={() => navigate('/login')}>Back to login</Button>
+      <div className="flex flex-col sm:flex-row gap-4">
+        <Button variant="outline" onClick={() => navigate('/login')}>
+          Back to login
+        </Button>
+      </div>
     </div>
   );
 }
