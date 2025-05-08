@@ -73,9 +73,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     
     getSession();
     
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, newSession) => {
-      console.log("Session updated in AuthContext");
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, newSession) => {
+      console.log("Auth state change event:", event);
       setSession(newSession);
+      
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
+        console.log("User signed in or updated, refreshing profile");
+        // Use setTimeout to avoid Supabase auth deadlocks
+        setTimeout(() => {
+          refreshUserProfile();
+        }, 0);
+      }
     });
     
     return () => {

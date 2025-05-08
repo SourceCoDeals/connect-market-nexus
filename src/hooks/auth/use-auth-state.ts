@@ -41,7 +41,7 @@ export function useAuthState() {
           return;
         }
         
-        if ((event === "SIGNED_IN" || event === "TOKEN_REFRESHED") && session) {
+        if ((event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "USER_UPDATED") && session) {
           console.log(`User ${event}:`, session.user.id);
           // Use setTimeout to avoid Supabase auth deadlocks
           setTimeout(async () => {

@@ -6,7 +6,7 @@ import Login from "@/pages/Login";
 import Signup from "@/pages/Signup";
 import PendingApproval from "@/pages/PendingApproval";
 import VerifyEmail from "@/pages/VerifyEmail";
-import VerifyEmailHandler from "@/components/VerifyEmailHandler";
+import VerifyEmailHandlerPage from "@/pages/VerifyEmailHandler";
 import AdminDashboard from "@/pages/admin/AdminDashboard";
 import AdminUsers from "@/pages/admin/AdminUsers";
 import AdminListings from "@/pages/admin/AdminListings";
@@ -33,7 +33,7 @@ function App() {
         <Route path="/signup" element={<Signup />} />
         <Route path="/pending-approval" element={<PendingApproval />} />
         <Route path="/verify-email" element={<VerifyEmail />} />
-        <Route path="/auth/callback" element={<VerifyEmailHandler />} />
+        <Route path="/auth/callback" element={<VerifyEmailHandlerPage />} />
         <Route path="/unauthorized" element={<Unauthorized />} />
         
         {/* Dashboard redirect */}

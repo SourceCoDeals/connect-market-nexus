@@ -24,11 +24,13 @@ export default function VerifyEmailHandler() {
         // Parse URL params
         const params = new URLSearchParams(location.search);
         const type = params.get('type');
-        const token = params.get('token');
+        const token = params.get('token_hash') || params.get('token');
         
         if (!type || !token) {
           throw new Error('Invalid verification link');
         }
+        
+        console.log("Verification params:", { type, token });
         
         if (type === 'signup' || type === 'recovery' || type === 'invite') {
           // Call Supabase to verify email
@@ -36,6 +38,8 @@ export default function VerifyEmailHandler() {
             token_hash: token,
             type: type === 'invite' ? 'invite' : type === 'recovery' ? 'recovery' : 'signup',
           });
+          
+          console.log("Verification response:", { data, error });
           
           if (error) throw error;
           
@@ -51,8 +55,14 @@ export default function VerifyEmailHandler() {
               
             if (profileError) throw profileError;
             
-            // Make sure to use the correct ApprovalStatus type
+            // Update status
             setApprovalStatus(profileData.approval_status as ApprovalStatus);
+            
+            // Also update the profile to mark email as verified
+            await supabase
+              .from('profiles')
+              .update({ email_verified: true })
+              .eq('id', data.user.id);
           }
         } else {
           throw new Error('Unknown verification type');

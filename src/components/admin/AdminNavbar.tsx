@@ -1,103 +1,94 @@
+
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
-import { Button } from "@/components/ui/button";
 import { 
   LayoutDashboard, 
-  Store, 
   Users, 
+  Store, 
   MessageSquare, 
-  LogOut,
-  ShoppingBag
+  ShoppingBag,
+  Menu
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 
 interface AdminNavbarProps {
   className?: string;
 }
 
-export const AdminNavbar: React.FC<AdminNavbarProps> = ({ className }) => {
-  const { logout, user } = useAuth();
+export function AdminNavbar({ className }: AdminNavbarProps) {
+  const { user } = useAuth();
   const location = useLocation();
-  
+
   const navItems = [
     {
-      title: "Dashboard",
-      href: "/admin",
-      icon: <LayoutDashboard className="h-5 w-5 mr-2" />,
+      to: "/admin",
+      label: "Dashboard",
+      icon: <LayoutDashboard className="h-4 w-4 mr-2" />,
+      active: location.pathname === '/admin'
     },
     {
-      title: "Users",
-      href: "/admin/users",
-      icon: <Users className="h-5 w-5 mr-2" />,
+      to: "/admin/users",
+      label: "Users",
+      icon: <Users className="h-4 w-4 mr-2" />,
+      active: location.pathname.includes('/admin/users')
     },
     {
-      title: "Listings",
-      href: "/admin/listings",
-      icon: <Store className="h-5 w-5 mr-2" />,
+      to: "/admin/listings",
+      label: "Listings",
+      icon: <Store className="h-4 w-4 mr-2" />,
+      active: location.pathname.includes('/admin/listings')
     },
     {
-      title: "Connection Requests",
-      href: "/admin/requests",
-      icon: <MessageSquare className="h-5 w-5 mr-2" />,
+      to: "/admin/requests",
+      label: "Connection Requests",
+      icon: <MessageSquare className="h-4 w-4 mr-2" />,
+      active: location.pathname.includes('/admin/requests')
     },
     {
-      title: "View Marketplace",
-      href: "/marketplace",
-      icon: <ShoppingBag className="h-5 w-5 mr-2" />,
+      to: "/marketplace",
+      label: "View Marketplace",
+      icon: <ShoppingBag className="h-4 w-4 mr-2" />,
+      active: false
     },
   ];
 
-  const isActive = (path: string) => {
-    return location.pathname === path;
-  };
-
   return (
-    <div className={cn("bg-white border-r border-border h-screen", className)}>
-      <div className="p-6 flex flex-col h-full">
-        <div className="mb-8">
-          <h2 className="font-bold text-xl">Admin Portal</h2>
-          <p className="text-sm text-muted-foreground mt-1">
-            Manage your marketplace
-          </p>
-        </div>
-        
-        <nav className="space-y-1 flex-1">
-          {navItems.map((item) => (
-            <Link
-              key={item.href}
-              to={item.href}
-              className={cn(
-                "flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors",
-                isActive(item.href)
-                  ? "bg-gray-100 text-gray-900" 
-                  : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
-              )}
-            >
-              {item.icon}
-              {item.title}
-            </Link>
-          ))}
-        </nav>
-        
-        <div className="pt-4 border-t border-border">
-          {user && (
-            <div className="mb-4">
-              <p className="text-sm font-medium truncate">{user.first_name} {user.last_name}</p>
-              <p className="text-xs text-muted-foreground truncate">{user.email}</p>
-            </div>
-          )}
-          <Button
-            variant="outline"
-            onClick={() => logout()}
-            className="w-full justify-start"
-          >
-            <LogOut className="h-4 w-4 mr-2" />
-            Log out
-          </Button>
-        </div>
+    <div className={cn("flex items-center justify-between p-4 border-b", className)}>
+      <div className="flex items-center">
+        <Sheet>
+          <SheetTrigger asChild>
+            <Button variant="outline" size="icon" className="mr-4">
+              <Menu className="h-[1.2rem] w-[1.2rem]" />
+              <span className="sr-only">Toggle menu</span>
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="left">
+            <SheetHeader className="pb-5">
+              <SheetTitle>Admin Dashboard</SheetTitle>
+            </SheetHeader>
+            <nav className="flex flex-col gap-2">
+              {navItems.map((item) => (
+                <Link
+                  key={item.to}
+                  to={item.to}
+                  className={cn(
+                    "flex items-center px-3 py-2 text-sm rounded-md transition-colors",
+                    item.active 
+                      ? "bg-primary text-primary-foreground font-medium" 
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                  )}
+                >
+                  {item.icon}
+                  <span>{item.label}</span>
+                </Link>
+              ))}
+            </nav>
+          </SheetContent>
+        </Sheet>
+        <h1 className="text-lg font-semibold">Admin Panel</h1>
       </div>
     </div>
   );
-};
-
-export default AdminNavbar;
+}
