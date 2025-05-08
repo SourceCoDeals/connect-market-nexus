@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -14,6 +13,7 @@ import AdminLayout from "@/components/admin/AdminLayout";
 import Login from "@/pages/Login";
 import Signup from "@/pages/Signup";
 import VerifyEmail from "@/pages/VerifyEmail";
+import VerifyEmailHandler from "@/pages/VerifyEmailHandler";
 import PendingApproval from "@/pages/PendingApproval";
 import Unauthorized from "@/pages/Unauthorized";
 
@@ -50,6 +50,7 @@ const App = () => (
               <Route path="/login" element={<Login />} />
               <Route path="/signup" element={<Signup />} />
               <Route path="/verify-email" element={<VerifyEmail />} />
+              <Route path="/verify" element={<VerifyEmailHandler />} />
               <Route path="/pending-approval" element={<PendingApproval />} />
               <Route path="/unauthorized" element={<Unauthorized />} />
               

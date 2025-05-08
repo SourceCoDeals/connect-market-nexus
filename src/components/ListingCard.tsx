@@ -46,6 +46,10 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
   // Extract connection status safely with fallbacks
   const connectionExists = connectionStatus?.exists || false;
   const connectionStatusValue = connectionStatus?.status || "";
+  
+  // Get proper image URL or use placeholder
+  const imageUrl = listing.image_url || 
+    "https://images.unsplash.com/photo-1488590528505-98d2b5aba04b?auto=format&fit=crop&w=800&q=80";
 
   return (
     <Link to={`/marketplace/${listing.id}`}>
@@ -62,11 +66,17 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
           {viewType === "list" ? (
             <div className="w-1/4 min-w-[180px]">
               <AspectRatio ratio={4/3} className="bg-muted">
-                {listing.image_url ? (
+                {imageUrl ? (
                   <img 
-                    src={listing.image_url} 
+                    src={imageUrl} 
                     alt={listing.title} 
                     className="object-cover w-full h-full" 
+                    onError={(e) => {
+                      // Fallback if image fails to load
+                      const target = e.target as HTMLImageElement;
+                      target.onerror = null;
+                      target.src = "https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?auto=format&fit=crop&w=800&q=80";
+                    }}
                   />
                 ) : (
                   <div className="flex items-center justify-center w-full h-full bg-muted text-muted-foreground">
@@ -77,11 +87,17 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
             </div>
           ) : (
             <AspectRatio ratio={16/9} className="bg-muted">
-              {listing.image_url ? (
+              {imageUrl ? (
                 <img 
-                  src={listing.image_url} 
+                  src={imageUrl} 
                   alt={listing.title} 
                   className="object-cover w-full h-full" 
+                  onError={(e) => {
+                    // Fallback if image fails to load
+                    const target = e.target as HTMLImageElement;
+                    target.onerror = null;
+                    target.src = "https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?auto=format&fit=crop&w=800&q=80";
+                  }}
                 />
               ) : (
                 <div className="flex items-center justify-center w-full h-full bg-muted text-muted-foreground">

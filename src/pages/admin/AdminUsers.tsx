@@ -1,36 +1,31 @@
+
 import { useState } from "react";
-import {
-  useAdminUsers,
-  useAdminEmail
-} from "@/hooks/admin";
 import { useAdmin } from "@/hooks/use-admin";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Search } from "lucide-react";
-import { User } from "@/types";
 import { UsersTable } from "@/components/admin/UsersTable";
 import { UserDetailDialog } from "@/components/admin/UserDetailDialog";
-import { useToast } from "@/hooks/use-toast";
+import { UserActions } from "@/components/admin/UserActions";
 
 const AdminUsers = () => {
-  const { toast } = useToast();
-  const {
-    useUsers,
-    useUpdateUserStatus,
-    useUpdateAdminStatus,
-    sendUserApprovalEmail,
-    sendUserRejectionEmail
-  } = useAdmin();
-  
-  const { data: users = [], isLoading } = useUsers();
-  const { mutate: updateUserStatus } = useUpdateUserStatus();
-  const { mutate: updateAdminStatus } = useUpdateAdminStatus();
+  const { useUsers } = useAdmin();
+  const { data: users = [], isLoading, refetch } = useUsers();
   
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const [actionType, setActionType] = useState<"approve" | "reject" | "makeAdmin" | "revokeAdmin" | null>(null);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  
+  // Get user action handlers from the component
+  const {
+    handleUserApproval,
+    handleUserRejection,
+    handleMakeAdmin,
+    handleRevokeAdmin,
+    confirmAction,
+    isDialogOpen,
+    setIsDialogOpen,
+    selectedUser,
+    actionType
+  } = UserActions({ onUserStatusUpdated: refetch });
   
   const filteredUsers = users.filter((user) => {
     const searchLower = searchQuery.toLowerCase();
@@ -41,120 +36,6 @@ const AdminUsers = () => {
       user.company?.toLowerCase().includes(searchLower)
     );
   });
-  
-  const handleUserApproval = (user: User) => {
-    setSelectedUser(user);
-    setActionType("approve");
-    setIsDialogOpen(true);
-  };
-  
-  const handleUserRejection = (user: User) => {
-    setSelectedUser(user);
-    setActionType("reject");
-    setIsDialogOpen(true);
-  };
-  
-  const handleMakeAdmin = (user: User) => {
-    setSelectedUser(user);
-    setActionType("makeAdmin");
-    setIsDialogOpen(true);
-  };
-  
-  const handleRevokeAdmin = (user: User) => {
-    setSelectedUser(user);
-    setActionType("revokeAdmin");
-    setIsDialogOpen(true);
-  };
-  
-  const confirmAction = async (reason?: string) => {
-    if (!selectedUser) return;
-    
-    try {
-      switch (actionType) {
-        case "approve":
-          await updateUserStatus(
-            { userId: selectedUser.id, status: "approved" },
-            {
-              onSuccess: async () => {
-                try {
-                  // Send approval email
-                  await sendUserApprovalEmail(selectedUser);
-                  toast({
-                    title: "User approved",
-                    description: `${selectedUser.first_name} ${selectedUser.last_name} has been approved and notified via email.`,
-                  });
-                } catch (error) {
-                  console.error("Error sending approval email:", error);
-                  toast({
-                    title: "User approved",
-                    description: `${selectedUser.first_name} ${selectedUser.last_name} has been approved, but there was an error sending the email notification.`,
-                  });
-                }
-                setIsDialogOpen(false);
-              },
-            }
-          );
-          break;
-          
-        case "reject":
-          await updateUserStatus(
-            { userId: selectedUser.id, status: "rejected" },
-            {
-              onSuccess: async () => {
-                try {
-                  // Send rejection email with reason
-                  await sendUserRejectionEmail(selectedUser, reason);
-                  toast({
-                    title: "User rejected",
-                    description: `${selectedUser.first_name} ${selectedUser.last_name} has been rejected and notified via email.`,
-                  });
-                } catch (error) {
-                  console.error("Error sending rejection email:", error);
-                  toast({
-                    title: "User rejected",
-                    description: `${selectedUser.first_name} ${selectedUser.last_name} has been rejected, but there was an error sending the email notification.`,
-                  });
-                }
-                setIsDialogOpen(false);
-              },
-            }
-          );
-          break;
-          
-        case "makeAdmin":
-          await updateAdminStatus(
-            { userId: selectedUser.id, isAdmin: true },
-            {
-              onSuccess: () => {
-                toast({
-                  title: "Admin status granted",
-                  description: `${selectedUser.first_name} ${selectedUser.last_name} is now an admin.`,
-                });
-                setIsDialogOpen(false);
-              },
-            }
-          );
-          break;
-          
-        case "revokeAdmin":
-          await updateAdminStatus(
-            { userId: selectedUser.id, isAdmin: false },
-            {
-              onSuccess: () => {
-                toast({
-                  title: "Admin status revoked",
-                  description: `${selectedUser.first_name} ${selectedUser.last_name} is no longer an admin.`,
-                });
-                setIsDialogOpen(false);
-              },
-            }
-          );
-          break;
-      }
-    } catch (error) {
-      console.error("Error during user action:", error);
-    }
-  };
 
   return (
     <div className="p-8 max-w-7xl mx-auto">
