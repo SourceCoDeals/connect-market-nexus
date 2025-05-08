@@ -1,7 +1,6 @@
-
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { AdminStats, AdminUserActivity } from '@/types/admin';
+import { AdminStats, AdminActivity } from '@/types/admin';
 import { toast } from '@/hooks/use-toast';
 
 /**
@@ -75,7 +74,7 @@ export function useAdminStats() {
       queryKey: ['admin-recent-activities'],
       queryFn: async () => {
         try {
-          const activities: AdminUserActivity[] = [];
+          const activities: AdminActivity[] = [];
           
           // Recent user signups
           const { data: signups, error: signupsError } = await supabase

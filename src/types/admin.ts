@@ -19,6 +19,7 @@ export interface AdminActivity {
   description: string;
   timestamp: string;
   metadata?: Record<string, any>;
+  user_id?: string;
 }
 
 export interface AdminStats {
@@ -28,4 +29,21 @@ export interface AdminStats {
   totalListings: number;
   pendingConnections: number;
   approvedConnections: number;
+}
+
+// Adding the missing AdminListing type
+export interface AdminListing {
+  id: string;
+  title: string;
+  category: string;
+  location: string;
+  revenue: number;
+  ebitda: number;
+  description: string;
+  owner_notes?: string;
+  tags?: string[];
+  image_url?: string | null;
+  files?: string[];
+  created_at: string;
+  updated_at: string;
 }

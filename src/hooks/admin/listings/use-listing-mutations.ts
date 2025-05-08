@@ -1,4 +1,3 @@
-
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { AdminListing } from '@/types/admin';
@@ -20,11 +19,18 @@ export function useListingMutations() {
         listing: Omit<AdminListing, 'id' | 'created_at' | 'updated_at'>;
         image?: File | null;
       }) => {
-        // Step 1: Create the listing
+        // Step 1: Create the listing - fixing the issue with the insert
         const { data, error } = await supabase
           .from('listings')
           .insert({
-            ...listing,
+            title: listing.title,
+            category: listing.category,
+            description: listing.description,
+            location: listing.location,
+            revenue: listing.revenue,
+            ebitda: listing.ebitda,
+            tags: listing.tags || [],
+            owner_notes: listing.owner_notes,
             image_url: null // We'll update this after upload
           })
           .select()
