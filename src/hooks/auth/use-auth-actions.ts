@@ -1,3 +1,4 @@
+
 import { useNavigate } from "react-router-dom";
 import { User } from "@/types";
 import { toast } from "@/hooks/use-toast";
@@ -52,7 +53,8 @@ export function useAuthActions(setUser: (user: User | null) => void, setIsLoadin
       
       console.log("User profile fetched:", {
         email_verified: profile.email_verified,
-        approval_status: profile.approval_status
+        approval_status: profile.approval_status,
+        is_admin: profile.is_admin
       });
       
       // Check email verification status from the profile
@@ -66,8 +68,8 @@ export function useAuthActions(setUser: (user: User | null) => void, setIsLoadin
         return;
       }
       
-      // Check approval status
-      if (profile.approval_status === 'pending' || profile.approval_status === 'rejected') {
+      // Check approval status for regular users (not admins)
+      if (!profile.is_admin && (profile.approval_status === 'pending' || profile.approval_status === 'rejected')) {
         let message = "Your account is awaiting admin approval.";
         if (profile.approval_status === 'rejected') {
           message = "Your account application has been rejected.";
@@ -87,7 +89,7 @@ export function useAuthActions(setUser: (user: User | null) => void, setIsLoadin
         return;
       }
       
-      // User is verified and approved
+      // User is verified and approved or is admin
       const userData = createUserObject(profile);
       setUser(userData);
       localStorage.setItem("user", JSON.stringify(userData));

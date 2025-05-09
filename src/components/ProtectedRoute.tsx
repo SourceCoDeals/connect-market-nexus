@@ -44,6 +44,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     user: user?.email,
     email_verified: user?.email_verified,
     approval_status: user?.approval_status,
+    is_admin: user?.is_admin,
     path: location.pathname
   });
 
@@ -75,13 +76,13 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     }
     
     // Check for admin requirement
-    if (requireAdmin && !user.isAdmin) {
+    if (requireAdmin && !user.is_admin) {
       console.log("User is not an admin, redirecting to unauthorized");
       return <Navigate to="/unauthorized" replace />;
     }
 
     // Check for approval requirement
-    if (requireApproved && user.approval_status !== 'approved' && !user.isAdmin) {
+    if (requireApproved && user.approval_status !== 'approved' && !user.is_admin) {
       console.log("User is not approved, redirecting to verification success");
       return <Navigate to="/verification-success" replace />;
     }
