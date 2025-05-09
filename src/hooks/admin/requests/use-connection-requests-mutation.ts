@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { AdminConnectionRequest } from '@/types/admin';
-import { Listing } from '@/types';
+import { Listing, ListingStatus } from '@/types';
 
 /**
  * Hook for managing connection request mutations in the admin dashboard
@@ -93,6 +93,7 @@ export function useConnectionRequestsMutation() {
             ebitdaFormatted: `$${listing.ebitda.toLocaleString()}`,
             createdAt: listing.created_at,
             updatedAt: listing.updated_at,
+            status: listing.status as ListingStatus, // Explicitly cast status to ListingStatus type
           };
         }
         

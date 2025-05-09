@@ -2,7 +2,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { AdminConnectionRequest } from '@/types/admin';
-import { Listing } from '@/types';
+import { Listing, ListingStatus } from '@/types';
 
 /**
  * Hook for fetching connection requests in the admin dashboard
@@ -67,6 +67,7 @@ export function useConnectionRequestsQuery() {
                 ebitdaFormatted: `$${listing.ebitda.toLocaleString()}`,
                 createdAt: listing.created_at,
                 updatedAt: listing.updated_at,
+                status: listing.status as ListingStatus, // Explicitly cast status to ListingStatus type
               };
             }
             
