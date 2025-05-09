@@ -159,7 +159,7 @@ export function useAuthState() {
   return {
     user,
     isLoading,
-    isAdmin: user?.is_admin === true,
+    isAdmin: user?.is_admin === true, // Explicitly check for true
     isBuyer: user?.role === "buyer",
     authChecked,
   };

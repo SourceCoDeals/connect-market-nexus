@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { User as AppUser } from "@/types";
 import { useAuthState } from "@/hooks/auth/use-auth-state";
 import { useAuthActions } from "@/hooks/auth/use-auth-actions";
+import { isUserAdmin } from "@/lib/auth-helpers";
 
 interface AuthContextType {
   user: AppUser | null;
@@ -130,7 +131,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     session,
     isLoading,
     isAuthenticated: !!user && !!session,
-    isAdmin,
+    isAdmin: isUserAdmin(user), // Use helper function for consistent logic
     isBuyer,
     signup,
     login,

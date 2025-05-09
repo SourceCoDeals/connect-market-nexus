@@ -1,4 +1,3 @@
-
 import { User } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -17,7 +16,7 @@ export const createUserObject = (profile: any): User => {
     role: profile.is_admin ? 'admin' as const : 'buyer' as const,
     email_verified: profile.email_verified,
     approval_status: profile.approval_status,
-    is_admin: profile.is_admin,
+    is_admin: profile.is_admin === true, // Explicitly convert to boolean
     buyer_type: profile.buyer_type || 'corporate',
     created_at: profile.created_at,
     updated_at: profile.updated_at,
@@ -38,7 +37,7 @@ export const createUserObject = (profile: any): User => {
     firstName: profile.first_name,
     lastName: profile.last_name,
     phoneNumber: profile.phone_number || '',
-    isAdmin: profile.is_admin,
+    isAdmin: profile.is_admin === true, // Explicitly convert to boolean
     buyerType: profile.buyer_type || 'corporate',
     emailVerified: profile.email_verified,
     isApproved: profile.approval_status === 'approved',
@@ -86,4 +85,20 @@ export const cleanupAuthState = async () => {
   } catch (error) {
     console.error("Error during auth cleanup:", error);
   }
+};
+
+/**
+ * Function to check if a user is an admin
+ */
+export const isUserAdmin = (user: User | null): boolean => {
+  if (!user) return false;
+  return user.is_admin === true;
+};
+
+/**
+ * Function to check if a user is approved
+ */
+export const isUserApproved = (user: User | null): boolean => {
+  if (!user) return false;
+  return user.approval_status === 'approved';
 };

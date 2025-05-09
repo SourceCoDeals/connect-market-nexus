@@ -75,14 +75,14 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
       return <Navigate to="/verify-email" state={{ email: user.email }} replace />;
     }
     
-    // Check for admin requirement
-    if (requireAdmin && !user.is_admin) {
+    // Check for admin requirement - explicitly check for true
+    if (requireAdmin && user.is_admin !== true) {
       console.log("User is not an admin, redirecting to unauthorized");
       return <Navigate to="/unauthorized" replace />;
     }
 
-    // Check for approval requirement
-    if (requireApproved && user.approval_status !== 'approved' && !user.is_admin) {
+    // Check for approval requirement - non-admin users need approval
+    if (requireApproved && user.approval_status !== 'approved' && user.is_admin !== true) {
       console.log("User is not approved, redirecting to verification success");
       return <Navigate to="/verification-success" replace />;
     }

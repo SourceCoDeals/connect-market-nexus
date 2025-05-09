@@ -1,4 +1,3 @@
-
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { User, ApprovalStatus } from '@/types';
@@ -80,7 +79,7 @@ export function useAdminUsers() {
     });
   };
 
-  // Update user admin status
+  // Update user admin status - ensure explicit boolean value
   const useUpdateAdminStatus = () => {
     return useMutation({
       mutationFn: async ({
@@ -94,7 +93,7 @@ export function useAdminUsers() {
         
         const { data, error } = await supabase
           .from("profiles")
-          .update({ is_admin: isAdmin })
+          .update({ is_admin: isAdmin === true }) // Explicitly ensure boolean value
           .eq("id", userId)
           .select()
           .single();

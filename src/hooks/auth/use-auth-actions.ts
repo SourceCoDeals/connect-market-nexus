@@ -166,7 +166,7 @@ export function useAuthActions(setUser: (user: User | null) => void, setIsLoadin
         throw new Error("Email and password are required");
       }
       
-      // Create auth user
+      // Create auth user - explicitly set is_admin to false for new users
       const { data, error } = await supabase.auth.signUp({
         email: userData.email,
         password: password,
@@ -178,6 +178,7 @@ export function useAuthActions(setUser: (user: User | null) => void, setIsLoadin
             website: userData.website || '',
             phone_number: userData.phone_number || '',
             buyer_type: userData.buyer_type || 'corporate',
+            is_admin: false, // Always set new users to non-admin
           },
         },
       });
