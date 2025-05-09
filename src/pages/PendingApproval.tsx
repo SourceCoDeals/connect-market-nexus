@@ -33,7 +33,7 @@ const PendingApproval = () => {
               }
             </p>
           </div>
-          {!user?.email_verified && (
+          {user && !user.email_verified && (
             <div className="bg-red-50 border border-red-200 rounded-md p-4 flex items-start gap-2">
               <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
               <p className="text-sm text-red-800">
@@ -58,10 +58,10 @@ const PendingApproval = () => {
           <div className="text-sm text-center text-muted-foreground">
             <span>Need help? Contact </span>
             <Link
-              to="mailto:support@marketplace.com"
+              to="mailto:support@sourcecodeals.com"
               className="text-primary font-medium hover:underline"
             >
-              support@marketplace.com
+              support@sourcecodeals.com
             </Link>
           </div>
         </CardFooter>

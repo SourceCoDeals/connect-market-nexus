@@ -48,7 +48,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     path: location.pathname
   });
 
-  // Force navigation after 3 seconds of loading if auth check is still not complete
+  // Force navigation after waiting if auth check is still not complete
   if ((isLoading || !authChecked) && waitTime < 6) {
     return (
       <div className="flex flex-col items-center justify-center gap-4 min-h-screen">

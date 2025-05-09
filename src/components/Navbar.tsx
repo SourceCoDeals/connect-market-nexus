@@ -2,7 +2,7 @@
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
-import { Building, Home, List, LogOut, User } from "lucide-react";
+import { Building, List, LogOut, User } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,7 +23,7 @@ const Navbar = () => {
   const handleLogout = async () => {
     try {
       await logout();
-      navigate("/");
+      navigate("/login");
     } catch (error) {
       console.error("Logout error:", error);
     }
@@ -33,12 +33,19 @@ const Navbar = () => {
     return `${firstName?.charAt(0) || ""}${lastName?.charAt(0) || ""}`.toUpperCase();
   };
 
+  // Determine where the logo should navigate to
+  const getLogoDestination = () => {
+    if (!user) return "/login";
+    if (user.approval_status !== 'approved') return "/pending-approval";
+    return "/marketplace";
+  };
+
   return (
     <header className="bg-background border-b border-border">
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center">
-            <Link to="/" className="flex items-center">
+            <Link to={getLogoDestination()} className="flex items-center">
               <Building className="h-8 w-8 text-primary mr-2" />
               <span className="text-xl font-bold">SourceCo</span>
               <span className="text-xl text-muted-foreground ml-1 font-light">
@@ -61,19 +68,8 @@ const Navbar = () => {
               </div>
             ) : user ? (
               <>
-                {!isMobile && (
+                {!isMobile && user.approval_status === 'approved' && (
                   <nav className="flex items-center space-x-1">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      asChild
-                    >
-                      <Link to="/">
-                        <Home className="h-4 w-4 mr-1" />
-                        Home
-                      </Link>
-                    </Button>
-
                     <Button
                       variant="ghost"
                       size="sm"
@@ -135,14 +131,8 @@ const Navbar = () => {
                       </div>
                     </DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    {isMobile && (
+                    {isMobile && user.approval_status === 'approved' && (
                       <>
-                        <DropdownMenuItem asChild>
-                          <Link to="/">
-                            <Home className="mr-2 h-4 w-4" />
-                            <span>Home</span>
-                          </Link>
-                        </DropdownMenuItem>
                         <DropdownMenuItem asChild>
                           <Link to="/marketplace">
                             <Building className="mr-2 h-4 w-4" />

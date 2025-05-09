@@ -1,5 +1,5 @@
 
-import { Route, Routes } from "react-router-dom";
+import { Route, Routes, Navigate } from "react-router-dom";
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from "@/context/AuthContext";
 import Login from "@/pages/Login";
@@ -19,18 +19,18 @@ import Listings from "@/pages/Marketplace";
 import ListingDetails from "@/pages/ListingDetail";
 import MyRequests from "@/pages/MyRequests";
 import ProtectedRoute from "@/components/ProtectedRoute";
-import Index from "@/pages/Index";
 import NotFound from "@/pages/NotFound";
 import Unauthorized from "@/pages/Unauthorized";
 import Profile from "@/pages/Profile";
-import Dashboard from "@/pages/Dashboard";
 
 function App() {
   return (
     <AuthProvider>
       <Routes>
-        {/* Public Routes */}
-        <Route path="/" element={<Index />} />
+        {/* Redirect root to appropriate location based on auth state */}
+        <Route path="/" element={<Navigate to="/marketplace" replace />} />
+        
+        {/* Auth Routes - Public */}
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/pending-approval" element={<PendingApproval />} />
@@ -40,29 +40,7 @@ function App() {
         <Route path="/auth/callback" element={<AuthCallback />} />
         <Route path="/unauthorized" element={<Unauthorized />} />
         
-        {/* Dashboard redirect */}
-        <Route 
-          path="/dashboard" 
-          element={
-            <ProtectedRoute>
-              <Dashboard />
-            </ProtectedRoute>
-          }
-        />
-        
-        {/* Profile Route */}
-        <Route 
-          path="/profile" 
-          element={
-            <ProtectedRoute>
-              <MainLayout />
-            </ProtectedRoute>
-          }
-        >
-          <Route index element={<Profile />} />
-        </Route>
-        
-        {/* Admin Routes */}
+        {/* Admin Routes - Protected + Admin only */}
         <Route 
           path="/admin" 
           element={
@@ -77,11 +55,23 @@ function App() {
           <Route path="requests" element={<AdminRequests />} />
         </Route>
         
-        {/* Marketplace Routes */}
+        {/* Profile Route - Protected */}
+        <Route 
+          path="/profile" 
+          element={
+            <ProtectedRoute requireApproved={true}>
+              <MainLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<Profile />} />
+        </Route>
+        
+        {/* Marketplace Routes - Protected + Approved only */}
         <Route 
           path="/marketplace" 
           element={
-            <ProtectedRoute>
+            <ProtectedRoute requireApproved={true}>
               <MainLayout />
             </ProtectedRoute>
           }
@@ -90,11 +80,11 @@ function App() {
           <Route path="listings/:id" element={<ListingDetails />} />
         </Route>
 
-        {/* My Requests Route */}
+        {/* My Requests Route - Protected */}
         <Route 
           path="/my-requests" 
           element={
-            <ProtectedRoute>
+            <ProtectedRoute requireApproved={true}>
               <MainLayout />
             </ProtectedRoute>
           }
