@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
@@ -11,15 +10,22 @@ export function useMarketplace() {
   
   // Get all active listings with filter options
   const useListings = (filters: FilterOptions = {}) => {
+    const isAdmin = user?.is_admin === true;
+    
     return useQuery({
-      queryKey: ["marketplace-listings", filters],
+      queryKey: ["marketplace-listings", filters, isAdmin],
       queryFn: async () => {
         let query = supabase
           .from("listings")
           .select("*")
           .order("created_at", { ascending: false });
         
-        // Apply filters if provided
+        // Apply status filter for non-admin users (only show active listings)
+        if (!isAdmin) {
+          query = query.eq("status", "active");
+        }
+        
+        // Apply additional filters if provided
         if (filters.category) {
           query = query.eq("category", filters.category);
         }
@@ -46,6 +52,10 @@ export function useMarketplace() {
         
         if (filters.search) {
           query = query.ilike("title", `%${filters.search}%`);
+        }
+        
+        if (filters.status) {
+          query = query.eq("status", filters.status);
         }
         
         const { data, error } = await query;
@@ -84,22 +94,32 @@ export function useMarketplace() {
   };
   
   // Get a single listing by ID
-  const useListing = (listingId: string) => {
+  const useListing = (listingId?: string) => {
+    const isAdmin = user?.is_admin === true;
+    
     return useQuery({
-      queryKey: ["listing", listingId],
+      queryKey: ["listing", listingId, isAdmin],
       queryFn: async () => {
-        const { data, error } = await supabase
+        if (!listingId) return null;
+        
+        let query = supabase
           .from("listings")
           .select("*")
-          .eq("id", listingId)
-          .single();
+          .eq("id", listingId);
+          
+        // For non-admin users, only allow viewing active listings
+        if (!isAdmin) {
+          query = query.eq("status", "active");
+        }
+        
+        const { data, error } = await query.maybeSingle();
         
         if (error) {
           console.error("Error fetching listing:", error);
           throw error;
         }
         
-        return data as Listing;
+        return data as Listing | null;
       },
       enabled: !!listingId && !!user
     });

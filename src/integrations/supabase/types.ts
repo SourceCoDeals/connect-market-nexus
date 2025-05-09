@@ -106,6 +106,7 @@ export type Database = {
           location: string
           owner_notes: string | null
           revenue: number
+          status: string
           tags: string[] | null
           title: string
           updated_at: string
@@ -121,6 +122,7 @@ export type Database = {
           location: string
           owner_notes?: string | null
           revenue: number
+          status?: string
           tags?: string[] | null
           title: string
           updated_at?: string
@@ -136,6 +138,7 @@ export type Database = {
           location?: string
           owner_notes?: string | null
           revenue?: number
+          status?: string
           tags?: string[] | null
           title?: string
           updated_at?: string

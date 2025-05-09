@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { toast } from "@/hooks/use-toast";
 import { z } from "zod";
@@ -7,7 +8,7 @@ import { AdminListing } from "@/types/admin";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Upload } from "lucide-react";
+import { Loader2, Upload, Image as ImageIcon } from "lucide-react";
 import {
   Form,
   FormControl,
@@ -52,6 +53,7 @@ const listingFormSchema = z.object({
     .or(z.string().transform((val) => Number(val.replace(/,/g, "")))),
   description: z.string().min(20, "Description must be at least 20 characters"),
   owner_notes: z.string().optional(),
+  status: z.enum(["active", "inactive"]).default("active"),
 });
 
 type ListingFormValues = z.infer<typeof listingFormSchema>;
@@ -71,6 +73,8 @@ export function ListingForm({
   const [imagePreview, setImagePreview] = useState<string | null>(
     listing?.image_url || null
   );
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [isImageChanged, setIsImageChanged] = useState(false);
 
   const form = useForm<ListingFormValues>({
     resolver: zodResolver(listingFormSchema),
@@ -82,12 +86,14 @@ export function ListingForm({
       ebitda: listing?.ebitda || 0,
       description: listing?.description || "",
       owner_notes: listing?.owner_notes || "",
+      status: listing?.status as "active" | "inactive" || "active",
     },
   });
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      // Validate file size (5MB max)
       if (file.size > 5 * 1024 * 1024) {
         toast({
           variant: "destructive",
@@ -97,23 +103,55 @@ export function ListingForm({
         return;
       }
 
+      // Validate file type
+      if (!file.type.startsWith("image/")) {
+        toast({
+          variant: "destructive",
+          title: "Invalid file type",
+          description: "Please select an image file (JPEG, PNG, etc.)",
+        });
+        return;
+      }
+
       setSelectedImage(file);
+      setIsImageChanged(true);
       const reader = new FileReader();
       reader.onload = () => {
         setImagePreview(reader.result as string);
       };
       reader.readAsDataURL(file);
+
+      // Simulate upload progress (just for UX feedback)
+      setUploadProgress(0);
+      const interval = setInterval(() => {
+        setUploadProgress(prev => {
+          if (prev >= 100) {
+            clearInterval(interval);
+            return 100;
+          }
+          return prev + 5;
+        });
+      }, 50);
     }
+  };
+
+  const handleRemoveImage = () => {
+    setSelectedImage(null);
+    setImagePreview(null);
+    setIsImageChanged(true);
   };
 
   const handleSubmit = async (values: ListingFormValues) => {
     try {
-      await onSubmit(values, selectedImage);
+      // Only pass the image if it's been changed
+      await onSubmit(values, isImageChanged ? selectedImage : undefined);
+      
       if (!listing) {
         // Reset form after successful submission for new listings
         form.reset();
         setSelectedImage(null);
         setImagePreview(null);
+        setIsImageChanged(false);
       }
     } catch (error: any) {
       console.error("Error submitting listing:", error);
@@ -239,6 +277,31 @@ export function ListingForm({
 
         <FormField
           control={form.control}
+          name="status"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Status</FormLabel>
+              <Select
+                onValueChange={field.onChange}
+                defaultValue={field.value}
+              >
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="inactive">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
           name="description"
           render={({ field }) => (
             <FormItem>
@@ -273,39 +336,49 @@ export function ListingForm({
           )}
         />
 
-        <div className="space-y-2">
+        <div className="space-y-4">
           <FormLabel>Listing Image</FormLabel>
-          <div className="flex items-center gap-4">
-            <Button
-              type="button"
-              variant="outline"
+          
+          {imagePreview ? (
+            <div className="rounded-md border overflow-hidden">
+              <div className="relative w-full max-w-md">
+                <img 
+                  src={imagePreview} 
+                  alt="Preview" 
+                  className="w-full h-auto object-cover rounded-md" 
+                />
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="sm"
+                  className="absolute top-2 right-2"
+                  onClick={handleRemoveImage}
+                >
+                  Remove
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div 
+              className="border-2 border-dashed border-muted-foreground/20 rounded-md p-8 text-center cursor-pointer hover:bg-muted/50 transition"
               onClick={() => document.getElementById("listing-image")?.click()}
-              className="flex items-center gap-2"
             >
-              <Upload size={16} />
-              {selectedImage ? "Change Image" : "Upload Image"}
-            </Button>
-            <Input
-              id="listing-image"
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={handleImageChange}
-            />
-            <span className="text-sm text-muted-foreground">
-              {selectedImage ? selectedImage.name : "No image selected"}
-            </span>
-          </div>
-          {imagePreview && (
-            <div className="mt-4">
-              <div className="text-sm font-medium mb-2">Preview:</div>
-              <img
-                src={imagePreview}
-                alt="Preview"
-                className="w-full max-w-xs h-auto object-cover rounded-md border"
-              />
+              <ImageIcon className="h-10 w-10 text-muted-foreground mx-auto mb-4" />
+              <p className="text-sm text-muted-foreground mb-2">
+                Click to upload an image, or drag and drop
+              </p>
+              <p className="text-xs text-muted-foreground">PNG, JPG or WebP (max 5MB)</p>
             </div>
           )}
+          
+          <Input
+            id="listing-image"
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleImageChange}
+          />
+          
         </div>
 
         <div className="flex justify-end">

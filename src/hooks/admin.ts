@@ -23,6 +23,7 @@ export function useAdmin() {
     useCreateListing,
     useUpdateListing,
     useDeleteListing,
+    useToggleListingStatus,
   } = useAdminListings();
   
   // Connection requests management
@@ -56,6 +57,7 @@ export function useAdmin() {
     useCreateListing,
     useUpdateListing,
     useDeleteListing,
+    useToggleListingStatus,
     
     // Connection requests management
     useConnectionRequests,

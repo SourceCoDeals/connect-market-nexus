@@ -7,12 +7,18 @@ import { useListingMutations } from './listings/use-listing-mutations';
  */
 export function useAdminListings() {
   const useListings = useListingsQuery;
-  const { useCreateListing, useUpdateListing, useDeleteListing } = useListingMutations();
+  const { 
+    useCreateListing, 
+    useUpdateListing, 
+    useDeleteListing,
+    useToggleListingStatus
+  } = useListingMutations();
 
   return {
     useListings,
     useCreateListing,
     useUpdateListing,
     useDeleteListing,
+    useToggleListingStatus,
   };
 }

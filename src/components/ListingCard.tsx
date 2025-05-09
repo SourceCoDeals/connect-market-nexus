@@ -1,11 +1,10 @@
-
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { useMarketplace } from "@/hooks/use-marketplace";
-import { Bookmark, Building2, MapPin } from "lucide-react";
+import { Bookmark, Building2, MapPin, ArrowRight } from "lucide-react";
 import { Listing } from "@/types";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 
@@ -52,7 +51,7 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
     "https://images.unsplash.com/photo-1488590528505-98d2b5aba04b?auto=format&fit=crop&w=800&q=80";
 
   return (
-    <Link to={`/marketplace/${listing.id}`}>
+    <Link to={`/listing/${listing.id}`} className="group">
       <Card
         className={`h-full overflow-hidden transition-all hover:shadow-md ${
           viewType === "list" ? "flex" : ""
@@ -64,7 +63,7 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
           }`}
         >
           {viewType === "list" ? (
-            <div className="w-1/4 min-w-[180px]">
+            <div className="w-1/4 min-w-[180px] relative">
               <AspectRatio ratio={4/3} className="bg-muted">
                 {imageUrl ? (
                   <img 
@@ -84,27 +83,39 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
                   </div>
                 )}
               </AspectRatio>
+              <div className="absolute top-2 right-2">
+                <Badge className="bg-primary text-white opacity-0 group-hover:opacity-100 transition-opacity">
+                  <ArrowRight className="h-3 w-3" />
+                </Badge>
+              </div>
             </div>
           ) : (
-            <AspectRatio ratio={16/9} className="bg-muted">
-              {imageUrl ? (
-                <img 
-                  src={imageUrl} 
-                  alt={listing.title} 
-                  className="object-cover w-full h-full" 
-                  onError={(e) => {
-                    // Fallback if image fails to load
-                    const target = e.target as HTMLImageElement;
-                    target.onerror = null;
-                    target.src = "https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?auto=format&fit=crop&w=800&q=80";
-                  }}
-                />
-              ) : (
-                <div className="flex items-center justify-center w-full h-full bg-muted text-muted-foreground">
-                  <Building2 className="h-10 w-10 opacity-20" />
-                </div>
-              )}
-            </AspectRatio>
+            <div className="relative">
+              <AspectRatio ratio={16/9} className="bg-muted">
+                {imageUrl ? (
+                  <img 
+                    src={imageUrl} 
+                    alt={listing.title} 
+                    className="object-cover w-full h-full" 
+                    onError={(e) => {
+                      // Fallback if image fails to load
+                      const target = e.target as HTMLImageElement;
+                      target.onerror = null;
+                      target.src = "https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?auto=format&fit=crop&w=800&q=80";
+                    }}
+                  />
+                ) : (
+                  <div className="flex items-center justify-center w-full h-full bg-muted text-muted-foreground">
+                    <Building2 className="h-10 w-10 opacity-20" />
+                  </div>
+                )}
+              </AspectRatio>
+              <div className="absolute top-2 right-2">
+                <Badge className="bg-primary text-white opacity-0 group-hover:opacity-100 transition-opacity">
+                  <ArrowRight className="h-3 w-3" />
+                </Badge>
+              </div>
+            </div>
           )}
           
           <CardContent

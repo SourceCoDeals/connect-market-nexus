@@ -16,7 +16,7 @@ import AdminRequests from "@/pages/admin/AdminRequests";
 import MainLayout from "@/components/MainLayout";
 import AdminLayout from "@/components/admin/AdminLayout";
 import Listings from "@/pages/Marketplace";
-import ListingDetails from "@/pages/ListingDetail";
+import ListingDetail from "@/pages/ListingDetail";
 import MyRequests from "@/pages/MyRequests";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import NotFound from "@/pages/NotFound";
@@ -77,8 +77,18 @@ function App() {
           }
         >
           <Route index element={<Listings />} />
-          <Route path="listings/:id" element={<ListingDetails />} />
         </Route>
+
+        {/* Individual Listing Route - Protected */}
+        <Route 
+          path="/listing/:id" 
+          element={
+            <ProtectedRoute requireApproved={true}>
+              <MainLayout />
+              <ListingDetail />
+            </ProtectedRoute>
+          }
+        />
 
         {/* My Requests Route - Protected */}
         <Route 

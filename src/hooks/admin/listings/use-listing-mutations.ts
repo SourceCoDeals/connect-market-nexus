@@ -1,4 +1,3 @@
-
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { AdminListing } from '@/types/admin';
@@ -224,6 +223,47 @@ export function useListingMutations() {
     });
   };
   
+  // Toggle listing status (active/inactive)
+  const useToggleListingStatus = () => {
+    return useMutation({
+      mutationFn: async ({ 
+        id, 
+        status 
+      }: { 
+        id: string; 
+        status: 'active' | 'inactive' 
+      }) => {
+        try {
+          const { data, error } = await supabase
+            .from('listings')
+            .update({ 
+              status,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', id)
+            .select()
+            .single();
+          
+          if (error) throw error;
+          return data as AdminListing;
+        } catch (error: any) {
+          console.error('Error updating listing status:', error);
+          throw error;
+        }
+      },
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ['admin-listings'] });
+      },
+      onError: (error: any) => {
+        toast({
+          variant: 'destructive',
+          title: 'Error Updating Status',
+          description: error.message || 'Failed to update listing status',
+        });
+      },
+    });
+  };
+  
   // Delete listing
   const useDeleteListing = () => {
     return useMutation({
@@ -280,5 +320,6 @@ export function useListingMutations() {
     useCreateListing,
     useUpdateListing,
     useDeleteListing,
+    useToggleListingStatus,
   };
 }
