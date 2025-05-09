@@ -27,7 +27,7 @@ const PendingApproval = () => {
         <CardContent className="space-y-4">
           <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4">
             <p className="text-sm text-yellow-800">
-              {user?.email_verified ? 
+              {user?.email_verified === true ? 
                 "Thank you for verifying your email! Your account requires admin approval before you can access the marketplace." :
                 "Please verify your email to complete your registration. Once verified, your account will need admin approval."
               }

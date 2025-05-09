@@ -68,7 +68,7 @@ export default function VerifyEmailHandler() {
             // Get the profile data
             const { data: profileData, error: profileError } = await supabase
               .from('profiles')
-              .select('approval_status, email_verified')
+              .select('approval_status, email_verified, is_admin')
               .eq('id', data.user.id)
               .single();
               
@@ -99,7 +99,10 @@ export default function VerifyEmailHandler() {
             
             // Redirect based on approval status
             setTimeout(() => {
-              if (profileData.approval_status === 'approved') {
+              // Check both is_admin and approval_status
+              if (profileData.is_admin === true) {
+                navigate('/admin');
+              } else if (profileData.approval_status === 'approved') {
                 navigate('/marketplace');
               } else {
                 navigate('/verification-success');

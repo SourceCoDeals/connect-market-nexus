@@ -1,3 +1,4 @@
+
 import { User } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -13,8 +14,8 @@ export const createUserObject = (profile: any): User => {
     company: profile.company || '',
     website: profile.website || '',
     phone_number: profile.phone_number || '',
-    role: profile.is_admin ? 'admin' as const : 'buyer' as const,
-    email_verified: profile.email_verified,
+    role: profile.is_admin === true ? 'admin' as const : 'buyer' as const,
+    email_verified: profile.email_verified === true,
     approval_status: profile.approval_status,
     is_admin: profile.is_admin === true, // Explicitly convert to boolean
     buyer_type: profile.buyer_type || 'corporate',
@@ -39,7 +40,7 @@ export const createUserObject = (profile: any): User => {
     phoneNumber: profile.phone_number || '',
     isAdmin: profile.is_admin === true, // Explicitly convert to boolean
     buyerType: profile.buyer_type || 'corporate',
-    emailVerified: profile.email_verified,
+    emailVerified: profile.email_verified === true, // Explicitly convert to boolean
     isApproved: profile.approval_status === 'approved',
     createdAt: profile.created_at,
     updatedAt: profile.updated_at

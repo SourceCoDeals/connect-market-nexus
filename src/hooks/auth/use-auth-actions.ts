@@ -69,7 +69,7 @@ export function useAuthActions(setUser: (user: User | null) => void, setIsLoadin
       }
       
       // Check approval status for regular users (not admins)
-      if (!profile.is_admin && (profile.approval_status === 'pending' || profile.approval_status === 'rejected')) {
+      if (profile.is_admin !== true && (profile.approval_status === 'pending' || profile.approval_status === 'rejected')) {
         let message = "Your account is awaiting admin approval.";
         if (profile.approval_status === 'rejected') {
           message = "Your account application has been rejected.";
@@ -101,7 +101,7 @@ export function useAuthActions(setUser: (user: User | null) => void, setIsLoadin
       
       // Use window.location for a full page refresh to prevent stale state
       setTimeout(() => {
-        if (profile.is_admin) {
+        if (profile.is_admin === true) {
           window.location.href = "/admin";
         } else {
           window.location.href = "/marketplace";
