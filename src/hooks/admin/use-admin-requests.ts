@@ -1,6 +1,8 @@
 
 import { useConnectionRequestsQuery } from './requests/use-connection-requests-query';
 import { useConnectionRequestsMutation } from './requests/use-connection-requests-mutation';
+import { AdminConnectionRequest } from '@/types/admin';
+import { UseMutationResult, UseQueryResult } from '@tanstack/react-query';
 
 /**
  * Hook for managing connection requests in admin dashboard
@@ -12,6 +14,10 @@ export function useAdminRequests() {
 
   return {
     connectionRequests,
-    connectionRequestsMutation
+    connectionRequestsMutation,
+    
+    // Add these functions to fix the hook usage in admin.ts
+    useConnectionRequests: () => connectionRequests,
+    useUpdateConnectionRequest: () => connectionRequestsMutation
   };
 }

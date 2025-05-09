@@ -1,5 +1,5 @@
 
-import { ListingStatus, User, BuyerType, ApprovalStatus } from "@/types";
+import { User, BuyerType, ApprovalStatus, ListingStatus } from "../types";
 
 export interface AdminUser extends User {
   id: string;

@@ -30,6 +30,8 @@ export function useAdmin() {
   const {
     useConnectionRequests,
     useUpdateConnectionRequest,
+    connectionRequests,
+    connectionRequestsMutation
   } = useAdminRequests();
   
   // Admin dashboard stats and activities
@@ -62,6 +64,8 @@ export function useAdmin() {
     // Connection requests management
     useConnectionRequests,
     useUpdateConnectionRequest,
+    connectionRequests,
+    connectionRequestsMutation,
     
     // Admin dashboard stats
     useStats,
