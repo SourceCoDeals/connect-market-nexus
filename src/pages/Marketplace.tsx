@@ -156,7 +156,7 @@ const Marketplace = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="container mx-auto px-4 py-8">
         <div className="flex flex-col gap-6">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <h1 className="text-3xl font-bold">Marketplace Listings</h1>
@@ -218,7 +218,7 @@ const Marketplace = () => {
               
               {/* Listings grid/list */}
               {isLoading ? (
-                <div className={viewType === "grid" ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4" : "flex flex-col gap-4"}>
+                <div className={viewType === "grid" ? "grid grid-cols-1 md:grid-cols-2 gap-4" : "flex flex-col gap-4"}>
                   {renderSkeletons()}
                 </div>
               ) : error ? (
@@ -254,7 +254,7 @@ const Marketplace = () => {
               ) : (
                 <>
                   <div className={viewType === "grid" 
-                    ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4" 
+                    ? "grid grid-cols-1 md:grid-cols-2 gap-4" 
                     : "flex flex-col gap-4"}>
                     {listings.map((listing) => (
                       <ListingCard
@@ -275,7 +275,8 @@ const Marketplace = () => {
                           onClick={() => handlePageChange(pagination.currentPage - 1)}
                           disabled={pagination.currentPage === 1}
                         >
-                          <ChevronLeft className="h-4 w-4" />
+                          <ChevronLeft className="h-4 w-4 mr-1" />
+                          Previous
                         </Button>
                         
                         {getPageNumbers().map((pageNum, idx) => (
@@ -299,7 +300,8 @@ const Marketplace = () => {
                           onClick={() => handlePageChange(pagination.currentPage + 1)}
                           disabled={pagination.currentPage === pagination.totalPages}
                         >
-                          <ChevronRight className="h-4 w-4" />
+                          Next
+                          <ChevronRight className="h-4 w-4 ml-1" />
                         </Button>
                       </div>
                     </div>

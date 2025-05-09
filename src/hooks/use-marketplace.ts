@@ -1,3 +1,4 @@
+
 // Import your marketplace hooks here
 // Example:
 // import { useListingsQuery } from './marketplace/useListingsQuery';
@@ -203,11 +204,14 @@ export function useMarketplace() {
     return useMutation({
       mutationFn: async (listingId: string) => {
         try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (!session) throw new Error('You must be logged in to request a connection');
+          
           const { data: existing, error: checkError } = await supabase
             .from('connection_requests')
             .select()
             .eq('listing_id', listingId)
-            .eq('user_id', (await supabase.auth.getSession()).data.session?.user.id)
+            .eq('user_id', session.user.id)
             .maybeSingle();
           
           if (checkError) throw checkError;
@@ -216,10 +220,6 @@ export function useMarketplace() {
           if (existing) {
             return existing;
           }
-          
-          // Get user session
-          const { data: { session } } = await supabase.auth.getSession();
-          if (!session) throw new Error('You must be logged in to request a connection');
           
           const userId = session.user.id;
           

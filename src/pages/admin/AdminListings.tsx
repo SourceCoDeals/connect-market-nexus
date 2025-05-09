@@ -1,448 +1,344 @@
 
-import { useState, useEffect } from "react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Trash, Eye, EyeOff, Pencil } from "lucide-react";
-import { useAdmin } from "@/hooks/use-admin";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ListingForm } from "@/components/admin/ListingForm";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge";
-import { toast } from "@/hooks/use-toast";
-
-// Import the type from the correct location
+import { useEffect, useState } from "react";
+import { useAdminListings } from "@/hooks/admin/use-admin-listings";
 import { AdminListing } from "@/types/admin";
-import { Link } from "react-router-dom";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Plus, Edit, Trash, Eye, EyeOff } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { ListingForm } from "@/components/admin/ListingForm";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ensureListingsBucketExists } from "@/lib/storage-utils";
+
+const formatCurrency = (value: number) => {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  }).format(value);
+};
 
 const AdminListings = () => {
-  const [activeTab, setActiveTab] = useState<string>("all");
-  const { useListings, useCreateListing, useUpdateListing, useDeleteListing, useToggleListingStatus } = useAdmin();
-  
-  const { data: allListings, isLoading } = useListings();
-  const [selectedListing, setSelectedListing] = useState<AdminListing | null>(null);
-  const [showCreateForm, setShowCreateForm] = useState(false);
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const {
+    useListings,
+    useCreateListing,
+    useUpdateListing,
+    useDeleteListing,
+    useToggleListingStatus,
+  } = useAdminListings();
 
-  // Filter listings based on active tab
-  const listings = allListings ? allListings.filter(listing => {
-    if (activeTab === "all") return true;
-    if (activeTab === "active") return listing.status === "active";
-    if (activeTab === "inactive") return listing.status === "inactive";
-    return true;
-  }) : [];
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isUpdateDialogOpen, setIsUpdateDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedListing, setSelectedListing] = useState<AdminListing | null>(
+    null
+  );
+  const [filterStatus, setFilterStatus] = useState<"all" | "active" | "inactive">("all");
 
-  const createListing = useCreateListing();
-  const updateListing = useUpdateListing();
-  const deleteListing = useDeleteListing();
-  const toggleStatus = useToggleListingStatus();
+  const { data: listings = [], isLoading } = useListings();
+  const { mutate: createListing, isPending: isCreating } = useCreateListing();
+  const { mutate: updateListing, isPending: isUpdating } = useUpdateListing();
+  const { mutate: deleteListing, isPending: isDeleting } = useDeleteListing();
+  const { mutate: toggleStatus, isPending: isTogglingStatus } = useToggleListingStatus();
 
-  const handleCreateListing = async (
-    data: any,
-    image?: File | null
+  // Ensure storage bucket exists when component mounts
+  useEffect(() => {
+    ensureListingsBucketExists().catch(error => 
+      console.error("Failed to ensure listings bucket exists:", error)
+    );
+  }, []);
+
+  const handleCreateSubmit = async (
+    values: any,
+    image: File | null | undefined
   ) => {
     try {
-      await createListing.mutateAsync({ listing: data, image });
-      setShowCreateForm(false);
-    } catch (error: any) {
+      await createListing({
+        listing: values,
+        image,
+      });
+      setIsCreateDialogOpen(false);
+    } catch (error) {
       console.error("Error creating listing:", error);
     }
   };
 
-  const handleUpdateListing = async (
-    data: any,
-    image?: File | null
+  const handleUpdateSubmit = async (
+    values: any,
+    image: File | null | undefined
   ) => {
     if (!selectedListing) return;
+
     try {
-      await updateListing.mutateAsync({
+      await updateListing({
         id: selectedListing.id,
-        listing: data,
+        listing: values,
         image,
       });
+      setIsUpdateDialogOpen(false);
       setSelectedListing(null);
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error updating listing:", error);
     }
   };
 
-  const handleDeleteListing = async () => {
+  const handleDeleteConfirm = async () => {
     if (!selectedListing) return;
+
     try {
-      await deleteListing.mutateAsync(selectedListing.id);
-      setShowDeleteDialog(false);
+      await deleteListing(selectedListing.id);
+      setIsDeleteDialogOpen(false);
       setSelectedListing(null);
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error deleting listing:", error);
     }
   };
 
   const handleToggleStatus = async (listing: AdminListing) => {
+    const newStatus = listing.status === "active" ? "inactive" : "active";
     try {
-      const newStatus = listing.status === "active" ? "inactive" : "active";
-      await toggleStatus.mutateAsync({
-        id: listing.id,
-        status: newStatus
-      });
-      
-      toast({
-        title: `Listing ${newStatus === "active" ? "activated" : "deactivated"}`,
-        description: `${listing.title} is now ${newStatus}.`,
-      });
-    } catch (error: any) {
+      await toggleStatus({ id: listing.id, status: newStatus });
+    } catch (error) {
       console.error("Error toggling listing status:", error);
-      toast({
-        variant: "destructive",
-        title: "Error updating status",
-        description: error.message || "Failed to update listing status",
-      });
     }
   };
 
+  // Filter listings based on search query and status
+  const filteredListings = listings.filter((listing) => {
+    const matchesSearch =
+      searchQuery === "" ||
+      listing.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      listing.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      listing.location.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    const matchesStatus = 
+      filterStatus === "all" || 
+      listing.status === filterStatus;
+    
+    return matchesSearch && matchesStatus;
+  });
+
   return (
-    <div>
-      <Card>
-        <CardHeader>
-          <CardTitle>Listings</CardTitle>
-          <CardDescription>Manage your marketplace listings</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Tabs defaultValue="all" value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-            <div className="flex items-center justify-between">
-              <TabsList>
-                <TabsTrigger value="all">All</TabsTrigger>
-                <TabsTrigger value="active">Active</TabsTrigger>
-                <TabsTrigger value="inactive">Inactive</TabsTrigger>
-              </TabsList>
-              <Button onClick={() => setShowCreateForm(true)}>
-                <Plus className="mr-2 h-4 w-4" />
-                Create Listing
-              </Button>
-            </div>
-            <TabsContent value="all" className="space-y-4">
-              {isLoading ? (
-                <p>Loading listings...</p>
-              ) : listings && listings.length > 0 ? (
-                <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-                  {listings.map((listing) => (
-                    <Card key={listing.id} className="bg-white shadow-sm border">
-                      {listing.image_url && (
-                        <div className="h-40 w-full overflow-hidden">
-                          <img 
-                            src={listing.image_url} 
-                            alt={listing.title} 
-                            className="w-full h-full object-cover"
-                            onError={(e) => {
-                              const target = e.target as HTMLImageElement;
-                              target.onerror = null;
-                              target.src = "https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?auto=format&fit=crop&w=800&q=80";
-                            }}
-                          />
-                        </div>
-                      )}
-                      <CardHeader>
-                        <div className="flex justify-between items-start">
-                          <CardTitle className="flex-1">{listing.title}</CardTitle>
-                          <Badge variant={listing.status === "active" ? "outline" : "secondary"}>
-                            {listing.status === "active" ? "Active" : "Inactive"}
-                          </Badge>
-                        </div>
-                        <CardDescription>
-                          {listing.category} - {listing.location}
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent className="space-y-2">
-                        <p>Revenue: ${listing.revenue}</p>
-                        <p>EBITDA: ${listing.ebitda}</p>
-                        <p className="text-sm text-muted-foreground truncate">
-                          {listing.description}
-                        </p>
-                        <div className="flex justify-between items-center mt-4 pt-2 border-t">
-                          <div>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              asChild
-                            >
-                              <Link to={`/listing/${listing.id}`}>
-                                <Eye className="mr-2 h-4 w-4" />
-                                View
-                              </Link>
-                            </Button>
-                          </div>
-                          <div className="space-x-2">
-                            <Button
-                              variant={listing.status === "active" ? "destructive" : "default"}
-                              size="sm"
-                              onClick={() => handleToggleStatus(listing)}
-                            >
-                              {listing.status === "active" ? (
-                                <>
-                                  <EyeOff className="mr-2 h-4 w-4" />
-                                  Deactivate
-                                </>
-                              ) : (
-                                <>
-                                  <Eye className="mr-2 h-4 w-4" />
-                                  Activate
-                                </>
-                              )}
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setSelectedListing(listing)}
-                            >
-                              <Pencil className="mr-2 h-4 w-4" />
-                              Edit
-                            </Button>
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              onClick={() => {
-                                setSelectedListing(listing);
-                                setShowDeleteDialog(true);
-                              }}
-                            >
-                              <Trash className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              ) : (
-                <p>No listings found.</p>
-              )}
-            </TabsContent>
-            <TabsContent value="active" className="space-y-4">
-              {isLoading ? (
-                <p>Loading listings...</p>
-              ) : listings && listings.length > 0 ? (
-                <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-                  {listings.map((listing) => (
-                    <Card key={listing.id} className="bg-white shadow-sm border">
-                      {/* Same card rendering as above */}
-                      {listing.image_url && (
-                        <div className="h-40 w-full overflow-hidden">
-                          <img 
-                            src={listing.image_url} 
-                            alt={listing.title} 
-                            className="w-full h-full object-cover"
-                            onError={(e) => {
-                              const target = e.target as HTMLImageElement;
-                              target.onerror = null;
-                              target.src = "https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?auto=format&fit=crop&w=800&q=80";
-                            }}
-                          />
-                        </div>
-                      )}
-                      <CardHeader>
-                        <div className="flex justify-between items-start">
-                          <CardTitle className="flex-1">{listing.title}</CardTitle>
-                          <Badge variant="outline">Active</Badge>
-                        </div>
-                        <CardDescription>
-                          {listing.category} - {listing.location}
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent className="space-y-2">
-                        <p>Revenue: ${listing.revenue}</p>
-                        <p>EBITDA: ${listing.ebitda}</p>
-                        <p className="text-sm text-muted-foreground truncate">
-                          {listing.description}
-                        </p>
-                        <div className="flex justify-between items-center mt-4 pt-2 border-t">
-                          <div>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              asChild
-                            >
-                              <Link to={`/listing/${listing.id}`}>
-                                <Eye className="mr-2 h-4 w-4" />
-                                View
-                              </Link>
-                            </Button>
-                          </div>
-                          <div className="space-x-2">
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              onClick={() => handleToggleStatus(listing)}
-                            >
-                              <EyeOff className="mr-2 h-4 w-4" />
-                              Deactivate
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setSelectedListing(listing)}
-                            >
-                              <Pencil className="mr-2 h-4 w-4" />
-                              Edit
-                            </Button>
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              onClick={() => {
-                                setSelectedListing(listing);
-                                setShowDeleteDialog(true);
-                              }}
-                            >
-                              <Trash className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              ) : (
-                <p>No active listings found.</p>
-              )}
-            </TabsContent>
-            <TabsContent value="inactive" className="space-y-4">
-              {isLoading ? (
-                <p>Loading listings...</p>
-              ) : listings && listings.length > 0 ? (
-                <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-                  {listings.map((listing) => (
-                    <Card key={listing.id} className="bg-white shadow-sm border">
-                      {/* Same card rendering as above */}
-                      {listing.image_url && (
-                        <div className="h-40 w-full overflow-hidden">
-                          <img 
-                            src={listing.image_url} 
-                            alt={listing.title} 
-                            className="w-full h-full object-cover"
-                            onError={(e) => {
-                              const target = e.target as HTMLImageElement;
-                              target.onerror = null;
-                              target.src = "https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?auto=format&fit=crop&w=800&q=80";
-                            }}
-                          />
-                        </div>
-                      )}
-                      <CardHeader>
-                        <div className="flex justify-between items-start">
-                          <CardTitle className="flex-1">{listing.title}</CardTitle>
-                          <Badge variant="secondary">Inactive</Badge>
-                        </div>
-                        <CardDescription>
-                          {listing.category} - {listing.location}
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent className="space-y-2">
-                        <p>Revenue: ${listing.revenue}</p>
-                        <p>EBITDA: ${listing.ebitda}</p>
-                        <p className="text-sm text-muted-foreground truncate">
-                          {listing.description}
-                        </p>
-                        <div className="flex justify-between items-center mt-4 pt-2 border-t">
-                          <div>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              asChild
-                            >
-                              <Link to={`/listing/${listing.id}`}>
-                                <Eye className="mr-2 h-4 w-4" />
-                                View
-                              </Link>
-                            </Button>
-                          </div>
-                          <div className="space-x-2">
-                            <Button
-                              variant="default"
-                              size="sm"
-                              onClick={() => handleToggleStatus(listing)}
-                            >
-                              <Eye className="mr-2 h-4 w-4" />
-                              Activate
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setSelectedListing(listing)}
-                            >
-                              <Pencil className="mr-2 h-4 w-4" />
-                              Edit
-                            </Button>
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              onClick={() => {
-                                setSelectedListing(listing);
-                                setShowDeleteDialog(true);
-                              }}
-                            >
-                              <Trash className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              ) : (
-                <p>No inactive listings found.</p>
-              )}
-            </TabsContent>
+    <div className="container mx-auto py-8">
+      <div className="flex flex-col gap-6">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <h1 className="text-3xl font-bold">Manage Listings</h1>
+          <Button onClick={() => setIsCreateDialogOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Add New Listing
+          </Button>
+        </div>
+
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div className="w-full sm:w-auto">
+            <Input
+              placeholder="Search listings..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="max-w-sm"
+            />
+          </div>
+          <Tabs defaultValue="all" value={filterStatus} onValueChange={(value) => setFilterStatus(value as "all" | "active" | "inactive")}>
+            <TabsList>
+              <TabsTrigger value="all">All</TabsTrigger>
+              <TabsTrigger value="active">Active</TabsTrigger>
+              <TabsTrigger value="inactive">Inactive</TabsTrigger>
+            </TabsList>
           </Tabs>
-        </CardContent>
-      </Card>
+        </div>
+
+        {isLoading ? (
+          <div className="flex justify-center my-8">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+          </div>
+        ) : filteredListings.length === 0 ? (
+          <div className="text-center py-8">
+            <p className="text-lg text-gray-500">No listings found</p>
+          </div>
+        ) : (
+          <div className="rounded-md border overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Title</TableHead>
+                  <TableHead>Category</TableHead>
+                  <TableHead>Location</TableHead>
+                  <TableHead className="hidden md:table-cell">Revenue</TableHead>
+                  <TableHead className="hidden md:table-cell">EBITDA</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="w-[100px]">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredListings.map((listing) => (
+                  <TableRow key={listing.id}>
+                    <TableCell className="font-medium">{listing.title}</TableCell>
+                    <TableCell>{listing.category}</TableCell>
+                    <TableCell>{listing.location}</TableCell>
+                    <TableCell className="hidden md:table-cell">
+                      {formatCurrency(listing.revenue)}
+                    </TableCell>
+                    <TableCell className="hidden md:table-cell">
+                      {formatCurrency(listing.ebitda)}
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant={listing.status === "active" ? "default" : "secondary"}
+                      >
+                        {listing.status === "active" ? "Active" : "Inactive"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" className="h-8 w-8 p-0">
+                            <span className="sr-only">Open menu</span>
+                            <svg
+                              width="15"
+                              height="15"
+                              viewBox="0 0 15 15"
+                              fill="none"
+                              xmlns="http://www.w3.org/2000/svg"
+                              className="h-4 w-4"
+                            >
+                              <path
+                                d="M3.625 7.5C3.625 8.12132 3.12132 8.625 2.5 8.625C1.87868 8.625 1.375 8.12132 1.375 7.5C1.375 6.87868 1.87868 6.375 2.5 6.375C3.12132 6.375 3.625 6.87868 3.625 7.5ZM8.625 7.5C8.625 8.12132 8.12132 8.625 7.5 8.625C6.87868 8.625 6.375 8.12132 6.375 7.5C6.375 6.87868 6.87868 6.375 7.5 6.375C8.12132 6.375 8.625 6.87868 8.625 7.5ZM13.625 7.5C13.625 8.12132 13.1213 8.625 12.5 8.625C11.8787 8.625 11.375 8.12132 11.375 7.5C11.375 6.87868 11.8787 6.375 12.5 6.375C13.1213 6.375 13.625 6.87868 13.625 7.5Z"
+                                fill="currentColor"
+                                fillRule="evenodd"
+                                clipRule="evenodd"
+                              />
+                            </svg>
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                          <DropdownMenuItem
+                            onClick={() => {
+                              setSelectedListing(listing);
+                              setIsUpdateDialogOpen(true);
+                            }}
+                          >
+                            <Edit className="mr-2 h-4 w-4" />
+                            Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => handleToggleStatus(listing)}
+                            disabled={isTogglingStatus}
+                          >
+                            {listing.status === "active" ? (
+                              <>
+                                <EyeOff className="mr-2 h-4 w-4" />
+                                Deactivate
+                              </>
+                            ) : (
+                              <>
+                                <Eye className="mr-2 h-4 w-4" />
+                                Activate
+                              </>
+                            )}
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onClick={() => {
+                              setSelectedListing(listing);
+                              setIsDeleteDialogOpen(true);
+                            }}
+                            className="text-red-600 focus:text-red-600"
+                          >
+                            <Trash className="mr-2 h-4 w-4" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </div>
 
       {/* Create Listing Dialog */}
-      <Dialog open={showCreateForm} onOpenChange={setShowCreateForm}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Create Listing</DialogTitle>
-          </DialogHeader>
-          <ListingForm
-            onSubmit={handleCreateListing}
-            isLoading={createListing.isPending}
-          />
+      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+          <div className="space-y-6 py-4">
+            <div>
+              <h2 className="text-xl font-semibold">Create New Listing</h2>
+              <p className="text-sm text-gray-500">
+                Add a new business listing to the marketplace.
+              </p>
+            </div>
+            <ListingForm
+              onSubmit={handleCreateSubmit}
+              isLoading={isCreating}
+            />
+          </div>
         </DialogContent>
       </Dialog>
 
-      {/* Edit Listing Dialog */}
-      <Dialog open={!!selectedListing && !showDeleteDialog} onOpenChange={() => !showDeleteDialog && setSelectedListing(null)}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Edit Listing</DialogTitle>
-          </DialogHeader>
-          <ListingForm
-            listing={selectedListing}
-            onSubmit={handleUpdateListing}
-            isLoading={updateListing.isPending}
-          />
+      {/* Update Listing Dialog */}
+      <Dialog open={isUpdateDialogOpen} onOpenChange={setIsUpdateDialogOpen}>
+        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+          <div className="space-y-6 py-4">
+            <div>
+              <h2 className="text-xl font-semibold">Edit Listing</h2>
+              <p className="text-sm text-gray-500">
+                Update the details of this business listing.
+              </p>
+            </div>
+            {selectedListing && (
+              <ListingForm
+                listing={selectedListing}
+                onSubmit={handleUpdateSubmit}
+                isLoading={isUpdating}
+              />
+            )}
+          </div>
         </DialogContent>
       </Dialog>
 
-      {/* Delete Listing Alert Dialog */}
-      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. Are you sure you want to delete{" "}
-              {selectedListing?.title}?
+              This action cannot be undone. This will permanently delete the
+              listing and all related data.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setShowDeleteDialog(false)}>
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteListing}>
-              Delete
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirm}
+              disabled={isDeleting}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {isDeleting ? "Deleting..." : "Delete"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -21,6 +21,8 @@ import {
   XCircle
 } from "lucide-react";
 
+const DEFAULT_IMAGE = "https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?auto=format&fit=crop&w=800&q=80";
+
 const ListingDetail = () => {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
@@ -65,7 +67,7 @@ const ListingDetail = () => {
 
   if (isLoading) {
     return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="container mx-auto px-4 py-8">
         <div className="animate-pulse">
           <div className="mb-6">
             <div className="h-8 bg-muted rounded-md w-64 mb-2"></div>
@@ -91,7 +93,7 @@ const ListingDetail = () => {
 
   if (!listing) {
     return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="container mx-auto px-4 py-8">
         <div className="text-center py-12">
           <h2 className="text-2xl font-bold text-gray-900">Listing not found</h2>
           <p className="mt-2 text-gray-600">
@@ -107,9 +109,12 @@ const ListingDetail = () => {
 
   // Extract isInactive safely with fallback to false if status is undefined
   const isInactive = listing?.status === "inactive";
+  
+  // Use listing's image_url or fallback to default image
+  const imageUrl = listing.image_url || DEFAULT_IMAGE;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="container mx-auto px-4 py-8">
       <div className="mb-6">
         <Link
           to="/marketplace"
@@ -118,80 +123,81 @@ const ListingDetail = () => {
           <ChevronLeft className="mr-1 h-4 w-4" />
           Back to Marketplace
         </Link>
+      </div>
+      
+      {/* Hero Image Section */}
+      <div className="mb-8">
+        <div className="rounded-lg overflow-hidden border border-border">
+          <img
+            src={imageUrl}
+            alt={listing.title}
+            className="w-full h-auto object-cover max-h-[400px]"
+            onError={(e) => {
+              const target = e.target as HTMLImageElement;
+              target.onerror = null;
+              target.src = DEFAULT_IMAGE;
+            }}
+          />
+        </div>
+      </div>
 
-        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-          <div>
-            <div className="flex flex-wrap gap-2 mb-2">
-              <Badge variant="outline" className="bg-background font-normal">
-                <Building2 className="h-3 w-3 mr-1" />
-                {listing.category}
+      <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 mb-8">
+        <div>
+          <div className="flex flex-wrap gap-2 mb-2">
+            <Badge variant="outline" className="bg-background font-normal">
+              <Building2 className="h-3 w-3 mr-1" />
+              {listing.category}
+            </Badge>
+            <Badge variant="outline" className="bg-background font-normal">
+              <MapPin className="h-3 w-3 mr-1" />
+              {listing.location}
+            </Badge>
+            {isInactive && isAdmin && (
+              <Badge variant="destructive" className="font-normal">
+                <AlertTriangle className="h-3 w-3 mr-1" />
+                Inactive
               </Badge>
-              <Badge variant="outline" className="bg-background font-normal">
-                <MapPin className="h-3 w-3 mr-1" />
-                {listing.location}
-              </Badge>
-              {isInactive && isAdmin && (
-                <Badge variant="destructive" className="font-normal">
-                  <AlertTriangle className="h-3 w-3 mr-1" />
-                  Inactive
-                </Badge>
-              )}
-            </div>
-            <h1 className="text-3xl font-bold">{listing.title}</h1>
+            )}
           </div>
+          <h1 className="text-3xl font-bold">{listing.title}</h1>
+        </div>
 
-          {!isAdmin && (
-            <Button
-              variant="default"
-              className="w-full md:w-auto"
-              disabled={
-                isRequesting ||
-                (connectionExists && connectionStatusValue === "pending") ||
-                (connectionExists && connectionStatusValue === "approved")
-              }
-              onClick={handleRequestConnection}
-            >
-              {connectionExists ? (
-                connectionStatusValue === "pending" ? (
-                  <>
-                    <Clock className="mr-2 h-4 w-4" /> Request Pending
-                  </>
-                ) : connectionStatusValue === "approved" ? (
-                  <>
-                    <CheckCircle className="mr-2 h-4 w-4" /> Connected
-                  </>
-                ) : (
-                  <>
-                    <XCircle className="mr-2 h-4 w-4" /> Rejected
-                  </>
-                )
+        {!isAdmin && (
+          <Button
+            variant="default"
+            className="w-full md:w-auto"
+            disabled={
+              isRequesting ||
+              (connectionExists && connectionStatusValue === "pending") ||
+              (connectionExists && connectionStatusValue === "approved")
+            }
+            onClick={handleRequestConnection}
+          >
+            {connectionExists ? (
+              connectionStatusValue === "pending" ? (
+                <>
+                  <Clock className="mr-2 h-4 w-4" /> Request Pending
+                </>
+              ) : connectionStatusValue === "approved" ? (
+                <>
+                  <CheckCircle className="mr-2 h-4 w-4" /> Connected
+                </>
               ) : (
                 <>
-                  <Send className="mr-2 h-4 w-4" /> Request Connection
+                  <XCircle className="mr-2 h-4 w-4" /> Rejected
                 </>
-              )}
-            </Button>
-          )}
-        </div>
+              )
+            ) : (
+              <>
+                <Send className="mr-2 h-4 w-4" /> Request Connection
+              </>
+            )}
+          </Button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-8">
-          {listing.image_url && (
-            <div className="rounded-md overflow-hidden border border-border">
-              <img
-                src={listing.image_url}
-                alt={listing.title}
-                className="w-full h-auto object-cover"
-                onError={(e) => {
-                  const target = e.target as HTMLImageElement;
-                  target.onerror = null;
-                  target.src = "https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?auto=format&fit=crop&w=800&q=80";
-                }}
-              />
-            </div>
-          )}
-
           <Card>
             <CardHeader>
               <CardTitle>Business Details</CardTitle>

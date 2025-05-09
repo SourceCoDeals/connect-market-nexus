@@ -8,7 +8,7 @@ import { AdminListing } from "@/types/admin";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Upload, Image as ImageIcon } from "lucide-react";
+import { Loader2, Upload, Image as ImageIcon, AlertCircle } from "lucide-react";
 import {
   Form,
   FormControl,
@@ -24,6 +24,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { DEFAULT_IMAGE } from "@/lib/storage-utils";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 // Type for listing categories
 const categories = [
@@ -75,6 +77,7 @@ export function ListingForm({
   );
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isImageChanged, setIsImageChanged] = useState(false);
+  const [imageError, setImageError] = useState<string | null>(null);
 
   const form = useForm<ListingFormValues>({
     resolver: zodResolver(listingFormSchema),
@@ -91,30 +94,26 @@ export function ListingForm({
   });
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setImageError(null);
     const file = e.target.files?.[0];
+    
     if (file) {
       // Validate file size (5MB max)
       if (file.size > 5 * 1024 * 1024) {
-        toast({
-          variant: "destructive",
-          title: "Image too large",
-          description: "Please select an image smaller than 5MB",
-        });
+        setImageError("Image file size must be less than 5MB");
         return;
       }
 
       // Validate file type
       if (!file.type.startsWith("image/")) {
-        toast({
-          variant: "destructive",
-          title: "Invalid file type",
-          description: "Please select an image file (JPEG, PNG, etc.)",
-        });
+        setImageError("Please select a valid image file (JPEG, PNG, WebP, GIF)");
         return;
       }
 
       setSelectedImage(file);
       setIsImageChanged(true);
+      
+      // Create image preview
       const reader = new FileReader();
       reader.onload = () => {
         setImagePreview(reader.result as string);
@@ -139,10 +138,20 @@ export function ListingForm({
     setSelectedImage(null);
     setImagePreview(null);
     setIsImageChanged(true);
+    setImageError(null);
   };
 
   const handleSubmit = async (values: ListingFormValues) => {
     try {
+      if (imageError) {
+        toast({
+          variant: "destructive",
+          title: "Image Error",
+          description: imageError,
+        });
+        return;
+      }
+      
       // Only pass the image if it's been changed
       await onSubmit(values, isImageChanged ? selectedImage : undefined);
       
@@ -340,6 +349,14 @@ export function ListingForm({
           <div className="space-y-4">
             <FormLabel>Listing Image</FormLabel>
             
+            {imageError && (
+              <Alert variant="destructive" className="mb-4">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Error</AlertTitle>
+                <AlertDescription>{imageError}</AlertDescription>
+              </Alert>
+            )}
+            
             {imagePreview ? (
               <div className="rounded-md border overflow-hidden">
                 <div className="relative w-full max-w-md mx-auto">
@@ -347,6 +364,12 @@ export function ListingForm({
                     src={imagePreview} 
                     alt="Preview" 
                     className="w-full h-auto object-cover rounded-md" 
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.onerror = null;
+                      target.src = DEFAULT_IMAGE;
+                      setImageError("Failed to load image preview");
+                    }}
                   />
                   <Button
                     type="button"
@@ -383,7 +406,7 @@ export function ListingForm({
           </div>
 
           <div className="flex justify-end sticky bottom-0 pt-4 pb-2 bg-white z-10">
-            <Button type="submit" disabled={isLoading}>
+            <Button type="submit" disabled={isLoading || !!imageError}>
               {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {listing ? "Update Listing" : "Create Listing"}
             </Button>
