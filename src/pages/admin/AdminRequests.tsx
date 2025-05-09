@@ -45,7 +45,7 @@ const AdminRequests = () => {
     if (selectedRequest && actionType) {
       try {
         await updateRequest({
-          id: selectedRequest.id, // Fixed: using 'id' instead of 'requestId'
+          id: selectedRequest.id,
           status: actionType === "approve" ? "approved" : "rejected",
           admin_comment: comment,
         });

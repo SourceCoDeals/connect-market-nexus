@@ -1,36 +1,13 @@
 
-import { User, BuyerType, ApprovalStatus, ListingStatus } from "../types";
+import { Listing, ListingStatus, User, BuyerType, ApprovalStatus } from '@/types';
 
-export interface AdminUser extends User {
-  id: string;
-  email: string;
-  first_name: string;
-  last_name: string;
-  company: string;
-  website: string;
-  phone_number: string;
-  is_admin: boolean;
-  approval_status: ApprovalStatus;
-  buyer_type: BuyerType;
-  created_at: string;
-  updated_at: string;
+// Admin-specific types
+export interface AdminListing extends Listing {
+  // Add any admin-specific fields here
 }
 
-export interface AdminListing {
-  id: string;
-  title: string;
-  description: string;
-  category: string;
-  location: string;
-  revenue: number;
-  ebitda: number;
-  tags: string[];
-  owner_notes?: string;
-  image_url?: string;
-  created_at: string;
-  updated_at: string;
-  files?: string[];
-  status: ListingStatus;
+export interface AdminUser extends User {
+  // Add any admin-specific fields here
 }
 
 export interface AdminConnectionRequest {
@@ -42,21 +19,41 @@ export interface AdminConnectionRequest {
   created_at: string;
   updated_at: string;
   user: User | null;
-  listing: Partial<AdminListing> | null;
-}
-
-export interface AdminActivity {
-  id: string;
-  type: string;
-  description: string;
-  timestamp: string;
-  user_id?: string;
-  metadata?: Record<string, any>;
+  listing: Listing | null;
 }
 
 export interface AdminStats {
-  totalUsers: number;
-  pendingUsers: number;
-  totalListings: number;
-  pendingConnections: number;
+  userStats: {
+    totalUsers: number;
+    pendingUsers: number;
+    approvedUsers: number;
+    deniedUsers: number;
+  };
+  listingStats: {
+    totalListings: number;
+    activeListings: number;
+    inactiveListings: number;
+  };
+  connectionStats: {
+    totalRequests: number;
+    pendingRequests: number;
+    approvedRequests: number;
+    rejectedRequests: number;
+  };
+  activityStats: {
+    last7Days: number;
+    last30Days: number;
+  };
+  recentActivity: Array<{
+    id: string;
+    user_id: string;
+    activity_type: string;
+    created_at: string;
+    metadata?: any;
+    user?: {
+      first_name: string;
+      last_name: string;
+      email: string;
+    }
+  }>;
 }
