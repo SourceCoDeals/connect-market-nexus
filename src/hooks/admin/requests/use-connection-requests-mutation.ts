@@ -41,6 +41,10 @@ export function useConnectionRequestsMutation() {
       // If approved, log the connection in user_activity
       if (status === 'approved' && data?.[0]) {
         const request = data[0];
+        
+        // Extract the listing title safely if it exists
+        const listingTitle = request.listing?.title || 'Unknown listing';
+        
         try {
           await supabase
             .from('user_activity')
@@ -49,7 +53,7 @@ export function useConnectionRequestsMutation() {
               activity_type: 'connection_approved',
               metadata: { 
                 listing_id: request.listing_id,
-                listing_title: request.listing?.title || 'Unknown listing'
+                listing_title: listingTitle
               }
             });
         } catch (activityError) {
@@ -74,8 +78,8 @@ export function useConnectionRequestsMutation() {
         };
         
         // Only set user if it exists and is not an error
-        // Fix: Add null check before accessing user properties
         if (item.user && typeof item.user === 'object' && !('error' in item.user)) {
+          // Assign the entire user object directly without accessing any of its properties here
           result.user = item.user;
         }
         

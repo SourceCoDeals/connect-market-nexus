@@ -48,8 +48,8 @@ export function useConnectionRequestsQuery() {
             };
             
             // Only set user if it exists and is not an error
-            // Fix: Add null check before accessing user properties
             if (item.user && typeof item.user === 'object' && !('error' in item.user)) {
+              // Assign the entire user object directly without accessing any of its properties here
               request.user = item.user;
             }
             
