@@ -1,4 +1,3 @@
-
 import { useNavigate } from "react-router-dom";
 import { User } from "@/types";
 import { toast } from "@/hooks/use-toast";
@@ -63,33 +62,32 @@ export function useAuthActions(setUser: (user: User | null) => void, setIsLoadin
           title: "Email not verified",
           description: "Please verify your email address before logging in.",
         });
-        await supabase.auth.signOut();
         navigate("/verify-email", { state: { email } });
         return;
       }
       
       // Check approval status
-      if (profile.approval_status === 'pending') {
+      if (profile.approval_status === 'pending' || profile.approval_status === 'rejected') {
+        let message = "Your account is awaiting admin approval.";
+        if (profile.approval_status === 'rejected') {
+          message = "Your account application has been rejected.";
+        }
+        
         toast({
-          variant: "destructive",
-          title: "Account pending approval",
-          description: "Your account is awaiting admin approval.",
+          variant: profile.approval_status === 'rejected' ? "destructive" : "default",
+          title: profile.approval_status === 'rejected' ? "Account rejected" : "Account pending approval",
+          description: message,
         });
-        await supabase.auth.signOut();
-        navigate("/pending-approval");
+        
+        // For both pending and rejected, keep them logged in but send to verification success
+        const userData = createUserObject(profile);
+        setUser(userData);
+        localStorage.setItem("user", JSON.stringify(userData));
+        navigate("/verification-success");
         return;
       }
       
-      if (profile.approval_status === 'rejected') {
-        toast({
-          variant: "destructive",
-          title: "Account rejected",
-          description: "Your account application has been rejected.",
-        });
-        await supabase.auth.signOut();
-        return;
-      }
-      
+      // User is verified and approved
       const userData = createUserObject(profile);
       setUser(userData);
       localStorage.setItem("user", JSON.stringify(userData));

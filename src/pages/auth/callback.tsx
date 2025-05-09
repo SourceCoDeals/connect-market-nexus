@@ -38,9 +38,9 @@ export default function AuthCallback() {
               console.log("User verified and approved - redirecting to marketplace");
               navigate('/marketplace');
             } else {
-              // User is verified but not approved, redirect to pending approval
-              console.log("User verified but not approved - redirecting to pending approval");
-              navigate('/pending-approval');
+              // User is verified but not approved, redirect to verification success page
+              console.log("User verified but not approved - redirecting to verification success");
+              navigate('/verification-success');
             }
           } else {
             // User's email is not verified, redirect to verify email page

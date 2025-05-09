@@ -82,8 +82,8 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 
     // Check for approval requirement
     if (requireApproved && user.approval_status !== 'approved' && !user.isAdmin) {
-      console.log("User is not approved, redirecting to pending approval");
-      return <Navigate to="/pending-approval" replace />;
+      console.log("User is not approved, redirecting to verification success");
+      return <Navigate to="/verification-success" replace />;
     }
 
     console.log(`Protected route access granted to ${location.pathname} for user ${user.email}`);

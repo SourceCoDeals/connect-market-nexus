@@ -7,6 +7,7 @@ import Signup from "@/pages/Signup";
 import PendingApproval from "@/pages/PendingApproval";
 import VerifyEmail from "@/pages/VerifyEmail";
 import VerifyEmailHandlerPage from "@/pages/VerifyEmailHandler";
+import VerificationSuccess from "@/pages/VerificationSuccess";
 import AuthCallback from "@/pages/auth/callback";
 import AdminDashboard from "@/pages/admin/AdminDashboard";
 import AdminUsers from "@/pages/admin/AdminUsers";
@@ -34,6 +35,7 @@ function App() {
         <Route path="/signup" element={<Signup />} />
         <Route path="/pending-approval" element={<PendingApproval />} />
         <Route path="/verify-email" element={<VerifyEmail />} />
+        <Route path="/verification-success" element={<VerificationSuccess />} />
         <Route path="/auth/callback" element={<AuthCallback />} />
         <Route path="/unauthorized" element={<Unauthorized />} />
         

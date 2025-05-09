@@ -80,7 +80,6 @@ export default function VerifyEmailHandler() {
             setApprovalStatus(profileData.approval_status as ApprovalStatus);
             
             // Explicitly update profile email_verified field if needed
-            // This is a backup in case the trigger didn't fire
             if (!profileData.email_verified) {
               console.log("Email verified flag needs to be updated");
               const { error: updateError } = await supabase
@@ -97,6 +96,11 @@ export default function VerifyEmailHandler() {
             } else {
               console.log("Email was already marked as verified");
             }
+            
+            // Redirect to verification success page after verification
+            setTimeout(() => {
+              navigate('/verification-success');
+            }, 1500);
           }
         } else {
           throw new Error('Unknown verification type');
@@ -111,19 +115,12 @@ export default function VerifyEmailHandler() {
     };
     
     handleEmailVerification();
-  }, [location.search]);
+  }, [location.search, navigate]);
   
   const handleContinue = () => {
     if (verificationSuccess) {
-      if (approvalStatus === 'approved') {
-        // Redirect to login if approved
-        navigate('/login', { 
-          state: { emailVerified: true } 
-        });
-      } else {
-        // Redirect to pending approval page
-        navigate('/pending-approval');
-      }
+      // Regardless of approval status, redirect to verification success
+      navigate('/verification-success');
     } else {
       // If verification failed, go back to login
       navigate('/login');
@@ -184,14 +181,10 @@ export default function VerifyEmailHandler() {
       <div className="flex flex-col items-center justify-center min-h-screen p-4">
         <CheckCircle className="h-12 w-12 text-green-500 mb-4" />
         <h1 className="text-2xl font-bold mb-2">Email verified successfully!</h1>
-        {approvalStatus === 'approved' ? (
-          <p className="text-center mb-6">Your account is approved. You can now log in to the marketplace.</p>
-        ) : (
-          <p className="text-center mb-6">Your email has been verified, but your account is pending admin approval.</p>
-        )}
-        <Button onClick={handleContinue}>
-          {approvalStatus === 'approved' ? 'Continue to login' : 'Continue'}
-        </Button>
+        <p className="text-center mb-6">
+          Your email has been verified. You will be redirected shortly.
+        </p>
+        <Button onClick={handleContinue}>Continue</Button>
       </div>
     );
   }
