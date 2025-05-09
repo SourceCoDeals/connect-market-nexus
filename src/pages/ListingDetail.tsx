@@ -123,61 +123,6 @@ const ListingDetail = () => {
           <ChevronLeft className="mr-1 h-4 w-4" />
           Back to Marketplace
         </Link>
-        
-        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 mb-4">
-          <div>
-            <div className="flex flex-wrap gap-2 mb-2">
-              <Badge variant="outline" className="bg-background font-normal">
-                <Building2 className="h-3 w-3 mr-1" />
-                {listing.category}
-              </Badge>
-              <Badge variant="outline" className="bg-background font-normal">
-                <MapPin className="h-3 w-3 mr-1" />
-                {listing.location}
-              </Badge>
-              {isInactive && isAdmin && (
-                <Badge variant="destructive" className="font-normal">
-                  <AlertTriangle className="h-3 w-3 mr-1" />
-                  Inactive
-                </Badge>
-              )}
-            </div>
-            <h1 className="text-3xl font-bold">{listing.title}</h1>
-          </div>
-
-          {!isAdmin && (
-            <Button
-              variant="default"
-              className="w-full md:w-auto"
-              disabled={
-                isRequesting ||
-                (connectionExists && connectionStatusValue === "pending") ||
-                (connectionExists && connectionStatusValue === "approved")
-              }
-              onClick={handleRequestConnection}
-            >
-              {connectionExists ? (
-                connectionStatusValue === "pending" ? (
-                  <>
-                    <Clock className="mr-2 h-4 w-4" /> Request Pending
-                  </>
-                ) : connectionStatusValue === "approved" ? (
-                  <>
-                    <CheckCircle className="mr-2 h-4 w-4" /> Connected
-                  </>
-                ) : (
-                  <>
-                    <XCircle className="mr-2 h-4 w-4" /> Rejected
-                  </>
-                )
-              ) : (
-                <>
-                  <Send className="mr-2 h-4 w-4" /> Request Connection
-                </>
-              )}
-            </Button>
-          )}
-        </div>
       </div>
       
       {/* Hero Image Section */}
@@ -194,6 +139,61 @@ const ListingDetail = () => {
             }}
           />
         </div>
+      </div>
+
+      <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 mb-8">
+        <div>
+          <div className="flex flex-wrap gap-2 mb-2">
+            <Badge variant="outline" className="bg-background font-normal">
+              <Building2 className="h-3 w-3 mr-1" />
+              {listing.category}
+            </Badge>
+            <Badge variant="outline" className="bg-background font-normal">
+              <MapPin className="h-3 w-3 mr-1" />
+              {listing.location}
+            </Badge>
+            {isInactive && isAdmin && (
+              <Badge variant="destructive" className="font-normal">
+                <AlertTriangle className="h-3 w-3 mr-1" />
+                Inactive
+              </Badge>
+            )}
+          </div>
+          <h1 className="text-3xl font-bold">{listing.title}</h1>
+        </div>
+
+        {!isAdmin && (
+          <Button
+            variant="default"
+            className="w-full md:w-auto"
+            disabled={
+              isRequesting ||
+              (connectionExists && connectionStatusValue === "pending") ||
+              (connectionExists && connectionStatusValue === "approved")
+            }
+            onClick={handleRequestConnection}
+          >
+            {connectionExists ? (
+              connectionStatusValue === "pending" ? (
+                <>
+                  <Clock className="mr-2 h-4 w-4" /> Request Pending
+                </>
+              ) : connectionStatusValue === "approved" ? (
+                <>
+                  <CheckCircle className="mr-2 h-4 w-4" /> Connected
+                </>
+              ) : (
+                <>
+                  <XCircle className="mr-2 h-4 w-4" /> Rejected
+                </>
+              )
+            ) : (
+              <>
+                <Send className="mr-2 h-4 w-4" /> Request Connection
+              </>
+            )}
+          </Button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

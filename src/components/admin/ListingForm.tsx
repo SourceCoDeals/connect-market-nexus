@@ -89,10 +89,7 @@ export function ListingForm({
       ebitda: listing?.ebitda || 0,
       description: listing?.description || "",
       owner_notes: listing?.owner_notes || "",
-      // Only use 'active' or 'inactive' for the form, not 'pending' or 'sold'
-      status: (listing?.status === "active" || listing?.status === "inactive") 
-        ? listing.status 
-        : "active",
+      status: listing?.status || "active",
     },
   });
 

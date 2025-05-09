@@ -1,19 +1,21 @@
-// Import necessary libraries and types
+
+// Import your marketplace hooks here
+// Example:
+// import { useListingsQuery } from './marketplace/useListingsQuery';
+// import { useRequestConnection } from './marketplace/useRequestConnection';
+
+// This is just a placeholder - you would implement the actual hooks
+// for the marketplace functionality
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { FilterOptions, Listing, ListingStatus, ConnectionRequest } from '@/types';
 
-/**
- * Hook for accessing marketplace functionality
- * @returns Object containing all marketplace hooks
- */
 export function useMarketplace() {
   const queryClient = useQueryClient();
 
-  /**
-   * Fetch listings with filters and pagination
-   */
+  // Fetch listings with filters and pagination
   const useListings = (filters: FilterOptions = {}) => {
     return useQuery({
       queryKey: ['marketplace-listings', filters],
@@ -73,17 +75,14 @@ export function useMarketplace() {
           
           // Transform data to include computed properties
           const listings = data?.map((item: any) => {
-            // Make sure to cast status to ListingStatus type
-            const status = item.status as ListingStatus;
-            
             const listing: Listing = {
               ...item,
               // Add computed properties
               ownerNotes: item.owner_notes || '',
               createdAt: item.created_at,
               updatedAt: item.updated_at,
-              // Explicitly casting status to ListingStatus type
-              status: status,
+              // Ensure status is properly typed as ListingStatus
+              status: item.status as ListingStatus,
               multiples: item.revenue > 0 ? {
                 revenue: (item.ebitda / item.revenue).toFixed(2),
                 value: '0'
@@ -117,9 +116,7 @@ export function useMarketplace() {
     });
   };
   
-  /**
-   * Get a single listing by ID
-   */
+  // Get a single listing by ID
   const useListing = (id: string | undefined) => {
     return useQuery({
       queryKey: ['listing', id],
@@ -136,9 +133,6 @@ export function useMarketplace() {
           if (error) throw error;
           if (!data) return null;
           
-          // Cast status to ListingStatus type
-          const status = data.status as ListingStatus;
-          
           // Transform to Listing type with computed properties
           const listing: Listing = {
             ...data,
@@ -146,8 +140,8 @@ export function useMarketplace() {
             ownerNotes: data.owner_notes || '',
             createdAt: data.created_at,
             updatedAt: data.updated_at,
-            // Explicitly cast status to ListingStatus
-            status: status,
+            // Ensure status is properly typed as ListingStatus
+            status: data.status as ListingStatus,
             multiples: data.revenue > 0 ? {
               revenue: (data.ebitda / data.revenue).toFixed(2),
               value: '0'
@@ -177,9 +171,7 @@ export function useMarketplace() {
     });
   };
 
-  /**
-   * Get listing metadata for filters (categories, locations)
-   */
+  // Get listing metadata for filters (categories, locations)
   const useListingMetadata = () => {
     return useQuery({
       queryKey: ['listing-metadata'],
@@ -207,9 +199,7 @@ export function useMarketplace() {
     });
   };
 
-  /**
-   * Request connection to a listing
-   */
+  // Request connection to a listing
   const useRequestConnection = () => {
     return useMutation({
       mutationFn: async (listingId: string) => {
@@ -275,9 +265,7 @@ export function useMarketplace() {
     });
   };
 
-  /**
-   * Get connection status for a listing
-   */
+  // Get connection status for a listing
   const useConnectionStatus = (listingId: string | undefined) => {
     return useQuery({
       queryKey: ['connection-status', listingId],
@@ -311,9 +299,7 @@ export function useMarketplace() {
     });
   };
 
-  /**
-   * Save/unsave a listing
-   */
+  // Save/unsave a listing
   const useSaveListingMutation = () => {
     return useMutation({
       mutationFn: async ({ 
@@ -375,9 +361,7 @@ export function useMarketplace() {
     });
   };
 
-  /**
-   * Check if listing is saved
-   */
+  // Check if listing is saved
   const useSavedStatus = (listingId: string | undefined) => {
     return useQuery({
       queryKey: ['saved-status', listingId],
@@ -408,9 +392,7 @@ export function useMarketplace() {
     });
   };
 
-  /**
-   * Get user connection requests
-   */
+  // Add missing hook: Get user connection requests
   const useUserConnectionRequests = () => {
     return useQuery({
       queryKey: ['user-connection-requests'],

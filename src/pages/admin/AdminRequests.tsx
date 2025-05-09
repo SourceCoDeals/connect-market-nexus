@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useAdmin } from "@/hooks/use-admin";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -9,18 +9,10 @@ import { ConnectionRequestsTable } from "@/components/admin/ConnectionRequestsTa
 import { ConnectionRequestDialog } from "@/components/admin/ConnectionRequestDialog";
 
 const AdminRequests = () => {
-  console.log("AdminRequests component rendered");
-  
   const { useConnectionRequests, useUpdateConnectionRequest } = useAdmin();
   
-  const { data: requests = [], isLoading, error, refetch } = useConnectionRequests();
+  const { data: requests = [], isLoading, error } = useConnectionRequests();
   const { mutate: updateRequest, isPending: isUpdating } = useUpdateConnectionRequest();
-  
-  useEffect(() => {
-    // Fetch on component mount
-    refetch();
-    console.log("Connection requests refetched");
-  }, [refetch]);
   
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedRequest, setSelectedRequest] = useState<AdminConnectionRequest | null>(null);
@@ -30,11 +22,6 @@ const AdminRequests = () => {
   if (error) {
     console.error("Connection requests error:", error);
   }
-  
-  // Log requests for debugging
-  useEffect(() => {
-    console.log("Current requests:", requests);
-  }, [requests]);
   
   const filteredRequests = requests.filter((request) => {
     const searchLower = searchQuery.toLowerCase();
@@ -58,9 +45,9 @@ const AdminRequests = () => {
     if (selectedRequest && actionType) {
       try {
         await updateRequest({
-          id: selectedRequest.id,
+          requestId: selectedRequest.id,
           status: actionType === "approve" ? "approved" : "rejected",
-          admin_comment: comment,
+          adminComment: comment,
         });
         
         setIsDialogOpen(false);
@@ -101,17 +88,6 @@ const AdminRequests = () => {
           Rejected: {requests.filter((r) => r.status === "rejected").length}
         </Badge>
       </div>
-
-      {/* Debug info for development */}
-      {requests.length === 0 && !isLoading && (
-        <div className="bg-muted/20 p-4 mb-6 rounded-md">
-          <p className="text-sm font-medium">Debugging info:</p>
-          <p className="text-xs text-muted-foreground">Request count: {requests.length}</p>
-          <p className="text-xs text-muted-foreground">Is loading: {String(isLoading)}</p>
-          <p className="text-xs text-muted-foreground">Has error: {String(!!error)}</p>
-          <p className="text-xs text-muted-foreground">Error message: {error?.message || "None"}</p>
-        </div>
-      )}
 
       <ConnectionRequestsTable 
         requests={filteredRequests}

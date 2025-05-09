@@ -2,89 +2,73 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { AdminConnectionRequest } from '@/types/admin';
-import { Listing, ListingStatus } from '@/types';
+import { toast } from '@/hooks/use-toast';
+import { createUserObject } from '@/lib/auth-helpers';
+import { ListingStatus } from '@/types';
 
 /**
- * Hook for fetching connection requests in the admin dashboard
- * @returns Query object with connection requests data
+ * Hook for fetching connection requests in admin dashboard
  */
 export function useConnectionRequestsQuery() {
   return useQuery({
-    queryKey: ['admin', 'connection-requests'],
+    queryKey: ['admin-connection-requests'],
     queryFn: async () => {
       try {
-        console.log("Fetching connection requests...");
-        
-        const { data, error } = await supabase
+        // First get all connection requests
+        const { data: requests, error } = await supabase
           .from('connection_requests')
-          .select(`
-            *,
-            user:user_id(*),
-            listing:listing_id(*)
-          `)
+          .select('*')
           .order('created_at', { ascending: false });
+
+        if (error) throw error;
         
-        if (error) {
-          console.error("Error fetching connection requests:", error);
-          throw error;
-        }
-        
-        console.log("Connection requests fetched:", data?.length || 0, "requests");
-        
-        // Handle potential relationship issues by safely converting to AdminConnectionRequest
-        if (data) {
-          // Handle case where relationships might be missing
-          const mappedData = data.map(item => {
-            const request: AdminConnectionRequest = {
-              id: item.id,
-              user_id: item.user_id,
-              listing_id: item.listing_id,
-              status: item.status as 'pending' | 'approved' | 'rejected',
-              admin_comment: item.admin_comment,
-              created_at: item.created_at,
-              updated_at: item.updated_at,
-              user: null,  // Default to null, will be overridden if exists
-              listing: null // Default to null, will be overridden if exists
-            };
-            
-            // Only set user if it exists and is not an error
-            if (item.user && typeof item.user === 'object' && !('error' in item.user)) {
-              // Use type assertion to assure TypeScript the user object is valid
-              const user = item.user as Record<string, any>;
-              request.user = user as any;
-            }
-            
-            // Only set listing if it exists and is not an error
-            if (item.listing && typeof item.listing === 'object' && !('error' in item.listing)) {
-              // Convert database listing to Listing type with computed properties
-              const listing = item.listing;
-              request.listing = {
-                ...listing,
-                ownerNotes: listing.owner_notes || '',
-                multiples: {
-                  revenue: ((listing.revenue > 0) ? (listing.ebitda / listing.revenue).toFixed(2) : '0'),
-                  value: '0',
-                },
-                revenueFormatted: `$${listing.revenue.toLocaleString()}`,
-                ebitdaFormatted: `$${listing.ebitda.toLocaleString()}`,
-                createdAt: listing.created_at,
-                updatedAt: listing.updated_at,
-                status: listing.status as ListingStatus, // Explicitly cast status to ListingStatus type
-              };
-            }
-            
-            return request;
-          });
+        // For each request, fetch user and listing details separately 
+        // to avoid the relation error
+        const enhancedRequests = await Promise.all(requests.map(async (request) => {
+          // Get user details
+          const { data: userData, error: userError } = await supabase
+            .from('profiles')
+            .select('*')  // Select all fields to get complete user data
+            .eq('id', request.user_id)
+            .maybeSingle();  // Use maybeSingle instead of single to prevent errors
           
-          return mappedData;
-        }
-        
-        return [] as AdminConnectionRequest[];
-      } catch (error) {
-        console.error("Error in useConnectionRequestsQuery:", error);
+          if (userError) console.error("Error fetching user data:", userError);
+          
+          // Get listing details
+          const { data: listingData, error: listingError } = await supabase
+            .from('listings')
+            .select('id, title, category, location, revenue, ebitda, status')
+            .eq('id', request.listing_id)
+            .maybeSingle();  // Use maybeSingle instead of single to prevent errors
+          
+          if (listingError) console.error("Error fetching listing data:", listingError);
+          
+          // Transform the user data using createUserObject to ensure it matches the User type
+          const user = userError || !userData ? null : createUserObject(userData);
+          
+          // Ensure listing status is properly typed
+          const listingWithStatus = listingData ? {
+            ...listingData,
+            status: listingData.status as ListingStatus
+          } : null;
+          
+          return {
+            ...request,
+            user,
+            listing: listingWithStatus
+          } as AdminConnectionRequest;
+        }));
+
+        return enhancedRequests;
+      } catch (error: any) {
+        console.error("Error fetching connection requests:", error);
+        toast({
+          variant: 'destructive',
+          title: 'Error fetching connection requests',
+          description: error.message,
+        });
         return [] as AdminConnectionRequest[];
       }
     },
-    staleTime: 1000 * 60 * 5, // 5 minutes
   });
 }

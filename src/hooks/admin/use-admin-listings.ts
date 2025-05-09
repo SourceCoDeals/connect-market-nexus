@@ -4,22 +4,21 @@ import { useListingMutations } from './listings/use-listing-mutations';
 
 /**
  * Hook for managing listings in admin dashboard
- * @returns Object containing listing query and mutation hooks
  */
 export function useAdminListings() {
-  const { data: listings, isLoading, error, refetch } = useListingsQuery();
+  const useListings = useListingsQuery;
   const { 
-    createListing, 
-    updateListing, 
-    deleteListing,
-    toggleListingStatus
+    useCreateListing, 
+    useUpdateListing, 
+    useDeleteListing,
+    useToggleListingStatus
   } = useListingMutations();
 
   return {
-    useListings: () => ({ data: listings, isLoading, error, refetch }),
-    useCreateListing: () => createListing,
-    useUpdateListing: () => updateListing,
-    useDeleteListing: () => deleteListing,
-    useToggleListingStatus: () => toggleListingStatus,
+    useListings,
+    useCreateListing,
+    useUpdateListing,
+    useDeleteListing,
+    useToggleListingStatus,
   };
 }

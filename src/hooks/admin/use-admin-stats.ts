@@ -60,42 +60,14 @@ export function useAdminStats() {
           
           if (approvedConnError) throw approvedConnError;
           
-          // Map the data to match the AdminStats structure while maintaining backward compatibility
-          const statsData: AdminStats = {
-            // Flat properties for backward compatibility
+          return {
             totalUsers: totalUsers || 0,
             pendingUsers: pendingUsers || 0,
             approvedUsers: approvedUsers || 0,
             totalListings: totalListings || 0,
             pendingConnections: pendingConnections || 0,
             approvedConnections: approvedConnections || 0,
-            
-            // Structured properties for future use
-            userStats: {
-              totalUsers: totalUsers || 0,
-              pendingUsers: pendingUsers || 0,
-              approvedUsers: approvedUsers || 0,
-              deniedUsers: 0, // Not currently tracked
-            },
-            listingStats: {
-              totalListings: totalListings || 0,
-              activeListings: totalListings || 0, // Simplification
-              inactiveListings: 0, // Not currently tracked
-            },
-            connectionStats: {
-              totalRequests: (pendingConnections || 0) + (approvedConnections || 0),
-              pendingRequests: pendingConnections || 0,
-              approvedRequests: approvedConnections || 0,
-              rejectedRequests: 0, // Not currently tracked
-            },
-            activityStats: {
-              last7Days: 0, // Not currently tracked
-              last30Days: 0, // Not currently tracked
-            },
-            recentActivity: [], // Will be populated by useRecentActivities
-          };
-          
-          return statsData;
+          } as AdminStats;
         } catch (error: any) {
           console.error("Error getting admin stats:", error);
           toast({
@@ -104,7 +76,6 @@ export function useAdminStats() {
             description: error.message,
           });
           
-          // Return a properly structured default state
           return {
             totalUsers: 0,
             pendingUsers: 0,
@@ -112,28 +83,6 @@ export function useAdminStats() {
             totalListings: 0,
             pendingConnections: 0,
             approvedConnections: 0,
-            userStats: {
-              totalUsers: 0,
-              pendingUsers: 0,
-              approvedUsers: 0,
-              deniedUsers: 0,
-            },
-            listingStats: {
-              totalListings: 0,
-              activeListings: 0,
-              inactiveListings: 0,
-            },
-            connectionStats: {
-              totalRequests: 0,
-              pendingRequests: 0,
-              approvedRequests: 0,
-              rejectedRequests: 0,
-            },
-            activityStats: {
-              last7Days: 0,
-              last30Days: 0,
-            },
-            recentActivity: [],
           } as AdminStats;
         }
       },

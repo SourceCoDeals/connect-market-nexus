@@ -1,130 +1,155 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from '@/hooks/use-toast';
 import { AdminConnectionRequest } from '@/types/admin';
-import { Listing, ListingStatus } from '@/types';
+import { toast } from '@/hooks/use-toast';
+import { useAdminEmail } from '../use-admin-email';
+import { createUserObject } from '@/lib/auth-helpers';
+import { ListingStatus } from '@/types';
 
 /**
- * Hook for managing connection request mutations in the admin dashboard
- * @returns Mutation hook for updating connection requests
+ * Hook for managing connection request mutations in admin dashboard
  */
 export function useConnectionRequestsMutation() {
   const queryClient = useQueryClient();
-  
+  const { sendConnectionApprovalEmail, sendConnectionRejectionEmail } = useAdminEmail();
+
+  // Update connection request status
   return useMutation({
-    mutationFn: async ({ 
-      id, 
-      status, 
-      admin_comment 
-    }: { 
-      id: string; 
-      status: 'approved' | 'rejected'; 
-      admin_comment?: string;
+    mutationFn: async ({
+      requestId,
+      status,
+      adminComment,
+    }: {
+      requestId: string;
+      status: 'approved' | 'rejected';
+      adminComment?: string;
     }) => {
-      console.log("Updating connection request:", { id, status, admin_comment });
-      
-      // Update the request status in the database
-      const { data, error } = await supabase
-        .from('connection_requests')
-        .update({ status, admin_comment })
-        .eq('id', id)
-        .select('*, user:user_id(*), listing:listing_id(*)');
-      
-      if (error) {
+      try {
+        console.log(`Updating request ${requestId} to status ${status}`);
+        
+        // Update the request status
+        const { data, error } = await supabase
+          .from('connection_requests')
+          .update({ 
+            status, 
+            admin_comment: adminComment,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', requestId)
+          .select();
+
+        if (error) throw error;
+        
+        if (!data || data.length === 0) {
+          throw new Error('Update successful but no data returned');
+        }
+        
+        console.log("Update successful:", data);
+        
+        // Get complete request data for email notification
+        const { data: requestData, error: requestError } = await supabase
+          .from('connection_requests')
+          .select('*')
+          .eq('id', requestId)
+          .maybeSingle();
+        
+        if (requestError || !requestData) {
+          throw new Error('Request not found after update');
+        }
+        
+        // Get complete user details
+        const { data: userData, error: userError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', requestData.user_id)
+          .maybeSingle();
+        
+        if (userError) {
+          console.error("Error fetching user data for email:", userError);
+        }
+        
+        // Get listing details
+        const { data: listingData, error: listingError } = await supabase
+          .from('listings')
+          .select('*')
+          .eq('id', requestData.listing_id)
+          .maybeSingle();
+        
+        if (listingError) {
+          console.error("Error fetching listing data for email:", listingError);
+        }
+        
+        // Transform the user data using createUserObject
+        const user = userData ? createUserObject(userData) : null;
+        
+        // Ensure the status is of the correct type
+        const typedStatus = requestData.status as "pending" | "approved" | "rejected";
+        
+        // Fix the missing properties by converting listingData to a proper Listing type
+        const listing = listingData ? {
+          ...listingData,
+          // Add computed properties
+          status: listingData.status as ListingStatus, // Cast status to ListingStatus
+          ownerNotes: listingData.owner_notes || '',
+          createdAt: listingData.created_at,
+          updatedAt: listingData.updated_at,
+          multiples: {
+            revenue: listingData.revenue > 0 ? (listingData.ebitda / listingData.revenue).toFixed(2) : '0',
+            value: '0'
+          },
+          revenueFormatted: new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(listingData.revenue),
+          ebitdaFormatted: new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(listingData.ebitda)
+        } : null;
+        
+        const fullRequestData: AdminConnectionRequest = {
+          ...requestData,
+          status: typedStatus,
+          user,
+          listing
+        };
+        
+        // Send email notification based on status
+        if (status === 'approved') {
+          try {
+            await sendConnectionApprovalEmail(fullRequestData);
+            console.log("Approval email sent successfully");
+          } catch (emailError) {
+            console.error("Error sending approval email:", emailError);
+          }
+        } else if (status === 'rejected') {
+          try {
+            await sendConnectionRejectionEmail(fullRequestData);
+            console.log("Rejection email sent successfully");
+          } catch (emailError) {
+            console.error("Error sending rejection email:", emailError);
+          }
+        }
+        
+        return fullRequestData;
+      } catch (error: any) {
         console.error("Error updating connection request:", error);
         throw error;
       }
-      
-      console.log("Connection request updated:", data?.[0]);
-      
-      // If approved, log the connection in user_activity
-      if (status === 'approved' && data?.[0]) {
-        const request = data[0];
-        
-        // Extract the listing title safely if it exists
-        const listingTitle = request.listing?.title || 'Unknown listing';
-        
-        try {
-          await supabase
-            .from('user_activity')
-            .insert({
-              user_id: request.user_id,
-              activity_type: 'connection_approved',
-              metadata: { 
-                listing_id: request.listing_id,
-                listing_title: listingTitle
-              }
-            });
-        } catch (activityError) {
-          console.error("Error logging activity:", activityError);
-          // Don't throw here, we still want to continue even if activity logging fails
-        }
-      }
-      
-      // Handle potential relationship issues by converting to AdminConnectionRequest
-      if (data?.[0]) {
-        const item = data[0];
-        const result: AdminConnectionRequest = {
-          id: item.id,
-          user_id: item.user_id,
-          listing_id: item.listing_id,
-          status: item.status as 'pending' | 'approved' | 'rejected',
-          admin_comment: item.admin_comment,
-          created_at: item.created_at,
-          updated_at: item.updated_at,
-          user: null,
-          listing: null
-        };
-        
-        // Only set user if it exists and is not an error
-        if (item.user && typeof item.user === 'object' && !('error' in item.user)) {
-          // Use type assertion to assure TypeScript the user object is valid
-          const user = item.user as Record<string, any>;
-          result.user = user as any;
-        }
-        
-        // Only set listing if it exists and is not an error
-        if (item.listing && typeof item.listing === 'object' && !('error' in item.listing)) {
-          // Convert database listing to Listing type with computed properties
-          const listing = item.listing;
-          result.listing = {
-            ...listing,
-            ownerNotes: listing.owner_notes || '',
-            multiples: {
-              revenue: ((listing.revenue > 0) ? (listing.ebitda / listing.revenue).toFixed(2) : '0'),
-              value: '0',
-            },
-            revenueFormatted: `$${listing.revenue.toLocaleString()}`,
-            ebitdaFormatted: `$${listing.ebitda.toLocaleString()}`,
-            createdAt: listing.created_at,
-            updatedAt: listing.updated_at,
-            status: listing.status as ListingStatus, // Explicitly cast status to ListingStatus type
-          };
-        }
-        
-        return result;
-      }
-      throw new Error("Failed to update connection request");
     },
     onSuccess: (data) => {
-      // Invalidate relevant queries
-      queryClient.invalidateQueries({ queryKey: ['admin', 'connection-requests'] });
-      queryClient.invalidateQueries({ queryKey: ['admin', 'stats'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-connection-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['user-connection-requests'] });
       
-      // Show success toast
+      const status = data.status;
+      const action = status === 'approved' ? 'approved' : 'rejected';
+      
       toast({
-        title: `Connection request ${data.status}`,
-        description: `The connection request has been ${data.status}.`,
+        title: `Connection request ${action}`,
+        description: `The connection request has been ${action} successfully.`,
       });
     },
     onError: (error: any) => {
-      console.error('Error updating connection request:', error);
       toast({
         variant: 'destructive',
         title: 'Update failed',
-        description: error.message || 'Failed to update connection request.',
+        description: error.message || "Failed to update connection request",
       });
-    }
+    },
   });
 }

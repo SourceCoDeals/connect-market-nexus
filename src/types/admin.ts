@@ -1,13 +1,36 @@
 
-import { Listing, ListingStatus, User, BuyerType, ApprovalStatus } from '@/types';
-
-// Admin-specific types
-export interface AdminListing extends Listing {
-  // Add any admin-specific fields here
-}
+import { ListingStatus, User, BuyerType, ApprovalStatus } from "@/types";
 
 export interface AdminUser extends User {
-  // Add any admin-specific fields here
+  id: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  company: string;
+  website: string;
+  phone_number: string;
+  is_admin: boolean;
+  approval_status: ApprovalStatus;
+  buyer_type: BuyerType;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AdminListing {
+  id: string;
+  title: string;
+  description: string;
+  category: string;
+  location: string;
+  revenue: number;
+  ebitda: number;
+  tags: string[];
+  owner_notes?: string;
+  image_url?: string;
+  created_at: string;
+  updated_at: string;
+  files?: string[];
+  status: ListingStatus;
 }
 
 export interface AdminConnectionRequest {
@@ -19,58 +42,21 @@ export interface AdminConnectionRequest {
   created_at: string;
   updated_at: string;
   user: User | null;
-  listing: Listing | null;
+  listing: Partial<AdminListing> | null;
 }
 
 export interface AdminActivity {
   id: string;
-  type: 'signup' | 'connection_request' | 'listing_creation' | string;
+  type: string;
   description: string;
   timestamp: string;
   user_id?: string;
+  metadata?: Record<string, any>;
 }
 
 export interface AdminStats {
-  // Maintaining backward compatibility with existing code
   totalUsers: number;
   pendingUsers: number;
-  approvedUsers: number;
   totalListings: number;
   pendingConnections: number;
-  approvedConnections: number;
-  
-  // Original structure that may be used in the future
-  userStats: {
-    totalUsers: number;
-    pendingUsers: number;
-    approvedUsers: number;
-    deniedUsers: number;
-  };
-  listingStats: {
-    totalListings: number;
-    activeListings: number;
-    inactiveListings: number;
-  };
-  connectionStats: {
-    totalRequests: number;
-    pendingRequests: number;
-    approvedRequests: number;
-    rejectedRequests: number;
-  };
-  activityStats: {
-    last7Days: number;
-    last30Days: number;
-  };
-  recentActivity: Array<{
-    id: string;
-    user_id: string;
-    activity_type: string;
-    created_at: string;
-    metadata?: any;
-    user?: {
-      first_name: string;
-      last_name: string;
-      email: string;
-    }
-  }>;
 }
