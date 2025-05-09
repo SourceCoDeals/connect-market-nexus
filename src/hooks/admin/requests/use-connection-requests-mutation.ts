@@ -46,7 +46,16 @@ export function useConnectionRequestsMutation() {
           });
       }
       
-      return data?.[0] as AdminConnectionRequest;
+      // Handle potential relationship issues by converting safely to AdminConnectionRequest
+      if (data?.[0]) {
+        const result = {
+          ...data[0],
+          user: data[0].user || null,
+          listing: data[0].listing || null
+        } as unknown as AdminConnectionRequest;
+        return result;
+      }
+      throw new Error("Failed to update connection request");
     },
     onSuccess: (data) => {
       // Invalidate relevant queries

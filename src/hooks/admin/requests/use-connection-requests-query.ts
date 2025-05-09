@@ -23,7 +23,16 @@ export function useConnectionRequestsQuery() {
       
       if (error) throw error;
       
-      return data as AdminConnectionRequest[];
+      // Handle potential relationship issues by safely converting to AdminConnectionRequest
+      if (data) {
+        return data.map(item => ({
+          ...item,
+          user: item.user || null,
+          listing: item.listing || null
+        })) as unknown as AdminConnectionRequest[];
+      }
+      
+      return [] as AdminConnectionRequest[];
     },
     staleTime: 1000 * 60 * 5, // 5 minutes
   });

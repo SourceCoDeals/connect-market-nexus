@@ -12,12 +12,16 @@ export function useAdminRequests() {
   const connectionRequests = useConnectionRequestsQuery();
   const connectionRequestsMutation = useConnectionRequestsMutation();
 
+  // Create proper hook functions to be used by AdminRequests.tsx
+  const useConnectionRequests = () => connectionRequests;
+  const useUpdateConnectionRequest = () => connectionRequestsMutation;
+
   return {
     connectionRequests,
     connectionRequestsMutation,
     
-    // Add these functions to fix the hook usage in admin.ts
-    useConnectionRequests: () => connectionRequests,
-    useUpdateConnectionRequest: () => connectionRequestsMutation
+    // Export the hook functions
+    useConnectionRequests,
+    useUpdateConnectionRequest
   };
 }
