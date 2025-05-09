@@ -84,6 +84,7 @@ export interface ConnectionRequest {
   admin_comment?: string;
   created_at: string;
   updated_at: string;
+  listing?: Partial<Listing>;
 }
 
 export interface FilterOptions {

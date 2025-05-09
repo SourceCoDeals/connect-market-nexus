@@ -1,4 +1,3 @@
-
 // Import your marketplace hooks here
 // Example:
 // import { useListingsQuery } from './marketplace/useListingsQuery';
@@ -10,7 +9,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import { FilterOptions, Listing } from '@/types';
+import { FilterOptions, Listing, ListingStatus, ConnectionRequest } from '@/types';
 
 export function useMarketplace() {
   const queryClient = useQueryClient();
@@ -81,6 +80,8 @@ export function useMarketplace() {
               ownerNotes: item.owner_notes || '',
               createdAt: item.created_at,
               updatedAt: item.updated_at,
+              // Ensure status is properly typed as ListingStatus
+              status: item.status as ListingStatus,
               multiples: item.revenue > 0 ? {
                 revenue: (item.ebitda / item.revenue).toFixed(2),
                 value: '0'
@@ -138,6 +139,8 @@ export function useMarketplace() {
             ownerNotes: data.owner_notes || '',
             createdAt: data.created_at,
             updatedAt: data.updated_at,
+            // Ensure status is properly typed as ListingStatus
+            status: data.status as ListingStatus,
             multiples: data.revenue > 0 ? {
               revenue: (data.ebitda / data.revenue).toFixed(2),
               value: '0'
@@ -204,7 +207,7 @@ export function useMarketplace() {
             .from('connection_requests')
             .select()
             .eq('listing_id', listingId)
-            .eq('user_id', supabase.auth.getSession().then(res => res.data.session?.user.id))
+            .eq('user_id', (await supabase.auth.getSession()).data.session?.user.id)
             .maybeSingle();
           
           if (checkError) throw checkError;
@@ -389,6 +392,38 @@ export function useMarketplace() {
     });
   };
 
+  // Add missing hook: Get user connection requests
+  const useUserConnectionRequests = () => {
+    return useQuery({
+      queryKey: ['user-connection-requests'],
+      queryFn: async () => {
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (!session) return [];
+          
+          const { data, error } = await supabase
+            .from('connection_requests')
+            .select(`
+              *,
+              listing:listing_id (
+                id, title, category, location, description
+              )
+            `)
+            .eq('user_id', session.user.id)
+            .order('created_at', { ascending: false });
+          
+          if (error) throw error;
+          
+          return data as ConnectionRequest[];
+        } catch (error: any) {
+          console.error('Error fetching user connection requests:', error);
+          return [];
+        }
+      },
+      staleTime: 1000 * 60, // 1 minute
+    });
+  };
+
   return {
     useListings,
     useListing,
@@ -397,5 +432,6 @@ export function useMarketplace() {
     useConnectionStatus,
     useSaveListingMutation,
     useSavedStatus,
+    useUserConnectionRequests,
   };
 }
