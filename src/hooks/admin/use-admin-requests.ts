@@ -4,6 +4,7 @@ import { AdminConnectionRequest } from '@/types/admin';
 import { toast } from '@/hooks/use-toast';
 import { useAdminEmail } from './use-admin-email';
 import { createUserObject } from '@/lib/auth-helpers';
+import { ListingStatus } from '@/types';
 
 /**
  * Hook for managing connection requests in admin dashboard
