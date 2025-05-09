@@ -2,7 +2,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { AdminConnectionRequest } from '@/types/admin';
-import { ListingStatus } from '@/types';
 
 /**
  * Hook for fetching connection requests in the admin dashboard
@@ -12,27 +11,62 @@ export function useConnectionRequestsQuery() {
   return useQuery({
     queryKey: ['admin', 'connection-requests'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('connection_requests')
-        .select(`
-          *,
-          user:user_id(*),
-          listing:listing_id(*)
-        `)
-        .order('created_at', { ascending: false });
-      
-      if (error) throw error;
-      
-      // Handle potential relationship issues by safely converting to AdminConnectionRequest
-      if (data) {
-        return data.map(item => ({
-          ...item,
-          user: item.user || null,
-          listing: item.listing || null
-        })) as unknown as AdminConnectionRequest[];
+      try {
+        console.log("Fetching connection requests...");
+        
+        const { data, error } = await supabase
+          .from('connection_requests')
+          .select(`
+            *,
+            user:user_id(*),
+            listing:listing_id(*)
+          `)
+          .order('created_at', { ascending: false });
+        
+        if (error) {
+          console.error("Error fetching connection requests:", error);
+          throw error;
+        }
+        
+        console.log("Connection requests fetched:", data?.length || 0, "requests");
+        
+        // Handle potential relationship issues by safely converting to AdminConnectionRequest
+        if (data) {
+          // Handle case where relationships might be missing
+          const mappedData = data.map(item => {
+            const request: AdminConnectionRequest = {
+              id: item.id,
+              user_id: item.user_id,
+              listing_id: item.listing_id,
+              status: item.status as 'pending' | 'approved' | 'rejected',
+              admin_comment: item.admin_comment,
+              created_at: item.created_at,
+              updated_at: item.updated_at,
+              user: null,  // Default to null, will be overridden if exists
+              listing: null // Default to null, will be overridden if exists
+            };
+            
+            // Only set user if it exists and is not an error
+            if (item.user && typeof item.user === 'object' && !('error' in item.user)) {
+              request.user = item.user;
+            }
+            
+            // Only set listing if it exists and is not an error
+            if (item.listing && typeof item.listing === 'object' && !('error' in item.listing)) {
+              request.listing = item.listing;
+            }
+            
+            return request;
+          });
+          
+          return mappedData;
+        }
+        
+        return [] as AdminConnectionRequest[];
+      } catch (error) {
+        console.error("Error in useConnectionRequestsQuery:", error);
+        return [] as AdminConnectionRequest[];
       }
-      
-      return [] as AdminConnectionRequest[];
     },
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
