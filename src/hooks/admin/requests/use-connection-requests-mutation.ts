@@ -74,6 +74,7 @@ export function useConnectionRequestsMutation() {
         };
         
         // Only set user if it exists and is not an error
+        // Fix: Add null check before accessing user properties
         if (item.user && typeof item.user === 'object' && !('error' in item.user)) {
           result.user = item.user;
         }
