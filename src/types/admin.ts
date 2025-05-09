@@ -1,5 +1,5 @@
 
-import { ListingStatus, User } from "@/types";
+import { ListingStatus, User, BuyerType, ApprovalStatus } from "@/types";
 
 export interface AdminUser extends User {
   id: string;
@@ -10,8 +10,8 @@ export interface AdminUser extends User {
   website: string;
   phone_number: string;
   is_admin: boolean;
-  approval_status: "pending" | "approved" | "rejected";
-  buyer_type: string;
+  approval_status: ApprovalStatus;
+  buyer_type: BuyerType;
   created_at: string;
   updated_at: string;
 }
