@@ -22,7 +22,24 @@ export interface AdminConnectionRequest {
   listing: Listing | null;
 }
 
+export interface AdminActivity {
+  id: string;
+  type: 'signup' | 'connection_request' | 'listing_creation' | string;
+  description: string;
+  timestamp: string;
+  user_id?: string;
+}
+
 export interface AdminStats {
+  // Maintaining backward compatibility with existing code
+  totalUsers: number;
+  pendingUsers: number;
+  approvedUsers: number;
+  totalListings: number;
+  pendingConnections: number;
+  approvedConnections: number;
+  
+  // Original structure that may be used in the future
   userStats: {
     totalUsers: number;
     pendingUsers: number;
