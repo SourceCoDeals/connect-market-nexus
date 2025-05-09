@@ -4,13 +4,14 @@ import { useConnectionRequestsMutation } from './requests/use-connection-request
 
 /**
  * Hook for managing connection requests in admin dashboard
+ * @returns Object containing connection request query and mutation hooks
  */
 export function useAdminRequests() {
-  const useConnectionRequests = useConnectionRequestsQuery;
-  const useUpdateConnectionRequest = useConnectionRequestsMutation;
+  const connectionRequests = useConnectionRequestsQuery();
+  const connectionRequestsMutation = useConnectionRequestsMutation();
 
   return {
-    useConnectionRequests,
-    useUpdateConnectionRequest,
+    connectionRequests,
+    connectionRequestsMutation
   };
 }

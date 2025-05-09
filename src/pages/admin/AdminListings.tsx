@@ -27,7 +27,9 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { ListingForm } from "@/components/admin/ListingForm";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ensureListingsBucketExists } from "@/lib/storage-utils";
+import { ensureListingsBucketExists, DEFAULT_IMAGE } from "@/lib/storage-utils";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat("en-US", {
@@ -63,9 +65,26 @@ const AdminListings = () => {
 
   // Ensure storage bucket exists when component mounts
   useEffect(() => {
-    ensureListingsBucketExists().catch(error => 
-      console.error("Failed to ensure listings bucket exists:", error)
-    );
+    const setupStorage = async () => {
+      try {
+        console.log("Setting up storage bucket...");
+        const success = await ensureListingsBucketExists();
+        if (success) {
+          console.log("Storage bucket is ready");
+        } else {
+          console.error("Failed to set up storage bucket");
+          toast({
+            variant: 'destructive',
+            title: 'Storage Error',
+            description: 'Failed to set up storage bucket. Some features may not work correctly.',
+          });
+        }
+      } catch (error) {
+        console.error("Error setting up storage:", error);
+      }
+    };
+
+    setupStorage();
   }, []);
 
   const handleCreateSubmit = async (
@@ -180,6 +199,7 @@ const AdminListings = () => {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>Image</TableHead>
                   <TableHead>Title</TableHead>
                   <TableHead>Category</TableHead>
                   <TableHead>Location</TableHead>
@@ -192,6 +212,20 @@ const AdminListings = () => {
               <TableBody>
                 {filteredListings.map((listing) => (
                   <TableRow key={listing.id}>
+                    <TableCell>
+                      <div className="w-12 h-12 relative rounded-md overflow-hidden border border-border">
+                        <img 
+                          src={listing.image_url || DEFAULT_IMAGE} 
+                          alt={listing.title}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            target.onerror = null;
+                            target.src = DEFAULT_IMAGE;
+                          }}
+                        />
+                      </div>
+                    </TableCell>
                     <TableCell className="font-medium">{listing.title}</TableCell>
                     <TableCell>{listing.category}</TableCell>
                     <TableCell>{listing.location}</TableCell>
