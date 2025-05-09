@@ -97,15 +97,16 @@ export default function VerifyEmailHandler() {
               console.log("Email was already marked as verified");
             }
             
-            // Redirect based on approval status
+            // Redirect based on approval status and admin status
             setTimeout(() => {
-              // Check both is_admin and approval_status
+              // First check for admin status, then approval status
               if (profileData.is_admin === true) {
                 navigate('/admin');
               } else if (profileData.approval_status === 'approved') {
                 navigate('/marketplace');
               } else {
-                navigate('/verification-success');
+                // If not approved (pending or rejected), go to verification success page
+                navigate('/pending-approval');
               }
             }, 1500);
           }

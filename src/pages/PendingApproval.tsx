@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { ClipboardCheck } from "lucide-react";
+import { ClipboardCheck, AlertCircle } from "lucide-react";
 
 const PendingApproval = () => {
   const { user, logout } = useAuth();
@@ -33,6 +33,15 @@ const PendingApproval = () => {
               }
             </p>
           </div>
+          {!user?.email_verified && (
+            <div className="bg-red-50 border border-red-200 rounded-md p-4 flex items-start gap-2">
+              <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+              <p className="text-sm text-red-800">
+                You need to verify your email address before your account can be reviewed. 
+                Please check your inbox for the verification email.
+              </p>
+            </div>
+          )}
           <p className="text-sm text-center text-muted-foreground">
             We'll send you an email once your account has been approved.
             This typically takes 1-2 business days.

@@ -92,9 +92,13 @@ export function useAdminUsers() {
       }) => {
         console.log(`Setting admin status for user ${userId} to ${isAdmin}`);
         
+        // Explicitly ensure boolean value is passed to the database
+        const boolValue = isAdmin === true;
+        console.log(`Using boolean value: ${boolValue}`);
+        
         const { data, error } = await supabase
           .from("profiles")
-          .update({ is_admin: isAdmin === true }) // Explicitly ensure boolean value
+          .update({ is_admin: boolValue }) // Explicitly ensure boolean value
           .eq("id", userId)
           .select()
           .single();

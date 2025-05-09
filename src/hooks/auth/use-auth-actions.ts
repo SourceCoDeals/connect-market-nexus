@@ -178,12 +178,30 @@ export function useAuthActions(setUser: (user: User | null) => void, setIsLoadin
             website: userData.website || '',
             phone_number: userData.phone_number || '',
             buyer_type: userData.buyer_type || 'corporate',
-            is_admin: false, // Always set new users to non-admin
+            is_admin: false, // Always explicitly set new users to non-admin
           },
         },
       });
       
       if (error) throw error;
+      
+      // After signup, update the profile to ensure correct defaults
+      if (data?.user?.id) {
+        // Explicitly set the profile fields to ensure correct values regardless of DB defaults
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .update({
+            is_admin: false,
+            approval_status: 'pending',
+            email_verified: false
+          })
+          .eq('id', data.user.id);
+          
+        if (profileError) {
+          console.error("Error updating profile defaults:", profileError);
+          // Continue despite this error, as the database defaults should now be correct
+        }
+      }
       
       // User created successfully
       toast({
