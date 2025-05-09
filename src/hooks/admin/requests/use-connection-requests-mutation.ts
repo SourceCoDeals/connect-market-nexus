@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { AdminConnectionRequest } from '@/types/admin';
+import { Listing } from '@/types';
 
 /**
  * Hook for managing connection request mutations in the admin dashboard
@@ -57,7 +58,7 @@ export function useConnectionRequestsMutation() {
         }
       }
       
-      // Handle potential relationship issues by converting safely to AdminConnectionRequest
+      // Handle potential relationship issues by converting to AdminConnectionRequest
       if (data?.[0]) {
         const item = data[0];
         const result: AdminConnectionRequest = {
@@ -79,7 +80,20 @@ export function useConnectionRequestsMutation() {
         
         // Only set listing if it exists and is not an error
         if (item.listing && typeof item.listing === 'object' && !('error' in item.listing)) {
-          result.listing = item.listing;
+          // Convert database listing to Listing type with computed properties
+          const listing = item.listing;
+          result.listing = {
+            ...listing,
+            ownerNotes: listing.owner_notes || '',
+            multiples: {
+              revenue: ((listing.revenue > 0) ? (listing.ebitda / listing.revenue).toFixed(2) : '0'),
+              value: '0',
+            },
+            revenueFormatted: `$${listing.revenue.toLocaleString()}`,
+            ebitdaFormatted: `$${listing.ebitda.toLocaleString()}`,
+            createdAt: listing.created_at,
+            updatedAt: listing.updated_at,
+          };
         }
         
         return result;

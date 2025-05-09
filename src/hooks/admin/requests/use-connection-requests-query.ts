@@ -2,6 +2,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { AdminConnectionRequest } from '@/types/admin';
+import { Listing } from '@/types';
 
 /**
  * Hook for fetching connection requests in the admin dashboard
@@ -53,7 +54,20 @@ export function useConnectionRequestsQuery() {
             
             // Only set listing if it exists and is not an error
             if (item.listing && typeof item.listing === 'object' && !('error' in item.listing)) {
-              request.listing = item.listing;
+              // Convert database listing to Listing type with computed properties
+              const listing = item.listing;
+              request.listing = {
+                ...listing,
+                ownerNotes: listing.owner_notes || '',
+                multiples: {
+                  revenue: ((listing.revenue > 0) ? (listing.ebitda / listing.revenue).toFixed(2) : '0'),
+                  value: '0',
+                },
+                revenueFormatted: `$${listing.revenue.toLocaleString()}`,
+                ebitdaFormatted: `$${listing.ebitda.toLocaleString()}`,
+                createdAt: listing.created_at,
+                updatedAt: listing.updated_at,
+              };
             }
             
             return request;
