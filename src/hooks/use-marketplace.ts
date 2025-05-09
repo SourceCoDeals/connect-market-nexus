@@ -1,8 +1,7 @@
-
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
-import { Listing, FilterOptions } from "@/types";
+import { Listing, FilterOptions, ListingStatus } from "@/types";
 import { toast } from "@/hooks/use-toast";
 
 export function useMarketplace() {
@@ -69,6 +68,7 @@ export function useMarketplace() {
         // Transform the data to match the Listing interface
         const listingsWithComputed = data.map((item: any): Listing => ({
           ...item,
+          status: item.status as ListingStatus, // Explicitly cast to ListingStatus
           ownerNotes: item.owner_notes || '',
           createdAt: item.created_at,
           updatedAt: item.updated_at,
@@ -133,6 +133,7 @@ export function useMarketplace() {
         // Transform to match the Listing interface
         const listingWithComputed: Listing = {
           ...data,
+          status: data.status as ListingStatus, // Explicitly cast to ListingStatus
           ownerNotes: data.owner_notes || '',
           createdAt: data.created_at,
           updatedAt: data.updated_at,

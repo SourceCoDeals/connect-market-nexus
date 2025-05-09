@@ -1,5 +1,5 @@
 
-import { Listing } from "@/types";
+import { Listing, ListingStatus } from "@/types";
 
 /**
  * Converts raw listing data from Supabase to a Listing object with computed properties
@@ -23,6 +23,8 @@ export const createListingFromData = (data: any): Listing => {
       files: Array.isArray(data.files) ? data.files : [],
       created_at: data.created_at || new Date().toISOString(),
       updated_at: data.updated_at || new Date().toISOString(),
+      status: (data.status as ListingStatus) || "active",
+      image_url: data.image_url || null,
       
       // Computed properties
       get ownerNotes() {

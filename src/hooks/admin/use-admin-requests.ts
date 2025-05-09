@@ -148,6 +148,7 @@ export function useAdminRequests() {
           const listing = listingData ? {
             ...listingData,
             // Add computed properties
+            status: listingData.status as ListingStatus, // Cast status to ListingStatus
             ownerNotes: listingData.owner_notes || '',
             createdAt: listingData.created_at,
             updatedAt: listingData.updated_at,
