@@ -97,9 +97,13 @@ export default function VerifyEmailHandler() {
               console.log("Email was already marked as verified");
             }
             
-            // Redirect to verification success page after verification
+            // Redirect based on approval status
             setTimeout(() => {
-              navigate('/verification-success');
+              if (profileData.approval_status === 'approved') {
+                navigate('/marketplace');
+              } else {
+                navigate('/verification-success');
+              }
             }, 1500);
           }
         } else {
@@ -119,8 +123,11 @@ export default function VerifyEmailHandler() {
   
   const handleContinue = () => {
     if (verificationSuccess) {
-      // Regardless of approval status, redirect to verification success
-      navigate('/verification-success');
+      if (approvalStatus === 'approved') {
+        navigate('/marketplace');
+      } else {
+        navigate('/verification-success');
+      }
     } else {
       // If verification failed, go back to login
       navigate('/login');
@@ -182,7 +189,9 @@ export default function VerifyEmailHandler() {
         <CheckCircle className="h-12 w-12 text-green-500 mb-4" />
         <h1 className="text-2xl font-bold mb-2">Email verified successfully!</h1>
         <p className="text-center mb-6">
-          Your email has been verified. You will be redirected shortly.
+          {approvalStatus === 'approved' 
+            ? "Your account has been approved. You will be redirected to the marketplace."
+            : "Your email has been verified. Your account is now pending admin approval. You will be redirected shortly."}
         </p>
         <Button onClick={handleContinue}>Continue</Button>
       </div>

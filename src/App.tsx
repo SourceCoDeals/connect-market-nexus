@@ -35,6 +35,7 @@ function App() {
         <Route path="/signup" element={<Signup />} />
         <Route path="/pending-approval" element={<PendingApproval />} />
         <Route path="/verify-email" element={<VerifyEmail />} />
+        <Route path="/verify-email-handler" element={<VerifyEmailHandlerPage />} />
         <Route path="/verification-success" element={<VerificationSuccess />} />
         <Route path="/auth/callback" element={<AuthCallback />} />
         <Route path="/unauthorized" element={<Unauthorized />} />

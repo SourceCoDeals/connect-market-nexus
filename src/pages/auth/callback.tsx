@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -13,6 +12,27 @@ export default function AuthCallback() {
   useEffect(() => {
     const handleCallback = async () => {
       try {
+        console.log("Auth callback - processing authentication");
+        
+        // Check if we have a verification token in the URL
+        const hashParams = new URLSearchParams(window.location.hash.substr(1));
+        const queryParams = new URLSearchParams(window.location.search);
+        
+        const type = queryParams.get('type');
+        const token = queryParams.get('token_hash') || queryParams.get('token') || hashParams.get('access_token');
+        
+        console.log("Auth callback params:", { type, hasToken: !!token });
+        
+        // If this is an email verification callback with a token, handle it
+        if (type === 'signup' || type === 'recovery' || type === 'invite') {
+          console.log("Processing email verification...");
+          
+          // Redirect to verify email handler which will process the token
+          navigate(`/verify-email-handler${window.location.search}`);
+          return;
+        }
+        
+        // Otherwise handle regular OAuth callbacks or session checks
         const { data, error } = await supabase.auth.getSession();
 
         if (error) {
