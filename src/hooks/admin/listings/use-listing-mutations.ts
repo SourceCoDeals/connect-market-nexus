@@ -1,3 +1,4 @@
+
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { AdminListing } from '@/types/admin';
@@ -6,6 +7,93 @@ import { v4 as uuidv4 } from 'uuid';
 
 export function useListingMutations() {
   const queryClient = useQueryClient();
+  
+  // Ensure storage bucket exists
+  const ensureStorageBucketExists = async () => {
+    try {
+      const bucketName = 'listings';
+      
+      // Check if bucket exists
+      const { data: bucketExists, error: bucketCheckError } = await supabase.storage
+        .getBucket(bucketName);
+      
+      if (bucketCheckError) {
+        if (bucketCheckError.message.includes('not found')) {
+          // Create the bucket if it doesn't exist
+          console.log('Creating listings bucket...');
+          const { data: newBucket, error: createError } = await supabase.storage
+            .createBucket(bucketName, {
+              public: true,
+              fileSizeLimit: 10485760, // 10MB
+              allowedMimeTypes: ['image/jpeg', 'image/png', 'image/webp']
+            });
+          
+          if (createError) {
+            console.error('Error creating storage bucket:', createError);
+            throw createError;
+          }
+          
+          // Set bucket policy to public
+          const { error: policyError } = await supabase.storage
+            .updateBucket(bucketName, { public: true });
+          
+          if (policyError) {
+            console.error('Error setting bucket policy:', policyError);
+          }
+          
+          return true;
+        } else {
+          console.error('Error checking bucket:', bucketCheckError);
+          throw bucketCheckError;
+        }
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('Error in ensureStorageBucketExists:', error);
+      throw error;
+    }
+  };
+  
+  // Helper function to upload image
+  const uploadImage = async (file: File, listingId: string) => {
+    try {
+      // Ensure bucket exists
+      await ensureStorageBucketExists();
+      
+      const bucketName = 'listings';
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${listingId}-${uuidv4()}.${fileExt}`;
+      const filePath = `${listingId}/${fileName}`;
+      
+      // Upload the file
+      const { error: uploadError, data: uploadData } = await supabase.storage
+        .from(bucketName)
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false,
+        });
+      
+      if (uploadError) {
+        console.error('Error uploading image:', uploadError);
+        throw uploadError;
+      }
+      
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from(bucketName)
+        .getPublicUrl(filePath);
+      
+      if (!urlData || !urlData.publicUrl) {
+        throw new Error('Failed to get public URL for uploaded image');
+      }
+      
+      return urlData.publicUrl;
+    } catch (error) {
+      console.error('Error in uploadImage:', error);
+      throw error;
+    }
+  };
   
   // Create new listing
   const useCreateListing = () => {
@@ -30,6 +118,7 @@ export function useListingMutations() {
               ebitda: listing.ebitda,
               tags: listing.tags || [],
               owner_notes: listing.owner_notes,
+              status: listing.status || 'active',
               image_url: null // We'll update this after upload
             })
             .select()
@@ -42,56 +131,28 @@ export function useListingMutations() {
           let updatedListing = data;
           
           if (image) {
-            console.log('Uploading image for listing:', data.id);
-            
-            // Create storage bucket if it doesn't exist
-            const bucketName = 'listings';
-            const { data: bucketData, error: bucketError } = await supabase.storage.getBucket(bucketName);
-            
-            if (bucketError && bucketError.message.includes('not found')) {
-              // Create the bucket if it doesn't exist
-              await supabase.storage.createBucket(bucketName, {
-                public: true,
-                fileSizeLimit: 10485760, // 10MB
-                allowedMimeTypes: ['image/jpeg', 'image/png', 'image/webp']
+            try {
+              console.log('Uploading image for listing:', data.id);
+              const publicUrl = await uploadImage(image, data.id);
+              
+              // Update listing with image URL
+              const { data: updatedData, error: updateError } = await supabase
+                .from('listings')
+                .update({ image_url: publicUrl })
+                .eq('id', data.id)
+                .select()
+                .single();
+              
+              if (updateError) throw updateError;
+              updatedListing = updatedData;
+            } catch (imageError: any) {
+              console.error('Error handling image:', imageError);
+              toast({
+                variant: 'destructive',
+                title: 'Image Upload Failed',
+                description: imageError.message || 'Failed to upload image, but listing was created',
               });
             }
-            
-            // Upload the image
-            const fileExt = image.name.split('.').pop();
-            const fileName = `${data.id}-${uuidv4()}.${fileExt}`;
-            const filePath = `${data.id}/${fileName}`;
-            
-            const { error: uploadError, data: uploadData } = await supabase.storage
-              .from(bucketName)
-              .upload(filePath, image, {
-                cacheControl: '3600',
-                upsert: false,
-              });
-            
-            if (uploadError) throw uploadError;
-            
-            // Get public URL for the image
-            const { data: publicUrlData } = supabase.storage
-              .from(bucketName)
-              .getPublicUrl(filePath);
-            
-            const publicUrl = publicUrlData?.publicUrl;
-            
-            if (!publicUrl) {
-              throw new Error('Failed to get public URL for uploaded image');
-            }
-            
-            // Update listing with image URL
-            const { data: updatedData, error: updateError } = await supabase
-              .from('listings')
-              .update({ image_url: publicUrl })
-              .eq('id', data.id)
-              .select()
-              .single();
-            
-            if (updateError) throw updateError;
-            updatedListing = updatedData;
           }
           
           return updatedListing as AdminListing;
@@ -102,6 +163,7 @@ export function useListingMutations() {
       },
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: ['admin-listings'] });
+        queryClient.invalidateQueries({ queryKey: ['marketplace-listings'] });
         toast({
           title: 'Listing Created',
           description: 'The listing has been created successfully.',
@@ -148,56 +210,28 @@ export function useListingMutations() {
           let updatedListing = data;
           
           if (image) {
-            console.log('Uploading new image for listing:', id);
-            
-            // Create storage bucket if it doesn't exist
-            const bucketName = 'listings';
-            const { data: bucketData, error: bucketError } = await supabase.storage.getBucket(bucketName);
-            
-            if (bucketError && bucketError.message.includes('not found')) {
-              // Create the bucket if it doesn't exist
-              await supabase.storage.createBucket(bucketName, {
-                public: true,
-                fileSizeLimit: 10485760, // 10MB
-                allowedMimeTypes: ['image/jpeg', 'image/png', 'image/webp']
+            try {
+              console.log('Uploading new image for listing:', id);
+              const publicUrl = await uploadImage(image, id);
+              
+              // Update listing with new image URL
+              const { data: updatedData, error: updateError } = await supabase
+                .from('listings')
+                .update({ image_url: publicUrl })
+                .eq('id', id)
+                .select()
+                .single();
+              
+              if (updateError) throw updateError;
+              updatedListing = updatedData;
+            } catch (imageError: any) {
+              console.error('Error handling image update:', imageError);
+              toast({
+                variant: 'destructive',
+                title: 'Image Upload Failed',
+                description: imageError.message || 'Failed to update image, but listing was updated',
               });
             }
-            
-            // Upload the image
-            const fileExt = image.name.split('.').pop();
-            const fileName = `${id}-${uuidv4()}.${fileExt}`;
-            const filePath = `${id}/${fileName}`;
-            
-            const { error: uploadError, data: uploadData } = await supabase.storage
-              .from(bucketName)
-              .upload(filePath, image, {
-                cacheControl: '3600',
-                upsert: false,
-              });
-            
-            if (uploadError) throw uploadError;
-            
-            // Get public URL for the image
-            const { data: publicUrlData } = supabase.storage
-              .from(bucketName)
-              .getPublicUrl(filePath);
-            
-            const publicUrl = publicUrlData?.publicUrl;
-            
-            if (!publicUrl) {
-              throw new Error('Failed to get public URL for uploaded image');
-            }
-            
-            // Update listing with new image URL
-            const { data: updatedData, error: updateError } = await supabase
-              .from('listings')
-              .update({ image_url: publicUrl })
-              .eq('id', id)
-              .select()
-              .single();
-            
-            if (updateError) throw updateError;
-            updatedListing = updatedData;
           }
           
           return updatedListing as AdminListing;
@@ -208,6 +242,8 @@ export function useListingMutations() {
       },
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: ['admin-listings'] });
+        queryClient.invalidateQueries({ queryKey: ['marketplace-listings'] });
+        queryClient.invalidateQueries({ queryKey: ['listing'] }); // Invalidate single listing queries too
         toast({
           title: 'Listing Updated',
           description: 'The listing has been updated successfully.',
@@ -253,6 +289,8 @@ export function useListingMutations() {
       },
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: ['admin-listings'] });
+        queryClient.invalidateQueries({ queryKey: ['marketplace-listings'] });
+        queryClient.invalidateQueries({ queryKey: ['listing'] }); // Invalidate single listing queries too
       },
       onError: (error: any) => {
         toast({
@@ -301,6 +339,7 @@ export function useListingMutations() {
       },
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: ['admin-listings'] });
+        queryClient.invalidateQueries({ queryKey: ['marketplace-listings'] });
         toast({
           title: 'Listing Deleted',
           description: 'The listing has been deleted successfully.',

@@ -1,50 +1,62 @@
 
-import { User, Listing } from "@/types";
+import { ListingStatus, User } from "@/types";
+
+export interface AdminUser extends User {
+  id: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  company: string;
+  website: string;
+  phone_number: string;
+  is_admin: boolean;
+  approval_status: "pending" | "approved" | "rejected";
+  buyer_type: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AdminListing {
+  id: string;
+  title: string;
+  description: string;
+  category: string;
+  location: string;
+  revenue: number;
+  ebitda: number;
+  tags: string[];
+  owner_notes?: string;
+  image_url?: string;
+  created_at: string;
+  updated_at: string;
+  files?: string[];
+  status: ListingStatus;
+}
 
 export interface AdminConnectionRequest {
   id: string;
   user_id: string;
   listing_id: string;
-  status: "pending" | "approved" | "rejected";
+  status: 'pending' | 'approved' | 'rejected';
   admin_comment?: string;
   created_at: string;
   updated_at: string;
-  user?: User | null;
-  listing?: Listing | null;
+  user: User | null;
+  listing: Partial<AdminListing> | null;
 }
 
 export interface AdminActivity {
   id: string;
-  type: "signup" | "connection_request" | "listing_creation" | "admin_action";
+  type: string;
   description: string;
   timestamp: string;
-  metadata?: Record<string, any>;
   user_id?: string;
+  metadata?: Record<string, any>;
 }
 
 export interface AdminStats {
   totalUsers: number;
   pendingUsers: number;
-  approvedUsers: number;
   totalListings: number;
   pendingConnections: number;
-  approvedConnections: number;
-}
-
-// Adding the AdminListing type with status field
-export interface AdminListing {
-  id: string;
-  title: string;
-  category: string;
-  location: string;
-  revenue: number;
-  ebitda: number;
-  description: string;
-  owner_notes?: string;
-  tags?: string[];
-  image_url?: string | null;
-  files?: string[];
-  created_at: string;
-  updated_at: string;
-  status: "active" | "inactive";
 }

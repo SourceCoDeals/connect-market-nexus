@@ -1,22 +1,56 @@
 
 import { useState, useEffect } from "react";
 import { useMarketplace } from "@/hooks/use-marketplace";
-import { FilterOptions } from "@/types";
+import { FilterOptions, PaginationState } from "@/types";
 import ListingCard from "@/components/ListingCard";
 import FilterPanel from "@/components/FilterPanel";
 import { Button } from "@/components/ui/button";
-import { LayoutGrid, LayoutList } from "lucide-react";
+import { LayoutGrid, LayoutList, ChevronLeft, ChevronRight } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const Marketplace = () => {
-  const [filters, setFilters] = useState<FilterOptions>({});
+  const [filters, setFilters] = useState<FilterOptions>({
+    page: 1,
+    perPage: 20
+  });
   const [viewType, setViewType] = useState<"grid" | "list">("grid");
+  const [pagination, setPagination] = useState<PaginationState>({
+    currentPage: 1,
+    totalPages: 1,
+    totalItems: 0,
+    perPage: 20
+  });
   
   const { useListings, useListingMetadata } = useMarketplace();
-  const { data: listings = [], isLoading, error } = useListings(filters);
+  const { data: listingsData, isLoading, error } = useListings(filters);
   const { data: metadata, isLoading: isMetadataLoading } = useListingMetadata();
+  
+  const listings = listingsData?.listings || [];
+  const totalItems = listingsData?.totalCount || 0;
+  
+  // Update pagination whenever total count or filters change
+  useEffect(() => {
+    if (listingsData) {
+      const perPage = filters.perPage || 20;
+      const totalPages = Math.ceil(totalItems / perPage);
+      
+      setPagination({
+        currentPage: filters.page || 1,
+        totalPages,
+        totalItems,
+        perPage
+      });
+    }
+  }, [listingsData, totalItems, filters.page, filters.perPage]);
   
   // Error handling
   useEffect(() => {
@@ -31,12 +65,68 @@ const Marketplace = () => {
   }, [error]);
 
   const handleFilterChange = (newFilters: FilterOptions) => {
-    console.log("Applying filters:", newFilters);
-    setFilters(newFilters);
+    console.log("Applying filters:", { ...newFilters, page: 1 }); // Reset to page 1 when filters change
+    setFilters({ ...newFilters, page: 1 });
+  };
+  
+  const handlePageChange = (newPage: number) => {
+    if (newPage < 1 || newPage > pagination.totalPages) return;
+    
+    setFilters(prev => ({
+      ...prev,
+      page: newPage
+    }));
+  };
+  
+  const handlePerPageChange = (value: string) => {
+    const perPage = Number(value);
+    setFilters(prev => ({
+      ...prev,
+      perPage,
+      page: 1 // Reset to first page when changing items per page
+    }));
+  };
+  
+  // Generate page numbers for pagination
+  const getPageNumbers = () => {
+    const { currentPage, totalPages } = pagination;
+    const delta = 1; // Number of pages to show before and after current page
+    
+    const range = [];
+    const rangeWithDots = [];
+    
+    if (totalPages <= 1) return [];
+    
+    // Always include first page
+    range.push(1);
+    
+    // Calculate the range of pages to show
+    for (let i = Math.max(2, currentPage - delta); i <= Math.min(totalPages - 1, currentPage + delta); i++) {
+      range.push(i);
+    }
+    
+    // Always include last page if more than 1 page
+    if (totalPages > 1) {
+      range.push(totalPages);
+    }
+    
+    // Add dots where needed
+    let prev = 0;
+    for (const i of range) {
+      if (prev && i - prev === 2) {
+        rangeWithDots.push(prev + 1);
+      } else if (i - prev > 2) {
+        rangeWithDots.push('...');
+      }
+      rangeWithDots.push(i);
+      prev = i;
+    }
+    
+    return rangeWithDots;
   };
 
   const renderSkeletons = () => {
-    return Array(8)
+    return Array(filters.perPage || 8)
       .fill(0)
       .map((_, index) => (
         <div
@@ -77,7 +167,7 @@ const Marketplace = () => {
             <div className="col-span-1">
               <FilterPanel
                 onFilterChange={handleFilterChange}
-                totalListings={listings.length}
+                totalListings={totalItems}
                 filteredCount={listings.length}
                 categories={metadata?.categories || []}
                 locations={metadata?.locations || []}
@@ -87,22 +177,42 @@ const Marketplace = () => {
             {/* Listings */}
             <div className="col-span-1 lg:col-span-3 flex flex-col gap-4">
               {/* View type and sorting */}
-              <div className="flex justify-between items-center">
+              <div className="flex flex-wrap justify-between items-center gap-4">
                 <div className="text-sm text-muted-foreground">
-                  {isLoading ? "Loading listings..." : `${listings.length} listings found`}
+                  {isLoading ? "Loading listings..." : `${totalItems} listings found, showing ${listings.length}`}
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm">View:</span>
-                  <Tabs value={viewType} onValueChange={(v) => setViewType(v as "grid" | "list")}>
-                    <TabsList>
-                      <TabsTrigger value="grid">
-                        <LayoutGrid className="h-4 w-4" />
-                      </TabsTrigger>
-                      <TabsTrigger value="list">
-                        <LayoutList className="h-4 w-4" />
-                      </TabsTrigger>
-                    </TabsList>
-                  </Tabs>
+                
+                <div className="flex flex-wrap items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm">Results per page:</span>
+                    <Select 
+                      value={String(filters.perPage || 20)} 
+                      onValueChange={handlePerPageChange}
+                    >
+                      <SelectTrigger className="w-[80px]">
+                        <SelectValue placeholder="20" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="10">10</SelectItem>
+                        <SelectItem value="20">20</SelectItem>
+                        <SelectItem value="50">50</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm">View:</span>
+                    <Tabs value={viewType} onValueChange={(v) => setViewType(v as "grid" | "list")}>
+                      <TabsList>
+                        <TabsTrigger value="grid">
+                          <LayoutGrid className="h-4 w-4" />
+                        </TabsTrigger>
+                        <TabsTrigger value="list">
+                          <LayoutList className="h-4 w-4" />
+                        </TabsTrigger>
+                      </TabsList>
+                    </Tabs>
+                  </div>
                 </div>
               </div>
               
@@ -128,31 +238,73 @@ const Marketplace = () => {
                 <div className="bg-muted/30 border border-border rounded-lg p-8 text-center">
                   <h3 className="text-lg font-medium mb-2">No listings found</h3>
                   <p className="text-muted-foreground mb-4">
-                    {Object.keys(filters).length > 0 
+                    {Object.keys(filters).some(key => key !== 'page' && key !== 'perPage' && filters[key as keyof FilterOptions])
                       ? "Try adjusting your filters to see more results" 
                       : "There are currently no listings available"}
                   </p>
-                  {Object.keys(filters).length > 0 && (
+                  {Object.keys(filters).some(key => key !== 'page' && key !== 'perPage' && filters[key as keyof FilterOptions]) && (
                     <Button
                       variant="outline"
-                      onClick={() => handleFilterChange({})}
+                      onClick={() => handleFilterChange({ page: 1, perPage: filters.perPage })}
                     >
                       Clear all filters
                     </Button>
                   )}
                 </div>
               ) : (
-                <div className={viewType === "grid" 
-                  ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4" 
-                  : "flex flex-col gap-4"}>
-                  {listings.map((listing) => (
-                    <ListingCard
-                      key={listing.id}
-                      listing={listing}
-                      viewType={viewType}
-                    />
-                  ))}
-                </div>
+                <>
+                  <div className={viewType === "grid" 
+                    ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4" 
+                    : "flex flex-col gap-4"}>
+                    {listings.map((listing) => (
+                      <ListingCard
+                        key={listing.id}
+                        listing={listing}
+                        viewType={viewType}
+                      />
+                    ))}
+                  </div>
+                  
+                  {/* Pagination controls */}
+                  {pagination.totalPages > 1 && (
+                    <div className="flex items-center justify-center mt-8">
+                      <div className="flex items-center space-x-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handlePageChange(pagination.currentPage - 1)}
+                          disabled={pagination.currentPage === 1}
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                        </Button>
+                        
+                        {getPageNumbers().map((pageNum, idx) => (
+                          pageNum === '...' ? (
+                            <span key={`ellipsis-${idx}`} className="px-2">...</span>
+                          ) : (
+                            <Button
+                              key={`page-${pageNum}`}
+                              variant={pagination.currentPage === pageNum ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => handlePageChange(pageNum as number)}
+                            >
+                              {pageNum}
+                            </Button>
+                          )
+                        ))}
+                        
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handlePageChange(pagination.currentPage + 1)}
+                          disabled={pagination.currentPage === pagination.totalPages}
+                        >
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </div>

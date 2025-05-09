@@ -5,6 +5,8 @@ export type BuyerType = 'corporate' | 'privateEquity' | 'familyOffice' | 'search
 
 export type ApprovalStatus = 'pending' | 'approved' | 'rejected';
 
+export type ListingStatus = 'active' | 'inactive';
+
 export interface User {
   id: string;
   email: string;
@@ -45,8 +47,6 @@ export interface User {
   readonly createdAt: string;
   readonly updatedAt: string;
 }
-
-export type ListingStatus = 'active' | 'inactive';
 
 export interface Listing {
   id: string;
@@ -95,4 +95,13 @@ export interface FilterOptions {
   ebitdaMax?: number;
   search?: string;
   status?: string;
+  page?: number;
+  perPage?: number;
+}
+
+export interface PaginationState {
+  currentPage: number;
+  totalPages: number;
+  totalItems: number;
+  perPage: number;
 }

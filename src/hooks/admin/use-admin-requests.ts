@@ -1,3 +1,4 @@
+
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { AdminConnectionRequest } from '@/types/admin';
@@ -42,7 +43,7 @@ export function useAdminRequests() {
             // Get listing details
             const { data: listingData, error: listingError } = await supabase
               .from('listings')
-              .select('id, title, category, location, revenue, ebitda')
+              .select('id, title, category, location, revenue, ebitda, status')
               .eq('id', request.listing_id)
               .maybeSingle();  // Use maybeSingle instead of single to prevent errors
             
@@ -51,10 +52,16 @@ export function useAdminRequests() {
             // Transform the user data using createUserObject to ensure it matches the User type
             const user = userError || !userData ? null : createUserObject(userData);
             
+            // Ensure listing status is properly typed
+            const listingWithStatus = listingData ? {
+              ...listingData,
+              status: listingData.status as ListingStatus
+            } : null;
+            
             return {
               ...request,
               user,
-              listing: listingError || !listingData ? null : listingData
+              listing: listingWithStatus
             } as AdminConnectionRequest;
           }));
 

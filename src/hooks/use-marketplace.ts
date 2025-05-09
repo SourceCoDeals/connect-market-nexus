@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
@@ -8,73 +9,147 @@ export function useMarketplace() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   
-  // Get all active listings with filter options
+  // Get active listings with filter options and pagination
   const useListings = (filters: FilterOptions = {}) => {
     const isAdmin = user?.is_admin === true;
+    const currentPage = filters.page || 1;
+    const perPage = filters.perPage || 20;
     
     return useQuery({
       queryKey: ["marketplace-listings", filters, isAdmin],
       queryFn: async () => {
-        let query = supabase
-          .from("listings")
-          .select("*")
-          .order("created_at", { ascending: false });
-        
-        // Apply status filter for non-admin users (only show active listings)
-        if (!isAdmin) {
-          query = query.eq("status", "active");
-        }
-        
-        // Apply additional filters if provided
-        if (filters.category) {
-          query = query.eq("category", filters.category);
-        }
-        
-        if (filters.location) {
-          query = query.eq("location", filters.location);
-        }
-        
-        if (filters.revenueMin) {
-          query = query.gte("revenue", filters.revenueMin);
-        }
-        
-        if (filters.revenueMax) {
-          query = query.lte("revenue", filters.revenueMax);
-        }
-        
-        if (filters.ebitdaMin) {
-          query = query.gte("ebitda", filters.ebitdaMin);
-        }
-        
-        if (filters.ebitdaMax) {
-          query = query.lte("ebitda", filters.ebitdaMax);
-        }
-        
-        if (filters.search) {
-          query = query.ilike("title", `%${filters.search}%`);
-        }
-        
-        if (filters.status) {
-          query = query.eq("status", filters.status);
-        }
-        
-        const { data, error } = await query;
-        
-        if (error) {
-          console.error("Error fetching listings:", error);
+        try {
+          // First, get the total count with the same filters but no pagination
+          let countQuery = supabase
+            .from("listings")
+            .select("id", { count: "exact" });
+          
+          // Apply status filter for non-admin users (only show active listings)
+          if (!isAdmin) {
+            countQuery = countQuery.eq("status", "active");
+          }
+          
+          // Apply additional filters for count query
+          if (filters.category) {
+            countQuery = countQuery.eq("category", filters.category);
+          }
+          
+          if (filters.location) {
+            countQuery = countQuery.eq("location", filters.location);
+          }
+          
+          if (filters.revenueMin) {
+            countQuery = countQuery.gte("revenue", filters.revenueMin);
+          }
+          
+          if (filters.revenueMax) {
+            countQuery = countQuery.lte("revenue", filters.revenueMax);
+          }
+          
+          if (filters.ebitdaMin) {
+            countQuery = countQuery.gte("ebitda", filters.ebitdaMin);
+          }
+          
+          if (filters.ebitdaMax) {
+            countQuery = countQuery.lte("ebitda", filters.ebitdaMax);
+          }
+          
+          if (filters.search) {
+            countQuery = countQuery.ilike("title", `%${filters.search}%`);
+          }
+          
+          if (filters.status) {
+            countQuery = countQuery.eq("status", filters.status);
+          }
+          
+          const { count, error: countError } = await countQuery;
+          
+          if (countError) {
+            console.error("Error fetching listings count:", countError);
+            throw countError;
+          }
+          
+          // Now get the paginated data with the same filters
+          let dataQuery = supabase
+            .from("listings")
+            .select("*")
+            .order("created_at", { ascending: false });
+          
+          // Apply status filter for non-admin users (only show active listings)
+          if (!isAdmin) {
+            dataQuery = dataQuery.eq("status", "active");
+          }
+          
+          // Apply filters
+          if (filters.category) {
+            dataQuery = dataQuery.eq("category", filters.category);
+          }
+          
+          if (filters.location) {
+            dataQuery = dataQuery.eq("location", filters.location);
+          }
+          
+          if (filters.revenueMin) {
+            dataQuery = dataQuery.gte("revenue", filters.revenueMin);
+          }
+          
+          if (filters.revenueMax) {
+            dataQuery = dataQuery.lte("revenue", filters.revenueMax);
+          }
+          
+          if (filters.ebitdaMin) {
+            dataQuery = dataQuery.gte("ebitda", filters.ebitdaMin);
+          }
+          
+          if (filters.ebitdaMax) {
+            dataQuery = dataQuery.lte("ebitda", filters.ebitdaMax);
+          }
+          
+          if (filters.search) {
+            dataQuery = dataQuery.ilike("title", `%${filters.search}%`);
+          }
+          
+          if (filters.status) {
+            dataQuery = dataQuery.eq("status", filters.status);
+          }
+          
+          // Apply pagination
+          const from = (currentPage - 1) * perPage;
+          const to = from + perPage - 1;
+          dataQuery = dataQuery.range(from, to);
+          
+          const { data, error } = await dataQuery;
+          
+          if (error) {
+            console.error("Error fetching listings:", error);
+            throw error;
+          }
+          
+          // Transform the data to match the Listing interface
+          const listingsWithComputed = data.map((item: any): Listing => ({
+            ...item,
+            status: item.status as ListingStatus, // Explicitly cast to ListingStatus
+            ownerNotes: item.owner_notes || '',
+            createdAt: item.created_at,
+            updatedAt: item.updated_at,
+            multiples: {
+              revenue: item.revenue > 0 ? (item.ebitda / item.revenue).toFixed(2) : '0',
+              value: '0'
+            },
+            revenueFormatted: new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(item.revenue),
+            ebitdaFormatted: new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(item.ebitda)
+          }));
+          
+          return {
+            listings: listingsWithComputed,
+            totalCount: count || 0,
+            currentPage,
+            perPage
+          };
+        } catch (error) {
+          console.error("Error in useListings:", error);
           throw error;
         }
-        
-        // Transform the data to match the Listing interface
-        const listingsWithComputed = data.map((item: any): Listing => ({
-          ...item,
-          status: item.status as ListingStatus, // Explicitly cast to ListingStatus
-          ownerNotes: item.owner_notes || '',
-          createdAt: item.created_at,
-          updatedAt: item.updated_at,
-        }));
-        
-        return listingsWithComputed;
       },
       enabled: !!user
     });
@@ -137,6 +212,12 @@ export function useMarketplace() {
           ownerNotes: data.owner_notes || '',
           createdAt: data.created_at,
           updatedAt: data.updated_at,
+          multiples: {
+            revenue: data.revenue > 0 ? (data.ebitda / data.revenue).toFixed(2) : '0',
+            value: '0'
+          },
+          revenueFormatted: new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(data.revenue),
+          ebitdaFormatted: new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(data.ebitda)
         };
         
         return listingWithComputed;
@@ -188,11 +269,11 @@ export function useMarketplace() {
   };
   
   // Check if user has requested connection to a listing
-  const useConnectionStatus = (listingId: string) => {
+  const useConnectionStatus = (listingId?: string) => {
     return useQuery({
       queryKey: ["connection-status", listingId],
       queryFn: async () => {
-        if (!user) return { exists: false, status: null };
+        if (!user || !listingId) return { exists: false, status: null };
         
         const { data, error } = await supabase
           .from("connection_requests")

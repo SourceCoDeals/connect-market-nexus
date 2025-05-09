@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { toast } from "@/hooks/use-toast";
 import { z } from "zod";
@@ -85,7 +86,7 @@ export function ListingForm({
       ebitda: listing?.ebitda || 0,
       description: listing?.description || "",
       owner_notes: listing?.owner_notes || "",
-      status: listing?.status as "active" | "inactive" || "active",
+      status: listing?.status || "active",
     },
   });
 
@@ -163,47 +164,136 @@ export function ListingForm({
   };
 
   return (
-    <Form {...form}>
-      <form
-        onSubmit={form.handleSubmit(handleSubmit)}
-        className="space-y-6"
-      >
-        <FormField
-          control={form.control}
-          name="title"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Business Title</FormLabel>
-              <FormControl>
-                <Input placeholder="E.g., Profitable SaaS Business" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div className="overflow-y-auto max-h-[70vh] pr-1">
+      <Form {...form}>
+        <form
+          onSubmit={form.handleSubmit(handleSubmit)}
+          className="space-y-6"
+        >
           <FormField
             control={form.control}
-            name="category"
+            name="title"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Category</FormLabel>
+                <FormLabel>Business Title</FormLabel>
+                <FormControl>
+                  <Input placeholder="E.g., Profitable SaaS Business" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <FormField
+              control={form.control}
+              name="category"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Category</FormLabel>
+                  <Select
+                    onValueChange={field.onChange}
+                    defaultValue={field.value}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a category" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {categories.map((category) => (
+                        <SelectItem key={category} value={category}>
+                          {category}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="location"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Location</FormLabel>
+                  <FormControl>
+                    <Input placeholder="E.g., New York, NY" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <FormField
+              control={form.control}
+              name="revenue"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Annual Revenue ($)</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="text"
+                      placeholder="0"
+                      {...field}
+                      onChange={(e) => {
+                        // Allow only numbers and commas
+                        const value = e.target.value.replace(/[^0-9,]/g, "");
+                        field.onChange(value);
+                      }}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="ebitda"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Annual EBITDA ($)</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="text"
+                      placeholder="0"
+                      {...field}
+                      onChange={(e) => {
+                        // Allow only numbers and commas
+                        const value = e.target.value.replace(/[^0-9,]/g, "");
+                        field.onChange(value);
+                      }}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+
+          <FormField
+            control={form.control}
+            name="status"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Status</FormLabel>
                 <Select
                   onValueChange={field.onChange}
                   defaultValue={field.value}
                 >
                   <FormControl>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select a category" />
+                      <SelectValue placeholder="Select status" />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {categories.map((category) => (
-                      <SelectItem key={category} value={category}>
-                        {category}
-                      </SelectItem>
-                    ))}
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="inactive">Inactive</SelectItem>
                   </SelectContent>
                 </Select>
                 <FormMessage />
@@ -213,36 +303,15 @@ export function ListingForm({
 
           <FormField
             control={form.control}
-            name="location"
+            name="description"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Location</FormLabel>
+                <FormLabel>Business Description</FormLabel>
                 <FormControl>
-                  <Input placeholder="E.g., New York, NY" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <FormField
-            control={form.control}
-            name="revenue"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Annual Revenue ($)</FormLabel>
-                <FormControl>
-                  <Input
-                    type="text"
-                    placeholder="0"
+                  <Textarea
+                    placeholder="Describe the business in detail..."
+                    className="min-h-[150px]"
                     {...field}
-                    onChange={(e) => {
-                      // Allow only numbers and commas
-                      const value = e.target.value.replace(/[^0-9,]/g, "");
-                      field.onChange(value);
-                    }}
                   />
                 </FormControl>
                 <FormMessage />
@@ -252,141 +321,75 @@ export function ListingForm({
 
           <FormField
             control={form.control}
-            name="ebitda"
+            name="owner_notes"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Annual EBITDA ($)</FormLabel>
+                <FormLabel>Additional Notes (Internal)</FormLabel>
                 <FormControl>
-                  <Input
-                    type="text"
-                    placeholder="0"
+                  <Textarea
+                    placeholder="Any additional notes visible only to admins..."
+                    className="min-h-[100px]"
                     {...field}
-                    onChange={(e) => {
-                      // Allow only numbers and commas
-                      const value = e.target.value.replace(/[^0-9,]/g, "");
-                      field.onChange(value);
-                    }}
                   />
                 </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
-        </div>
 
-        <FormField
-          control={form.control}
-          name="status"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Status</FormLabel>
-              <Select
-                onValueChange={field.onChange}
-                defaultValue={field.value}
-              >
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="inactive">Inactive</SelectItem>
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="description"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Business Description</FormLabel>
-              <FormControl>
-                <Textarea
-                  placeholder="Describe the business in detail..."
-                  className="min-h-[150px]"
-                  {...field}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="owner_notes"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Additional Notes (Internal)</FormLabel>
-              <FormControl>
-                <Textarea
-                  placeholder="Any additional notes visible only to admins..."
-                  className="min-h-[100px]"
-                  {...field}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <div className="space-y-4">
-          <FormLabel>Listing Image</FormLabel>
-          
-          {imagePreview ? (
-            <div className="rounded-md border overflow-hidden">
-              <div className="relative w-full max-w-md">
-                <img 
-                  src={imagePreview} 
-                  alt="Preview" 
-                  className="w-full h-auto object-cover rounded-md" 
-                />
-                <Button
-                  type="button"
-                  variant="destructive"
-                  size="sm"
-                  className="absolute top-2 right-2"
-                  onClick={handleRemoveImage}
-                >
-                  Remove
-                </Button>
+          <div className="space-y-4">
+            <FormLabel>Listing Image</FormLabel>
+            
+            {imagePreview ? (
+              <div className="rounded-md border overflow-hidden">
+                <div className="relative w-full max-w-md mx-auto">
+                  <img 
+                    src={imagePreview} 
+                    alt="Preview" 
+                    className="w-full h-auto object-cover rounded-md" 
+                  />
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="sm"
+                    className="absolute top-2 right-2"
+                    onClick={handleRemoveImage}
+                  >
+                    Remove
+                  </Button>
+                </div>
               </div>
-            </div>
-          ) : (
-            <div 
-              className="border-2 border-dashed border-muted-foreground/20 rounded-md p-8 text-center cursor-pointer hover:bg-muted/50 transition"
-              onClick={() => document.getElementById("listing-image")?.click()}
-            >
-              <ImageIcon className="h-10 w-10 text-muted-foreground mx-auto mb-4" />
-              <p className="text-sm text-muted-foreground mb-2">
-                Click to upload an image, or drag and drop
-              </p>
-              <p className="text-xs text-muted-foreground">PNG, JPG or WebP (max 5MB)</p>
-            </div>
-          )}
-          
-          <Input
-            id="listing-image"
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={handleImageChange}
-          />
-          
-        </div>
+            ) : (
+              <div 
+                className="border-2 border-dashed border-muted-foreground/20 rounded-md p-8 text-center cursor-pointer hover:bg-muted/50 transition"
+                onClick={() => document.getElementById("listing-image")?.click()}
+              >
+                <ImageIcon className="h-10 w-10 text-muted-foreground mx-auto mb-4" />
+                <p className="text-sm text-muted-foreground mb-2">
+                  Click to upload an image, or drag and drop
+                </p>
+                <p className="text-xs text-muted-foreground">PNG, JPG or WebP (max 5MB)</p>
+              </div>
+            )}
+            
+            <Input
+              id="listing-image"
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleImageChange}
+            />
+            
+          </div>
 
-        <div className="flex justify-end">
-          <Button type="submit" disabled={isLoading}>
-            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {listing ? "Update Listing" : "Create Listing"}
-          </Button>
-        </div>
-      </form>
-    </Form>
+          <div className="flex justify-end sticky bottom-0 pt-4 pb-2 bg-white z-10">
+            <Button type="submit" disabled={isLoading}>
+              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {listing ? "Update Listing" : "Create Listing"}
+            </Button>
+          </div>
+        </form>
+      </Form>
+    </div>
   );
 }

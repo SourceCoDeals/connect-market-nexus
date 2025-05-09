@@ -1,3 +1,4 @@
+
 import { useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
 import { format } from "date-fns";
@@ -241,7 +242,7 @@ const ListingDetail = () => {
               <div className="flex items-center gap-2">
                 <Calendar className="h-4 w-4 text-muted-foreground" />
                 <span className="text-sm font-medium">Listed On:</span>
-                <span className="text-sm">{formatDate(listing.created_at)}</span>
+                <span className="text-sm">{formatDate(listing.createdAt)}</span>
               </div>
               <div className="flex items-center gap-2">
                 <FileText className="h-4 w-4 text-muted-foreground" />
