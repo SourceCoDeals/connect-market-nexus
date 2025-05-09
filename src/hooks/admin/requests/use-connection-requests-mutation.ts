@@ -79,8 +79,9 @@ export function useConnectionRequestsMutation() {
         
         // Only set user if it exists and is not an error
         if (item.user && typeof item.user === 'object' && !('error' in item.user)) {
-          // Assign the entire user object directly without accessing any of its properties here
-          result.user = item.user;
+          // Use type assertion to assure TypeScript the user object is valid
+          const user = item.user as Record<string, any>;
+          result.user = user as any;
         }
         
         // Only set listing if it exists and is not an error
