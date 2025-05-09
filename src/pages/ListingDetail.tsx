@@ -1,4 +1,3 @@
-
 import { useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
 import { format } from "date-fns";
@@ -105,7 +104,8 @@ const ListingDetail = () => {
     );
   }
 
-  const isInactive = listing.status === "inactive";
+  // Extract isInactive safely with fallback to false if status is undefined
+  const isInactive = listing?.status === "inactive";
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

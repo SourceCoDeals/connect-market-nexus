@@ -46,6 +46,8 @@ export interface User {
   readonly updatedAt: string;
 }
 
+export type ListingStatus = 'active' | 'inactive';
+
 export interface Listing {
   id: string;
   title: string;
@@ -60,6 +62,7 @@ export interface Listing {
   created_at: string;
   updated_at: string;
   image_url?: string | null;
+  status: ListingStatus;
   
   // Computed properties (aliases for snake_case properties)
   readonly ownerNotes: string;
@@ -91,4 +94,5 @@ export interface FilterOptions {
   ebitdaMin?: number;
   ebitdaMax?: number;
   search?: string;
+  status?: string;
 }

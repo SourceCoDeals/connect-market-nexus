@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
@@ -65,7 +66,15 @@ export function useMarketplace() {
           throw error;
         }
         
-        return data as Listing[];
+        // Transform the data to match the Listing interface
+        const listingsWithComputed = data.map((item: any): Listing => ({
+          ...item,
+          ownerNotes: item.owner_notes || '',
+          createdAt: item.created_at,
+          updatedAt: item.updated_at,
+        }));
+        
+        return listingsWithComputed;
       },
       enabled: !!user
     });
@@ -119,7 +128,17 @@ export function useMarketplace() {
           throw error;
         }
         
-        return data as Listing | null;
+        if (!data) return null;
+        
+        // Transform to match the Listing interface
+        const listingWithComputed: Listing = {
+          ...data,
+          ownerNotes: data.owner_notes || '',
+          createdAt: data.created_at,
+          updatedAt: data.updated_at,
+        };
+        
+        return listingWithComputed;
       },
       enabled: !!listingId && !!user
     });

@@ -31,7 +31,7 @@ export interface AdminStats {
   approvedConnections: number;
 }
 
-// Adding the AdminListing type
+// Adding the AdminListing type with status field
 export interface AdminListing {
   id: string;
   title: string;
@@ -46,4 +46,5 @@ export interface AdminListing {
   files?: string[];
   created_at: string;
   updated_at: string;
+  status: "active" | "inactive";
 }
