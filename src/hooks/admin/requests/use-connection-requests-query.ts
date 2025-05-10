@@ -52,9 +52,13 @@ export function useConnectionRequestsQuery() {
             status: listingData.status as ListingStatus
           } : null;
           
+          // Ensure the request status is properly typed
+          const typedStatus = request.status as "pending" | "approved" | "rejected";
+          
           // Create the final object with type safety
           const result: AdminConnectionRequest = {
             ...request,
+            status: typedStatus, // Use the explicitly typed status
             user,
             listing: listingWithStatus
           };
