@@ -102,6 +102,7 @@ export function useConnectionRequestsMutation() {
           ebitdaFormatted: new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(listingData.ebitda)
         } : null;
         
+        // Create the final request object with proper type safety
         const fullRequestData: AdminConnectionRequest = {
           ...requestData,
           status: typedStatus,

@@ -52,11 +52,14 @@ export function useConnectionRequestsQuery() {
             status: listingData.status as ListingStatus
           } : null;
           
-          return {
+          // Create the final object with type safety
+          const result: AdminConnectionRequest = {
             ...request,
             user,
             listing: listingWithStatus
-          } as AdminConnectionRequest;
+          };
+
+          return result;
         }));
 
         return enhancedRequests;
