@@ -7,9 +7,10 @@ import { Search } from "lucide-react";
 import { AdminConnectionRequest } from "@/types/admin";
 import { ConnectionRequestsTable } from "@/components/admin/ConnectionRequestsTable";
 import { ConnectionRequestDialog } from "@/components/admin/ConnectionRequestDialog";
+import { toast } from "@/hooks/use-toast";
 
 const AdminRequests = () => {
-  const { useConnectionRequests, useConnectionRequestsMutation } = useAdmin();
+  const { useConnectionRequests, useConnectionRequestsMutation, sendConnectionApprovalEmail, sendConnectionRejectionEmail } = useAdmin();
   
   const { data: requests = [], isLoading, error } = useConnectionRequests();
   const { mutate: updateRequest, isPending: isUpdating } = useConnectionRequestsMutation();
@@ -50,11 +51,31 @@ const AdminRequests = () => {
           adminComment: comment,
         });
         
+        // Send email notification based on action type
+        if (actionType === "approve") {
+          await sendConnectionApprovalEmail(selectedRequest);
+          toast({
+            title: "Request approved",
+            description: "Notification email sent to user",
+          });
+        } else {
+          await sendConnectionRejectionEmail(selectedRequest);
+          toast({
+            title: "Request rejected",
+            description: "Notification email sent to user",
+          });
+        }
+        
         setIsDialogOpen(false);
         setSelectedRequest(null);
         setActionType(null);
       } catch (error) {
         console.error("Error updating request:", error);
+        toast({
+          variant: "destructive",
+          title: "Update failed",
+          description: "Could not update connection request status",
+        });
       }
     }
   };

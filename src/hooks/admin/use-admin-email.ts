@@ -1,6 +1,7 @@
 
 import { User } from "@/types";
 import { AdminConnectionRequest } from "@/types/admin";
+import { supabase } from "@/integrations/supabase/client";
 
 /**
  * Hook for sending email notifications from admin actions
@@ -33,9 +34,28 @@ export function useAdminEmail() {
       return;
     }
     
-    console.log(`Would send connection approval email to ${request.user.email} for listing ${request.listing.title}`);
-    // This is a stub. In the future, we'll implement actual email sending.
-    return Promise.resolve();
+    try {
+      const notificationPayload = {
+        type: 'approved',
+        userId: request.user.id,
+        userEmail: request.user.email,
+        firstName: request.user.first_name,
+        listingName: request.listing.title
+      };
+      
+      const { error } = await supabase.functions.invoke(
+        "send-connection-notification", 
+        { 
+          body: JSON.stringify(notificationPayload) 
+        }
+      );
+      
+      if (error) {
+        console.error("Error sending connection approval notification:", error);
+      }
+    } catch (error) {
+      console.error("Failed to send connection approval email:", error);
+    }
   };
   
   /**
@@ -47,9 +67,28 @@ export function useAdminEmail() {
       return;
     }
     
-    console.log(`Would send connection rejection email to ${request.user.email} for listing ${request.listing.title}. Reason: ${request.admin_comment || 'No reason provided'}`);
-    // This is a stub. In the future, we'll implement actual email sending.
-    return Promise.resolve();
+    try {
+      const notificationPayload = {
+        type: 'rejected',
+        userId: request.user.id,
+        userEmail: request.user.email,
+        firstName: request.user.first_name,
+        listingName: request.listing.title
+      };
+      
+      const { error } = await supabase.functions.invoke(
+        "send-connection-notification", 
+        { 
+          body: JSON.stringify(notificationPayload) 
+        }
+      );
+      
+      if (error) {
+        console.error("Error sending connection rejection notification:", error);
+      }
+    } catch (error) {
+      console.error("Failed to send connection rejection email:", error);
+    }
   };
   
   return {
