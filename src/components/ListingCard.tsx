@@ -1,4 +1,3 @@
-
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -7,8 +6,7 @@ import { useMarketplace } from "@/hooks/use-marketplace";
 import { Bookmark, Building2, MapPin, ArrowRight } from "lucide-react";
 import { Listing } from "@/types";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
-
-const DEFAULT_IMAGE = "https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?auto=format&fit=crop&w=800&q=80";
+import { DEFAULT_IMAGE } from "@/lib/storage-utils";
 
 interface ListingCardProps {
   listing: Listing;

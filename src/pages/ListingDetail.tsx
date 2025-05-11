@@ -1,4 +1,3 @@
-
 import { useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
 import { format } from "date-fns";
@@ -20,8 +19,7 @@ import {
   CheckCircle,
   XCircle
 } from "lucide-react";
-
-const DEFAULT_IMAGE = "https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?auto=format&fit=crop&w=800&q=80";
+import { DEFAULT_IMAGE } from "@/lib/storage-utils";
 
 const ListingDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -111,7 +109,7 @@ const ListingDetail = () => {
   const isInactive = listing?.status === "inactive";
   
   // Use listing's image_url or fallback to default image
-  const imageUrl = listing.image_url || DEFAULT_IMAGE;
+  const imageUrl = listing?.image_url || DEFAULT_IMAGE;
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -130,7 +128,7 @@ const ListingDetail = () => {
         <div className="rounded-lg overflow-hidden border border-border">
           <img
             src={imageUrl}
-            alt={listing.title}
+            alt={listing?.title}
             className="w-full h-auto object-cover max-h-[400px]"
             onError={(e) => {
               const target = e.target as HTMLImageElement;
