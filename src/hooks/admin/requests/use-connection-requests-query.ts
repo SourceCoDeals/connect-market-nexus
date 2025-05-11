@@ -52,13 +52,13 @@ export function useConnectionRequestsQuery() {
             status: listingData.status as ListingStatus
           } : null;
           
-          // Ensure the request status is properly typed
-          const typedStatus = request.status as "pending" | "approved" | "rejected";
+          // Explicitly cast the request status to the expected union type
+          const status = request.status as "pending" | "approved" | "rejected";
           
-          // Create the final object with type safety
+          // Create the final object with explicit type safety
           const result: AdminConnectionRequest = {
             ...request,
-            status: typedStatus, // Use the explicitly typed status
+            status, // Use the explicitly typed status
             user,
             listing: listingWithStatus
           };
@@ -66,6 +66,7 @@ export function useConnectionRequestsQuery() {
           return result;
         }));
 
+        console.log("Sample connection request data:", enhancedRequests[0]);
         return enhancedRequests;
       } catch (error: any) {
         console.error("Error fetching connection requests:", error);
