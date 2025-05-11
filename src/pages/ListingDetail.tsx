@@ -67,7 +67,7 @@ const ListingDetail = () => {
 
   if (isLoading) {
     return (
-      <div className="container mx-auto py-4">
+      <div className="container mx-auto">
         <div className="animate-pulse">
           <div className="mb-4">
             <div className="h-8 bg-muted rounded-md w-64 mb-2"></div>
@@ -93,7 +93,7 @@ const ListingDetail = () => {
 
   if (error || !listing) {
     return (
-      <div className="container mx-auto py-4">
+      <div className="container mx-auto">
         <div className="text-center py-8">
           <h2 className="text-2xl font-bold text-gray-900">Listing not found</h2>
           <p className="mt-2 text-gray-600">
@@ -114,7 +114,7 @@ const ListingDetail = () => {
   const imageUrl = listing.image_url || DEFAULT_IMAGE;
 
   return (
-    <div className="container mx-auto py-4">
+    <div className="container mx-auto">
       <div className="mb-4">
         <Link
           to="/marketplace"

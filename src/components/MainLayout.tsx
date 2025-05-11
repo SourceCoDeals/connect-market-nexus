@@ -2,12 +2,16 @@
 import { Outlet } from "react-router-dom";
 import Navbar from "./Navbar";
 
-const MainLayout = () => {
+interface MainLayoutProps {
+  children?: React.ReactNode;
+}
+
+const MainLayout = ({ children }: MainLayoutProps) => {
   return (
     <div className="flex min-h-screen flex-col">
       <Navbar />
       <main className="flex-1">
-        <Outlet />
+        {children || <Outlet />}
       </main>
     </div>
   );

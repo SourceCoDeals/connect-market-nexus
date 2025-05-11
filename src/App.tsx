@@ -84,8 +84,9 @@ function App() {
           path="/listing/:id" 
           element={
             <ProtectedRoute requireApproved={true}>
-              <MainLayout />
-              <ListingDetail />
+              <MainLayout>
+                <ListingDetail />
+              </MainLayout>
             </ProtectedRoute>
           }
         />
