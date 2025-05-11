@@ -31,7 +31,7 @@ export function useAdminEmail() {
   const sendConnectionApprovalEmail = async (request: AdminConnectionRequest) => {
     if (!request.user || !request.listing) {
       console.error("Cannot send connection approval email: missing user or listing data");
-      return;
+      return false;
     }
     
     try {
@@ -43,7 +43,7 @@ export function useAdminEmail() {
         listingName: request.listing.title
       };
       
-      const { error } = await supabase.functions.invoke(
+      const { data, error } = await supabase.functions.invoke(
         "send-connection-notification", 
         { 
           body: JSON.stringify(notificationPayload) 
@@ -52,9 +52,18 @@ export function useAdminEmail() {
       
       if (error) {
         console.error("Error sending connection approval notification:", error);
+        return false;
       }
+      
+      if (data && !data.success) {
+        console.error("Failed to send connection approval email:", data.message);
+        return false;
+      }
+      
+      return true;
     } catch (error) {
       console.error("Failed to send connection approval email:", error);
+      return false;
     }
   };
   
@@ -64,7 +73,7 @@ export function useAdminEmail() {
   const sendConnectionRejectionEmail = async (request: AdminConnectionRequest) => {
     if (!request.user || !request.listing) {
       console.error("Cannot send connection rejection email: missing user or listing data");
-      return;
+      return false;
     }
     
     try {
@@ -76,7 +85,7 @@ export function useAdminEmail() {
         listingName: request.listing.title
       };
       
-      const { error } = await supabase.functions.invoke(
+      const { data, error } = await supabase.functions.invoke(
         "send-connection-notification", 
         { 
           body: JSON.stringify(notificationPayload) 
@@ -85,9 +94,18 @@ export function useAdminEmail() {
       
       if (error) {
         console.error("Error sending connection rejection notification:", error);
+        return false;
       }
+      
+      if (data && !data.success) {
+        console.error("Failed to send connection rejection email:", data.message);
+        return false;
+      }
+      
+      return true;
     } catch (error) {
       console.error("Failed to send connection rejection email:", error);
+      return false;
     }
   };
   
@@ -97,7 +115,7 @@ export function useAdminEmail() {
   const sendAdminConnectionRequestEmail = async (request: AdminConnectionRequest) => {
     if (!request.user || !request.listing) {
       console.error("Cannot send admin notification: missing user or listing data");
-      return;
+      return false;
     }
     
     try {
@@ -130,7 +148,7 @@ export function useAdminEmail() {
         timestamp: timestamp,
       };
       
-      const { error } = await supabase.functions.invoke(
+      const { data, error } = await supabase.functions.invoke(
         "send-connection-notification", 
         { 
           body: JSON.stringify(notificationPayload) 
@@ -139,9 +157,18 @@ export function useAdminEmail() {
       
       if (error) {
         console.error("Error sending admin notification:", error);
+        return false;
       }
+      
+      if (data && !data.success) {
+        console.error("Failed to send admin notification:", data.message);
+        return false;
+      }
+      
+      return true;
     } catch (error) {
       console.error("Failed to send admin notification:", error);
+      return false;
     }
   };
   
