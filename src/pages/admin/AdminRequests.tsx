@@ -9,10 +9,10 @@ import { ConnectionRequestsTable } from "@/components/admin/ConnectionRequestsTa
 import { ConnectionRequestDialog } from "@/components/admin/ConnectionRequestDialog";
 
 const AdminRequests = () => {
-  const { useConnectionRequests, useUpdateConnectionRequest } = useAdmin();
+  const { useConnectionRequests, useConnectionRequestsMutation } = useAdmin();
   
   const { data: requests = [], isLoading, error } = useConnectionRequests();
-  const { mutate: updateRequest, isPending: isUpdating } = useUpdateConnectionRequest();
+  const { mutate: updateRequest, isPending: isUpdating } = useConnectionRequestsMutation();
   
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedRequest, setSelectedRequest] = useState<AdminConnectionRequest | null>(null);

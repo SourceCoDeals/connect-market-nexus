@@ -1,6 +1,6 @@
 
 import { useConnectionRequestsQuery } from './requests/use-connection-requests-query';
-import { useConnectionRequestsMutation } from './requests/use-connection-requests-mutation';
+import { useConnectionRequestsMutation as useRequestsMutation } from './requests/use-connection-requests-mutation';
 
 /**
  * Hook for managing connection requests in admin dashboard
@@ -10,7 +10,7 @@ export function useAdminRequests() {
   
   // Create the connection request mutation hook
   const useConnectionRequestsMutation = () => {
-    const mutation = useConnectionRequestsMutation();
+    const mutation = useRequestsMutation();
     
     const approveRequest = (requestId: string, comment?: string) => {
       return mutation.mutate({
