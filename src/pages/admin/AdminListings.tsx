@@ -5,7 +5,6 @@ import { AdminListing } from "@/types/admin";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Plus, Edit, Trash, Eye, EyeOff } from "lucide-react";
 import {
   DropdownMenu,
@@ -55,7 +54,8 @@ const AdminListings = () => {
   );
   const [filterStatus, setFilterStatus] = useState<"all" | "active" | "inactive">("all");
 
-  const { data: listings = [], isLoading } = useListings();
+  // Use the status filter parameter in the query
+  const { data: allListings = [], isLoading } = useListings(filterStatus);
   const { mutate: createListing, isPending: isCreating } = useCreateListing();
   const { mutate: updateListing, isPending: isUpdating } = useUpdateListing();
   const { mutate: deleteListing, isPending: isDeleting } = useDeleteListing();
@@ -63,10 +63,36 @@ const AdminListings = () => {
 
   // Ensure storage bucket exists when component mounts
   useEffect(() => {
-    ensureListingsBucketExists().catch(error => 
-      console.error("Failed to ensure listings bucket exists:", error)
-    );
+    console.log("Ensuring listings storage bucket exists...");
+    ensureListingsBucketExists()
+      .then(success => {
+        if (success) {
+          console.log("Listings bucket is ready and configured correctly");
+        } else {
+          console.error("Failed to ensure listings bucket exists");
+        }
+      })
+      .catch(error => 
+        console.error("Error checking listings bucket:", error)
+      );
   }, []);
+
+  // Filter listings by search query
+  const filteredListings = allListings.filter((listing) => {
+    const matchesSearch =
+      searchQuery === "" ||
+      listing.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      listing.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      listing.location.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    return matchesSearch;
+  });
+
+  // Debug output
+  useEffect(() => {
+    console.log(`Current filter status: ${filterStatus}`);
+    console.log(`Found ${allListings.length} listings matching filter`);
+  }, [filterStatus, allListings]);
 
   const handleCreateSubmit = async (
     values: any,
@@ -117,6 +143,7 @@ const AdminListings = () => {
   const handleToggleStatus = async (listing: AdminListing) => {
     const newStatus = listing.status === "active" ? "inactive" : "active";
     try {
+      console.log(`Toggling listing ${listing.id} status to ${newStatus}`);
       await toggleStatus({ id: listing.id, status: newStatus });
     } catch (error) {
       console.error("Error toggling listing status:", error);

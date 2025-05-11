@@ -20,6 +20,8 @@ export function useCreateListing() {
       image?: File | null;
     }) => {
       try {
+        console.log("Creating new listing with image:", image ? "yes" : "no");
+        
         // Step 1: Create the listing
         const { data, error } = await supabase
           .from('listings')
@@ -38,16 +40,22 @@ export function useCreateListing() {
           .select()
           .single();
         
-        if (error) throw error;
+        if (error) {
+          console.error("Error inserting listing:", error);
+          throw error;
+        }
         if (!data) throw new Error('No data returned from insert');
+        
+        console.log("Listing created successfully, id:", data.id);
         
         // Step 2: Upload image if provided
         let updatedListing = data;
         
         if (image) {
           try {
-            console.log('Uploading image for listing:', data.id);
+            console.log('Uploading image for listing:', data.id, image.name, image.type, image.size);
             const publicUrl = await uploadListingImage(image, data.id);
+            console.log("Image uploaded successfully, URL:", publicUrl);
             
             // Update listing with image URL
             const { data: updatedData, error: updateError } = await supabase
@@ -57,7 +65,11 @@ export function useCreateListing() {
               .select()
               .single();
             
-            if (updateError) throw updateError;
+            if (updateError) {
+              console.error("Error updating listing with image URL:", updateError);
+              throw updateError;
+            }
+            console.log("Listing updated with image URL");
             updatedListing = updatedData;
           } catch (imageError: any) {
             console.error('Error handling image:', imageError);

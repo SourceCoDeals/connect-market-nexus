@@ -22,6 +22,8 @@ export function useUpdateListing() {
       image?: File | null;
     }) => {
       try {
+        console.log(`Updating listing ${id} with image:`, image ? "yes" : "no");
+        
         // Step 1: Update the listing details
         const { data, error } = await supabase
           .from('listings')
@@ -33,16 +35,22 @@ export function useUpdateListing() {
           .select()
           .single();
         
-        if (error) throw error;
+        if (error) {
+          console.error("Error updating listing:", error);
+          throw error;
+        }
         if (!data) throw new Error('No data returned from update');
+        
+        console.log("Listing updated successfully");
         
         // Step 2: Upload new image if provided
         let updatedListing = data;
         
         if (image) {
           try {
-            console.log('Uploading new image for listing:', id);
+            console.log('Uploading new image for listing:', id, image.name, image.type, image.size);
             const publicUrl = await uploadListingImage(image, id);
+            console.log("Image uploaded successfully, URL:", publicUrl);
             
             // Update listing with new image URL
             const { data: updatedData, error: updateError } = await supabase
@@ -52,7 +60,11 @@ export function useUpdateListing() {
               .select()
               .single();
             
-            if (updateError) throw updateError;
+            if (updateError) {
+              console.error("Error updating listing with image URL:", updateError);
+              throw updateError;
+            }
+            console.log("Listing updated with new image URL");
             updatedListing = updatedData;
           } catch (imageError: any) {
             console.error('Error handling image update:', imageError);

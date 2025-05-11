@@ -1,3 +1,4 @@
+
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -48,6 +49,9 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
   
   // Get proper image URL or use placeholder
   const imageUrl = listing.image_url || DEFAULT_IMAGE;
+  
+  // For debugging
+  console.log(`Listing ${listing.id} image URL:`, listing.image_url);
 
   return (
     <Link to={`/listing/${listing.id}`} className="group">
@@ -70,6 +74,7 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
                   className="object-cover w-full h-full" 
                   onError={(e) => {
                     // Fallback if image fails to load
+                    console.error(`Failed to load image for listing ${listing.id}:`, imageUrl);
                     const target = e.target as HTMLImageElement;
                     target.onerror = null;
                     target.src = DEFAULT_IMAGE;
@@ -91,6 +96,7 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
                   className="object-cover w-full h-full" 
                   onError={(e) => {
                     // Fallback if image fails to load
+                    console.error(`Failed to load image for listing ${listing.id}:`, imageUrl);
                     const target = e.target as HTMLImageElement;
                     target.onerror = null;
                     target.src = DEFAULT_IMAGE;
