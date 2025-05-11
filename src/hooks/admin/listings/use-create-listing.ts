@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { AdminListing } from '@/types/admin';
 import { toast } from '@/hooks/use-toast';
-import { uploadListingImage, ensureListingsBucketExists } from '@/lib/storage-utils';
+import { uploadListingImage } from '@/lib/storage-utils';
 
 /**
  * Hook for creating a new listing
@@ -21,18 +21,6 @@ export function useCreateListing() {
     }) => {
       try {
         console.log("Creating new listing with image:", image ? "yes" : "no");
-        
-        // Ensure bucket exists before attempting upload
-        if (image) {
-          const bucketExists = await ensureListingsBucketExists();
-          if (!bucketExists) {
-            console.warn("Storage bucket setup failed, proceeding without image");
-            toast({
-              title: 'Storage not ready',
-              description: 'The listing will be created without an image. You can add an image later.',
-            });
-          }
-        }
         
         // Step 1: Create the listing
         const { data, error } = await supabase

@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 
@@ -12,7 +11,13 @@ export const DEFAULT_IMAGE = "https://images.unsplash.com/photo-1486312338219-ce
 export const ensureListingsBucketExists = async (): Promise<boolean> => {
   try {
     // Check if bucket exists
-    const { data: buckets } = await supabase.storage.listBuckets();
+    const { data: buckets, error: listError } = await supabase.storage.listBuckets();
+    
+    if (listError) {
+      console.error('Error listing buckets:', listError);
+      return false;
+    }
+    
     const bucketExists = buckets?.some(bucket => bucket.name === LISTINGS_BUCKET);
     
     console.log(`Checking if ${LISTINGS_BUCKET} bucket exists:`, bucketExists ? "Yes" : "No");
@@ -30,11 +35,6 @@ export const ensureListingsBucketExists = async (): Promise<boolean> => {
         
         if (createError) {
           console.error('Error creating bucket:', createError);
-          toast({
-            variant: 'destructive',
-            title: 'Storage bucket creation failed',
-            description: `Error: ${createError.message}. This may be due to permissions.`,
-          });
           return false;
         }
         
@@ -46,10 +46,9 @@ export const ensureListingsBucketExists = async (): Promise<boolean> => {
       }
     }
     
-    // Whether we created it or it already existed, ensure we have public access for reading
+    // Check if we can get public URLs
     try {
-      // Updated line: getPublicUrl doesn't return an error property anymore
-      const { data } = await supabase.storage
+      const { data } = supabase.storage
         .from(LISTINGS_BUCKET)
         .getPublicUrl('test-permissions.txt');
       
@@ -58,19 +57,13 @@ export const ensureListingsBucketExists = async (): Promise<boolean> => {
         return false;
       }
       
-      console.log(`${LISTINGS_BUCKET} bucket confirmed with public access`);
+      return true;
     } catch (err) {
       console.error('Exception checking public access:', err);
+      return false;
     }
-    
-    return true;
   } catch (error: any) {
     console.error('Error in ensureListingsBucketExists:', error);
-    toast({
-      variant: 'destructive',
-      title: 'Storage configuration error',
-      description: error.message || 'An unexpected error occurred',
-    });
     return false;
   }
 };

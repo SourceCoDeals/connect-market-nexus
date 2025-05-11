@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useAdminListings } from "@/hooks/admin/use-admin-listings";
 import { AdminListing } from "@/types/admin";
@@ -29,6 +28,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ensureListingsBucketExists } from "@/lib/storage-utils";
 import { toast } from "@/hooks/use-toast";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AlertCircle } from "lucide-react";
+import { useStorageStatus } from "@/hooks/use-storage-status";
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat("en-US", {
@@ -55,7 +57,9 @@ const AdminListings = () => {
     null
   );
   const [filterStatus, setFilterStatus] = useState<"all" | "active" | "inactive">("all");
-  const [storageReady, setStorageReady] = useState(false);
+  
+  // Use the storage status hook instead of manually checking
+  const { isStorageReady, isChecking, errorMessage } = useStorageStatus();
 
   // Use the status filter parameter in the query
   const { data: allListings = [], isLoading } = useListings(filterStatus);
@@ -63,34 +67,6 @@ const AdminListings = () => {
   const { mutate: updateListing, isPending: isUpdating } = useUpdateListing();
   const { mutate: deleteListing, isPending: isDeleting } = useDeleteListing();
   const { mutate: toggleStatus, isPending: isTogglingStatus } = useToggleListingStatus();
-
-  // Ensure storage bucket exists when component mounts
-  useEffect(() => {
-    console.log("Ensuring listings storage bucket exists...");
-    ensureListingsBucketExists()
-      .then(success => {
-        setStorageReady(success);
-        if (success) {
-          console.log("Listings bucket is ready and configured correctly");
-        } else {
-          console.error("Failed to ensure listings bucket exists");
-          toast({
-            variant: 'destructive',
-            title: 'Storage Setup Issues',
-            description: 'Image uploads may not work correctly. Contact an administrator.',
-          });
-        }
-      })
-      .catch(error => {
-        console.error("Error checking listings bucket:", error);
-        setStorageReady(false);
-        toast({
-          variant: 'destructive',
-          title: 'Storage Setup Error',
-          description: 'Image uploads may not work due to storage configuration issues.',
-        });
-      });
-  }, []);
 
   // Filter listings by search query and status
   const filteredListings = allListings.filter((listing) => {
@@ -113,11 +89,11 @@ const AdminListings = () => {
     image: File | null | undefined
   ) => {
     try {
-      if (!storageReady && image) {
+      if (!isStorageReady && image) {
         toast({
-          variant: 'destructive',
-          title: 'Storage Not Ready',
-          description: 'The listing will be created but image upload may fail.',
+          variant: 'warning',
+          title: 'Storage Warning',
+          description: 'Image upload may not work, but listing will be created.',
         });
       }
       
@@ -138,11 +114,11 @@ const AdminListings = () => {
     if (!selectedListing) return;
 
     try {
-      if (!storageReady && image) {
+      if (!isStorageReady && image) {
         toast({
-          variant: 'destructive',
-          title: 'Storage Not Ready',
-          description: 'The listing will be updated but image upload may fail.',
+          variant: 'warning',
+          title: 'Storage Warning',
+          description: 'Image upload may not work, but listing will be updated.',
         });
       }
       
@@ -190,6 +166,17 @@ const AdminListings = () => {
             Add New Listing
           </Button>
         </div>
+
+        {/* Only show storage alert if there's an actual issue and we're done checking */}
+        {!isChecking && !isStorageReady && (
+          <Alert variant="destructive" className="mb-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Storage Setup Issues</AlertTitle>
+            <AlertDescription>
+              {errorMessage || "Image uploads may not work correctly. Contact an administrator."}
+            </AlertDescription>
+          </Alert>
+        )}
 
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
           <div className="w-full sm:w-auto">
