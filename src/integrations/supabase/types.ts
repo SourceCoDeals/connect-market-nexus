@@ -13,6 +13,7 @@ export type Database = {
         Row: {
           admin_comment: string | null
           created_at: string
+          decision_at: string | null
           id: string
           listing_id: string
           status: string
@@ -22,6 +23,7 @@ export type Database = {
         Insert: {
           admin_comment?: string | null
           created_at?: string
+          decision_at?: string | null
           id?: string
           listing_id: string
           status?: string
@@ -31,6 +33,7 @@ export type Database = {
         Update: {
           admin_comment?: string | null
           created_at?: string
+          decision_at?: string | null
           id?: string
           listing_id?: string
           status?: string
