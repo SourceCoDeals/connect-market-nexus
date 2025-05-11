@@ -80,7 +80,7 @@ export function useUpdateListing() {
             if (updateError) {
               console.error("Error updating listing with image URL:", updateError);
               toast({
-                variant: 'warning',
+                variant: 'destructive',
                 title: 'Image Update Partial Failure',
                 description: 'Listing updated but image URL update failed. The image may not display correctly.',
               });

@@ -48,12 +48,13 @@ export const ensureListingsBucketExists = async (): Promise<boolean> => {
     
     // Whether we created it or it already existed, ensure we have public access for reading
     try {
-      const { error: updateError } = await supabase.storage
+      // Updated line: getPublicUrl doesn't return an error property anymore
+      const { data } = await supabase.storage
         .from(LISTINGS_BUCKET)
         .getPublicUrl('test-permissions.txt');
       
-      if (updateError) {
-        console.error('Error confirming public access:', updateError);
+      if (!data) {
+        console.error('Error confirming public access: No data returned');
         return false;
       }
       

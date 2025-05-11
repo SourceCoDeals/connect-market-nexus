@@ -85,7 +85,7 @@ export function useCreateListing() {
               console.error("Error updating listing with image URL:", updateError);
               // Don't throw here, we already have the listing created
               toast({
-                variant: 'warning',
+                variant: 'destructive',
                 title: 'Image attachment partial failure',
                 description: 'Listing created but image URL update failed. The image may not display correctly.',
               });

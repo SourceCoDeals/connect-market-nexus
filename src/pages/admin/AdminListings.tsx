@@ -73,7 +73,7 @@ const AdminListings = () => {
         } else {
           console.error("Failed to ensure listings bucket exists");
           toast({
-            variant: 'warning',
+            variant: 'destructive',
             title: 'Storage Setup Issues',
             description: 'Image uploads may not work correctly. Contact an administrator.',
           });
@@ -83,7 +83,7 @@ const AdminListings = () => {
         console.error("Error checking listings bucket:", error);
         setStorageReady(false);
         toast({
-          variant: 'warning',
+          variant: 'destructive',
           title: 'Storage Setup Error',
           description: 'Image uploads may not work due to storage configuration issues.',
         });
@@ -125,7 +125,7 @@ const AdminListings = () => {
     try {
       if (!storageReady && image) {
         toast({
-          variant: 'warning',
+          variant: 'destructive',
           title: 'Storage Not Ready',
           description: 'The listing will be created but image upload may fail.',
         });
@@ -150,7 +150,7 @@ const AdminListings = () => {
     try {
       if (!storageReady && image) {
         toast({
-          variant: 'warning',
+          variant: 'destructive',
           title: 'Storage Not Ready',
           description: 'The listing will be updated but image upload may fail.',
         });
