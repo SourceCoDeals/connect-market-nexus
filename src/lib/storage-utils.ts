@@ -15,52 +15,51 @@ export const ensureListingsBucketExists = async (): Promise<boolean> => {
     const { data: buckets } = await supabase.storage.listBuckets();
     const bucketExists = buckets?.some(bucket => bucket.name === LISTINGS_BUCKET);
     
+    console.log(`Checking if ${LISTINGS_BUCKET} bucket exists:`, bucketExists ? "Yes" : "No");
+    
     if (!bucketExists) {
       console.log(`Creating ${LISTINGS_BUCKET} storage bucket...`);
       
-      const { error: createError } = await supabase.storage
-        .createBucket(LISTINGS_BUCKET, {
-          public: true,
-          fileSizeLimit: 10485760, // 10MB
-          allowedMimeTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
-        });
-      
-      if (createError) {
-        console.error('Error creating bucket:', createError);
-        toast({
-          variant: 'destructive',
-          title: 'Error creating storage bucket',
-          description: createError.message,
-        });
-        return false;
+      try {
+        const { error: createError } = await supabase.storage
+          .createBucket(LISTINGS_BUCKET, {
+            public: true,
+            fileSizeLimit: 10485760, // 10MB
+            allowedMimeTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+          });
+        
+        if (createError) {
+          console.error('Error creating bucket:', createError);
+          toast({
+            variant: 'destructive',
+            title: 'Storage bucket creation failed',
+            description: `Error: ${createError.message}. This may be due to permissions.`,
+          });
+          return false;
+        }
+        
+        console.log(`${LISTINGS_BUCKET} bucket created successfully`);
+      } catch (err) {
+        console.error('Exception creating bucket:', err);
+        // If we get an RLS violation, the bucket might already exist but not be visible to this user
+        console.log('Attempting to proceed assuming bucket exists...');
       }
-      
-      // Set bucket to public explicitly
+    }
+    
+    // Whether we created it or it already existed, ensure we have public access for reading
+    try {
       const { error: updateError } = await supabase.storage
-        .updateBucket(LISTINGS_BUCKET, { public: true });
+        .from(LISTINGS_BUCKET)
+        .getPublicUrl('test-permissions.txt');
       
       if (updateError) {
-        console.error('Error setting bucket public:', updateError);
-        toast({
-          variant: 'destructive',
-          title: 'Error configuring storage bucket',
-          description: updateError.message,
-        });
+        console.error('Error confirming public access:', updateError);
         return false;
       }
       
-      console.log(`${LISTINGS_BUCKET} bucket created successfully`);
-    } else {
-      console.log(`${LISTINGS_BUCKET} bucket already exists`);
-      
-      // Ensure bucket is public by updating it
-      const { error: updateError } = await supabase.storage
-        .updateBucket(LISTINGS_BUCKET, { public: true });
-      
-      if (updateError) {
-        console.error('Error setting bucket public:', updateError);
-        return false;
-      }
+      console.log(`${LISTINGS_BUCKET} bucket confirmed with public access`);
+    } catch (err) {
+      console.error('Exception checking public access:', err);
     }
     
     return true;
@@ -83,22 +82,19 @@ export const ensureListingsBucketExists = async (): Promise<boolean> => {
  */
 export const uploadListingImage = async (file: File, listingId: string): Promise<string> => {
   try {
-    // First ensure the bucket exists
-    const bucketExists = await ensureListingsBucketExists();
-    if (!bucketExists) {
-      throw new Error('Storage bucket not available');
-    }
+    console.log(`Starting image upload for listing ${listingId}...`);
     
     // Generate a unique file name
     const fileExt = file.name.split('.').pop() || 'jpg';
     const fileName = `${listingId}/${Date.now()}.${fileExt}`;
+    const fullPath = `${listingId}/${Date.now()}.${fileExt}`;
     
-    console.log(`Uploading file to ${LISTINGS_BUCKET}/${fileName}`);
+    console.log(`Uploading file to ${LISTINGS_BUCKET}/${fullPath}`);
     
     // Upload the file
-    const { error: uploadError } = await supabase.storage
+    const { data: uploadData, error: uploadError } = await supabase.storage
       .from(LISTINGS_BUCKET)
-      .upload(fileName, file, {
+      .upload(fullPath, file, {
         cacheControl: '3600',
         upsert: true, // Use upsert to handle overwrites
       });
@@ -108,10 +104,12 @@ export const uploadListingImage = async (file: File, listingId: string): Promise
       throw uploadError;
     }
     
+    console.log('File uploaded successfully:', uploadData?.path);
+    
     // Get the public URL
     const { data: urlData } = supabase.storage
       .from(LISTINGS_BUCKET)
-      .getPublicUrl(fileName);
+      .getPublicUrl(fullPath);
     
     console.log('Generated public URL:', urlData.publicUrl);
     

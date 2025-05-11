@@ -8,7 +8,7 @@ import { Bookmark, Building2, MapPin, ArrowRight, ImageIcon } from "lucide-react
 import { Listing } from "@/types";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { DEFAULT_IMAGE } from "@/lib/storage-utils";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 interface ListingCardProps {
   listing: Listing;
@@ -22,6 +22,21 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
   const { mutate: toggleSave, isPending: isSaving } = useSaveListingMutation();
   const { data: isSaved } = useSavedStatus(listing.id);
   const [imageError, setImageError] = useState(false);
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  
+  // Initialize image URL and validate it
+  useEffect(() => {
+    // Use the listing's image_url or fall back to default
+    const url = listing.image_url || DEFAULT_IMAGE;
+    setImageUrl(url);
+    
+    // Log image URL for debugging
+    console.log(`Listing ${listing.id} using image URL:`, url, 
+      listing.image_url ? '(from listing)' : '(default fallback)');
+    
+    // Reset error state when listing changes
+    setImageError(false);
+  }, [listing]);
 
   const handleRequestConnection = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -49,13 +64,14 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
   const connectionExists = connectionStatus?.exists || false;
   const connectionStatusValue = connectionStatus?.status || "";
   
-  // Get proper image URL or use placeholder
-  const imageUrl = listing.image_url || DEFAULT_IMAGE;
-  
-  // For debugging
-  if (listing.image_url) {
-    console.log(`Listing ${listing.id} has image URL:`, listing.image_url);
-  }
+  const handleImageError = () => {
+    console.error(`Failed to load image for listing ${listing.id}:`, imageUrl);
+    setImageError(true);
+    // Switch to default image when the original fails
+    if (imageUrl !== DEFAULT_IMAGE) {
+      setImageUrl(DEFAULT_IMAGE);
+    }
+  };
 
   return (
     <Link to={`/listing/${listing.id}`} className="group">
@@ -81,10 +97,7 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
                     src={imageUrl} 
                     alt={listing.title} 
                     className="object-cover w-full h-full" 
-                    onError={() => {
-                      console.error(`Failed to load image for listing ${listing.id}:`, imageUrl);
-                      setImageError(true);
-                    }}
+                    onError={handleImageError}
                   />
                 )}
               </AspectRatio>
@@ -106,10 +119,7 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
                     src={imageUrl} 
                     alt={listing.title} 
                     className="object-cover w-full h-full" 
-                    onError={() => {
-                      console.error(`Failed to load image for listing ${listing.id}:`, imageUrl);
-                      setImageError(true);
-                    }}
+                    onError={handleImageError}
                   />
                 )}
               </AspectRatio>

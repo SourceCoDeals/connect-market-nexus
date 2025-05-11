@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { AdminListing } from '@/types/admin';
 import { toast } from '@/hooks/use-toast';
-import { uploadListingImage } from '@/lib/storage-utils';
+import { uploadListingImage, ensureListingsBucketExists } from '@/lib/storage-utils';
 
 /**
  * Hook for updating an existing listing
@@ -23,6 +23,19 @@ export function useUpdateListing() {
     }) => {
       try {
         console.log(`Updating listing ${id} with image:`, image ? "yes" : "no");
+        
+        // Ensure bucket exists before attempting upload
+        if (image) {
+          const bucketExists = await ensureListingsBucketExists();
+          if (!bucketExists) {
+            console.warn("Storage bucket setup failed, proceeding without image");
+            toast({
+              title: 'Storage not ready',
+              description: 'The listing will be updated without changing the image.',
+            });
+            // Continue without image update
+          }
+        }
         
         // Step 1: Update the listing details
         const { data, error } = await supabase
@@ -55,17 +68,26 @@ export function useUpdateListing() {
             // Update listing with new image URL
             const { data: updatedData, error: updateError } = await supabase
               .from('listings')
-              .update({ image_url: publicUrl })
+              .update({ 
+                image_url: publicUrl,
+                // Add the image URL to files array as well
+                files: [publicUrl]
+              })
               .eq('id', id)
               .select()
               .single();
             
             if (updateError) {
               console.error("Error updating listing with image URL:", updateError);
-              throw updateError;
+              toast({
+                variant: 'warning',
+                title: 'Image Update Partial Failure',
+                description: 'Listing updated but image URL update failed. The image may not display correctly.',
+              });
+            } else {
+              console.log("Listing updated with new image URL");
+              updatedListing = updatedData;
             }
-            console.log("Listing updated with new image URL");
-            updatedListing = updatedData;
           } catch (imageError: any) {
             console.error('Error handling image update:', imageError);
             toast({

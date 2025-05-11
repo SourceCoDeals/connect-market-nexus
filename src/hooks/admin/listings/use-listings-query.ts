@@ -12,6 +12,8 @@ export function useListingsQuery(status?: 'active' | 'inactive' | 'all') {
     queryKey: ['admin-listings', status],
     queryFn: async () => {
       try {
+        console.log(`Fetching listings with status filter: ${status || 'all'}`);
+        
         let query = supabase
           .from('listings')
           .select('*');
@@ -23,14 +25,19 @@ export function useListingsQuery(status?: 'active' | 'inactive' | 'all') {
         
         const { data, error } = await query.order('created_at', { ascending: false });
 
-        if (error) throw error;
+        if (error) {
+          console.error('Supabase error fetching listings:', error);
+          throw error;
+        }
         
         console.log(`Retrieved ${data?.length} listings with status: ${status || 'all'}`);
+        
+        // Add detailed logging for image URLs
         data?.forEach(listing => {
           if (listing.image_url) {
-            console.log(`Listing ${listing.id} has image: ${listing.image_url}`);
+            console.log(`Listing ${listing.id} has image URL: ${listing.image_url}`);
           } else {
-            console.log(`Listing ${listing.id} has no image`);
+            console.log(`Listing ${listing.id} has no image URL`);
           }
         });
         

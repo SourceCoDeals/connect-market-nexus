@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useAdminListings } from "@/hooks/admin/use-admin-listings";
 import { AdminListing } from "@/types/admin";
@@ -27,6 +26,7 @@ import { ListingForm } from "@/components/admin/ListingForm";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ensureListingsBucketExists } from "@/lib/storage-utils";
+import { toast } from "@/hooks/use-toast";
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat("en-US", {
@@ -53,6 +53,7 @@ const AdminListings = () => {
     null
   );
   const [filterStatus, setFilterStatus] = useState<"all" | "active" | "inactive">("all");
+  const [storageReady, setStorageReady] = useState(false);
 
   // Use the status filter parameter in the query
   const { data: allListings = [], isLoading } = useListings(filterStatus);
@@ -66,15 +67,27 @@ const AdminListings = () => {
     console.log("Ensuring listings storage bucket exists...");
     ensureListingsBucketExists()
       .then(success => {
+        setStorageReady(success);
         if (success) {
           console.log("Listings bucket is ready and configured correctly");
         } else {
           console.error("Failed to ensure listings bucket exists");
+          toast({
+            variant: 'warning',
+            title: 'Storage Setup Issues',
+            description: 'Image uploads may not work correctly. Contact an administrator.',
+          });
         }
       })
-      .catch(error => 
-        console.error("Error checking listings bucket:", error)
-      );
+      .catch(error => {
+        console.error("Error checking listings bucket:", error);
+        setStorageReady(false);
+        toast({
+          variant: 'warning',
+          title: 'Storage Setup Error',
+          description: 'Image uploads may not work due to storage configuration issues.',
+        });
+      });
   }, []);
 
   // Filter listings by search query and status
@@ -97,13 +110,27 @@ const AdminListings = () => {
   useEffect(() => {
     console.log(`Current filter status: ${filterStatus}`);
     console.log(`Found ${allListings.length} listings matching filter`);
-  }, [filterStatus, allListings]);
+    console.log(`Storage bucket status: ${storageReady ? 'Ready' : 'Not ready'}`);
+    
+    // Log listings with images
+    const withImages = allListings.filter(l => !!l.image_url).length;
+    const withoutImages = allListings.filter(l => !l.image_url).length;
+    console.log(`Listings with images: ${withImages}, without images: ${withoutImages}`);
+  }, [filterStatus, allListings, storageReady]);
 
   const handleCreateSubmit = async (
     values: any,
     image: File | null | undefined
   ) => {
     try {
+      if (!storageReady && image) {
+        toast({
+          variant: 'warning',
+          title: 'Storage Not Ready',
+          description: 'The listing will be created but image upload may fail.',
+        });
+      }
+      
       await createListing({
         listing: values,
         image,
@@ -121,6 +148,14 @@ const AdminListings = () => {
     if (!selectedListing) return;
 
     try {
+      if (!storageReady && image) {
+        toast({
+          variant: 'warning',
+          title: 'Storage Not Ready',
+          description: 'The listing will be updated but image upload may fail.',
+        });
+      }
+      
       await updateListing({
         id: selectedListing.id,
         listing: values,

@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { AdminListing } from '@/types/admin';
 import { toast } from '@/hooks/use-toast';
-import { uploadListingImage } from '@/lib/storage-utils';
+import { uploadListingImage, ensureListingsBucketExists } from '@/lib/storage-utils';
 
 /**
  * Hook for creating a new listing
@@ -21,6 +21,18 @@ export function useCreateListing() {
     }) => {
       try {
         console.log("Creating new listing with image:", image ? "yes" : "no");
+        
+        // Ensure bucket exists before attempting upload
+        if (image) {
+          const bucketExists = await ensureListingsBucketExists();
+          if (!bucketExists) {
+            console.warn("Storage bucket setup failed, proceeding without image");
+            toast({
+              title: 'Storage not ready',
+              description: 'The listing will be created without an image. You can add an image later.',
+            });
+          }
+        }
         
         // Step 1: Create the listing
         const { data, error } = await supabase
@@ -60,17 +72,27 @@ export function useCreateListing() {
             // Update listing with image URL
             const { data: updatedData, error: updateError } = await supabase
               .from('listings')
-              .update({ image_url: publicUrl })
+              .update({ 
+                image_url: publicUrl,
+                // Add the image URL to files array as well if needed
+                files: [publicUrl]
+              })
               .eq('id', data.id)
               .select()
               .single();
             
             if (updateError) {
               console.error("Error updating listing with image URL:", updateError);
-              throw updateError;
+              // Don't throw here, we already have the listing created
+              toast({
+                variant: 'warning',
+                title: 'Image attachment partial failure',
+                description: 'Listing created but image URL update failed. The image may not display correctly.',
+              });
+            } else {
+              console.log("Listing updated with image URL");
+              updatedListing = updatedData;
             }
-            console.log("Listing updated with image URL");
-            updatedListing = updatedData;
           } catch (imageError: any) {
             console.error('Error handling image:', imageError);
             toast({
