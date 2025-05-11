@@ -73,7 +73,7 @@ export function useCreateListing() {
               console.error("Error updating listing with image URL:", updateError);
               // Don't throw here, we already have the listing created
               toast({
-                variant: 'destructive',
+                variant: 'destructive', // Changed from 'warning' to 'destructive'
                 title: 'Image attachment partial failure',
                 description: 'Listing created but image URL update failed. The image may not display correctly.',
               });
@@ -84,7 +84,7 @@ export function useCreateListing() {
           } catch (imageError: any) {
             console.error('Error handling image:', imageError);
             toast({
-              variant: 'destructive',
+              variant: 'destructive', // Changed from 'warning' to 'destructive'
               title: 'Image Upload Failed',
               description: imageError.message || 'Failed to upload image, but listing was created',
             });

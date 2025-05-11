@@ -91,7 +91,7 @@ const AdminListings = () => {
     try {
       if (!isStorageReady && image) {
         toast({
-          variant: 'warning',
+          variant: 'destructive', // Changed from 'warning' to 'destructive'
           title: 'Storage Warning',
           description: 'Image upload may not work, but listing will be created.',
         });
@@ -116,7 +116,7 @@ const AdminListings = () => {
     try {
       if (!isStorageReady && image) {
         toast({
-          variant: 'warning',
+          variant: 'destructive', // Changed from 'warning' to 'destructive'
           title: 'Storage Warning',
           description: 'Image upload may not work, but listing will be updated.',
         });
