@@ -77,7 +77,7 @@ const AdminListings = () => {
       );
   }, []);
 
-  // Filter listings by search query
+  // Filter listings by search query and status
   const filteredListings = allListings.filter((listing) => {
     const matchesSearch =
       searchQuery === "" ||
@@ -85,7 +85,12 @@ const AdminListings = () => {
       listing.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
       listing.location.toLowerCase().includes(searchQuery.toLowerCase());
     
-    return matchesSearch;
+    // Check status match only if not "all"
+    const matchesStatus = 
+      filterStatus === "all" || 
+      listing.status === filterStatus;
+    
+    return matchesSearch && matchesStatus;
   });
 
   // Debug output
@@ -149,21 +154,6 @@ const AdminListings = () => {
       console.error("Error toggling listing status:", error);
     }
   };
-
-  // Filter listings based on search query and status
-  const filteredListings = listings.filter((listing) => {
-    const matchesSearch =
-      searchQuery === "" ||
-      listing.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      listing.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      listing.location.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    const matchesStatus = 
-      filterStatus === "all" || 
-      listing.status === filterStatus;
-    
-    return matchesSearch && matchesStatus;
-  });
 
   return (
     <div className="container mx-auto py-8">
