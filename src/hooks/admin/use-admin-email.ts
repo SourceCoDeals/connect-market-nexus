@@ -91,10 +91,65 @@ export function useAdminEmail() {
     }
   };
   
+  /**
+   * Send an email notification to admins when a new connection request is submitted
+   */
+  const sendAdminConnectionRequestEmail = async (request: AdminConnectionRequest) => {
+    if (!request.user || !request.listing) {
+      console.error("Cannot send admin notification: missing user or listing data");
+      return;
+    }
+    
+    try {
+      // Format buyer name
+      const buyerName = `${request.user.first_name} ${request.user.last_name}`;
+      
+      // Format timestamp
+      const timestamp = new Date(request.created_at).toLocaleString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        timeZone: 'UTC',
+        hour12: false,
+      }) + ' UTC';
+      
+      const notificationPayload = {
+        type: 'new_request',
+        listing: {
+          title: request.listing.title || 'Unknown Listing',
+          category: request.listing.category || 'Uncategorized',
+          location: request.listing.location || 'Unknown Location',
+        },
+        buyer: {
+          name: buyerName,
+          email: request.user.email,
+          company: request.user.company,
+        },
+        timestamp: timestamp,
+      };
+      
+      const { error } = await supabase.functions.invoke(
+        "send-connection-notification", 
+        { 
+          body: JSON.stringify(notificationPayload) 
+        }
+      );
+      
+      if (error) {
+        console.error("Error sending admin notification:", error);
+      }
+    } catch (error) {
+      console.error("Failed to send admin notification:", error);
+    }
+  };
+  
   return {
     sendUserApprovalEmail,
     sendUserRejectionEmail,
     sendConnectionApprovalEmail,
-    sendConnectionRejectionEmail
+    sendConnectionRejectionEmail,
+    sendAdminConnectionRequestEmail
   };
 }
