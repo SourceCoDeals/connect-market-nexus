@@ -5,17 +5,23 @@ import { AdminListing } from '@/types/admin';
 import { toast } from '@/hooks/use-toast';
 
 /**
- * Hook for fetching admin listings
+ * Hook for fetching admin listings with status filtering
  */
-export function useListingsQuery() {
+export function useListingsQuery(status?: 'active' | 'inactive') {
   return useQuery({
-    queryKey: ['admin-listings'],
+    queryKey: ['admin-listings', status],
     queryFn: async () => {
       try {
-        const { data, error } = await supabase
+        let query = supabase
           .from('listings')
-          .select('*')
-          .order('created_at', { ascending: false });
+          .select('*');
+        
+        // Filter by status if provided
+        if (status) {
+          query = query.eq('status', status);
+        }
+        
+        const { data, error } = await query.order('created_at', { ascending: false });
 
         if (error) throw error;
         return data as AdminListing[];

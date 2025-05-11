@@ -37,9 +37,10 @@ export function useToggleListingStatus() {
       }
     },
     onSuccess: (data) => {
+      // Invalidate all listing-related queries to refresh data
       queryClient.invalidateQueries({ queryKey: ['admin-listings'] });
       queryClient.invalidateQueries({ queryKey: ['marketplace-listings'] });
-      queryClient.invalidateQueries({ queryKey: ['listing'] }); // Invalidate single listing queries too
+      queryClient.invalidateQueries({ queryKey: ['listing', data.id] });
       
       const statusText = data.status === 'active' ? 'activated' : 'deactivated';
       toast({

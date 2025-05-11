@@ -1,12 +1,3 @@
-
-// Import your marketplace hooks here
-// Example:
-// import { useListingsQuery } from './marketplace/useListingsQuery';
-// import { useRequestConnection } from './marketplace/useRequestConnection';
-
-// This is just a placeholder - you would implement the actual hooks
-// for the marketplace functionality
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';

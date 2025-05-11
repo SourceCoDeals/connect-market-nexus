@@ -1,3 +1,4 @@
+
 import { useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
 import { format } from "date-fns";
@@ -89,7 +90,7 @@ const ListingDetail = () => {
     );
   }
 
-  if (!listing) {
+  if (error || !listing) {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="text-center py-12">
@@ -106,10 +107,10 @@ const ListingDetail = () => {
   }
 
   // Extract isInactive safely with fallback to false if status is undefined
-  const isInactive = listing?.status === "inactive";
+  const isInactive = listing.status === "inactive";
   
   // Use listing's image_url or fallback to default image
-  const imageUrl = listing?.image_url || DEFAULT_IMAGE;
+  const imageUrl = listing.image_url || DEFAULT_IMAGE;
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -128,7 +129,7 @@ const ListingDetail = () => {
         <div className="rounded-lg overflow-hidden border border-border">
           <img
             src={imageUrl}
-            alt={listing?.title}
+            alt={listing.title}
             className="w-full h-auto object-cover max-h-[400px]"
             onError={(e) => {
               const target = e.target as HTMLImageElement;
@@ -198,7 +199,7 @@ const ListingDetail = () => {
         <div className="lg:col-span-2 space-y-8">
           <Card>
             <CardHeader>
-              <CardTitle>Business Details</CardTitle>
+              <CardTitle>Business Overview</CardTitle>
             </CardHeader>
             <CardContent className="prose max-w-none">
               <p>{listing.description}</p>
@@ -223,17 +224,39 @@ const ListingDetail = () => {
               <CardTitle>Financial Overview</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <DollarSign className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm font-medium">Annual Revenue:</span>
-                  <span className="text-sm">{formatCurrency(listing.revenue)}</span>
+              <div className="space-y-4">
+                <div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">Annual Revenue:</span>
+                    <span className="font-semibold">{formatCurrency(listing.revenue)}</span>
+                  </div>
+                  <div className="h-2 bg-muted rounded mt-1.5">
+                    <div className="h-full bg-primary rounded" style={{ width: '100%' }}></div>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <DollarSign className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm font-medium">Annual EBITDA:</span>
-                  <span className="text-sm">{formatCurrency(listing.ebitda)}</span>
+                
+                <div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">Annual EBITDA:</span>
+                    <span className="font-semibold">{formatCurrency(listing.ebitda)}</span>
+                  </div>
+                  <div className="h-2 bg-muted rounded mt-1.5">
+                    <div className="h-full bg-primary rounded" style={{ 
+                      width: `${Math.min((listing.ebitda / listing.revenue) * 100, 100)}%` 
+                    }}></div>
+                  </div>
                 </div>
+
+                {listing.revenue > 0 && (
+                  <div className="pt-2 border-t">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">EBITDA Margin:</span>
+                      <span className="font-semibold">
+                        {((listing.ebitda / listing.revenue) * 100).toFixed(1)}%
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -243,15 +266,19 @@ const ListingDetail = () => {
               <CardTitle>Listing Information</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <div className="flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-medium">Listed On:</span>
-                <span className="text-sm">{formatDate(listing.createdAt)}</span>
+              <div className="flex items-center justify-between">
+                <span className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm">Listed On:</span>
+                </span>
+                <span className="text-sm font-medium">{formatDate(listing.createdAt)}</span>
               </div>
-              <div className="flex items-center gap-2">
-                <FileText className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-medium">Listing ID:</span>
-                <span className="text-sm">{listing.id}</span>
+              <div className="flex items-center justify-between">
+                <span className="flex items-center gap-2">
+                  <FileText className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm">Listing ID:</span>
+                </span>
+                <span className="text-sm font-mono">{listing.id.substring(0, 8)}...</span>
               </div>
             </CardContent>
           </Card>
