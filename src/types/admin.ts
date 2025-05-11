@@ -41,6 +41,7 @@ export interface AdminConnectionRequest {
   admin_comment?: string;
   created_at: string;
   updated_at: string;
+  decision_at?: string; // Added decision timestamp field
   user: User | null;
   listing: Partial<AdminListing> | null;
 }

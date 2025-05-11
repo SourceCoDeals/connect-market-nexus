@@ -34,7 +34,8 @@ export function useConnectionRequestsMutation() {
           .update({ 
             status, 
             admin_comment: adminComment,
-            updated_at: new Date().toISOString()
+            updated_at: new Date().toISOString(),
+            decision_at: new Date().toISOString() // Add decision timestamp
           })
           .eq('id', requestId)
           .select();

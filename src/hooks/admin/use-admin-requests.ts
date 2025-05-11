@@ -7,10 +7,36 @@ import { useConnectionRequestsMutation } from './requests/use-connection-request
  */
 export function useAdminRequests() {
   const useConnectionRequests = useConnectionRequestsQuery;
-  const useUpdateConnectionRequest = useConnectionRequestsMutation;
+  
+  // Create the connection request mutation hook
+  const useConnectionRequestsMutation = () => {
+    const mutation = useConnectionRequestsMutation();
+    
+    const approveRequest = (requestId: string, comment?: string) => {
+      return mutation.mutate({
+        requestId,
+        status: 'approved',
+        adminComment: comment
+      });
+    };
+    
+    const rejectRequest = (requestId: string, comment?: string) => {
+      return mutation.mutate({
+        requestId,
+        status: 'rejected',
+        adminComment: comment
+      });
+    };
+    
+    return {
+      ...mutation,
+      approveRequest,
+      rejectRequest
+    };
+  };
 
   return {
     useConnectionRequests,
-    useUpdateConnectionRequest,
+    useConnectionRequestsMutation,
   };
 }
