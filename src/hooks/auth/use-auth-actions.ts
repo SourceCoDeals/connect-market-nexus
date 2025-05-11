@@ -201,6 +201,33 @@ export function useAuthActions(setUser: (user: User | null) => void, setIsLoadin
           console.error("Error updating profile defaults:", profileError);
           // Continue despite this error, as the database defaults should now be correct
         }
+        
+        // Send admin notification email (fail silently)
+        try {
+          console.log("Sending admin notification for new signup");
+          const notificationPayload = {
+            first_name: userData.first_name || '',
+            last_name: userData.last_name || '',
+            email: userData.email,
+            company: userData.company || ''
+          };
+          
+          // Call the admin-notification Edge Function
+          const { error: notificationError } = await supabase.functions.invoke(
+            "admin-notification", 
+            { 
+              body: JSON.stringify(notificationPayload) 
+            }
+          );
+          
+          if (notificationError) {
+            console.error("Error sending admin notification:", notificationError);
+            // Continue despite error - don't block signup process
+          }
+        } catch (notificationErr) {
+          // Log but don't throw to prevent blocking signup
+          console.error("Failed to send admin notification:", notificationErr);
+        }
       }
       
       // User created successfully
