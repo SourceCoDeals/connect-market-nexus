@@ -18,7 +18,8 @@ import {
   AlertTriangle,
   Send,
   CheckCircle,
-  XCircle
+  XCircle,
+  ImageIcon
 } from "lucide-react";
 import { DEFAULT_IMAGE } from "@/lib/storage-utils";
 
@@ -66,21 +67,21 @@ const ListingDetail = () => {
 
   if (isLoading) {
     return (
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto py-6">
         <div className="animate-pulse">
-          <div className="mb-6">
+          <div className="mb-4">
             <div className="h-8 bg-muted rounded-md w-64 mb-2"></div>
-            <div className="h-12 bg-muted rounded-md w-full mb-4"></div>
+            <div className="h-12 bg-muted rounded-md w-full mb-3"></div>
             <div className="h-8 bg-muted rounded-md w-48"></div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div className="lg:col-span-2 space-y-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 space-y-6">
               <div className="bg-muted rounded-md h-64"></div>
               <div className="bg-muted rounded-md h-48"></div>
             </div>
 
-            <div className="space-y-6">
+            <div className="space-y-4">
               <div className="bg-muted rounded-md h-48"></div>
               <div className="bg-muted rounded-md h-32"></div>
             </div>
@@ -92,8 +93,8 @@ const ListingDetail = () => {
 
   if (error || !listing) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="text-center py-12">
+      <div className="container mx-auto py-6">
+        <div className="text-center py-8">
           <h2 className="text-2xl font-bold text-gray-900">Listing not found</h2>
           <p className="mt-2 text-gray-600">
             The listing you're looking for doesn't exist or has been removed.
@@ -113,11 +114,11 @@ const ListingDetail = () => {
   const imageUrl = listing.image_url || DEFAULT_IMAGE;
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="mb-6">
+    <div className="container mx-auto py-4">
+      <div className="mb-4">
         <Link
           to="/marketplace"
-          className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-4"
+          className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
         >
           <ChevronLeft className="mr-1 h-4 w-4" />
           Back to Marketplace
@@ -125,23 +126,27 @@ const ListingDetail = () => {
       </div>
       
       {/* Hero Image Section */}
-      <div className="mb-8">
-        <div className="rounded-lg overflow-hidden border border-border">
+      <div className="mb-6 rounded-lg overflow-hidden border border-border">
+        {imageUrl ? (
           <img
             src={imageUrl}
             alt={listing.title}
-            className="w-full h-auto object-cover max-h-[400px]"
+            className="w-full h-auto object-cover max-h-[350px]"
             onError={(e) => {
               const target = e.target as HTMLImageElement;
               target.onerror = null;
               target.src = DEFAULT_IMAGE;
             }}
           />
-        </div>
+        ) : (
+          <div className="w-full h-[350px] bg-muted flex items-center justify-center">
+            <ImageIcon className="h-16 w-16 text-muted-foreground/50" />
+          </div>
+        )}
       </div>
 
-      <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 mb-8">
-        <div>
+      <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 mb-6">
+        <div className="flex-1">
           <div className="flex flex-wrap gap-2 mb-2">
             <Badge variant="outline" className="bg-background font-normal">
               <Building2 className="h-3 w-3 mr-1" />
@@ -158,45 +163,47 @@ const ListingDetail = () => {
               </Badge>
             )}
           </div>
-          <h1 className="text-3xl font-bold">{listing.title}</h1>
+          <h1 className="text-2xl md:text-3xl font-bold">{listing.title}</h1>
         </div>
 
         {!isAdmin && (
-          <Button
-            variant="default"
-            className="w-full md:w-auto"
-            disabled={
-              isRequesting ||
-              (connectionExists && connectionStatusValue === "pending") ||
-              (connectionExists && connectionStatusValue === "approved")
-            }
-            onClick={handleRequestConnection}
-          >
-            {connectionExists ? (
-              connectionStatusValue === "pending" ? (
-                <>
-                  <Clock className="mr-2 h-4 w-4" /> Request Pending
-                </>
-              ) : connectionStatusValue === "approved" ? (
-                <>
-                  <CheckCircle className="mr-2 h-4 w-4" /> Connected
-                </>
+          <div className="w-full md:w-auto">
+            <Button
+              variant="default"
+              className="w-full md:w-auto"
+              disabled={
+                isRequesting ||
+                (connectionExists && connectionStatusValue === "pending") ||
+                (connectionExists && connectionStatusValue === "approved")
+              }
+              onClick={handleRequestConnection}
+            >
+              {connectionExists ? (
+                connectionStatusValue === "pending" ? (
+                  <>
+                    <Clock className="mr-2 h-4 w-4" /> Request Pending
+                  </>
+                ) : connectionStatusValue === "approved" ? (
+                  <>
+                    <CheckCircle className="mr-2 h-4 w-4" /> Connected
+                  </>
+                ) : (
+                  <>
+                    <XCircle className="mr-2 h-4 w-4" /> Rejected
+                  </>
+                )
               ) : (
                 <>
-                  <XCircle className="mr-2 h-4 w-4" /> Rejected
+                  <Send className="mr-2 h-4 w-4" /> Request Connection
                 </>
-              )
-            ) : (
-              <>
-                <Send className="mr-2 h-4 w-4" /> Request Connection
-              </>
-            )}
-          </Button>
+              )}
+            </Button>
+          </div>
         )}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 space-y-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 space-y-6">
           <Card>
             <CardHeader>
               <CardTitle>Business Overview</CardTitle>
@@ -218,29 +225,29 @@ const ListingDetail = () => {
           )}
         </div>
 
-        <div className="space-y-6">
+        <div className="space-y-4">
           <Card>
-            <CardHeader>
+            <CardHeader className="pb-3">
               <CardTitle>Financial Overview</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
+              <div className="space-y-3">
                 <div>
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between mb-1">
                     <span className="text-sm font-medium">Annual Revenue:</span>
                     <span className="font-semibold">{formatCurrency(listing.revenue)}</span>
                   </div>
-                  <div className="h-2 bg-muted rounded mt-1.5">
+                  <div className="h-2 bg-muted rounded">
                     <div className="h-full bg-primary rounded" style={{ width: '100%' }}></div>
                   </div>
                 </div>
                 
                 <div>
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between mb-1">
                     <span className="text-sm font-medium">Annual EBITDA:</span>
                     <span className="font-semibold">{formatCurrency(listing.ebitda)}</span>
                   </div>
-                  <div className="h-2 bg-muted rounded mt-1.5">
+                  <div className="h-2 bg-muted rounded">
                     <div className="h-full bg-primary rounded" style={{ 
                       width: `${Math.min((listing.ebitda / listing.revenue) * 100, 100)}%` 
                     }}></div>
@@ -248,7 +255,7 @@ const ListingDetail = () => {
                 </div>
 
                 {listing.revenue > 0 && (
-                  <div className="pt-2 border-t">
+                  <div className="pt-2 border-t mt-1">
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium">EBITDA Margin:</span>
                       <span className="font-semibold">
@@ -262,7 +269,7 @@ const ListingDetail = () => {
           </Card>
 
           <Card>
-            <CardHeader>
+            <CardHeader className="pb-3">
               <CardTitle>Listing Information</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">

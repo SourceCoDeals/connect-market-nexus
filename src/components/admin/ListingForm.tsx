@@ -173,136 +173,47 @@ export function ListingForm({
   };
 
   return (
-    <div className="overflow-y-auto max-h-[70vh] pr-1">
-      <Form {...form}>
-        <form
-          onSubmit={form.handleSubmit(handleSubmit)}
-          className="space-y-6"
-        >
+    <Form {...form}>
+      <form
+        onSubmit={form.handleSubmit(handleSubmit)}
+        className="space-y-5"
+      >
+        <FormField
+          control={form.control}
+          name="title"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Business Title</FormLabel>
+              <FormControl>
+                <Input placeholder="E.g., Profitable SaaS Business" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           <FormField
             control={form.control}
-            name="title"
+            name="category"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Business Title</FormLabel>
-                <FormControl>
-                  <Input placeholder="E.g., Profitable SaaS Business" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <FormField
-              control={form.control}
-              name="category"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Category</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    defaultValue={field.value}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a category" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {categories.map((category) => (
-                        <SelectItem key={category} value={category}>
-                          {category}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="location"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Location</FormLabel>
-                  <FormControl>
-                    <Input placeholder="E.g., New York, NY" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <FormField
-              control={form.control}
-              name="revenue"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Annual Revenue ($)</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="text"
-                      placeholder="0"
-                      {...field}
-                      onChange={(e) => {
-                        // Allow only numbers and commas
-                        const value = e.target.value.replace(/[^0-9,]/g, "");
-                        field.onChange(value);
-                      }}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="ebitda"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Annual EBITDA ($)</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="text"
-                      placeholder="0"
-                      {...field}
-                      onChange={(e) => {
-                        // Allow only numbers and commas
-                        const value = e.target.value.replace(/[^0-9,]/g, "");
-                        field.onChange(value);
-                      }}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-
-          <FormField
-            control={form.control}
-            name="status"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Status</FormLabel>
+                <FormLabel>Category</FormLabel>
                 <Select
                   onValueChange={field.onChange}
                   defaultValue={field.value}
                 >
                   <FormControl>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select status" />
+                      <SelectValue placeholder="Select a category" />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="inactive">Inactive</SelectItem>
+                    {categories.map((category) => (
+                      <SelectItem key={category} value={category}>
+                        {category}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
                 <FormMessage />
@@ -312,15 +223,36 @@ export function ListingForm({
 
           <FormField
             control={form.control}
-            name="description"
+            name="location"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Business Description</FormLabel>
+                <FormLabel>Location</FormLabel>
                 <FormControl>
-                  <Textarea
-                    placeholder="Describe the business in detail..."
-                    className="min-h-[150px]"
+                  <Input placeholder="E.g., New York, NY" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <FormField
+            control={form.control}
+            name="revenue"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Annual Revenue ($)</FormLabel>
+                <FormControl>
+                  <Input
+                    type="text"
+                    placeholder="0"
                     {...field}
+                    onChange={(e) => {
+                      // Allow only numbers and commas
+                      const value = e.target.value.replace(/[^0-9,]/g, "");
+                      field.onChange(value);
+                    }}
                   />
                 </FormControl>
                 <FormMessage />
@@ -330,89 +262,154 @@ export function ListingForm({
 
           <FormField
             control={form.control}
-            name="owner_notes"
+            name="ebitda"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Additional Notes (Internal)</FormLabel>
+                <FormLabel>Annual EBITDA ($)</FormLabel>
                 <FormControl>
-                  <Textarea
-                    placeholder="Any additional notes visible only to admins..."
-                    className="min-h-[100px]"
+                  <Input
+                    type="text"
+                    placeholder="0"
                     {...field}
+                    onChange={(e) => {
+                      // Allow only numbers and commas
+                      const value = e.target.value.replace(/[^0-9,]/g, "");
+                      field.onChange(value);
+                    }}
                   />
                 </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
+        </div>
 
-          <div className="space-y-4">
-            <FormLabel>Listing Image</FormLabel>
-            
-            {imageError && (
-              <Alert variant="destructive" className="mb-4">
-                <AlertCircle className="h-4 w-4" />
-                <AlertTitle>Error</AlertTitle>
-                <AlertDescription>{imageError}</AlertDescription>
-              </Alert>
-            )}
-            
-            {imagePreview ? (
-              <div className="rounded-md border overflow-hidden">
-                <div className="relative w-full max-w-md mx-auto">
-                  <img 
-                    src={imagePreview} 
-                    alt="Preview" 
-                    className="w-full h-auto object-cover rounded-md" 
-                    onError={(e) => {
-                      const target = e.target as HTMLImageElement;
-                      target.onerror = null;
-                      target.src = DEFAULT_IMAGE;
-                      setImageError("Failed to load image preview");
-                    }}
-                  />
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    size="sm"
-                    className="absolute top-2 right-2"
-                    onClick={handleRemoveImage}
-                  >
-                    Remove
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <div 
-                className="border-2 border-dashed border-muted-foreground/20 rounded-md p-8 text-center cursor-pointer hover:bg-muted/50 transition"
-                onClick={() => document.getElementById("listing-image")?.click()}
+        <FormField
+          control={form.control}
+          name="status"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Status</FormLabel>
+              <Select
+                onValueChange={field.onChange}
+                defaultValue={field.value}
               >
-                <ImageIcon className="h-10 w-10 text-muted-foreground mx-auto mb-4" />
-                <p className="text-sm text-muted-foreground mb-2">
-                  Click to upload an image, or drag and drop
-                </p>
-                <p className="text-xs text-muted-foreground">PNG, JPG or WebP (max 5MB)</p>
-              </div>
-            )}
-            
-            <Input
-              id="listing-image"
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={handleImageChange}
-            />
-            
-          </div>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="inactive">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
 
-          <div className="flex justify-end sticky bottom-0 pt-4 pb-2 bg-white z-10">
-            <Button type="submit" disabled={isLoading || !!imageError}>
-              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {listing ? "Update Listing" : "Create Listing"}
-            </Button>
-          </div>
-        </form>
-      </Form>
-    </div>
+        <FormField
+          control={form.control}
+          name="description"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Business Description</FormLabel>
+              <FormControl>
+                <Textarea
+                  placeholder="Describe the business in detail..."
+                  className="min-h-[120px]"
+                  {...field}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="owner_notes"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Additional Notes (Internal)</FormLabel>
+              <FormControl>
+                <Textarea
+                  placeholder="Any additional notes visible only to admins..."
+                  className="min-h-[80px]"
+                  {...field}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <div className="space-y-3">
+          <FormLabel>Listing Image</FormLabel>
+          
+          {imageError && (
+            <Alert variant="destructive" className="mb-3">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Error</AlertTitle>
+              <AlertDescription>{imageError}</AlertDescription>
+            </Alert>
+          )}
+          
+          {imagePreview ? (
+            <div className="rounded-md border overflow-hidden">
+              <div className="relative max-w-md mx-auto">
+                <img 
+                  src={imagePreview} 
+                  alt="Preview" 
+                  className="w-full h-auto object-cover rounded-md max-h-[200px]" 
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    target.onerror = null;
+                    target.src = DEFAULT_IMAGE;
+                    setImageError("Failed to load image preview");
+                  }}
+                />
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="sm"
+                  className="absolute top-2 right-2"
+                  onClick={handleRemoveImage}
+                >
+                  Remove
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div 
+              className="border-2 border-dashed border-muted-foreground/20 rounded-md p-6 text-center cursor-pointer hover:bg-muted/50 transition"
+              onClick={() => document.getElementById("listing-image")?.click()}
+            >
+              <ImageIcon className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
+              <p className="text-sm text-muted-foreground mb-1">
+                Click to upload an image, or drag and drop
+              </p>
+              <p className="text-xs text-muted-foreground">PNG, JPG or WebP (max 5MB)</p>
+            </div>
+          )}
+          
+          <Input
+            id="listing-image"
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleImageChange}
+          />
+        </div>
+
+        <div className="flex justify-end pt-4">
+          <Button type="submit" disabled={isLoading || !!imageError}>
+            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {listing ? "Update Listing" : "Create Listing"}
+          </Button>
+        </div>
+      </form>
+    </Form>
   );
 }

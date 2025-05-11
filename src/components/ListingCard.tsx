@@ -9,6 +9,7 @@ import { Listing } from "@/types";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { DEFAULT_IMAGE } from "@/lib/storage-utils";
 import { useState, useEffect } from "react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface ListingCardProps {
   listing: Listing;
@@ -29,10 +30,6 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
     // Use the listing's image_url or fall back to default
     const url = listing.image_url || DEFAULT_IMAGE;
     setImageUrl(url);
-    
-    // Log image URL for debugging
-    console.log(`Listing ${listing.id} using image URL:`, url, 
-      listing.image_url ? '(from listing)' : '(default fallback)');
     
     // Reset error state when listing changes
     setImageError(false);
@@ -74,7 +71,7 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
   };
 
   return (
-    <Link to={`/listing/${listing.id}`} className="group">
+    <Link to={`/listing/${listing.id}`} className="group block h-full">
       <Card
         className={`h-full overflow-hidden transition-all hover:shadow-md ${
           viewType === "list" ? "flex" : ""
@@ -132,7 +129,7 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
           )}
           
           <CardContent
-            className={`p-6 flex-1 ${viewType === "list" ? "w-2/4" : ""}`}
+            className={`p-4 md:p-6 flex-1 ${viewType === "list" ? "w-2/4" : ""}`}
           >
             <div className="flex flex-wrap gap-2 mb-2">
               <Badge variant="outline" className="bg-background font-normal">
@@ -145,11 +142,20 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
               </Badge>
             </div>
 
-            <h3 className="text-lg font-semibold line-clamp-2 mb-4">
-              {listing.title}
-            </h3>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <h3 className="text-lg font-semibold line-clamp-2 mb-3">
+                    {listing.title}
+                  </h3>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{listing.title}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
 
-            <div className="grid grid-cols-2 gap-4 mb-4">
+            <div className="grid grid-cols-2 gap-3 mb-3">
               <div>
                 <p className="text-xs text-muted-foreground">Annual Revenue</p>
                 <p className="font-semibold">{formatCurrency(listing.revenue)}</p>
@@ -167,7 +173,7 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
 
           <CardFooter
             className={`p-4 pt-0 border-t mt-auto ${
-              viewType === "list" ? "w-1/4 border-l border-t-0 p-6" : ""
+              viewType === "list" ? "w-1/4 border-l border-t-0 p-4 md:p-6" : ""
             }`}
           >
             <div
@@ -176,7 +182,8 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
               }`}
             >
               <Button
-                className={`${viewType === "list" ? "w-full" : "flex-1"}`}
+                className={`${viewType === "list" ? "w-full" : "flex-1"} text-xs md:text-sm`}
+                size={viewType === "list" ? "sm" : "default"}
                 disabled={
                   isRequesting ||
                   (connectionExists && connectionStatusValue === "pending") ||
@@ -193,13 +200,13 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
                     : "Rejected"
                   : isRequesting
                   ? "Requesting..."
-                  : "Request Connection"}
+                  : "Request"}
               </Button>
 
               <Button
                 variant="outline"
                 size="icon"
-                className="ml-2"
+                className={viewType === "list" ? "self-center" : "ml-2"}
                 onClick={handleToggleSave}
                 disabled={isSaving}
               >
