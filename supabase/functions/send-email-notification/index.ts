@@ -1,8 +1,5 @@
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { Resend } from "npm:resend@2.0.0";
-
-const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -45,6 +42,7 @@ const handler = async (req: Request): Promise<Response> => {
     
     let subject = '';
     let htmlContent = '';
+    let textContent = '';
     
     switch (type) {
       case 'approval':
@@ -56,6 +54,7 @@ const handler = async (req: Request): Promise<Response> => {
           <p><a href="https://marketplace.sourcecodeals.com/login" style="display: inline-block; background-color: #0070f3; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; margin-top: 15px;">Go to Marketplace</a></p>
           <p>— The SourceCo Team</p>
         `;
+        textContent = `Hi ${firstName},\n\nGreat news! Your account has been approved. You now have full access to the SourceCo Marketplace.\n\nGo to Marketplace: https://marketplace.sourcecodeals.com/login\n\n— The SourceCo Team`;
         break;
         
       case 'rejection':
@@ -68,6 +67,7 @@ const handler = async (req: Request): Promise<Response> => {
           <p>If you have any questions, please reply to this email.</p>
           <p>— The SourceCo Team</p>
         `;
+        textContent = `Hi ${firstName},\n\nThank you for your interest in the SourceCo Marketplace.\n\nAfter reviewing your application, we regret to inform you that we are unable to approve your account at this time.\n\n${data?.rejectionReason ? `Reason: ${data.rejectionReason}\n\n` : ''}If you have any questions, please reply to this email.\n\n— The SourceCo Team`;
         break;
         
       case 'verification':
@@ -80,6 +80,7 @@ const handler = async (req: Request): Promise<Response> => {
           <p>If you did not sign up for an account, please ignore this email.</p>
           <p>— The SourceCo Team</p>
         `;
+        textContent = `Hi ${firstName},\n\nThank you for signing up for the SourceCo Marketplace.\n\nPlease verify your email address by clicking the link below:\n\n${data?.verificationLink}\n\nIf you did not sign up for an account, please ignore this email.\n\n— The SourceCo Team`;
         break;
         
       default:
@@ -89,16 +90,57 @@ const handler = async (req: Request): Promise<Response> => {
     console.log("Sending email to:", email);
     console.log("Email subject:", subject);
     
-    const emailResponse = await resend.emails.send({
-      from: "SourceCo Marketplace <notifications@sourcecodeals.com>",
-      to: [email],
+    const brevoApiKey = Deno.env.get("BREVO_API_KEY");
+    if (!brevoApiKey) {
+      throw new Error("BREVO_API_KEY environment variable is not set");
+    }
+    
+    const brevoPayload = {
+      sender: {
+        name: "SourceCo Marketplace",
+        email: "adam.haile@sourcecodeals.com"
+      },
+      to: [
+        {
+          email: email,
+          name: firstName
+        }
+      ],
       subject: subject,
-      html: htmlContent,
+      htmlContent: htmlContent,
+      textContent: textContent,
+      replyTo: {
+        email: "adam.haile@sourcecodeals.com",
+        name: "Adam Haile"
+      }
+    };
+    
+    const response = await fetch("https://api.brevo.com/v3/smtp/email", {
+      method: "POST",
+      headers: {
+        "api-key": brevoApiKey,
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+      },
+      body: JSON.stringify(brevoPayload)
     });
+    
+    const responseData = await response.json();
+    
+    if (!response.ok) {
+      console.error("Error sending email via Brevo:", responseData);
+      return new Response(
+        JSON.stringify({ error: responseData }),
+        {
+          status: 500,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        }
+      );
+    }
 
-    console.log("Email sent successfully:", emailResponse);
+    console.log("Email sent successfully:", responseData);
 
-    return new Response(JSON.stringify(emailResponse), {
+    return new Response(JSON.stringify(responseData), {
       status: 200,
       headers: {
         "Content-Type": "application/json",

@@ -1,8 +1,5 @@
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { Resend } from "npm:resend@2.0.0";
-
-const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -40,6 +37,7 @@ const handler = async (req: Request): Promise<Response> => {
     
     let subject = '';
     let html = '';
+    let text = '';
     
     switch (type) {
       case "account_approved":
@@ -51,6 +49,7 @@ const handler = async (req: Request): Promise<Response> => {
           <p><a href="https://marketplace.sourcecodeals.com/login" style="display: inline-block; background-color: #0070f3; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; margin-top: 15px;">Login</a></p>
           <p>— The SourceCo Team</p>
         `;
+        text = `Hi ${firstName},\n\nGood news — your account has been approved!\n\nYou can now log in and start exploring exclusive listings.\n\nLogin: https://marketplace.sourcecodeals.com/login\n\n— The SourceCo Team`;
         break;
         
       case "account_rejected":
@@ -62,6 +61,7 @@ const handler = async (req: Request): Promise<Response> => {
           <p>If you believe this was a mistake, please reply to this email.</p>
           <p>— The SourceCo Team</p>
         `;
+        text = `Hi ${firstName},\n\nWe're sorry — your account request was not approved.\n\n${data?.rejectionReason ? `Reason: ${data.rejectionReason}\n\n` : ''}If you believe this was a mistake, please reply to this email.\n\n— The SourceCo Team`;
         break;
         
       case "connection_approved":
@@ -75,6 +75,7 @@ const handler = async (req: Request): Promise<Response> => {
           <p><a href="https://marketplace.sourcecodeals.com/my-requests" style="display: inline-block; background-color: #0070f3; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; margin-top: 15px;">Go to Marketplace</a></p>
           <p>— The SourceCo Team</p>
         `;
+        text = `Hi ${firstName},\n\nGreat news — your connection request for: ${data?.listingName || 'Selected listing'} has been approved!\n\nPlease log in to see details.\n\nGo to Marketplace: https://marketplace.sourcecodeals.com/my-requests\n\n— The SourceCo Team`;
         break;
         
       case "connection_rejected":
@@ -87,22 +88,64 @@ const handler = async (req: Request): Promise<Response> => {
           <p>If you have questions, please reply to this email.</p>
           <p>— The SourceCo Team</p>
         `;
+        text = `Hi ${firstName},\n\nWe wanted to let you know your connection request for: ${data?.listingName || 'Selected listing'} was not approved at this time.\n\nIf you have questions, please reply to this email.\n\n— The SourceCo Team`;
         break;
         
       default:
         throw new Error(`Unsupported email type: ${type}`);
     }
 
-    const emailResponse = await resend.emails.send({
-      from: "SourceCo Marketplace <notifications@sourcecodeals.com>",
-      to: [recipientEmail],
+    const brevoApiKey = Deno.env.get("BREVO_API_KEY");
+    if (!brevoApiKey) {
+      throw new Error("BREVO_API_KEY environment variable is not set");
+    }
+    
+    const brevoPayload = {
+      sender: {
+        name: "SourceCo Marketplace",
+        email: "adam.haile@sourcecodeals.com"
+      },
+      to: [
+        {
+          email: recipientEmail,
+          name: firstName
+        }
+      ],
       subject: subject,
-      html: html,
+      htmlContent: html,
+      textContent: text,
+      replyTo: {
+        email: "adam.haile@sourcecodeals.com",
+        name: "Adam Haile"
+      }
+    };
+    
+    const response = await fetch("https://api.brevo.com/v3/smtp/email", {
+      method: "POST",
+      headers: {
+        "api-key": brevoApiKey,
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+      },
+      body: JSON.stringify(brevoPayload)
     });
+    
+    const responseData = await response.json();
+    
+    if (!response.ok) {
+      console.error("Error sending email via Brevo:", responseData);
+      return new Response(
+        JSON.stringify({ error: responseData }),
+        {
+          status: 500,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        }
+      );
+    }
 
-    console.log("Email sent successfully:", emailResponse);
+    console.log("Email sent successfully:", responseData);
 
-    return new Response(JSON.stringify(emailResponse), {
+    return new Response(JSON.stringify(responseData), {
       status: 200,
       headers: {
         "Content-Type": "application/json",
