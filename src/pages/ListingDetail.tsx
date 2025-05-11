@@ -67,7 +67,7 @@ const ListingDetail = () => {
 
   if (isLoading) {
     return (
-      <div className="container mx-auto py-6">
+      <div className="container mx-auto py-4">
         <div className="animate-pulse">
           <div className="mb-4">
             <div className="h-8 bg-muted rounded-md w-64 mb-2"></div>
@@ -93,7 +93,7 @@ const ListingDetail = () => {
 
   if (error || !listing) {
     return (
-      <div className="container mx-auto py-6">
+      <div className="container mx-auto py-4">
         <div className="text-center py-8">
           <h2 className="text-2xl font-bold text-gray-900">Listing not found</h2>
           <p className="mt-2 text-gray-600">
@@ -125,13 +125,13 @@ const ListingDetail = () => {
         </Link>
       </div>
       
-      {/* Hero Image Section */}
-      <div className="mb-6 rounded-lg overflow-hidden border border-border">
+      {/* Hero Image Section - Updated with fixed height and proper aspect ratio */}
+      <div className="mb-6 rounded-lg overflow-hidden border border-border min-h-[300px] max-h-[400px] aspect-[16/9] relative">
         {imageUrl ? (
           <img
             src={imageUrl}
             alt={listing.title}
-            className="w-full h-auto object-cover max-h-[350px]"
+            className="absolute inset-0 w-full h-full object-cover"
             onError={(e) => {
               const target = e.target as HTMLImageElement;
               target.onerror = null;
@@ -139,7 +139,7 @@ const ListingDetail = () => {
             }}
           />
         ) : (
-          <div className="w-full h-[350px] bg-muted flex items-center justify-center">
+          <div className="w-full h-full bg-muted flex items-center justify-center">
             <ImageIcon className="h-16 w-16 text-muted-foreground/50" />
           </div>
         )}
