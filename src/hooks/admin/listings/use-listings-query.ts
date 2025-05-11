@@ -29,6 +29,8 @@ export function useListingsQuery(status?: 'active' | 'inactive' | 'all') {
         data?.forEach(listing => {
           if (listing.image_url) {
             console.log(`Listing ${listing.id} has image: ${listing.image_url}`);
+          } else {
+            console.log(`Listing ${listing.id} has no image`);
           }
         });
         

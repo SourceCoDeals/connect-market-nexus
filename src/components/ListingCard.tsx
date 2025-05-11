@@ -4,10 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { useMarketplace } from "@/hooks/use-marketplace";
-import { Bookmark, Building2, MapPin, ArrowRight } from "lucide-react";
+import { Bookmark, Building2, MapPin, ArrowRight, ImageIcon } from "lucide-react";
 import { Listing } from "@/types";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { DEFAULT_IMAGE } from "@/lib/storage-utils";
+import { useState } from "react";
 
 interface ListingCardProps {
   listing: Listing;
@@ -20,6 +21,7 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
   const { data: connectionStatus } = useConnectionStatus(listing.id);
   const { mutate: toggleSave, isPending: isSaving } = useSaveListingMutation();
   const { data: isSaved } = useSavedStatus(listing.id);
+  const [imageError, setImageError] = useState(false);
 
   const handleRequestConnection = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -51,7 +53,9 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
   const imageUrl = listing.image_url || DEFAULT_IMAGE;
   
   // For debugging
-  console.log(`Listing ${listing.id} image URL:`, listing.image_url);
+  if (listing.image_url) {
+    console.log(`Listing ${listing.id} has image URL:`, listing.image_url);
+  }
 
   return (
     <Link to={`/listing/${listing.id}`} className="group">
@@ -68,18 +72,21 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
           {viewType === "list" ? (
             <div className="w-1/4 min-w-[180px] relative">
               <AspectRatio ratio={4/3} className="bg-muted">
-                <img 
-                  src={imageUrl} 
-                  alt={listing.title} 
-                  className="object-cover w-full h-full" 
-                  onError={(e) => {
-                    // Fallback if image fails to load
-                    console.error(`Failed to load image for listing ${listing.id}:`, imageUrl);
-                    const target = e.target as HTMLImageElement;
-                    target.onerror = null;
-                    target.src = DEFAULT_IMAGE;
-                  }}
-                />
+                {imageError || !imageUrl ? (
+                  <div className="w-full h-full flex items-center justify-center bg-gray-100">
+                    <ImageIcon className="h-8 w-8 text-gray-400" />
+                  </div>
+                ) : (
+                  <img 
+                    src={imageUrl} 
+                    alt={listing.title} 
+                    className="object-cover w-full h-full" 
+                    onError={() => {
+                      console.error(`Failed to load image for listing ${listing.id}:`, imageUrl);
+                      setImageError(true);
+                    }}
+                  />
+                )}
               </AspectRatio>
               <div className="absolute top-2 right-2">
                 <Badge className="bg-primary text-white opacity-0 group-hover:opacity-100 transition-opacity">
@@ -90,18 +97,21 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
           ) : (
             <div className="relative">
               <AspectRatio ratio={16/9} className="bg-muted">
-                <img 
-                  src={imageUrl} 
-                  alt={listing.title} 
-                  className="object-cover w-full h-full" 
-                  onError={(e) => {
-                    // Fallback if image fails to load
-                    console.error(`Failed to load image for listing ${listing.id}:`, imageUrl);
-                    const target = e.target as HTMLImageElement;
-                    target.onerror = null;
-                    target.src = DEFAULT_IMAGE;
-                  }}
-                />
+                {imageError || !imageUrl ? (
+                  <div className="w-full h-full flex items-center justify-center bg-gray-100">
+                    <ImageIcon className="h-8 w-8 text-gray-400" />
+                  </div>
+                ) : (
+                  <img 
+                    src={imageUrl} 
+                    alt={listing.title} 
+                    className="object-cover w-full h-full" 
+                    onError={() => {
+                      console.error(`Failed to load image for listing ${listing.id}:`, imageUrl);
+                      setImageError(true);
+                    }}
+                  />
+                )}
               </AspectRatio>
               <div className="absolute top-2 right-2">
                 <Badge className="bg-primary text-white opacity-0 group-hover:opacity-100 transition-opacity">

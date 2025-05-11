@@ -35,7 +35,7 @@ export const ensureListingsBucketExists = async (): Promise<boolean> => {
         return false;
       }
       
-      // Set bucket to public
+      // Set bucket to public explicitly
       const { error: updateError } = await supabase.storage
         .updateBucket(LISTINGS_BUCKET, { public: true });
       
@@ -53,7 +53,7 @@ export const ensureListingsBucketExists = async (): Promise<boolean> => {
     } else {
       console.log(`${LISTINGS_BUCKET} bucket already exists`);
       
-      // Ensure bucket is public
+      // Ensure bucket is public by updating it
       const { error: updateError } = await supabase.storage
         .updateBucket(LISTINGS_BUCKET, { public: true });
       
@@ -100,7 +100,7 @@ export const uploadListingImage = async (file: File, listingId: string): Promise
       .from(LISTINGS_BUCKET)
       .upload(fileName, file, {
         cacheControl: '3600',
-        upsert: true, // Changed from false to true to handle overwrites
+        upsert: true, // Use upsert to handle overwrites
       });
     
     if (uploadError) {
