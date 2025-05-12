@@ -37,7 +37,6 @@ export function useAdminEmail() {
     try {
       const notificationPayload = {
         type: 'approved',
-        userId: request.user.id,
         userEmail: request.user.email,
         firstName: request.user.first_name,
         listingName: request.listing.title
@@ -79,7 +78,6 @@ export function useAdminEmail() {
     try {
       const notificationPayload = {
         type: 'rejected',
-        userId: request.user.id,
         userEmail: request.user.email,
         firstName: request.user.first_name,
         listingName: request.listing.title
@@ -120,7 +118,7 @@ export function useAdminEmail() {
     
     try {
       // Format buyer name
-      const buyerName = `${request.user.first_name} ${request.user.last_name}`;
+      const buyerName = `${request.user.first_name} ${request.user.last_name}`.trim();
       
       // Format timestamp
       const timestamp = new Date(request.created_at).toLocaleString('en-US', {

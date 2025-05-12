@@ -15,7 +15,7 @@ export function useAdminNotifications() {
 
     try {
       // Format buyer name
-      const buyerName = `${request.user.first_name} ${request.user.last_name}`;
+      const buyerName = `${request.user.first_name} ${request.user.last_name}`.trim();
       
       // Format timestamp
       const timestamp = format(new Date(request.created_at), "MMM d, yyyy – HH:mm 'UTC'");

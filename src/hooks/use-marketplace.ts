@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
@@ -233,6 +234,58 @@ export function useMarketplace() {
             activity_type: 'connection_request',
             metadata: { listing_id: listingId }
           });
+
+          // Send notification email to user
+          try {
+            // Get user data
+            const { data: userData, error: userError } = await supabase
+              .from('profiles')
+              .select('first_name, email')
+              .eq('id', userId)
+              .single();
+            
+            if (userError) throw userError;
+
+            // Get listing data
+            const { data: listingData, error: listingError } = await supabase
+              .from('listings')
+              .select('title')
+              .eq('id', listingId)
+              .single();
+
+            if (listingError) throw listingError;
+
+            // Send notification email
+            await supabase.functions.invoke('send-connection-notification', {
+              body: JSON.stringify({
+                type: 'request_received',
+                userEmail: userData.email,
+                firstName: userData.first_name,
+                listingName: listingData.title
+              })
+            });
+
+            // Also send admin notification
+            await supabase.functions.invoke('send-connection-notification', {
+              body: JSON.stringify({
+                type: 'new_request',
+                listing: {
+                  title: listingData.title,
+                  category: listingData.category || 'Uncategorized',
+                  location: listingData.location || 'Unknown'
+                },
+                buyer: {
+                  name: `${userData.first_name || ''} ${userData.last_name || ''}`.trim(),
+                  email: userData.email,
+                  company: userData.company || ''
+                },
+                timestamp: new Date().toISOString()
+              })
+            });
+          } catch (notificationError) {
+            // Log the error but don't fail the whole request
+            console.error('Failed to send notification:', notificationError);
+          }
           
           return data;
         } catch (error: any) {
@@ -245,6 +298,9 @@ export function useMarketplace() {
           title: 'Connection Requested',
           description: 'Your connection request has been submitted for review.',
         });
+        
+        // Invalidate connection status query to update UI
+        queryClient.invalidateQueries({ queryKey: ['connection-status'] });
       },
       onError: (error: any) => {
         toast({

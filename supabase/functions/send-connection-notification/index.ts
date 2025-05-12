@@ -1,6 +1,7 @@
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 
+// Update to only include the specified admin email
 const ADMIN_EMAILS = ["adam.haile@sourcecodeals.com"];
 
 const corsHeaders = {
@@ -10,8 +11,8 @@ const corsHeaders = {
 };
 
 interface UserNotificationRequest {
-  type: 'approved' | 'rejected';
-  userId: string;
+  type: 'approved' | 'rejected' | 'request_received';
+  userId?: string;
   userEmail: string;
   firstName: string;
   listingName: string;
@@ -55,12 +56,18 @@ const handler = async (req: Request): Promise<Response> => {
     console.log("Parsed request data:", requestData);
     
     // Check if it's a user notification or admin notification
-    if ('type' in requestData && (requestData.type === 'approved' || requestData.type === 'rejected')) {
-      return await handleUserNotification(requestData as UserNotificationRequest);
-    } else if ('type' in requestData && requestData.type === 'new_request') {
-      return await handleAdminNotification(requestData as AdminNotificationRequest);
+    if ('type' in requestData) {
+      if (requestData.type === 'approved' || requestData.type === 'rejected') {
+        return await handleUserNotification(requestData as UserNotificationRequest);
+      } else if (requestData.type === 'request_received') {
+        return await handleRequestReceivedNotification(requestData as UserNotificationRequest);
+      } else if (requestData.type === 'new_request') {
+        return await handleAdminNotification(requestData as AdminNotificationRequest);
+      } else {
+        throw new Error("Invalid notification type");
+      }
     } else {
-      throw new Error("Invalid notification type");
+      throw new Error("Invalid notification format");
     }
   } catch (error: any) {
     console.error("Error in send-connection-notification function:", error);
@@ -92,11 +99,11 @@ async function handleUserNotification(data: UserNotificationRequest): Promise<Re
       <p>Great news — your connection request for:</p>
       <p><strong>${listingName}</strong></p>
       <p>has been approved!</p>
-      <p>Please log in to see details.</p>
-      <p><a href="https://marketplace.sourcecodeals.com/my-requests" style="display: inline-block; background-color: #0070f3; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; margin-top: 15px;">Go to Marketplace</a></p>
+      <p>Please log in to your account to view the details.</p>
+      <p><a href="https://preview--connect-market-nexus.lovable.app/my-requests" style="display: inline-block; background-color: #0070f3; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; margin-top: 15px;">→ View My Requests</a></p>
       <p>— The SourceCo Team</p>
     `;
-    textContent = `Hi ${firstName},\n\nGreat news! Your connection request for ${listingName} has been approved!\n\nPlease log in to see details: https://marketplace.sourcecodeals.com/my-requests\n\n— The SourceCo Team`;
+    textContent = `Hi ${firstName},\n\nGreat news! Your connection request for ${listingName} has been approved.\n\nYou can now log in and view the details here:\nhttps://preview--connect-market-nexus.lovable.app/my-requests\n\n— The SourceCo Team`;
   } else {
     subject = '❌ Your connection request update';
     htmlContent = `
@@ -113,6 +120,124 @@ async function handleUserNotification(data: UserNotificationRequest): Promise<Re
   console.log("Sending email to:", userEmail);
   console.log("Email subject:", subject);
   
+  return await sendEmail({
+    to: [{ email: userEmail, name: firstName }],
+    subject,
+    htmlContent,
+    textContent
+  });
+}
+
+async function handleRequestReceivedNotification(data: UserNotificationRequest): Promise<Response> {
+  const { userEmail, firstName, listingName } = data;
+  
+  if (!userEmail || !firstName || !listingName) {
+    throw new Error("Missing required fields in request");
+  }
+  
+  const subject = '✅ We\'ve received your connection request';
+  const htmlContent = `
+    <p>Hi ${firstName},</p>
+
+    <p>Thanks for your interest in <strong>${listingName}</strong>!</p>
+
+    <p>We've received your request to connect with the owner. Our team will review it and reach out if it's a fit.</p>
+
+    <p>
+      <a href="https://preview--connect-market-nexus.lovable.app/my-requests"
+         style="display: inline-block; background-color: #0070f3; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; margin-top: 15px;">
+         🔗 View Your Requests
+      </a>
+    </p>
+
+    <p>— The SourceCo Team</p>
+  `;
+  
+  const textContent = `
+    Hi ${firstName},
+
+    Thanks for your interest in ${listingName}!
+
+    We've received your request to connect with the owner. Our team will review it and reach out soon if it's a fit.
+
+    → View your requests: https://preview--connect-market-nexus.lovable.app/my-requests
+
+    — The SourceCo Team
+  `;
+
+  console.log("Sending request received notification email to:", userEmail);
+  
+  return await sendEmail({
+    to: [{ email: userEmail, name: firstName }],
+    subject,
+    htmlContent,
+    textContent
+  });
+}
+
+async function handleAdminNotification(data: AdminNotificationRequest): Promise<Response> {
+  const { listing, buyer, timestamp } = data;
+  
+  if (!listing || !buyer || !timestamp) {
+    throw new Error("Missing required fields in admin notification request");
+  }
+
+  const subject = `🔔 New Connection Request – ${listing.title}`;
+  const htmlContent = `
+    <p>A new connection request has been submitted.</p>
+
+    <p><strong>Listing:</strong> ${listing.title}<br/>
+      <strong>Category:</strong> ${listing.category}<br/>
+      <strong>Location:</strong> ${listing.location}</p>
+
+    <p><strong>Buyer:</strong> ${buyer.name}<br/>
+      <strong>Email:</strong> ${buyer.email}<br/>
+      <strong>Company:</strong> ${buyer.company || "-"}</p>
+
+    <p><strong>Submitted:</strong> ${timestamp}</p>
+
+    <p><a href="https://preview--connect-market-nexus.lovable.app/admin/connection-requests" style="display: inline-block; background-color: #0070f3; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; margin-top: 15px;">→ View Request</a></p>
+  `;
+  
+  const textContent = `
+A new connection request has been submitted.
+
+Listing: ${listing.title}
+Category: ${listing.category}
+Location: ${listing.location}
+
+Buyer: ${buyer.name}
+Email: ${buyer.email}
+Company: ${buyer.company || "-"}
+
+Submitted: ${timestamp}
+
+View Request: https://preview--connect-market-nexus.lovable.app/admin/connection-requests
+  `;
+
+  console.log("Sending admin notification email");
+  
+  return await sendEmail({
+    to: ADMIN_EMAILS.map(email => ({ email })),
+    subject,
+    htmlContent,
+    textContent
+  });
+}
+
+interface EmailRecipient {
+  email: string;
+  name?: string;
+}
+
+interface EmailOptions {
+  to: EmailRecipient[];
+  subject: string;
+  htmlContent: string;
+  textContent: string;
+}
+
+async function sendEmail(options: EmailOptions): Promise<Response> {
   const brevoApiKey = Deno.env.get("BREVO_API_KEY");
   if (!brevoApiKey) {
     throw new Error("BREVO_API_KEY environment variable is not set");
@@ -123,15 +248,10 @@ async function handleUserNotification(data: UserNotificationRequest): Promise<Re
       name: "SourceCo Marketplace",
       email: "adam.haile@sourcecodeals.com"
     },
-    to: [
-      {
-        email: userEmail,
-        name: firstName
-      }
-    ],
-    subject: subject,
-    htmlContent: htmlContent,
-    textContent: textContent,
+    to: options.to,
+    subject: options.subject,
+    htmlContent: options.htmlContent,
+    textContent: options.textContent,
     replyTo: {
       email: "adam.haile@sourcecodeals.com",
       name: "Adam Haile"
@@ -175,115 +295,6 @@ async function handleUserNotification(data: UserNotificationRequest): Promise<Re
     console.error("Error during Brevo API call:", error);
     return new Response(
       JSON.stringify({ success: false, message: "Email sending failed", error: error.message }),
-      {
-        status: 500,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      }
-    );
-  }
-}
-
-async function handleAdminNotification(data: AdminNotificationRequest): Promise<Response> {
-  const { listing, buyer, timestamp } = data;
-  
-  if (!listing || !buyer || !timestamp) {
-    throw new Error("Missing required fields in admin notification request");
-  }
-
-  const subject = `🔔 New Connection Request – ${listing.title}`;
-  const htmlContent = `
-    <p>A new connection request has been submitted.</p>
-
-    <p><strong>Listing:</strong> ${listing.title}<br/>
-      <strong>Category:</strong> ${listing.category}<br/>
-      <strong>Location:</strong> ${listing.location}</p>
-
-    <p><strong>Buyer:</strong> ${buyer.name}<br/>
-      <strong>Email:</strong> ${buyer.email}<br/>
-      <strong>Company:</strong> ${buyer.company || "-"}</p>
-
-    <p><strong>Submitted:</strong> ${timestamp}</p>
-
-    <p><a href="https://sourcecodeals.com/admin/connection-requests" style="display: inline-block; background-color: #0070f3; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; margin-top: 15px;">→ View Request</a></p>
-  `;
-  
-  const textContent = `
-A new connection request has been submitted.
-
-Listing: ${listing.title}
-Category: ${listing.category}
-Location: ${listing.location}
-
-Buyer: ${buyer.name}
-Email: ${buyer.email}
-Company: ${buyer.company || "-"}
-
-Submitted: ${timestamp}
-
-View Request: https://sourcecodeals.com/admin/connection-requests
-  `;
-
-  console.log("Sending admin notification email");
-  
-  const brevoApiKey = Deno.env.get("BREVO_API_KEY");
-  if (!brevoApiKey) {
-    throw new Error("BREVO_API_KEY environment variable is not set");
-  }
-  
-  const brevoPayload = {
-    sender: {
-      name: "SourceCo Marketplace",
-      email: "adam.haile@sourcecodeals.com"
-    },
-    to: ADMIN_EMAILS.map(email => ({
-      email: email
-    })),
-    subject: subject,
-    htmlContent: htmlContent,
-    textContent: textContent,
-    replyTo: {
-      email: "adam.haile@sourcecodeals.com",
-      name: "Adam Haile"
-    }
-  };
-  
-  try {
-    const response = await fetch("https://api.brevo.com/v3/smtp/email", {
-      method: "POST",
-      headers: {
-        "api-key": brevoApiKey,
-        "Content-Type": "application/json",
-        "Accept": "application/json"
-      },
-      body: JSON.stringify(brevoPayload)
-    });
-    
-    const responseData = await response.json();
-    
-    if (!response.ok) {
-      console.error("Error sending admin email via Brevo:", responseData);
-      return new Response(
-        JSON.stringify({ success: false, message: "Admin email failed to send", error: responseData }),
-        {
-          status: 500,
-          headers: { "Content-Type": "application/json", ...corsHeaders },
-        }
-      );
-    }
-    
-    console.log("Admin email sent successfully:", responseData);
-    
-    return new Response(
-      JSON.stringify({ success: true, data: responseData }),
-      {
-        status: 200,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      }
-    );
-  } catch (error) {
-    console.error("Error during Brevo API call:", error);
-    return new Response(
-      JSON.stringify({ success: false, message: "Admin email sending failed", error: error.message }),
       {
         status: 500,
         headers: { "Content-Type": "application/json", ...corsHeaders },

@@ -1,4 +1,3 @@
-
 import { useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
 import { format } from "date-fns";
@@ -108,10 +107,69 @@ const ListingDetail = () => {
   }
 
   // Extract isInactive safely with fallback to false if status is undefined
-  const isInactive = listing.status === "inactive";
+  const isInactive = listing?.status === "inactive";
   
   // Use listing's image_url or fallback to default image
-  const imageUrl = listing.image_url || DEFAULT_IMAGE;
+  const imageUrl = listing?.image_url || DEFAULT_IMAGE;
+
+  // Helper function to render connection button based on status
+  const renderConnectionButton = () => {
+    if (isAdmin) return null; // Admins don't see connection buttons
+    
+    if (connectionExists) {
+      if (connectionStatusValue === "pending") {
+        return (
+          <Button
+            variant="secondary"
+            className="w-full md:w-auto"
+            disabled={true}
+          >
+            <Clock className="mr-2 h-4 w-4" /> Request Pending
+          </Button>
+        );
+      } else if (connectionStatusValue === "approved") {
+        return (
+          <Button
+            variant="default"
+            className="w-full md:w-auto bg-green-600 hover:bg-green-700"
+            disabled={true}
+          >
+            <CheckCircle className="mr-2 h-4 w-4" /> Connected
+          </Button>
+        );
+      } else if (connectionStatusValue === "rejected") {
+        return (
+          <Button
+            variant="outline"
+            className="w-full md:w-auto text-red-600 border-red-200"
+            onClick={handleRequestConnection}
+          >
+            <XCircle className="mr-2 h-4 w-4" /> Rejected - Resubmit
+          </Button>
+        );
+      }
+    }
+    
+    // Default state - no connection request exists
+    return (
+      <Button
+        variant="default"
+        className="w-full md:w-auto"
+        disabled={isRequesting}
+        onClick={handleRequestConnection}
+      >
+        {isRequesting ? (
+          <>
+            <Clock className="mr-2 h-4 w-4 animate-spin" /> Submitting...
+          </>
+        ) : (
+          <>
+            <Send className="mr-2 h-4 w-4" /> Request Connection
+          </>
+        )}
+      </Button>
+    );
+  };
 
   return (
     <div className="container mx-auto">
@@ -166,40 +224,9 @@ const ListingDetail = () => {
           <h1 className="text-2xl md:text-3xl font-bold">{listing.title}</h1>
         </div>
 
-        {!isAdmin && (
-          <div className="w-full md:w-auto">
-            <Button
-              variant="default"
-              className="w-full md:w-auto"
-              disabled={
-                isRequesting ||
-                (connectionExists && connectionStatusValue === "pending") ||
-                (connectionExists && connectionStatusValue === "approved")
-              }
-              onClick={handleRequestConnection}
-            >
-              {connectionExists ? (
-                connectionStatusValue === "pending" ? (
-                  <>
-                    <Clock className="mr-2 h-4 w-4" /> Request Pending
-                  </>
-                ) : connectionStatusValue === "approved" ? (
-                  <>
-                    <CheckCircle className="mr-2 h-4 w-4" /> Connected
-                  </>
-                ) : (
-                  <>
-                    <XCircle className="mr-2 h-4 w-4" /> Rejected
-                  </>
-                )
-              ) : (
-                <>
-                  <Send className="mr-2 h-4 w-4" /> Request Connection
-                </>
-              )}
-            </Button>
-          </div>
-        )}
+        <div className="w-full md:w-auto">
+          {renderConnectionButton()}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
