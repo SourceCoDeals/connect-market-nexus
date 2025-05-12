@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
@@ -240,7 +239,7 @@ export function useMarketplace() {
             // Get user data
             const { data: userData, error: userError } = await supabase
               .from('profiles')
-              .select('first_name, email')
+              .select('first_name, last_name, email, company')
               .eq('id', userId)
               .single();
             
@@ -249,7 +248,7 @@ export function useMarketplace() {
             // Get listing data
             const { data: listingData, error: listingError } = await supabase
               .from('listings')
-              .select('title')
+              .select('title, category, location')
               .eq('id', listingId)
               .single();
 
