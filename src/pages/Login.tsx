@@ -274,11 +274,6 @@ const Login = () => {
               Sign up
             </Link>
           </div>
-          <div className="text-xs text-center text-muted-foreground">
-            For demonstration purposes:<br />
-            Admin: admin@example.com / admin123<br />
-            Buyer: buyer@example.com / buyer123
-          </div>
         </CardFooter>
       </Card>
     </div>

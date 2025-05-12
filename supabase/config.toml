@@ -42,7 +42,7 @@ file_size_limit = "50MiB"
 [auth]
 enabled = true
 site_url = "https://preview--connect-market-nexus.lovable.app"
-additional_redirect_urls = ["https://preview--connect-market-nexus.lovable.app", "https://preview--connect-market-nexus.lovable.app/auth/callback", "https://preview--connect-market-nexus.lovable.app/verify-email-handler", "https://preview--connect-market-nexus.lovable.app-preview.lovableproject.com", "https://preview--connect-market-nexus.lovable.app-preview.lovableproject.com/auth/callback"]
+additional_redirect_urls = ["https://preview--connect-market-nexus.lovable.app", "https://preview--connect-market-nexus.lovable.app/auth/callback", "https://preview--connect-market-nexus.lovable.app/verification-success", "https://preview--connect-market-nexus.lovable.app-preview.lovableproject.com", "https://preview--connect-market-nexus.lovable.app-preview.lovableproject.com/auth/callback"]
 jwt_expiry = 3600
 enable_refresh_token_rotation = true
 refresh_token_reuse_interval = 10

@@ -43,52 +43,60 @@ const handler = async (req: Request): Promise<Response> => {
       case "account_approved":
         subject = '🎉 Your SourceCo Marketplace account is approved!';
         html = `
-          <h1>Hi ${firstName},</h1>
-          <p>Good news — your account has been approved!</p>
-          <p>You can now log in and start exploring exclusive listings.</p>
-          <p><a href="https://marketplace.sourcecodeals.com/login" style="display: inline-block; background-color: #0070f3; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; margin-top: 15px;">Login</a></p>
-          <p>— The SourceCo Team</p>
+          <div style="font-family: Arial, sans-serif; background: #ffffff; padding: 30px; color: #111;">
+            <h2 style="font-size: 24px;">Hi ${firstName},</h2>
+            <p style="font-size: 16px;">Good news — your account has been approved!</p>
+            <p style="font-size: 16px;">You can now log in and start exploring exclusive listings.</p>
+            <a href="https://marketplace.sourcecodeals.com/login" style="display: inline-block; background-color: #111; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; margin-top: 15px;">Login</a>
+            <p style="font-size: 12px; color: #aaa; margin-top: 40px;">© 2025 SourceCo Deals. All rights reserved.</p>
+          </div>
         `;
-        text = `Hi ${firstName},\n\nGood news — your account has been approved!\n\nYou can now log in and start exploring exclusive listings.\n\nLogin: https://marketplace.sourcecodeals.com/login\n\n— The SourceCo Team`;
+        text = `Hi ${firstName},\n\nGood news — your account has been approved!\n\nYou can now log in and start exploring exclusive listings.\n\nLogin: https://marketplace.sourcecodeals.com/login\n\n© 2025 SourceCo Deals. All rights reserved.`;
         break;
         
       case "account_rejected":
         subject = '❌ Your SourceCo Marketplace account request';
         html = `
-          <h1>Hi ${firstName},</h1>
-          <p>We're sorry — your account request was not approved.</p>
-          ${data?.rejectionReason ? `<p><strong>Reason:</strong><br/>${data.rejectionReason}</p>` : ''}
-          <p>If you believe this was a mistake, please reply to this email.</p>
-          <p>— The SourceCo Team</p>
+          <div style="font-family: Arial, sans-serif; background: #ffffff; padding: 30px; color: #111;">
+            <h2 style="font-size: 24px;">Hi ${firstName},</h2>
+            <p style="font-size: 16px;">We're sorry — your account request was not approved.</p>
+            ${data?.rejectionReason ? `<p style="font-size: 16px;"><strong>Reason:</strong><br/>${data.rejectionReason}</p>` : ''}
+            <p style="font-size: 16px;">If you believe this was a mistake, please reply to this email.</p>
+            <p style="font-size: 12px; color: #aaa; margin-top: 40px;">© 2025 SourceCo Deals. All rights reserved.</p>
+          </div>
         `;
-        text = `Hi ${firstName},\n\nWe're sorry — your account request was not approved.\n\n${data?.rejectionReason ? `Reason: ${data.rejectionReason}\n\n` : ''}If you believe this was a mistake, please reply to this email.\n\n— The SourceCo Team`;
+        text = `Hi ${firstName},\n\nWe're sorry — your account request was not approved.\n\n${data?.rejectionReason ? `Reason: ${data.rejectionReason}\n\n` : ''}If you believe this was a mistake, please reply to this email.\n\n© 2025 SourceCo Deals. All rights reserved.`;
         break;
         
       case "connection_approved":
         subject = '✅ Your connection request has been approved!';
         html = `
-          <h1>Hi ${firstName},</h1>
-          <p>Great news — your connection request for:</p>
-          <p><strong>${data?.listingName || 'Selected listing'}</strong></p>
-          <p>has been approved!</p>
-          <p>Please log in to see details.</p>
-          <p><a href="https://marketplace.sourcecodeals.com/my-requests" style="display: inline-block; background-color: #0070f3; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; margin-top: 15px;">Go to Marketplace</a></p>
-          <p>— The SourceCo Team</p>
+          <div style="font-family: Arial, sans-serif; background: #ffffff; padding: 30px; color: #111;">
+            <h2 style="font-size: 24px;">Hi ${firstName},</h2>
+            <p style="font-size: 16px;">Great news — your connection request for:</p>
+            <p style="font-size: 16px;"><strong>${data?.listingName || 'Selected listing'}</strong></p>
+            <p style="font-size: 16px;">has been approved!</p>
+            <p style="font-size: 16px;">Please log in to see details.</p>
+            <a href="https://marketplace.sourcecodeals.com/my-requests" style="display: inline-block; background-color: #111; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; margin-top: 15px;">Go to Marketplace</a>
+            <p style="font-size: 12px; color: #aaa; margin-top: 40px;">© 2025 SourceCo Deals. All rights reserved.</p>
+          </div>
         `;
-        text = `Hi ${firstName},\n\nGreat news — your connection request for: ${data?.listingName || 'Selected listing'} has been approved!\n\nPlease log in to see details.\n\nGo to Marketplace: https://marketplace.sourcecodeals.com/my-requests\n\n— The SourceCo Team`;
+        text = `Hi ${firstName},\n\nGreat news — your connection request for: ${data?.listingName || 'Selected listing'} has been approved!\n\nPlease log in to see details.\n\nGo to Marketplace: https://marketplace.sourcecodeals.com/my-requests\n\n© 2025 SourceCo Deals. All rights reserved.`;
         break;
         
       case "connection_rejected":
         subject = '❌ Your connection request update';
         html = `
-          <h1>Hi ${firstName},</h1>
-          <p>We wanted to let you know your connection request for:</p>
-          <p><strong>${data?.listingName || 'Selected listing'}</strong></p>
-          <p>was not approved at this time.</p>
-          <p>If you have questions, please reply to this email.</p>
-          <p>— The SourceCo Team</p>
+          <div style="font-family: Arial, sans-serif; background: #ffffff; padding: 30px; color: #111;">
+            <h2 style="font-size: 24px;">Hi ${firstName},</h2>
+            <p style="font-size: 16px;">We wanted to let you know your connection request for:</p>
+            <p style="font-size: 16px;"><strong>${data?.listingName || 'Selected listing'}</strong></p>
+            <p style="font-size: 16px;">was not approved at this time.</p>
+            <p style="font-size: 16px;">If you have questions, please reply to this email.</p>
+            <p style="font-size: 12px; color: #aaa; margin-top: 40px;">© 2025 SourceCo Deals. All rights reserved.</p>
+          </div>
         `;
-        text = `Hi ${firstName},\n\nWe wanted to let you know your connection request for: ${data?.listingName || 'Selected listing'} was not approved at this time.\n\nIf you have questions, please reply to this email.\n\n— The SourceCo Team`;
+        text = `Hi ${firstName},\n\nWe wanted to let you know your connection request for: ${data?.listingName || 'Selected listing'} was not approved at this time.\n\nIf you have questions, please reply to this email.\n\n© 2025 SourceCo Deals. All rights reserved.`;
         break;
         
       default:
