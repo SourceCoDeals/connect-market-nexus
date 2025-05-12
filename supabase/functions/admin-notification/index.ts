@@ -8,8 +8,7 @@ const corsHeaders = {
 };
 
 const ADMIN_EMAILS = [
-  "adam.haile@sourcecodeals.com",
-  "ahaile14@gmail.com"
+  "adam.haile@sourcecodeals.com"
 ];
 
 interface AdminNotificationRequest {
