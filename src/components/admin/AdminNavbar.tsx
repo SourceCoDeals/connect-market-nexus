@@ -8,10 +8,11 @@ import {
   Store, 
   MessageSquare, 
   ShoppingBag,
-  Menu
+  Menu,
+  X
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetClose } from "@/components/ui/sheet";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 interface AdminNavbarProps {
@@ -66,25 +67,32 @@ export function AdminNavbar({ className }: AdminNavbarProps) {
               <span className="sr-only">Toggle menu</span>
             </Button>
           </SheetTrigger>
-          <SheetContent side="left">
+          <SheetContent side="left" className="w-[85%] sm:w-[300px]">
             <SheetHeader className="pb-5">
-              <SheetTitle>Admin Dashboard</SheetTitle>
+              <div className="flex items-center justify-between">
+                <SheetTitle>Admin Dashboard</SheetTitle>
+                <SheetClose className="rounded-full hover:bg-muted p-2">
+                  <X className="h-4 w-4" />
+                  <span className="sr-only">Close</span>
+                </SheetClose>
+              </div>
             </SheetHeader>
             <nav className="flex flex-col gap-2">
               {navItems.map((item) => (
-                <Link
-                  key={item.to}
-                  to={item.to}
-                  className={cn(
-                    "flex items-center px-3 py-2 text-sm rounded-md transition-colors",
-                    item.active 
-                      ? "bg-primary text-primary-foreground font-medium" 
-                      : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                  )}
-                >
-                  {item.icon}
-                  <span>{item.label}</span>
-                </Link>
+                <SheetClose asChild key={item.to}>
+                  <Link
+                    to={item.to}
+                    className={cn(
+                      "flex items-center px-3 py-2 text-sm rounded-md transition-colors",
+                      item.active 
+                        ? "bg-primary text-primary-foreground font-medium" 
+                        : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                    )}
+                  >
+                    {item.icon}
+                    <span>{item.label}</span>
+                  </Link>
+                </SheetClose>
               ))}
             </nav>
           </SheetContent>

@@ -14,6 +14,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { AdminConnectionRequest } from '@/types/admin';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Link } from 'react-router-dom';
 
 interface ConnectionRequestsTableProps {
   requests: AdminConnectionRequest[];
@@ -63,7 +64,16 @@ const RequestDetails = ({ request, onApprove, onReject }: {
       <div>
         <h4 className="font-semibold text-sm mb-2">Listing Details</h4>
         <div className="space-y-1 text-sm">
-          <p><span className="font-medium">Title:</span> {request.listing?.title || "Unknown"}</p>
+          <p>
+            <span className="font-medium">Title:</span>{" "}
+            {request.listing?.id ? (
+              <Link to={`/listing/${request.listing.id}`} className="text-primary hover:underline">
+                {request.listing.title || "Unknown"}
+              </Link>
+            ) : (
+              request.listing?.title || "Unknown"
+            )}
+          </p>
           <p><span className="font-medium">Category:</span> {request.listing?.category || "-"}</p>
           <p><span className="font-medium">Location:</span> {request.listing?.location || "-"}</p>
           <p><span className="font-medium">Revenue:</span> {request.listing?.revenue ? `$${(request.listing.revenue).toLocaleString()}` : "-"}</p>
@@ -158,109 +168,121 @@ export const ConnectionRequestsTable = ({
   }
 
   return (
-    <div className="border rounded-md overflow-x-auto">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead></TableHead>
-            <TableHead>Buyer</TableHead>
-            <TableHead>Email</TableHead>
-            <TableHead>Company</TableHead>
-            <TableHead>Listing</TableHead>
-            <TableHead>Requested</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead className="text-right">Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {requests.map((request) => (
-            <React.Fragment key={request.id}>
-              <TableRow className="cursor-pointer hover:bg-muted/50" onClick={() => toggleExpand(request.id)}>
-                <TableCell className="w-8">
-                  {expandedRequestId === request.id ? 
-                    <ChevronDown className="h-4 w-4 text-muted-foreground" /> :
-                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                  }
-                </TableCell>
-                <TableCell className="font-medium">
-                  {request.user ? `${request.user.first_name} ${request.user.last_name}` : "Unknown User"}
-                </TableCell>
-                <TableCell>{request.user?.email || "-"}</TableCell>
-                <TableCell>{request.user?.company || "-"}</TableCell>
-                <TableCell className="max-w-[180px] truncate">
-                  {request.listing?.title || "Unknown Listing"}
-                </TableCell>
-                <TableCell>
-                  {formatDistanceToNow(new Date(request.created_at), {
-                    addSuffix: true,
-                  })}
-                </TableCell>
-                <TableCell>
-                  <StatusBadge status={request.status} />
-                </TableCell>
-                <TableCell className="text-right">
-                  {request.status === "pending" ? (
-                    <div className="flex justify-end gap-2" onClick={(e) => e.stopPropagation()}>
+    <div className="border rounded-md overflow-hidden">
+      <div className="overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead></TableHead>
+              <TableHead>Buyer</TableHead>
+              <TableHead>Email</TableHead>
+              <TableHead>Company</TableHead>
+              <TableHead>Listing</TableHead>
+              <TableHead>Requested</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {requests.map((request) => (
+              <React.Fragment key={request.id}>
+                <TableRow className="cursor-pointer hover:bg-muted/50" onClick={() => toggleExpand(request.id)}>
+                  <TableCell className="w-8">
+                    {expandedRequestId === request.id ? 
+                      <ChevronDown className="h-4 w-4 text-muted-foreground" /> :
+                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                    }
+                  </TableCell>
+                  <TableCell className="font-medium">
+                    {request.user ? `${request.user.first_name} ${request.user.last_name}` : "Unknown User"}
+                  </TableCell>
+                  <TableCell>{request.user?.email || "-"}</TableCell>
+                  <TableCell>{request.user?.company || "-"}</TableCell>
+                  <TableCell className="max-w-[180px] truncate">
+                    {request.listing?.id ? (
+                      <Link 
+                        to={`/listing/${request.listing.id}`} 
+                        className="text-primary hover:underline"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {request.listing?.title || "Unknown Listing"}
+                      </Link>
+                    ) : (
+                      request.listing?.title || "Unknown Listing"
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {formatDistanceToNow(new Date(request.created_at), {
+                      addSuffix: true,
+                    })}
+                  </TableCell>
+                  <TableCell>
+                    <StatusBadge status={request.status} />
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {request.status === "pending" ? (
+                      <div className="flex justify-end gap-2" onClick={(e) => e.stopPropagation()}>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="border-green-500 hover:bg-green-500 hover:text-white"
+                          onClick={() => onApprove(request)}
+                        >
+                          Approve
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="border-red-500 hover:bg-red-500 hover:text-white"
+                          onClick={() => onReject(request)}
+                        >
+                          Reject
+                        </Button>
+                      </div>
+                    ) : request.status === "rejected" ? (
                       <Button
                         variant="outline"
                         size="sm"
                         className="border-green-500 hover:bg-green-500 hover:text-white"
-                        onClick={() => onApprove(request)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onApprove(request);
+                        }}
                       >
                         Approve
                       </Button>
+                    ) : (
                       <Button
                         variant="outline"
                         size="sm"
                         className="border-red-500 hover:bg-red-500 hover:text-white"
-                        onClick={() => onReject(request)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onReject(request);
+                        }}
                       >
-                        Reject
+                        Revoke
                       </Button>
-                    </div>
-                  ) : request.status === "rejected" ? (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="border-green-500 hover:bg-green-500 hover:text-white"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onApprove(request);
-                      }}
-                    >
-                      Approve
-                    </Button>
-                  ) : (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="border-red-500 hover:bg-red-500 hover:text-white"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onReject(request);
-                      }}
-                    >
-                      Revoke
-                    </Button>
-                  )}
-                </TableCell>
-              </TableRow>
-              
-              {expandedRequestId === request.id && (
-                <TableRow>
-                  <TableCell colSpan={8} className="py-4 px-6 bg-muted/30 border-t">
-                    <RequestDetails 
-                      request={request} 
-                      onApprove={onApprove} 
-                      onReject={onReject}
-                    />
+                    )}
                   </TableCell>
                 </TableRow>
-              )}
-            </React.Fragment>
-          ))}
-        </TableBody>
-      </Table>
+                
+                {expandedRequestId === request.id && (
+                  <TableRow>
+                    <TableCell colSpan={8} className="py-4 px-6 bg-muted/30 border-t">
+                      <RequestDetails 
+                        request={request} 
+                        onApprove={onApprove} 
+                        onReject={onReject}
+                      />
+                    </TableCell>
+                  </TableRow>
+                )}
+              </React.Fragment>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 };
