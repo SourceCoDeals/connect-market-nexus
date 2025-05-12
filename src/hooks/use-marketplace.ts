@@ -236,7 +236,7 @@ export function useMarketplace() {
 
           // Send notification email to user
           try {
-            // Get user data
+            // Get user data - include all required fields
             const { data: userData, error: userError } = await supabase
               .from('profiles')
               .select('first_name, last_name, email, company')
@@ -245,7 +245,7 @@ export function useMarketplace() {
             
             if (userError) throw userError;
 
-            // Get listing data
+            // Get listing data - include all required fields
             const { data: listingData, error: listingError } = await supabase
               .from('listings')
               .select('title, category, location')

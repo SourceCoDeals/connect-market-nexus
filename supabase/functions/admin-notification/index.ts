@@ -7,6 +7,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
+// Updated to only use adam.haile@sourcecodeals.com as admin email
 const ADMIN_EMAILS = [
   "adam.haile@sourcecodeals.com"
 ];

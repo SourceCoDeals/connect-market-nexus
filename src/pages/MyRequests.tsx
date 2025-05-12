@@ -1,17 +1,20 @@
 
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useMarketplace } from "@/hooks/use-marketplace";
 import { Badge } from "@/components/ui/badge";
 import { formatDistanceToNow } from "date-fns";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, ExternalLink } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const MyRequests = () => {
   const { user } = useAuth();
   const { useUserConnectionRequests } = useMarketplace();
   const { data: requests = [], isLoading, error } = useUserConnectionRequests();
+  const isMobile = useIsMobile();
   
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -69,6 +72,31 @@ const MyRequests = () => {
             </p>
           </CardContent>
         </Card>
+      ) : isMobile ? (
+        <div className="space-y-4">
+          {requests.map((request) => (
+            <Link 
+              key={request.id}
+              to={request.listing?.id ? `/listing/${request.listing.id}` : '#'}
+              className="block"
+            >
+              <Card className="hover:border-primary/50 transition-colors cursor-pointer">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base">{request.listing?.title || "Unknown Listing"}</CardTitle>
+                  <div className="flex justify-between items-center">
+                    <CardDescription>{request.listing?.category || "-"}</CardDescription>
+                    {getStatusBadge(request.status)}
+                  </div>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <p className="text-sm text-muted-foreground">
+                    Requested {formatDistanceToNow(new Date(request.created_at), { addSuffix: true })}
+                  </p>
+                </CardContent>
+              </Card>
+            </Link>
+          ))}
+        </div>
       ) : (
         <div className="bg-white rounded-md border">
           <Table>
@@ -78,11 +106,20 @@ const MyRequests = () => {
                 <TableHead>Category</TableHead>
                 <TableHead>Requested</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead className="w-[50px]"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {requests.map((request) => (
-                <TableRow key={request.id}>
+                <TableRow 
+                  key={request.id}
+                  className="cursor-pointer hover:bg-muted/50"
+                  onClick={() => {
+                    if (request.listing?.id) {
+                      window.location.href = `/listing/${request.listing.id}`;
+                    }
+                  }}
+                >
                   <TableCell className="font-medium">
                     {request.listing?.title || "Unknown Listing"}
                   </TableCell>
@@ -91,6 +128,13 @@ const MyRequests = () => {
                     {formatDistanceToNow(new Date(request.created_at), { addSuffix: true })}
                   </TableCell>
                   <TableCell>{getStatusBadge(request.status)}</TableCell>
+                  <TableCell>
+                    {request.listing?.id && (
+                      <Link to={`/listing/${request.listing.id}`}>
+                        <ExternalLink className="h-4 w-4 text-muted-foreground" />
+                      </Link>
+                    )}
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>

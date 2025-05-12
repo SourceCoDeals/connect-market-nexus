@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface AdminNavbarProps {
   className?: string;
@@ -20,6 +21,7 @@ interface AdminNavbarProps {
 export function AdminNavbar({ className }: AdminNavbarProps) {
   const { user } = useAuth();
   const location = useLocation();
+  const isMobile = useIsMobile();
 
   const navItems = [
     {

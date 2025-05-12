@@ -12,10 +12,12 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AdminNavbar } from "./AdminNavbar";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const AdminLayout = () => {
   const { user } = useAuth();
   const location = useLocation();
+  const isMobile = useIsMobile();
 
   return (
     <div className="flex min-h-screen">
@@ -64,13 +66,15 @@ const AdminLayout = () => {
         </div>
       </aside>
       
-      {/* Mobile nav */}
-      <AdminNavbar className="md:hidden" />
-      
-      {/* Main content */}
-      <main className="flex-1 overflow-auto p-4 md:p-8">
-        <Outlet />
-      </main>
+      <div className="flex flex-col flex-1">
+        {/* Mobile nav */}
+        <AdminNavbar className="md:hidden" />
+        
+        {/* Main content */}
+        <main className="flex-1 overflow-auto p-4 md:p-8">
+          <Outlet />
+        </main>
+      </div>
     </div>
   );
 };

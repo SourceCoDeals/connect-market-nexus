@@ -8,12 +8,14 @@ import { AdminConnectionRequest } from "@/types/admin";
 import { ConnectionRequestsTable } from "@/components/admin/ConnectionRequestsTable";
 import { ConnectionRequestDialog } from "@/components/admin/ConnectionRequestDialog";
 import { toast } from "@/hooks/use-toast";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const AdminRequests = () => {
   const { useConnectionRequests, useConnectionRequestsMutation, sendConnectionApprovalEmail, sendConnectionRejectionEmail } = useAdmin();
   
   const { data: requests = [], isLoading, error } = useConnectionRequests();
   const { mutate: updateRequest, isPending: isUpdating } = useConnectionRequestsMutation();
+  const isMobile = useIsMobile();
   
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedRequest, setSelectedRequest] = useState<AdminConnectionRequest | null>(null);
@@ -81,7 +83,7 @@ const AdminRequests = () => {
   };
 
   return (
-    <div className="p-8 max-w-7xl mx-auto">
+    <div className="max-w-7xl mx-auto">
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-8">
         <h1 className="text-3xl font-bold mb-4 md:mb-0">Connection Requests</h1>
         <div className="relative w-full md:w-72">
