@@ -1,6 +1,7 @@
+
 import { useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
-import { format } from "date-fns";
+import { format, differenceInDays } from "date-fns";
 import { useMarketplace } from "@/hooks/use-marketplace";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -54,6 +55,14 @@ const ListingDetail = () => {
     return format(new Date(dateString), "MMMM d, yyyy");
   };
 
+  const getListingAge = (dateString: string) => {
+    const days = differenceInDays(new Date(), new Date(dateString));
+    if (days >= 30) {
+      return "30+ days";
+    }
+    return days === 0 ? "Today" : days === 1 ? "1 day ago" : `${days} days ago`;
+  };
+
   const handleRequestConnection = () => {
     if (id) {
       requestConnection(id);
@@ -66,7 +75,7 @@ const ListingDetail = () => {
 
   if (isLoading) {
     return (
-      <div className="container mx-auto">
+      <div className="container mx-auto pt-6">
         <div className="animate-pulse">
           <div className="mb-4">
             <div className="h-8 bg-muted rounded-md w-64 mb-2"></div>
@@ -92,7 +101,7 @@ const ListingDetail = () => {
 
   if (error || !listing) {
     return (
-      <div className="container mx-auto">
+      <div className="container mx-auto pt-6">
         <div className="text-center py-8">
           <h2 className="text-2xl font-bold text-gray-900">Listing not found</h2>
           <p className="mt-2 text-gray-600">
@@ -172,8 +181,8 @@ const ListingDetail = () => {
   };
 
   return (
-    <div className="container mx-auto">
-      <div className="mb-4">
+    <div className="container mx-auto pt-6">
+      <div className="mb-6">
         <Link
           to="/marketplace"
           className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
@@ -183,75 +192,30 @@ const ListingDetail = () => {
         </Link>
       </div>
       
-      {/* Hero Image Section - Updated with fixed height and proper aspect ratio */}
-      <div className="mb-6 rounded-lg overflow-hidden border border-border min-h-[300px] max-h-[400px] aspect-[16/9] relative">
-        {imageUrl ? (
-          <img
-            src={imageUrl}
-            alt={listing.title}
-            className="absolute inset-0 w-full h-full object-cover"
-            onError={(e) => {
-              const target = e.target as HTMLImageElement;
-              target.onerror = null;
-              target.src = DEFAULT_IMAGE;
-            }}
-          />
-        ) : (
-          <div className="w-full h-full bg-muted flex items-center justify-center">
-            <ImageIcon className="h-16 w-16 text-muted-foreground/50" />
-          </div>
-        )}
-      </div>
-
-      <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 mb-6">
-        <div className="flex-1">
-          <div className="flex flex-wrap gap-2 mb-2">
-            <Badge variant="outline" className="bg-background font-normal">
-              <Building2 className="h-3 w-3 mr-1" />
-              {listing.category}
-            </Badge>
-            <Badge variant="outline" className="bg-background font-normal">
-              <MapPin className="h-3 w-3 mr-1" />
-              {listing.location}
-            </Badge>
-            {isInactive && isAdmin && (
-              <Badge variant="destructive" className="font-normal">
-                <AlertTriangle className="h-3 w-3 mr-1" />
-                Inactive
-              </Badge>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+        {/* Left column - Image */}
+        <div className="lg:col-span-2">
+          <div className="rounded-lg overflow-hidden border border-border min-h-[300px] max-h-[400px] aspect-[16/9] relative mb-6">
+            {imageUrl ? (
+              <img
+                src={imageUrl}
+                alt={listing.title}
+                className="absolute inset-0 w-full h-full object-cover"
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement;
+                  target.onerror = null;
+                  target.src = DEFAULT_IMAGE;
+                }}
+              />
+            ) : (
+              <div className="w-full h-full bg-muted flex items-center justify-center">
+                <ImageIcon className="h-16 w-16 text-muted-foreground/50" />
+              </div>
             )}
           </div>
-          <h1 className="text-2xl md:text-3xl font-bold">{listing.title}</h1>
         </div>
 
-        <div className="w-full md:w-auto">
-          {renderConnectionButton()}
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Business Overview</CardTitle>
-            </CardHeader>
-            <CardContent className="prose max-w-none">
-              <p>{listing.description}</p>
-            </CardContent>
-          </Card>
-
-          {isAdmin && listing.owner_notes && (
-            <Card className="border-primary/20 bg-primary/5">
-              <CardHeader>
-                <CardTitle>Admin Notes</CardTitle>
-              </CardHeader>
-              <CardContent className="prose max-w-none">
-                <p>{listing.owner_notes}</p>
-              </CardContent>
-            </Card>
-          )}
-        </div>
-
+        {/* Right column - Financial info aligned with image */}
         <div className="space-y-4">
           <Card>
             <CardHeader className="pb-3">
@@ -303,9 +267,9 @@ const ListingDetail = () => {
               <div className="flex items-center justify-between">
                 <span className="flex items-center gap-2">
                   <Calendar className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm">Listed On:</span>
+                  <span className="text-sm">Listed:</span>
                 </span>
-                <span className="text-sm font-medium">{formatDate(listing.createdAt)}</span>
+                <span className="text-sm font-medium">{getListingAge(listing.createdAt)}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="flex items-center gap-2">
@@ -317,6 +281,56 @@ const ListingDetail = () => {
             </CardContent>
           </Card>
         </div>
+      </div>
+
+      {/* Title and badges section */}
+      <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 mb-6">
+        <div className="flex-1">
+          <div className="flex flex-wrap gap-2 mb-2">
+            <Badge variant="outline" className="bg-background font-normal">
+              <Building2 className="h-3 w-3 mr-1" />
+              {listing.category}
+            </Badge>
+            <Badge variant="outline" className="bg-background font-normal">
+              <MapPin className="h-3 w-3 mr-1" />
+              {listing.location}
+            </Badge>
+            {isInactive && isAdmin && (
+              <Badge variant="destructive" className="font-normal">
+                <AlertTriangle className="h-3 w-3 mr-1" />
+                Inactive
+              </Badge>
+            )}
+          </div>
+          <h1 className="text-2xl md:text-3xl font-bold">{listing.title}</h1>
+        </div>
+
+        <div className="w-full md:w-auto">
+          {renderConnectionButton()}
+        </div>
+      </div>
+
+      {/* Business overview section */}
+      <div className="grid grid-cols-1 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Business Overview</CardTitle>
+          </CardHeader>
+          <CardContent className="prose max-w-none">
+            <p>{listing.description}</p>
+          </CardContent>
+        </Card>
+
+        {isAdmin && listing.owner_notes && (
+          <Card className="border-primary/20 bg-primary/5">
+            <CardHeader>
+              <CardTitle>Admin Notes</CardTitle>
+            </CardHeader>
+            <CardContent className="prose max-w-none">
+              <p>{listing.owner_notes}</p>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );
