@@ -1,9 +1,12 @@
+
 import { useState } from "react";
 import { useAdmin } from "@/hooks/use-admin";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Store, Users, MessageSquare, TrendingUp } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
+import { AdminAnalyticsDashboard } from "@/components/admin/AdminAnalyticsDashboard";
 
 const AdminDashboard = () => {
   const { useStats, useRecentActivities } = useAdmin();
@@ -43,112 +46,125 @@ const AdminDashboard = () => {
         <h1 className="text-3xl font-bold">Admin Dashboard</h1>
       </div>
 
-      {isLoadingStats ? (
-        renderSkeleton()
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardDescription className="flex items-center">
-                <Store className="h-4 w-4 mr-1" /> Listings
-              </CardDescription>
-              <CardTitle>{stats?.totalListings || 0}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">
-                Active listings in marketplace
-              </p>
-            </CardContent>
-          </Card>
+      <Tabs defaultValue="overview" className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="analytics">User Analytics</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="overview" className="space-y-6">
+          {/* Overview Stats */}
+          {isLoadingStats ? (
+            renderSkeleton()
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardDescription className="flex items-center">
+                    <Store className="h-4 w-4 mr-1" /> Listings
+                  </CardDescription>
+                  <CardTitle>{stats?.totalListings || 0}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground">
+                    Active listings in marketplace
+                  </p>
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardDescription className="flex items-center">
+                    <Users className="h-4 w-4 mr-1" /> Users
+                  </CardDescription>
+                  <CardTitle>{stats?.pendingUsers || 0}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground">
+                    Pending approval requests
+                  </p>
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardDescription className="flex items-center">
+                    <MessageSquare className="h-4 w-4 mr-1" /> Connections
+                  </CardDescription>
+                  <CardTitle>{stats?.pendingConnections || 0}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground">
+                    New connection requests
+                  </p>
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardDescription className="flex items-center">
+                    <TrendingUp className="h-4 w-4 mr-1" /> Activity
+                  </CardDescription>
+                  <CardTitle>{stats?.totalUsers || 0}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground">
+                    Total registered users
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+          )}
           
+          {/* Recent Activity */}
           <Card>
-            <CardHeader className="pb-2">
-              <CardDescription className="flex items-center">
-                <Users className="h-4 w-4 mr-1" /> Users
+            <CardHeader>
+              <CardTitle>Recent Activity</CardTitle>
+              <CardDescription>
+                Latest actions across the marketplace
               </CardDescription>
-              <CardTitle>{stats?.pendingUsers || 0}</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-sm text-muted-foreground">
-                Pending approval requests
-              </p>
+              {isLoadingActivities ? (
+                renderActivitySkeleton()
+              ) : activities.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-6">
+                  No recent activity to display
+                </p>
+              ) : (
+                <div className="space-y-4">
+                  {activities.map((activity) => (
+                    <div
+                      key={activity.id}
+                      className={cn(
+                        "border-l-4 pl-4 py-1",
+                        activity.type === "signup"
+                          ? "border-green-500"
+                          : activity.type === "connection_request"
+                          ? "border-blue-500"
+                          : activity.type === "listing_creation"
+                          ? "border-purple-500"
+                          : "border-gray-500"
+                      )}
+                    >
+                      <p className="text-sm">{activity.description}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {formatDistanceToNow(new Date(activity.timestamp), {
+                          addSuffix: true,
+                        })}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
-          
-          <Card>
-            <CardHeader className="pb-2">
-              <CardDescription className="flex items-center">
-                <MessageSquare className="h-4 w-4 mr-1" /> Connections
-              </CardDescription>
-              <CardTitle>{stats?.pendingConnections || 0}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">
-                New connection requests
-              </p>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader className="pb-2">
-              <CardDescription className="flex items-center">
-                <TrendingUp className="h-4 w-4 mr-1" /> Activity
-              </CardDescription>
-              <CardTitle>{stats?.totalUsers || 0}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">
-                Total registered users
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-      
-      <div className="mt-8">
-        <Card>
-          <CardHeader>
-            <CardTitle>Recent Activity</CardTitle>
-            <CardDescription>
-              Latest actions across the marketplace
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {isLoadingActivities ? (
-              renderActivitySkeleton()
-            ) : activities.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-6">
-                No recent activity to display
-              </p>
-            ) : (
-              <div className="space-y-4">
-                {activities.map((activity) => (
-                  <div
-                    key={activity.id}
-                    className={cn(
-                      "border-l-4 pl-4 py-1",
-                      activity.type === "signup"
-                        ? "border-green-500"
-                        : activity.type === "connection_request"
-                        ? "border-blue-500"
-                        : activity.type === "listing_creation"
-                        ? "border-purple-500"
-                        : "border-gray-500"
-                    )}
-                  >
-                    <p className="text-sm">{activity.description}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {formatDistanceToNow(new Date(activity.timestamp), {
-                        addSuffix: true,
-                      })}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+        </TabsContent>
+
+        <TabsContent value="analytics">
+          <AdminAnalyticsDashboard />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
