@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useAdmin } from "@/hooks/use-admin";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,10 +17,12 @@ import { AdminListing } from "@/types/admin";
 import { ListingSavedByUsers } from "@/components/admin/ListingSavedByUsers";
 
 const AdminListings = () => {
-  const { useListings, useToggleListingStatus, useDeleteListing } = useAdmin();
+  const { useListings, useToggleListingStatus, useDeleteListing, useCreateListing, useUpdateListing } = useAdmin();
   const { data: listings = [], isLoading, refetch } = useListings();
   const { mutate: toggleStatus } = useToggleListingStatus();
   const { mutate: deleteListing } = useDeleteListing();
+  const { mutate: createListing, isPending: isCreating } = useCreateListing();
+  const { mutate: updateListing, isPending: isUpdating } = useUpdateListing();
   
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -74,6 +75,14 @@ const AdminListings = () => {
     }).format(value);
   };
 
+  const handleFormSubmit = async (data: any, image?: File | null) => {
+    if (editingListing) {
+      updateListing({ id: editingListing.id, data, image });
+    } else {
+      createListing({ data, image });
+    }
+  };
+
   const handleFormClose = () => {
     setIsCreateFormOpen(false);
     setEditingListing(null);
@@ -85,8 +94,14 @@ const AdminListings = () => {
       <div className="p-8 max-w-4xl mx-auto">
         <ListingForm
           listing={editingListing}
-          onClose={handleFormClose}
+          onSubmit={handleFormSubmit}
+          isLoading={isCreating || isUpdating}
         />
+        <div className="mt-4">
+          <Button variant="outline" onClick={handleFormClose}>
+            Cancel
+          </Button>
+        </div>
       </div>
     );
   }

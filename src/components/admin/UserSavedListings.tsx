@@ -19,7 +19,7 @@ export function UserSavedListings({ userId }: UserSavedListingsProps) {
         .select(`
           created_at,
           listing_id,
-          listings(
+          listings!saved_listings_listing_id_fkey(
             title,
             category,
             location,
