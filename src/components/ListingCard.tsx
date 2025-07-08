@@ -136,7 +136,7 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
         <div
           className={`flex flex-col ${
             viewType === "list" ? "flex-row w-full" : ""
-          }`}
+          } h-full`}
         >
           {viewType === "list" ? (
             <div className="w-1/4 min-w-[180px] relative">
@@ -184,81 +184,83 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
             </div>
           )}
           
-          <CardContent
-            className={`p-4 md:p-6 flex-1 ${viewType === "list" ? "w-2/4" : ""} flex flex-col`}
-          >
-            <div>
-              <div className="flex flex-wrap gap-2 mb-2">
-                <Badge variant="outline" className="bg-background font-normal">
-                  <Building2 className="h-3 w-3 mr-1" />
-                  {listing.category}
-                </Badge>
-                <Badge variant="outline" className="bg-background font-normal">
-                  <MapPin className="h-3 w-3 mr-1" />
-                  {listing.location}
-                </Badge>
+          <div className={`flex flex-col ${viewType === "list" ? "w-2/4" : ""} flex-1`}>
+            <CardContent
+              className={`p-4 md:p-6 flex-1 ${viewType === "list" ? "" : ""} flex flex-col`}
+            >
+              <div>
+                <div className="flex flex-wrap gap-2 mb-2">
+                  <Badge variant="outline" className="bg-background font-normal">
+                    <Building2 className="h-3 w-3 mr-1" />
+                    {listing.category}
+                  </Badge>
+                  <Badge variant="outline" className="bg-background font-normal">
+                    <MapPin className="h-3 w-3 mr-1" />
+                    {listing.location}
+                  </Badge>
+                </div>
+
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <h3 className="text-lg font-semibold line-clamp-2 mb-3">
+                        {listing.title}
+                      </h3>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>{listing.title}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+
+                <div className="grid grid-cols-2 gap-3 mb-3">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Annual Revenue</p>
+                    <p className="font-semibold">{formatCurrency(listing.revenue)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Annual EBITDA</p>
+                    <p className="font-semibold">{formatCurrency(listing.ebitda)}</p>
+                  </div>
+                </div>
               </div>
 
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <h3 className="text-lg font-semibold line-clamp-2 mb-3">
-                      {listing.title}
-                    </h3>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>{listing.title}</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              <p className="text-sm text-muted-foreground line-clamp-3 mb-4">
+                {listing.description}
+              </p>
+            </CardContent>
 
-              <div className="grid grid-cols-2 gap-3 mb-3">
-                <div>
-                  <p className="text-xs text-muted-foreground">Annual Revenue</p>
-                  <p className="font-semibold">{formatCurrency(listing.revenue)}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Annual EBITDA</p>
-                  <p className="font-semibold">{formatCurrency(listing.ebitda)}</p>
-                </div>
-              </div>
-            </div>
-
-            <p className="text-sm text-muted-foreground line-clamp-3 mb-auto">
-              {listing.description}
-            </p>
-          </CardContent>
-
-          <CardFooter
-            className={`p-4 pt-0 border-t mt-auto ${
-              viewType === "list" ? "w-1/4 border-l border-t-0 p-4 md:p-6 flex items-center" : ""
-            }`}
-          >
-            <div
-              className={`flex ${
-                viewType === "list" ? "flex-col gap-3 w-full" : "w-full"
+            <CardFooter
+              className={`p-4 pt-0 border-t mt-auto ${
+                viewType === "list" ? "w-1/4 border-l border-t-0 p-4 md:p-6 flex items-center" : ""
               }`}
             >
-              {renderConnectionButton()}
-
-              <Button
-                variant="outline"
-                size="icon"
-                className={viewType === "list" ? "self-center" : "ml-2"}
-                onClick={handleToggleSave}
-                disabled={isSaving}
+              <div
+                className={`flex ${
+                  viewType === "list" ? "flex-col gap-3 w-full" : "w-full"
+                }`}
               >
-                <Bookmark
-                  className={`h-5 w-5 ${
-                    isSaved ? "fill-current text-primary" : ""
-                  }`}
-                />
-                <span className="sr-only">
-                  {isSaved ? "Unsave" : "Save"} listing
-                </span>
-              </Button>
-            </div>
-          </CardFooter>
+                {renderConnectionButton()}
+
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className={viewType === "list" ? "self-center" : "ml-2"}
+                  onClick={handleToggleSave}
+                  disabled={isSaving}
+                >
+                  <Bookmark
+                    className={`h-5 w-5 ${
+                      isSaved ? "fill-current text-primary" : ""
+                    }`}
+                  />
+                  <span className="sr-only">
+                    {isSaved ? "Unsave" : "Save"} listing
+                  </span>
+                </Button>
+              </div>
+            </CardFooter>
+          </div>
         </div>
       </Card>
     </Link>
