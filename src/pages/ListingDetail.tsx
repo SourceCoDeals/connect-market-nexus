@@ -1,7 +1,6 @@
 
 import { useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
-import { format, differenceInDays } from "date-fns";
 import { useMarketplace } from "@/hooks/use-marketplace";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -9,19 +8,15 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Building2,
-  Calendar,
   ChevronLeft,
-  Clock,
-  DollarSign,
-  FileText,
-  MapPin,
   AlertTriangle,
-  Send,
-  CheckCircle,
-  XCircle,
-  ImageIcon
+  ImageIcon,
+  MapPin
 } from "lucide-react";
 import { DEFAULT_IMAGE } from "@/lib/storage-utils";
+import ListingFinancials from "@/components/listing-detail/ListingFinancials";
+import ListingInfo from "@/components/listing-detail/ListingInfo";
+import ConnectionButton from "@/components/listing-detail/ConnectionButton";
 
 const ListingDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -49,18 +44,6 @@ const ListingDetail = () => {
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
     }).format(value);
-  };
-
-  const formatDate = (dateString: string) => {
-    return format(new Date(dateString), "MMMM d, yyyy");
-  };
-
-  const getListingAge = (dateString: string) => {
-    const days = differenceInDays(new Date(), new Date(dateString));
-    if (days >= 30) {
-      return "30+ days";
-    }
-    return days === 0 ? "Today" : days === 1 ? "1 day ago" : `${days} days ago`;
   };
 
   const handleRequestConnection = () => {
@@ -121,65 +104,6 @@ const ListingDetail = () => {
   // Use listing's image_url or fallback to default image
   const imageUrl = listing?.image_url || DEFAULT_IMAGE;
 
-  // Helper function to render connection button based on status
-  const renderConnectionButton = () => {
-    if (isAdmin) return null; // Admins don't see connection buttons
-    
-    if (connectionExists) {
-      if (connectionStatusValue === "pending") {
-        return (
-          <Button
-            variant="secondary"
-            className="w-full md:w-auto"
-            disabled={true}
-          >
-            <Clock className="mr-2 h-4 w-4" /> Request Pending
-          </Button>
-        );
-      } else if (connectionStatusValue === "approved") {
-        return (
-          <Button
-            variant="default"
-            className="w-full md:w-auto bg-green-600 hover:bg-green-700"
-            disabled={true}
-          >
-            <CheckCircle className="mr-2 h-4 w-4" /> Connected
-          </Button>
-        );
-      } else if (connectionStatusValue === "rejected") {
-        return (
-          <Button
-            variant="outline"
-            className="w-full md:w-auto text-red-600 border-red-200"
-            onClick={handleRequestConnection}
-          >
-            <XCircle className="mr-2 h-4 w-4" /> Rejected - Resubmit
-          </Button>
-        );
-      }
-    }
-    
-    // Default state - no connection request exists
-    return (
-      <Button
-        variant="default"
-        className="w-full md:w-auto"
-        disabled={isRequesting}
-        onClick={handleRequestConnection}
-      >
-        {isRequesting ? (
-          <>
-            <Clock className="mr-2 h-4 w-4 animate-spin" /> Submitting...
-          </>
-        ) : (
-          <>
-            <Send className="mr-2 h-4 w-4" /> Request Connection
-          </>
-        )}
-      </Button>
-    );
-  };
-
   return (
     <div className="container mx-auto pt-6">
       <div className="mb-6">
@@ -217,69 +141,13 @@ const ListingDetail = () => {
 
         {/* Right column - Financial info aligned with image */}
         <div className="space-y-4">
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle>Financial Overview</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-sm font-medium">Annual Revenue:</span>
-                    <span className="font-semibold">{formatCurrency(listing.revenue)}</span>
-                  </div>
-                  <div className="h-2 bg-muted rounded">
-                    <div className="h-full bg-primary rounded" style={{ width: '100%' }}></div>
-                  </div>
-                </div>
-                
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-sm font-medium">Annual EBITDA:</span>
-                    <span className="font-semibold">{formatCurrency(listing.ebitda)}</span>
-                  </div>
-                  <div className="h-2 bg-muted rounded">
-                    <div className="h-full bg-primary rounded" style={{ 
-                      width: `${Math.min((listing.ebitda / listing.revenue) * 100, 100)}%` 
-                    }}></div>
-                  </div>
-                </div>
+          <ListingFinancials 
+            revenue={listing.revenue} 
+            ebitda={listing.ebitda} 
+            formatCurrency={formatCurrency} 
+          />
 
-                {listing.revenue > 0 && (
-                  <div className="pt-2 border-t mt-1">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">EBITDA Margin:</span>
-                      <span className="font-semibold">
-                        {((listing.ebitda / listing.revenue) * 100).toFixed(1)}%
-                      </span>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle>Listing Information</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm">Listed:</span>
-                </span>
-                <span className="text-sm font-medium">{getListingAge(listing.createdAt)}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="flex items-center gap-2">
-                  <FileText className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm">Listing ID:</span>
-                </span>
-                <span className="text-sm font-mono">{listing.id.substring(0, 8)}...</span>
-              </div>
-            </CardContent>
-          </Card>
+          <ListingInfo id={listing.id} createdAt={listing.createdAt} />
         </div>
       </div>
 
@@ -306,7 +174,13 @@ const ListingDetail = () => {
         </div>
 
         <div className="w-full md:w-auto">
-          {renderConnectionButton()}
+          <ConnectionButton 
+            connectionExists={connectionExists}
+            connectionStatus={connectionStatusValue}
+            isRequesting={isRequesting}
+            isAdmin={isAdmin}
+            handleRequestConnection={handleRequestConnection}
+          />
         </div>
       </div>
 

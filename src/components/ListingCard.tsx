@@ -185,51 +185,53 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
           )}
           
           <CardContent
-            className={`p-4 md:p-6 flex-1 ${viewType === "list" ? "w-2/4" : ""}`}
+            className={`p-4 md:p-6 flex-1 ${viewType === "list" ? "w-2/4" : ""} flex flex-col`}
           >
-            <div className="flex flex-wrap gap-2 mb-2">
-              <Badge variant="outline" className="bg-background font-normal">
-                <Building2 className="h-3 w-3 mr-1" />
-                {listing.category}
-              </Badge>
-              <Badge variant="outline" className="bg-background font-normal">
-                <MapPin className="h-3 w-3 mr-1" />
-                {listing.location}
-              </Badge>
+            <div>
+              <div className="flex flex-wrap gap-2 mb-2">
+                <Badge variant="outline" className="bg-background font-normal">
+                  <Building2 className="h-3 w-3 mr-1" />
+                  {listing.category}
+                </Badge>
+                <Badge variant="outline" className="bg-background font-normal">
+                  <MapPin className="h-3 w-3 mr-1" />
+                  {listing.location}
+                </Badge>
+              </div>
+
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <h3 className="text-lg font-semibold line-clamp-2 mb-3">
+                      {listing.title}
+                    </h3>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>{listing.title}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+
+              <div className="grid grid-cols-2 gap-3 mb-3">
+                <div>
+                  <p className="text-xs text-muted-foreground">Annual Revenue</p>
+                  <p className="font-semibold">{formatCurrency(listing.revenue)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Annual EBITDA</p>
+                  <p className="font-semibold">{formatCurrency(listing.ebitda)}</p>
+                </div>
+              </div>
             </div>
 
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <h3 className="text-lg font-semibold line-clamp-2 mb-3">
-                    {listing.title}
-                  </h3>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>{listing.title}</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-
-            <div className="grid grid-cols-2 gap-3 mb-3">
-              <div>
-                <p className="text-xs text-muted-foreground">Annual Revenue</p>
-                <p className="font-semibold">{formatCurrency(listing.revenue)}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Annual EBITDA</p>
-                <p className="font-semibold">{formatCurrency(listing.ebitda)}</p>
-              </div>
-            </div>
-
-            <p className="text-sm text-muted-foreground line-clamp-3">
+            <p className="text-sm text-muted-foreground line-clamp-3 mb-auto">
               {listing.description}
             </p>
           </CardContent>
 
           <CardFooter
             className={`p-4 pt-0 border-t mt-auto ${
-              viewType === "list" ? "w-1/4 border-l border-t-0 p-4 md:p-6" : ""
+              viewType === "list" ? "w-1/4 border-l border-t-0 p-4 md:p-6 flex items-center" : ""
             }`}
           >
             <div
