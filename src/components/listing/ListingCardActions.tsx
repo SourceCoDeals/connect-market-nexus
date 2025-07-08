@@ -1,8 +1,6 @@
 
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Bookmark, Clock, CheckCircle, XCircle, Send } from "lucide-react";
-import ConnectionRequestDialog from "@/components/connection/ConnectionRequestDialog";
+import { Bookmark, CheckCircle, Clock, XCircle, ExternalLink } from "lucide-react";
 
 interface ListingCardActionsProps {
   viewType: "grid" | "list";
@@ -27,85 +25,6 @@ const ListingCardActions = ({
   handleToggleSave,
   listingTitle
 }: ListingCardActionsProps) => {
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-
-  const handleDialogSubmit = (message: string) => {
-    // Create a mock event for the existing handler
-    const mockEvent = { stopPropagation: () => {} } as React.MouseEvent;
-    handleRequestConnection(mockEvent, message);
-    setIsDialogOpen(false);
-  };
-
-  const handleButtonClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (connectionExists && connectionStatus === "rejected") {
-      // For rejected requests, open dialog for resubmission
-      setIsDialogOpen(true);
-    } else if (!connectionExists) {
-      // For new requests, open dialog
-      setIsDialogOpen(true);
-    } else {
-      // For other cases, use existing handler
-      handleRequestConnection(e);
-    }
-  };
-
-  // Helper function to render appropriate button based on connection status
-  const renderConnectionButton = () => {
-    if (connectionExists) {
-      if (connectionStatus === "pending") {
-        return (
-          <Button
-            className={`${viewType === "list" ? "w-full" : "flex-1"} text-xs md:text-sm`}
-            size={viewType === "list" ? "sm" : "default"}
-            variant="secondary"
-            disabled={true}
-          >
-            <Clock className="h-4 w-4 mr-1" /> Requested
-          </Button>
-        );
-      } else if (connectionStatus === "approved") {
-        return (
-          <Button
-            className={`${viewType === "list" ? "w-full" : "flex-1"} text-xs md:text-sm bg-green-600 hover:bg-green-700`}
-            size={viewType === "list" ? "sm" : "default"}
-            disabled={true}
-          >
-            <CheckCircle className="h-4 w-4 mr-1" /> Connected
-          </Button>
-        );
-      } else if (connectionStatus === "rejected") {
-        return (
-          <Button
-            className={`${viewType === "list" ? "w-full" : "flex-1"} text-xs md:text-sm`}
-            size={viewType === "list" ? "sm" : "default"}
-            variant="outline"
-            onClick={handleButtonClick}
-            disabled={isRequesting}
-          >
-            <XCircle className="h-4 w-4 mr-1" /> Resubmit
-          </Button>
-        );
-      }
-    }
-
-    // Default state - no connection exists
-    return (
-      <Button
-        className={`${viewType === "list" ? "w-full" : "flex-1"} text-xs md:text-sm`}
-        size={viewType === "list" ? "sm" : "default"}
-        disabled={isRequesting}
-        onClick={handleButtonClick}
-      >
-        {isRequesting ? (
-          <Clock className="h-4 w-4 mr-1 animate-spin" />
-        ) : (
-          <Send className="h-4 w-4 mr-1" />
-        )}
-        {isRequesting ? "Requesting..." : "Request"}
-      </Button>
-    );
-  };
 
   return (
     <div
@@ -113,7 +32,14 @@ const ListingCardActions = ({
         viewType === "list" ? "flex-col gap-3 w-full" : "w-full"
       }`}
     >
-      {renderConnectionButton()}
+      <Button
+        className={`${viewType === "list" ? "w-full" : "flex-1"} text-xs md:text-sm`}
+        size={viewType === "list" ? "sm" : "default"}
+        variant="outline"
+      >
+        <ExternalLink className="h-4 w-4 mr-1" />
+        See details
+      </Button>
 
       <Button
         variant="outline"
@@ -131,14 +57,6 @@ const ListingCardActions = ({
           {isSaved ? "Unsave" : "Save"} listing
         </span>
       </Button>
-
-      <ConnectionRequestDialog
-        isOpen={isDialogOpen}
-        onClose={() => setIsDialogOpen(false)}
-        onSubmit={handleDialogSubmit}
-        isSubmitting={isRequesting}
-        listingTitle={listingTitle}
-      />
     </div>
   );
 };

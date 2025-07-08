@@ -76,7 +76,11 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
                   location={listing.location} 
                 />
 
-                <ListingCardTitle title={listing.title} />
+                <ListingCardTitle 
+                  title={listing.title}
+                  connectionExists={connectionExists}
+                  connectionStatus={connectionStatusValue}
+                />
 
                 <ListingCardFinancials 
                   revenue={listing.revenue} 
