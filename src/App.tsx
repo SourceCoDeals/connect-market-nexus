@@ -1,4 +1,6 @@
-import { Route, Routes, Navigate } from "react-router-dom";
+
+import { Route, Routes, Navigate, BrowserRouter } from "react-router-dom";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from "@/context/AuthContext";
 import Login from "@/pages/Login";
@@ -23,11 +25,14 @@ import Unauthorized from "@/pages/Unauthorized";
 import Profile from "@/pages/Profile";
 import SavedListings from "@/pages/SavedListings";
 
+// Create a client
+const queryClient = new QueryClient();
+
 function App() {
   return (
-    <QueryClient>
+    <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <Router>
+        <BrowserRouter>
           <Routes>
             {/* Redirect root to appropriate location based on auth state */}
             <Route path="/" element={<Navigate to="/marketplace" replace />} />
@@ -120,9 +125,10 @@ function App() {
             {/* 404 Route */}
             <Route path="*" element={<NotFound />} />
           </Routes>
-        </Router>
+          <Toaster />
+        </BrowserRouter>
       </AuthProvider>
-    </QueryClient>
+    </QueryClientProvider>
   );
 }
 
