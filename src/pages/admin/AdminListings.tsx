@@ -77,9 +77,9 @@ const AdminListings = () => {
 
   const handleFormSubmit = async (data: any, image?: File | null) => {
     if (editingListing) {
-      updateListing({ id: editingListing.id, data, image });
+      updateListing({ id: editingListing.id, listing: data, image });
     } else {
-      createListing({ data, image });
+      createListing({ listing: data, image });
     }
   };
 
