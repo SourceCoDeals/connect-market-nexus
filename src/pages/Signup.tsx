@@ -11,7 +11,7 @@ import { BuyerType, User } from "@/types";
 
 const steps = [
   "Account Information",
-  "Personal Details",
+  "Personal Details", 
   "Buyer Type",
 ];
 
@@ -483,79 +483,96 @@ const Signup = () => {
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-muted/30 py-8">
-      <Card className="w-full max-w-lg mx-4">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold text-center">
-            Create an account
-          </CardTitle>
-          <CardDescription className="text-center">
-            Step {currentStep + 1} of {steps.length}: {steps[currentStep]}
-          </CardDescription>
-          
-          {/* Progress bar */}
-          <div className="w-full bg-secondary h-2 rounded-full mt-4">
-            <div
-              className="bg-primary h-2 rounded-full transition-all"
-              style={{
-                width: `${((currentStep + 1) / steps.length) * 100}%`,
-              }}
-            ></div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {validationErrors.length > 0 && (
-            <div className="bg-destructive/15 text-destructive p-3 rounded-md mb-4">
-              <ul className="list-disc pl-5">
-                {validationErrors.map((error, index) => (
-                  <li key={index}>{error}</li>
-                ))}
-              </ul>
+      <div className="w-full max-w-lg mx-4 space-y-6">
+        {/* Brand Header */}
+        <div className="flex flex-col items-center space-y-3">
+          <div className="flex items-center">
+            <img 
+              src="/lovable-uploads/b879fa06-6a99-4263-b973-b9ced4404acb.png" 
+              alt="SourceCo Logo" 
+              className="h-10 w-10 mr-3"
+            />
+            <div className="text-center">
+              <h1 className="text-2xl font-bold">SourceCo</h1>
+              <p className="text-lg text-muted-foreground font-light">Marketplace</p>
             </div>
-          )}
-          
-          <form onSubmit={handleSubmit}>{renderStepContent()}</form>
-        </CardContent>
-        <CardFooter className="flex flex-col space-y-4">
-          <div className="flex justify-between w-full">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handlePrevious}
-              disabled={currentStep === 0 || isLoading}
-            >
-              Back
-            </Button>
+          </div>
+        </div>
+
+        <Card>
+          <CardHeader className="space-y-1">
+            <CardTitle className="text-2xl font-bold text-center">
+              Create an account
+            </CardTitle>
+            <CardDescription className="text-center">
+              Step {currentStep + 1} of {steps.length}: {steps[currentStep]}
+            </CardDescription>
             
-            {currentStep === steps.length - 1 ? (
-              <Button
-                type="submit"
-                onClick={handleSubmit}
-                disabled={isLoading}
-              >
-                {isLoading ? "Creating account..." : "Create account"}
-              </Button>
-            ) : (
+            {/* Progress bar */}
+            <div className="w-full bg-secondary h-2 rounded-full mt-4">
+              <div
+                className="bg-primary h-2 rounded-full transition-all"
+                style={{
+                  width: `${((currentStep + 1) / steps.length) * 100}%`,
+                }}
+              ></div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {validationErrors.length > 0 && (
+              <div className="bg-destructive/15 text-destructive p-3 rounded-md mb-4">
+                <ul className="list-disc pl-5">
+                  {validationErrors.map((error, index) => (
+                    <li key={index}>{error}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            
+            <form onSubmit={handleSubmit}>{renderStepContent()}</form>
+          </CardContent>
+          <CardFooter className="flex flex-col space-y-4">
+            <div className="flex justify-between w-full">
               <Button
                 type="button"
-                onClick={handleNext}
-                disabled={isLoading}
+                variant="outline"
+                onClick={handlePrevious}
+                disabled={currentStep === 0 || isLoading}
               >
-                Continue
+                Back
               </Button>
-            )}
-          </div>
-          
-          <div className="text-sm text-center text-muted-foreground">
-            <span>Already have an account? </span>
-            <Link
-              to="/login"
-              className="text-primary font-medium hover:underline"
-            >
-              Sign in
-            </Link>
-          </div>
-        </CardFooter>
-      </Card>
+              
+              {currentStep === steps.length - 1 ? (
+                <Button
+                  type="submit"
+                  onClick={handleSubmit}
+                  disabled={isLoading}
+                >
+                  {isLoading ? "Creating account..." : "Create account"}
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  onClick={handleNext}
+                  disabled={isLoading}
+                >
+                  Continue
+                </Button>
+              )}
+            </div>
+            
+            <div className="text-sm text-center text-muted-foreground">
+              <span>Already have an account? </span>
+              <Link
+                to="/login"
+                className="text-primary font-medium hover:underline"
+              >
+                Sign in
+              </Link>
+            </div>
+          </CardFooter>
+        </Card>
+      </div>
     </div>
   );
 };

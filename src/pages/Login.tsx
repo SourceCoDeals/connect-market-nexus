@@ -179,7 +179,7 @@ const Login = () => {
         <div className="flex flex-col items-center space-y-3">
           <div className="flex items-center">
             <img 
-              src="/lovable-uploads/2a854b8b-3e62-4f4d-810b-f6a17c79cd02.png" 
+              src="/lovable-uploads/b879fa06-6a99-4263-b973-b9ced4404acb.png" 
               alt="SourceCo Logo" 
               className="h-10 w-10 mr-3"
             />
