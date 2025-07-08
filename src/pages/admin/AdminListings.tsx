@@ -52,9 +52,10 @@ const AdminListings = () => {
   };
 
   const handleToggleStatus = (listing: AdminListing) => {
+    const newStatus = listing.status === 'active' ? 'inactive' : 'active';
     toggleStatus({
-      listingId: listing.id,
-      currentStatus: listing.status,
+      id: listing.id,
+      status: newStatus,
     });
   };
 
@@ -73,20 +74,18 @@ const AdminListings = () => {
     }).format(value);
   };
 
+  const handleFormClose = () => {
+    setIsCreateFormOpen(false);
+    setEditingListing(null);
+    refetch();
+  };
+
   if (isCreateFormOpen || editingListing) {
     return (
       <div className="p-8 max-w-4xl mx-auto">
         <ListingForm
           listing={editingListing}
-          onSuccess={() => {
-            setIsCreateFormOpen(false);
-            setEditingListing(null);
-            refetch();
-          }}
-          onCancel={() => {
-            setIsCreateFormOpen(false);
-            setEditingListing(null);
-          }}
+          onClose={handleFormClose}
         />
       </div>
     );

@@ -19,7 +19,7 @@ export function UserSavedListings({ userId }: UserSavedListingsProps) {
         .select(`
           created_at,
           listing_id,
-          listings!inner(
+          listings!saved_listings_listing_id_fkey(
             title,
             category,
             location,
@@ -61,12 +61,12 @@ export function UserSavedListings({ userId }: UserSavedListingsProps) {
       <div className="space-y-1">
         {savedListings.slice(0, 3).map((saved) => (
           <div key={saved.listing_id} className="text-sm border rounded p-2">
-            <div className="font-medium">{saved.listings.title}</div>
+            <div className="font-medium">{saved.listings?.title}</div>
             <div className="text-xs text-muted-foreground flex items-center gap-2">
               <Badge variant="outline" className="text-xs">
-                {saved.listings.category}
+                {saved.listings?.category}
               </Badge>
-              <span>{saved.listings.location}</span>
+              <span>{saved.listings?.location}</span>
               <span>•</span>
               <span>Saved {formatDistanceToNow(new Date(saved.created_at), { addSuffix: true })}</span>
             </div>

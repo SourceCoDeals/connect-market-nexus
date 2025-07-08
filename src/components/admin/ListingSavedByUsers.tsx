@@ -20,7 +20,7 @@ export function ListingSavedByUsers({ listingId }: ListingSavedByUsersProps) {
         .select(`
           created_at,
           user_id,
-          profiles!inner(
+          profiles!saved_listings_user_id_fkey(
             first_name,
             last_name,
             email,
@@ -67,22 +67,22 @@ export function ListingSavedByUsers({ listingId }: ListingSavedByUsersProps) {
             <div className="flex items-center justify-between">
               <div>
                 <div className="font-medium">
-                  {saved.profiles.first_name} {saved.profiles.last_name}
+                  {saved.profiles?.first_name} {saved.profiles?.last_name}
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  {saved.profiles.email}
+                  {saved.profiles?.email}
                 </div>
               </div>
               <div className="text-right">
                 <Badge variant="outline" className="text-xs">
-                  {saved.profiles.buyer_type || 'Unknown'}
+                  {saved.profiles?.buyer_type || 'Unknown'}
                 </Badge>
                 <div className="text-xs text-muted-foreground mt-1">
                   {formatDistanceToNow(new Date(saved.created_at), { addSuffix: true })}
                 </div>
               </div>
             </div>
-            {saved.profiles.company && (
+            {saved.profiles?.company && (
               <div className="text-xs text-muted-foreground mt-1">
                 {saved.profiles.company}
               </div>
