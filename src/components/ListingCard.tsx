@@ -22,9 +22,9 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
   const { mutate: toggleSave, isPending: isSaving } = useSaveListingMutation();
   const { data: isSaved } = useSavedStatus(listing.id);
 
-  const handleRequestConnection = (e: React.MouseEvent) => {
+  const handleRequestConnection = (e: React.MouseEvent, message?: string) => {
     e.preventDefault();
-    requestConnection(listing.id);
+    requestConnection({ listingId: listing.id, message });
   };
 
   const handleToggleSave = (e: React.MouseEvent) => {
@@ -104,6 +104,7 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
                 isSaving={isSaving}
                 handleRequestConnection={handleRequestConnection}
                 handleToggleSave={handleToggleSave}
+                listingTitle={listing.title}
               />
             </CardFooter>
           </div>

@@ -82,6 +82,7 @@ export interface ConnectionRequest {
   listing_id: string;
   status: 'pending' | 'approved' | 'rejected';
   admin_comment?: string;
+  user_message?: string;
   created_at: string;
   updated_at: string;
   listing?: Partial<Listing>;

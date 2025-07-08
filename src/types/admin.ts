@@ -39,6 +39,7 @@ export interface AdminConnectionRequest {
   listing_id: string;
   status: 'pending' | 'approved' | 'rejected';
   admin_comment?: string;
+  user_message?: string;
   created_at: string;
   updated_at: string;
   decision_at?: string; // Added decision timestamp field
