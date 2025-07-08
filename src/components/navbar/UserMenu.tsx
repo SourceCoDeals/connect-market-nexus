@@ -11,7 +11,7 @@ import {
   DropdownMenuSeparator 
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { AuthUser } from "@/context/AuthContext";
+import { User as AuthUser } from "@/types";
 import MobileNavItems from "./MobileNavItems";
 
 interface UserMenuProps {
