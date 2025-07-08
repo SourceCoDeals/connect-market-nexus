@@ -139,13 +139,26 @@ const ListingDetail = () => {
           </div>
         </div>
 
-        {/* Right column - Financial info aligned with image */}
+        {/* Right column - Financial info and connection button */}
         <div className="space-y-4">
           <ListingFinancials 
             revenue={listing.revenue} 
             ebitda={listing.ebitda} 
             formatCurrency={formatCurrency} 
           />
+
+          {/* Connection Button Card */}
+          <Card>
+            <CardContent className="p-4">
+              <ConnectionButton 
+                connectionExists={connectionExists}
+                connectionStatus={connectionStatusValue}
+                isRequesting={isRequesting}
+                isAdmin={isAdmin}
+                handleRequestConnection={handleRequestConnection}
+              />
+            </CardContent>
+          </Card>
 
           <ListingInfo id={listing.id} createdAt={listing.createdAt} />
         </div>
@@ -171,16 +184,6 @@ const ListingDetail = () => {
             )}
           </div>
           <h1 className="text-2xl md:text-3xl font-bold">{listing.title}</h1>
-        </div>
-
-        <div className="w-full md:w-auto">
-          <ConnectionButton 
-            connectionExists={connectionExists}
-            connectionStatus={connectionStatusValue}
-            isRequesting={isRequesting}
-            isAdmin={isAdmin}
-            handleRequestConnection={handleRequestConnection}
-          />
         </div>
       </div>
 
