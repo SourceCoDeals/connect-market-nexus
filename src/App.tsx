@@ -16,6 +16,7 @@ import AdminRequests from "@/pages/admin/AdminRequests";
 import MainLayout from "@/components/MainLayout";
 import AdminLayout from "@/components/admin/AdminLayout";
 import Listings from "@/pages/Marketplace";
+import SavedListings from "@/pages/SavedListings";
 import ListingDetail from "@/pages/ListingDetail";
 import MyRequests from "@/pages/MyRequests";
 import ProtectedRoute from "@/components/ProtectedRoute";
@@ -77,6 +78,18 @@ function App() {
           }
         >
           <Route index element={<Listings />} />
+        </Route>
+
+        {/* Saved Listings Route - Protected */}
+        <Route 
+          path="/saved-listings" 
+          element={
+            <ProtectedRoute requireApproved={true}>
+              <MainLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<SavedListings />} />
         </Route>
 
         {/* Individual Listing Route - Protected */}

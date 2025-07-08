@@ -1,7 +1,7 @@
 
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { List } from "lucide-react";
+import { List, Bookmark } from "lucide-react";
 
 interface DesktopNavItemsProps {
   isAdmin: boolean;
@@ -26,6 +26,17 @@ const DesktopNavItems = ({ isAdmin, isApproved, onNavigateToAdmin }: DesktopNavI
             className="h-4 w-4 mr-1"
           />
           Marketplace
+        </Link>
+      </Button>
+
+      <Button
+        variant="ghost"
+        size="sm"
+        asChild
+      >
+        <Link to="/saved-listings">
+          <Bookmark className="h-4 w-4 mr-1" />
+          Saved Listings
         </Link>
       </Button>
 

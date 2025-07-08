@@ -1,6 +1,6 @@
 
 import { Link } from "react-router-dom";
-import { List } from "lucide-react";
+import { List, Bookmark } from "lucide-react";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 
 interface MobileNavItemsProps {
@@ -22,6 +22,12 @@ const MobileNavItems = ({ isAdmin, isApproved, onNavigateToAdmin }: MobileNavIte
             className="mr-2 h-4 w-4"
           />
           <span>Marketplace</span>
+        </Link>
+      </DropdownMenuItem>
+      <DropdownMenuItem asChild>
+        <Link to="/saved-listings">
+          <Bookmark className="mr-2 h-4 w-4" />
+          <span>Saved Listings</span>
         </Link>
       </DropdownMenuItem>
       <DropdownMenuItem asChild>
