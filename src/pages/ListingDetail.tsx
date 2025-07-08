@@ -1,27 +1,15 @@
 
 import { useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
-import { format, differenceInDays } from "date-fns";
 import { useMarketplace } from "@/hooks/use-marketplace";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Building2,
-  Calendar,
-  ChevronLeft,
-  Clock,
-  DollarSign,
-  FileText,
-  MapPin,
-  AlertTriangle,
-  Send,
-  CheckCircle,
-  XCircle,
-  ImageIcon
-} from "lucide-react";
-import { DEFAULT_IMAGE } from "@/lib/storage-utils";
+import { ChevronLeft } from "lucide-react";
+import ListingDetailHeader from "@/components/listing-detail/ListingDetailHeader";
+import ListingDetailImage from "@/components/listing-detail/ListingDetailImage";
+import ListingDetailSidebar from "@/components/listing-detail/ListingDetailSidebar";
+import ListingDetailActions from "@/components/listing-detail/ListingDetailActions";
 
 const ListingDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -41,27 +29,6 @@ const ListingDetail = () => {
   useEffect(() => {
     document.title = listing ? `${listing.title} | Marketplace` : "Listing Detail | Marketplace";
   }, [listing]);
-
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(value);
-  };
-
-  const formatDate = (dateString: string) => {
-    return format(new Date(dateString), "MMMM d, yyyy");
-  };
-
-  const getListingAge = (dateString: string) => {
-    const days = differenceInDays(new Date(), new Date(dateString));
-    if (days >= 30) {
-      return "30+ days";
-    }
-    return days === 0 ? "Today" : days === 1 ? "1 day ago" : `${days} days ago`;
-  };
 
   const handleRequestConnection = () => {
     if (id) {
@@ -115,70 +82,7 @@ const ListingDetail = () => {
     );
   }
 
-  // Extract isInactive safely with fallback to false if status is undefined
   const isInactive = listing?.status === "inactive";
-  
-  // Use listing's image_url or fallback to default image
-  const imageUrl = listing?.image_url || DEFAULT_IMAGE;
-
-  // Helper function to render connection button based on status
-  const renderConnectionButton = () => {
-    if (isAdmin) return null; // Admins don't see connection buttons
-    
-    if (connectionExists) {
-      if (connectionStatusValue === "pending") {
-        return (
-          <Button
-            variant="secondary"
-            className="w-full md:w-auto"
-            disabled={true}
-          >
-            <Clock className="mr-2 h-4 w-4" /> Request Pending
-          </Button>
-        );
-      } else if (connectionStatusValue === "approved") {
-        return (
-          <Button
-            variant="default"
-            className="w-full md:w-auto bg-green-600 hover:bg-green-700"
-            disabled={true}
-          >
-            <CheckCircle className="mr-2 h-4 w-4" /> Connected
-          </Button>
-        );
-      } else if (connectionStatusValue === "rejected") {
-        return (
-          <Button
-            variant="outline"
-            className="w-full md:w-auto text-red-600 border-red-200"
-            onClick={handleRequestConnection}
-          >
-            <XCircle className="mr-2 h-4 w-4" /> Rejected - Resubmit
-          </Button>
-        );
-      }
-    }
-    
-    // Default state - no connection request exists
-    return (
-      <Button
-        variant="default"
-        className="w-full md:w-auto"
-        disabled={isRequesting}
-        onClick={handleRequestConnection}
-      >
-        {isRequesting ? (
-          <>
-            <Clock className="mr-2 h-4 w-4 animate-spin" /> Submitting...
-          </>
-        ) : (
-          <>
-            <Send className="mr-2 h-4 w-4" /> Request Connection
-          </>
-        )}
-      </Button>
-    );
-  };
 
   return (
     <div className="container mx-auto pt-6">
@@ -193,124 +97,32 @@ const ListingDetail = () => {
       </div>
       
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-        {/* Left column - Image */}
-        <div className="lg:col-span-2">
-          <div className="rounded-lg overflow-hidden border border-border min-h-[300px] max-h-[400px] aspect-[16/9] relative mb-6">
-            {imageUrl ? (
-              <img
-                src={imageUrl}
-                alt={listing.title}
-                className="absolute inset-0 w-full h-full object-cover"
-                onError={(e) => {
-                  const target = e.target as HTMLImageElement;
-                  target.onerror = null;
-                  target.src = DEFAULT_IMAGE;
-                }}
-              />
-            ) : (
-              <div className="w-full h-full bg-muted flex items-center justify-center">
-                <ImageIcon className="h-16 w-16 text-muted-foreground/50" />
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Right column - Financial info aligned with image */}
-        <div className="space-y-4">
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle>Financial Overview</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-sm font-medium">Annual Revenue:</span>
-                    <span className="font-semibold">{formatCurrency(listing.revenue)}</span>
-                  </div>
-                  <div className="h-2 bg-muted rounded">
-                    <div className="h-full bg-primary rounded" style={{ width: '100%' }}></div>
-                  </div>
-                </div>
-                
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-sm font-medium">Annual EBITDA:</span>
-                    <span className="font-semibold">{formatCurrency(listing.ebitda)}</span>
-                  </div>
-                  <div className="h-2 bg-muted rounded">
-                    <div className="h-full bg-primary rounded" style={{ 
-                      width: `${Math.min((listing.ebitda / listing.revenue) * 100, 100)}%` 
-                    }}></div>
-                  </div>
-                </div>
-
-                {listing.revenue > 0 && (
-                  <div className="pt-2 border-t mt-1">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">EBITDA Margin:</span>
-                      <span className="font-semibold">
-                        {((listing.ebitda / listing.revenue) * 100).toFixed(1)}%
-                      </span>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle>Listing Information</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm">Listed:</span>
-                </span>
-                <span className="text-sm font-medium">{getListingAge(listing.createdAt)}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="flex items-center gap-2">
-                  <FileText className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm">Listing ID:</span>
-                </span>
-                <span className="text-sm font-mono">{listing.id.substring(0, 8)}...</span>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        <ListingDetailImage imageUrl={listing.image_url} title={listing.title} />
+        <ListingDetailSidebar
+          revenue={listing.revenue}
+          ebitda={listing.ebitda}
+          createdAt={listing.createdAt}
+          listingId={listing.id}
+        />
       </div>
 
-      {/* Title and badges section */}
-      <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 mb-6">
-        <div className="flex-1">
-          <div className="flex flex-wrap gap-2 mb-2">
-            <Badge variant="outline" className="bg-background font-normal">
-              <Building2 className="h-3 w-3 mr-1" />
-              {listing.category}
-            </Badge>
-            <Badge variant="outline" className="bg-background font-normal">
-              <MapPin className="h-3 w-3 mr-1" />
-              {listing.location}
-            </Badge>
-            {isInactive && isAdmin && (
-              <Badge variant="destructive" className="font-normal">
-                <AlertTriangle className="h-3 w-3 mr-1" />
-                Inactive
-              </Badge>
-            )}
-          </div>
-          <h1 className="text-2xl md:text-3xl font-bold">{listing.title}</h1>
-        </div>
+      <ListingDetailHeader
+        title={listing.title}
+        category={listing.category}
+        location={listing.location}
+        isInactive={isInactive}
+        isAdmin={isAdmin}
+        connectionButton={
+          <ListingDetailActions
+            connectionExists={connectionExists}
+            connectionStatusValue={connectionStatusValue}
+            isRequesting={isRequesting}
+            isAdmin={isAdmin}
+            onRequestConnection={handleRequestConnection}
+          />
+        }
+      />
 
-        <div className="w-full md:w-auto">
-          {renderConnectionButton()}
-        </div>
-      </div>
-
-      {/* Business overview section */}
       <div className="grid grid-cols-1 gap-6">
         <Card>
           <CardHeader>
