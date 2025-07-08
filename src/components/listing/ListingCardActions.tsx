@@ -54,6 +54,7 @@ const ListingCardActions = ({
             size={viewType === "list" ? "sm" : "default"}
             variant="outline"
             onClick={handleRequestConnection}
+            disabled={isRequesting}
           >
             <XCircle className="h-4 w-4 mr-1" /> Resubmit
           </Button>

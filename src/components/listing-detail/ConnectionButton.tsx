@@ -17,7 +17,7 @@ const ConnectionButton = ({
   isAdmin,
   handleRequestConnection
 }: ConnectionButtonProps) => {
-  if (isAdmin) return null; // Admins don't see connection buttons
+  // Remove the admin check - allow admins to request connections for testing
   
   if (connectionExists) {
     if (connectionStatus === "pending") {
@@ -46,6 +46,7 @@ const ConnectionButton = ({
           variant="outline"
           className="w-full md:w-auto text-red-600 border-red-200"
           onClick={handleRequestConnection}
+          disabled={isRequesting}
         >
           <XCircle className="mr-2 h-4 w-4" /> Rejected - Resubmit
         </Button>
