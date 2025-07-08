@@ -2,7 +2,7 @@
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
-import { List, LogOut, User, Heart } from "lucide-react";
+import { List, LogOut, User } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -33,6 +33,7 @@ const Navbar = () => {
     return `${firstName?.charAt(0) || ""}${lastName?.charAt(0) || ""}`.toUpperCase();
   };
 
+  // Determine where the logo should navigate to
   const getLogoDestination = () => {
     if (!user) return "/login";
     if (user.approval_status !== 'approved') return "/pending-approval";
@@ -85,17 +86,6 @@ const Navbar = () => {
                           className="h-4 w-4 mr-1"
                         />
                         Marketplace
-                      </Link>
-                    </Button>
-
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      asChild
-                    >
-                      <Link to="/saved-listings">
-                        <Heart className="h-4 w-4 mr-1" />
-                        Saved
                       </Link>
                     </Button>
 
@@ -159,12 +149,6 @@ const Navbar = () => {
                               className="mr-2 h-4 w-4"
                             />
                             <span>Marketplace</span>
-                          </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem asChild>
-                          <Link to="/saved-listings">
-                            <Heart className="mr-2 h-4 w-4" />
-                            <span>Saved Listings</span>
                           </Link>
                         </DropdownMenuItem>
                         <DropdownMenuItem asChild>

@@ -25,9 +25,13 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
   const [imageError, setImageError] = useState(false);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   
+  // Initialize image URL and validate it
   useEffect(() => {
+    // Use the listing's image_url or fall back to default
     const url = listing.image_url || DEFAULT_IMAGE;
     setImageUrl(url);
+    
+    // Reset error state when listing changes
     setImageError(false);
   }, [listing]);
 
@@ -53,23 +57,26 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
     }).format(value);
   };
 
+  // Extract connection status safely with fallbacks
   const connectionExists = connectionStatus?.exists || false;
   const connectionStatusValue = connectionStatus?.status || "";
   
   const handleImageError = () => {
     console.error(`Failed to load image for listing ${listing.id}:`, imageUrl);
     setImageError(true);
+    // Switch to default image when the original fails
     if (imageUrl !== DEFAULT_IMAGE) {
       setImageUrl(DEFAULT_IMAGE);
     }
   };
 
+  // Helper function to render appropriate button based on connection status
   const renderConnectionButton = () => {
     if (connectionExists) {
       if (connectionStatusValue === "pending") {
         return (
           <Button
-            className="flex-1 text-xs md:text-sm"
+            className={`${viewType === "list" ? "w-full" : "flex-1"} text-xs md:text-sm`}
             size={viewType === "list" ? "sm" : "default"}
             variant="secondary"
             disabled={true}
@@ -80,7 +87,7 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
       } else if (connectionStatusValue === "approved") {
         return (
           <Button
-            className="flex-1 text-xs md:text-sm bg-green-600 hover:bg-green-700"
+            className={`${viewType === "list" ? "w-full" : "flex-1"} text-xs md:text-sm bg-green-600 hover:bg-green-700`}
             size={viewType === "list" ? "sm" : "default"}
             disabled={true}
           >
@@ -90,7 +97,7 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
       } else if (connectionStatusValue === "rejected") {
         return (
           <Button
-            className="flex-1 text-xs md:text-sm"
+            className={`${viewType === "list" ? "w-full" : "flex-1"} text-xs md:text-sm`}
             size={viewType === "list" ? "sm" : "default"}
             variant="outline"
             onClick={handleRequestConnection}
@@ -101,9 +108,10 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
       }
     }
 
+    // Default state - no connection exists
     return (
       <Button
-        className="flex-1 text-xs md:text-sm"
+        className={`${viewType === "list" ? "w-full" : "flex-1"} text-xs md:text-sm`}
         size={viewType === "list" ? "sm" : "default"}
         disabled={isRequesting}
         onClick={handleRequestConnection}
@@ -121,13 +129,13 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
   return (
     <Link to={`/listing/${listing.id}`} className="group block h-full">
       <Card
-        className={`h-full overflow-hidden transition-all hover:shadow-md flex flex-col ${
-          viewType === "list" ? "flex-row" : ""
+        className={`h-full overflow-hidden transition-all hover:shadow-md ${
+          viewType === "list" ? "flex" : ""
         }`}
       >
         <div
-          className={`flex ${
-            viewType === "list" ? "flex-row w-full" : "flex-col h-full"
+          className={`flex flex-col ${
+            viewType === "list" ? "flex-row w-full" : ""
           }`}
         >
           {viewType === "list" ? (
@@ -177,7 +185,7 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
           )}
           
           <CardContent
-            className={`p-4 md:p-6 flex-1 flex flex-col ${viewType === "list" ? "w-2/4" : ""}`}
+            className={`p-4 md:p-6 flex-1 ${viewType === "list" ? "w-2/4" : ""}`}
           >
             <div className="flex flex-wrap gap-2 mb-2">
               <Badge variant="outline" className="bg-background font-normal">
@@ -214,25 +222,29 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
               </div>
             </div>
 
-            <p className="text-sm text-muted-foreground line-clamp-3 flex-1">
+            <p className="text-sm text-muted-foreground line-clamp-3">
               {listing.description}
             </p>
           </CardContent>
 
           <CardFooter
             className={`p-4 pt-0 border-t mt-auto ${
-              viewType === "list" ? "w-1/4 border-l border-t-0 p-4 md:p-6 flex items-center" : ""
+              viewType === "list" ? "w-1/4 border-l border-t-0 p-4 md:p-6" : ""
             }`}
           >
-            <div className="flex w-full gap-2">
+            <div
+              className={`flex ${
+                viewType === "list" ? "flex-col gap-3 w-full" : "w-full"
+              }`}
+            >
               {renderConnectionButton()}
 
               <Button
                 variant="outline"
                 size="icon"
+                className={viewType === "list" ? "self-center" : "ml-2"}
                 onClick={handleToggleSave}
                 disabled={isSaving}
-                className="shrink-0"
               >
                 <Bookmark
                   className={`h-5 w-5 ${
