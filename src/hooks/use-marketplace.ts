@@ -470,6 +470,66 @@ export function useMarketplace() {
     });
   };
 
+  // Get user's saved listings
+  const useSavedListings = () => {
+    return useQuery({
+      queryKey: ['saved-listings'],
+      queryFn: async () => {
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (!session) return [];
+          
+          const { data, error } = await supabase
+            .from('saved_listings')
+            .select(`
+              listing_id,
+              listing:listings (*)
+            `)
+            .eq('user_id', session.user.id);
+          
+          if (error) throw error;
+          
+          // Transform data to include computed properties
+          const listings = data?.map((item: any) => {
+            const listing = item.listing;
+            
+            return {
+              ...listing,
+              // Add computed properties
+              ownerNotes: listing.owner_notes || '',
+              createdAt: listing.created_at,
+              updatedAt: listing.updated_at,
+              // Ensure status is properly typed as ListingStatus
+              status: listing.status as ListingStatus,
+              multiples: listing.revenue > 0 ? {
+                revenue: (listing.ebitda / listing.revenue).toFixed(2),
+                value: '0'
+              } : undefined,
+              revenueFormatted: new Intl.NumberFormat('en-US', { 
+                style: 'currency', 
+                currency: 'USD',
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 0
+              }).format(listing.revenue),
+              ebitdaFormatted: new Intl.NumberFormat('en-US', { 
+                style: 'currency', 
+                currency: 'USD',
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 0
+              }).format(listing.ebitda),
+            };
+          });
+          
+          return listings || [];
+        } catch (error: any) {
+          console.error('Error fetching saved listings:', error);
+          throw error;
+        }
+      },
+      staleTime: 1000 * 60, // 1 minute
+    });
+  };
+
   return {
     useListings,
     useListing,
@@ -479,5 +539,6 @@ export function useMarketplace() {
     useSaveListingMutation,
     useSavedStatus,
     useUserConnectionRequests,
+    useSavedListings,
   };
 }
