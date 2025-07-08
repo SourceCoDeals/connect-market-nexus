@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -13,6 +12,7 @@ import {
 } from "@/components/ui/tooltip";
 import { formatDistanceToNow } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
+import { UserSavedListings } from "./UserSavedListings";
 
 interface UsersTableProps {
   users: User[];
@@ -117,6 +117,11 @@ const UserDetails = ({ user }: { user: User }) => (
           </div>
         )}
       </div>
+    </div>
+
+    {/* Saved Listings Section */}
+    <div className="mt-4 col-span-1 md:col-span-2 lg:col-span-3">
+      <UserSavedListings userId={user.id} />
     </div>
   </div>
 );
