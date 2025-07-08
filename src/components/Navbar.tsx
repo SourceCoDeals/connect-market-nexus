@@ -2,7 +2,7 @@
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
-import { Building, List, LogOut, User } from "lucide-react";
+import { List, LogOut, User } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -46,7 +46,11 @@ const Navbar = () => {
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center">
             <Link to={getLogoDestination()} className="flex items-center">
-              <Building className="h-8 w-8 text-primary mr-2" />
+              <img 
+                src="/lovable-uploads/b879fa06-6a99-4263-b973-b9ced4404acb.png" 
+                alt="SourceCo Logo" 
+                className="h-8 w-8 mr-2"
+              />
               <span className="text-xl font-bold">SourceCo</span>
               <span className="text-xl text-muted-foreground ml-1 font-light">
                 Marketplace
@@ -76,7 +80,11 @@ const Navbar = () => {
                       asChild
                     >
                       <Link to="/marketplace">
-                        <Building className="h-4 w-4 mr-1" />
+                        <img 
+                          src="/lovable-uploads/b879fa06-6a99-4263-b973-b9ced4404acb.png" 
+                          alt="" 
+                          className="h-4 w-4 mr-1"
+                        />
                         Marketplace
                       </Link>
                     </Button>
@@ -135,7 +143,11 @@ const Navbar = () => {
                       <>
                         <DropdownMenuItem asChild>
                           <Link to="/marketplace">
-                            <Building className="mr-2 h-4 w-4" />
+                            <img 
+                              src="/lovable-uploads/b879fa06-6a99-4263-b973-b9ced4404acb.png" 
+                              alt="" 
+                              className="mr-2 h-4 w-4"
+                            />
                             <span>Marketplace</span>
                           </Link>
                         </DropdownMenuItem>
@@ -147,7 +159,11 @@ const Navbar = () => {
                         </DropdownMenuItem>
                         {isAdmin && (
                           <DropdownMenuItem onSelect={() => navigate("/admin")}>
-                            <Building className="mr-2 h-4 w-4" />
+                            <img 
+                              src="/lovable-uploads/b879fa06-6a99-4263-b973-b9ced4404acb.png" 
+                              alt="" 
+                              className="mr-2 h-4 w-4"
+                            />
                             <span>Admin Dashboard</span>
                           </DropdownMenuItem>
                         )}
