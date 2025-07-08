@@ -29,6 +29,7 @@ interface AdminNotificationRequest {
     name: string;
     email: string;
     company?: string;
+    message?: string;
   };
   timestamp: string;
 }
@@ -183,7 +184,8 @@ async function handleAdminNotification(data: AdminNotificationRequest): Promise<
   }
 
   const subject = `🔔 New Connection Request – ${listing.title}`;
-  const htmlContent = `
+  
+  let htmlContent = `
     <p>A new connection request has been submitted.</p>
 
     <p><strong>Listing:</strong> ${listing.title}<br/>
@@ -193,13 +195,9 @@ async function handleAdminNotification(data: AdminNotificationRequest): Promise<
     <p><strong>Buyer:</strong> ${buyer.name}<br/>
       <strong>Email:</strong> ${buyer.email}<br/>
       <strong>Company:</strong> ${buyer.company || "-"}</p>
-
-    <p><strong>Submitted:</strong> ${timestamp}</p>
-
-    <p><a href="https://preview--connect-market-nexus.lovable.app/admin/connection-requests" style="display: inline-block; background-color: #0070f3; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; margin-top: 15px;">→ View Request</a></p>
   `;
-  
-  const textContent = `
+
+  let textContent = `
 A new connection request has been submitted.
 
 Listing: ${listing.title}
@@ -209,6 +207,29 @@ Location: ${listing.location}
 Buyer: ${buyer.name}
 Email: ${buyer.email}
 Company: ${buyer.company || "-"}
+  `;
+
+  // Add buyer's message if provided
+  if (buyer.message) {
+    htmlContent += `
+    <p><strong>Buyer's Message:</strong></p>
+    <div style="background-color: #f5f5f5; padding: 15px; border-radius: 5px; margin: 10px 0;">
+      ${buyer.message}
+    </div>`;
+    
+    textContent += `
+Buyer's Message:
+${buyer.message}
+    `;
+  }
+
+  htmlContent += `
+    <p><strong>Submitted:</strong> ${timestamp}</p>
+
+    <p><a href="https://preview--connect-market-nexus.lovable.app/admin/connection-requests" style="display: inline-block; background-color: #0070f3; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; margin-top: 15px;">→ View Request</a></p>
+  `;
+  
+  textContent += `
 
 Submitted: ${timestamp}
 

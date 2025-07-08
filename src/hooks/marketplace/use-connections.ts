@@ -9,7 +9,7 @@ export const useRequestConnection = () => {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: async (listingId: string) => {
+    mutationFn: async ({ listingId, message }: { listingId: string; message?: string }) => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) throw new Error('You must be logged in to request a connection');
@@ -36,7 +36,8 @@ export const useRequestConnection = () => {
           .insert({
             user_id: userId,
             listing_id: listingId,
-            status: 'pending'
+            status: 'pending',
+            user_message: message || null
           })
           .select()
           .single();
@@ -80,7 +81,7 @@ export const useRequestConnection = () => {
             })
           });
 
-          // Also send admin notification
+          // Also send admin notification with user message
           await supabase.functions.invoke('send-connection-notification', {
             body: JSON.stringify({
               type: 'new_request',
@@ -92,7 +93,8 @@ export const useRequestConnection = () => {
               buyer: {
                 name: `${userData.first_name || ''} ${userData.last_name || ''}`.trim(),
                 email: userData.email,
-                company: userData.company || ''
+                company: userData.company || '',
+                message: message || ''
               },
               timestamp: new Date().toISOString()
             })

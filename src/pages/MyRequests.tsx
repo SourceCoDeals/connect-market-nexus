@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { formatDistanceToNow } from "date-fns";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { AlertCircle, ExternalLink } from "lucide-react";
+import { AlertCircle, ExternalLink, MessageSquare } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 const MyRequests = () => {
@@ -88,10 +88,21 @@ const MyRequests = () => {
                     {getStatusBadge(request.status)}
                   </div>
                 </CardHeader>
-                <CardContent className="pt-0">
+                <CardContent className="pt-0 space-y-2">
                   <p className="text-sm text-muted-foreground">
                     Requested {formatDistanceToNow(new Date(request.created_at), { addSuffix: true })}
                   </p>
+                  {request.user_message && (
+                    <div className="bg-muted/50 p-3 rounded-md">
+                      <div className="flex items-start gap-2">
+                        <MessageSquare className="h-4 w-4 mt-0.5 text-muted-foreground flex-shrink-0" />
+                        <div>
+                          <p className="text-xs font-medium text-muted-foreground mb-1">Your message:</p>
+                          <p className="text-sm">{request.user_message}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </Link>
@@ -104,6 +115,7 @@ const MyRequests = () => {
               <TableRow>
                 <TableHead>Listing</TableHead>
                 <TableHead>Category</TableHead>
+                <TableHead>Your Message</TableHead>
                 <TableHead>Requested</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="w-[50px]"></TableHead>
@@ -124,6 +136,15 @@ const MyRequests = () => {
                     {request.listing?.title || "Unknown Listing"}
                   </TableCell>
                   <TableCell>{request.listing?.category || "-"}</TableCell>
+                  <TableCell className="max-w-[200px]">
+                    {request.user_message ? (
+                      <div className="truncate" title={request.user_message}>
+                        {request.user_message}
+                      </div>
+                    ) : (
+                      <span className="text-muted-foreground">No message</span>
+                    )}
+                  </TableCell>
                   <TableCell>
                     {formatDistanceToNow(new Date(request.created_at), { addSuffix: true })}
                   </TableCell>

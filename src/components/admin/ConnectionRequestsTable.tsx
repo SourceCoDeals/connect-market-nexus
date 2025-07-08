@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { formatDistanceToNow } from 'date-fns';
 import { AdminConnectionRequest } from '@/types/admin';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { ChevronDown, ChevronRight, MessageSquare } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Link } from 'react-router-dom';
 
@@ -81,6 +81,15 @@ const RequestDetails = ({ request, onApprove, onReject }: {
         </div>
       </div>
     </div>
+    
+    {request.user_message && (
+      <div className="mt-4">
+        <h4 className="font-semibold text-sm mb-2">Buyer's Message</h4>
+        <div className="bg-muted p-3 rounded-md text-sm">
+          {request.user_message}
+        </div>
+      </div>
+    )}
     
     {request.admin_comment && (
       <div className="mt-4">
@@ -178,6 +187,7 @@ export const ConnectionRequestsTable = ({
               <TableHead>Email</TableHead>
               <TableHead>Company</TableHead>
               <TableHead>Listing</TableHead>
+              <TableHead>Message</TableHead>
               <TableHead>Requested</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="text-right">Actions</TableHead>
@@ -209,6 +219,18 @@ export const ConnectionRequestsTable = ({
                       </Link>
                     ) : (
                       request.listing?.title || "Unknown Listing"
+                    )}
+                  </TableCell>
+                  <TableCell className="max-w-[150px]">
+                    {request.user_message ? (
+                      <div className="flex items-center gap-1">
+                        <MessageSquare className="h-3 w-3 text-muted-foreground" />
+                        <span className="truncate text-xs" title={request.user_message}>
+                          {request.user_message}
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="text-muted-foreground text-xs">No message</span>
                     )}
                   </TableCell>
                   <TableCell>
@@ -269,7 +291,7 @@ export const ConnectionRequestsTable = ({
                 
                 {expandedRequestId === request.id && (
                   <TableRow>
-                    <TableCell colSpan={8} className="py-4 px-6 bg-muted/30 border-t">
+                    <TableCell colSpan={9} className="py-4 px-6 bg-muted/30 border-t">
                       <RequestDetails 
                         request={request} 
                         onApprove={onApprove} 

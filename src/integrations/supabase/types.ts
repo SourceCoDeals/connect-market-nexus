@@ -24,6 +24,7 @@ export type Database = {
           status: string
           updated_at: string
           user_id: string
+          user_message: string | null
         }
         Insert: {
           admin_comment?: string | null
@@ -34,6 +35,7 @@ export type Database = {
           status?: string
           updated_at?: string
           user_id: string
+          user_message?: string | null
         }
         Update: {
           admin_comment?: string | null
@@ -44,6 +46,7 @@ export type Database = {
           status?: string
           updated_at?: string
           user_id?: string
+          user_message?: string | null
         }
         Relationships: [
           {

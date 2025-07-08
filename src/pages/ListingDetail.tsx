@@ -46,9 +46,9 @@ const ListingDetail = () => {
     }).format(value);
   };
 
-  const handleRequestConnection = () => {
+  const handleRequestConnection = (message?: string) => {
     if (id) {
-      requestConnection(id);
+      requestConnection({ listingId: id, message });
     }
   };
 
@@ -156,6 +156,7 @@ const ListingDetail = () => {
                 isRequesting={isRequesting}
                 isAdmin={isAdmin}
                 handleRequestConnection={handleRequestConnection}
+                listingTitle={listing.title}
               />
             </CardContent>
           </Card>

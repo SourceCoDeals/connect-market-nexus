@@ -1,13 +1,16 @@
 
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Send, Clock, CheckCircle, XCircle } from "lucide-react";
+import ConnectionRequestDialog from "@/components/connection/ConnectionRequestDialog";
 
 interface ConnectionButtonProps {
   connectionExists: boolean;
   connectionStatus: string;
   isRequesting: boolean;
   isAdmin: boolean;
-  handleRequestConnection: () => void;
+  handleRequestConnection: (message?: string) => void;
+  listingTitle?: string;
 }
 
 const ConnectionButton = ({
@@ -15,9 +18,25 @@ const ConnectionButton = ({
   connectionStatus,
   isRequesting,
   isAdmin,
-  handleRequestConnection
+  handleRequestConnection,
+  listingTitle
 }: ConnectionButtonProps) => {
-  // Remove the admin check - allow admins to request connections for testing
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+
+  const handleDialogSubmit = (message: string) => {
+    handleRequestConnection(message);
+    setIsDialogOpen(false);
+  };
+
+  const handleButtonClick = () => {
+    if (connectionExists && connectionStatus === "rejected") {
+      // For rejected requests, open dialog for resubmission
+      setIsDialogOpen(true);
+    } else if (!connectionExists) {
+      // For new requests, open dialog
+      setIsDialogOpen(true);
+    }
+  };
   
   if (connectionExists) {
     if (connectionStatus === "pending") {
@@ -42,36 +61,54 @@ const ConnectionButton = ({
       );
     } else if (connectionStatus === "rejected") {
       return (
-        <Button
-          variant="outline"
-          className="w-full md:w-auto text-red-600 border-red-200"
-          onClick={handleRequestConnection}
-          disabled={isRequesting}
-        >
-          <XCircle className="mr-2 h-4 w-4" /> Rejected - Resubmit
-        </Button>
+        <>
+          <Button
+            variant="outline"
+            className="w-full md:w-auto text-red-600 border-red-200"
+            onClick={handleButtonClick}
+            disabled={isRequesting}
+          >
+            <XCircle className="mr-2 h-4 w-4" /> Rejected - Resubmit
+          </Button>
+          <ConnectionRequestDialog
+            isOpen={isDialogOpen}
+            onClose={() => setIsDialogOpen(false)}
+            onSubmit={handleDialogSubmit}
+            isSubmitting={isRequesting}
+            listingTitle={listingTitle}
+          />
+        </>
       );
     }
   }
   
   // Default state - no connection request exists
   return (
-    <Button
-      variant="default"
-      className="w-full md:w-auto"
-      disabled={isRequesting}
-      onClick={handleRequestConnection}
-    >
-      {isRequesting ? (
-        <>
-          <Clock className="mr-2 h-4 w-4 animate-spin" /> Submitting...
-        </>
-      ) : (
-        <>
-          <Send className="mr-2 h-4 w-4" /> Request Connection
-        </>
-      )}
-    </Button>
+    <>
+      <Button
+        variant="default"
+        className="w-full md:w-auto"
+        disabled={isRequesting}
+        onClick={handleButtonClick}
+      >
+        {isRequesting ? (
+          <>
+            <Clock className="mr-2 h-4 w-4 animate-spin" /> Submitting...
+          </>
+        ) : (
+          <>
+            <Send className="mr-2 h-4 w-4" /> Request Connection
+          </>
+        )}
+      </Button>
+      <ConnectionRequestDialog
+        isOpen={isDialogOpen}
+        onClose={() => setIsDialogOpen(false)}
+        onSubmit={handleDialogSubmit}
+        isSubmitting={isRequesting}
+        listingTitle={listingTitle}
+      />
+    </>
   );
 };
 
