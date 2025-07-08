@@ -95,8 +95,8 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
             </CardContent>
 
             <CardFooter
-              className={`p-4 pt-0 border-t mt-auto ${
-                viewType === "list" ? "w-1/4 border-l border-t-0 p-4 md:p-6 flex items-center" : ""
+              className={`p-4 pt-0 mt-auto ${
+                viewType === "list" ? "w-1/4 border-l p-4 md:p-6 flex items-center" : ""
               }`}
             >
               <ListingCardActions
