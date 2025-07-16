@@ -1,50 +1,23 @@
-
-import { useAuth } from "@/context/AuthContext";
-import { AuthStatus } from "@/components/auth/AuthStatus";
+import { useEffect } from "react";
+import { Link } from "react-router-dom";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
-import { useState } from "react";
+import { CheckCircle, Clock, LogOut } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 
 const VerificationSuccess = () => {
   const { user, logout } = useAuth();
-  const { toast } = useToast();
-  const [isResending, setIsResending] = useState(false);
 
-  const handleResendVerification = async () => {
-    if (!user?.email) return;
-
-    setIsResending(true);
-    try {
-      const { error } = await supabase.auth.resend({
-        type: 'signup',
-        email: user.email
-      });
-
-      if (error) throw error;
-
-      toast({
-        title: "Verification email sent",
-        description: "Please check your inbox and click the verification link.",
-      });
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Failed to resend verification email",
-        description: error.message || "Please try again later.",
-      });
-    } finally {
-      setIsResending(false);
+  // If the user is already approved, redirect to marketplace
+  useEffect(() => {
+    if (user?.approval_status === 'approved') {
+      window.location.href = '/marketplace';
     }
-  };
+  }, [user]);
 
-  if (!user) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <p>Please log in to view this page.</p>
-      </div>
-    );
-  }
+  const handleLogout = async () => {
+    await logout();
+  };
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-muted/30">
@@ -64,19 +37,53 @@ const VerificationSuccess = () => {
           </div>
         </div>
 
-        <AuthStatus
-          status={user.approval_status}
-          emailVerified={user.email_verified}
-          email={user.email}
-          onResendVerification={!user.email_verified ? handleResendVerification : undefined}
-          isResending={isResending}
-        />
-
-        <div className="flex justify-center">
-          <Button variant="outline" onClick={logout}>
-            Sign out
-          </Button>
-        </div>
+        <Card>
+          <CardHeader className="space-y-1">
+            <div className="flex justify-center mb-4">
+              <div className="bg-green-100 p-3 rounded-full">
+                <CheckCircle className="h-10 w-10 text-green-600" />
+              </div>
+            </div>
+            <CardTitle className="text-2xl font-bold text-center">
+              Email Verified Successfully
+            </CardTitle>
+            <CardDescription className="text-center">
+              Your account is now pending admin approval
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="bg-amber-50 border border-amber-200 rounded-md p-4">
+              <div className="flex gap-3 items-center">
+                <Clock className="h-5 w-5 text-amber-600 flex-shrink-0" />
+                <p className="text-amber-800 text-sm">
+                  Your account is waiting for approval from our team. We will notify you by email once your account is approved.
+                </p>
+              </div>
+            </div>
+            <div className="text-sm text-center text-muted-foreground">
+              You will not be able to access the marketplace until your account has been approved. This process typically takes 1-2 business days.
+            </div>
+          </CardContent>
+          <CardFooter className="flex flex-col space-y-4">
+            <Button
+              variant="outline"
+              className="w-full flex items-center gap-2"
+              onClick={handleLogout}
+            >
+              <LogOut className="h-4 w-4" />
+              Log out
+            </Button>
+            <div className="text-xs text-center text-muted-foreground">
+              Need help? Contact{" "}
+              <a
+                href="mailto:support@sourcecodeals.com"
+                className="text-primary hover:underline"
+              >
+                support@sourcecodeals.com
+              </a>
+            </div>
+          </CardFooter>
+        </Card>
       </div>
     </div>
   );

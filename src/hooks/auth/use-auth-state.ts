@@ -28,7 +28,7 @@ export function useAuthState() {
     // Set up the auth state change listener before checking the session
     const setupAuthListener = () => {
       const { data: { subscription } } = supabase.auth.onAuthStateChange(
-        (event, session) => {
+        async (event, session) => {
           console.log("Auth state change:", event);
           
           if (!isSubscribed) return;
@@ -46,7 +46,7 @@ export function useAuthState() {
           if ((event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "USER_UPDATED") && session) {
             console.log(`User ${event}:`, session.user.id);
             // Use setTimeout to avoid Supabase auth deadlocks and fix memory leaks
-            setTimeout(async () => {
+            const timeoutId = setTimeout(async () => {
               if (!isSubscribed) return;
               
               try {
@@ -77,6 +77,11 @@ export function useAuthState() {
                 }
               }
             }, 0);
+
+            // Store timeout ID for cleanup
+            return () => {
+              clearTimeout(timeoutId);
+            };
           }
         }
       );
@@ -162,6 +167,11 @@ export function useAuthState() {
       isSubscribed = false;
       if (authSubscription) {
         authSubscription.unsubscribe();
+      }
+      // Clear any timeouts that might still be running
+      const highestId = setTimeout(() => {}, 0);
+      for (let i = 0; i <= highestId; i++) {
+        clearTimeout(i);
       }
     };
   }, []);
