@@ -41,7 +41,13 @@ export function useListingsQuery(status?: 'active' | 'inactive' | 'all') {
           }
         });
         
-        return data as AdminListing[];
+        // Map old category field to categories array for backward compatibility
+        const mappedData = data?.map(listing => ({
+          ...listing,
+          categories: listing.categories || (listing.category ? [listing.category] : [])
+        }));
+        
+        return mappedData as AdminListing[];
       } catch (error: any) {
         console.error('Error fetching listings:', error);
         toast({

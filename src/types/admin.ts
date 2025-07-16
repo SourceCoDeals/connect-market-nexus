@@ -20,7 +20,8 @@ export interface AdminListing {
   id: string;
   title: string;
   description: string;
-  category: string;
+  category: string; // Keep for backward compatibility
+  categories: string[]; // New field for multiple categories
   location: string;
   revenue: number;
   ebitda: number;
@@ -42,7 +43,7 @@ export interface AdminConnectionRequest {
   user_message?: string;
   created_at: string;
   updated_at: string;
-  decision_at?: string; // Added decision timestamp field
+  decision_at?: string;
   user: User | null;
   listing: Partial<AdminListing> | null;
 }
@@ -61,4 +62,13 @@ export interface AdminStats {
   pendingUsers: number;
   totalListings: number;
   pendingConnections: number;
+}
+
+export interface Category {
+  id: string;
+  name: string;
+  description?: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
 }

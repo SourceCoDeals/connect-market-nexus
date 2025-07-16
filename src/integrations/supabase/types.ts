@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      categories: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       connection_requests: {
         Row: {
           admin_comment: string | null
@@ -107,6 +134,7 @@ export type Database = {
       }
       listings: {
         Row: {
+          categories: string[] | null
           category: string
           created_at: string
           description: string
@@ -123,6 +151,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          categories?: string[] | null
           category: string
           created_at?: string
           description: string
@@ -139,6 +168,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          categories?: string[] | null
           category?: string
           created_at?: string
           description?: string

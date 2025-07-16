@@ -72,8 +72,9 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
             >
               <div>
                 <ListingCardBadges 
-                  category={listing.category} 
-                  location={listing.location} 
+                  categories={(listing as any).categories || []} 
+                  location={listing.location}
+                  category={listing.category}
                 />
 
                 <ListingCardTitle 

@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useAdmin } from "@/hooks/use-admin";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -34,7 +35,8 @@ const AdminListings = () => {
     const matchesSearch = searchQuery === "" || 
       listing.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       listing.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      listing.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      listing.categories.some(cat => cat.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      listing.category?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       listing.location.toLowerCase().includes(searchQuery.toLowerCase());
     
     const matchesStatus = statusFilter === "all" || listing.status === statusFilter;
@@ -164,128 +166,134 @@ const AdminListings = () => {
         </div>
       ) : (
         <div className="grid gap-6">
-          {filteredListings.map((listing) => (
-            <Card key={listing.id}>
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      <CardTitle className="text-xl">{listing.title}</CardTitle>
-                      <Badge 
-                        variant={listing.status === "active" ? "default" : "secondary"}
-                        className={listing.status === "active" ? "bg-green-100 text-green-800" : ""}
+          {filteredListings.map((listing) => {
+            const displayCategories = listing.categories || (listing.category ? [listing.category] : []);
+            
+            return (
+              <Card key={listing.id}>
+                <CardHeader>
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <CardTitle className="text-xl">{listing.title}</CardTitle>
+                        <Badge 
+                          variant={listing.status === "active" ? "default" : "secondary"}
+                          className={listing.status === "active" ? "bg-green-100 text-green-800" : ""}
+                        >
+                          {listing.status}
+                        </Badge>
+                      </div>
+                      <div className="flex flex-wrap gap-2 mb-2">
+                        {displayCategories.map((cat, index) => (
+                          <Badge key={index} variant="outline">{cat}</Badge>
+                        ))}
+                        <Badge variant="outline">{listing.location}</Badge>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => toggleExpanded(listing.id)}
                       >
-                        {listing.status}
-                      </Badge>
-                    </div>
-                    <div className="flex flex-wrap gap-2 mb-2">
-                      <Badge variant="outline">{listing.category}</Badge>
-                      <Badge variant="outline">{listing.location}</Badge>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => toggleExpanded(listing.id)}
-                    >
-                      {expandedListings.has(listing.id) ? (
-                        <>
-                          <ChevronUp className="h-4 w-4 mr-1" />
-                          Less
-                        </>
-                      ) : (
-                        <>
-                          <ChevronDown className="h-4 w-4 mr-1" />
-                          More
-                        </>
-                      )}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleToggleStatus(listing)}
-                    >
-                      {listing.status === "active" ? (
-                        <>
-                          <EyeOff className="h-4 w-4 mr-1" />
-                          Deactivate
-                        </>
-                      ) : (
-                        <>
-                          <Eye className="h-4 w-4 mr-1" />
-                          Activate
-                        </>
-                      )}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setEditingListing(listing)}
-                    >
-                      <Edit className="h-4 w-4 mr-1" />
-                      Edit
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => handleDelete(listing.id)}
-                    >
-                      <Trash2 className="h-4 w-4 mr-1" />
-                      Delete
-                    </Button>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="grid md:grid-cols-2 gap-4 mb-4">
-                  <div>
-                    <div className="text-sm font-medium mb-1">Revenue</div>
-                    <div className="text-lg font-semibold">
-                      {formatCurrency(Number(listing.revenue))}
+                        {expandedListings.has(listing.id) ? (
+                          <>
+                            <ChevronUp className="h-4 w-4 mr-1" />
+                            Less
+                          </>
+                        ) : (
+                          <>
+                            <ChevronDown className="h-4 w-4 mr-1" />
+                            More
+                          </>
+                        )}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleToggleStatus(listing)}
+                      >
+                        {listing.status === "active" ? (
+                          <>
+                            <EyeOff className="h-4 w-4 mr-1" />
+                            Deactivate
+                          </>
+                        ) : (
+                          <>
+                            <Eye className="h-4 w-4 mr-1" />
+                            Activate
+                          </>
+                        )}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setEditingListing(listing)}
+                      >
+                        <Edit className="h-4 w-4 mr-1" />
+                        Edit
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => handleDelete(listing.id)}
+                      >
+                        <Trash2 className="h-4 w-4 mr-1" />
+                        Delete
+                      </Button>
                     </div>
                   </div>
-                  <div>
-                    <div className="text-sm font-medium mb-1">EBITDA</div>
-                    <div className="text-lg font-semibold">
-                      {formatCurrency(Number(listing.ebitda))}
-                    </div>
-                  </div>
-                </div>
-                <p className="text-muted-foreground mb-4 line-clamp-2">
-                  {listing.description}
-                </p>
-                
-                {expandedListings.has(listing.id) && (
-                  <div className="border-t pt-4 space-y-4">
-                    {listing.owner_notes && (
-                      <div>
-                        <div className="text-sm font-medium mb-1">Owner Notes</div>
-                        <p className="text-sm text-muted-foreground">{listing.owner_notes}</p>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                      <div className="text-sm font-medium mb-1">Revenue</div>
+                      <div className="text-lg font-semibold">
+                        {formatCurrency(Number(listing.revenue))}
                       </div>
-                    )}
-                    
-                    {listing.tags && listing.tags.length > 0 && (
-                      <div>
-                        <div className="text-sm font-medium mb-2">Tags</div>
-                        <div className="flex flex-wrap gap-1">
-                          {listing.tags.map((tag, index) => (
-                            <Badge key={index} variant="secondary" className="text-xs">
-                              {tag}
-                            </Badge>
-                          ))}
+                    </div>
+                    <div>
+                      <div className="text-sm font-medium mb-1">EBITDA</div>
+                      <div className="text-lg font-semibold">
+                        {formatCurrency(Number(listing.ebitda))}
+                      </div>
+                    </div>
+                  </div>
+                  <p className="text-muted-foreground mb-4 line-clamp-2">
+                    {listing.description}
+                  </p>
+                  
+                  {expandedListings.has(listing.id) && (
+                    <div className="border-t pt-4 space-y-4">
+                      {listing.owner_notes && (
+                        <div>
+                          <div className="text-sm font-medium mb-1">Owner Notes</div>
+                          <p className="text-sm text-muted-foreground">{listing.owner_notes}</p>
                         </div>
-                      </div>
-                    )}
+                      )}
+                      
+                      {listing.tags && listing.tags.length > 0 && (
+                        <div>
+                          <div className="text-sm font-medium mb-2">Tags</div>
+                          <div className="flex flex-wrap gap-1">
+                            {listing.tags.map((tag, index) => (
+                              <Badge key={index} variant="secondary" className="text-xs">
+                                {tag}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      )}
 
-                    <div className="border-t pt-4">
-                      <ListingSavedByUsers listingId={listing.id} />
+                      <div className="border-t pt-4">
+                        <ListingSavedByUsers listingId={listing.id} />
+                      </div>
                     </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          ))}
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })}
           
           {filteredListings.length === 0 && (
             <Card>

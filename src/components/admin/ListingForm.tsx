@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { toast } from "@/hooks/use-toast";
 import { z } from "zod";
@@ -8,7 +9,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { CurrencyInput } from "@/components/ui/currency-input";
-import { Loader2, Upload, Image as ImageIcon, AlertCircle } from "lucide-react";
+import { MultiSelect } from "@/components/ui/multi-select";
+import { ImageUpload } from "@/components/ui/image-upload";
+import { Loader2 } from "lucide-react";
 import {
   Form,
   FormControl,
@@ -24,27 +27,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { DEFAULT_IMAGE } from "@/lib/storage-utils";
 import { parseCurrency, formatNumber } from "@/lib/currency-utils";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { useAdmin } from "@/hooks/use-admin";
 
-// Type for listing categories
-const categories = [
-  "Technology",
-  "E-commerce",
-  "SaaS",
-  "Manufacturing",
-  "Retail",
-  "Healthcare",
-  "Food & Beverage",
-  "Service",
-  "Other",
-] as const;
-
-// Form schema with improved currency validation
+// Form schema with categories array instead of single category
 const listingFormSchema = z.object({
   title: z.string().min(5, "Title must be at least 5 characters").max(100),
-  category: z.string().min(1, "Please select a category"),
+  categories: z.array(z.string()).min(1, "Please select at least one category"),
   location: z.string().min(2, "Location is required"),
   revenue: z.string()
     .transform((val) => parseCurrency(val))
@@ -60,10 +49,10 @@ const listingFormSchema = z.object({
 // Form-specific type that matches the Zod schema (before transformation)
 type ListingFormInput = {
   title: string;
-  category: string;
+  categories: string[];
   location: string;
-  revenue: string;  // String input for currency formatting
-  ebitda: string;   // String input for currency formatting
+  revenue: string;
+  ebitda: string;
   description: string;
   owner_notes?: string;
   status: "active" | "inactive";
@@ -82,7 +71,7 @@ interface ListingFormProps {
 const convertListingToFormInput = (listing?: AdminListing): ListingFormInput => {
   return {
     title: listing?.title || "",
-    category: listing?.category || "",
+    categories: listing?.categories || (listing?.category ? [listing.category] : []),
     location: listing?.location || "",
     revenue: listing?.revenue ? formatNumber(Number(listing.revenue)) : "",
     ebitda: listing?.ebitda ? formatNumber(Number(listing.ebitda)) : "",
@@ -97,11 +86,13 @@ export function ListingForm({
   listing,
   isLoading = false,
 }: ListingFormProps) {
+  const { useCategories } = useAdmin();
+  const { data: categories = [] } = useCategories();
+  
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(
     listing?.image_url || null
   );
-  const [uploadProgress, setUploadProgress] = useState(0);
   const [isImageChanged, setIsImageChanged] = useState(false);
   const [imageError, setImageError] = useState<string | null>(null);
 
@@ -110,23 +101,19 @@ export function ListingForm({
     defaultValues: convertListingToFormInput(listing),
   });
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setImageError(null);
-    const file = e.target.files?.[0];
-    
+  const handleImageSelect = (file: File | null) => {
     if (file) {
-      // Validate file size (5MB max)
+      // Validate file
       if (file.size > 5 * 1024 * 1024) {
         setImageError("Image file size must be less than 5MB");
         return;
       }
-
-      // Validate file type
       if (!file.type.startsWith("image/")) {
         setImageError("Please select a valid image file (JPEG, PNG, WebP, GIF)");
         return;
       }
-
+      
+      setImageError(null);
       setSelectedImage(file);
       setIsImageChanged(true);
       
@@ -136,18 +123,6 @@ export function ListingForm({
         setImagePreview(reader.result as string);
       };
       reader.readAsDataURL(file);
-
-      // Simulate upload progress (just for UX feedback)
-      setUploadProgress(0);
-      const interval = setInterval(() => {
-        setUploadProgress(prev => {
-          if (prev >= 100) {
-            clearInterval(interval);
-            return 100;
-          }
-          return prev + 5;
-        });
-      }, 50);
     }
   };
 
@@ -172,7 +147,7 @@ export function ListingForm({
       // Transform the form data to match ListingFormValues type
       const transformedData: ListingFormValues = {
         title: formData.title,
-        category: formData.category,
+        categories: formData.categories,
         location: formData.location,
         revenue: parseCurrency(formData.revenue),
         ebitda: parseCurrency(formData.ebitda),
@@ -201,6 +176,11 @@ export function ListingForm({
     }
   };
 
+  const categoryOptions = categories.map(category => ({
+    value: category.name,
+    label: category.name,
+  }));
+
   return (
     <Form {...form}>
       <form
@@ -224,27 +204,19 @@ export function ListingForm({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           <FormField
             control={form.control}
-            name="category"
+            name="categories"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Category</FormLabel>
-                <Select
-                  onValueChange={field.onChange}
-                  defaultValue={field.value}
-                >
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a category" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {categories.map((category) => (
-                      <SelectItem key={category} value={category}>
-                        {category}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <FormLabel>Categories (Select up to 2)</FormLabel>
+                <FormControl>
+                  <MultiSelect
+                    options={categoryOptions}
+                    selected={field.value}
+                    onSelectedChange={field.onChange}
+                    placeholder="Select categories..."
+                    maxSelected={2}
+                  />
+                </FormControl>
                 <FormMessage />
               </FormItem>
             )}
@@ -364,59 +336,11 @@ export function ListingForm({
 
         <div className="space-y-3">
           <FormLabel>Listing Image</FormLabel>
-          
-          {imageError && (
-            <Alert variant="destructive" className="mb-3">
-              <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Error</AlertTitle>
-              <AlertDescription>{imageError}</AlertDescription>
-            </Alert>
-          )}
-          
-          {imagePreview ? (
-            <div className="rounded-md border overflow-hidden">
-              <div className="relative max-w-md mx-auto">
-                <img 
-                  src={imagePreview} 
-                  alt="Preview" 
-                  className="w-full h-auto object-cover rounded-md max-h-[200px]" 
-                  onError={(e) => {
-                    const target = e.target as HTMLImageElement;
-                    target.onerror = null;
-                    target.src = DEFAULT_IMAGE;
-                    setImageError("Failed to load image preview");
-                  }}
-                />
-                <Button
-                  type="button"
-                  variant="destructive"
-                  size="sm"
-                  className="absolute top-2 right-2"
-                  onClick={handleRemoveImage}
-                >
-                  Remove
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <div 
-              className="border-2 border-dashed border-muted-foreground/20 rounded-md p-6 text-center cursor-pointer hover:bg-muted/50 transition"
-              onClick={() => document.getElementById("listing-image")?.click()}
-            >
-              <ImageIcon className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
-              <p className="text-sm text-muted-foreground mb-1">
-                Click to upload an image, or drag and drop
-              </p>
-              <p className="text-xs text-muted-foreground">PNG, JPG or WebP (max 5MB)</p>
-            </div>
-          )}
-          
-          <Input
-            id="listing-image"
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={handleImageChange}
+          <ImageUpload
+            onImageSelect={handleImageSelect}
+            currentImageUrl={imagePreview}
+            onRemoveImage={handleRemoveImage}
+            error={imageError}
           />
         </div>
 

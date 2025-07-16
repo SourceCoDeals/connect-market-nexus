@@ -5,6 +5,7 @@ import { useAdminListings } from './admin/use-admin-listings';
 import { useAdminRequests } from './admin/use-admin-requests';
 import { useAdminStats } from './admin/use-admin-stats';
 import { useAdminEmail } from './admin/use-admin-email';
+import { useAdminCategories } from './admin/use-admin-categories';
 
 /**
  * A hook that provides access to all admin-related functionality
@@ -25,6 +26,14 @@ export function useAdmin() {
     useDeleteListing,
     useToggleListingStatus,
   } = useAdminListings();
+  
+  // Categories management
+  const {
+    useCategories,
+    useCreateCategory,
+    useUpdateCategory,
+    useDeleteCategory,
+  } = useAdminCategories();
   
   // Connection requests management
   const {
@@ -59,6 +68,12 @@ export function useAdmin() {
     useDeleteListing,
     useToggleListingStatus,
     
+    // Categories management
+    useCategories,
+    useCreateCategory,
+    useUpdateCategory,
+    useDeleteCategory,
+    
     // Connection requests management
     useConnectionRequests,
     useConnectionRequestsMutation,
@@ -81,3 +96,4 @@ export * from './admin/use-admin-listings';
 export * from './admin/use-admin-requests';
 export * from './admin/use-admin-stats';
 export * from './admin/use-admin-email';
+export * from './admin/use-admin-categories';
