@@ -37,6 +37,28 @@ export const useListings = (filters: FilterOptions = {}) => {
           console.log('🔍 Added search filter:', filters.search);
         }
         
+        // Apply revenue filters
+        if (filters.revenueMin !== undefined) {
+          query = query.gte('revenue', filters.revenueMin);
+          console.log('🔍 Added revenue min filter:', filters.revenueMin);
+        }
+        
+        if (filters.revenueMax !== undefined) {
+          query = query.lte('revenue', filters.revenueMax);
+          console.log('🔍 Added revenue max filter:', filters.revenueMax);
+        }
+        
+        // Apply EBITDA filters
+        if (filters.ebitdaMin !== undefined) {
+          query = query.gte('ebitda', filters.ebitdaMin);
+          console.log('🔍 Added EBITDA min filter:', filters.ebitdaMin);
+        }
+        
+        if (filters.ebitdaMax !== undefined) {
+          query = query.lte('ebitda', filters.ebitdaMax);
+          console.log('🔍 Added EBITDA max filter:', filters.ebitdaMax);
+        }
+        
         // Apply pagination
         const page = filters.page || 1;
         const perPage = filters.perPage || 20;
@@ -59,21 +81,6 @@ export const useListings = (filters: FilterOptions = {}) => {
         
         console.log(`✅ Successfully fetched ${data?.length || 0} listings from marketplace`);
         console.log('📊 Total count from database:', count);
-        
-        // Log each listing for debugging
-        data?.forEach((listing, index) => {
-          console.log(`📋 Listing ${index + 1}:`, {
-            id: listing.id,
-            title: listing.title,
-            status: listing.status,
-            category: listing.category,
-            categories: listing.categories,
-            location: listing.location,
-            revenue: listing.revenue,
-            ebitda: listing.ebitda,
-            created_at: listing.created_at
-          });
-        });
         
         // Transform data to include computed properties
         const listings = data?.map((item: any) => {
@@ -104,15 +111,6 @@ export const useListings = (filters: FilterOptions = {}) => {
               maximumFractionDigits: 0
             }).format(item.ebitda),
           };
-          
-          console.log(`🔄 Transformed listing:`, {
-            id: listing.id,
-            title: listing.title,
-            status: listing.status,
-            categories: listing.categories,
-            revenueFormatted: listing.revenueFormatted,
-            ebitdaFormatted: listing.ebitdaFormatted
-          });
           
           return listing;
         });
