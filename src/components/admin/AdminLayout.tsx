@@ -8,6 +8,7 @@ import {
   Store, 
   MessageSquare, 
   ShoppingBag,
+  Upload,
   ChevronRight
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -49,6 +50,12 @@ const AdminLayout = () => {
               icon={<Store className="h-4 w-4 mr-2" />}
               label="Listings"
               isActive={location.pathname.includes('/admin/listings')}
+            />
+            <NavLink 
+              to="/admin/bulk-listings" 
+              icon={<Upload className="h-4 w-4 mr-2" />}
+              label="Bulk Import"
+              isActive={location.pathname.includes('/admin/bulk-listings')}
             />
             <NavLink 
               to="/admin/requests" 
