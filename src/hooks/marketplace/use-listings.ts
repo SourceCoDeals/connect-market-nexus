@@ -9,7 +9,7 @@ export const useListings = (filters: FilterOptions = {}) => {
     queryKey: ['marketplace-listings', filters],
     queryFn: async () => {
       try {
-        console.log('Fetching marketplace listings with filters:', filters);
+        console.log('🔍 Fetching marketplace listings with filters:', filters);
         
         // Start building the query
         let query = supabase
@@ -19,34 +19,43 @@ export const useListings = (filters: FilterOptions = {}) => {
         // Always filter to only show active listings in the marketplace
         query = query.eq('status', 'active');
         
+        console.log('🔍 Base query: SELECT * FROM listings WHERE status = active');
+        
         // Apply filters if provided
         if (filters.category) {
           // Check both the old category field and new categories array
           query = query.or(`category.eq.${filters.category},categories.cs.{${filters.category}}`);
+          console.log('🔍 Added category filter:', filters.category);
         }
         
         if (filters.location) {
           query = query.eq('location', filters.location);
+          console.log('🔍 Added location filter:', filters.location);
         }
         
         if (filters.revenueMin !== undefined) {
           query = query.gte('revenue', filters.revenueMin);
+          console.log('🔍 Added revenue min filter:', filters.revenueMin);
         }
         
         if (filters.revenueMax !== undefined) {
           query = query.lte('revenue', filters.revenueMax);
+          console.log('🔍 Added revenue max filter:', filters.revenueMax);
         }
         
         if (filters.ebitdaMin !== undefined) {
           query = query.gte('ebitda', filters.ebitdaMin);
+          console.log('🔍 Added ebitda min filter:', filters.ebitdaMin);
         }
         
         if (filters.ebitdaMax !== undefined) {
           query = query.lte('ebitda', filters.ebitdaMax);
+          console.log('🔍 Added ebitda max filter:', filters.ebitdaMax);
         }
         
         if (filters.search) {
           query = query.ilike('title', `%${filters.search}%`);
+          console.log('🔍 Added search filter:', filters.search);
         }
         
         // Apply pagination
@@ -59,16 +68,33 @@ export const useListings = (filters: FilterOptions = {}) => {
           .order('created_at', { ascending: false })
           .range(start, end);
         
+        console.log('🔍 Added pagination:', { page, perPage, start, end });
+        
         // Execute the query
         const { data, error, count } = await query;
         
         if (error) {
-          console.error('Error fetching marketplace listings:', error);
+          console.error('❌ Error fetching marketplace listings:', error);
           throw error;
         }
         
-        console.log(`Successfully fetched ${data?.length || 0} listings from marketplace`);
-        console.log('Raw listings data:', data);
+        console.log(`✅ Successfully fetched ${data?.length || 0} listings from marketplace`);
+        console.log('📊 Total count from database:', count);
+        
+        // Log each listing for debugging
+        data?.forEach((listing, index) => {
+          console.log(`📋 Listing ${index + 1}:`, {
+            id: listing.id,
+            title: listing.title,
+            status: listing.status,
+            category: listing.category,
+            categories: listing.categories,
+            location: listing.location,
+            revenue: listing.revenue,
+            ebitda: listing.ebitda,
+            created_at: listing.created_at
+          });
+        });
         
         // Transform data to include computed properties
         const listings = data?.map((item: any) => {
@@ -99,15 +125,27 @@ export const useListings = (filters: FilterOptions = {}) => {
               maximumFractionDigits: 0
             }).format(item.ebitda),
           };
+          
+          console.log(`🔄 Transformed listing:`, {
+            id: listing.id,
+            title: listing.title,
+            status: listing.status,
+            categories: listing.categories,
+            revenueFormatted: listing.revenueFormatted,
+            ebitdaFormatted: listing.ebitdaFormatted
+          });
+          
           return listing;
         });
+        
+        console.log(`🎯 Final result: ${listings?.length || 0} listings ready for marketplace`);
         
         return {
           listings: listings || [],
           totalCount: count || 0
         };
       } catch (error: any) {
-        console.error('Error in useListings:', error);
+        console.error('💥 Error in useListings:', error);
         throw error;
       }
     },
@@ -127,7 +165,7 @@ export const useListing = (id: string | undefined) => {
       if (!id) return null;
       
       try {
-        console.log('Fetching single listing:', id);
+        console.log('🔍 Fetching single listing:', id);
         
         const { data, error } = await supabase
           .from('listings')
@@ -136,16 +174,16 @@ export const useListing = (id: string | undefined) => {
           .maybeSingle();
         
         if (error) {
-          console.error('Error fetching single listing:', error);
+          console.error('❌ Error fetching single listing:', error);
           throw error;
         }
         
         if (!data) {
-          console.log('No listing found with id:', id);
+          console.log('⚠️ No listing found with id:', id);
           return null;
         }
         
-        console.log('Successfully fetched listing:', data.title);
+        console.log('✅ Successfully fetched listing:', data.title);
         
         // Transform to Listing type with computed properties
         const listing: Listing = {
@@ -178,7 +216,7 @@ export const useListing = (id: string | undefined) => {
         
         return listing;
       } catch (error: any) {
-        console.error('Error in useListing:', error);
+        console.error('💥 Error in useListing:', error);
         throw error;
       }
     },
@@ -194,7 +232,7 @@ export const useListingMetadata = () => {
     queryKey: ['listing-metadata'],
     queryFn: async () => {
       try {
-        console.log('Fetching listing metadata');
+        console.log('🔍 Fetching listing metadata');
         
         // Only query active listings for metadata
         const { data, error } = await supabase
@@ -203,9 +241,11 @@ export const useListingMetadata = () => {
           .eq('status', 'active');
         
         if (error) {
-          console.error('Error fetching listing metadata:', error);
+          console.error('❌ Error fetching listing metadata:', error);
           throw error;
         }
+        
+        console.log('📊 Metadata raw data:', data);
         
         // Extract unique categories from both old and new fields
         const allCategories = new Set<string>();
@@ -219,11 +259,11 @@ export const useListingMetadata = () => {
         const categories = Array.from(allCategories).filter(Boolean).sort();
         const locations = [...new Set(data.map(item => item.location))].filter(Boolean).sort();
         
-        console.log('Fetched metadata - Categories:', categories.length, 'Locations:', locations.length);
+        console.log('✅ Fetched metadata - Categories:', categories, 'Locations:', locations);
         
         return { categories, locations };
       } catch (error: any) {
-        console.error('Error in useListingMetadata:', error);
+        console.error('💥 Error in useListingMetadata:', error);
         return { categories: [], locations: [] };
       }
     },

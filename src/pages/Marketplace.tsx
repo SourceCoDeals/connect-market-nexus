@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from "react";
 import { useMarketplace } from "@/hooks/use-marketplace";
 import { FilterOptions, PaginationState } from "@/types";
@@ -37,6 +36,18 @@ const Marketplace = () => {
   const listings = listingsData?.listings || [];
   const totalItems = listingsData?.totalCount || 0;
   
+  // Debug logging for marketplace component
+  useEffect(() => {
+    console.log('🏪 Marketplace component state:', {
+      filters,
+      isLoading,
+      error,
+      listingsCount: listings.length,
+      totalItems,
+      listingTitles: listings.map(l => l.title)
+    });
+  }, [filters, isLoading, error, listings.length, totalItems]);
+  
   // Update pagination whenever total count or filters change
   useEffect(() => {
     if (listingsData) {
@@ -49,13 +60,20 @@ const Marketplace = () => {
         totalItems,
         perPage
       });
+      
+      console.log('📊 Updated pagination:', {
+        currentPage: filters.page || 1,
+        totalPages,
+        totalItems,
+        perPage
+      });
     }
   }, [listingsData, totalItems, filters.page, filters.perPage]);
   
   // Error handling
   useEffect(() => {
     if (error) {
-      console.error("Error loading marketplace listings:", error);
+      console.error("❌ Error loading marketplace listings:", error);
       toast({
         variant: "destructive",
         title: "Error loading listings",
@@ -66,10 +84,10 @@ const Marketplace = () => {
 
   // Memoize filter change handler to prevent unnecessary re-renders
   const handleFilterChange = useCallback((newFilters: FilterOptions) => {
-    console.log("Filter change requested:", newFilters);
+    console.log("🔄 Filter change requested:", newFilters);
     setFilters(prev => {
       const updated = { ...newFilters, page: 1 }; // Reset to page 1 when filters change
-      console.log("Applying filters:", updated);
+      console.log("✅ Applying filters:", updated);
       return updated;
     });
   }, []);
@@ -255,13 +273,20 @@ const Marketplace = () => {
                   <div className={viewType === "grid" 
                     ? "grid grid-cols-1 md:grid-cols-2 gap-4" 
                     : "flex flex-col gap-4"}>
-                    {listings.map((listing) => (
-                      <ListingCard
-                        key={listing.id}
-                        listing={listing}
-                        viewType={viewType}
-                      />
-                    ))}
+                    {listings.map((listing) => {
+                      console.log('🎯 Rendering listing card:', {
+                        id: listing.id,
+                        title: listing.title,
+                        status: listing.status
+                      });
+                      return (
+                        <ListingCard
+                          key={listing.id}
+                          listing={listing}
+                          viewType={viewType}
+                        />
+                      );
+                    })}
                   </div>
                   
                   {/* Pagination controls */}
