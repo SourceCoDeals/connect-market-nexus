@@ -98,12 +98,18 @@ export function useCreateListing() {
       }
     },
     onSuccess: (data) => {
-      // Invalidate both admin and marketplace queries to refresh data
+      console.log("Listing created successfully, invalidating all cache:", data.title);
+      
+      // Invalidate all listing-related queries to refresh data everywhere
       queryClient.invalidateQueries({ queryKey: ['admin-listings'] });
       queryClient.invalidateQueries({ queryKey: ['marketplace-listings'] });
       queryClient.invalidateQueries({ queryKey: ['listing-metadata'] });
       
-      console.log("Listing created successfully, cache invalidated:", data.title);
+      // Also remove any specific listing queries
+      queryClient.removeQueries({ queryKey: ['listing'] });
+      
+      // Force refetch of marketplace listings
+      queryClient.refetchQueries({ queryKey: ['marketplace-listings'] });
       
       toast({
         title: 'Listing Created',

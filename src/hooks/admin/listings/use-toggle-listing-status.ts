@@ -44,14 +44,18 @@ export function useToggleListingStatus() {
       }
     },
     onSuccess: (data) => {
-      // Invalidate all listing-related queries to refresh data
+      console.log(`Listing ${data.title} status changed to ${data.status}, invalidating cache`);
+      
+      // Invalidate all listing-related queries to refresh data everywhere
       queryClient.invalidateQueries({ queryKey: ['admin-listings'] });
       queryClient.invalidateQueries({ queryKey: ['marketplace-listings'] });
       queryClient.invalidateQueries({ queryKey: ['listing-metadata'] });
       queryClient.invalidateQueries({ queryKey: ['listing', data.id] });
       
+      // Force refetch of marketplace listings to show/hide the listing immediately
+      queryClient.refetchQueries({ queryKey: ['marketplace-listings'] });
+      
       const statusText = data.status === 'active' ? 'activated' : 'deactivated';
-      console.log(`Listing ${data.title} has been ${statusText}`);
       
       toast({
         title: `Listing ${statusText}`,

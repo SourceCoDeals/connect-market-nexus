@@ -31,7 +31,7 @@ const Marketplace = () => {
   });
   
   const { useListings, useListingMetadata } = useMarketplace();
-  const { data: listingsData, isLoading, error, refetch } = useListings(filters);
+  const { data: listingsData, isLoading, error } = useListings(filters);
   const { data: metadata, isLoading: isMetadataLoading } = useListingMetadata();
   
   const listings = listingsData?.listings || [];
@@ -91,12 +91,6 @@ const Marketplace = () => {
       page: 1 // Reset to first page when changing items per page
     }));
   }, []);
-  
-  // Force refresh listings
-  const handleRefresh = useCallback(() => {
-    console.log("Manually refreshing listings");
-    refetch();
-  }, [refetch]);
   
   // Generate page numbers for pagination
   const getPageNumbers = () => {
@@ -171,9 +165,6 @@ const Marketplace = () => {
         <div className="flex flex-col gap-6">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <h1 className="text-3xl font-bold">Marketplace Listings</h1>
-            <Button onClick={handleRefresh} variant="outline">
-              Refresh
-            </Button>
           </div>
           
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
@@ -241,12 +232,6 @@ const Marketplace = () => {
                   <p className="text-muted-foreground mb-4">
                     There was a problem loading the marketplace listings. Please try again later.
                   </p>
-                  <Button
-                    variant="outline"
-                    onClick={handleRefresh}
-                  >
-                    Retry
-                  </Button>
                 </div>
               ) : listings.length === 0 ? (
                 <div className="bg-muted/30 border border-border rounded-lg p-8 text-center">
