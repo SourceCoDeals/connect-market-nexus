@@ -74,12 +74,47 @@ export const useSavedListings = (filters: FilterOptions = {}) => {
         // Order by created_at desc
         query = query.order('created_at', { ascending: false });
         
-        const { data: listings, error, count } = await query;
+        const { data: rawListings, error, count } = await query;
         
         if (error) throw error;
         
+        // Transform raw database response to Listing interface with computed properties
+        const listings = (rawListings || []).map((rawListing: any) => ({
+          ...rawListing,
+          // Add computed properties as getters
+          get ownerNotes() { return rawListing.owner_notes || ''; },
+          get createdAt() { return rawListing.created_at; },
+          get updatedAt() { return rawListing.updated_at; },
+          get multiples() {
+            if (rawListing.revenue && rawListing.ebitda) {
+              const revenueMultiple = (rawListing.ebitda / rawListing.revenue).toFixed(2);
+              return {
+                revenue: `${revenueMultiple}x`,
+                value: `${revenueMultiple}x Revenue Multiple`
+              };
+            }
+            return undefined;
+          },
+          get revenueFormatted() {
+            return new Intl.NumberFormat('en-US', {
+              style: 'currency',
+              currency: 'USD',
+              minimumFractionDigits: 0,
+              maximumFractionDigits: 0,
+            }).format(rawListing.revenue || 0);
+          },
+          get ebitdaFormatted() {
+            return new Intl.NumberFormat('en-US', {
+              style: 'currency',
+              currency: 'USD',
+              minimumFractionDigits: 0,
+              maximumFractionDigits: 0,
+            }).format(rawListing.ebitda || 0);
+          }
+        })) as Listing[];
+        
         return {
-          listings: listings as Listing[],
+          listings,
           totalCount: count || 0
         };
       } catch (error: any) {
