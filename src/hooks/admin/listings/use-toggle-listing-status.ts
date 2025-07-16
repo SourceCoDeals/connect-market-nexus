@@ -19,6 +19,8 @@ export function useToggleListingStatus() {
       status: 'active' | 'inactive' 
     }) => {
       try {
+        console.log(`Toggling listing ${id} status to ${status}`);
+        
         const { data, error } = await supabase
           .from('listings')
           .update({ 
@@ -29,7 +31,12 @@ export function useToggleListingStatus() {
           .select()
           .single();
         
-        if (error) throw error;
+        if (error) {
+          console.error('Error updating listing status:', error);
+          throw error;
+        }
+        
+        console.log(`Listing ${id} status updated to ${status}`);
         return data as AdminListing;
       } catch (error: any) {
         console.error('Error updating listing status:', error);
@@ -40,15 +47,19 @@ export function useToggleListingStatus() {
       // Invalidate all listing-related queries to refresh data
       queryClient.invalidateQueries({ queryKey: ['admin-listings'] });
       queryClient.invalidateQueries({ queryKey: ['marketplace-listings'] });
+      queryClient.invalidateQueries({ queryKey: ['listing-metadata'] });
       queryClient.invalidateQueries({ queryKey: ['listing', data.id] });
       
       const statusText = data.status === 'active' ? 'activated' : 'deactivated';
+      console.log(`Listing ${data.title} has been ${statusText}`);
+      
       toast({
         title: `Listing ${statusText}`,
-        description: `The listing has been ${statusText} successfully.`,
+        description: `The listing "${data.title}" has been ${statusText} successfully.`,
       });
     },
     onError: (error: any) => {
+      console.error('Error in toggle listing status mutation:', error);
       toast({
         variant: 'destructive',
         title: 'Error Updating Status',

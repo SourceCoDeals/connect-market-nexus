@@ -73,7 +73,7 @@ export function useCreateListing() {
               console.error("Error updating listing with image URL:", updateError);
               // Don't throw here, we already have the listing created
               toast({
-                variant: 'destructive', // Changed from 'warning' to 'destructive'
+                variant: 'destructive',
                 title: 'Image attachment partial failure',
                 description: 'Listing created but image URL update failed. The image may not display correctly.',
               });
@@ -84,7 +84,7 @@ export function useCreateListing() {
           } catch (imageError: any) {
             console.error('Error handling image:', imageError);
             toast({
-              variant: 'destructive', // Changed from 'warning' to 'destructive'
+              variant: 'destructive',
               title: 'Image Upload Failed',
               description: imageError.message || 'Failed to upload image, but listing was created',
             });
@@ -97,15 +97,21 @@ export function useCreateListing() {
         throw error;
       }
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      // Invalidate both admin and marketplace queries to refresh data
       queryClient.invalidateQueries({ queryKey: ['admin-listings'] });
       queryClient.invalidateQueries({ queryKey: ['marketplace-listings'] });
+      queryClient.invalidateQueries({ queryKey: ['listing-metadata'] });
+      
+      console.log("Listing created successfully, cache invalidated:", data.title);
+      
       toast({
         title: 'Listing Created',
-        description: 'The listing has been created successfully.',
+        description: `The listing "${data.title}" has been created successfully and is now live on the marketplace.`,
       });
     },
     onError: (error: any) => {
+      console.error('Error in create listing mutation:', error);
       toast({
         variant: 'destructive',
         title: 'Error Creating Listing',

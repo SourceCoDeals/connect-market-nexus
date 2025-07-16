@@ -9,6 +9,8 @@ export const useListings = (filters: FilterOptions = {}) => {
     queryKey: ['marketplace-listings', filters],
     queryFn: async () => {
       try {
+        console.log('Fetching marketplace listings with filters:', filters);
+        
         // Start building the query
         let query = supabase
           .from('listings')
@@ -59,7 +61,12 @@ export const useListings = (filters: FilterOptions = {}) => {
         // Execute the query
         const { data, error, count } = await query;
         
-        if (error) throw error;
+        if (error) {
+          console.error('Error fetching marketplace listings:', error);
+          throw error;
+        }
+        
+        console.log(`Successfully fetched ${data?.length || 0} listings from marketplace`);
         
         // Transform data to include computed properties
         const listings = data?.map((item: any) => {
@@ -96,11 +103,12 @@ export const useListings = (filters: FilterOptions = {}) => {
           totalCount: count || 0
         };
       } catch (error: any) {
-        console.error('Error fetching listings:', error);
+        console.error('Error in useListings:', error);
         throw error;
       }
     },
     staleTime: 1000 * 60 * 5, // 5 minutes
+    refetchOnWindowFocus: false, // Prevent excessive refetching
   });
 };
 
@@ -112,14 +120,25 @@ export const useListing = (id: string | undefined) => {
       if (!id) return null;
       
       try {
+        console.log('Fetching single listing:', id);
+        
         const { data, error } = await supabase
           .from('listings')
           .select('*')
           .eq('id', id)
           .maybeSingle();
         
-        if (error) throw error;
-        if (!data) return null;
+        if (error) {
+          console.error('Error fetching single listing:', error);
+          throw error;
+        }
+        
+        if (!data) {
+          console.log('No listing found with id:', id);
+          return null;
+        }
+        
+        console.log('Successfully fetched listing:', data.title);
         
         // Transform to Listing type with computed properties
         const listing: Listing = {
@@ -150,12 +169,13 @@ export const useListing = (id: string | undefined) => {
         
         return listing;
       } catch (error: any) {
-        console.error('Error fetching listing:', error);
+        console.error('Error in useListing:', error);
         throw error;
       }
     },
     enabled: !!id,
     staleTime: 1000 * 60 * 5, // 5 minutes
+    refetchOnWindowFocus: false,
   });
 };
 
@@ -165,24 +185,32 @@ export const useListingMetadata = () => {
     queryKey: ['listing-metadata'],
     queryFn: async () => {
       try {
+        console.log('Fetching listing metadata');
+        
         // Only query active listings for metadata
         const { data, error } = await supabase
           .from('listings')
           .select('category, location')
           .eq('status', 'active');
         
-        if (error) throw error;
+        if (error) {
+          console.error('Error fetching listing metadata:', error);
+          throw error;
+        }
         
         // Extract unique categories and locations
         const categories = [...new Set(data.map(item => item.category))].filter(Boolean).sort();
         const locations = [...new Set(data.map(item => item.location))].filter(Boolean).sort();
         
+        console.log('Fetched metadata - Categories:', categories.length, 'Locations:', locations.length);
+        
         return { categories, locations };
       } catch (error: any) {
-        console.error('Error fetching listing metadata:', error);
+        console.error('Error in useListingMetadata:', error);
         return { categories: [], locations: [] };
       }
     },
     staleTime: 1000 * 60 * 15, // 15 minutes
+    refetchOnWindowFocus: false,
   });
 };

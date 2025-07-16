@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useMarketplace } from "@/hooks/use-marketplace";
 import { FilterOptions, PaginationState } from "@/types";
 import ListingCard from "@/components/ListingCard";
@@ -31,7 +31,7 @@ const Marketplace = () => {
   });
   
   const { useListings, useListingMetadata } = useMarketplace();
-  const { data: listingsData, isLoading, error } = useListings(filters);
+  const { data: listingsData, isLoading, error, refetch } = useListings(filters);
   const { data: metadata, isLoading: isMetadataLoading } = useListingMetadata();
   
   const listings = listingsData?.listings || [];
@@ -64,28 +64,39 @@ const Marketplace = () => {
     }
   }, [error]);
 
-  const handleFilterChange = (newFilters: FilterOptions) => {
-    console.log("Applying filters:", { ...newFilters, page: 1 }); // Reset to page 1 when filters change
-    setFilters({ ...newFilters, page: 1 });
-  };
+  // Memoize filter change handler to prevent unnecessary re-renders
+  const handleFilterChange = useCallback((newFilters: FilterOptions) => {
+    console.log("Filter change requested:", newFilters);
+    setFilters(prev => {
+      const updated = { ...newFilters, page: 1 }; // Reset to page 1 when filters change
+      console.log("Applying filters:", updated);
+      return updated;
+    });
+  }, []);
   
-  const handlePageChange = (newPage: number) => {
+  const handlePageChange = useCallback((newPage: number) => {
     if (newPage < 1 || newPage > pagination.totalPages) return;
     
     setFilters(prev => ({
       ...prev,
       page: newPage
     }));
-  };
+  }, [pagination.totalPages]);
   
-  const handlePerPageChange = (value: string) => {
+  const handlePerPageChange = useCallback((value: string) => {
     const perPage = Number(value);
     setFilters(prev => ({
       ...prev,
       perPage,
       page: 1 // Reset to first page when changing items per page
     }));
-  };
+  }, []);
+  
+  // Force refresh listings
+  const handleRefresh = useCallback(() => {
+    console.log("Manually refreshing listings");
+    refetch();
+  }, [refetch]);
   
   // Generate page numbers for pagination
   const getPageNumbers = () => {
@@ -160,6 +171,9 @@ const Marketplace = () => {
         <div className="flex flex-col gap-6">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <h1 className="text-3xl font-bold">Marketplace Listings</h1>
+            <Button onClick={handleRefresh} variant="outline">
+              Refresh
+            </Button>
           </div>
           
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
@@ -229,7 +243,7 @@ const Marketplace = () => {
                   </p>
                   <Button
                     variant="outline"
-                    onClick={() => window.location.reload()}
+                    onClick={handleRefresh}
                   >
                     Retry
                   </Button>
