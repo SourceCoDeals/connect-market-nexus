@@ -50,10 +50,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
   
   // Connect auth actions with the auth state
-  const { login, logout, signup, updateUserProfile } = useAuthActions(
+  const { login, logout, signup: authSignup, updateUserProfile } = useAuthActions(
     setUser,
     setLoadingState
   );
+
+  // Wrapper for signup to match the expected interface
+  const signup = async (userData: Partial<AppUser>, password: string): Promise<void> => {
+    await authSignup(userData, password);
+  };
 
   // Update session when it changes
   useEffect(() => {
