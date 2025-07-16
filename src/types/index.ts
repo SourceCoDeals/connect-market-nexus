@@ -51,7 +51,8 @@ export interface User {
 export interface Listing {
   id: string;
   title: string;
-  category: string;
+  categories: string[]; // Array of categories
+  category: string; // Keep for backward compatibility
   location: string;
   revenue: number;
   ebitda: number;

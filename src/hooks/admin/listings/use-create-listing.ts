@@ -22,12 +22,13 @@ export function useCreateListing() {
       try {
         console.log("Creating new listing with image:", image ? "yes" : "no");
         
-        // Step 1: Create the listing
+        // Step 1: Create the listing with the new categories array
         const { data, error } = await supabase
           .from('listings')
           .insert({
             title: listing.title,
-            category: listing.category,
+            categories: listing.categories || [], // Use categories array
+            category: listing.categories?.[0] || '', // Keep category for backward compatibility
             description: listing.description,
             location: listing.location,
             revenue: listing.revenue,

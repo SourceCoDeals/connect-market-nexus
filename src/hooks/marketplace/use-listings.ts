@@ -21,7 +21,8 @@ export const useListings = (filters: FilterOptions = {}) => {
         
         // Apply filters if provided
         if (filters.category) {
-          query = query.eq('category', filters.category);
+          // Check both the old category field and new categories array
+          query = query.or(`category.eq.${filters.category},categories.cs.{${filters.category}}`);
         }
         
         if (filters.location) {
@@ -72,6 +73,8 @@ export const useListings = (filters: FilterOptions = {}) => {
         const listings = data?.map((item: any) => {
           const listing: Listing = {
             ...item,
+            // Ensure categories is always an array, fallback to single category
+            categories: item.categories || (item.category ? [item.category] : []),
             // Add computed properties
             ownerNotes: item.owner_notes || '',
             createdAt: item.created_at,
@@ -145,6 +148,8 @@ export const useListing = (id: string | undefined) => {
         // Transform to Listing type with computed properties
         const listing: Listing = {
           ...data,
+          // Ensure categories is always an array, fallback to single category
+          categories: data.categories || (data.category ? [data.category] : []),
           // Add computed properties
           ownerNotes: data.owner_notes || '',
           createdAt: data.created_at,
@@ -192,7 +197,7 @@ export const useListingMetadata = () => {
         // Only query active listings for metadata
         const { data, error } = await supabase
           .from('listings')
-          .select('category, location')
+          .select('category, categories, location')
           .eq('status', 'active');
         
         if (error) {
@@ -200,8 +205,16 @@ export const useListingMetadata = () => {
           throw error;
         }
         
-        // Extract unique categories and locations
-        const categories = [...new Set(data.map(item => item.category))].filter(Boolean).sort();
+        // Extract unique categories from both old and new fields
+        const allCategories = new Set<string>();
+        data.forEach(item => {
+          if (item.category) allCategories.add(item.category);
+          if (item.categories) {
+            item.categories.forEach((cat: string) => allCategories.add(cat));
+          }
+        });
+        
+        const categories = Array.from(allCategories).filter(Boolean).sort();
         const locations = [...new Set(data.map(item => item.location))].filter(Boolean).sort();
         
         console.log('Fetched metadata - Categories:', categories.length, 'Locations:', locations.length);
