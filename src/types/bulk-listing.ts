@@ -9,6 +9,7 @@ export interface ParsedListing {
   owner_notes: string;
   status: 'active' | 'inactive';
   tags: string[];
+  image_url?: string | null;
 }
 
 export interface BulkImportResult {
@@ -16,6 +17,8 @@ export interface BulkImportResult {
   id?: string;
   title: string;
   error?: string;
+  image_processed?: boolean;
+  image_url?: string;
 }
 
 export interface BulkImportProgress {
@@ -23,4 +26,13 @@ export interface BulkImportProgress {
   completed: number;
   errors: string[];
   results: BulkImportResult[];
+  current_operation?: string;
+  images_processed?: number;
+  images_failed?: number;
+}
+
+export interface ImageProcessingResult {
+  success: boolean;
+  url?: string;
+  error?: string;
 }

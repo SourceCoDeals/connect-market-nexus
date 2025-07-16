@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { AdminListing } from '@/types/admin';
 import { toast } from '@/hooks/use-toast';
-import { uploadListingImage } from '@/lib/storage-utils';
+import { uploadListingImage, DEFAULT_IMAGE } from '@/lib/storage-utils';
 
 /**
  * Hook for creating a new listing
@@ -20,7 +20,26 @@ export function useCreateListing() {
       image?: File | null;
     }) => {
       try {
-        console.log("Creating new listing with image:", image ? "yes" : "no");
+        console.log("Creating new listing:", listing.title);
+        
+        // Determine the image URL to use
+        let finalImageUrl: string | null = null;
+        
+        if (image) {
+          // If a file is provided, upload it
+          console.log("Uploading provided image file");
+          // We'll set a temporary ID for upload, then update after listing creation
+          const tempId = crypto.randomUUID();
+          finalImageUrl = await uploadListingImage(image, tempId);
+        } else if (listing.image_url) {
+          // If an image URL is provided, use it directly
+          console.log("Using provided image URL:", listing.image_url);
+          finalImageUrl = listing.image_url;
+        } else {
+          // No image provided, use default
+          console.log("Using default image");
+          finalImageUrl = DEFAULT_IMAGE;
+        }
         
         // Step 1: Create the listing
         const { data, error } = await supabase
@@ -35,7 +54,8 @@ export function useCreateListing() {
             tags: listing.tags || [],
             owner_notes: listing.owner_notes,
             status: listing.status || 'active',
-            image_url: null // We'll update this after upload
+            image_url: finalImageUrl,
+            files: finalImageUrl ? [finalImageUrl] : []
           })
           .select()
           .single();
@@ -46,66 +66,21 @@ export function useCreateListing() {
         }
         if (!data) throw new Error('No data returned from insert');
         
-        console.log("Listing created successfully, id:", data.id);
+        console.log("Listing created successfully:", data.id);
         
-        // Step 2: Upload image if provided
-        let updatedListing = data;
-        
-        if (image) {
-          try {
-            console.log('Uploading image for listing:', data.id, image.name, image.type, image.size);
-            const publicUrl = await uploadListingImage(image, data.id);
-            console.log("Image uploaded successfully, URL:", publicUrl);
-            
-            // Update listing with image URL
-            const { data: updatedData, error: updateError } = await supabase
-              .from('listings')
-              .update({ 
-                image_url: publicUrl,
-                // Add the image URL to files array as well if needed
-                files: [publicUrl]
-              })
-              .eq('id', data.id)
-              .select()
-              .single();
-            
-            if (updateError) {
-              console.error("Error updating listing with image URL:", updateError);
-              // Don't throw here, we already have the listing created
-              toast({
-                variant: 'destructive', // Changed from 'warning' to 'destructive'
-                title: 'Image attachment partial failure',
-                description: 'Listing created but image URL update failed. The image may not display correctly.',
-              });
-            } else {
-              console.log("Listing updated with image URL");
-              updatedListing = updatedData;
-            }
-          } catch (imageError: any) {
-            console.error('Error handling image:', imageError);
-            toast({
-              variant: 'destructive', // Changed from 'warning' to 'destructive'
-              title: 'Image Upload Failed',
-              description: imageError.message || 'Failed to upload image, but listing was created',
-            });
-          }
-        }
-        
-        return updatedListing as AdminListing;
+        return data as AdminListing;
       } catch (error: any) {
         console.error('Error creating listing:', error);
         throw error;
       }
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['admin-listings'] });
       queryClient.invalidateQueries({ queryKey: ['marketplace-listings'] });
-      toast({
-        title: 'Listing Created',
-        description: 'The listing has been created successfully.',
-      });
+      console.log("Listing created successfully:", data.title);
     },
     onError: (error: any) => {
+      console.error('Error creating listing:', error);
       toast({
         variant: 'destructive',
         title: 'Error Creating Listing',
