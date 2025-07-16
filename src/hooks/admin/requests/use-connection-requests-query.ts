@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { AdminConnectionRequest } from '@/types/admin';
 import { toast } from '@/hooks/use-toast';
 import { createUserObject } from '@/lib/auth-helpers';
-import { ListingStatus } from '@/types';
+import { createListingFromData } from '@/utils/user-helpers';
 
 /**
  * Hook for fetching connection requests in admin dashboard
@@ -34,10 +34,10 @@ export function useConnectionRequestsQuery() {
           
           if (userError) console.error("Error fetching user data:", userError);
           
-          // Get listing details
+          // Get listing details - select all fields to ensure we have complete data
           const { data: listingData, error: listingError } = await supabase
             .from('listings')
-            .select('id, title, category, location, revenue, ebitda, status')
+            .select('*')  // Select all fields instead of just a subset
             .eq('id', request.listing_id)
             .maybeSingle();  // Use maybeSingle instead of single to prevent errors
           
@@ -46,11 +46,8 @@ export function useConnectionRequestsQuery() {
           // Transform the user data using createUserObject to ensure it matches the User type
           const user = userError || !userData ? null : createUserObject(userData);
           
-          // Ensure listing status is properly typed
-          const listingWithStatus = listingData ? {
-            ...listingData,
-            status: listingData.status as ListingStatus
-          } : null;
+          // Use createListingFromData to properly construct the listing object
+          const listing = listingData ? createListingFromData(listingData) : null;
           
           // Explicitly cast the request status to the expected union type
           const status = request.status as "pending" | "approved" | "rejected";
@@ -60,7 +57,7 @@ export function useConnectionRequestsQuery() {
             ...request,
             status, // Use the explicitly typed status
             user,
-            listing: listingWithStatus
+            listing
           };
 
           return result;
