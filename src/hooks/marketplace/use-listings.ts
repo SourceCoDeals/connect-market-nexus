@@ -110,10 +110,11 @@ export const useListings = (filters: FilterOptions = {}) => {
         throw error;
       }
     },
-    staleTime: 0, // Always fetch fresh data
-    gcTime: 1000 * 60 * 5, // Keep in cache for 5 minutes
+    staleTime: 0, // Always consider data stale to ensure fresh fetches
+    gcTime: 0, // Don't keep in cache - always fetch fresh
     refetchOnWindowFocus: true, // Refetch when window gains focus
     refetchOnMount: true, // Always refetch on mount
+    refetchInterval: false, // Don't auto-refetch on interval
   });
 };
 
@@ -225,7 +226,7 @@ export const useListingMetadata = () => {
         return { categories: [], locations: [] };
       }
     },
-    staleTime: 1000 * 60 * 15, // 15 minutes
+    staleTime: 0, // Always refetch metadata to get latest categories
     refetchOnWindowFocus: false,
   });
 };

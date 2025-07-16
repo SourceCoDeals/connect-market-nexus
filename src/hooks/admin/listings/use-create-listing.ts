@@ -101,16 +101,29 @@ export function useCreateListing() {
     onSuccess: (data) => {
       console.log("Listing created successfully, invalidating all cache:", data.title);
       
-      // Invalidate all listing-related queries to refresh data everywhere
-      queryClient.invalidateQueries({ queryKey: ['admin-listings'] });
-      queryClient.invalidateQueries({ queryKey: ['marketplace-listings'] });
-      queryClient.invalidateQueries({ queryKey: ['listing-metadata'] });
-      
-      // Also remove any specific listing queries
+      // Clear all listing-related queries completely to force fresh data
+      queryClient.removeQueries({ queryKey: ['admin-listings'] });
+      queryClient.removeQueries({ queryKey: ['marketplace-listings'] });
+      queryClient.removeQueries({ queryKey: ['listing-metadata'] });
       queryClient.removeQueries({ queryKey: ['listing'] });
       
-      // Force refetch of marketplace listings
-      queryClient.refetchQueries({ queryKey: ['marketplace-listings'] });
+      // Force immediate refetch of marketplace listings with no cache
+      queryClient.invalidateQueries({ 
+        queryKey: ['marketplace-listings'],
+        exact: false 
+      });
+      
+      // Also force refetch admin listings
+      queryClient.invalidateQueries({ 
+        queryKey: ['admin-listings'],
+        exact: false 
+      });
+      
+      // Refetch metadata for filters
+      queryClient.invalidateQueries({ 
+        queryKey: ['listing-metadata'],
+        exact: false 
+      });
       
       toast({
         title: 'Listing Created',
