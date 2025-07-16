@@ -1,5 +1,5 @@
 
-import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from "@/context/AuthContext";
@@ -38,103 +38,101 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <Router>
-          <div className="min-h-screen bg-background">
-            <Routes>
-              {/* Public routes */}
-              <Route path="/" element={<Index />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/signup" element={<Signup />} />
-              <Route path="/password-reset" element={<PasswordReset />} />
-              <Route path="/verify-email" element={<VerifyEmail />} />
-              <Route path="/verify-email-handler" element={<VerifyEmailHandler />} />
-              <Route path="/auth/callback" element={<AuthCallback />} />
-              <Route path="/verification-success" element={<VerificationSuccess />} />
-              <Route path="/pending-approval" element={<PendingApproval />} />
-              <Route path="/unauthorized" element={<Unauthorized />} />
+        <div className="min-h-screen bg-background">
+          <Routes>
+            {/* Public routes */}
+            <Route path="/" element={<Index />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<Signup />} />
+            <Route path="/password-reset" element={<PasswordReset />} />
+            <Route path="/verify-email" element={<VerifyEmail />} />
+            <Route path="/verify-email-handler" element={<VerifyEmailHandler />} />
+            <Route path="/auth/callback" element={<AuthCallback />} />
+            <Route path="/verification-success" element={<VerificationSuccess />} />
+            <Route path="/pending-approval" element={<PendingApproval />} />
+            <Route path="/unauthorized" element={<Unauthorized />} />
 
-              {/* Protected routes for approved users */}
-              <Route
-                path="/marketplace"
-                element={
-                  <ProtectedRoute requireApproved={true}>
-                    <Marketplace />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/listing/:id"
-                element={
-                  <ProtectedRoute requireApproved={true}>
-                    <ListingDetail />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/profile"
-                element={
-                  <ProtectedRoute requireApproved={false}>
-                    <Profile />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/saved-listings"
-                element={
-                  <ProtectedRoute requireApproved={true}>
-                    <SavedListings />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/my-requests"
-                element={
-                  <ProtectedRoute requireApproved={true}>
-                    <MyRequests />
-                  </ProtectedRoute>
-                }
-              />
+            {/* Protected routes for approved users */}
+            <Route
+              path="/marketplace"
+              element={
+                <ProtectedRoute requireApproved={true}>
+                  <Marketplace />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/listing/:id"
+              element={
+                <ProtectedRoute requireApproved={true}>
+                  <ListingDetail />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/profile"
+              element={
+                <ProtectedRoute requireApproved={false}>
+                  <Profile />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/saved-listings"
+              element={
+                <ProtectedRoute requireApproved={true}>
+                  <SavedListings />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/my-requests"
+              element={
+                <ProtectedRoute requireApproved={true}>
+                  <MyRequests />
+                </ProtectedRoute>
+              }
+            />
 
-              {/* Admin routes */}
-              <Route
-                path="/admin"
-                element={
-                  <ProtectedRoute requireAdmin={true}>
-                    <AdminDashboard />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/admin/users"
-                element={
-                  <ProtectedRoute requireAdmin={true}>
-                    <AdminUsers />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/admin/listings"
-                element={
-                  <ProtectedRoute requireAdmin={true}>
-                    <AdminListings />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/admin/requests"
-                element={
-                  <ProtectedRoute requireAdmin={true}>
-                    <AdminRequests />
-                  </ProtectedRoute>
-                }
-              />
+            {/* Admin routes */}
+            <Route
+              path="/admin"
+              element={
+                <ProtectedRoute requireAdmin={true}>
+                  <AdminDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/users"
+              element={
+                <ProtectedRoute requireAdmin={true}>
+                  <AdminUsers />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/listings"
+              element={
+                <ProtectedRoute requireAdmin={true}>
+                  <AdminListings />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/requests"
+              element={
+                <ProtectedRoute requireAdmin={true}>
+                  <AdminRequests />
+                </ProtectedRoute>
+              }
+            />
 
-              {/* Catch all route */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </div>
-          <Toaster />
-        </Router>
+            {/* Catch all route */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </div>
+        <Toaster />
       </AuthProvider>
     </QueryClientProvider>
   );
