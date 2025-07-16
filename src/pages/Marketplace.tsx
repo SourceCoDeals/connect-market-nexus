@@ -20,6 +20,7 @@ const Marketplace = () => {
   const [filters, setFilters] = useState<FilterOptions>({
     page: 1,
     perPage: 20
+    // Removed default restrictive filters - let all listings show initially
   });
   const [viewType, setViewType] = useState<"grid" | "list">("grid");
   const [pagination, setPagination] = useState<PaginationState>({
@@ -44,7 +45,8 @@ const Marketplace = () => {
       error,
       listingsCount: listings.length,
       totalItems,
-      listingTitles: listings.map(l => l.title)
+      listingTitles: listings.map(l => l.title),
+      listingIds: listings.map(l => l.id)
     });
   }, [filters, isLoading, error, listings.length, totalItems]);
   
@@ -277,7 +279,9 @@ const Marketplace = () => {
                       console.log('🎯 Rendering listing card:', {
                         id: listing.id,
                         title: listing.title,
-                        status: listing.status
+                        status: listing.status,
+                        revenue: listing.revenue,
+                        ebitda: listing.ebitda
                       });
                       return (
                         <ListingCard

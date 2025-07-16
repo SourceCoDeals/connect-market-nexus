@@ -1,4 +1,3 @@
-
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { FilterOptions, Listing, ListingStatus } from '@/types';
@@ -21,7 +20,7 @@ export const useListings = (filters: FilterOptions = {}) => {
         
         console.log('🔍 Base query: SELECT * FROM listings WHERE status = active');
         
-        // Apply filters if provided
+        // Apply filters if provided - only apply filters that have actual values
         if (filters.category) {
           // Check both the old category field and new categories array
           query = query.or(`category.eq.${filters.category},categories.cs.{${filters.category}}`);
@@ -33,6 +32,7 @@ export const useListings = (filters: FilterOptions = {}) => {
           console.log('🔍 Added location filter:', filters.location);
         }
         
+        // Only apply revenue filters if they are explicitly set (not undefined)
         if (filters.revenueMin !== undefined) {
           query = query.gte('revenue', filters.revenueMin);
           console.log('🔍 Added revenue min filter:', filters.revenueMin);
@@ -43,6 +43,7 @@ export const useListings = (filters: FilterOptions = {}) => {
           console.log('🔍 Added revenue max filter:', filters.revenueMax);
         }
         
+        // Only apply ebitda filters if they are explicitly set (not undefined)
         if (filters.ebitdaMin !== undefined) {
           query = query.gte('ebitda', filters.ebitdaMin);
           console.log('🔍 Added ebitda min filter:', filters.ebitdaMin);
@@ -150,7 +151,7 @@ export const useListings = (filters: FilterOptions = {}) => {
       }
     },
     staleTime: 0, // Always consider data stale to ensure fresh fetches
-    gcTime: 1000 * 60 * 2, // Keep in cache for 2 minutes to prevent excessive refetches
+    gcTime: 1000 * 60 * 2, // Keep in cache for 2 minutes
     refetchOnWindowFocus: true, // Refetch when window gains focus
     refetchOnMount: true, // Always refetch on mount
     refetchInterval: false, // Don't auto-refetch on interval
