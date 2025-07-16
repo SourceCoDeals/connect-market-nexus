@@ -32,28 +32,6 @@ export const useListings = (filters: FilterOptions = {}) => {
           console.log('🔍 Added location filter:', filters.location);
         }
         
-        // Only apply revenue filters if they are explicitly set (not undefined)
-        if (filters.revenueMin !== undefined) {
-          query = query.gte('revenue', filters.revenueMin);
-          console.log('🔍 Added revenue min filter:', filters.revenueMin);
-        }
-        
-        if (filters.revenueMax !== undefined) {
-          query = query.lte('revenue', filters.revenueMax);
-          console.log('🔍 Added revenue max filter:', filters.revenueMax);
-        }
-        
-        // Only apply ebitda filters if they are explicitly set (not undefined)
-        if (filters.ebitdaMin !== undefined) {
-          query = query.gte('ebitda', filters.ebitdaMin);
-          console.log('🔍 Added ebitda min filter:', filters.ebitdaMin);
-        }
-        
-        if (filters.ebitdaMax !== undefined) {
-          query = query.lte('ebitda', filters.ebitdaMax);
-          console.log('🔍 Added ebitda max filter:', filters.ebitdaMax);
-        }
-        
         if (filters.search) {
           query = query.ilike('title', `%${filters.search}%`);
           console.log('🔍 Added search filter:', filters.search);
