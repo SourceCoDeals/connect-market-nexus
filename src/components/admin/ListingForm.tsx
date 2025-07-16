@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { toast } from "@/hooks/use-toast";
 import { z } from "zod";
@@ -8,6 +7,7 @@ import { AdminListing } from "@/types/admin";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import { Loader2, Upload, Image as ImageIcon, AlertCircle } from "lucide-react";
 import {
   Form,
@@ -25,6 +25,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { DEFAULT_IMAGE } from "@/lib/storage-utils";
+import { parseCurrency } from "@/lib/currency-utils";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 // Type for listing categories
@@ -40,19 +41,17 @@ const categories = [
   "Other",
 ] as const;
 
-// Form schema
+// Form schema with improved currency validation
 const listingFormSchema = z.object({
   title: z.string().min(5, "Title must be at least 5 characters").max(100),
   category: z.string().min(1, "Please select a category"),
   location: z.string().min(2, "Location is required"),
-  revenue: z.coerce
-    .number()
-    .min(0, "Revenue cannot be negative")
-    .or(z.string().transform((val) => Number(val.replace(/,/g, "")))),
-  ebitda: z.coerce
-    .number()
-    .min(0, "EBITDA cannot be negative")
-    .or(z.string().transform((val) => Number(val.replace(/,/g, "")))),
+  revenue: z.string()
+    .transform((val) => parseCurrency(val))
+    .refine((val) => val >= 0, "Revenue cannot be negative"),
+  ebitda: z.string()
+    .transform((val) => parseCurrency(val))
+    .refine((val) => val >= 0, "EBITDA cannot be negative"),
   description: z.string().min(20, "Description must be at least 20 characters"),
   owner_notes: z.string().optional(),
   status: z.enum(["active", "inactive"]).default("active"),
@@ -85,8 +84,8 @@ export function ListingForm({
       title: listing?.title || "",
       category: listing?.category || "",
       location: listing?.location || "",
-      revenue: listing?.revenue || 0,
-      ebitda: listing?.ebitda || 0,
+      revenue: listing?.revenue ? String(listing.revenue) : "",
+      ebitda: listing?.ebitda ? String(listing.ebitda) : "",
       description: listing?.description || "",
       owner_notes: listing?.owner_notes || "",
       status: listing?.status || "active",
@@ -242,17 +241,11 @@ export function ListingForm({
             name="revenue"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Annual Revenue ($)</FormLabel>
+                <FormLabel>Annual Revenue</FormLabel>
                 <FormControl>
-                  <Input
-                    type="text"
-                    placeholder="0"
+                  <CurrencyInput
+                    placeholder="Enter annual revenue"
                     {...field}
-                    onChange={(e) => {
-                      // Allow only numbers and commas
-                      const value = e.target.value.replace(/[^0-9,]/g, "");
-                      field.onChange(value);
-                    }}
                   />
                 </FormControl>
                 <FormMessage />
@@ -265,17 +258,11 @@ export function ListingForm({
             name="ebitda"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Annual EBITDA ($)</FormLabel>
+                <FormLabel>Annual EBITDA</FormLabel>
                 <FormControl>
-                  <Input
-                    type="text"
-                    placeholder="0"
+                  <CurrencyInput
+                    placeholder="Enter annual EBITDA"
                     {...field}
-                    onChange={(e) => {
-                      // Allow only numbers and commas
-                      const value = e.target.value.replace(/[^0-9,]/g, "");
-                      field.onChange(value);
-                    }}
                   />
                 </FormControl>
                 <FormMessage />
