@@ -57,6 +57,19 @@ const listingFormSchema = z.object({
   status: z.enum(["active", "inactive"]).default("active"),
 });
 
+// Form-specific type that matches the Zod schema (before transformation)
+type ListingFormInput = {
+  title: string;
+  category: string;
+  location: string;
+  revenue: string;  // String input for currency formatting
+  ebitda: string;   // String input for currency formatting
+  description: string;
+  owner_notes?: string;
+  status: "active" | "inactive";
+};
+
+// Type after Zod transformation
 type ListingFormValues = z.infer<typeof listingFormSchema>;
 
 interface ListingFormProps {
@@ -64,6 +77,20 @@ interface ListingFormProps {
   listing?: AdminListing;
   isLoading?: boolean;
 }
+
+// Helper function to convert AdminListing to form input format
+const convertListingToFormInput = (listing?: AdminListing): ListingFormInput => {
+  return {
+    title: listing?.title || "",
+    category: listing?.category || "",
+    location: listing?.location || "",
+    revenue: listing?.revenue ? formatNumber(Number(listing.revenue)) : "",
+    ebitda: listing?.ebitda ? formatNumber(Number(listing.ebitda)) : "",
+    description: listing?.description || "",
+    owner_notes: listing?.owner_notes || "",
+    status: listing?.status || "active",
+  };
+};
 
 export function ListingForm({
   onSubmit,
@@ -78,18 +105,9 @@ export function ListingForm({
   const [isImageChanged, setIsImageChanged] = useState(false);
   const [imageError, setImageError] = useState<string | null>(null);
 
-  const form = useForm<ListingFormValues>({
+  const form = useForm<ListingFormInput>({
     resolver: zodResolver(listingFormSchema),
-    defaultValues: {
-      title: listing?.title || "",
-      category: listing?.category || "",
-      location: listing?.location || "",
-      revenue: listing?.revenue ? formatNumber(Number(listing.revenue)) : "",
-      ebitda: listing?.ebitda ? formatNumber(Number(listing.ebitda)) : "",
-      description: listing?.description || "",
-      owner_notes: listing?.owner_notes || "",
-      status: listing?.status || "active",
-    },
+    defaultValues: convertListingToFormInput(listing),
   });
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
