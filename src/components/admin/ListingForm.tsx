@@ -25,7 +25,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { DEFAULT_IMAGE } from "@/lib/storage-utils";
-import { parseCurrency } from "@/lib/currency-utils";
+import { parseCurrency, formatNumber } from "@/lib/currency-utils";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 // Type for listing categories
@@ -84,8 +84,8 @@ export function ListingForm({
       title: listing?.title || "",
       category: listing?.category || "",
       location: listing?.location || "",
-      revenue: listing?.revenue ? listing.revenue.toString() : "",
-      ebitda: listing?.ebitda ? listing.ebitda.toString() : "",
+      revenue: listing?.revenue ? formatNumber(Number(listing.revenue)) : "",
+      ebitda: listing?.ebitda ? formatNumber(Number(listing.ebitda)) : "",
       description: listing?.description || "",
       owner_notes: listing?.owner_notes || "",
       status: listing?.status || "active",
