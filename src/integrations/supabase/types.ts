@@ -352,16 +352,8 @@ export type Database = {
         }
         Returns: number
       }
-      demote_admin_user: {
-        Args: { target_user_id: string }
-        Returns: boolean
-      }
       is_admin: {
         Args: { user_id: string }
-        Returns: boolean
-      }
-      promote_user_to_admin: {
-        Args: { target_user_id: string }
         Returns: boolean
       }
       update_engagement_scores: {

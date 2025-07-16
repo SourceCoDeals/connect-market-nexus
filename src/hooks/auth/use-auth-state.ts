@@ -1,151 +1,166 @@
 
-import { useState, useEffect, useRef } from 'react';
-import { Session } from '@supabase/supabase-js';
-import { supabase } from '@/integrations/supabase/client';
-import { User as AppUser } from '@/types';
-import { createUserObject, isUserAdmin } from '@/lib/auth-helpers';
+import { useState, useEffect } from "react";
+import { User } from "@/types";
+import { supabase } from "@/integrations/supabase/client";
+import { createUserObject } from "@/lib/auth-helpers";
 
 export function useAuthState() {
-  const [user, setUser] = useState<AppUser | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [authChecked, setAuthChecked] = useState(false);
-  
-  // Use ref to track subscription to prevent memory leaks
-  const subscriptionRef = useRef<{ unsubscribe: () => void } | null>(null);
-  const mountedRef = useRef(true);
-
-  const fetchUserProfile = async (session: Session | null): Promise<AppUser | null> => {
-    if (!session?.user?.id) {
-      return null;
-    }
-
-    try {
-      const { data: profile, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', session.user.id)
-        .single();
-
-      if (error) {
-        console.error('Error fetching user profile:', error);
-        return null;
-      }
-
-      if (!profile) {
-        console.warn('No profile found for user:', session.user.id);
-        return null;
-      }
-
-      return createUserObject(profile);
-    } catch (error) {
-      console.error('Unexpected error fetching profile:', error);
-      return null;
-    }
-  };
 
   useEffect(() => {
-    let mounted = true;
-    mountedRef.current = true;
-
-    const initializeAuth = async () => {
-      try {
-        // Get initial session
-        const { data: { session }, error } = await supabase.auth.getSession();
+    let isSubscribed = true;
+    
+    // First check if we have a user in localStorage to avoid flashing
+    try {
+      const cachedUser = localStorage.getItem("user");
+      if (cachedUser) {
+        const parsedUser = JSON.parse(cachedUser);
+        setUser(parsedUser);
+      }
+    } catch (err) {
+      console.error("Error parsing cached user:", err);
+      localStorage.removeItem("user");
+    }
+    
+    // Set up the auth state change listener before checking the session
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        console.log("Auth state change:", event);
         
-        if (error) {
-          console.error('Error getting initial session:', error);
+        if (!isSubscribed) return;
+        
+        // Update state synchronously to prevent race conditions
+        if (event === "SIGNED_OUT") {
+          console.log("User signed out, clearing state");
+          setUser(null);
+          localStorage.removeItem("user");
+          setIsLoading(false);
+          setAuthChecked(true);
+          return;
         }
-
-        if (mounted) {
-          const userProfile = await fetchUserProfile(session);
-          if (mounted) {
-            setUser(userProfile);
+        
+        if ((event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "USER_UPDATED") && session) {
+          console.log(`User ${event}:`, session.user.id);
+          // Use setTimeout to avoid Supabase auth deadlocks
+          setTimeout(async () => {
+            if (!isSubscribed) return;
+            
+            try {
+              const { data: profile, error } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', session.user.id)
+                .single();
+              
+              if (error) {
+                console.error(`Error fetching profile after ${event}:`, error);
+                setUser(null);
+                localStorage.removeItem("user");
+              } else if (profile && isSubscribed) {
+                const userData = createUserObject(profile);
+                console.log(`Setting user data after ${event}:`, userData.email);
+                setUser(userData);
+                localStorage.setItem("user", JSON.stringify(userData));
+              }
+            } catch (err) {
+              console.error(`Error in ${event} handler:`, err);
+              setUser(null);
+              localStorage.removeItem("user");
+            } finally {
+              if (isSubscribed) {
+                setIsLoading(false);
+                setAuthChecked(true);
+              }
+            }
+          }, 0);
+        }
+      }
+    );
+    
+    const checkSession = async () => {
+      try {
+        setIsLoading(true);
+        
+        // Timeout to prevent infinite loading
+        const timeoutId = setTimeout(() => {
+          if (isSubscribed) {
+            console.warn("Auth check timeout - forcing completion");
             setIsLoading(false);
             setAuthChecked(true);
           }
+        }, 2000); // Shorter timeout for better UX
+        
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        
+        // Clear timeout as we got a response
+        clearTimeout(timeoutId);
+        
+        if (sessionError) {
+          console.error("Session error:", sessionError);
+          setUser(null);
+          localStorage.removeItem("user");
+          setIsLoading(false);
+          setAuthChecked(true);
+          return;
+        }
+        
+        if (session?.user && isSubscribed) {
+          console.log("Found existing session:", session.user.id);
+          // Fetch user profile data
+          const { data: profileData, error: profileError } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .single();
+          
+          if (profileError) {
+            console.error("Profile error:", profileError);
+            setUser(null);
+            localStorage.removeItem("user");
+          } else if (profileData && isSubscribed) {
+            console.log("Loaded profile data:", profileData.email);
+            const userData = createUserObject(profileData);
+            setUser(userData);
+            localStorage.setItem("user", JSON.stringify(userData));
+          }
+        } else {
+          console.log("No session found");
+          if (isSubscribed) {
+            setUser(null);
+            localStorage.removeItem("user");
+          }
         }
       } catch (error) {
-        console.error('Error initializing auth:', error);
-        if (mounted) {
+        console.error("Auth check error:", error);
+        if (isSubscribed) {
           setUser(null);
+          localStorage.removeItem("user");
+        }
+      } finally {
+        if (isSubscribed) {
           setIsLoading(false);
           setAuthChecked(true);
         }
       }
     };
-
-    // Set up auth state listener with proper cleanup
-    const setupAuthListener = () => {
-      // Clean up existing subscription if any
-      if (subscriptionRef.current) {
-        subscriptionRef.current.unsubscribe();
-      }
-
-      const { data: { subscription } } = supabase.auth.onAuthStateChange(
-        async (event, session) => {
-          console.log('Auth state change:', event);
-          
-          if (!mountedRef.current) return;
-
-          try {
-            let userProfile: AppUser | null = null;
-            
-            if (session && (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED')) {
-              // Use setTimeout to prevent Supabase auth deadlocks
-              setTimeout(async () => {
-                if (mountedRef.current) {
-                  userProfile = await fetchUserProfile(session);
-                  if (mountedRef.current) {
-                    setUser(userProfile);
-                    setIsLoading(false);
-                    setAuthChecked(true);
-                  }
-                }
-              }, 0);
-            } else if (event === 'SIGNED_OUT') {
-              if (mountedRef.current) {
-                setUser(null);
-                setIsLoading(false);
-                setAuthChecked(true);
-              }
-            }
-          } catch (error) {
-            console.error('Error in auth state change handler:', error);
-            if (mountedRef.current) {
-              setUser(null);
-              setIsLoading(false);
-              setAuthChecked(true);
-            }
-          }
-        }
-      );
-
-      subscriptionRef.current = subscription;
-    };
-
-    initializeAuth();
-    setupAuthListener();
-
+    
+    // Initialize by checking the session
+    checkSession();
+    
+    // Clean up function
     return () => {
-      mounted = false;
-      mountedRef.current = false;
-      
-      // Clean up subscription
-      if (subscriptionRef.current) {
-        subscriptionRef.current.unsubscribe();
-        subscriptionRef.current = null;
-      }
+      isSubscribed = false;
+      subscription.unsubscribe();
     };
   }, []);
-
-  const isAdmin = isUserAdmin(user);
-  const isBuyer = user?.role === 'buyer';
 
   return {
     user,
     isLoading,
-    isAdmin,
-    isBuyer,
+    isAdmin: user?.is_admin === true, // Explicitly check for true
+    isBuyer: user?.role === "buyer",
     authChecked,
   };
 }

@@ -1,67 +1,75 @@
-
-import { useLocation, Navigate } from "react-router-dom";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Mail, CheckCircle, AlertCircle } from "lucide-react";
-import { ResendVerificationButton } from "@/components/auth/ResendVerificationButton";
-import { useAuth } from "@/context/AuthContext";
+import { Link } from "react-router-dom";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Mail } from "lucide-react";
 
 const VerifyEmail = () => {
-  const location = useLocation();
-  const { user } = useAuth();
-  const email = location.state?.email || user?.email;
-
-  // If user is already verified, redirect to appropriate page
-  if (user?.email_verified) {
-    if (user.approval_status === 'approved') {
-      return <Navigate to="/dashboard" replace />;
-    } else {
-      return <Navigate to="/pending-approval" replace />;
-    }
-  }
-
-  if (!email) {
-    return <Navigate to="/login" replace />;
-  }
-
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-2 text-center">
-          <div className="mx-auto w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
-            <Mail className="h-8 w-8 text-blue-600" />
-          </div>
-          <CardTitle className="text-2xl font-bold">Verify Your Email</CardTitle>
-          <CardDescription>
-            We've sent a verification link to <strong>{email}</strong>
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <Alert className="border-blue-200 bg-blue-50">
-            <AlertCircle className="h-4 w-4 text-blue-600" />
-            <AlertDescription className="text-blue-800">
-              Please check your email inbox and click the verification link to activate your account.
-            </AlertDescription>
-          </Alert>
-
-          <div className="space-y-4">
-            <div className="text-sm text-muted-foreground space-y-2">
-              <p>After clicking the verification link, you'll be able to:</p>
-              <ul className="list-disc list-inside space-y-1 ml-4">
-                <li>Complete your account setup</li>
-                <li>Access the marketplace once approved</li>
-                <li>Save and connect with listings</li>
-              </ul>
-            </div>
-
-            <ResendVerificationButton email={email} />
-
-            <div className="text-center text-xs text-muted-foreground">
-              <p>Don't see the email? Check your spam folder or try resending.</p>
+    <div className="flex items-center justify-center min-h-screen bg-muted/30">
+      <div className="w-full max-w-md space-y-6">
+        {/* Brand Header */}
+        <div className="flex flex-col items-center space-y-3">
+          <div className="flex items-center">
+            <img 
+              src="/lovable-uploads/b879fa06-6a99-4263-b973-b9ced4404acb.png" 
+              alt="SourceCo Logo" 
+              className="h-10 w-10 mr-3"
+            />
+            <div className="text-center">
+              <h1 className="text-2xl font-bold">SourceCo</h1>
+              <p className="text-lg text-muted-foreground font-light">Marketplace</p>
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+
+        <Card>
+          <CardHeader className="space-y-1">
+            <div className="flex justify-center mb-4">
+              <div className="bg-primary/10 p-3 rounded-full">
+                <Mail className="h-8 w-8 text-primary" />
+              </div>
+            </div>
+            <CardTitle className="text-2xl font-bold text-center">
+              Check Your Email
+            </CardTitle>
+            <CardDescription className="text-center">
+              We've sent you a verification link
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="bg-primary/5 border border-primary/20 rounded-md p-4">
+              <p className="text-sm text-center">
+                Please check your inbox and click on the verification link to complete your registration. 
+                Once verified, your account will be reviewed by our team.
+              </p>
+            </div>
+            <p className="text-sm text-center text-muted-foreground">
+              The email should arrive within a few minutes. If you don't see it, 
+              check your spam folder.
+            </p>
+          </CardContent>
+          <CardFooter className="flex flex-col space-y-4">
+            <Button
+              variant="outline"
+              className="w-full"
+              asChild
+            >
+              <Link to="/login">
+                Back to Login
+              </Link>
+            </Button>
+            <div className="text-sm text-center text-muted-foreground">
+              <span>Need help? Contact </span>
+              <Link
+                to="mailto:support@sourcecodeals.com"
+                className="text-primary font-medium hover:underline"
+              >
+                support@sourcecodeals.com
+              </Link>
+            </div>
+          </CardFooter>
+        </Card>
+      </div>
     </div>
   );
 };
