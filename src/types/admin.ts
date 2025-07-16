@@ -1,4 +1,6 @@
 
+import { User, Listing } from "@/types";
+
 export interface AdminListing {
   id: string;
   title: string;
@@ -27,4 +29,35 @@ export interface CreateListingData {
   tags?: string[];
   owner_notes?: string;
   status?: 'active' | 'inactive';
+}
+
+export interface AdminConnectionRequest {
+  id: string;
+  user_id: string;
+  listing_id: string;
+  status: 'pending' | 'approved' | 'rejected';
+  admin_comment?: string;
+  user_message?: string;
+  created_at: string;
+  updated_at: string;
+  decision_at?: string;
+  user?: User | null;
+  listing?: Listing | null;
+}
+
+export interface AdminStats {
+  totalUsers: number;
+  pendingUsers: number;
+  approvedUsers: number;
+  totalListings: number;
+  pendingConnections: number;
+  approvedConnections: number;
+}
+
+export interface AdminActivity {
+  id: string;
+  type: 'signup' | 'connection_request' | 'listing_creation';
+  description: string;
+  timestamp: string;
+  user_id?: string;
 }
