@@ -11,6 +11,7 @@ export function useAuthState() {
 
   useEffect(() => {
     let isSubscribed = true;
+    let authSubscription: any = null;
     
     // First check if we have a user in localStorage to avoid flashing
     try {
@@ -25,72 +26,84 @@ export function useAuthState() {
     }
     
     // Set up the auth state change listener before checking the session
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log("Auth state change:", event);
-        
-        if (!isSubscribed) return;
-        
-        // Update state synchronously to prevent race conditions
-        if (event === "SIGNED_OUT") {
-          console.log("User signed out, clearing state");
-          setUser(null);
-          localStorage.removeItem("user");
-          setIsLoading(false);
-          setAuthChecked(true);
-          return;
-        }
-        
-        if ((event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "USER_UPDATED") && session) {
-          console.log(`User ${event}:`, session.user.id);
-          // Use setTimeout to avoid Supabase auth deadlocks
-          setTimeout(async () => {
-            if (!isSubscribed) return;
-            
-            try {
-              const { data: profile, error } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('id', session.user.id)
-                .single();
+    const setupAuthListener = () => {
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(
+        async (event, session) => {
+          console.log("Auth state change:", event);
+          
+          if (!isSubscribed) return;
+          
+          // Update state synchronously to prevent race conditions
+          if (event === "SIGNED_OUT") {
+            console.log("User signed out, clearing state");
+            setUser(null);
+            localStorage.removeItem("user");
+            setIsLoading(false);
+            setAuthChecked(true);
+            return;
+          }
+          
+          if ((event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "USER_UPDATED") && session) {
+            console.log(`User ${event}:`, session.user.id);
+            // Use setTimeout to avoid Supabase auth deadlocks and fix memory leaks
+            const timeoutId = setTimeout(async () => {
+              if (!isSubscribed) return;
               
-              if (error) {
-                console.error(`Error fetching profile after ${event}:`, error);
+              try {
+                const { data: profile, error } = await supabase
+                  .from('profiles')
+                  .select('*')
+                  .eq('id', session.user.id)
+                  .single();
+                
+                if (error) {
+                  console.error(`Error fetching profile after ${event}:`, error);
+                  setUser(null);
+                  localStorage.removeItem("user");
+                } else if (profile && isSubscribed) {
+                  const userData = createUserObject(profile);
+                  console.log(`Setting user data after ${event}:`, userData.email);
+                  setUser(userData);
+                  localStorage.setItem("user", JSON.stringify(userData));
+                }
+              } catch (err) {
+                console.error(`Error in ${event} handler:`, err);
                 setUser(null);
                 localStorage.removeItem("user");
-              } else if (profile && isSubscribed) {
-                const userData = createUserObject(profile);
-                console.log(`Setting user data after ${event}:`, userData.email);
-                setUser(userData);
-                localStorage.setItem("user", JSON.stringify(userData));
+              } finally {
+                if (isSubscribed) {
+                  setIsLoading(false);
+                  setAuthChecked(true);
+                }
               }
-            } catch (err) {
-              console.error(`Error in ${event} handler:`, err);
-              setUser(null);
-              localStorage.removeItem("user");
-            } finally {
-              if (isSubscribed) {
-                setIsLoading(false);
-                setAuthChecked(true);
-              }
-            }
-          }, 0);
+            }, 0);
+
+            // Store timeout ID for cleanup
+            return () => {
+              clearTimeout(timeoutId);
+            };
+          }
         }
-      }
-    );
+      );
+      
+      authSubscription = subscription;
+      return subscription;
+    };
+    
+    const subscription = setupAuthListener();
     
     const checkSession = async () => {
       try {
         setIsLoading(true);
         
-        // Timeout to prevent infinite loading
+        // Timeout to prevent infinite loading - enhanced with proper cleanup
         const timeoutId = setTimeout(() => {
           if (isSubscribed) {
             console.warn("Auth check timeout - forcing completion");
             setIsLoading(false);
             setAuthChecked(true);
           }
-        }, 2000); // Shorter timeout for better UX
+        }, 3000); // Slightly longer timeout for better reliability
         
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         
@@ -149,10 +162,17 @@ export function useAuthState() {
     // Initialize by checking the session
     checkSession();
     
-    // Clean up function
+    // Enhanced cleanup function to prevent memory leaks
     return () => {
       isSubscribed = false;
-      subscription.unsubscribe();
+      if (authSubscription) {
+        authSubscription.unsubscribe();
+      }
+      // Clear any timeouts that might still be running
+      const highestId = setTimeout(() => {}, 0);
+      for (let i = 0; i <= highestId; i++) {
+        clearTimeout(i);
+      }
     };
   }, []);
 

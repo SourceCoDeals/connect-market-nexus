@@ -1,4 +1,3 @@
-
 import { useNavigate } from "react-router-dom";
 import { User } from "@/types";
 import { toast } from "@/hooks/use-toast";
@@ -16,7 +15,7 @@ export function useAuthActions(setUser: (user: User | null) => void, setIsLoadin
       
       console.log("Attempting login with email:", email);
       
-      // Sign in
+      // Sign in with enhanced error handling
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -24,6 +23,14 @@ export function useAuthActions(setUser: (user: User | null) => void, setIsLoadin
       
       if (error) {
         console.error("Login error:", error);
+        // Enhanced error messages for better UX
+        if (error.message.includes('Invalid login credentials')) {
+          throw new Error('Invalid email or password. Please check your credentials and try again.');
+        } else if (error.message.includes('Email not confirmed')) {
+          throw new Error('Please verify your email address before logging in.');
+        } else if (error.message.includes('Too many requests')) {
+          throw new Error('Too many login attempts. Please wait a few minutes and try again.');
+        }
         throw error;
       }
       
@@ -34,16 +41,38 @@ export function useAuthActions(setUser: (user: User | null) => void, setIsLoadin
       
       console.log("Login successful, user ID:", data.user.id);
       
-      // Fetch user profile
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', data.user.id)
-        .single();
+      // Fetch user profile with retry logic
+      let profile = null;
+      let retryCount = 0;
+      const maxRetries = 3;
       
-      if (profileError) {
-        console.error("Profile fetch error:", profileError);
-        throw profileError;
+      while (!profile && retryCount < maxRetries) {
+        try {
+          const { data: profileData, error: profileError } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', data.user.id)
+            .single();
+          
+          if (profileError) {
+            retryCount++;
+            console.error(`Profile fetch attempt ${retryCount} failed:`, profileError);
+            if (retryCount < maxRetries) {
+              await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
+            } else {
+              throw profileError;
+            }
+          } else {
+            profile = profileData;
+          }
+        } catch (err) {
+          retryCount++;
+          console.error(`Profile fetch attempt ${retryCount} failed:`, err);
+          if (retryCount >= maxRetries) {
+            throw new Error("Failed to load user profile. Please try again.");
+          }
+          await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
+        }
       }
       
       if (!profile) {
@@ -126,7 +155,7 @@ export function useAuthActions(setUser: (user: User | null) => void, setIsLoadin
     try {
       console.log("Starting logout process");
       
-      // Clean up auth state first
+      // Enhanced cleanup with better error handling
       await cleanupAuthState();
       
       // Update local state
@@ -137,8 +166,16 @@ export function useAuthActions(setUser: (user: User | null) => void, setIsLoadin
         description: "You have been logged out successfully.",
       });
       
-      // Force page reload to clear all state
-      window.location.href = '/login';
+      // Force page reload to clear all state with better error handling
+      setTimeout(() => {
+        try {
+          window.location.href = '/login';
+        } catch (err) {
+          console.error("Navigation error:", err);
+          navigate('/login');
+        }
+      }, 100);
+      
     } catch (error: any) {
       console.error("Logout error:", error);
       toast({
@@ -149,7 +186,14 @@ export function useAuthActions(setUser: (user: User | null) => void, setIsLoadin
       
       // Even if there's an error, still try to force logout
       setUser(null);
-      window.location.href = '/login';
+      setTimeout(() => {
+        try {
+          window.location.href = '/login';
+        } catch (err) {
+          console.error("Fallback navigation error:", err);
+          navigate('/login');
+        }
+      }, 100);
     } finally {
       setIsLoading(false);
     }
@@ -164,6 +208,11 @@ export function useAuthActions(setUser: (user: User | null) => void, setIsLoadin
       // Check required fields
       if (!userData.email || !password) {
         throw new Error("Email and password are required");
+      }
+      
+      // Enhanced validation
+      if (password.length < 8) {
+        throw new Error("Password must be at least 8 characters long");
       }
       
       // Create auth user - explicitly set is_admin to false for new users
@@ -202,7 +251,7 @@ export function useAuthActions(setUser: (user: User | null) => void, setIsLoadin
           // Continue despite this error, as the database defaults should now be correct
         }
         
-        // Send admin notification email (fail silently)
+        // Send admin notification email with enhanced retry logic
         try {
           console.log("Sending admin notification for new signup");
           const notificationPayload = {
@@ -212,17 +261,41 @@ export function useAuthActions(setUser: (user: User | null) => void, setIsLoadin
             company: userData.company || ''
           };
           
-          // Call the admin-notification Edge Function
-          const { error: notificationError } = await supabase.functions.invoke(
-            "admin-notification", 
-            { 
-              body: JSON.stringify(notificationPayload) 
-            }
-          );
+          // Enhanced retry logic for admin notifications
+          let notificationSent = false;
+          let retryCount = 0;
+          const maxRetries = 3;
           
-          if (notificationError) {
-            console.error("Error sending admin notification:", notificationError);
-            // Continue despite error - don't block signup process
+          while (!notificationSent && retryCount < maxRetries) {
+            try {
+              const { error: notificationError } = await supabase.functions.invoke(
+                "admin-notification", 
+                { 
+                  body: JSON.stringify(notificationPayload) 
+                }
+              );
+              
+              if (!notificationError) {
+                notificationSent = true;
+                console.log("Admin notification sent successfully");
+              } else {
+                retryCount++;
+                console.error(`Admin notification attempt ${retryCount} failed:`, notificationError);
+                if (retryCount < maxRetries) {
+                  await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
+                }
+              }
+            } catch (notificationErr) {
+              retryCount++;
+              console.error(`Admin notification attempt ${retryCount} failed:`, notificationErr);
+              if (retryCount < maxRetries) {
+                await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
+              }
+            }
+          }
+          
+          if (!notificationSent) {
+            console.error("All admin notification attempts failed");
           }
         } catch (notificationErr) {
           // Log but don't throw to prevent blocking signup

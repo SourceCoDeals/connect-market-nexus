@@ -14,6 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      audit_logs: {
+        Row: {
+          admin_id: string | null
+          id: string
+          metadata: Json | null
+          new_data: Json | null
+          old_data: Json | null
+          operation: string
+          table_name: string
+          timestamp: string | null
+          user_id: string | null
+        }
+        Insert: {
+          admin_id?: string | null
+          id?: string
+          metadata?: Json | null
+          new_data?: Json | null
+          old_data?: Json | null
+          operation: string
+          table_name: string
+          timestamp?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          admin_id?: string | null
+          id?: string
+          metadata?: Json | null
+          new_data?: Json | null
+          old_data?: Json | null
+          operation?: string
+          table_name?: string
+          timestamp?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       categories: {
         Row: {
           created_at: string
@@ -186,6 +222,33 @@ export type Database = {
         }
         Relationships: []
       }
+      password_reset_tokens: {
+        Row: {
+          created_at: string | null
+          expires_at: string
+          id: string
+          token: string
+          used: boolean | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          expires_at: string
+          id?: string
+          token: string
+          used?: boolean | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          expires_at?: string
+          id?: string
+          token?: string
+          used?: boolean | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           approval_status: string
@@ -352,13 +415,29 @@ export type Database = {
         }
         Returns: number
       }
+      create_password_reset_token: {
+        Args: { user_email: string }
+        Returns: string
+      }
+      demote_admin_user: {
+        Args: { target_user_id: string }
+        Returns: boolean
+      }
       is_admin: {
         Args: { user_id: string }
+        Returns: boolean
+      }
+      promote_user_to_admin: {
+        Args: { target_user_id: string }
         Returns: boolean
       }
       update_engagement_scores: {
         Args: Record<PropertyKey, never>
         Returns: undefined
+      }
+      validate_reset_token: {
+        Args: { token_value: string }
+        Returns: string
       }
     }
     Enums: {
