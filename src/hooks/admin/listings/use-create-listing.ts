@@ -101,29 +101,39 @@ export function useCreateListing() {
     onSuccess: (data) => {
       console.log("Listing created successfully, invalidating all cache:", data.title);
       
-      // Clear all listing-related queries completely to force fresh data
-      queryClient.removeQueries({ queryKey: ['admin-listings'] });
-      queryClient.removeQueries({ queryKey: ['marketplace-listings'] });
-      queryClient.removeQueries({ queryKey: ['listing-metadata'] });
-      queryClient.removeQueries({ queryKey: ['listing'] });
+      // Strategy: Clear all caches completely, then trigger fresh fetches
+      const queriesToClear = [
+        ['admin-listings'],
+        ['marketplace-listings'],
+        ['listing-metadata'],
+        ['listing']
+      ];
       
-      // Force immediate refetch of marketplace listings with no cache
-      queryClient.invalidateQueries({ 
-        queryKey: ['marketplace-listings'],
-        exact: false 
+      // Remove all cached data
+      queriesToClear.forEach(queryKey => {
+        queryClient.removeQueries({ queryKey });
       });
       
-      // Also force refetch admin listings
-      queryClient.invalidateQueries({ 
-        queryKey: ['admin-listings'],
-        exact: false 
-      });
-      
-      // Refetch metadata for filters
-      queryClient.invalidateQueries({ 
-        queryKey: ['listing-metadata'],
-        exact: false 
-      });
+      // Immediately trigger fresh fetches with no stale data
+      setTimeout(() => {
+        queryClient.invalidateQueries({ 
+          queryKey: ['marketplace-listings'],
+          exact: false,
+          refetchType: 'all'
+        });
+        
+        queryClient.invalidateQueries({ 
+          queryKey: ['admin-listings'],
+          exact: false,
+          refetchType: 'all'
+        });
+        
+        queryClient.invalidateQueries({ 
+          queryKey: ['listing-metadata'],
+          exact: false,
+          refetchType: 'all'
+        });
+      }, 100);
       
       toast({
         title: 'Listing Created',

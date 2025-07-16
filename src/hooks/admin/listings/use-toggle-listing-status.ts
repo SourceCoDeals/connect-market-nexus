@@ -46,17 +46,32 @@ export function useToggleListingStatus() {
     onSuccess: (data) => {
       console.log(`Listing ${data.title} status changed to ${data.status}, invalidating cache`);
       
-      // Clear all cache to force fresh data
-      queryClient.removeQueries({ queryKey: ['admin-listings'] });
-      queryClient.removeQueries({ queryKey: ['marketplace-listings'] });
-      queryClient.removeQueries({ queryKey: ['listing-metadata'] });
-      queryClient.removeQueries({ queryKey: ['listing', data.id] });
+      // Clear all cache completely to force fresh data
+      const queriesToClear = [
+        ['admin-listings'],
+        ['marketplace-listings'],
+        ['listing-metadata'],
+        ['listing', data.id]
+      ];
       
-      // Force refetch of marketplace listings to show/hide the listing immediately
-      queryClient.invalidateQueries({ 
-        queryKey: ['marketplace-listings'],
-        exact: false 
+      queriesToClear.forEach(queryKey => {
+        queryClient.removeQueries({ queryKey });
       });
+      
+      // Force immediate refetch of marketplace listings to show/hide the listing
+      setTimeout(() => {
+        queryClient.invalidateQueries({ 
+          queryKey: ['marketplace-listings'],
+          exact: false,
+          refetchType: 'all'
+        });
+        
+        queryClient.invalidateQueries({ 
+          queryKey: ['admin-listings'],
+          exact: false,
+          refetchType: 'all'
+        });
+      }, 100);
       
       const statusText = data.status === 'active' ? 'activated' : 'deactivated';
       

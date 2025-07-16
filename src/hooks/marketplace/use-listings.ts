@@ -68,6 +68,7 @@ export const useListings = (filters: FilterOptions = {}) => {
         }
         
         console.log(`Successfully fetched ${data?.length || 0} listings from marketplace`);
+        console.log('Raw listings data:', data);
         
         // Transform data to include computed properties
         const listings = data?.map((item: any) => {
@@ -111,7 +112,7 @@ export const useListings = (filters: FilterOptions = {}) => {
       }
     },
     staleTime: 0, // Always consider data stale to ensure fresh fetches
-    gcTime: 0, // Don't keep in cache - always fetch fresh
+    gcTime: 1000 * 60 * 2, // Keep in cache for 2 minutes to prevent excessive refetches
     refetchOnWindowFocus: true, // Refetch when window gains focus
     refetchOnMount: true, // Always refetch on mount
     refetchInterval: false, // Don't auto-refetch on interval
@@ -226,7 +227,7 @@ export const useListingMetadata = () => {
         return { categories: [], locations: [] };
       }
     },
-    staleTime: 0, // Always refetch metadata to get latest categories
+    staleTime: 1000 * 60 * 5, // 5 minutes for metadata
     refetchOnWindowFocus: false,
   });
 };
