@@ -158,7 +158,7 @@ export function ListingForm({
     setImageError(null);
   };
 
-  const handleSubmit = async (values: ListingFormValues) => {
+  const handleSubmit = async (formData: ListingFormInput) => {
     try {
       if (imageError) {
         toast({
@@ -169,8 +169,20 @@ export function ListingForm({
         return;
       }
       
+      // Transform the form data to match ListingFormValues type
+      const transformedData: ListingFormValues = {
+        title: formData.title,
+        category: formData.category,
+        location: formData.location,
+        revenue: parseCurrency(formData.revenue),
+        ebitda: parseCurrency(formData.ebitda),
+        description: formData.description,
+        owner_notes: formData.owner_notes,
+        status: formData.status,
+      };
+      
       // Only pass the image if it's been changed
-      await onSubmit(values, isImageChanged ? selectedImage : undefined);
+      await onSubmit(transformedData, isImageChanged ? selectedImage : undefined);
       
       if (!listing) {
         // Reset form after successful submission for new listings
