@@ -178,7 +178,30 @@ export function useAdminUsers() {
     return useMutation({
       mutationFn: async (userId: string) => {
         console.log('🔄 Promoting user to admin (legacy):', userId);
-        return useUpdateAdminStatus().mutateAsync({ userId, isAdmin: true });
+        
+        try {
+          const { data, error } = await supabase.rpc('promote_user_to_admin', {
+            target_user_id: userId
+          });
+
+          if (error) {
+            console.error('❌ Error promoting user to admin:', error);
+            throw error;
+          }
+
+          console.log('✅ User promoted to admin successfully:', data);
+          return { userId, isAdmin: true, result: data };
+        } catch (error) {
+          console.error('💥 Fatal error promoting user to admin:', error);
+          throw error;
+        }
+      },
+      onSuccess: ({ userId }) => {
+        console.log('🎉 User promotion successful:', userId);
+        queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+      },
+      onError: (error: any) => {
+        console.error('💥 Failed to promote user to admin:', error);
       },
     });
   };
@@ -187,7 +210,30 @@ export function useAdminUsers() {
     return useMutation({
       mutationFn: async (userId: string) => {
         console.log('🔄 Demoting admin user (legacy):', userId);
-        return useUpdateAdminStatus().mutateAsync({ userId, isAdmin: false });
+        
+        try {
+          const { data, error } = await supabase.rpc('demote_admin_user', {
+            target_user_id: userId
+          });
+
+          if (error) {
+            console.error('❌ Error demoting admin user:', error);
+            throw error;
+          }
+
+          console.log('✅ Admin user demoted successfully:', data);
+          return { userId, isAdmin: false, result: data };
+        } catch (error) {
+          console.error('💥 Fatal error demoting admin user:', error);
+          throw error;
+        }
+      },
+      onSuccess: ({ userId }) => {
+        console.log('🎉 Admin demotion successful:', userId);
+        queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+      },
+      onError: (error: any) => {
+        console.error('💥 Failed to demote admin user:', error);
       },
     });
   };
