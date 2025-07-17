@@ -215,6 +215,7 @@ export type Database = {
           categories: string[] | null
           category: string
           created_at: string
+          deleted_at: string | null
           description: string
           ebitda: number
           files: string[] | null
@@ -232,6 +233,7 @@ export type Database = {
           categories?: string[] | null
           category: string
           created_at?: string
+          deleted_at?: string | null
           description: string
           ebitda: number
           files?: string[] | null
@@ -249,6 +251,7 @@ export type Database = {
           categories?: string[] | null
           category?: string
           created_at?: string
+          deleted_at?: string | null
           description?: string
           ebitda?: number
           files?: string[] | null
@@ -300,6 +303,7 @@ export type Database = {
           company: string | null
           company_name: string | null
           created_at: string
+          deleted_at: string | null
           email: string
           email_verified: boolean
           estimated_revenue: string | null
@@ -327,6 +331,7 @@ export type Database = {
           company?: string | null
           company_name?: string | null
           created_at?: string
+          deleted_at?: string | null
           email: string
           email_verified?: boolean
           estimated_revenue?: string | null
@@ -354,6 +359,7 @@ export type Database = {
           company?: string | null
           company_name?: string | null
           created_at?: string
+          deleted_at?: string | null
           email?: string
           email_verified?: boolean
           estimated_revenue?: string | null
@@ -471,6 +477,18 @@ export type Database = {
       }
       promote_user_to_admin: {
         Args: { target_user_id: string }
+        Returns: boolean
+      }
+      refresh_analytics_views: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      soft_delete_listing: {
+        Args: { listing_id: string }
+        Returns: boolean
+      }
+      soft_delete_profile: {
+        Args: { profile_id: string }
         Returns: boolean
       }
       update_engagement_scores: {

@@ -16,7 +16,8 @@ export function useDeleteListing() {
         console.log(`Soft deleting listing with ID: ${id}`);
         
         // Use the soft delete function that was created in the migration
-        const { data, error } = await supabase.rpc('soft_delete_listing', {
+        // Type assertion to work around the types not being updated yet
+        const { data, error } = await supabase.rpc('soft_delete_listing' as any, {
           listing_id: id
         });
         

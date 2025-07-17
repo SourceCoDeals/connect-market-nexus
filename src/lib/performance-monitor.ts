@@ -138,7 +138,8 @@ export async function refreshAnalyticsViews(): Promise<void> {
       console.log('🔄 Refreshing analytics materialized views');
       
       // Use the refresh function that was created in the migration
-      const { error } = await supabase.rpc('refresh_analytics_views');
+      // Type assertion to work around the types not being updated yet
+      const { error } = await supabase.rpc('refresh_analytics_views' as any);
       
       if (error) {
         console.error('Error refreshing analytics views:', error);
