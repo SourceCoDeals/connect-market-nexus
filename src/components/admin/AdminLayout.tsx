@@ -1,4 +1,3 @@
-
 import { Link, Outlet, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
@@ -57,7 +56,7 @@ const AdminLayout = () => {
               isActive={location.pathname.includes('/admin/requests')}
             />
             <NavLink 
-              to="/marketplace" 
+              to="/" 
               icon={<ShoppingBag className="h-4 w-4 mr-2" />}
               label="View Marketplace"
               isActive={false}

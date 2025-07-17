@@ -1,7 +1,7 @@
 
 import { Link } from "react-router-dom";
-import { List, Bookmark } from "lucide-react";
-import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import { Store, User, MessageSquare, Heart, Shield } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface MobileNavItemsProps {
   isAdmin: boolean;
@@ -10,43 +10,48 @@ interface MobileNavItemsProps {
 }
 
 const MobileNavItems = ({ isAdmin, isApproved, onNavigateToAdmin }: MobileNavItemsProps) => {
-  if (!isApproved) return null;
-  
+  if (!isApproved) {
+    return null;
+  }
+
   return (
-    <>
-      <DropdownMenuItem asChild>
-        <Link to="/marketplace">
-          <img 
-            src="/lovable-uploads/b879fa06-6a99-4263-b973-b9ced4404acb.png" 
-            alt="" 
-            className="mr-2 h-4 w-4"
-          />
-          <span>Marketplace</span>
-        </Link>
-      </DropdownMenuItem>
-      <DropdownMenuItem asChild>
-        <Link to="/saved-listings">
-          <Bookmark className="mr-2 h-4 w-4" />
-          <span>Saved Listings</span>
-        </Link>
-      </DropdownMenuItem>
-      <DropdownMenuItem asChild>
-        <Link to="/my-requests">
-          <List className="mr-2 h-4 w-4" />
-          <span>My Requests</span>
-        </Link>
-      </DropdownMenuItem>
+    <div className="flex flex-col space-y-2 p-4">
+      <Link
+        to="/"
+        className="flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md text-muted-foreground hover:text-foreground hover:bg-muted"
+      >
+        <Store className="h-4 w-4" />
+        Marketplace
+      </Link>
+      
+      <Link
+        to="/my-requests"
+        className="flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md text-muted-foreground hover:text-foreground hover:bg-muted"
+      >
+        <MessageSquare className="h-4 w-4" />
+        My Requests
+      </Link>
+
+      <Link
+        to="/saved-listings"
+        className="flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md text-muted-foreground hover:text-foreground hover:bg-muted"
+      >
+        <Heart className="h-4 w-4" />
+        Saved
+      </Link>
+
       {isAdmin && (
-        <DropdownMenuItem onSelect={onNavigateToAdmin}>
-          <img 
-            src="/lovable-uploads/b879fa06-6a99-4263-b973-b9ced4404acb.png" 
-            alt="" 
-            className="mr-2 h-4 w-4"
-          />
-          <span>Admin Dashboard</span>
-        </DropdownMenuItem>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={onNavigateToAdmin}
+          className="flex items-center gap-2 justify-start"
+        >
+          <Shield className="h-4 w-4" />
+          Admin
+        </Button>
       )}
-    </>
+    </div>
   );
 };
 

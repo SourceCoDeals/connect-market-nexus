@@ -1,7 +1,8 @@
 
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { List, Bookmark } from "lucide-react";
+import { Store, User, MessageSquare, Heart, Shield } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface DesktopNavItemsProps {
   isAdmin: boolean;
@@ -10,58 +11,65 @@ interface DesktopNavItemsProps {
 }
 
 const DesktopNavItems = ({ isAdmin, isApproved, onNavigateToAdmin }: DesktopNavItemsProps) => {
-  if (!isApproved) return null;
-  
+  const location = useLocation();
+
+  if (!isApproved) {
+    return null;
+  }
+
   return (
-    <nav className="flex items-center space-x-1">
-      <Button
-        variant="ghost"
-        size="sm"
-        asChild
+    <div className="flex items-center space-x-4">
+      <Link
+        to="/"
+        className={cn(
+          "flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md transition-colors",
+          location.pathname === "/" 
+            ? "bg-primary text-primary-foreground" 
+            : "text-muted-foreground hover:text-foreground hover:bg-muted"
+        )}
       >
-        <Link to="/marketplace">
-          <img 
-            src="/lovable-uploads/b879fa06-6a99-4263-b973-b9ced4404acb.png" 
-            alt="" 
-            className="h-4 w-4 mr-1"
-          />
-          Marketplace
-        </Link>
-      </Button>
+        <Store className="h-4 w-4" />
+        Marketplace
+      </Link>
+      
+      <Link
+        to="/my-requests"
+        className={cn(
+          "flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md transition-colors",
+          location.pathname === "/my-requests" 
+            ? "bg-primary text-primary-foreground" 
+            : "text-muted-foreground hover:text-foreground hover:bg-muted"
+        )}
+      >
+        <MessageSquare className="h-4 w-4" />
+        My Requests
+      </Link>
 
-      <Button
-        variant="ghost"
-        size="sm"
-        asChild
+      <Link
+        to="/saved-listings"
+        className={cn(
+          "flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md transition-colors",
+          location.pathname === "/saved-listings" 
+            ? "bg-primary text-primary-foreground" 
+            : "text-muted-foreground hover:text-foreground hover:bg-muted"
+        )}
       >
-        <Link to="/saved-listings">
-          <Bookmark className="h-4 w-4 mr-1" />
-          Saved Listings
-        </Link>
-      </Button>
-
-      <Button
-        variant="ghost"
-        size="sm"
-        asChild
-      >
-        <Link to="/my-requests">
-          <List className="h-4 w-4 mr-1" />
-          My Requests
-        </Link>
-      </Button>
+        <Heart className="h-4 w-4" />
+        Saved
+      </Link>
 
       {isAdmin && (
         <Button
           variant="outline"
           size="sm"
-          className="border-primary text-primary hover:bg-primary/5"
           onClick={onNavigateToAdmin}
+          className="flex items-center gap-2"
         >
-          Admin Dashboard
+          <Shield className="h-4 w-4" />
+          Admin
         </Button>
       )}
-    </nav>
+    </div>
   );
 };
 
