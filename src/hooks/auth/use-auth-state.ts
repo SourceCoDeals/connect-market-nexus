@@ -102,7 +102,7 @@ export function useAuthState() {
                   localStorage.setItem("user", JSON.stringify(minimalUser));
                 } else if (profile && isSubscribed) {
                   const userData = createUserObject(profile);
-                  console.log(`Setting user data after ${event}:`, userData.email);
+                  console.log(`Setting user data after ${event}:`, userData.email, 'Email verified:', userData.email_verified);
                   setUser(userData);
                   localStorage.setItem("user", JSON.stringify(userData));
                 }
@@ -207,7 +207,7 @@ export function useAuthState() {
             setUser(minimalUser);
             localStorage.setItem("user", JSON.stringify(minimalUser));
           } else if (profileData && isSubscribed) {
-            console.log("Loaded profile data:", profileData.email);
+            console.log("Loaded profile data:", profileData.email, 'Email verified:', profileData.email_verified);
             const userData = createUserObject(profileData);
             setUser(userData);
             localStorage.setItem("user", JSON.stringify(userData));

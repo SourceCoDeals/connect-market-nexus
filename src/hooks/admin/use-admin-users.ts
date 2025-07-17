@@ -43,8 +43,10 @@ export function useAdminUsers() {
       },
       retry: 3,
       retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
-      staleTime: 5 * 60 * 1000,
-      gcTime: 10 * 60 * 1000,
+      staleTime: 30 * 1000, // Reduced from 5 minutes to 30 seconds for faster updates
+      gcTime: 2 * 60 * 1000, // Reduced from 10 minutes to 2 minutes
+      refetchOnWindowFocus: true, // Refetch when window gains focus
+      refetchOnMount: true, // Always refetch on mount
     });
   };
 
@@ -71,7 +73,9 @@ export function useAdminUsers() {
       },
       onSuccess: ({ status }) => {
         console.log('🎉 User status update successful:', status);
+        // Invalidate and refetch immediately
         queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+        queryClient.refetchQueries({ queryKey: ['admin-users'] });
       },
       onError: (error: any) => {
         console.error('💥 Failed to update user approval:', error);
@@ -116,7 +120,9 @@ export function useAdminUsers() {
           title: isAdmin ? 'User promoted to admin' : 'Admin privileges revoked',
           description: message,
         });
+        // Invalidate and refetch immediately
         queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+        queryClient.refetchQueries({ queryKey: ['admin-users'] });
       },
       onError: (error: any) => {
         console.error('💥 Failed to update admin status:', error);
@@ -152,7 +158,9 @@ export function useAdminUsers() {
           title: 'User deleted',
           description: 'User has been successfully deleted.',
         });
+        // Invalidate and refetch immediately
         queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+        queryClient.refetchQueries({ queryKey: ['admin-users'] });
       },
       onError: (error: any) => {
         console.error('💥 Failed to delete user:', error);
@@ -189,7 +197,9 @@ export function useAdminUsers() {
           title: 'User promoted to admin',
           description: 'User has been granted admin privileges.',
         });
+        // Invalidate and refetch immediately
         queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+        queryClient.refetchQueries({ queryKey: ['admin-users'] });
       },
       onError: (error: any) => {
         console.error('💥 Failed to promote user to admin:', error);
@@ -225,7 +235,9 @@ export function useAdminUsers() {
           title: 'Admin privileges revoked',
           description: 'User no longer has admin privileges.',
         });
+        // Invalidate and refetch immediately
         queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+        queryClient.refetchQueries({ queryKey: ['admin-users'] });
       },
       onError: (error: any) => {
         console.error('💥 Failed to demote admin user:', error);

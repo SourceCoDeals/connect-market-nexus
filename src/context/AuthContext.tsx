@@ -68,6 +68,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     if (!user) return;
 
     try {
+      console.log('🔄 Refreshing user profile for:', user.email);
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
@@ -79,8 +80,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         return;
       }
 
-      // The profile data will be automatically updated through the useAuthState hook
-      console.log('Profile refreshed:', data);
+      console.log('✅ Profile refreshed successfully:', data.email, 'Email verified:', data.email_verified);
+      
+      // Update localStorage with fresh data
+      const userData = {
+        ...user,
+        email_verified: data.email_verified,
+        approval_status: data.approval_status,
+        is_admin: data.is_admin,
+        // Update other fields as needed
+        first_name: data.first_name,
+        last_name: data.last_name,
+        company: data.company,
+        phone_number: data.phone_number,
+        updated_at: data.updated_at
+      };
+      
+      localStorage.setItem("user", JSON.stringify(userData));
+      
+      // Force a re-render by triggering auth state change
+      // This will cause useAuthState to pick up the new data
+      window.dispatchEvent(new Event('storage'));
+      
     } catch (error) {
       console.error('Error refreshing user profile:', error);
     }
@@ -138,6 +159,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         console.log("Auth state changed:", event, session?.user?.email);
         if (event === 'SIGNED_IN' && session?.user) {
           console.log("User signed in, updating profile");
+          // Give a small delay to allow profile to be created/updated
+          setTimeout(() => {
+            refreshUserProfile();
+          }, 500);
         }
       }
     );
