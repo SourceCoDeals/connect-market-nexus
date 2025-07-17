@@ -39,6 +39,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   // Use the enhanced auth actions hook
   const { signUp, signIn, signOut } = useEnhancedAuthActions();
 
+  // Subscribe to profile changes for real-time updates
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const subscription = supabase
+      .channel('profile-changes')
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'profiles',
+        filter: `id=eq.${user.id}`,
+      }, (payload) => {
+        console.log('📡 Profile updated in real-time:', payload);
+        // The useAuthState hook will automatically pick up these changes
+        window.location.reload(); // Force reload to update the UI
+      })
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [user?.id]);
+
   const refreshUserProfile = async () => {
     if (!user) return;
 

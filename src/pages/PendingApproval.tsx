@@ -162,7 +162,7 @@ const PendingApproval = () => {
               <div className="bg-green-50 border border-green-200 rounded-md p-4">
                 <p className="text-sm text-green-800 text-center">
                   <strong>What's next?</strong> Our team is reviewing your application. 
-                  You'll receive an email notification once your account is approved, typically within 1-2 business days.
+                  You'll receive an email notification once your account is approved, typically within 1-3 hours.
                 </p>
               </div>
             )}
