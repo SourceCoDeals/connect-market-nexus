@@ -84,3 +84,5 @@ enabled = false
 verify_jwt = true
 [functions.send-email-notification]
 verify_jwt = true
+[functions.send-user-notification]
+verify_jwt = true

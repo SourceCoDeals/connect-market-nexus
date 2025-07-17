@@ -92,13 +92,14 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
                   await sendUserApprovalEmail(selectedUser);
                   toast({
                     title: "User approved",
-                    description: `${selectedUser.first_name} ${selectedUser.last_name} has been approved and notified via email.`,
+                    description: `${selectedUser.first_name} ${selectedUser.last_name} has been approved and will receive an email confirmation.`,
                   });
                 } catch (error) {
                   console.error("❌ Error sending approval email:", error);
                   toast({
                     title: "User approved",
-                    description: `${selectedUser.first_name} ${selectedUser.last_name} has been approved, but there was an error sending the email notification.`,
+                    description: `${selectedUser.first_name} ${selectedUser.last_name} has been approved. Email notification may be delayed.`,
+                    variant: "default",
                   });
                 }
                 setIsDialogOpen(false);
@@ -127,13 +128,14 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
                   await sendUserRejectionEmail(selectedUser, reason);
                   toast({
                     title: "User rejected",
-                    description: `${selectedUser.first_name} ${selectedUser.last_name} has been rejected and notified via email.`,
+                    description: `${selectedUser.first_name} ${selectedUser.last_name} has been rejected and will receive an email notification.`,
                   });
                 } catch (error) {
                   console.error("❌ Error sending rejection email:", error);
                   toast({
                     title: "User rejected",
-                    description: `${selectedUser.first_name} ${selectedUser.last_name} has been rejected, but there was an error sending the email notification.`,
+                    description: `${selectedUser.first_name} ${selectedUser.last_name} has been rejected. Email notification may be delayed.`,
+                    variant: "default",
                   });
                 }
                 setIsDialogOpen(false);

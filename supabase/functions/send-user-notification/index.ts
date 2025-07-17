@@ -122,8 +122,8 @@ const handler = async (req: Request): Promise<Response> => {
       },
       body: JSON.stringify({
         sender: {
-          name: "Marketplace",
-          email: "noreply@yourdomain.com" // Update this to your verified domain
+          name: "Connect Market Nexus",
+          email: "noreply@connect-market-nexus.com"
         },
         to: [{
           email: userEmail,
@@ -134,6 +134,12 @@ const handler = async (req: Request): Promise<Response> => {
       })
     });
 
+    if (!emailResponse.ok) {
+      const errorData = await emailResponse.json();
+      console.error("❌ Brevo API error:", errorData);
+      throw new Error(`Brevo API error: ${errorData.message || 'Unknown error'}`);
+    }
+
     const responseData = await emailResponse.json();
     console.log("✅ Email sent successfully:", responseData);
 
@@ -141,7 +147,8 @@ const handler = async (req: Request): Promise<Response> => {
       JSON.stringify({
         success: true,
         message: `${type} email sent successfully`,
-        messageId: responseData.messageId
+        messageId: responseData.messageId,
+        emailProvider: 'brevo'
       }),
       {
         status: 200,

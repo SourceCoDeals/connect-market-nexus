@@ -52,8 +52,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         filter: `id=eq.${user.id}`,
       }, (payload) => {
         console.log('📡 Profile updated in real-time:', payload);
-        // The useAuthState hook will automatically pick up these changes
-        window.location.reload(); // Force reload to update the UI
+        // Trigger a refresh of the user profile to get the latest data
+        setTimeout(() => {
+          refreshUserProfile();
+        }, 100);
       })
       .subscribe();
 

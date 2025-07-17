@@ -2,16 +2,21 @@
 import { User } from "@/types";
 import { AdminConnectionRequest } from "@/types/admin";
 import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { useEmailDeliveryMonitoring } from "./use-email-delivery-monitoring";
 
 /**
  * Hook for sending email notifications from admin actions
  */
 export function useAdminEmail() {
+  const { toast } = useToast();
+  const { trackEmailDelivery } = useEmailDeliveryMonitoring();
   /**
    * Send an email notification to a user when their account is approved
    */
   const sendUserApprovalEmail = async (user: User) => {
     console.log(`🔔 Sending approval email to ${user.email} for user ${user.first_name} ${user.last_name}`);
+    const correlationId = `approval-${user.id}-${Date.now()}`;
     
     try {
       const notificationPayload = {
@@ -24,24 +29,53 @@ export function useAdminEmail() {
       const { data, error } = await supabase.functions.invoke(
         "send-user-notification", 
         { 
-          body: JSON.stringify(notificationPayload) 
+          body: notificationPayload
         }
       );
       
       if (error) {
         console.error("❌ Error sending user approval notification:", error);
+        trackEmailDelivery(correlationId, {
+          success: false,
+          error: error.message || 'Failed to send approval email'
+        });
         throw error;
       }
       
       if (data && !data.success) {
         console.error("❌ Failed to send user approval email:", data.message);
+        trackEmailDelivery(correlationId, {
+          success: false,
+          error: data.message || 'Failed to send approval email'
+        });
         throw new Error(data.message || 'Failed to send approval email');
       }
       
       console.log("✅ User approval email sent successfully");
+      trackEmailDelivery(correlationId, {
+        success: true,
+        messageId: data?.messageId,
+        emailProvider: data?.emailProvider
+      });
+      
+      toast({
+        title: "Email sent",
+        description: `Approval email sent to ${user.email}`,
+      });
+      
       return true;
     } catch (error) {
       console.error("💥 Failed to send user approval email:", error);
+      trackEmailDelivery(correlationId, {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+      
+      toast({
+        variant: "destructive",
+        title: "Email failed",
+        description: "Failed to send approval email. Please try again.",
+      });
       throw error;
     }
   };
@@ -51,6 +85,7 @@ export function useAdminEmail() {
    */
   const sendUserRejectionEmail = async (user: User, reason?: string) => {
     console.log(`🔔 Sending rejection email to ${user.email} for user ${user.first_name} ${user.last_name}. Reason: ${reason || 'No reason provided'}`);
+    const correlationId = `rejection-${user.id}-${Date.now()}`;
     
     try {
       const notificationPayload = {
@@ -64,24 +99,53 @@ export function useAdminEmail() {
       const { data, error } = await supabase.functions.invoke(
         "send-user-notification", 
         { 
-          body: JSON.stringify(notificationPayload) 
+          body: notificationPayload
         }
       );
       
       if (error) {
         console.error("❌ Error sending user rejection notification:", error);
+        trackEmailDelivery(correlationId, {
+          success: false,
+          error: error.message || 'Failed to send rejection email'
+        });
         throw error;
       }
       
       if (data && !data.success) {
         console.error("❌ Failed to send user rejection email:", data.message);
+        trackEmailDelivery(correlationId, {
+          success: false,
+          error: data.message || 'Failed to send rejection email'
+        });
         throw new Error(data.message || 'Failed to send rejection email');
       }
       
       console.log("✅ User rejection email sent successfully");
+      trackEmailDelivery(correlationId, {
+        success: true,
+        messageId: data?.messageId,
+        emailProvider: data?.emailProvider
+      });
+      
+      toast({
+        title: "Email sent",
+        description: `Rejection email sent to ${user.email}`,
+      });
+      
       return true;
     } catch (error) {
       console.error("💥 Failed to send user rejection email:", error);
+      trackEmailDelivery(correlationId, {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+      
+      toast({
+        variant: "destructive",
+        title: "Email failed",
+        description: "Failed to send rejection email. Please try again.",
+      });
       throw error;
     }
   };
