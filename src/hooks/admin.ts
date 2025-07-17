@@ -9,92 +9,110 @@ import { useAdminCategories } from './admin/use-admin-categories';
 
 /**
  * A hook that provides access to all admin-related functionality
+ * Returns actual mutation objects and query hooks, not constructors
  */
 export function useAdmin() {
-  // Users management
-  const {
-    useUsers,
-    useUpdateUserStatus,
-    useUpdateAdminStatus,
-    useUpdateUserApproval,
-    usePromoteToAdmin,
-    useDemoteAdmin,
-    useDeleteUser,
-  } = useAdminUsers();
+  // Users management - get the actual hooks/mutations
+  const adminUsers = useAdminUsers();
+  const users = adminUsers.useUsers();
+  const updateUserStatus = adminUsers.useUpdateUserStatus();
+  const updateAdminStatus = adminUsers.useUpdateAdminStatus();
+  const promoteToAdmin = adminUsers.usePromoteToAdmin();
+  const demoteAdmin = adminUsers.useDemoteAdmin();
+  const deleteUser = adminUsers.useDeleteUser();
   
   // Listings management
-  const {
-    useListings,
-    useCreateListing,
-    useUpdateListing,
-    useDeleteListing,
-    useToggleListingStatus,
-  } = useAdminListings();
+  const adminListings = useAdminListings();
+  const listings = adminListings.useListings();
+  const createListing = adminListings.useCreateListing();
+  const updateListing = adminListings.useUpdateListing();
+  const deleteListing = adminListings.useDeleteListing();
+  const toggleListingStatus = adminListings.useToggleListingStatus();
   
   // Categories management
-  const {
-    useCategories,
-    useCreateCategory,
-    useUpdateCategory,
-    useDeleteCategory,
-  } = useAdminCategories();
+  const adminCategories = useAdminCategories();
+  const categories = adminCategories.useCategories();
+  const createCategory = adminCategories.useCreateCategory();
+  const updateCategory = adminCategories.useUpdateCategory();
+  const deleteCategory = adminCategories.useDeleteCategory();
   
   // Connection requests management
-  const {
-    useConnectionRequests,
-    useConnectionRequestsMutation,
-  } = useAdminRequests();
+  const adminRequests = useAdminRequests();
+  const connectionRequests = adminRequests.useConnectionRequests();
+  const connectionRequestsMutation = adminRequests.useConnectionRequestsMutation();
   
   // Admin dashboard stats and activities
-  const {
-    useStats,
-    useRecentActivities,
-  } = useAdminStats();
+  const adminStats = useAdminStats();
+  const stats = adminStats.useStats();
+  const recentActivities = adminStats.useRecentActivities();
   
   // Email notifications
-  const {
-    sendUserApprovalEmail,
-    sendUserRejectionEmail,
-    sendConnectionApprovalEmail,
-    sendConnectionRejectionEmail,
-  } = useAdminEmail();
+  const adminEmail = useAdminEmail();
   
   return {
-    // User management
-    useUsers,
-    useUpdateUserStatus,
-    useUpdateAdminStatus,
-    useUpdateUserApproval,
-    usePromoteToAdmin,
-    useDemoteAdmin,
-    useDeleteUser,
+    // User management - return actual query/mutation objects
+    users,
+    updateUserStatus,
+    updateAdminStatus,
+    promoteToAdmin,
+    demoteAdmin,
+    deleteUser,
     
     // Listings management
-    useListings,
-    useCreateListing,
-    useUpdateListing,
-    useDeleteListing,
-    useToggleListingStatus,
+    listings,
+    createListing,
+    updateListing,
+    deleteListing,
+    toggleListingStatus,
     
     // Categories management
-    useCategories,
-    useCreateCategory,
-    useUpdateCategory,
-    useDeleteCategory,
+    categories,
+    createCategory,
+    updateCategory,
+    deleteCategory,
     
     // Connection requests management
-    useConnectionRequests,
-    useConnectionRequestsMutation,
+    connectionRequests,
+    connectionRequestsMutation,
     
     // Admin dashboard stats
-    useStats,
-    useRecentActivities,
+    stats,
+    recentActivities,
     
     // Email notifications
-    sendUserApprovalEmail,
-    sendUserRejectionEmail,
-    sendConnectionApprovalEmail,
-    sendConnectionRejectionEmail,
+    sendUserApprovalEmail: adminEmail.sendUserApprovalEmail,
+    sendUserRejectionEmail: adminEmail.sendUserRejectionEmail,
+    sendConnectionApprovalEmail: adminEmail.sendConnectionApprovalEmail,
+    sendConnectionRejectionEmail: adminEmail.sendConnectionRejectionEmail,
+    
+    // Legacy support - return hook constructors for backward compatibility
+    useUsers: adminUsers.useUsers,
+    useUpdateUserStatus: adminUsers.useUpdateUserStatus,
+    useUpdateAdminStatus: adminUsers.useUpdateAdminStatus,
+    usePromoteToAdmin: adminUsers.usePromoteToAdmin,
+    useDemoteAdmin: adminUsers.useDemoteAdmin,
+    useDeleteUser: adminUsers.useDeleteUser,
+    
+    // Listings hooks
+    useListings: adminListings.useListings,
+    useCreateListing: adminListings.useCreateListing,
+    useUpdateListing: adminListings.useUpdateListing,
+    useDeleteListing: adminListings.useDeleteListing,
+    useToggleListingStatus: adminListings.useToggleListingStatus,
+    
+    // Categories hooks
+    useCategories: adminCategories.useCategories,
+    useCreateCategory: adminCategories.useCreateCategory,
+    useUpdateCategory: adminCategories.useUpdateCategory,
+    useDeleteCategory: adminCategories.useDeleteCategory,
+    
+    // Connection requests hooks
+    useConnectionRequests: adminRequests.useConnectionRequests,
+    useConnectionRequestsMutation: adminRequests.useConnectionRequestsMutation,
+    
+    // Stats hooks
+    useStats: adminStats.useStats,
+    useRecentActivities: adminStats.useRecentActivities,
   };
 }
 

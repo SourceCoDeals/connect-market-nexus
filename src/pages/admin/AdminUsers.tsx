@@ -11,8 +11,8 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 
 const AdminUsers = () => {
-  const { useUsers } = useAdmin();
-  const { data: users = [], isLoading, error, refetch } = useUsers();
+  const { users } = useAdmin();
+  const { data: usersData = [], isLoading, error, refetch } = users;
   const { toast } = useToast();
   
   const [searchQuery, setSearchQuery] = useState("");
@@ -53,7 +53,7 @@ const AdminUsers = () => {
   };
   
   // Enhanced search functionality
-  const filteredUsers = users.filter((user) => {
+  const filteredUsers = usersData.filter((user) => {
     const searchLower = searchQuery.toLowerCase();
     return (
       user.email?.toLowerCase().includes(searchLower) ||
@@ -67,12 +67,12 @@ const AdminUsers = () => {
 
   // Enhanced statistics
   const stats = {
-    total: users.length,
-    pending: users.filter((u) => u.approval_status === "pending").length,
-    approved: users.filter((u) => u.approval_status === "approved").length,
-    rejected: users.filter((u) => u.approval_status === "rejected").length,
-    admins: users.filter((u) => u.is_admin).length,
-    emailVerified: users.filter((u) => u.email_verified).length,
+    total: usersData.length,
+    pending: usersData.filter((u) => u.approval_status === "pending").length,
+    approved: usersData.filter((u) => u.approval_status === "approved").length,
+    rejected: usersData.filter((u) => u.approval_status === "rejected").length,
+    admins: usersData.filter((u) => u.is_admin).length,
+    emailVerified: usersData.filter((u) => u.email_verified).length,
   };
 
   // Error state with better UX
@@ -193,7 +193,7 @@ const AdminUsers = () => {
       {/* Search Results Info */}
       {searchQuery && (
         <div className="mb-4 text-sm text-muted-foreground">
-          Showing {filteredUsers.length} of {users.length} users matching "{searchQuery}"
+          Showing {filteredUsers.length} of {usersData.length} users matching "{searchQuery}"
         </div>
       )}
 

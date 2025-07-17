@@ -11,14 +11,15 @@ interface UserActionsProps {
 export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
   const { toast } = useToast();
   const {
-    useUpdateUserStatus,
-    useUpdateAdminStatus,
+    updateUserStatus,
+    updateAdminStatus,
     sendUserApprovalEmail,
     sendUserRejectionEmail
   } = useAdmin();
   
-  const { mutate: updateUserStatus, isPending: isUpdatingStatus } = useUpdateUserStatus();
-  const { mutate: updateAdminStatus, isPending: isUpdatingAdmin } = useUpdateAdminStatus();
+  // Extract mutation functions and loading states
+  const { mutate: mutateUserStatus, isPending: isUpdatingStatus } = updateUserStatus;
+  const { mutate: mutateAdminStatus, isPending: isUpdatingAdmin } = updateAdminStatus;
   
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [actionType, setActionType] = useState<"approve" | "reject" | "makeAdmin" | "revokeAdmin" | null>(null);
@@ -68,10 +69,12 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
     try {
       switch (actionType) {
         case "approve":
-          updateUserStatus(
+          console.log('🔄 Executing user approval mutation');
+          mutateUserStatus(
             { userId: selectedUser.id, status: "approved" },
             {
               onSuccess: async () => {
+                console.log('✅ User approval successful, sending email notification');
                 try {
                   await sendUserApprovalEmail(selectedUser);
                   toast({
@@ -79,7 +82,7 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
                     description: `${selectedUser.first_name} ${selectedUser.last_name} has been approved and notified via email.`,
                   });
                 } catch (error) {
-                  console.error("Error sending approval email:", error);
+                  console.error("❌ Error sending approval email:", error);
                   toast({
                     title: "User approved",
                     description: `${selectedUser.first_name} ${selectedUser.last_name} has been approved, but there was an error sending the email notification.`,
@@ -92,8 +95,8 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
                 console.error('❌ Error approving user:', error);
                 toast({
                   variant: 'destructive',
-                  title: 'Approval failed',
-                  description: 'Failed to approve user. Please try again.',
+                  title: 'Approval failed', 
+                  description: error.message || 'Failed to approve user. Please try again.',
                 });
               }
             }
@@ -101,10 +104,12 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
           break;
           
         case "reject":
-          updateUserStatus(
+          console.log('🔄 Executing user rejection mutation');
+          mutateUserStatus(
             { userId: selectedUser.id, status: "rejected" },
             {
               onSuccess: async () => {
+                console.log('✅ User rejection successful, sending email notification');
                 try {
                   await sendUserRejectionEmail(selectedUser, reason);
                   toast({
@@ -112,7 +117,7 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
                     description: `${selectedUser.first_name} ${selectedUser.last_name} has been rejected and notified via email.`,
                   });
                 } catch (error) {
-                  console.error("Error sending rejection email:", error);
+                  console.error("❌ Error sending rejection email:", error);
                   toast({
                     title: "User rejected",
                     description: `${selectedUser.first_name} ${selectedUser.last_name} has been rejected, but there was an error sending the email notification.`,
@@ -126,7 +131,7 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
                 toast({
                   variant: 'destructive',
                   title: 'Rejection failed',
-                  description: 'Failed to reject user. Please try again.',
+                  description: error.message || 'Failed to reject user. Please try again.',
                 });
               }
             }
@@ -134,7 +139,8 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
           break;
           
         case "makeAdmin":
-          updateAdminStatus(
+          console.log('🔄 Executing admin promotion mutation');
+          mutateAdminStatus(
             { userId: selectedUser.id, isAdmin: true },
             {
               onSuccess: () => {
@@ -147,7 +153,7 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
                 toast({
                   variant: 'destructive',
                   title: 'Admin promotion failed',
-                  description: 'Failed to promote user to admin. Please try again.',
+                  description: error.message || 'Failed to promote user to admin. Please try again.',
                 });
               }
             }
@@ -155,7 +161,8 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
           break;
           
         case "revokeAdmin":
-          updateAdminStatus(
+          console.log('🔄 Executing admin revocation mutation');
+          mutateAdminStatus(
             { userId: selectedUser.id, isAdmin: false },
             {
               onSuccess: () => {
@@ -168,7 +175,7 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
                 toast({
                   variant: 'destructive',
                   title: 'Admin revocation failed',
-                  description: 'Failed to revoke admin privileges. Please try again.',
+                  description: error.message || 'Failed to revoke admin privileges. Please try again.',
                 });
               }
             }

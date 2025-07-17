@@ -11,18 +11,79 @@ export function useAdminEmail() {
    * Send an email notification to a user when their account is approved
    */
   const sendUserApprovalEmail = async (user: User) => {
-    console.log(`Would send approval email to ${user.email} for user ${user.first_name} ${user.last_name}`);
-    // This is a stub. In the future, we'll implement actual email sending.
-    return Promise.resolve();
+    console.log(`🔔 Sending approval email to ${user.email} for user ${user.first_name} ${user.last_name}`);
+    
+    try {
+      const notificationPayload = {
+        type: 'approved',
+        userEmail: user.email,
+        firstName: user.first_name,
+        lastName: user.last_name
+      };
+      
+      const { data, error } = await supabase.functions.invoke(
+        "send-user-notification", 
+        { 
+          body: JSON.stringify(notificationPayload) 
+        }
+      );
+      
+      if (error) {
+        console.error("❌ Error sending user approval notification:", error);
+        throw error;
+      }
+      
+      if (data && !data.success) {
+        console.error("❌ Failed to send user approval email:", data.message);
+        throw new Error(data.message || 'Failed to send approval email');
+      }
+      
+      console.log("✅ User approval email sent successfully");
+      return true;
+    } catch (error) {
+      console.error("💥 Failed to send user approval email:", error);
+      throw error;
+    }
   };
   
   /**
    * Send an email notification to a user when their account is rejected
    */
   const sendUserRejectionEmail = async (user: User, reason?: string) => {
-    console.log(`Would send rejection email to ${user.email} for user ${user.first_name} ${user.last_name}. Reason: ${reason || 'No reason provided'}`);
-    // This is a stub. In the future, we'll implement actual email sending.
-    return Promise.resolve();
+    console.log(`🔔 Sending rejection email to ${user.email} for user ${user.first_name} ${user.last_name}. Reason: ${reason || 'No reason provided'}`);
+    
+    try {
+      const notificationPayload = {
+        type: 'rejected',
+        userEmail: user.email,
+        firstName: user.first_name,
+        lastName: user.last_name,
+        reason: reason
+      };
+      
+      const { data, error } = await supabase.functions.invoke(
+        "send-user-notification", 
+        { 
+          body: JSON.stringify(notificationPayload) 
+        }
+      );
+      
+      if (error) {
+        console.error("❌ Error sending user rejection notification:", error);
+        throw error;
+      }
+      
+      if (data && !data.success) {
+        console.error("❌ Failed to send user rejection email:", data.message);
+        throw new Error(data.message || 'Failed to send rejection email');
+      }
+      
+      console.log("✅ User rejection email sent successfully");
+      return true;
+    } catch (error) {
+      console.error("💥 Failed to send user rejection email:", error);
+      throw error;
+    }
   };
   
   /**

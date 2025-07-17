@@ -103,7 +103,7 @@ export function useAdminUsers() {
           });
 
           if (error) {
-            console.error('❌ Error updating admin status:', error);
+            console.error('❌ RPC Error updating admin status:', error);
             throw error;
           }
 
@@ -116,18 +116,22 @@ export function useAdminUsers() {
       },
       onSuccess: ({ isAdmin, userId }) => {
         console.log('🎉 Admin status update successful:', { userId, isAdmin });
+        const message = isAdmin ? 'User has been granted admin privileges.' : 'User no longer has admin privileges.';
+        console.log('📢 Success message:', message);
         toast({
           title: isAdmin ? 'User promoted to admin' : 'Admin privileges revoked',
-          description: isAdmin ? 'User has been granted admin privileges.' : 'User no longer has admin privileges.',
+          description: message,
         });
         queryClient.invalidateQueries({ queryKey: ['admin-users'] });
       },
       onError: (error: any) => {
         console.error('💥 Failed to update admin status:', error);
+        const errorMessage = error.message || 'Failed to update admin status.';
+        console.log('📢 Error message:', errorMessage);
         toast({
           variant: 'destructive',
           title: 'Admin status update failed',
-          description: error.message || 'Failed to update admin status.',
+          description: errorMessage,
         });
       },
     });
@@ -185,7 +189,7 @@ export function useAdminUsers() {
           });
 
           if (error) {
-            console.error('❌ Error promoting user to admin:', error);
+            console.error('❌ RPC Error promoting user to admin:', error);
             throw error;
           }
 
@@ -198,10 +202,19 @@ export function useAdminUsers() {
       },
       onSuccess: ({ userId }) => {
         console.log('🎉 User promotion successful:', userId);
+        toast({
+          title: 'User promoted to admin',
+          description: 'User has been granted admin privileges.',
+        });
         queryClient.invalidateQueries({ queryKey: ['admin-users'] });
       },
       onError: (error: any) => {
         console.error('💥 Failed to promote user to admin:', error);
+        toast({
+          variant: 'destructive',
+          title: 'Admin promotion failed',
+          description: error.message || 'Failed to promote user to admin.',
+        });
       },
     });
   };
@@ -217,7 +230,7 @@ export function useAdminUsers() {
           });
 
           if (error) {
-            console.error('❌ Error demoting admin user:', error);
+            console.error('❌ RPC Error demoting admin user:', error);
             throw error;
           }
 
@@ -230,10 +243,19 @@ export function useAdminUsers() {
       },
       onSuccess: ({ userId }) => {
         console.log('🎉 Admin demotion successful:', userId);
+        toast({
+          title: 'Admin privileges revoked',
+          description: 'User no longer has admin privileges.',
+        });
         queryClient.invalidateQueries({ queryKey: ['admin-users'] });
       },
       onError: (error: any) => {
         console.error('💥 Failed to demote admin user:', error);
+        toast({
+          variant: 'destructive',
+          title: 'Admin revocation failed',
+          description: error.message || 'Failed to revoke admin privileges.',
+        });
       },
     });
   };
