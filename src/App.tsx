@@ -27,37 +27,39 @@ const queryClient = new QueryClient();
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <Toaster />
-      <SessionMonitoringProvider>
-        <RealtimeProvider>
-          <Routes>
-            {/* Login route without layout */}
-            <Route path="/login" element={<Login />} />
-            
-            {/* Main app routes with MainLayout */}
-            <Route path="/" element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
-              <Route index element={<Marketplace />} />
-              <Route path="profile" element={<Profile />} />
-              <Route path="listing/:id" element={<ListingDetail />} />
-              <Route path="my-requests" element={<MyRequests />} />
-            </Route>
-            
-            {/* Redirect /marketplace to / */}
-            <Route path="/marketplace" element={<Navigate to="/" replace />} />
-            
-            {/* Admin routes with AdminLayout */}
-            <Route path="/admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>
-              <Route index element={<AdminDashboard />} />
-              <Route path="listings" element={<AdminListings />} />
-              <Route path="users" element={<AdminUsers />} />
-            </Route>
-            
-            {/* Catch-all route for 404 Not Found */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-          <RealtimeIndicator />
-        </RealtimeProvider>
-      </SessionMonitoringProvider>
+      <AuthProvider>
+        <Toaster />
+        <SessionMonitoringProvider>
+          <RealtimeProvider>
+            <Routes>
+              {/* Login route without layout */}
+              <Route path="/login" element={<Login />} />
+              
+              {/* Main app routes with MainLayout */}
+              <Route path="/" element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
+                <Route index element={<Marketplace />} />
+                <Route path="profile" element={<Profile />} />
+                <Route path="listing/:id" element={<ListingDetail />} />
+                <Route path="my-requests" element={<MyRequests />} />
+              </Route>
+              
+              {/* Redirect /marketplace to / */}
+              <Route path="/marketplace" element={<Navigate to="/" replace />} />
+              
+              {/* Admin routes with AdminLayout */}
+              <Route path="/admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>
+                <Route index element={<AdminDashboard />} />
+                <Route path="listings" element={<AdminListings />} />
+                <Route path="users" element={<AdminUsers />} />
+              </Route>
+              
+              {/* Catch-all route for 404 Not Found */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+            <RealtimeIndicator />
+          </RealtimeProvider>
+        </SessionMonitoringProvider>
+      </AuthProvider>
     </QueryClientProvider>
   );
 }
