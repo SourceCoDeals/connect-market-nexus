@@ -1,9 +1,8 @@
-
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { ClipboardCheck, AlertCircle, Clock, CheckCircle, Users, LogOut } from "lucide-react";
+import { ClipboardCheck, AlertCircle, Clock, CheckCircle, Users, LogOut, Loader2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
