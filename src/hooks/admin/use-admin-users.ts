@@ -13,21 +13,28 @@ export function useAdminUsers() {
       queryKey: ['admin-users'],
       queryFn: async () => {
         console.log('🔍 Fetching admin users');
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('deleted_at', null)
-          .order('created_at', { ascending: false });
+        try {
+          const { data, error } = await supabase
+            .from('profiles')
+            .select('*')
+            .is('deleted_at', null)  // Fixed: use .is() instead of .eq() for null values
+            .order('created_at', { ascending: false });
 
-        if (error) {
-          console.error('❌ Error fetching users:', error);
+          if (error) {
+            console.error('❌ Error fetching users:', error);
+            throw error;
+          }
+
+          console.log('✅ Successfully fetched users:', data?.length || 0);
+          // Convert database records to User objects
+          return data?.map(createUserObject) || [];
+        } catch (error) {
+          console.error('💥 Fatal error in useUsers query:', error);
           throw error;
         }
-
-        console.log('✅ Successfully fetched users:', data.length);
-        // Convert database records to User objects
-        return data.map(createUserObject);
       },
+      retry: 3,
+      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
     });
   };
 
@@ -36,21 +43,26 @@ export function useAdminUsers() {
       mutationFn: async ({ userId, status }: { userId: string; status: ApprovalStatus }) => {
         console.log('🔄 Updating user approval status:', { userId, status });
         
-        const { error } = await supabase
-          .from('profiles')
-          .update({ 
-            approval_status: status,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', userId);
+        try {
+          const { error } = await supabase
+            .from('profiles')
+            .update({ 
+              approval_status: status,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', userId);
 
-        if (error) {
-          console.error('❌ Error updating user approval:', error);
+          if (error) {
+            console.error('❌ Error updating user approval:', error);
+            throw error;
+          }
+
+          console.log('✅ User approval updated successfully');
+          return { userId, status };
+        } catch (error) {
+          console.error('💥 Fatal error updating user status:', error);
           throw error;
         }
-
-        console.log('✅ User approval updated successfully');
-        return { userId, status };
       },
       onSuccess: ({ status }) => {
         toast({
@@ -59,12 +71,12 @@ export function useAdminUsers() {
         });
         queryClient.invalidateQueries({ queryKey: ['admin-users'] });
       },
-      onError: (error) => {
+      onError: (error: any) => {
         console.error('💥 Failed to update user approval:', error);
         toast({
           variant: 'destructive',
           title: 'Update failed',
-          description: 'Failed to update user approval status.',
+          description: error.message || 'Failed to update user approval status.',
         });
       },
     });
@@ -75,18 +87,23 @@ export function useAdminUsers() {
       mutationFn: async ({ userId, isAdmin }: { userId: string; isAdmin: boolean }) => {
         console.log('🔄 Updating admin status:', { userId, isAdmin });
         
-        const { data, error } = await supabase.rpc(
-          isAdmin ? 'promote_user_to_admin' : 'demote_admin_user',
-          { target_user_id: userId }
-        );
+        try {
+          const { data, error } = await supabase.rpc(
+            isAdmin ? 'promote_user_to_admin' : 'demote_admin_user',
+            { target_user_id: userId }
+          );
 
-        if (error) {
-          console.error('❌ Error updating admin status:', error);
+          if (error) {
+            console.error('❌ Error updating admin status:', error);
+            throw error;
+          }
+
+          console.log('✅ Admin status updated successfully');
+          return data;
+        } catch (error) {
+          console.error('💥 Fatal error updating admin status:', error);
           throw error;
         }
-
-        console.log('✅ Admin status updated successfully');
-        return data;
       },
       onSuccess: (_, { isAdmin }) => {
         toast({
@@ -95,12 +112,12 @@ export function useAdminUsers() {
         });
         queryClient.invalidateQueries({ queryKey: ['admin-users'] });
       },
-      onError: (error) => {
+      onError: (error: any) => {
         console.error('💥 Failed to update admin status:', error);
         toast({
           variant: 'destructive',
           title: 'Update failed',
-          description: 'Failed to update admin status.',
+          description: error.message || 'Failed to update admin status.',
         });
       },
     });
@@ -111,17 +128,22 @@ export function useAdminUsers() {
       mutationFn: async (userId: string) => {
         console.log('🔄 Promoting user to admin:', userId);
         
-        const { data, error } = await supabase.rpc('promote_user_to_admin', {
-          target_user_id: userId
-        });
+        try {
+          const { data, error } = await supabase.rpc('promote_user_to_admin', {
+            target_user_id: userId
+          });
 
-        if (error) {
-          console.error('❌ Error promoting user to admin:', error);
+          if (error) {
+            console.error('❌ Error promoting user to admin:', error);
+            throw error;
+          }
+
+          console.log('✅ User promoted to admin successfully');
+          return data;
+        } catch (error) {
+          console.error('💥 Fatal error promoting user:', error);
           throw error;
         }
-
-        console.log('✅ User promoted to admin successfully');
-        return data;
       },
       onSuccess: () => {
         toast({
@@ -130,12 +152,12 @@ export function useAdminUsers() {
         });
         queryClient.invalidateQueries({ queryKey: ['admin-users'] });
       },
-      onError: (error) => {
+      onError: (error: any) => {
         console.error('💥 Failed to promote user to admin:', error);
         toast({
           variant: 'destructive',
           title: 'Promotion failed',
-          description: 'Failed to promote user to admin.',
+          description: error.message || 'Failed to promote user to admin.',
         });
       },
     });
@@ -146,17 +168,22 @@ export function useAdminUsers() {
       mutationFn: async (userId: string) => {
         console.log('🔄 Demoting admin user:', userId);
         
-        const { data, error } = await supabase.rpc('demote_admin_user', {
-          target_user_id: userId
-        });
+        try {
+          const { data, error } = await supabase.rpc('demote_admin_user', {
+            target_user_id: userId
+          });
 
-        if (error) {
-          console.error('❌ Error demoting admin user:', error);
+          if (error) {
+            console.error('❌ Error demoting admin user:', error);
+            throw error;
+          }
+
+          console.log('✅ Admin user demoted successfully');
+          return data;
+        } catch (error) {
+          console.error('💥 Fatal error demoting admin:', error);
           throw error;
         }
-
-        console.log('✅ Admin user demoted successfully');
-        return data;
       },
       onSuccess: () => {
         toast({
@@ -165,12 +192,12 @@ export function useAdminUsers() {
         });
         queryClient.invalidateQueries({ queryKey: ['admin-users'] });
       },
-      onError: (error) => {
+      onError: (error: any) => {
         console.error('💥 Failed to demote admin user:', error);
         toast({
           variant: 'destructive',
           title: 'Demotion failed',
-          description: 'Failed to demote admin user.',
+          description: error.message || 'Failed to demote admin user.',
         });
       },
     });
@@ -181,17 +208,22 @@ export function useAdminUsers() {
       mutationFn: async (userId: string) => {
         console.log('🔄 Soft deleting user:', userId);
         
-        const { data, error } = await supabase.rpc('soft_delete_profile', {
-          profile_id: userId
-        });
+        try {
+          const { data, error } = await supabase.rpc('soft_delete_profile', {
+            profile_id: userId
+          });
 
-        if (error) {
-          console.error('❌ Error soft deleting user:', error);
+          if (error) {
+            console.error('❌ Error soft deleting user:', error);
+            throw error;
+          }
+
+          console.log('✅ User soft deleted successfully');
+          return data;
+        } catch (error) {
+          console.error('💥 Fatal error deleting user:', error);
           throw error;
         }
-
-        console.log('✅ User soft deleted successfully');
-        return data;
       },
       onSuccess: () => {
         toast({
@@ -200,12 +232,12 @@ export function useAdminUsers() {
         });
         queryClient.invalidateQueries({ queryKey: ['admin-users'] });
       },
-      onError: (error) => {
+      onError: (error: any) => {
         console.error('💥 Failed to delete user:', error);
         toast({
           variant: 'destructive',
           title: 'Deletion failed',
-          description: 'Failed to delete user.',
+          description: error.message || 'Failed to delete user.',
         });
       },
     });

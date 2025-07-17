@@ -26,31 +26,40 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   
   const handleUserApproval = (user: User) => {
+    console.log('🔄 Initiating user approval for:', user.email);
     setSelectedUser(user);
     setActionType("approve");
     setIsDialogOpen(true);
   };
   
   const handleUserRejection = (user: User) => {
+    console.log('🔄 Initiating user rejection for:', user.email);
     setSelectedUser(user);
     setActionType("reject");
     setIsDialogOpen(true);
   };
   
   const handleMakeAdmin = (user: User) => {
+    console.log('🔄 Initiating admin promotion for:', user.email);
     setSelectedUser(user);
     setActionType("makeAdmin");
     setIsDialogOpen(true);
   };
   
   const handleRevokeAdmin = (user: User) => {
+    console.log('🔄 Initiating admin revocation for:', user.email);
     setSelectedUser(user);
     setActionType("revokeAdmin");
     setIsDialogOpen(true);
   };
   
   const confirmAction = async (reason?: string) => {
-    if (!selectedUser) return;
+    if (!selectedUser) {
+      console.error('❌ No user selected for action');
+      return;
+    }
+    
+    console.log('🔄 Confirming action:', actionType, 'for user:', selectedUser.email);
     
     try {
       switch (actionType) {
@@ -139,7 +148,12 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
           break;
       }
     } catch (error) {
-      console.error("Error during user action:", error);
+      console.error("💥 Error during user action:", error);
+      toast({
+        variant: 'destructive',
+        title: 'Action failed',
+        description: 'An error occurred while processing the action. Please try again.',
+      });
     }
   };
 
