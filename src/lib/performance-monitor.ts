@@ -1,104 +1,155 @@
-
 import { supabase } from '@/integrations/supabase/client';
 
-interface QueryPerformanceMetrics {
-  queryName: string;
+interface MemoryUsage {
+  total: number;
+  used: number;
+  free: number;
+}
+
+interface PerformanceMetrics {
+  operationName: string;
   duration: number;
+  memoryUsage: MemoryUsage;
   timestamp: string;
   success: boolean;
   error?: string;
 }
 
-class PerformanceMonitor {
-  private metrics: QueryPerformanceMetrics[] = [];
-  private isEnabled = process.env.NODE_ENV === 'development';
+const PERFORMANCE_THRESHOLDS = {
+  SLOW_OPERATION: 5000, // 5 seconds
+  HIGH_MEMORY: 500 * 1024 * 1024, // 500MB
+};
 
-  async measureQuery<T>(
-    queryName: string,
-    queryFunction: () => Promise<T>
-  ): Promise<T> {
-    if (!this.isEnabled) {
-      return queryFunction();
-    }
-
-    const startTime = performance.now();
-    const timestamp = new Date().toISOString();
+export async function withPerformanceMonitoring<T>(
+  operationName: string,
+  operation: () => Promise<T>
+): Promise<T> {
+  const startTime = Date.now();
+  const memoryBefore = getMemoryUsage();
+  
+  console.log(`🚀 Starting ${operationName}`, {
+    timestamp: new Date().toISOString(),
+    memoryBefore
+  });
+  
+  try {
+    const result = await operation();
+    const endTime = Date.now();
+    const memoryAfter = getMemoryUsage();
+    const duration = endTime - startTime;
     
+    // Log performance metrics
+    const metrics: PerformanceMetrics = {
+      operationName,
+      duration,
+      memoryUsage: {
+        before: memoryBefore,
+        after: memoryAfter,
+        delta: memoryAfter.used - memoryBefore.used
+      },
+      timestamp: new Date().toISOString(),
+      success: true
+    };
+    
+    console.log(`✅ Completed ${operationName}`, {
+      duration: `${duration}ms`,
+      memoryDelta: `${Math.round(metrics.memoryUsage.delta / 1024 / 1024 * 100) / 100}MB`,
+      ...metrics
+    });
+    
+    // Store metrics for analysis
+    storeMetrics(metrics);
+    
+    // Alert on slow operations
+    if (duration > PERFORMANCE_THRESHOLDS.SLOW_OPERATION) {
+      console.warn(`⚠️ Slow operation detected: ${operationName} took ${duration}ms`);
+    }
+    
+    // Alert on high memory usage
+    if (memoryAfter.used > PERFORMANCE_THRESHOLDS.HIGH_MEMORY) {
+      console.warn(`⚠️ High memory usage detected: ${Math.round(memoryAfter.used / 1024 / 1024)}MB`);
+    }
+    
+    return result;
+  } catch (error) {
+    const endTime = Date.now();
+    const duration = endTime - startTime;
+    
+    const metrics: PerformanceMetrics = {
+      operationName,
+      duration,
+      memoryUsage: {
+        before: memoryBefore,
+        after: getMemoryUsage(),
+        delta: 0
+      },
+      timestamp: new Date().toISOString(),
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    };
+    
+    console.error(`❌ Failed ${operationName}`, {
+      duration: `${duration}ms`,
+      error: metrics.error,
+      ...metrics
+    });
+    
+    storeMetrics(metrics);
+    throw error;
+  }
+}
+
+function getMemoryUsage(): MemoryUsage {
+  const memoryData = process.memoryUsage();
+  
+  return {
+    total: process.memoryUsage().heapTotal,
+    used: process.memoryUsage().heapUsed,
+    free: memoryData.heapTotal - memoryData.heapUsed,
+  };
+}
+
+const metricsStore: PerformanceMetrics[] = [];
+
+function storeMetrics(metrics: PerformanceMetrics): void {
+  metricsStore.push(metrics);
+  
+  // Basic logging to console, can be extended to send to monitoring tools
+  console.debug('📊 Stored performance metrics:', metrics);
+}
+
+export async function refreshAnalyticsViews(): Promise<void> {
+  return withPerformanceMonitoring('refresh-analytics-views', async () => {
     try {
-      const result = await queryFunction();
-      const duration = performance.now() - startTime;
+      console.log('🔄 Refreshing analytics materialized views');
       
-      this.recordMetric({
-        queryName,
-        duration,
-        timestamp,
-        success: true
-      });
-      
-      console.log(`🔍 Query "${queryName}" completed in ${duration.toFixed(2)}ms`);
-      
-      return result;
-    } catch (error: any) {
-      const duration = performance.now() - startTime;
-      
-      this.recordMetric({
-        queryName,
-        duration,
-        timestamp,
-        success: false,
-        error: error.message
-      });
-      
-      console.error(`❌ Query "${queryName}" failed after ${duration.toFixed(2)}ms:`, error);
-      throw error;
-    }
-  }
-
-  private recordMetric(metric: QueryPerformanceMetrics) {
-    this.metrics.push(metric);
-    
-    // Keep only last 100 metrics to prevent memory leaks
-    if (this.metrics.length > 100) {
-      this.metrics = this.metrics.slice(-100);
-    }
-  }
-
-  getMetrics(): QueryPerformanceMetrics[] {
-    return [...this.metrics];
-  }
-
-  getSlowQueries(thresholdMs: number = 1000): QueryPerformanceMetrics[] {
-    return this.metrics.filter(m => m.duration > thresholdMs);
-  }
-
-  async refreshAnalyticsViews(): Promise<void> {
-    if (!this.isEnabled) return;
-    
-    try {
-      console.log('🔄 Refreshing materialized views...');
-      
-      // Cast to any to handle type issue until Supabase types are updated
-      const { error } = await supabase.rpc('refresh_analytics_views' as any);
+      // Use the refresh function that was created in the migration
+      const { error } = await supabase.rpc('refresh_analytics_views');
       
       if (error) {
-        console.error('❌ Failed to refresh analytics views:', error);
+        console.error('Error refreshing analytics views:', error);
         throw error;
       }
       
       console.log('✅ Analytics views refreshed successfully');
     } catch (error: any) {
-      console.error('❌ Error refreshing analytics views:', error);
+      console.error('💥 Failed to refresh analytics views:', error);
       throw error;
     }
+  });
+}
+
+// Example usage in a scheduled task or background job
+export async function runPeriodicTasks(): Promise<void> {
+  console.log('⏰ Running periodic tasks...');
+  
+  try {
+    await refreshAnalyticsViews();
+    console.log('✅ Periodic tasks completed successfully.');
+  } catch (error) {
+    console.error('❌ Periodic tasks failed:', error);
   }
 }
 
-export const performanceMonitor = new PerformanceMonitor();
-
-// Helper function to wrap queries with performance monitoring
-export const withPerformanceMonitoring = async <T>(
-  queryName: string,
-  queryFunction: () => Promise<T>
-): Promise<T> => {
-  return performanceMonitor.measureQuery(queryName, queryFunction);
-};
+// Simulate a scheduled task (e.g., using setTimeout or a cron library)
+// setInterval(runPeriodicTasks, 24 * 60 * 60 * 1000); // Every 24 hours
