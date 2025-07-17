@@ -73,7 +73,14 @@ const Login = () => {
       // Clean up auth state before attempting login
       await cleanupAuthState();
       
-      // Manual sign in to have more control
+      // Attempt global sign out
+      try {
+        await supabase.auth.signOut({ scope: 'global' });
+      } catch (err) {
+        // Continue even if this fails
+      }
+      
+      // Sign in with email/password
       const { data, error: signInError } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -109,7 +116,7 @@ const Login = () => {
       
       // Handle different states based on profile data
       if (!profile.email_verified) {
-        console.log("Email not verified, redirecting to pending approval");
+        console.log("Email not verified, signing out and redirecting to pending approval");
         toast({
           variant: "destructive",
           title: "Email not verified",
@@ -120,12 +127,12 @@ const Login = () => {
         return;
       }
       
+      // If email is verified but account is still pending approval
       if (profile.approval_status === 'pending') {
-        console.log("Account pending approval, redirecting to pending approval");
+        console.log("Account pending approval, signing out and redirecting to pending approval");
         toast({
-          variant: "destructive",
-          title: "Account pending approval",
-          description: "Your account is awaiting admin approval.",
+          title: "Account under review",
+          description: "Your account is being reviewed by our team.",
         });
         await supabase.auth.signOut();
         navigate("/pending-approval", { replace: true });

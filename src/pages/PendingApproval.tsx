@@ -1,3 +1,4 @@
+
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -83,6 +84,10 @@ const PendingApproval = () => {
     }
   };
 
+  // Show proper state based on user's email verification status
+  const isEmailVerified = user?.email_verified === true;
+  const isApproved = user?.approval_status === 'approved';
+
   return (
     <div className="flex items-center justify-center min-h-screen bg-muted/30">
       <div className="w-full max-w-md space-y-6">
@@ -104,8 +109,8 @@ const PendingApproval = () => {
         <Card>
           <CardHeader className="space-y-1">
             <div className="flex justify-center mb-4">
-              <div className={`p-3 rounded-full ${user?.email_verified ? 'bg-blue-100' : 'bg-yellow-100'}`}>
-                {user?.email_verified ? (
+              <div className={`p-3 rounded-full ${isEmailVerified ? 'bg-blue-100' : 'bg-yellow-100'}`}>
+                {isEmailVerified ? (
                   <ClipboardCheck className="h-8 w-8 text-blue-600" />
                 ) : (
                   <Clock className="h-8 w-8 text-yellow-600" />
@@ -113,17 +118,17 @@ const PendingApproval = () => {
               </div>
             </div>
             <CardTitle className="text-2xl font-bold text-center">
-              {user?.email_verified ? 'Account Under Review' : 'Email Verification Required'}
+              {isEmailVerified ? 'Account Under Review' : 'Email Verification Required'}
             </CardTitle>
             <CardDescription className="text-center">
-              {user?.email_verified ? 
+              {isEmailVerified ? 
                 'Your verified account is being reviewed by our team' :
                 'Please verify your email to proceed with account review'
               }
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {user?.email_verified ? (
+            {isEmailVerified ? (
               <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
                 <div className="flex items-start space-x-3">
                   <CheckCircle className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
@@ -163,20 +168,20 @@ const PendingApproval = () => {
                   </div>
                 </div>
                 <div className="flex items-center space-x-3">
-                  <div className={`w-3 h-3 rounded-full flex-shrink-0 ${user?.email_verified ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
+                  <div className={`w-3 h-3 rounded-full flex-shrink-0 ${isEmailVerified ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
                   <div className="flex-1">
                     <p className="text-sm font-medium">Email Verification</p>
                     <p className="text-xs text-muted-foreground">
-                      {user?.email_verified ? 'Email verified successfully' : 'Waiting for email verification'}
+                      {isEmailVerified ? 'Email verified successfully' : 'Waiting for email verification'}
                     </p>
                   </div>
                 </div>
                 <div className="flex items-center space-x-3">
-                  <div className={`w-3 h-3 rounded-full flex-shrink-0 ${user?.email_verified ? 'bg-yellow-500' : 'bg-gray-300'}`}></div>
+                  <div className={`w-3 h-3 rounded-full flex-shrink-0 ${isEmailVerified ? 'bg-yellow-500' : 'bg-gray-300'}`}></div>
                   <div className="flex-1">
                     <p className="text-sm font-medium">Admin Review</p>
                     <p className="text-xs text-muted-foreground">
-                      {user?.email_verified ? 'Under admin review (1-2 business days)' : 'Pending email verification'}
+                      {isEmailVerified ? 'Under admin review (1-2 business days)' : 'Pending email verification'}
                     </p>
                   </div>
                 </div>
@@ -190,7 +195,7 @@ const PendingApproval = () => {
               </div>
             </div>
 
-            {user?.email_verified && (
+            {isEmailVerified && (
               <div className="bg-green-50 border border-green-200 rounded-md p-4">
                 <p className="text-sm text-green-800 text-center">
                   <strong>What's next?</strong> Our team is reviewing your application. 
