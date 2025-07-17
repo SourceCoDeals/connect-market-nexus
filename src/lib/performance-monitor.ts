@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 
 interface MemoryUsage {
@@ -9,7 +10,11 @@ interface MemoryUsage {
 interface PerformanceMetrics {
   operationName: string;
   duration: number;
-  memoryUsage: MemoryUsage;
+  memoryUsage: {
+    before: MemoryUsage;
+    after: MemoryUsage;
+    delta: number;
+  };
   timestamp: string;
   success: boolean;
   error?: string;
@@ -100,12 +105,21 @@ export async function withPerformanceMonitoring<T>(
 }
 
 function getMemoryUsage(): MemoryUsage {
-  const memoryData = process.memoryUsage();
+  // In browser environment, use performance.memory if available
+  if (typeof window !== 'undefined' && 'performance' in window && 'memory' in (window.performance as any)) {
+    const memory = (window.performance as any).memory;
+    return {
+      total: memory.jsHeapSizeLimit || 0,
+      used: memory.usedJSHeapSize || 0,
+      free: (memory.jsHeapSizeLimit || 0) - (memory.usedJSHeapSize || 0),
+    };
+  }
   
+  // Fallback for environments without memory API
   return {
-    total: process.memoryUsage().heapTotal,
-    used: process.memoryUsage().heapUsed,
-    free: memoryData.heapTotal - memoryData.heapUsed,
+    total: 0,
+    used: 0,
+    free: 0,
   };
 }
 

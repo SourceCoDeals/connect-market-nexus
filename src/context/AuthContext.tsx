@@ -4,7 +4,7 @@ import { Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { User as AppUser } from "@/types";
 import { useAuthState } from "@/hooks/auth/use-auth-state";
-import { useAuthActions } from "@/hooks/auth/use-auth-actions";
+import { useEnhancedAuthActions } from "@/hooks/auth/use-enhanced-auth-actions";
 import { isUserAdmin } from "@/lib/auth-helpers";
 
 interface AuthContextType {
@@ -38,22 +38,53 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Use the dedicated auth state hook
   const { user, isLoading, isAdmin, isBuyer, authChecked } = useAuthState();
   
-  const setUser = React.useCallback((newUser: AppUser | null) => {
-    // This is a dummy function that's needed for the useAuthActions hook
-    // The actual state management is handled by useAuthState
-    console.log("Auth actions setting user:", newUser?.email);
-  }, []);
-  
-  const setLoadingState = React.useCallback((loading: boolean) => {
-    // This is a dummy function that's needed for the useAuthActions hook
-    // The actual state management is handled by useAuthState
-  }, []);
-  
-  // Connect auth actions with the auth state
-  const { login, logout, signup, updateUserProfile } = useAuthActions(
-    setUser,
-    setLoadingState
-  );
+  // Use the enhanced auth actions hook
+  const { signUp, signIn, signOut } = useEnhancedAuthActions();
+
+  // Create wrapper functions to match the expected interface
+  const signup = async (userData: Partial<AppUser>, password: string) => {
+    const email = userData.email;
+    if (!email) {
+      throw new Error("Email is required for signup");
+    }
+    
+    const result = await signUp(email, password, userData);
+    if (result.error) {
+      throw result.error;
+    }
+  };
+
+  const login = async (email: string, password: string) => {
+    const result = await signIn(email, password);
+    if (result.error) {
+      throw result.error;
+    }
+  };
+
+  const logout = async () => {
+    const result = await signOut();
+    if (result.error) {
+      throw result.error;
+    }
+  };
+
+  const updateUserProfile = async (data: Partial<AppUser>) => {
+    if (!user) {
+      throw new Error("No user logged in");
+    }
+
+    const { error } = await supabase
+      .from('profiles')
+      .update(data)
+      .eq('id', user.id);
+
+    if (error) {
+      throw error;
+    }
+
+    // Refresh the profile data
+    await refreshUserProfile();
+  };
 
   // Update session when it changes
   useEffect(() => {
