@@ -16,6 +16,10 @@ export function useAdmin() {
     useUsers,
     useUpdateUserStatus,
     useUpdateAdminStatus,
+    useUpdateUserApproval,
+    usePromoteToAdmin,
+    useDemoteAdmin,
+    useDeleteUser,
   } = useAdminUsers();
   
   // Listings management
@@ -60,6 +64,10 @@ export function useAdmin() {
     useUsers,
     useUpdateUserStatus,
     useUpdateAdminStatus,
+    useUpdateUserApproval,
+    usePromoteToAdmin,
+    useDemoteAdmin,
+    useDeleteUser,
     
     // Listings management
     useListings,

@@ -1,5 +1,6 @@
+
 import { useState, useEffect } from "react";
-import { User } from "@/types";
+import { User, ApprovalStatus } from "@/types";
 import { supabase } from "@/integrations/supabase/client";
 import { createUserObject } from "@/lib/auth-helpers";
 
@@ -59,18 +60,17 @@ export function useAuthState() {
                 if (error) {
                   console.error(`Error fetching profile after ${event}:`, error);
                   // Create a minimal user object if profile doesn't exist yet
-                  const minimalUser = {
+                  const minimalUser: User = {
                     id: session.user.id,
                     email: session.user.email || '',
                     first_name: session.user.user_metadata?.first_name || '',
                     last_name: session.user.user_metadata?.last_name || '',
                     email_verified: session.user.email_confirmed_at !== null,
-                    approval_status: 'pending',
+                    approval_status: 'pending' as ApprovalStatus,
                     is_admin: false,
                     role: 'buyer' as const,
                     created_at: session.user.created_at,
                     updated_at: new Date().toISOString(),
-                    // ... other required fields with defaults
                     company: '',
                     website: '',
                     phone_number: '',
@@ -166,18 +166,17 @@ export function useAuthState() {
           if (profileError) {
             console.error("Profile error:", profileError);
             // Create minimal user object for users without profiles yet
-            const minimalUser = {
+            const minimalUser: User = {
               id: session.user.id,
               email: session.user.email || '',
               first_name: session.user.user_metadata?.first_name || '',
               last_name: session.user.user_metadata?.last_name || '',
               email_verified: session.user.email_confirmed_at !== null,
-              approval_status: 'pending',
+              approval_status: 'pending' as ApprovalStatus,
               is_admin: false,
               role: 'buyer' as const,
               created_at: session.user.created_at,
               updated_at: new Date().toISOString(),
-              // ... other required fields with defaults
               company: '',
               website: '',
               phone_number: '',

@@ -2,6 +2,8 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { User, ApprovalStatus } from "@/types";
+import { createUserObject } from "@/lib/auth-helpers";
 
 export function useAdminUsers() {
   const queryClient = useQueryClient();
@@ -23,14 +25,15 @@ export function useAdminUsers() {
         }
 
         console.log('✅ Successfully fetched users:', data.length);
-        return data;
+        // Convert database records to User objects
+        return data.map(createUserObject);
       },
     });
   };
 
-  const useUpdateUserApproval = () => {
+  const useUpdateUserStatus = () => {
     return useMutation({
-      mutationFn: async ({ userId, status }: { userId: string; status: 'approved' | 'rejected' | 'pending' }) => {
+      mutationFn: async ({ userId, status }: { userId: string; status: ApprovalStatus }) => {
         console.log('🔄 Updating user approval status:', { userId, status });
         
         const { error } = await supabase
@@ -62,6 +65,42 @@ export function useAdminUsers() {
           variant: 'destructive',
           title: 'Update failed',
           description: 'Failed to update user approval status.',
+        });
+      },
+    });
+  };
+
+  const useUpdateAdminStatus = () => {
+    return useMutation({
+      mutationFn: async ({ userId, isAdmin }: { userId: string; isAdmin: boolean }) => {
+        console.log('🔄 Updating admin status:', { userId, isAdmin });
+        
+        const { data, error } = await supabase.rpc(
+          isAdmin ? 'promote_user_to_admin' : 'demote_admin_user',
+          { target_user_id: userId }
+        );
+
+        if (error) {
+          console.error('❌ Error updating admin status:', error);
+          throw error;
+        }
+
+        console.log('✅ Admin status updated successfully');
+        return data;
+      },
+      onSuccess: (_, { isAdmin }) => {
+        toast({
+          title: isAdmin ? 'User promoted' : 'Admin demoted',
+          description: isAdmin ? 'User has been promoted to admin.' : 'Admin has been demoted to regular user.',
+        });
+        queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+      },
+      onError: (error) => {
+        console.error('💥 Failed to update admin status:', error);
+        toast({
+          variant: 'destructive',
+          title: 'Update failed',
+          description: 'Failed to update admin status.',
         });
       },
     });
@@ -174,9 +213,12 @@ export function useAdminUsers() {
 
   return {
     useUsers,
-    useUpdateUserApproval,
+    useUpdateUserStatus,
+    useUpdateAdminStatus,
     usePromoteToAdmin,
     useDemoteAdmin,
     useDeleteUser,
+    // Legacy method names for backward compatibility
+    useUpdateUserApproval: useUpdateUserStatus,
   };
 }

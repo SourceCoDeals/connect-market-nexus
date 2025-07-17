@@ -1,15 +1,7 @@
 
-import { User } from '@/types';
-import { supabase } from '@/integrations/supabase/client';
+import { User, ApprovalStatus, BuyerType } from "@/types";
 
-/**
- * Helper function to create a consistent User object from profile data
- */
-export const createUserObject = (profile: any): User => {
-  // Ensure boolean values are explicitly converted to boolean
-  const isAdmin = profile.is_admin === true;
-  const emailVerified = profile.email_verified === true;
-  
+export function createUserObject(profile: any): User {
   return {
     id: profile.id,
     email: profile.email,
@@ -18,13 +10,15 @@ export const createUserObject = (profile: any): User => {
     company: profile.company || '',
     website: profile.website || '',
     phone_number: profile.phone_number || '',
-    role: isAdmin ? 'admin' as const : 'buyer' as const,
-    email_verified: emailVerified,
-    approval_status: profile.approval_status,
-    is_admin: isAdmin,
-    buyer_type: profile.buyer_type || 'corporate',
+    role: 'buyer' as const,
+    email_verified: profile.email_verified,
+    approval_status: profile.approval_status as ApprovalStatus,
+    is_admin: profile.is_admin || false,
+    buyer_type: profile.buyer_type as BuyerType,
     created_at: profile.created_at,
     updated_at: profile.updated_at,
+    
+    // Additional profile fields
     company_name: profile.company_name,
     estimated_revenue: profile.estimated_revenue,
     fund_size: profile.fund_size,
@@ -38,72 +32,15 @@ export const createUserObject = (profile: any): User => {
     ideal_target: profile.ideal_target,
     bio: profile.bio,
     
-    // Computed properties
-    firstName: profile.first_name,
-    lastName: profile.last_name,
-    phoneNumber: profile.phone_number || '',
-    isAdmin: isAdmin,
-    buyerType: profile.buyer_type || 'corporate',
-    emailVerified: emailVerified,
-    isApproved: profile.approval_status === 'approved',
-    createdAt: profile.created_at,
-    updatedAt: profile.updated_at
+    // Computed properties (aliases for snake_case properties)
+    get firstName() { return this.first_name; },
+    get lastName() { return this.last_name; },
+    get phoneNumber() { return this.phone_number; },
+    get isAdmin() { return this.is_admin; },
+    get buyerType() { return this.buyer_type; },
+    get emailVerified() { return this.email_verified; },
+    get isApproved() { return this.approval_status === 'approved'; },
+    get createdAt() { return this.created_at; },
+    get updatedAt() { return this.updated_at; },
   };
-};
-
-/**
- * Helper function to clean up authentication state
- */
-export const cleanupAuthState = async () => {
-  console.log("Auth helpers: Cleaning up auth state");
-  
-  try {
-    // Attempt to sign out (but don't wait for it)
-    await supabase.auth.signOut().catch(() => {
-      // Ignore errors
-    });
-    
-    // Remove all Supabase auth keys from localStorage
-    Object.keys(localStorage).forEach((key) => {
-      if (key.startsWith('supabase.auth.') || 
-          key.includes('sb-') || 
-          key.startsWith('sb:') ||
-          key === 'supabase.auth.token' ||
-          key === 'user') {
-        console.log(`Removing localStorage key: ${key}`);
-        localStorage.removeItem(key);
-      }
-    });
-    
-    // Remove from sessionStorage if in use
-    if (typeof sessionStorage !== 'undefined') {
-      Object.keys(sessionStorage).forEach((key) => {
-        if (key.startsWith('supabase.auth.') || 
-            key.includes('sb-') ||
-            key.startsWith('sb:') ||
-            key === 'supabase.auth.token') {
-          console.log(`Removing sessionStorage key: ${key}`);
-          sessionStorage.removeItem(key);
-        }
-      });
-    }
-  } catch (error) {
-    console.error("Error during auth cleanup:", error);
-  }
-};
-
-/**
- * Function to check if a user is an admin
- */
-export const isUserAdmin = (user: User | null): boolean => {
-  if (!user) return false;
-  return user.is_admin === true;
-};
-
-/**
- * Function to check if a user is approved
- */
-export const isUserApproved = (user: User | null): boolean => {
-  if (!user) return false;
-  return user.approval_status === 'approved';
-};
+}
