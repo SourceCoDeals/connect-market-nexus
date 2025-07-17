@@ -3,6 +3,9 @@ import { useListings, useListing, useListingMetadata } from './marketplace/use-l
 import { useRequestConnection, useConnectionStatus, useUserConnectionRequests } from './marketplace/use-connections';
 import { useSaveListingMutation, useSavedStatus } from './marketplace/use-saved-listings';
 import { useSavedListings } from './marketplace/use-saved-listings-query';
+import { useRealtimeListings } from './use-realtime-listings';
+import { useRealtimeConnections } from './use-realtime-connections';
+import { useRealtimeAdmin } from './use-realtime-admin';
 
 export function useMarketplace() {
   return {
@@ -15,5 +18,8 @@ export function useMarketplace() {
     useSavedStatus,
     useSavedListings,
     useUserConnectionRequests,
+    useRealtimeListings,
+    useRealtimeConnections,
+    useRealtimeAdmin,
   };
 }

@@ -15,6 +15,8 @@ import {
 } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useRealtime } from "@/components/realtime/RealtimeProvider";
+import { Wifi } from "lucide-react";
 
 const Marketplace = () => {
   const [filters, setFilters] = useState<FilterOptions>({
@@ -33,6 +35,7 @@ const Marketplace = () => {
   const { useListings, useListingMetadata } = useMarketplace();
   const { data: listingsData, isLoading, error } = useListings(filters);
   const { data: metadata, isLoading: isMetadataLoading } = useListingMetadata();
+  const { listingsConnected } = useRealtime();
   
   const listings = listingsData?.listings || [];
   const totalItems = listingsData?.totalCount || 0;
@@ -184,7 +187,15 @@ const Marketplace = () => {
       <div className="container mx-auto px-4 py-8">
         <div className="flex flex-col gap-6">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-            <h1 className="text-3xl font-bold">Marketplace Listings</h1>
+            <div className="flex items-center gap-3">
+              <h1 className="text-3xl font-bold">Marketplace Listings</h1>
+              {listingsConnected && (
+                <div className="flex items-center gap-1 text-green-600 text-sm">
+                  <Wifi className="h-4 w-4" />
+                  <span>Live</span>
+                </div>
+              )}
+            </div>
           </div>
           
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
