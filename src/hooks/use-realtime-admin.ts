@@ -9,7 +9,7 @@ export function useRealtimeAdmin() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [isConnected, setIsConnected] = useState(false);
-  const isAdmin = user?.user_metadata?.is_admin || false;
+  const isAdmin = user?.is_admin || false;
 
   useEffect(() => {
     // Only setup admin real-time for admin users
