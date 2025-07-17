@@ -37,8 +37,8 @@ const handler = async (req: Request): Promise<Response> => {
     // Process the event and send appropriate notifications
     await processUserJourneyEvent(event, correlationId);
 
-    // Log the event for analytics
-    await logUserJourneyEvent(event, correlationId);
+    // Log the event for analytics (optional - we'll skip this for now to avoid table creation)
+    // await logUserJourneyEvent(event, correlationId);
 
     return new Response(
       JSON.stringify({ 
@@ -128,22 +128,6 @@ async function processUserJourneyEvent(event: UserJourneyEvent, correlationId: s
     console.log(`[${correlationId}] Email notification sent for ${event_type}`);
   } catch (error) {
     console.error(`[${correlationId}] Failed to send email for ${event_type}:`, error);
-  }
-}
-
-async function logUserJourneyEvent(event: UserJourneyEvent, correlationId: string) {
-  try {
-    await supabase
-      .from('user_journey_events')
-      .insert({
-        event_type: event.event_type,
-        user_id: event.user_id,
-        correlation_id: correlationId,
-        metadata: event.metadata || {},
-        created_at: new Date().toISOString()
-      });
-  } catch (error) {
-    console.error(`[${correlationId}] Failed to log user journey event:`, error);
   }
 }
 

@@ -121,6 +121,48 @@ export type Database = {
           },
         ]
       }
+      email_delivery_logs: {
+        Row: {
+          correlation_id: string
+          created_at: string
+          email: string
+          email_type: string
+          error_message: string | null
+          id: string
+          max_retries: number
+          retry_count: number
+          sent_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          correlation_id: string
+          created_at?: string
+          email: string
+          email_type: string
+          error_message?: string | null
+          id?: string
+          max_retries?: number
+          retry_count?: number
+          sent_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          correlation_id?: string
+          created_at?: string
+          email?: string
+          email_type?: string
+          error_message?: string | null
+          id?: string
+          max_retries?: number
+          retry_count?: number
+          sent_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       engagement_scores: {
         Row: {
           connections_requested: number
