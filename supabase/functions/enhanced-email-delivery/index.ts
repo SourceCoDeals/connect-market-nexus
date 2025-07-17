@@ -12,7 +12,7 @@ const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 interface EmailDeliveryRequest {
-  type: 'welcome' | 'approval' | 'rejection' | 'reminder' | 'password_reset' | 'connection_status';
+  type: 'welcome' | 'approval' | 'rejection' | 'reminder' | 'password_reset' | 'connection_status' | 'email_verified';
   recipientEmail: string;
   recipientName: string;
   correlationId?: string;
@@ -253,6 +253,59 @@ function generateEmailContent(type: string, recipientName: string, data?: Record
           </div>
         `,
         text: `Great news, ${firstName}!\n\nYour SourceCo Marketplace account has been approved.\n\nYou can now access all available listings and submit connection requests.\n\nAccess the marketplace at: ${data?.loginUrl || 'https://marketplace.sourcecodeals.com/login'}\n\nBest regards,\nThe SourceCo Team`
+      };
+      
+    case 'email_verified':
+      return {
+        subject: '✅ Email Verified - Application Under Review',
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9;">
+            <div style="background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+              <div style="text-align: center; margin-bottom: 30px;">
+                <h1 style="color: #10b981; margin: 0; font-size: 24px;">✅ Email Verified Successfully!</h1>
+              </div>
+              
+              <h2 style="color: #333; margin-top: 0;">Hi ${firstName},</h2>
+              
+              <p style="color: #555; font-size: 16px; line-height: 1.6;">
+                Great news! Your email address has been successfully verified for your SourceCo Marketplace account.
+              </p>
+              
+              <div style="background-color: #f0f9ff; border-left: 4px solid #3b82f6; padding: 15px; margin: 25px 0;">
+                <h3 style="color: #1e40af; margin: 0 0 10px 0;">📋 What happens next?</h3>
+                <ul style="color: #374151; margin: 0; padding-left: 20px;">
+                  <li>Your application is now under review by our team</li>
+                  <li>We'll evaluate your profile and approve it within a few hours</li>
+                  <li>Once approved, you'll receive another email with access instructions</li>
+                  <li>You'll then be able to browse listings and request owner conversations</li>
+                </ul>
+              </div>
+              
+              <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; margin: 25px 0;">
+                <h3 style="color: #92400e; margin: 0 0 10px 0;">⏰ Timeline</h3>
+                <p style="color: #78350f; margin: 0; font-weight: 500;">
+                  Most applications are reviewed and approved within 2-4 hours during business hours.
+                </p>
+              </div>
+              
+              <div style="text-align: center; margin: 30px 0;">
+                <p style="color: #6b7280; font-size: 14px; margin: 0;">
+                  We're excited to have you join our marketplace community!
+                </p>
+              </div>
+              
+              <div style="border-top: 1px solid #e5e7eb; padding-top: 20px; margin-top: 30px;">
+                <p style="color: #6b7280; font-size: 14px; margin: 0;">
+                  If you have any questions, please don't hesitate to contact our support team.
+                </p>
+                <p style="color: #374151; font-weight: 600; margin: 10px 0 0 0;">
+                  The SourceCo Team
+                </p>
+              </div>
+            </div>
+          </div>
+        `,
+        text: `✅ Email Verified Successfully!\n\nHi ${firstName},\n\nGreat news! Your email address has been successfully verified for your SourceCo Marketplace account.\n\nWhat happens next?\n- Your application is now under review by our team\n- We'll evaluate your profile and approve it within a few hours\n- Once approved, you'll receive another email with access instructions\n- You'll then be able to browse listings and request owner conversations\n\nTimeline: Most applications are reviewed and approved within 2-4 hours during business hours.\n\nWe're excited to have you join our marketplace community!\n\nIf you have any questions, please don't hesitate to contact our support team.\n\nThe SourceCo Team`
       };
       
     case 'reminder':
