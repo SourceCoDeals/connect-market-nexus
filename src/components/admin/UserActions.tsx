@@ -92,7 +92,7 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
                   await sendUserApprovalEmail(selectedUser);
                   toast({
                     title: "User approved",
-                    description: `${selectedUser.first_name} ${selectedUser.last_name} has been approved and will receive an email notification.`,
+                    description: `${selectedUser.first_name} ${selectedUser.last_name} has been approved and will receive an email notification with login instructions.`,
                   });
                 } catch (error) {
                   console.error("❌ Error sending approval email:", error);
@@ -201,10 +201,10 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
           console.log('🔄 Executing user deletion mutation');
           deleteUserMutation.mutate(selectedUser.id, {
             onSuccess: () => {
-              console.log('✅ Successfully deleted user');
+              console.log('✅ Successfully deleted user completely');
               toast({
                 title: "User deleted",
-                description: `${selectedUser.first_name} ${selectedUser.last_name} has been completely removed from the system.`,
+                description: `${selectedUser.first_name} ${selectedUser.last_name} has been completely removed from the system and can no longer log in.`,
               });
               setIsDialogOpen(false);
               if (onUserStatusUpdated) onUserStatusUpdated();

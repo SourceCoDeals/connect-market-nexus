@@ -1,183 +1,183 @@
 
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
-
-interface UserNotificationRequest {
-  type: 'approved' | 'rejected';
-  userEmail: string;
-  firstName: string;
-  lastName: string;
-  reason?: string;
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-const handler = async (req: Request): Promise<Response> => {
-  console.log('🔔 User notification function called');
-  
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    const requestBody = await req.text();
-    console.log('📧 Request body:', requestBody);
-    
-    const payload: UserNotificationRequest = JSON.parse(requestBody);
-    const { type, userEmail, firstName, lastName, reason } = payload;
+    const { user, type, reason } = await req.json()
 
-    console.log('📨 Processing notification:', { type, userEmail, firstName });
-
-    let subject: string;
-    let htmlContent: string;
-
-    if (type === 'approved') {
-      subject = "🎉 Welcome! Your account has been approved";
-      htmlContent = `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <h1 style="color: #059669; text-align: center;">Account Approved! 🎉</h1>
-          
-          <p style="font-size: 16px;">Hello ${firstName},</p>
-          
-          <p style="font-size: 16px;">Great news! Your account has been approved and you now have full access to our marketplace.</p>
-          
-          <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 20px; margin: 20px 0;">
-            <h3 style="color: #059669; margin-top: 0;">🚀 You can now:</h3>
-            <ul style="margin: 10px 0; padding-left: 20px;">
-              <li style="margin: 8px 0;">Browse hundreds of business listings</li>
-              <li style="margin: 8px 0;">Save opportunities for later review</li>
-              <li style="margin: 8px 0;">Request connections with sellers</li>
-              <li style="margin: 8px 0;">Access detailed business information</li>
-            </ul>
-          </div>
-          
-          <div style="text-align: center; margin: 30px 0;">
-            <a href="https://marketplace.sourcecodeals.com/login" 
-               style="background-color: #059669; color: white; padding: 15px 30px; text-decoration: none; border-radius: 6px; display: inline-block; font-size: 16px; font-weight: bold;">
-              Log In to Marketplace
-            </a>
-          </div>
-          
-          <div style="background-color: #f9fafb; border-radius: 8px; padding: 15px; margin: 20px 0;">
-            <p style="margin: 0; font-size: 14px; color: #6b7280;">
-              <strong>Next Steps:</strong> Log in with your email and password to start exploring business opportunities that match your investment criteria.
-            </p>
-          </div>
-          
-          <p style="color: #6b7280; font-size: 14px; margin-top: 30px;">
-            If you have any questions or need assistance, please don't hesitate to contact our support team at support@sourcecodeals.com.
-          </p>
-          
-          <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;">
-          <p style="color: #9ca3af; font-size: 12px; text-align: center;">
-            This email was sent to ${userEmail}. If you didn't expect this email, please contact support.
-          </p>
-        </div>
-      `;
-    } else if (type === 'rejected') {
-      subject = "Update on your account application";
-      htmlContent = `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <h1 style="color: #dc2626;">Account Application Update</h1>
-          
-          <p style="font-size: 16px;">Hello ${firstName},</p>
-          
-          <p style="font-size: 16px;">Thank you for your interest in our marketplace. After careful review, we're unable to approve your account at this time.</p>
-          
-          ${reason ? `
-            <div style="background-color: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 16px; margin: 20px 0;">
-              <h3 style="color: #dc2626; margin-top: 0;">Reason:</h3>
-              <p style="margin: 0;">${reason}</p>
-            </div>
-          ` : ''}
-          
-          <div style="background-color: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; margin: 20px 0;">
-            <h3 style="color: #374151; margin-top: 0;">What can you do?</h3>
-            <ul style="margin: 0;">
-              <li>Review our eligibility requirements</li>
-              <li>Update your application with additional information</li>
-              <li>Contact our support team for guidance</li>
-              <li>Reapply once you meet the criteria</li>
-            </ul>
-          </div>
-          
-          <p style="color: #6b7280; font-size: 14px; margin-top: 30px;">
-            We appreciate your understanding and encourage you to reach out if you have any questions about the application process.
-          </p>
-          
-          <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;">
-          <p style="color: #9ca3af; font-size: 12px;">
-            This email was sent to ${userEmail}. If you didn't expect this email, please contact support.
-          </p>
-        </div>
-      `;
-    } else {
-      throw new Error(`Invalid notification type: ${type}`);
+    const resendApiKey = Deno.env.get('RESEND_API_KEY')
+    if (!resendApiKey) {
+      throw new Error('RESEND_API_KEY is not set')
     }
 
-    console.log('📤 Sending email via Brevo...');
-    const emailResponse = await fetch('https://api.brevo.com/v3/smtp/email', {
+    let subject: string
+    let htmlContent: string
+
+    switch (type) {
+      case 'approval':
+        subject = '🎉 Welcome to SourceCodeals - Your Account is Approved!'
+        htmlContent = `
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Account Approved - SourceCodeals</title>
+          </head>
+          <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+              <h1 style="color: white; margin: 0; font-size: 28px;">🎉 Welcome to SourceCodeals!</h1>
+            </div>
+            
+            <div style="background: #ffffff; padding: 30px; border: 1px solid #e1e5e9; border-top: none; border-radius: 0 0 10px 10px;">
+              <h2 style="color: #333; margin-top: 0;">Great news, ${user.first_name}!</h2>
+              
+              <p style="font-size: 16px; margin-bottom: 20px;">
+                Your account has been approved by our admin team. You now have full access to our marketplace of business opportunities.
+              </p>
+              
+              <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 25px 0;">
+                <h3 style="margin-top: 0; color: #495057;">What you can do now:</h3>
+                <ul style="margin: 0; padding-left: 20px;">
+                  <li style="margin-bottom: 8px;">📈 Browse thousands of business listings</li>
+                  <li style="margin-bottom: 8px;">💼 Save interesting opportunities to your favorites</li>
+                  <li style="margin-bottom: 8px;">🤝 Request connections with business owners</li>
+                  <li style="margin-bottom: 8px;">📊 Access detailed financial information</li>
+                </ul>
+              </div>
+              
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${Deno.env.get('SITE_URL') || 'https://vhzipqarkmmfuqadefep.supabase.co'}/login" 
+                   style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; display: inline-block; transition: transform 0.2s;">
+                  🚀 Start Exploring Now
+                </a>
+              </div>
+              
+              <div style="border-top: 1px solid #e1e5e9; padding-top: 20px; margin-top: 30px;">
+                <h4 style="color: #495057; margin-bottom: 15px;">Your Account Details:</h4>
+                <div style="background: #f8f9fa; padding: 15px; border-radius: 6px; font-size: 14px;">
+                  <strong>Email:</strong> ${user.email}<br>
+                  <strong>Company:</strong> ${user.company || 'Not specified'}<br>
+                  <strong>Buyer Type:</strong> ${user.buyer_type || 'Not specified'}
+                </div>
+              </div>
+              
+              <p style="margin-top: 25px; font-size: 14px; color: #6c757d;">
+                If you have any questions or need assistance getting started, don't hesitate to reach out to our support team.
+              </p>
+              
+              <div style="text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e1e5e9;">
+                <p style="margin: 0; font-size: 14px; color: #6c757d;">
+                  Welcome to the SourceCodeals community!<br>
+                  <strong>The SourceCodeals Team</strong>
+                </p>
+              </div>
+            </div>
+          </body>
+          </html>
+        `
+        break
+        
+      case 'rejection':
+        subject = 'SourceCodeals Account Update'
+        htmlContent = `
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Account Update - SourceCodeals</title>
+          </head>
+          <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <div style="background: #dc3545; padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+              <h1 style="color: white; margin: 0; font-size: 24px;">Account Update</h1>
+            </div>
+            
+            <div style="background: #ffffff; padding: 30px; border: 1px solid #e1e5e9; border-top: none; border-radius: 0 0 10px 10px;">
+              <h2 style="color: #333; margin-top: 0;">Hello ${user.first_name},</h2>
+              
+              <p style="font-size: 16px; margin-bottom: 20px;">
+                Thank you for your interest in SourceCodeals. After reviewing your application, we're unable to approve your account at this time.
+              </p>
+              
+              ${reason ? `
+                <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 25px 0;">
+                  <h3 style="margin-top: 0; color: #495057;">Reason:</h3>
+                  <p style="margin: 0;">${reason}</p>
+                </div>
+              ` : ''}
+              
+              <p style="margin-top: 25px; font-size: 14px; color: #6c757d;">
+                If you believe this decision was made in error or if you have additional information to provide, please contact our support team.
+              </p>
+              
+              <div style="text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e1e5e9;">
+                <p style="margin: 0; font-size: 14px; color: #6c757d;">
+                  <strong>The SourceCodeals Team</strong>
+                </p>
+              </div>
+            </div>
+          </body>
+          </html>
+        `
+        break
+        
+      default:
+        throw new Error('Invalid notification type')
+    }
+
+    const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
-        'Accept': 'application/json',
         'Content-Type': 'application/json',
-        'api-key': Deno.env.get('BREVO_API_KEY') || '',
+        'Authorization': `Bearer ${resendApiKey}`,
       },
       body: JSON.stringify({
-        sender: {
-          name: "SourceCo Marketplace",
-          email: "noreply@sourcecodeals.com"
-        },
-        to: [{
-          email: userEmail,
-          name: `${firstName} ${lastName}`
-        }],
+        from: 'SourceCodeals <noreply@sourcecodeals.com>',
+        to: [user.email],
         subject: subject,
-        htmlContent: htmlContent
-      })
-    });
+        html: htmlContent,
+      }),
+    })
 
-    if (!emailResponse.ok) {
-      const errorData = await emailResponse.json();
-      console.error("❌ Brevo API error:", errorData);
-      throw new Error(`Brevo API error: ${errorData.message || 'Unknown error'}`);
+    if (!res.ok) {
+      const errorText = await res.text()
+      console.error('Resend API error:', errorText)
+      throw new Error(`Failed to send email: ${res.status} ${errorText}`)
     }
 
-    const responseData = await emailResponse.json();
-    console.log("✅ Email sent successfully:", responseData);
+    const data = await res.json()
+    console.log('Email sent successfully:', data)
 
     return new Response(
-      JSON.stringify({
-        success: true,
-        message: `${type} email sent successfully`,
-        messageId: responseData.messageId,
-        emailProvider: 'brevo'
-      }),
-      {
+      JSON.stringify({ success: true, data }),
+      { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
-        headers: {
-          "Content-Type": "application/json",
-          ...corsHeaders,
-        },
-      }
-    );
-  } catch (error: any) {
-    console.error("❌ Error in send-user-notification function:", error);
+      },
+    )
+
+  } catch (error) {
+    console.error('Error in send-user-notification function:', error)
     return new Response(
       JSON.stringify({ 
-        success: false,
-        error: error.message || 'Unknown error occurred',
-        details: error.stack
+        error: error.message,
+        success: false 
       }),
-      {
-        status: 500,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      }
-    );
+      { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 400,
+      },
+    )
   }
-};
-
-serve(handler);
+})
