@@ -14,19 +14,21 @@ export function useAdminUsers() {
       queryFn: async () => {
         console.log('🔍 Fetching admin users');
         try {
-          const { data, error } = await supabase
+          // First get all profiles including unverified ones
+          const { data: profilesData, error: profilesError } = await supabase
             .from('profiles')
             .select('*')
             .is('deleted_at', null)
             .order('created_at', { ascending: false });
 
-          if (error) {
-            console.error('❌ Error fetching users:', error);
-            throw error;
+          if (profilesError) {
+            console.error('❌ Error fetching profiles:', profilesError);
+            throw profilesError;
           }
 
-          console.log('✅ Successfully fetched users:', data?.length || 0);
-          return data?.map(profile => {
+          console.log('✅ Successfully fetched profiles:', profilesData?.length || 0);
+          
+          return profilesData?.map(profile => {
             try {
               return createUserObject(profile);
             } catch (err) {

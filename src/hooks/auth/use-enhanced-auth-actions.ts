@@ -25,6 +25,8 @@ export function useEnhancedAuthActions() {
           }
         });
 
+        console.log('📧 Signup response:', { data, error });
+
         if (error) {
           console.error('❌ Signup error:', error);
           await errorLogger.logError(error, {
@@ -37,10 +39,40 @@ export function useEnhancedAuthActions() {
 
         console.log('✅ Signup successful for:', email);
         
-        toast({
-          title: 'Account created successfully',
-          description: 'Please check your email to verify your account.',
-        });
+        // Check if user needs to verify email
+        if (data.user && !data.user.email_confirmed_at) {
+          console.log('📧 User needs email verification, attempting to send custom verification email');
+          
+          // Try to send custom verification email if Supabase email failed
+          try {
+            const { error: emailError } = await supabase.functions.invoke('send-verification-email', {
+              body: { 
+                email: data.user.email,
+                token: data.user.id, // Use user ID as token for now
+                redirectTo: `${window.location.origin}/verify-email-handler`
+              }
+            });
+            
+            if (emailError) {
+              console.error('❌ Failed to send custom verification email:', emailError);
+            } else {
+              console.log('✅ Custom verification email sent successfully');
+            }
+          } catch (customEmailError) {
+            console.error('❌ Error sending custom verification email:', customEmailError);
+          }
+          
+          toast({
+            title: 'Account created successfully',
+            description: 'Please check your email to verify your account. If you don\'t receive an email, try signing up again.',
+          });
+        } else {
+          console.log('✅ User email already verified');
+          toast({
+            title: 'Account created successfully',
+            description: 'Your account is ready for admin approval.',
+          });
+        }
 
         return { data, error: null };
       } catch (error: any) {
