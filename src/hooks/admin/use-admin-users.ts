@@ -12,12 +12,12 @@ export function useAdminUsers() {
     return useQuery({
       queryKey: ['admin-users'],
       queryFn: async () => {
-        console.log('🔍 Fetching admin users with corrected query');
+        console.log('🔍 Fetching admin users');
         try {
           const { data, error } = await supabase
             .from('profiles')
             .select('*')
-            .is('deleted_at', null)  // ✅ Fixed: use .is() instead of .eq() for null values
+            .is('deleted_at', null)
             .order('created_at', { ascending: false });
 
           if (error) {
@@ -26,7 +26,6 @@ export function useAdminUsers() {
           }
 
           console.log('✅ Successfully fetched users:', data?.length || 0);
-          // Convert database records to User objects with proper error handling
           return data?.map(profile => {
             try {
               return createUserObject(profile);
@@ -42,8 +41,8 @@ export function useAdminUsers() {
       },
       retry: 3,
       retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
-      staleTime: 5 * 60 * 1000, // 5 minutes
-      gcTime: 10 * 60 * 1000, // 10 minutes
+      staleTime: 5 * 60 * 1000,
+      gcTime: 10 * 60 * 1000,
     });
   };
 
@@ -52,26 +51,21 @@ export function useAdminUsers() {
       mutationFn: async ({ userId, status }: { userId: string; status: ApprovalStatus }) => {
         console.log('🔄 Updating user approval status:', { userId, status });
         
-        try {
-          const { error } = await supabase
-            .from('profiles')
-            .update({ 
-              approval_status: status,
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', userId);
+        const { error } = await supabase
+          .from('profiles')
+          .update({ 
+            approval_status: status,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', userId);
 
-          if (error) {
-            console.error('❌ Error updating user approval:', error);
-            throw error;
-          }
-
-          console.log('✅ User approval updated successfully');
-          return { userId, status };
-        } catch (error) {
-          console.error('💥 Fatal error updating user status:', error);
+        if (error) {
+          console.error('❌ Error updating user approval:', error);
           throw error;
         }
+
+        console.log('✅ User approval updated successfully');
+        return { userId, status };
       },
       onSuccess: ({ status }) => {
         console.log('🎉 User status update successful:', status);
@@ -94,7 +88,6 @@ export function useAdminUsers() {
         console.log('🔄 Updating admin status:', { userId, isAdmin });
         
         try {
-          // Use the correct RPC function based on action
           const rpcFunction = isAdmin ? 'promote_user_to_admin' : 'demote_admin_user';
           console.log('🔄 Calling RPC function:', rpcFunction);
           
@@ -117,7 +110,6 @@ export function useAdminUsers() {
       onSuccess: ({ isAdmin, userId }) => {
         console.log('🎉 Admin status update successful:', { userId, isAdmin });
         const message = isAdmin ? 'User has been granted admin privileges.' : 'User no longer has admin privileges.';
-        console.log('📢 Success message:', message);
         toast({
           title: isAdmin ? 'User promoted to admin' : 'Admin privileges revoked',
           description: message,
@@ -127,7 +119,6 @@ export function useAdminUsers() {
       onError: (error: any) => {
         console.error('💥 Failed to update admin status:', error);
         const errorMessage = error.message || 'Failed to update admin status.';
-        console.log('📢 Error message:', errorMessage);
         toast({
           variant: 'destructive',
           title: 'Admin status update failed',
@@ -142,22 +133,17 @@ export function useAdminUsers() {
       mutationFn: async (userId: string) => {
         console.log('🔄 Soft deleting user:', userId);
         
-        try {
-          const { data, error } = await supabase.rpc('soft_delete_profile', {
-            profile_id: userId
-          });
+        const { data, error } = await supabase.rpc('soft_delete_profile', {
+          profile_id: userId
+        });
 
-          if (error) {
-            console.error('❌ Error soft deleting user:', error);
-            throw error;
-          }
-
-          console.log('✅ User soft deleted successfully');
-          return data;
-        } catch (error) {
-          console.error('💥 Fatal error deleting user:', error);
+        if (error) {
+          console.error('❌ Error soft deleting user:', error);
           throw error;
         }
+
+        console.log('✅ User soft deleted successfully');
+        return data;
       },
       onSuccess: () => {
         toast({
@@ -183,22 +169,17 @@ export function useAdminUsers() {
       mutationFn: async (userId: string) => {
         console.log('🔄 Promoting user to admin (legacy):', userId);
         
-        try {
-          const { data, error } = await supabase.rpc('promote_user_to_admin', {
-            target_user_id: userId
-          });
+        const { data, error } = await supabase.rpc('promote_user_to_admin', {
+          target_user_id: userId
+        });
 
-          if (error) {
-            console.error('❌ RPC Error promoting user to admin:', error);
-            throw error;
-          }
-
-          console.log('✅ User promoted to admin successfully:', data);
-          return { userId, isAdmin: true, result: data };
-        } catch (error) {
-          console.error('💥 Fatal error promoting user to admin:', error);
+        if (error) {
+          console.error('❌ RPC Error promoting user to admin:', error);
           throw error;
         }
+
+        console.log('✅ User promoted to admin successfully:', data);
+        return { userId, isAdmin: true, result: data };
       },
       onSuccess: ({ userId }) => {
         console.log('🎉 User promotion successful:', userId);
@@ -224,22 +205,17 @@ export function useAdminUsers() {
       mutationFn: async (userId: string) => {
         console.log('🔄 Demoting admin user (legacy):', userId);
         
-        try {
-          const { data, error } = await supabase.rpc('demote_admin_user', {
-            target_user_id: userId
-          });
+        const { data, error } = await supabase.rpc('demote_admin_user', {
+          target_user_id: userId
+        });
 
-          if (error) {
-            console.error('❌ RPC Error demoting admin user:', error);
-            throw error;
-          }
-
-          console.log('✅ Admin user demoted successfully:', data);
-          return { userId, isAdmin: false, result: data };
-        } catch (error) {
-          console.error('💥 Fatal error demoting admin user:', error);
+        if (error) {
+          console.error('❌ RPC Error demoting admin user:', error);
           throw error;
         }
+
+        console.log('✅ Admin user demoted successfully:', data);
+        return { userId, isAdmin: false, result: data };
       },
       onSuccess: ({ userId }) => {
         console.log('🎉 Admin demotion successful:', userId);
@@ -267,7 +243,5 @@ export function useAdminUsers() {
     usePromoteToAdmin,
     useDemoteAdmin,
     useDeleteUser,
-    // Legacy method names for backward compatibility
-    useUpdateUserApproval: useUpdateUserStatus,
   };
 }

@@ -2,7 +2,8 @@
 import { useState } from "react";
 import { User } from "@/types";
 import { useToast } from "@/hooks/use-toast";
-import { useAdmin } from "@/hooks/use-admin";
+import { useAdminUsers } from "@/hooks/admin/use-admin-users";
+import { useAdminEmail } from "@/hooks/admin/use-admin-email";
 
 interface UserActionsProps {
   onUserStatusUpdated?: () => void;
@@ -11,15 +12,18 @@ interface UserActionsProps {
 export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
   const { toast } = useToast();
   const {
-    updateUserStatus,
-    updateAdminStatus,
+    useUpdateUserStatus,
+    useUpdateAdminStatus,
+  } = useAdminUsers();
+  
+  const {
     sendUserApprovalEmail,
     sendUserRejectionEmail
-  } = useAdmin();
+  } = useAdminEmail();
   
-  // Extract mutation functions and loading states
-  const { mutate: mutateUserStatus, isPending: isUpdatingStatus } = updateUserStatus;
-  const { mutate: mutateAdminStatus, isPending: isUpdatingAdmin } = updateAdminStatus;
+  // Get actual mutation functions
+  const updateUserStatusMutation = useUpdateUserStatus();
+  const updateAdminStatusMutation = useUpdateAdminStatus();
   
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [actionType, setActionType] = useState<"approve" | "reject" | "makeAdmin" | "revokeAdmin" | null>(null);
@@ -70,7 +74,7 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
       switch (actionType) {
         case "approve":
           console.log('🔄 Executing user approval mutation');
-          mutateUserStatus(
+          updateUserStatusMutation.mutate(
             { userId: selectedUser.id, status: "approved" },
             {
               onSuccess: async () => {
@@ -105,7 +109,7 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
           
         case "reject":
           console.log('🔄 Executing user rejection mutation');
-          mutateUserStatus(
+          updateUserStatusMutation.mutate(
             { userId: selectedUser.id, status: "rejected" },
             {
               onSuccess: async () => {
@@ -140,7 +144,7 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
           
         case "makeAdmin":
           console.log('🔄 Executing admin promotion mutation');
-          mutateAdminStatus(
+          updateAdminStatusMutation.mutate(
             { userId: selectedUser.id, isAdmin: true },
             {
               onSuccess: () => {
@@ -162,7 +166,7 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
           
         case "revokeAdmin":
           console.log('🔄 Executing admin revocation mutation');
-          mutateAdminStatus(
+          updateAdminStatusMutation.mutate(
             { userId: selectedUser.id, isAdmin: false },
             {
               onSuccess: () => {
@@ -210,6 +214,6 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
     setIsDialogOpen,
     selectedUser,
     actionType,
-    isLoading: isUpdatingStatus || isUpdatingAdmin
+    isLoading: updateUserStatusMutation.isPending || updateAdminStatusMutation.isPending
   };
 }

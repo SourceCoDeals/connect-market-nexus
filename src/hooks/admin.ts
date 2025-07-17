@@ -9,10 +9,10 @@ import { useAdminCategories } from './admin/use-admin-categories';
 
 /**
  * A hook that provides access to all admin-related functionality
- * Returns actual mutation objects and query hooks, not constructors
+ * Returns actual mutation objects and query hooks for direct use
  */
 export function useAdmin() {
-  // Users management - get the actual hooks/mutations
+  // Users management - get the actual hooks
   const adminUsers = useAdminUsers();
   const users = adminUsers.useUsers();
   const updateUserStatus = adminUsers.useUpdateUserStatus();
@@ -84,35 +84,6 @@ export function useAdmin() {
     sendUserRejectionEmail: adminEmail.sendUserRejectionEmail,
     sendConnectionApprovalEmail: adminEmail.sendConnectionApprovalEmail,
     sendConnectionRejectionEmail: adminEmail.sendConnectionRejectionEmail,
-    
-    // Legacy support - return hook constructors for backward compatibility
-    useUsers: adminUsers.useUsers,
-    useUpdateUserStatus: adminUsers.useUpdateUserStatus,
-    useUpdateAdminStatus: adminUsers.useUpdateAdminStatus,
-    usePromoteToAdmin: adminUsers.usePromoteToAdmin,
-    useDemoteAdmin: adminUsers.useDemoteAdmin,
-    useDeleteUser: adminUsers.useDeleteUser,
-    
-    // Listings hooks
-    useListings: adminListings.useListings,
-    useCreateListing: adminListings.useCreateListing,
-    useUpdateListing: adminListings.useUpdateListing,
-    useDeleteListing: adminListings.useDeleteListing,
-    useToggleListingStatus: adminListings.useToggleListingStatus,
-    
-    // Categories hooks
-    useCategories: adminCategories.useCategories,
-    useCreateCategory: adminCategories.useCreateCategory,
-    useUpdateCategory: adminCategories.useUpdateCategory,
-    useDeleteCategory: adminCategories.useDeleteCategory,
-    
-    // Connection requests hooks
-    useConnectionRequests: adminRequests.useConnectionRequests,
-    useConnectionRequestsMutation: adminRequests.useConnectionRequestsMutation,
-    
-    // Stats hooks
-    useStats: adminStats.useStats,
-    useRecentActivities: adminStats.useRecentActivities,
   };
 }
 
