@@ -1,8 +1,7 @@
 
 import { useState } from "react";
-import { User, ApprovalStatus } from "@/types";
+import { User } from "@/types";
 import { useToast } from "@/hooks/use-toast";
-import { UserDetailDialog } from "@/components/admin/UserDetailDialog";
 import { useAdmin } from "@/hooks/use-admin";
 
 interface UserActionsProps {
@@ -56,6 +55,11 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
   const confirmAction = async (reason?: string) => {
     if (!selectedUser) {
       console.error('❌ No user selected for action');
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'No user selected for action.',
+      });
       return;
     }
     
@@ -64,12 +68,11 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
     try {
       switch (actionType) {
         case "approve":
-          await updateUserStatus(
+          updateUserStatus(
             { userId: selectedUser.id, status: "approved" },
             {
               onSuccess: async () => {
                 try {
-                  // Send approval email
                   await sendUserApprovalEmail(selectedUser);
                   toast({
                     title: "User approved",
@@ -85,17 +88,24 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
                 setIsDialogOpen(false);
                 if (onUserStatusUpdated) onUserStatusUpdated();
               },
+              onError: (error) => {
+                console.error('❌ Error approving user:', error);
+                toast({
+                  variant: 'destructive',
+                  title: 'Approval failed',
+                  description: 'Failed to approve user. Please try again.',
+                });
+              }
             }
           );
           break;
           
         case "reject":
-          await updateUserStatus(
+          updateUserStatus(
             { userId: selectedUser.id, status: "rejected" },
             {
               onSuccess: async () => {
                 try {
-                  // Send rejection email with reason
                   await sendUserRejectionEmail(selectedUser, reason);
                   toast({
                     title: "User rejected",
@@ -111,48 +121,74 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
                 setIsDialogOpen(false);
                 if (onUserStatusUpdated) onUserStatusUpdated();
               },
+              onError: (error) => {
+                console.error('❌ Error rejecting user:', error);
+                toast({
+                  variant: 'destructive',
+                  title: 'Rejection failed',
+                  description: 'Failed to reject user. Please try again.',
+                });
+              }
             }
           );
           break;
           
         case "makeAdmin":
-          await updateAdminStatus(
+          updateAdminStatus(
             { userId: selectedUser.id, isAdmin: true },
             {
               onSuccess: () => {
-                toast({
-                  title: "Admin status granted",
-                  description: `${selectedUser.first_name} ${selectedUser.last_name} is now an admin.`,
-                });
+                console.log('✅ Successfully promoted user to admin');
                 setIsDialogOpen(false);
                 if (onUserStatusUpdated) onUserStatusUpdated();
               },
+              onError: (error) => {
+                console.error('❌ Error promoting user to admin:', error);
+                toast({
+                  variant: 'destructive',
+                  title: 'Admin promotion failed',
+                  description: 'Failed to promote user to admin. Please try again.',
+                });
+              }
             }
           );
           break;
           
         case "revokeAdmin":
-          await updateAdminStatus(
+          updateAdminStatus(
             { userId: selectedUser.id, isAdmin: false },
             {
               onSuccess: () => {
-                toast({
-                  title: "Admin status revoked",
-                  description: `${selectedUser.first_name} ${selectedUser.last_name} is no longer an admin.`,
-                });
+                console.log('✅ Successfully revoked admin privileges');
                 setIsDialogOpen(false);
                 if (onUserStatusUpdated) onUserStatusUpdated();
               },
+              onError: (error) => {
+                console.error('❌ Error revoking admin privileges:', error);
+                toast({
+                  variant: 'destructive',
+                  title: 'Admin revocation failed',
+                  description: 'Failed to revoke admin privileges. Please try again.',
+                });
+              }
             }
           );
           break;
+          
+        default:
+          console.error('❌ Unknown action type:', actionType);
+          toast({
+            variant: 'destructive',
+            title: 'Invalid action',
+            description: 'Unknown action type. Please try again.',
+          });
       }
     } catch (error) {
       console.error("💥 Error during user action:", error);
       toast({
         variant: 'destructive',
         title: 'Action failed',
-        description: 'An error occurred while processing the action. Please try again.',
+        description: 'An unexpected error occurred. Please try again.',
       });
     }
   };

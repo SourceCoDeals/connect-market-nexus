@@ -12,12 +12,12 @@ export function useAdminUsers() {
     return useQuery({
       queryKey: ['admin-users'],
       queryFn: async () => {
-        console.log('🔍 Fetching admin users');
+        console.log('🔍 Fetching admin users with corrected query');
         try {
           const { data, error } = await supabase
             .from('profiles')
             .select('*')
-            .is('deleted_at', null)  // Fixed: use .is() instead of .eq() for null values
+            .is('deleted_at', null)  // ✅ Fixed: use .is() instead of .eq() for null values
             .order('created_at', { ascending: false });
 
           if (error) {
@@ -26,8 +26,15 @@ export function useAdminUsers() {
           }
 
           console.log('✅ Successfully fetched users:', data?.length || 0);
-          // Convert database records to User objects
-          return data?.map(createUserObject) || [];
+          // Convert database records to User objects with proper error handling
+          return data?.map(profile => {
+            try {
+              return createUserObject(profile);
+            } catch (err) {
+              console.error('❌ Error creating user object for profile:', profile.id, err);
+              return null;
+            }
+          }).filter(Boolean) || [];
         } catch (error) {
           console.error('💥 Fatal error in useUsers query:', error);
           throw error;
@@ -35,6 +42,8 @@ export function useAdminUsers() {
       },
       retry: 3,
       retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      gcTime: 10 * 60 * 1000, // 10 minutes
     });
   };
 
@@ -65,10 +74,7 @@ export function useAdminUsers() {
         }
       },
       onSuccess: ({ status }) => {
-        toast({
-          title: 'User status updated',
-          description: `User has been ${status}.`,
-        });
+        console.log('🎉 User status update successful:', status);
         queryClient.invalidateQueries({ queryKey: ['admin-users'] });
       },
       onError: (error: any) => {
@@ -88,27 +94,31 @@ export function useAdminUsers() {
         console.log('🔄 Updating admin status:', { userId, isAdmin });
         
         try {
-          const { data, error } = await supabase.rpc(
-            isAdmin ? 'promote_user_to_admin' : 'demote_admin_user',
-            { target_user_id: userId }
-          );
+          // Use the correct RPC function based on action
+          const rpcFunction = isAdmin ? 'promote_user_to_admin' : 'demote_admin_user';
+          console.log('🔄 Calling RPC function:', rpcFunction);
+          
+          const { data, error } = await supabase.rpc(rpcFunction, {
+            target_user_id: userId
+          });
 
           if (error) {
             console.error('❌ Error updating admin status:', error);
             throw error;
           }
 
-          console.log('✅ Admin status updated successfully');
-          return data;
+          console.log('✅ Admin status updated successfully:', data);
+          return { userId, isAdmin, result: data };
         } catch (error) {
           console.error('💥 Fatal error updating admin status:', error);
           throw error;
         }
       },
-      onSuccess: (_, { isAdmin }) => {
+      onSuccess: ({ isAdmin, userId }) => {
+        console.log('🎉 Admin status update successful:', { userId, isAdmin });
         toast({
-          title: isAdmin ? 'User promoted' : 'Admin demoted',
-          description: isAdmin ? 'User has been promoted to admin.' : 'Admin has been demoted to regular user.',
+          title: isAdmin ? 'User promoted to admin' : 'Admin privileges revoked',
+          description: isAdmin ? 'User has been granted admin privileges.' : 'User no longer has admin privileges.',
         });
         queryClient.invalidateQueries({ queryKey: ['admin-users'] });
       },
@@ -116,88 +126,8 @@ export function useAdminUsers() {
         console.error('💥 Failed to update admin status:', error);
         toast({
           variant: 'destructive',
-          title: 'Update failed',
+          title: 'Admin status update failed',
           description: error.message || 'Failed to update admin status.',
-        });
-      },
-    });
-  };
-
-  const usePromoteToAdmin = () => {
-    return useMutation({
-      mutationFn: async (userId: string) => {
-        console.log('🔄 Promoting user to admin:', userId);
-        
-        try {
-          const { data, error } = await supabase.rpc('promote_user_to_admin', {
-            target_user_id: userId
-          });
-
-          if (error) {
-            console.error('❌ Error promoting user to admin:', error);
-            throw error;
-          }
-
-          console.log('✅ User promoted to admin successfully');
-          return data;
-        } catch (error) {
-          console.error('💥 Fatal error promoting user:', error);
-          throw error;
-        }
-      },
-      onSuccess: () => {
-        toast({
-          title: 'User promoted',
-          description: 'User has been promoted to admin.',
-        });
-        queryClient.invalidateQueries({ queryKey: ['admin-users'] });
-      },
-      onError: (error: any) => {
-        console.error('💥 Failed to promote user to admin:', error);
-        toast({
-          variant: 'destructive',
-          title: 'Promotion failed',
-          description: error.message || 'Failed to promote user to admin.',
-        });
-      },
-    });
-  };
-
-  const useDemoteAdmin = () => {
-    return useMutation({
-      mutationFn: async (userId: string) => {
-        console.log('🔄 Demoting admin user:', userId);
-        
-        try {
-          const { data, error } = await supabase.rpc('demote_admin_user', {
-            target_user_id: userId
-          });
-
-          if (error) {
-            console.error('❌ Error demoting admin user:', error);
-            throw error;
-          }
-
-          console.log('✅ Admin user demoted successfully');
-          return data;
-        } catch (error) {
-          console.error('💥 Fatal error demoting admin:', error);
-          throw error;
-        }
-      },
-      onSuccess: () => {
-        toast({
-          title: 'Admin demoted',
-          description: 'Admin has been demoted to regular user.',
-        });
-        queryClient.invalidateQueries({ queryKey: ['admin-users'] });
-      },
-      onError: (error: any) => {
-        console.error('💥 Failed to demote admin user:', error);
-        toast({
-          variant: 'destructive',
-          title: 'Demotion failed',
-          description: error.message || 'Failed to demote admin user.',
         });
       },
     });
@@ -239,6 +169,25 @@ export function useAdminUsers() {
           title: 'Deletion failed',
           description: error.message || 'Failed to delete user.',
         });
+      },
+    });
+  };
+
+  // Legacy method names for backward compatibility
+  const usePromoteToAdmin = () => {
+    return useMutation({
+      mutationFn: async (userId: string) => {
+        console.log('🔄 Promoting user to admin (legacy):', userId);
+        return useUpdateAdminStatus().mutateAsync({ userId, isAdmin: true });
+      },
+    });
+  };
+
+  const useDemoteAdmin = () => {
+    return useMutation({
+      mutationFn: async (userId: string) => {
+        console.log('🔄 Demoting admin user (legacy):', userId);
+        return useUpdateAdminStatus().mutateAsync({ userId, isAdmin: false });
       },
     });
   };

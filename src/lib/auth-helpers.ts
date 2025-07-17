@@ -2,14 +2,25 @@
 import { User, ApprovalStatus, BuyerType } from "@/types";
 
 export function createUserObject(profile: any): User {
-  // Ensure we have a valid profile object
+  // Enhanced validation for profile object
   if (!profile || !profile.id) {
     console.warn('Invalid profile data received:', profile);
-    throw new Error('Invalid profile data');
+    throw new Error('Invalid profile data: missing required fields');
+  }
+
+  // Validate required fields
+  if (!profile.email || !profile.first_name || !profile.last_name) {
+    console.warn('Profile missing required fields:', {
+      id: profile.id,
+      hasEmail: !!profile.email,
+      hasFirstName: !!profile.first_name,
+      hasLastName: !!profile.last_name
+    });
   }
 
   try {
-    return {
+    // Enhanced user object creation with better defaults and validation
+    const user: User = {
       id: profile.id,
       email: profile.email || '',
       first_name: profile.first_name || '',
@@ -25,8 +36,8 @@ export function createUserObject(profile: any): User {
       created_at: profile.created_at || new Date().toISOString(),
       updated_at: profile.updated_at || new Date().toISOString(),
       
-      // Additional profile fields with proper defaults
-      company_name: profile.company_name || '',
+      // Enhanced profile fields with better defaults
+      company_name: profile.company_name || profile.company || '',
       estimated_revenue: profile.estimated_revenue || '',
       fund_size: profile.fund_size || '',
       investment_size: profile.investment_size || '',
@@ -50,18 +61,78 @@ export function createUserObject(profile: any): User {
       get createdAt() { return this.created_at; },
       get updatedAt() { return this.updated_at; },
     };
+
+    // Validate the created user object
+    if (!user.id || !user.email) {
+      throw new Error('Created user object is missing critical fields');
+    }
+
+    console.log('✅ Successfully created user object for:', user.email);
+    return user;
   } catch (error) {
-    console.error('Error creating user object:', error, 'Profile:', profile);
-    throw new Error('Failed to create user object');
+    console.error('❌ Error creating user object:', error, 'Profile:', profile);
+    throw new Error(`Failed to create user object: ${error.message}`);
   }
 }
 
 export function isUserAdmin(user: User | null): boolean {
-  return user?.is_admin === true;
+  if (!user) return false;
+  return user.is_admin === true;
+}
+
+export function getUserDisplayName(user: User | null): string {
+  if (!user) return 'Unknown User';
+  if (user.first_name && user.last_name) {
+    return `${user.first_name} ${user.last_name}`;
+  }
+  if (user.first_name) return user.first_name;
+  if (user.last_name) return user.last_name;
+  return user.email || 'Unknown User';
+}
+
+export function getUserInitials(user: User | null): string {
+  if (!user) return 'U';
+  const firstName = user.first_name || '';
+  const lastName = user.last_name || '';
+  return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase() || user.email?.charAt(0).toUpperCase() || 'U';
+}
+
+export function validateUserData(user: User): { isValid: boolean; errors: string[] } {
+  const errors: string[] = [];
+  
+  if (!user.id) errors.push('User ID is required');
+  if (!user.email) errors.push('Email is required');
+  if (!user.first_name) errors.push('First name is required');
+  if (!user.last_name) errors.push('Last name is required');
+  
+  // Validate email format
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (user.email && !emailRegex.test(user.email)) {
+    errors.push('Invalid email format');
+  }
+  
+  // Validate approval status
+  const validStatuses: ApprovalStatus[] = ['pending', 'approved', 'rejected'];
+  if (!validStatuses.includes(user.approval_status)) {
+    errors.push('Invalid approval status');
+  }
+  
+  // Validate buyer type
+  const validBuyerTypes: BuyerType[] = ['corporate', 'privateEquity', 'familyOffice', 'searchFund', 'individual'];
+  if (!validBuyerTypes.includes(user.buyer_type)) {
+    errors.push('Invalid buyer type');
+  }
+  
+  return {
+    isValid: errors.length === 0,
+    errors
+  };
 }
 
 export async function cleanupAuthState(): Promise<void> {
   try {
+    console.log('🧹 Cleaning up auth state...');
+    
     // Remove standard auth tokens
     localStorage.removeItem('supabase.auth.token');
     localStorage.removeItem('user');
@@ -81,7 +152,9 @@ export async function cleanupAuthState(): Promise<void> {
         }
       });
     }
+    
+    console.log('✅ Auth state cleanup completed');
   } catch (error) {
-    console.error('Error cleaning up auth state:', error);
+    console.error('❌ Error cleaning up auth state:', error);
   }
 }
