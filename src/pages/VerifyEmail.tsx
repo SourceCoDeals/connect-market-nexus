@@ -2,7 +2,7 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Mail, CheckCircle, LogOut } from "lucide-react";
+import { Mail, CheckCircle, LogOut, Loader2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -13,6 +13,7 @@ const VerifyEmail = () => {
   const navigate = useNavigate();
   const [email, setEmail] = useState<string | null>(null);
   const [isResending, setIsResending] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   useEffect(() => {
     // Get email from location state (passed from signup)
@@ -57,6 +58,7 @@ const VerifyEmail = () => {
 
   const handleBackToLogin = async () => {
     try {
+      setIsLoggingOut(true);
       console.log("Navigating back to login from verify email page");
       
       // Clean up auth state first
@@ -65,12 +67,14 @@ const VerifyEmail = () => {
       // Sign out from Supabase to ensure clean state
       await supabase.auth.signOut({ scope: 'global' });
       
-      // Navigate to login
+      // Navigate to login directly to prevent flashing
       navigate('/login', { replace: true });
     } catch (error) {
       console.error("Error during navigation:", error);
       // Force navigation even if cleanup fails
-      window.location.href = '/login';
+      navigate('/login', { replace: true });
+    } finally {
+      setIsLoggingOut(false);
     }
   };
 
@@ -158,9 +162,19 @@ const VerifyEmail = () => {
                 variant="outline"
                 className={`${email ? 'flex-1' : 'w-full'} flex items-center gap-2`}
                 onClick={handleBackToLogin}
+                disabled={isLoggingOut}
               >
-                <LogOut className="h-4 w-4" />
-                Back to Login
+                {isLoggingOut ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Signing out...
+                  </>
+                ) : (
+                  <>
+                    <LogOut className="h-4 w-4" />
+                    Back to Login
+                  </>
+                )}
               </Button>
             </div>
             <div className="text-sm text-center text-muted-foreground">

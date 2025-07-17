@@ -17,6 +17,7 @@ export default function VerifyEmailHandler() {
   const [email, setEmail] = useState<string | null>(null);
   const [tokenInvalidOrExpired, setTokenInvalidOrExpired] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [shouldRedirect, setShouldRedirect] = useState(false);
   
   const location = useLocation();
   const navigate = useNavigate();
@@ -94,14 +95,15 @@ export default function VerifyEmailHandler() {
                   // Continue even if email fails
                 }
                 
-                // Show success message for 2 seconds then redirect
+                // Set redirect flag and delay redirect
+                setShouldRedirect(true);
                 setTimeout(() => {
                   if (profileData.is_admin === true) {
-                    navigate('/admin');
+                    navigate('/admin', { replace: true });
                   } else if (profileData.approval_status === 'approved') {
-                    navigate('/marketplace');
+                    navigate('/marketplace', { replace: true });
                   } else {
-                    navigate('/pending-approval');
+                    navigate('/verification-success', { replace: true });
                   }
                 }, 2000);
                 
@@ -176,14 +178,15 @@ export default function VerifyEmailHandler() {
               // Continue even if email fails
             }
             
-            // Show success message for 2 seconds then redirect
+            // Set redirect flag and delay redirect
+            setShouldRedirect(true);
             setTimeout(() => {
               if (profileData.is_admin === true) {
-                navigate('/admin');
+                navigate('/admin', { replace: true });
               } else if (profileData.approval_status === 'approved') {
-                navigate('/marketplace');
+                navigate('/marketplace', { replace: true });
               } else {
-                navigate('/pending-approval');
+                navigate('/verification-success', { replace: true });
               }
             }, 2000);
           }
@@ -205,15 +208,15 @@ export default function VerifyEmailHandler() {
   const handleContinue = () => {
     if (verificationSuccess) {
       if (isAdmin) {
-        navigate('/admin');
+        navigate('/admin', { replace: true });
       } else if (approvalStatus === 'approved') {
-        navigate('/marketplace');
+        navigate('/marketplace', { replace: true });
       } else {
-        navigate('/pending-approval');
+        navigate('/verification-success', { replace: true });
       }
     } else {
       // If verification failed, go back to login
-      navigate('/login');
+      navigate('/login', { replace: true });
     }
   };
 
@@ -224,7 +227,7 @@ export default function VerifyEmailHandler() {
         title: "Error",
         description: "Email address is unknown. Please try signing up again.",
       });
-      navigate('/signup');
+      navigate('/signup', { replace: true });
       return;
     }
 
@@ -243,7 +246,7 @@ export default function VerifyEmailHandler() {
       });
       
       // Navigate to verify email page to wait for verification
-      navigate('/verify-email', { state: { email } });
+      navigate('/verify-email', { state: { email }, replace: true });
     } catch (err: any) {
       console.error('Error resending verification email:', err);
       toast({
@@ -276,9 +279,11 @@ export default function VerifyEmailHandler() {
             ? "Welcome admin! You will be redirected to the admin dashboard."
             : approvalStatus === 'approved' 
               ? "Your account has been approved. You will be redirected to the marketplace."
-              : "Your email has been verified. Your account is now pending admin approval. You will be redirected shortly."}
+              : "Your email has been verified. You will be redirected to the next step."}
         </p>
-        <Button onClick={handleContinue}>Continue</Button>
+        {!shouldRedirect && (
+          <Button onClick={handleContinue}>Continue</Button>
+        )}
       </div>
     );
   }
@@ -302,7 +307,7 @@ export default function VerifyEmailHandler() {
             <RefreshCw className="h-4 w-4 mr-1" /> 
             Resend verification email
           </Button>
-          <Button variant="outline" onClick={() => navigate('/login')}>
+          <Button variant="outline" onClick={() => navigate('/login', { replace: true })}>
             Back to login
           </Button>
         </div>
@@ -318,7 +323,7 @@ export default function VerifyEmailHandler() {
         {error || 'We could not verify your email. The link may have expired or is invalid.'}
       </p>
       <div className="flex flex-col sm:flex-row gap-4">
-        <Button variant="outline" onClick={() => navigate('/login')}>
+        <Button variant="outline" onClick={() => navigate('/login', { replace: true })}>
           Back to login
         </Button>
       </div>

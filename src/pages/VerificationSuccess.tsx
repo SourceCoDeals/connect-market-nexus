@@ -3,14 +3,16 @@ import { useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CheckCircle, Clock, LogOut } from "lucide-react";
+import { CheckCircle, Clock, LogOut, Loader2 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { cleanupAuthState } from "@/lib/auth-helpers";
+import { useState } from "react";
 
 const VerificationSuccess = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   // If the user is already approved, redirect to marketplace
   useEffect(() => {
@@ -21,6 +23,7 @@ const VerificationSuccess = () => {
 
   const handleLogout = async () => {
     try {
+      setIsLoggingOut(true);
       console.log("Logging out from verification success page");
       
       // Clean up auth state first
@@ -29,12 +32,14 @@ const VerificationSuccess = () => {
       // Sign out from Supabase
       await supabase.auth.signOut({ scope: 'global' });
       
-      // Force a complete page reload to ensure clean state
-      window.location.href = '/login';
+      // Navigate directly to login to prevent flashing
+      navigate('/login', { replace: true });
     } catch (error) {
       console.error("Error during logout:", error);
       // Force navigation even if logout fails
-      window.location.href = '/login';
+      navigate('/login', { replace: true });
+    } finally {
+      setIsLoggingOut(false);
     }
   };
 
@@ -88,9 +93,19 @@ const VerificationSuccess = () => {
               variant="outline"
               className="w-full flex items-center gap-2"
               onClick={handleLogout}
+              disabled={isLoggingOut}
             >
-              <LogOut className="h-4 w-4" />
-              Log out
+              {isLoggingOut ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Signing out...
+                </>
+              ) : (
+                <>
+                  <LogOut className="h-4 w-4" />
+                  Log out
+                </>
+              )}
             </Button>
             <div className="text-xs text-center text-muted-foreground">
               Need help? Contact{" "}

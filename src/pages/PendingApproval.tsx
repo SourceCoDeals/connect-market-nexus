@@ -14,6 +14,7 @@ const PendingApproval = () => {
   const navigate = useNavigate();
   const [canResendEmail, setCanResendEmail] = useState(false);
   const [isResending, setIsResending] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   useEffect(() => {
     // Allow resending email if user email is not verified
@@ -63,6 +64,7 @@ const PendingApproval = () => {
 
   const handleLogout = async () => {
     try {
+      setIsLoggingOut(true);
       console.log("Logging out from pending approval page");
       
       // Clean up auth state first
@@ -71,12 +73,14 @@ const PendingApproval = () => {
       // Sign out from Supabase
       await supabase.auth.signOut({ scope: 'global' });
       
-      // Force a complete page reload to ensure clean state
-      window.location.href = '/login';
+      // Navigate directly to login without page reload to prevent flashing
+      navigate('/login', { replace: true });
     } catch (error) {
       console.error("Error during logout:", error);
       // Force navigation even if logout fails
-      window.location.href = '/login';
+      navigate('/login', { replace: true });
+    } finally {
+      setIsLoggingOut(false);
     }
   };
 
@@ -211,9 +215,19 @@ const PendingApproval = () => {
                 variant="outline"
                 className={`${canResendEmail ? 'flex-1' : 'w-full'} flex items-center gap-2`}
                 onClick={handleLogout}
+                disabled={isLoggingOut}
               >
-                <LogOut className="h-4 w-4" />
-                Sign out
+                {isLoggingOut ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Signing out...
+                  </>
+                ) : (
+                  <>
+                    <LogOut className="h-4 w-4" />
+                    Sign out
+                  </>
+                )}
               </Button>
             </div>
             <div className="text-sm text-center text-muted-foreground">
