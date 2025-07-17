@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 
 const corsHeaders = {
@@ -17,7 +18,6 @@ interface UserNotificationRequest {
 const handler = async (req: Request): Promise<Response> => {
   console.log('🔔 User notification function called');
   
-  // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -35,38 +35,44 @@ const handler = async (req: Request): Promise<Response> => {
     let htmlContent: string;
 
     if (type === 'approved') {
-      subject = "Welcome! Your account has been approved";
+      subject = "🎉 Welcome! Your account has been approved";
       htmlContent = `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h1 style="color: #059669;">Account Approved! 🎉</h1>
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <h1 style="color: #059669; text-align: center;">Account Approved! 🎉</h1>
           
-          <p>Hello ${firstName},</p>
+          <p style="font-size: 16px;">Hello ${firstName},</p>
           
-          <p>Great news! Your account has been approved and you now have full access to our marketplace.</p>
+          <p style="font-size: 16px;">Great news! Your account has been approved and you now have full access to our marketplace.</p>
           
-          <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 16px; margin: 20px 0;">
-            <h3 style="color: #059669; margin-top: 0;">What's next?</h3>
-            <ul style="margin: 0;">
-              <li>Browse available business listings</li>
-              <li>Save interesting opportunities</li>
-              <li>Request connections with sellers</li>
-              <li>Complete your profile for better matches</li>
+          <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 20px; margin: 20px 0;">
+            <h3 style="color: #059669; margin-top: 0;">🚀 You can now:</h3>
+            <ul style="margin: 10px 0; padding-left: 20px;">
+              <li style="margin: 8px 0;">Browse hundreds of business listings</li>
+              <li style="margin: 8px 0;">Save opportunities for later review</li>
+              <li style="margin: 8px 0;">Request connections with sellers</li>
+              <li style="margin: 8px 0;">Access detailed business information</li>
             </ul>
           </div>
           
-          <p style="margin-top: 30px;">
-            <a href="${Deno.env.get('SUPABASE_URL')?.replace('//', '//').replace('supabase.co', 'supabase.co')}" 
-               style="background-color: #059669; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
-              Access Marketplace
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="https://marketplace.sourcecodeals.com/login" 
+               style="background-color: #059669; color: white; padding: 15px 30px; text-decoration: none; border-radius: 6px; display: inline-block; font-size: 16px; font-weight: bold;">
+              Log In to Marketplace
             </a>
-          </p>
+          </div>
+          
+          <div style="background-color: #f9fafb; border-radius: 8px; padding: 15px; margin: 20px 0;">
+            <p style="margin: 0; font-size: 14px; color: #6b7280;">
+              <strong>Next Steps:</strong> Log in with your email and password to start exploring business opportunities that match your investment criteria.
+            </p>
+          </div>
           
           <p style="color: #6b7280; font-size: 14px; margin-top: 30px;">
-            If you have any questions, please don't hesitate to contact our support team.
+            If you have any questions or need assistance, please don't hesitate to contact our support team at support@sourcecodeals.com.
           </p>
           
           <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;">
-          <p style="color: #9ca3af; font-size: 12px;">
+          <p style="color: #9ca3af; font-size: 12px; text-align: center;">
             This email was sent to ${userEmail}. If you didn't expect this email, please contact support.
           </p>
         </div>
@@ -74,12 +80,12 @@ const handler = async (req: Request): Promise<Response> => {
     } else if (type === 'rejected') {
       subject = "Update on your account application";
       htmlContent = `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
           <h1 style="color: #dc2626;">Account Application Update</h1>
           
-          <p>Hello ${firstName},</p>
+          <p style="font-size: 16px;">Hello ${firstName},</p>
           
-          <p>Thank you for your interest in our marketplace. After careful review, we're unable to approve your account at this time.</p>
+          <p style="font-size: 16px;">Thank you for your interest in our marketplace. After careful review, we're unable to approve your account at this time.</p>
           
           ${reason ? `
             <div style="background-color: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 16px; margin: 20px 0;">
@@ -122,8 +128,8 @@ const handler = async (req: Request): Promise<Response> => {
       },
       body: JSON.stringify({
         sender: {
-          name: "Connect Market Nexus",
-          email: "noreply@connect-market-nexus.com"
+          name: "SourceCo Marketplace",
+          email: "noreply@sourcecodeals.com"
         },
         to: [{
           email: userEmail,

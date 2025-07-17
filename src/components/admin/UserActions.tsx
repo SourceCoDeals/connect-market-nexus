@@ -92,7 +92,7 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
                   await sendUserApprovalEmail(selectedUser);
                   toast({
                     title: "User approved",
-                    description: `${selectedUser.first_name} ${selectedUser.last_name} has been approved and will receive an email confirmation.`,
+                    description: `${selectedUser.first_name} ${selectedUser.last_name} has been approved and will receive an email notification.`,
                   });
                 } catch (error) {
                   console.error("❌ Error sending approval email:", error);
@@ -204,7 +204,7 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
               console.log('✅ Successfully deleted user');
               toast({
                 title: "User deleted",
-                description: `${selectedUser.first_name} ${selectedUser.last_name} has been deleted.`,
+                description: `${selectedUser.first_name} ${selectedUser.last_name} has been completely removed from the system.`,
               });
               setIsDialogOpen(false);
               if (onUserStatusUpdated) onUserStatusUpdated();

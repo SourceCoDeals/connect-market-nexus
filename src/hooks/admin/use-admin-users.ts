@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -43,10 +42,10 @@ export function useAdminUsers() {
       },
       retry: 3,
       retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
-      staleTime: 30 * 1000, // Reduced from 5 minutes to 30 seconds for faster updates
-      gcTime: 2 * 60 * 1000, // Reduced from 10 minutes to 2 minutes
-      refetchOnWindowFocus: true, // Refetch when window gains focus
-      refetchOnMount: true, // Always refetch on mount
+      staleTime: 30 * 1000,
+      gcTime: 2 * 60 * 1000,
+      refetchOnWindowFocus: true,
+      refetchOnMount: true,
     });
   };
 
@@ -73,7 +72,6 @@ export function useAdminUsers() {
       },
       onSuccess: ({ status }) => {
         console.log('🎉 User status update successful:', status);
-        // Invalidate and refetch immediately
         queryClient.invalidateQueries({ queryKey: ['admin-users'] });
         queryClient.refetchQueries({ queryKey: ['admin-users'] });
       },
@@ -120,7 +118,6 @@ export function useAdminUsers() {
           title: isAdmin ? 'User promoted to admin' : 'Admin privileges revoked',
           description: message,
         });
-        // Invalidate and refetch immediately
         queryClient.invalidateQueries({ queryKey: ['admin-users'] });
         queryClient.refetchQueries({ queryKey: ['admin-users'] });
       },
@@ -139,26 +136,26 @@ export function useAdminUsers() {
   const useDeleteUser = () => {
     return useMutation({
       mutationFn: async (userId: string) => {
-        console.log('🔄 Soft deleting user:', userId);
+        console.log('🔄 Permanently deleting user:', userId);
         
-        const { data, error } = await supabase.rpc('soft_delete_profile', {
-          profile_id: userId
+        // Use the new RPC function for complete user deletion
+        const { data, error } = await supabase.rpc('delete_user_completely', {
+          user_id: userId
         });
 
         if (error) {
-          console.error('❌ Error soft deleting user:', error);
+          console.error('❌ Error deleting user completely:', error);
           throw error;
         }
 
-        console.log('✅ User soft deleted successfully');
+        console.log('✅ User deleted completely');
         return data;
       },
       onSuccess: () => {
         toast({
           title: 'User deleted',
-          description: 'User has been successfully deleted.',
+          description: 'User has been completely removed from the system.',
         });
-        // Invalidate and refetch immediately
         queryClient.invalidateQueries({ queryKey: ['admin-users'] });
         queryClient.refetchQueries({ queryKey: ['admin-users'] });
       },
