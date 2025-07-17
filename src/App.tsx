@@ -1,6 +1,6 @@
 
+
 import {
-  BrowserRouter,
   Routes,
   Route,
   Navigate,
@@ -27,31 +27,29 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <Toaster />
-      <BrowserRouter>
-        <SessionMonitoringProvider>
-          <AuthProvider>
-            <RealtimeProvider>
-              <Routes>
-                <Route path="/login" element={<Login />} />
-                
-                <Route path="/" element={<ProtectedRoute><Marketplace /></ProtectedRoute>} />
-                <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-                <Route path="/listing/:id" element={<ProtectedRoute><ListingDetail /></ProtectedRoute>} />
-                <Route path="/my-requests" element={<ProtectedRoute><MyRequests /></ProtectedRoute>} />
-                <Route path="/marketplace" element={<Navigate to="/" replace />} />
-                
-                <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
-                <Route path="/admin/listings" element={<AdminRoute><AdminListings /></AdminRoute>} />
-                <Route path="/admin/users" element={<AdminRoute><AdminUsers /></AdminRoute>} />
-                
-                {/* Catch-all route for 404 Not Found */}
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-              <RealtimeIndicator />
-            </RealtimeProvider>
-          </AuthProvider>
-        </SessionMonitoringProvider>
-      </BrowserRouter>
+      <SessionMonitoringProvider>
+        <AuthProvider>
+          <RealtimeProvider>
+            <Routes>
+              <Route path="/login" element={<Login />} />
+              
+              <Route path="/" element={<ProtectedRoute><Marketplace /></ProtectedRoute>} />
+              <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+              <Route path="/listing/:id" element={<ProtectedRoute><ListingDetail /></ProtectedRoute>} />
+              <Route path="/my-requests" element={<ProtectedRoute><MyRequests /></ProtectedRoute>} />
+              <Route path="/marketplace" element={<Navigate to="/" replace />} />
+              
+              <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
+              <Route path="/admin/listings" element={<AdminRoute><AdminListings /></AdminRoute>} />
+              <Route path="/admin/users" element={<AdminRoute><AdminUsers /></AdminRoute>} />
+              
+              {/* Catch-all route for 404 Not Found */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+            <RealtimeIndicator />
+          </RealtimeProvider>
+        </AuthProvider>
+      </SessionMonitoringProvider>
     </QueryClientProvider>
   );
 }
@@ -97,3 +95,4 @@ function NotFound() {
 }
 
 export default App;
+
