@@ -12,7 +12,7 @@ import { useAdminCategories } from './admin/use-admin-categories';
  * Returns actual mutation objects and query hooks for direct use
  */
 export function useAdmin() {
-  // Users management - get the actual hooks
+  // Users management - get the actual hooks and call them to get mutation objects
   const adminUsers = useAdminUsers();
   const users = adminUsers.useUsers();
   const updateUserStatus = adminUsers.useUpdateUserStatus();
@@ -21,32 +21,11 @@ export function useAdmin() {
   const demoteAdmin = adminUsers.useDemoteAdmin();
   const deleteUser = adminUsers.useDeleteUser();
   
-  // Listings management
+  // Get hook functions for other modules (not called)
   const adminListings = useAdminListings();
-  const listings = adminListings.useListings();
-  const createListing = adminListings.useCreateListing();
-  const updateListing = adminListings.useUpdateListing();
-  const deleteListing = adminListings.useDeleteListing();
-  const toggleListingStatus = adminListings.useToggleListingStatus();
-  
-  // Categories management
   const adminCategories = useAdminCategories();
-  const categories = adminCategories.useCategories();
-  const createCategory = adminCategories.useCreateCategory();
-  const updateCategory = adminCategories.useUpdateCategory();
-  const deleteCategory = adminCategories.useDeleteCategory();
-  
-  // Connection requests management
   const adminRequests = useAdminRequests();
-  const connectionRequests = adminRequests.useConnectionRequests();
-  const connectionRequestsMutation = adminRequests.useConnectionRequestsMutation();
-  
-  // Admin dashboard stats and activities
   const adminStats = useAdminStats();
-  const stats = adminStats.useStats();
-  const recentActivities = adminStats.useRecentActivities();
-  
-  // Email notifications
   const adminEmail = useAdminEmail();
   
   return {
@@ -58,26 +37,26 @@ export function useAdmin() {
     demoteAdmin,
     deleteUser,
     
-    // Listings management
-    listings,
-    createListing,
-    updateListing,
-    deleteListing,
-    toggleListingStatus,
+    // Listings management - return hook functions
+    useListings: adminListings.useListings,
+    useCreateListing: adminListings.useCreateListing,
+    useUpdateListing: adminListings.useUpdateListing,
+    useDeleteListing: adminListings.useDeleteListing,
+    useToggleListingStatus: adminListings.useToggleListingStatus,
     
-    // Categories management
-    categories,
-    createCategory,
-    updateCategory,
-    deleteCategory,
+    // Categories management - return hook functions
+    useCategories: adminCategories.useCategories,
+    useCreateCategory: adminCategories.useCreateCategory,
+    useUpdateCategory: adminCategories.useUpdateCategory,
+    useDeleteCategory: adminCategories.useDeleteCategory,
     
-    // Connection requests management
-    connectionRequests,
-    connectionRequestsMutation,
+    // Connection requests management - return hook functions
+    useConnectionRequests: adminRequests.useConnectionRequests,
+    useConnectionRequestsMutation: adminRequests.useConnectionRequestsMutation,
     
-    // Admin dashboard stats
-    stats,
-    recentActivities,
+    // Admin dashboard stats - return hook functions
+    useStats: adminStats.useStats,
+    useRecentActivities: adminStats.useRecentActivities,
     
     // Email notifications
     sendUserApprovalEmail: adminEmail.sendUserApprovalEmail,
