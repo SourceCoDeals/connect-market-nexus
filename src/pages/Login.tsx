@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
@@ -14,7 +15,7 @@ const Login = () => {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { user, login, isLoading, authChecked } = useAuth();
+  const { user, isLoading, authChecked } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -88,7 +89,7 @@ const Login = () => {
       
       console.log("Login successful, user ID:", data.user.id);
       
-      // Fetch user profile
+      // Fetch user profile to determine next steps
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('*')
@@ -99,30 +100,40 @@ const Login = () => {
         throw profileError || new Error("Profile not found");
       }
       
-      // Handle approval status
+      console.log("Profile data:", {
+        email: profile.email,
+        email_verified: profile.email_verified,
+        approval_status: profile.approval_status,
+        is_admin: profile.is_admin
+      });
+      
+      // Handle different states based on profile data
       if (!profile.email_verified) {
+        console.log("Email not verified, redirecting to pending approval");
         toast({
           variant: "destructive",
           title: "Email not verified",
           description: "Please verify your email address before logging in.",
         });
         await supabase.auth.signOut();
-        navigate("/verify-email", { state: { email } });
+        navigate("/pending-approval", { replace: true });
         return;
       }
       
       if (profile.approval_status === 'pending') {
+        console.log("Account pending approval, redirecting to pending approval");
         toast({
           variant: "destructive",
           title: "Account pending approval",
           description: "Your account is awaiting admin approval.",
         });
         await supabase.auth.signOut();
-        navigate("/pending-approval");
+        navigate("/pending-approval", { replace: true });
         return;
       }
       
       if (profile.approval_status === 'rejected') {
+        console.log("Account rejected");
         toast({
           variant: "destructive",
           title: "Account rejected",
@@ -132,7 +143,8 @@ const Login = () => {
         return;
       }
       
-      // Success message
+      // Success - user is verified and approved
+      console.log("Login successful, user is verified and approved");
       toast({
         title: "Welcome back",
         description: "You have successfully logged in.",

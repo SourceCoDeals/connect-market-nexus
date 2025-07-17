@@ -1,22 +1,41 @@
+
 import { useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CheckCircle, Clock, LogOut } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { cleanupAuthState } from "@/lib/auth-helpers";
 
 const VerificationSuccess = () => {
   const { user, logout } = useAuth();
+  const navigate = useNavigate();
 
   // If the user is already approved, redirect to marketplace
   useEffect(() => {
     if (user?.approval_status === 'approved') {
-      window.location.href = '/marketplace';
+      navigate('/marketplace', { replace: true });
     }
-  }, [user]);
+  }, [user, navigate]);
 
   const handleLogout = async () => {
-    await logout();
+    try {
+      console.log("Logging out from verification success page");
+      
+      // Clean up auth state first
+      await cleanupAuthState();
+      
+      // Sign out from Supabase
+      await supabase.auth.signOut({ scope: 'global' });
+      
+      // Force a complete page reload to ensure clean state
+      window.location.href = '/login';
+    } catch (error) {
+      console.error("Error during logout:", error);
+      // Force navigation even if logout fails
+      window.location.href = '/login';
+    }
   };
 
   return (

@@ -65,7 +65,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   }, [user?.id]);
 
   const refreshUserProfile = async () => {
-    if (!user) return;
+    if (!user?.id) return;
 
     try {
       console.log('🔄 Refreshing user profile for:', user.email);
@@ -80,10 +80,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         return;
       }
 
-      console.log('✅ Profile refreshed successfully:', data.email, 'Email verified:', data.email_verified);
+      console.log('✅ Profile refreshed successfully:', data.email, 'Email verified:', data.email_verified, 'Approval status:', data.approval_status);
       
       // Update localStorage with fresh data
-      const userData = {
+      const updatedUser = {
         ...user,
         email_verified: data.email_verified,
         approval_status: data.approval_status,
@@ -96,7 +96,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         updated_at: data.updated_at
       };
       
-      localStorage.setItem("user", JSON.stringify(userData));
+      localStorage.setItem("user", JSON.stringify(updatedUser));
       
       // Force a re-render by triggering auth state change
       // This will cause useAuthState to pick up the new data

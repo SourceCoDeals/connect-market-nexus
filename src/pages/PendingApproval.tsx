@@ -1,14 +1,17 @@
-import { Link } from "react-router-dom";
+
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { ClipboardCheck, AlertCircle, Clock, CheckCircle, Users } from "lucide-react";
+import { ClipboardCheck, AlertCircle, Clock, CheckCircle, Users, LogOut } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { cleanupAuthState } from "@/lib/auth-helpers";
 
 const PendingApproval = () => {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const [canResendEmail, setCanResendEmail] = useState(false);
   const [isResending, setIsResending] = useState(false);
 
@@ -16,6 +19,13 @@ const PendingApproval = () => {
     // Allow resending email if user email is not verified
     setCanResendEmail(user?.email_verified === false);
   }, [user]);
+
+  // If user is approved, redirect to marketplace
+  useEffect(() => {
+    if (user?.approval_status === 'approved') {
+      navigate('/marketplace', { replace: true });
+    }
+  }, [user, navigate]);
 
   const handleResendVerification = async () => {
     if (!user?.email) {
@@ -48,6 +58,25 @@ const PendingApproval = () => {
       });
     } finally {
       setIsResending(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      console.log("Logging out from pending approval page");
+      
+      // Clean up auth state first
+      await cleanupAuthState();
+      
+      // Sign out from Supabase
+      await supabase.auth.signOut({ scope: 'global' });
+      
+      // Force a complete page reload to ensure clean state
+      window.location.href = '/login';
+    } catch (error) {
+      console.error("Error during logout:", error);
+      // Force navigation even if logout fails
+      window.location.href = '/login';
     }
   };
 
@@ -180,9 +209,10 @@ const PendingApproval = () => {
               )}
               <Button
                 variant="outline"
-                className={`${canResendEmail ? 'flex-1' : 'w-full'}`}
-                onClick={() => logout()}
+                className={`${canResendEmail ? 'flex-1' : 'w-full'} flex items-center gap-2`}
+                onClick={handleLogout}
               >
+                <LogOut className="h-4 w-4" />
                 Sign out
               </Button>
             </div>

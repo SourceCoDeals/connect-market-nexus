@@ -14,6 +14,7 @@ export default function VerifyEmailHandler() {
   const [approvalStatus, setApprovalStatus] = useState<ApprovalStatus | null>(null);
   const [email, setEmail] = useState<string | null>(null);
   const [tokenInvalidOrExpired, setTokenInvalidOrExpired] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   
   const location = useLocation();
   const navigate = useNavigate();
@@ -78,8 +79,9 @@ export default function VerifyEmailHandler() {
                 setVerificationSuccess(true);
                 setEmail(profileData.email);
                 setApprovalStatus(profileData.approval_status as ApprovalStatus);
+                setIsAdmin(profileData.is_admin === true);
                 
-                // Redirect based on approval status
+                // Show success message for 2 seconds then redirect
                 setTimeout(() => {
                   if (profileData.is_admin === true) {
                     navigate('/admin');
@@ -88,7 +90,7 @@ export default function VerifyEmailHandler() {
                   } else {
                     navigate('/pending-approval');
                   }
-                }, 1500);
+                }, 2000);
                 
                 return;
               } catch (manualError) {
@@ -129,8 +131,9 @@ export default function VerifyEmailHandler() {
             
             console.log("Profile data after verification:", profileData);
             
-            // Set approval status from profile
+            // Set approval status and admin status from profile
             setApprovalStatus(profileData.approval_status as ApprovalStatus);
+            setIsAdmin(profileData.is_admin === true);
             
             // Explicitly update profile email_verified field if needed
             if (!profileData.email_verified) {
@@ -150,18 +153,16 @@ export default function VerifyEmailHandler() {
               console.log("Email was already marked as verified");
             }
             
-            // Redirect based on approval status and admin status
+            // Show success message for 2 seconds then redirect
             setTimeout(() => {
-              // First check for admin status, then approval status
               if (profileData.is_admin === true) {
                 navigate('/admin');
               } else if (profileData.approval_status === 'approved') {
                 navigate('/marketplace');
               } else {
-                // If not approved (pending or rejected), go to verification success page
                 navigate('/pending-approval');
               }
-            }, 1500);
+            }, 2000);
           }
         } else {
           throw new Error('Unknown verification type');
@@ -180,10 +181,12 @@ export default function VerifyEmailHandler() {
   
   const handleContinue = () => {
     if (verificationSuccess) {
-      if (approvalStatus === 'approved') {
+      if (isAdmin) {
+        navigate('/admin');
+      } else if (approvalStatus === 'approved') {
         navigate('/marketplace');
       } else {
-        navigate('/verification-success');
+        navigate('/pending-approval');
       }
     } else {
       // If verification failed, go back to login
@@ -246,9 +249,11 @@ export default function VerifyEmailHandler() {
         <CheckCircle className="h-12 w-12 text-green-500 mb-4" />
         <h1 className="text-2xl font-bold mb-2">Email verified successfully!</h1>
         <p className="text-center mb-6">
-          {approvalStatus === 'approved' 
-            ? "Your account has been approved. You will be redirected to the marketplace."
-            : "Your email has been verified. Your account is now pending admin approval. You will be redirected shortly."}
+          {isAdmin 
+            ? "Welcome admin! You will be redirected to the admin dashboard."
+            : approvalStatus === 'approved' 
+              ? "Your account has been approved. You will be redirected to the marketplace."
+              : "Your email has been verified. Your account is now pending admin approval. You will be redirected shortly."}
         </p>
         <Button onClick={handleContinue}>Continue</Button>
       </div>

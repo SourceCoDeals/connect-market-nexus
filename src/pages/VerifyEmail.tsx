@@ -1,13 +1,16 @@
-import { Link, useLocation } from "react-router-dom";
+
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Mail, CheckCircle } from "lucide-react";
+import { Mail, CheckCircle, LogOut } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { cleanupAuthState } from "@/lib/auth-helpers";
 
 const VerifyEmail = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const [email, setEmail] = useState<string | null>(null);
   const [isResending, setIsResending] = useState(false);
 
@@ -49,6 +52,25 @@ const VerifyEmail = () => {
       });
     } finally {
       setIsResending(false);
+    }
+  };
+
+  const handleBackToLogin = async () => {
+    try {
+      console.log("Navigating back to login from verify email page");
+      
+      // Clean up auth state first
+      await cleanupAuthState();
+      
+      // Sign out from Supabase to ensure clean state
+      await supabase.auth.signOut({ scope: 'global' });
+      
+      // Navigate to login
+      navigate('/login', { replace: true });
+    } catch (error) {
+      console.error("Error during navigation:", error);
+      // Force navigation even if cleanup fails
+      window.location.href = '/login';
     }
   };
 
@@ -134,12 +156,11 @@ const VerifyEmail = () => {
               )}
               <Button
                 variant="outline"
-                className="flex-1"
-                asChild
+                className={`${email ? 'flex-1' : 'w-full'} flex items-center gap-2`}
+                onClick={handleBackToLogin}
               >
-                <Link to="/login">
-                  Back to Login
-                </Link>
+                <LogOut className="h-4 w-4" />
+                Back to Login
               </Button>
             </div>
             <div className="text-sm text-center text-muted-foreground">
