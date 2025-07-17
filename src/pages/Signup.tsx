@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
+import { toast } from "@/hooks/use-toast";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,8 +26,10 @@ const buyerTypeOptions = [
 
 const Signup = () => {
   const { signup, isLoading } = useAuth();
+  const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(0);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   const [formData, setFormData] = useState<{
     email: string;
@@ -169,20 +172,57 @@ const Signup = () => {
     
     if (!validateStep()) return;
     
-    // Prepare user data for signup
-    const { firstName, lastName, email, company, website, phone, buyerType, additionalInfo } = formData;
-    const signupData: Partial<User> = {
-      first_name: firstName,
-      last_name: lastName,
-      email: email,
-      company: company,
-      website: website,
-      phone_number: phone,
-      buyer_type: buyerType as BuyerType,
-      // Add any other required fields...
-    };
+    setIsSubmitting(true);
     
-    await signup(signupData, formData.password);
+    try {
+      // Prepare user data for signup
+      const { firstName, lastName, email, company, website, phone, buyerType, additionalInfo } = formData;
+      const signupData: Partial<User> = {
+        first_name: firstName,
+        last_name: lastName,
+        email: email,
+        company: company,
+        website: website,
+        phone_number: phone,
+        buyer_type: buyerType as BuyerType,
+        ...additionalInfo, // Include all additional info
+      };
+      
+      await signup(signupData, formData.password);
+      
+      // Show success toast
+      toast({
+        title: "Account created successfully!",
+        description: "Please check your email to verify your account.",
+      });
+      
+      // Navigate to the verify email page after successful signup
+      navigate('/verify-email', { state: { email: formData.email } });
+      
+    } catch (error: any) {
+      console.error('Signup error:', error);
+      
+      // More specific error handling
+      let errorMessage = "An unexpected error occurred. Please try again.";
+      
+      if (error.message?.includes('User already registered')) {
+        errorMessage = "An account with this email already exists. Please sign in instead.";
+      } else if (error.message?.includes('Password')) {
+        errorMessage = "Password requirements not met. Please ensure it's at least 6 characters.";
+      } else if (error.message?.includes('Email')) {
+        errorMessage = "Invalid email address. Please check and try again.";
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      toast({
+        variant: "destructive",
+        title: "Signup failed",
+        description: errorMessage,
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const renderStepContent = () => {
@@ -537,7 +577,7 @@ const Signup = () => {
                 type="button"
                 variant="outline"
                 onClick={handlePrevious}
-                disabled={currentStep === 0 || isLoading}
+                disabled={currentStep === 0 || isLoading || isSubmitting}
               >
                 Back
               </Button>
@@ -546,15 +586,15 @@ const Signup = () => {
                 <Button
                   type="submit"
                   onClick={handleSubmit}
-                  disabled={isLoading}
+                  disabled={isLoading || isSubmitting}
                 >
-                  {isLoading ? "Creating account..." : "Create account"}
+                  {isLoading || isSubmitting ? "Creating account..." : "Create account"}
                 </Button>
               ) : (
                 <Button
                   type="button"
                   onClick={handleNext}
-                  disabled={isLoading}
+                  disabled={isLoading || isSubmitting}
                 >
                   Continue
                 </Button>
