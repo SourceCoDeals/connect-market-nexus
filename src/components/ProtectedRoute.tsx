@@ -24,7 +24,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     if (isLoading && !authChecked) {
       const timer = setInterval(() => {
         setWaitTime(prev => prev + 1);
-      }, 500); // Faster counter for better UX
+      }, 500);
       
       return () => clearInterval(timer);
     }
@@ -45,7 +45,9 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     email_verified: user?.email_verified,
     approval_status: user?.approval_status,
     is_admin: user?.is_admin,
-    path: location.pathname
+    path: location.pathname,
+    requireAdmin,
+    requireApproved
   });
 
   // Force navigation after waiting if auth check is still not complete

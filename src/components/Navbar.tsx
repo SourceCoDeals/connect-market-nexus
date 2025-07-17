@@ -27,7 +27,7 @@ const Navbar = () => {
   const getLogoDestination = () => {
     if (!user) return "/login";
     if (user.approval_status !== 'approved') return "/pending-approval";
-    return "/marketplace";
+    return "/";
   };
 
   const handleNavigateToAdmin = () => navigate("/admin");

@@ -1,7 +1,7 @@
 
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Store, User, MessageSquare, Heart, Shield } from "lucide-react";
+import { Store, MessageSquare, Heart, Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface DesktopNavItemsProps {
@@ -18,14 +18,14 @@ const DesktopNavItems = ({ isAdmin, isApproved, onNavigateToAdmin }: DesktopNavI
   }
 
   return (
-    <div className="flex items-center space-x-4">
+    <div className="flex items-center space-x-6">
       <Link
         to="/"
         className={cn(
-          "flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md transition-colors",
+          "flex items-center gap-2 px-3 py-2 text-sm font-medium transition-colors",
           location.pathname === "/" 
-            ? "bg-primary text-primary-foreground" 
-            : "text-muted-foreground hover:text-foreground hover:bg-muted"
+            ? "text-foreground" 
+            : "text-muted-foreground hover:text-foreground"
         )}
       >
         <Store className="h-4 w-4" />
@@ -33,29 +33,29 @@ const DesktopNavItems = ({ isAdmin, isApproved, onNavigateToAdmin }: DesktopNavI
       </Link>
       
       <Link
+        to="/saved-listings"
+        className={cn(
+          "flex items-center gap-2 px-3 py-2 text-sm font-medium transition-colors",
+          location.pathname === "/saved-listings" 
+            ? "text-foreground" 
+            : "text-muted-foreground hover:text-foreground"
+        )}
+      >
+        <Heart className="h-4 w-4" />
+        Saved Listings
+      </Link>
+
+      <Link
         to="/my-requests"
         className={cn(
-          "flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md transition-colors",
+          "flex items-center gap-2 px-3 py-2 text-sm font-medium transition-colors",
           location.pathname === "/my-requests" 
-            ? "bg-primary text-primary-foreground" 
-            : "text-muted-foreground hover:text-foreground hover:bg-muted"
+            ? "text-foreground" 
+            : "text-muted-foreground hover:text-foreground"
         )}
       >
         <MessageSquare className="h-4 w-4" />
         My Requests
-      </Link>
-
-      <Link
-        to="/saved-listings"
-        className={cn(
-          "flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md transition-colors",
-          location.pathname === "/saved-listings" 
-            ? "bg-primary text-primary-foreground" 
-            : "text-muted-foreground hover:text-foreground hover:bg-muted"
-        )}
-      >
-        <Heart className="h-4 w-4" />
-        Saved
       </Link>
 
       {isAdmin && (
@@ -66,7 +66,7 @@ const DesktopNavItems = ({ isAdmin, isApproved, onNavigateToAdmin }: DesktopNavI
           className="flex items-center gap-2"
         >
           <Shield className="h-4 w-4" />
-          Admin
+          Admin Dashboard
         </Button>
       )}
     </div>

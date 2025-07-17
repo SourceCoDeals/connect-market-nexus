@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { User } from "@/types";
 import { supabase } from "@/integrations/supabase/client";
@@ -19,6 +18,7 @@ export function useAuthState() {
       if (cachedUser) {
         const parsedUser = JSON.parse(cachedUser);
         setUser(parsedUser);
+        console.log("Loaded cached user:", parsedUser.email);
       }
     } catch (err) {
       console.error("Error parsing cached user:", err);
@@ -29,7 +29,7 @@ export function useAuthState() {
     const setupAuthListener = () => {
       const { data: { subscription } } = supabase.auth.onAuthStateChange(
         async (event, session) => {
-          console.log("Auth state change:", event);
+          console.log("Auth state change:", event, session?.user?.email);
           
           if (!isSubscribed) return;
           
@@ -58,8 +58,48 @@ export function useAuthState() {
                 
                 if (error) {
                   console.error(`Error fetching profile after ${event}:`, error);
-                  setUser(null);
-                  localStorage.removeItem("user");
+                  // Create a minimal user object if profile doesn't exist yet
+                  const minimalUser = {
+                    id: session.user.id,
+                    email: session.user.email || '',
+                    first_name: session.user.user_metadata?.first_name || '',
+                    last_name: session.user.user_metadata?.last_name || '',
+                    email_verified: session.user.email_confirmed_at !== null,
+                    approval_status: 'pending',
+                    is_admin: false,
+                    role: 'buyer' as const,
+                    created_at: session.user.created_at,
+                    updated_at: new Date().toISOString(),
+                    // ... other required fields with defaults
+                    company: '',
+                    website: '',
+                    phone_number: '',
+                    buyer_type: 'corporate' as const,
+                    company_name: null,
+                    estimated_revenue: null,
+                    fund_size: null,
+                    investment_size: null,
+                    aum: null,
+                    is_funded: null,
+                    funded_by: null,
+                    target_company_size: null,
+                    funding_source: null,
+                    needs_loan: null,
+                    ideal_target: null,
+                    bio: null,
+                    // Computed properties
+                    firstName: session.user.user_metadata?.first_name || '',
+                    lastName: session.user.user_metadata?.last_name || '',
+                    phoneNumber: '',
+                    isAdmin: false,
+                    buyerType: 'corporate' as const,
+                    emailVerified: session.user.email_confirmed_at !== null,
+                    isApproved: false,
+                    createdAt: session.user.created_at,
+                    updatedAt: new Date().toISOString()
+                  };
+                  setUser(minimalUser);
+                  localStorage.setItem("user", JSON.stringify(minimalUser));
                 } else if (profile && isSubscribed) {
                   const userData = createUserObject(profile);
                   console.log(`Setting user data after ${event}:`, userData.email);
@@ -91,14 +131,14 @@ export function useAuthState() {
       try {
         setIsLoading(true);
         
-        // Timeout to prevent infinite loading - enhanced with proper cleanup
+        // Timeout to prevent infinite loading
         const timeoutId = setTimeout(() => {
           if (isSubscribed) {
             console.warn("Auth check timeout - forcing completion");
             setIsLoading(false);
             setAuthChecked(true);
           }
-        }, 3000); // Slightly longer timeout for better reliability
+        }, 3000);
         
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         
@@ -125,8 +165,48 @@ export function useAuthState() {
           
           if (profileError) {
             console.error("Profile error:", profileError);
-            setUser(null);
-            localStorage.removeItem("user");
+            // Create minimal user object for users without profiles yet
+            const minimalUser = {
+              id: session.user.id,
+              email: session.user.email || '',
+              first_name: session.user.user_metadata?.first_name || '',
+              last_name: session.user.user_metadata?.last_name || '',
+              email_verified: session.user.email_confirmed_at !== null,
+              approval_status: 'pending',
+              is_admin: false,
+              role: 'buyer' as const,
+              created_at: session.user.created_at,
+              updated_at: new Date().toISOString(),
+              // ... other required fields with defaults
+              company: '',
+              website: '',
+              phone_number: '',
+              buyer_type: 'corporate' as const,
+              company_name: null,
+              estimated_revenue: null,
+              fund_size: null,
+              investment_size: null,
+              aum: null,
+              is_funded: null,
+              funded_by: null,
+              target_company_size: null,
+              funding_source: null,
+              needs_loan: null,
+              ideal_target: null,
+              bio: null,
+              // Computed properties
+              firstName: session.user.user_metadata?.first_name || '',
+              lastName: session.user.user_metadata?.last_name || '',
+              phoneNumber: '',
+              isAdmin: false,
+              buyerType: 'corporate' as const,
+              emailVerified: session.user.email_confirmed_at !== null,
+              isApproved: false,
+              createdAt: session.user.created_at,
+              updatedAt: new Date().toISOString()
+            };
+            setUser(minimalUser);
+            localStorage.setItem("user", JSON.stringify(minimalUser));
           } else if (profileData && isSubscribed) {
             console.log("Loaded profile data:", profileData.email);
             const userData = createUserObject(profileData);
@@ -169,7 +249,7 @@ export function useAuthState() {
   return {
     user,
     isLoading,
-    isAdmin: user?.is_admin === true, // Explicitly check for true
+    isAdmin: user?.is_admin === true,
     isBuyer: user?.role === "buyer",
     authChecked,
   };

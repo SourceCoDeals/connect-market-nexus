@@ -14,7 +14,7 @@ export function useEnhancedAuthActions() {
       try {
         console.log('🔐 Starting enhanced signup process for:', email);
         
-        const redirectUrl = `${window.location.origin}/`;
+        const redirectUrl = `${window.location.origin}/verify-email-handler`;
         
         const { data, error } = await supabase.auth.signUp({
           email,
