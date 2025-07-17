@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 
 interface QueryPerformanceMetrics {
@@ -76,7 +77,8 @@ class PerformanceMonitor {
     try {
       console.log('🔄 Refreshing materialized views...');
       
-      const { error } = await supabase.rpc('refresh_analytics_views');
+      // Cast to any to handle type issue until Supabase types are updated
+      const { error } = await supabase.rpc('refresh_analytics_views' as any);
       
       if (error) {
         console.error('❌ Failed to refresh analytics views:', error);

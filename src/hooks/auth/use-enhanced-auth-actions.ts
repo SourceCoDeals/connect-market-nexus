@@ -4,7 +4,7 @@ import { User } from "@/types";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { cleanupAuthState, createUserObject } from "@/lib/auth-helpers";
-import { ErrorLogger } from "@/lib/error-logger";
+import { errorLogger } from "@/lib/error-logger";
 
 export function useEnhancedAuthActions(setUser: (user: User | null) => void, setIsLoading: (loading: boolean) => void) {
   const navigate = useNavigate();
@@ -28,7 +28,7 @@ export function useEnhancedAuthActions(setUser: (user: User | null) => void, set
       });
       
       if (error) {
-        await ErrorLogger.logAuthError(error, {
+        await errorLogger.error(error, {
           email,
           correlation_id: correlationId,
           action: 'login_attempt'
@@ -47,7 +47,7 @@ export function useEnhancedAuthActions(setUser: (user: User | null) => void, set
       
       if (!data?.user) {
         const errorMsg = "Failed to login. No user data returned.";
-        await ErrorLogger.logAuthError(new Error(errorMsg), {
+        await errorLogger.error(new Error(errorMsg), {
           email,
           correlation_id: correlationId,
           action: 'login_no_user_data'
@@ -77,7 +77,7 @@ export function useEnhancedAuthActions(setUser: (user: User | null) => void, set
             if (retryCount < maxRetries) {
               await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
             } else {
-              await ErrorLogger.logDatabaseError(profileError, 'profile_fetch', {
+              await errorLogger.error(profileError, {
                 user_id: data.user.id,
                 correlation_id: correlationId,
                 retry_count: retryCount
@@ -92,7 +92,7 @@ export function useEnhancedAuthActions(setUser: (user: User | null) => void, set
           console.error(`[${correlationId}] Profile fetch attempt ${retryCount} failed:`, err);
           
           if (retryCount >= maxRetries) {
-            await ErrorLogger.logDatabaseError(err as Error, 'profile_fetch_retry_exhausted', {
+            await errorLogger.error(err as Error, {
               user_id: data.user.id,
               correlation_id: correlationId,
               retry_count: retryCount
@@ -105,7 +105,7 @@ export function useEnhancedAuthActions(setUser: (user: User | null) => void, set
       
       if (!profile) {
         const errorMsg = "User profile not found";
-        await ErrorLogger.logAuthError(new Error(errorMsg), {
+        await errorLogger.error(new Error(errorMsg), {
           user_id: data.user.id,
           correlation_id: correlationId,
           action: 'profile_not_found'
@@ -157,9 +157,10 @@ export function useEnhancedAuthActions(setUser: (user: User | null) => void, set
       
       // Log performance if slow
       if (loginDuration > 3000) {
-        await ErrorLogger.logPerformanceIssue('login_duration', loginDuration, 3000, {
+        await errorLogger.info(`Slow login performance: ${loginDuration}ms`, {
           user_id: data.user.id,
-          correlation_id: correlationId
+          correlation_id: correlationId,
+          duration: loginDuration
         });
       }
       
@@ -180,7 +181,7 @@ export function useEnhancedAuthActions(setUser: (user: User | null) => void, set
     } catch (error: any) {
       console.error(`[${correlationId}] Login process error:`, error);
       
-      await ErrorLogger.logAuthError(error, {
+      await errorLogger.error(error, {
         email,
         correlation_id: correlationId,
         action: 'login_failure'
@@ -230,7 +231,7 @@ export function useEnhancedAuthActions(setUser: (user: User | null) => void, set
     } catch (error: any) {
       console.error(`[${correlationId}] Logout error:`, error);
       
-      await ErrorLogger.logAuthError(error, {
+      await errorLogger.error(error, {
         correlation_id: correlationId,
         action: 'logout_failure'
       });
@@ -271,7 +272,7 @@ export function useEnhancedAuthActions(setUser: (user: User | null) => void, set
       // Enhanced validation
       if (!userData.email || !password) {
         const errorMsg = "Email and password are required";
-        await ErrorLogger.logFormError(new Error(errorMsg), 'signup', {
+        await errorLogger.error(new Error(errorMsg), {
           correlation_id: correlationId,
           provided_email: !!userData.email,
           provided_password: !!password
@@ -281,7 +282,7 @@ export function useEnhancedAuthActions(setUser: (user: User | null) => void, set
       
       if (password.length < 8) {
         const errorMsg = "Password must be at least 8 characters long";
-        await ErrorLogger.logFormError(new Error(errorMsg), 'signup', {
+        await errorLogger.error(new Error(errorMsg), {
           correlation_id: correlationId,
           password_length: password.length
         });
@@ -306,7 +307,7 @@ export function useEnhancedAuthActions(setUser: (user: User | null) => void, set
       });
       
       if (error) {
-        await ErrorLogger.logAuthError(error, {
+        await errorLogger.error(error, {
           email: userData.email,
           correlation_id: correlationId,
           action: 'signup_attempt'
@@ -319,9 +320,10 @@ export function useEnhancedAuthActions(setUser: (user: User | null) => void, set
       
       // Log performance if slow
       if (signupDuration > 5000) {
-        await ErrorLogger.logPerformanceIssue('signup_duration', signupDuration, 5000, {
+        await errorLogger.info(`Slow signup performance: ${signupDuration}ms`, {
           user_id: data?.user?.id,
-          correlation_id: correlationId
+          correlation_id: correlationId,
+          duration: signupDuration
         });
       }
       
@@ -337,7 +339,7 @@ export function useEnhancedAuthActions(setUser: (user: User | null) => void, set
     } catch (error: any) {
       console.error(`[${correlationId}] Signup error:`, error);
       
-      await ErrorLogger.logAuthError(error, {
+      await errorLogger.error(error, {
         email: userData.email,
         correlation_id: correlationId,
         action: 'signup_failure'
@@ -364,7 +366,7 @@ export function useEnhancedAuthActions(setUser: (user: User | null) => void, set
       const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
       if (!currentUser || !currentUser.id) {
         const errorMsg = "Not authenticated";
-        await ErrorLogger.logAuthError(new Error(errorMsg), {
+        await errorLogger.error(new Error(errorMsg), {
           correlation_id: correlationId,
           action: 'profile_update_unauthenticated'
         });
@@ -392,7 +394,7 @@ export function useEnhancedAuthActions(setUser: (user: User | null) => void, set
         .eq('id', currentUser.id);
       
       if (error) {
-        await ErrorLogger.logDatabaseError(error, 'profile_update', {
+        await errorLogger.error(error, {
           user_id: currentUser.id,
           correlation_id: correlationId
         });
@@ -414,7 +416,7 @@ export function useEnhancedAuthActions(setUser: (user: User | null) => void, set
     } catch (error: any) {
       console.error(`[${correlationId}] Profile update error:`, error);
       
-      await ErrorLogger.logAuthError(error, {
+      await errorLogger.error(error, {
         correlation_id: correlationId,
         action: 'profile_update_failure'
       });

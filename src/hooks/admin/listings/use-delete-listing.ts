@@ -1,3 +1,4 @@
+
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
@@ -14,8 +15,8 @@ export function useDeleteListing() {
       try {
         console.log(`Soft deleting listing with ID: ${id}`);
         
-        // Use the new soft delete function instead of hard delete
-        const { data, error } = await supabase.rpc('soft_delete_listing', {
+        // Use the new soft delete function (cast to any to handle type issue until Supabase types are updated)
+        const { data, error } = await supabase.rpc('soft_delete_listing' as any, {
           listing_id: id
         });
         
