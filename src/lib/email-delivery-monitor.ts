@@ -1,5 +1,6 @@
 
 import { supabase } from '@/integrations/supabase/client';
+import type { Database } from '@/integrations/supabase/types';
 
 export interface EmailDeliveryStats {
   totalSent: number;
@@ -10,19 +11,7 @@ export interface EmailDeliveryStats {
   recentFailures: any[];
 }
 
-interface EmailDeliveryLogRow {
-  id: string;
-  email: string;
-  email_type: string;
-  status: 'pending' | 'sent' | 'failed' | 'retry';
-  retry_count: number;
-  max_retries: number;
-  correlation_id: string;
-  error_message?: string;
-  sent_at?: string;
-  created_at: string;
-  updated_at: string;
-}
+type EmailDeliveryLogRow = Database['public']['Tables']['email_delivery_logs']['Row'];
 
 export class EmailDeliveryMonitor {
   /**
@@ -32,9 +21,8 @@ export class EmailDeliveryMonitor {
     const cutoffDate = new Date(Date.now() - hoursBack * 60 * 60 * 1000).toISOString();
     
     try {
-      // Use rpc or direct query to avoid TypeScript issues
       const { data: logs, error } = await supabase
-        .from('email_delivery_logs' as any)
+        .from('email_delivery_logs')
         .select('*')
         .gte('created_at', cutoffDate);
       
@@ -43,15 +31,17 @@ export class EmailDeliveryMonitor {
         return this.getEmptyStats();
       }
       
-      const typedLogs = logs as EmailDeliveryLogRow[];
+      if (!logs) {
+        return this.getEmptyStats();
+      }
       
       const stats: EmailDeliveryStats = {
-        totalSent: typedLogs.filter(log => log.status === 'sent').length,
-        totalFailed: typedLogs.filter(log => log.status === 'failed').length,
-        totalPending: typedLogs.filter(log => log.status === 'pending').length,
-        totalRetries: typedLogs.filter(log => log.status === 'retry').length,
+        totalSent: logs.filter(log => log.status === 'sent').length,
+        totalFailed: logs.filter(log => log.status === 'failed').length,
+        totalPending: logs.filter(log => log.status === 'pending').length,
+        totalRetries: logs.filter(log => log.status === 'retry').length,
         deliveryRate: 0,
-        recentFailures: typedLogs.filter(log => log.status === 'failed' && log.error_message).slice(0, 10)
+        recentFailures: logs.filter(log => log.status === 'failed' && log.error_message).slice(0, 10)
       };
       
       const totalAttempts = stats.totalSent + stats.totalFailed;
@@ -82,7 +72,7 @@ export class EmailDeliveryMonitor {
   static async getEmailLogs(email: string): Promise<EmailDeliveryLogRow[]> {
     try {
       const { data: logs, error } = await supabase
-        .from('email_delivery_logs' as any)
+        .from('email_delivery_logs')
         .select('*')
         .eq('email', email)
         .order('created_at', { ascending: false })
@@ -93,7 +83,7 @@ export class EmailDeliveryMonitor {
         return [];
       }
       
-      return (logs as EmailDeliveryLogRow[]) || [];
+      return logs || [];
     } catch (error) {
       console.error('Error getting email logs:', error);
       return [];
@@ -106,7 +96,7 @@ export class EmailDeliveryMonitor {
   static async retryFailedDeliveries(maxRetries: number = 3): Promise<number> {
     try {
       const { data: failedLogs, error } = await supabase
-        .from('email_delivery_logs' as any)
+        .from('email_delivery_logs')
         .select('*')
         .eq('status', 'failed')
         .lt('retry_count', maxRetries)
@@ -118,10 +108,13 @@ export class EmailDeliveryMonitor {
         return 0;
       }
       
-      const typedLogs = failedLogs as EmailDeliveryLogRow[];
+      if (!failedLogs) {
+        return 0;
+      }
+      
       let retriedCount = 0;
       
-      for (const log of typedLogs || []) {
+      for (const log of failedLogs) {
         try {
           // Retry the email delivery
           await supabase.functions.invoke('enhanced-email-delivery', {
