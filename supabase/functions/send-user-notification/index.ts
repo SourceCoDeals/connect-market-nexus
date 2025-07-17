@@ -1,7 +1,4 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { Resend } from "npm:resend@2.0.0";
-
-const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -115,21 +112,36 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error(`Invalid notification type: ${type}`);
     }
 
-    console.log('📤 Sending email via Resend...');
-    const emailResponse = await resend.emails.send({
-      from: "Marketplace <onboarding@resend.dev>",
-      to: [userEmail],
-      subject: subject,
-      html: htmlContent,
+    console.log('📤 Sending email via Brevo...');
+    const emailResponse = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'api-key': Deno.env.get('BREVO_API_KEY') || '',
+      },
+      body: JSON.stringify({
+        sender: {
+          name: "Marketplace",
+          email: "noreply@yourdomain.com" // Update this to your verified domain
+        },
+        to: [{
+          email: userEmail,
+          name: `${firstName} ${lastName}`
+        }],
+        subject: subject,
+        htmlContent: htmlContent
+      })
     });
 
-    console.log("✅ Email sent successfully:", emailResponse);
+    const responseData = await emailResponse.json();
+    console.log("✅ Email sent successfully:", responseData);
 
     return new Response(
       JSON.stringify({
         success: true,
         message: `${type} email sent successfully`,
-        emailId: emailResponse.data?.id
+        messageId: responseData.messageId
       }),
       {
         status: 200,
