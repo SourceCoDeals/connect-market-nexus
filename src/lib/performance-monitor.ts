@@ -1,62 +1,102 @@
+import { supabase } from '@/integrations/supabase/client';
 
-import { ErrorLogger } from './error-logger';
+interface QueryPerformanceMetrics {
+  queryName: string;
+  duration: number;
+  timestamp: string;
+  success: boolean;
+  error?: string;
+}
 
-export class PerformanceMonitor {
-  private static measurements: Map<string, number> = new Map();
-  
-  static startMeasurement(key: string): void {
-    this.measurements.set(key, performance.now());
-  }
-  
-  static endMeasurement(key: string, threshold?: number): number {
-    const startTime = this.measurements.get(key);
-    if (!startTime) {
-      console.warn(`No start time found for measurement: ${key}`);
-      return 0;
-    }
-    
-    const duration = performance.now() - startTime;
-    this.measurements.delete(key);
-    
-    console.log(`Performance: ${key} took ${duration}ms`);
-    
-    // Log performance issues if threshold is exceeded
-    if (threshold && duration > threshold) {
-      ErrorLogger.logPerformanceIssue(key, duration, threshold, {
-        measurement_key: key,
-        actual_duration: duration,
-        threshold_exceeded: true
-      });
-    }
-    
-    return duration;
-  }
-  
-  static async measureAsync<T>(
-    key: string, 
-    fn: () => Promise<T>, 
-    threshold?: number
+class PerformanceMonitor {
+  private metrics: QueryPerformanceMetrics[] = [];
+  private isEnabled = process.env.NODE_ENV === 'development';
+
+  async measureQuery<T>(
+    queryName: string,
+    queryFunction: () => Promise<T>
   ): Promise<T> {
-    this.startMeasurement(key);
+    if (!this.isEnabled) {
+      return queryFunction();
+    }
+
+    const startTime = performance.now();
+    const timestamp = new Date().toISOString();
+    
     try {
-      const result = await fn();
-      this.endMeasurement(key, threshold);
+      const result = await queryFunction();
+      const duration = performance.now() - startTime;
+      
+      this.recordMetric({
+        queryName,
+        duration,
+        timestamp,
+        success: true
+      });
+      
+      console.log(`🔍 Query "${queryName}" completed in ${duration.toFixed(2)}ms`);
+      
       return result;
-    } catch (error) {
-      this.endMeasurement(key);
+    } catch (error: any) {
+      const duration = performance.now() - startTime;
+      
+      this.recordMetric({
+        queryName,
+        duration,
+        timestamp,
+        success: false,
+        error: error.message
+      });
+      
+      console.error(`❌ Query "${queryName}" failed after ${duration.toFixed(2)}ms:`, error);
       throw error;
     }
   }
-  
-  static measure<T>(key: string, fn: () => T, threshold?: number): T {
-    this.startMeasurement(key);
+
+  private recordMetric(metric: QueryPerformanceMetrics) {
+    this.metrics.push(metric);
+    
+    // Keep only last 100 metrics to prevent memory leaks
+    if (this.metrics.length > 100) {
+      this.metrics = this.metrics.slice(-100);
+    }
+  }
+
+  getMetrics(): QueryPerformanceMetrics[] {
+    return [...this.metrics];
+  }
+
+  getSlowQueries(thresholdMs: number = 1000): QueryPerformanceMetrics[] {
+    return this.metrics.filter(m => m.duration > thresholdMs);
+  }
+
+  async refreshAnalyticsViews(): Promise<void> {
+    if (!this.isEnabled) return;
+    
     try {
-      const result = fn();
-      this.endMeasurement(key, threshold);
-      return result;
-    } catch (error) {
-      this.endMeasurement(key);
+      console.log('🔄 Refreshing materialized views...');
+      
+      const { error } = await supabase.rpc('refresh_analytics_views');
+      
+      if (error) {
+        console.error('❌ Failed to refresh analytics views:', error);
+        throw error;
+      }
+      
+      console.log('✅ Analytics views refreshed successfully');
+    } catch (error: any) {
+      console.error('❌ Error refreshing analytics views:', error);
       throw error;
     }
   }
 }
+
+export const performanceMonitor = new PerformanceMonitor();
+
+// Helper function to wrap queries with performance monitoring
+export const withPerformanceMonitoring = async <T>(
+  queryName: string,
+  queryFunction: () => Promise<T>
+): Promise<T> => {
+  return performanceMonitor.measureQuery(queryName, queryFunction);
+};
