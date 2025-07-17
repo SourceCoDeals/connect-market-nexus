@@ -23,6 +23,7 @@ const AdminUsers = () => {
     handleUserRejection,
     handleMakeAdmin,
     handleRevokeAdmin,
+    handleDeleteUser,
     confirmAction,
     isDialogOpen,
     setIsDialogOpen,
@@ -203,6 +204,7 @@ const AdminUsers = () => {
         onReject={handleUserRejection}
         onMakeAdmin={handleMakeAdmin}
         onRevokeAdmin={handleRevokeAdmin}
+        onDelete={handleDeleteUser}
         isLoading={isLoading || isActionLoading}
       />
 

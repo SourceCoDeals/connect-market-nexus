@@ -14,6 +14,7 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
   const {
     useUpdateUserStatus,
     useUpdateAdminStatus,
+    useDeleteUser,
   } = useAdminUsers();
   
   const {
@@ -24,9 +25,10 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
   // Get actual mutation functions
   const updateUserStatusMutation = useUpdateUserStatus();
   const updateAdminStatusMutation = useUpdateAdminStatus();
+  const deleteUserMutation = useDeleteUser();
   
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const [actionType, setActionType] = useState<"approve" | "reject" | "makeAdmin" | "revokeAdmin" | null>(null);
+  const [actionType, setActionType] = useState<"approve" | "reject" | "makeAdmin" | "revokeAdmin" | "delete" | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   
   const handleUserApproval = (user: User) => {
@@ -54,6 +56,13 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
     console.log('🔄 Initiating admin revocation for:', user.email);
     setSelectedUser(user);
     setActionType("revokeAdmin");
+    setIsDialogOpen(true);
+  };
+  
+  const handleDeleteUser = (user: User) => {
+    console.log('🔄 Initiating user deletion for:', user.email);
+    setSelectedUser(user);
+    setActionType("delete");
     setIsDialogOpen(true);
   };
   
@@ -186,6 +195,29 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
           );
           break;
           
+        case "delete":
+          console.log('🔄 Executing user deletion mutation');
+          deleteUserMutation.mutate(selectedUser.id, {
+            onSuccess: () => {
+              console.log('✅ Successfully deleted user');
+              toast({
+                title: "User deleted",
+                description: `${selectedUser.first_name} ${selectedUser.last_name} has been deleted.`,
+              });
+              setIsDialogOpen(false);
+              if (onUserStatusUpdated) onUserStatusUpdated();
+            },
+            onError: (error) => {
+              console.error('❌ Error deleting user:', error);
+              toast({
+                variant: 'destructive',
+                title: 'Deletion failed',
+                description: error.message || 'Failed to delete user. Please try again.',
+              });
+            }
+          });
+          break;
+          
         default:
           console.error('❌ Unknown action type:', actionType);
           toast({
@@ -209,11 +241,12 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
     handleUserRejection,
     handleMakeAdmin,
     handleRevokeAdmin,
+    handleDeleteUser,
     confirmAction,
     isDialogOpen,
     setIsDialogOpen,
     selectedUser,
     actionType,
-    isLoading: updateUserStatusMutation.isPending || updateAdminStatusMutation.isPending
+    isLoading: updateUserStatusMutation.isPending || updateAdminStatusMutation.isPending || deleteUserMutation.isPending
   };
 }

@@ -2,14 +2,9 @@ import React, { useState } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { User } from "@/types";
-import { Check, Shield, ShieldOff, X, ChevronDown, ChevronRight } from "lucide-react";
-import { 
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger
-} from "@/components/ui/tooltip";
+import { CheckCircle, XCircle, MoreHorizontal, UserCheck, UserX, UserPlus, UserMinus, Trash2, ChevronDown, ChevronRight } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
 import { UserSavedListings } from "./UserSavedListings";
@@ -20,6 +15,7 @@ interface UsersTableProps {
   onReject: (user: User) => void;
   onMakeAdmin: (user: User) => void;
   onRevokeAdmin: (user: User) => void;
+  onDelete: (user: User) => void;
   isLoading: boolean;
 }
 
@@ -127,127 +123,107 @@ const UserDetails = ({ user }: { user: User }) => (
 );
 
 // Component for user action buttons
-const UserActionButtons = ({ 
+function UserActionButtons({ 
   user, 
   onApprove, 
-  onReject, 
-  onMakeAdmin, 
+  onReject,
+  onMakeAdmin,
   onRevokeAdmin,
+  onDelete,
   isLoading 
-}: {
+}: { 
   user: User;
   onApprove: (user: User) => void;
   onReject: (user: User) => void;
   onMakeAdmin: (user: User) => void;
   onRevokeAdmin: (user: User) => void;
+  onDelete: (user: User) => void;
   isLoading: boolean;
-}) => (
-  <TooltipProvider>
-    <div className="flex items-center justify-end space-x-2" onClick={(e) => e.stopPropagation()}>
-      {user.approval_status === "pending" ? (
-        <>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button 
-                variant="outline" 
-                size="icon" 
-                onClick={() => onApprove(user)}
-                disabled={isLoading}
-              >
-                <Check className="h-4 w-4 text-green-600" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Approve User</p>
-            </TooltipContent>
-          </Tooltip>
+}) {
+  return (
+    <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="icon" disabled={isLoading}>
+            <MoreHorizontal className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuLabel>User Actions</DropdownMenuLabel>
+          <DropdownMenuSeparator />
           
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button 
-                variant="outline" 
-                size="icon" 
-                onClick={() => onReject(user)}
-                disabled={isLoading}
+          {user.approval_status === "pending" && (
+            <>
+              <DropdownMenuItem 
+                onClick={() => onApprove(user)}
+                className="text-green-600"
               >
-                <X className="h-4 w-4 text-red-600" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Reject User</p>
-            </TooltipContent>
-          </Tooltip>
-        </>
-      ) : user.approval_status === "rejected" ? (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button 
-              variant="outline" 
-              size="icon" 
+                <UserCheck className="h-4 w-4 mr-2" />
+                Approve User
+              </DropdownMenuItem>
+              <DropdownMenuItem 
+                onClick={() => onReject(user)}
+                className="text-red-600"
+              >
+                <UserX className="h-4 w-4 mr-2" />
+                Reject User
+              </DropdownMenuItem>
+            </>
+          )}
+          
+          {user.approval_status === "rejected" && (
+            <DropdownMenuItem 
               onClick={() => onApprove(user)}
-              disabled={isLoading}
+              className="text-green-600"
             >
-              <Check className="h-4 w-4 text-green-600" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>Approve User</p>
-          </TooltipContent>
-        </Tooltip>
-      ) : (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button 
-              variant="outline" 
-              size="icon" 
+              <UserCheck className="h-4 w-4 mr-2" />
+              Approve User
+            </DropdownMenuItem>
+          )}
+          
+          {user.approval_status === "approved" && (
+            <DropdownMenuItem 
               onClick={() => onReject(user)}
-              disabled={isLoading}
+              className="text-red-600"
             >
-              <X className="h-4 w-4 text-red-600" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>Reject User</p>
-          </TooltipContent>
-        </Tooltip>
-      )}
-      
-      {user.is_admin ? (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button 
-              variant="outline" 
-              size="icon" 
-              onClick={() => onRevokeAdmin(user)}
-              disabled={isLoading}
-            >
-              <ShieldOff className="h-4 w-4 text-blue-600" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>Revoke Admin Status</p>
-          </TooltipContent>
-        </Tooltip>
-      ) : (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button 
-              variant="outline" 
-              size="icon" 
+              <UserX className="h-4 w-4 mr-2" />
+              Reject User
+            </DropdownMenuItem>
+          )}
+          
+          <DropdownMenuSeparator />
+          
+          {!user.is_admin ? (
+            <DropdownMenuItem 
               onClick={() => onMakeAdmin(user)}
-              disabled={isLoading}
+              className="text-blue-600"
             >
-              <Shield className="h-4 w-4 text-blue-600" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>Make Admin</p>
-          </TooltipContent>
-        </Tooltip>
-      )}
+              <UserPlus className="h-4 w-4 mr-2" />
+              Make Admin
+            </DropdownMenuItem>
+          ) : (
+            <DropdownMenuItem 
+              onClick={() => onRevokeAdmin(user)}
+              className="text-orange-600"
+            >
+              <UserMinus className="h-4 w-4 mr-2" />
+              Revoke Admin
+            </DropdownMenuItem>
+          )}
+          
+          <DropdownMenuSeparator />
+          <DropdownMenuItem 
+            onClick={() => onDelete(user)}
+            className="text-red-600"
+          >
+            <Trash2 className="h-4 w-4 mr-2" />
+            Delete User
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
-  </TooltipProvider>
-);
+  );
+}
 
 // Loading skeleton component
 const UsersTableSkeleton = () => (
@@ -267,6 +243,7 @@ export function UsersTable({
   onReject,
   onMakeAdmin,
   onRevokeAdmin,
+  onDelete,
   isLoading 
 }: UsersTableProps) {
   const [expandedUserId, setExpandedUserId] = useState<string | null>(null);
@@ -351,12 +328,13 @@ export function UsersTable({
                   </TableCell>
                   <TableCell>{formatDate(user.created_at)}</TableCell>
                   <TableCell className="text-right">
-                    <UserActionButtons
+                    <UserActionButtons 
                       user={user}
                       onApprove={onApprove}
                       onReject={onReject}
                       onMakeAdmin={onMakeAdmin}
                       onRevokeAdmin={onRevokeAdmin}
+                      onDelete={onDelete}
                       isLoading={isLoading}
                     />
                   </TableCell>
