@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -6,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Loader2, CheckCircle, XCircle, RefreshCw } from 'lucide-react';
 import { ApprovalStatus } from '@/types';
 import { useEmailNotifications } from '@/hooks/auth/use-email-notifications';
+import { createUserObject } from '@/lib/auth-helpers';
 
 export default function VerifyEmailHandler() {
   const [isVerifying, setIsVerifying] = useState(true);
@@ -82,19 +84,10 @@ export default function VerifyEmailHandler() {
                 setApprovalStatus(profileData.approval_status as ApprovalStatus);
                 setIsAdmin(profileData.is_admin === true);
                 
-                // Send email verification confirmation
+                // Send email verification confirmation using createUserObject
                 try {
-                  await sendEmailVerificationConfirmation({
-                    id: profileData.id,
-                    email: profileData.email,
-                    first_name: profileData.first_name,
-                    last_name: profileData.last_name,
-                    approval_status: profileData.approval_status as ApprovalStatus,
-                    is_admin: profileData.is_admin,
-                    email_verified: true,
-                    created_at: profileData.created_at,
-                    updated_at: profileData.updated_at
-                  });
+                  const userObject = createUserObject(profileData);
+                  await sendEmailVerificationConfirmation(userObject);
                   console.log('Email verification confirmation sent');
                 } catch (emailError) {
                   console.error('Failed to send email verification confirmation:', emailError);
@@ -143,7 +136,7 @@ export default function VerifyEmailHandler() {
             // Get the profile data
             const { data: profileData, error: profileError } = await supabase
               .from('profiles')
-              .select('approval_status, email_verified, is_admin, first_name, last_name, created_at, updated_at')
+              .select('*')
               .eq('id', data.user.id)
               .single();
               
@@ -173,19 +166,10 @@ export default function VerifyEmailHandler() {
               console.log("Email was already marked as verified");
             }
             
-            // Send email verification confirmation
+            // Send email verification confirmation using createUserObject
             try {
-              await sendEmailVerificationConfirmation({
-                id: data.user.id,
-                email: data.user.email!,
-                first_name: profileData.first_name,
-                last_name: profileData.last_name,
-                approval_status: profileData.approval_status as ApprovalStatus,
-                is_admin: profileData.is_admin,
-                email_verified: true,
-                created_at: profileData.created_at,
-                updated_at: profileData.updated_at
-              });
+              const userObject = createUserObject(profileData);
+              await sendEmailVerificationConfirmation(userObject);
               console.log('Email verification confirmation sent');
             } catch (emailError) {
               console.error('Failed to send email verification confirmation:', emailError);
