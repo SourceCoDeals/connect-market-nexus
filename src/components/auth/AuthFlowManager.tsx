@@ -59,12 +59,19 @@ export const AuthFlowManager: React.FC<{ children: React.ReactNode }> = ({ child
         return;
       }
       
-      // If approved, redirect to appropriate dashboard if on auth pages
+      // If approved, redirect to appropriate dashboard if on specific auth pages
       if (user.approval_status === 'approved' || user.is_admin) {
-        if (currentPath === '/login' || currentPath === '/signup' || currentPath === '/') {
-          const redirectPath = user.is_admin ? '/admin' : '/marketplace';
+        if (currentPath === '/login' || currentPath === '/signup') {
+          const redirectPath = user.is_admin ? '/admin' : '/';
           console.log('🔀 AuthFlowManager: User approved, redirecting to', redirectPath);
           navigate(redirectPath, { replace: true });
+          return;
+        }
+        
+        // Only redirect admins to admin dashboard if they're on the root path and not accessing marketplace
+        if (user.is_admin && currentPath === '/' && !location.search.includes('marketplace')) {
+          console.log('🔀 AuthFlowManager: Admin user on root, redirecting to /admin');
+          navigate('/admin', { replace: true });
           return;
         }
       }
