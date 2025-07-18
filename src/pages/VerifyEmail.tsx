@@ -26,30 +26,59 @@ const VerifyEmail = () => {
     if (!email) {
       toast({
         variant: "destructive",
-        title: "Error",
-        description: "Email address not found. Please try signing up again.",
+        title: "Email not found",
+        description: "Please try signing up again.",
       });
       return;
     }
 
     setIsResending(true);
+    
     try {
-      const { error } = await supabase.auth.resend({
+      console.log("Attempting to resend verification email for:", email);
+      
+      // First try Supabase's built-in resend
+      const { error: resendError } = await supabase.auth.resend({
         type: 'signup',
-        email: email
+        email: email,
+        options: {
+          emailRedirectTo: `${window.location.origin}/verify-email-handler`
+        }
       });
 
-      if (error) throw error;
+      if (resendError) {
+        console.error("Supabase resend failed:", resendError);
+        
+        // Fallback to custom edge function
+        console.log("Trying custom verification email as fallback");
+        const { error: customEmailError } = await supabase.functions.invoke('send-verification-email', {
+          body: { 
+            email: email,
+            token: 'resend-verification',
+            redirectTo: `${window.location.origin}/verify-email-handler`
+          }
+        });
+        
+        if (customEmailError) {
+          console.error("Custom email also failed:", customEmailError);
+          throw customEmailError;
+        }
+        
+        console.log("✅ Custom verification email sent successfully");
+      } else {
+        console.log("✅ Supabase verification email resent successfully");
+      }
 
       toast({
-        title: "Verification email sent!",
-        description: "Please check your inbox for the new verification email.",
+        title: "Email sent",
+        description: "We've sent another verification email to your inbox.",
       });
     } catch (error: any) {
+      console.error("Failed to resend verification email:", error);
       toast({
         variant: "destructive",
-        title: "Failed to resend email",
-        description: error.message || "Please try again later.",
+        title: "Failed to resend email", 
+        description: "Please try again later or contact support.",
       });
     } finally {
       setIsResending(false);

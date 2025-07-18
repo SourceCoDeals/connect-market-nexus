@@ -15,6 +15,7 @@ import Login from "@/pages/Login";
 import Signup from "@/pages/Signup";
 import VerifyEmail from "@/pages/VerifyEmail";
 import VerifyEmailHandler from "@/pages/VerifyEmailHandler";
+import EmailVerificationRequired from "@/pages/EmailVerificationRequired";
 import PendingApproval from "@/pages/PendingApproval";
 import VerificationSuccess from "@/pages/VerificationSuccess";
 import Unauthorized from "@/pages/Unauthorized";
@@ -45,6 +46,7 @@ function App() {
               <Route path="/login" element={<Login />} />
               <Route path="/signup" element={<Signup />} />
               <Route path="/verify-email" element={<VerifyEmail />} />
+              <Route path="/email-verification-required" element={<EmailVerificationRequired />} />
               <Route path="/verify-email-handler" element={<VerifyEmailHandler />} />
               <Route path="/pending-approval" element={<PendingApproval />} />
               <Route path="/verification-success" element={<VerificationSuccess />} />

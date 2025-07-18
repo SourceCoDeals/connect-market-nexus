@@ -116,14 +116,12 @@ const Login = () => {
       
       // Handle different states based on profile data
       if (!profile.email_verified) {
-        console.log("Email not verified, signing out and redirecting to pending approval");
-        toast({
-          variant: "destructive",
-          title: "Email not verified",
-          description: "Please verify your email address before logging in.",
-        });
+        console.log("Email not verified, redirecting to verify email page");
         await supabase.auth.signOut();
-        navigate("/pending-approval", { replace: true });
+        navigate("/verify-email", { 
+          state: { email: profile.email },
+          replace: true 
+        });
         return;
       }
       

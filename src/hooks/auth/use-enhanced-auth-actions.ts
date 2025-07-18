@@ -39,40 +39,48 @@ export function useEnhancedAuthActions() {
 
         console.log('✅ Signup successful for:', email);
         
-        // Check if user needs to verify email
-        if (data.user && !data.user.email_confirmed_at) {
-          console.log('📧 User needs email verification, attempting to send custom verification email');
+        // Always send verification email for new signups
+        console.log('📧 Sending verification email for new user');
+        
+        try {
+          // Generate a proper verification token using Supabase's built-in functionality
+          const { data: otpData, error: otpError } = await supabase.auth.resend({
+            type: 'signup',
+            email: data.user.email!,
+            options: {
+              emailRedirectTo: redirectUrl
+            }
+          });
           
-          // Try to send custom verification email if Supabase email failed
-          try {
-            const { error: emailError } = await supabase.functions.invoke('send-verification-email', {
+          if (otpError) {
+            console.error('❌ Failed to send Supabase verification email:', otpError);
+            
+            // Fallback to custom verification email
+            console.log('📧 Trying custom verification email as fallback');
+            const { error: customEmailError } = await supabase.functions.invoke('send-verification-email', {
               body: { 
                 email: data.user.email,
-                token: data.user.id, // Use user ID as token for now
-                redirectTo: `${window.location.origin}/verify-email-handler`
+                token: data.user.id,
+                redirectTo: redirectUrl
               }
             });
             
-            if (emailError) {
-              console.error('❌ Failed to send custom verification email:', emailError);
+            if (customEmailError) {
+              console.error('❌ Failed to send custom verification email:', customEmailError);
             } else {
               console.log('✅ Custom verification email sent successfully');
             }
-          } catch (customEmailError) {
-            console.error('❌ Error sending custom verification email:', customEmailError);
+          } else {
+            console.log('✅ Supabase verification email sent successfully');
           }
-          
-          toast({
-            title: 'Account created successfully',
-            description: 'Please check your email to verify your account. If you don\'t receive an email, try signing up again.',
-          });
-        } else {
-          console.log('✅ User email already verified');
-          toast({
-            title: 'Account created successfully',
-            description: 'Your account is ready for admin approval.',
-          });
+        } catch (emailError) {
+          console.error('❌ Error sending verification email:', emailError);
         }
+        
+        toast({
+          title: 'Account created successfully',
+          description: 'Please check your email to verify your account before logging in.',
+        });
 
         return { data, error: null };
       } catch (error: any) {
