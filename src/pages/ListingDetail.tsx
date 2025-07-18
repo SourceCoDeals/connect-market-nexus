@@ -19,7 +19,6 @@ import { DEFAULT_IMAGE } from "@/lib/storage-utils";
 import ListingFinancials from "@/components/listing-detail/ListingFinancials";
 import ListingInfo from "@/components/listing-detail/ListingInfo";
 import ConnectionButton from "@/components/listing-detail/ConnectionButton";
-import BlurredFinancials from "@/components/listing-detail/BlurredFinancials";
 
 const ListingDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -60,7 +59,6 @@ const ListingDetail = () => {
   // Extract connection status safely with fallbacks
   const connectionExists = connectionStatus?.exists || false;
   const connectionStatusValue = connectionStatus?.status || "";
-  const hasFinancialAccess = isAdmin || (connectionExists && connectionStatusValue === "approved");
   
   const handleToggleSave = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -122,108 +120,51 @@ const ListingDetail = () => {
   const imageUrl = listing?.image_url || DEFAULT_IMAGE;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-white">
-      <div className="container mx-auto pt-6 pb-12">
-        <div className="mb-6">
-          <Link
-            to="/marketplace"
-            className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <ChevronLeft className="mr-1 h-4 w-4" />
-            Back to Marketplace
-          </Link>
-        </div>
-        
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
-          {/* Left column - Main content */}
-          <div className="lg:col-span-3 space-y-6">
-            {/* Hero Image */}
-            <div className="rounded-xl overflow-hidden border border-border/50 shadow-sm bg-white min-h-[400px] aspect-[16/10] relative">
-              {imageUrl ? (
-                <img
-                  src={imageUrl}
-                  alt={listing.title}
-                  className="absolute inset-0 w-full h-full object-cover"
-                  onError={(e) => {
-                    const target = e.target as HTMLImageElement;
-                    target.onerror = null;
-                    target.src = DEFAULT_IMAGE;
-                  }}
-                />
-              ) : (
-                <div className="w-full h-full bg-muted flex items-center justify-center">
-                  <ImageIcon className="h-16 w-16 text-muted-foreground/50" />
-                </div>
-              )}
-            </div>
-
-            {/* Title and badges section - moved here */}
-            <div className="bg-white rounded-xl p-6 border border-border/50 shadow-sm">
-              <div className="flex flex-wrap gap-2 mb-4">
-                <Badge 
-                  variant="secondary" 
-                  className="bg-primary/10 text-primary font-medium border-primary/20 shadow-sm"
-                >
-                  <Building2 className="h-3.5 w-3.5 mr-1.5" />
-                  {listing.category}
-                </Badge>
-                <Badge 
-                  variant="secondary" 
-                  className="bg-primary/10 text-primary font-medium border-primary/20 shadow-sm"
-                >
-                  <MapPin className="h-3.5 w-3.5 mr-1.5" />
-                  {listing.location}
-                </Badge>
-                {isInactive && isAdmin && (
-                  <Badge variant="destructive" className="font-normal shadow-sm">
-                    <AlertTriangle className="h-3 w-3 mr-1" />
-                    Inactive
-                  </Badge>
-                )}
+    <div className="container mx-auto pt-6">
+      <div className="mb-6">
+        <Link
+          to="/marketplace"
+          className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
+        >
+          <ChevronLeft className="mr-1 h-4 w-4" />
+          Back to Marketplace
+        </Link>
+      </div>
+      
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+        {/* Left column - Image */}
+        <div className="lg:col-span-2">
+          <div className="rounded-lg overflow-hidden border border-border min-h-[300px] max-h-[400px] aspect-[16/9] relative mb-6">
+            {imageUrl ? (
+              <img
+                src={imageUrl}
+                alt={listing.title}
+                className="absolute inset-0 w-full h-full object-cover"
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement;
+                  target.onerror = null;
+                  target.src = DEFAULT_IMAGE;
+                }}
+              />
+            ) : (
+              <div className="w-full h-full bg-muted flex items-center justify-center">
+                <ImageIcon className="h-16 w-16 text-muted-foreground/50" />
               </div>
-              <h1 className="text-3xl lg:text-4xl font-bold text-slate-900 leading-tight mb-3">
-                {listing.title}
-              </h1>
-              <p className="text-slate-600 text-lg leading-relaxed">
-                {listing.description}
-              </p>
-            </div>
-
-            {/* Business overview section */}
-            {isAdmin && listing.owner_notes && (
-              <Card className="border-primary/20 bg-gradient-to-r from-primary/5 to-primary/10 shadow-sm">
-                <CardHeader>
-                  <CardTitle className="text-primary">Admin Notes</CardTitle>
-                </CardHeader>
-                <CardContent className="prose max-w-none">
-                  <p className="text-slate-700">{listing.owner_notes}</p>
-                </CardContent>
-              </Card>
             )}
           </div>
+        </div>
 
-          {/* Right column - Sidebar */}
-          <div className="lg:col-span-2 space-y-4">
-            {/* Financial Information */}
-            {hasFinancialAccess ? (
-              <div className="bg-white rounded-xl border border-border/50 shadow-sm">
-                <ListingFinancials 
-                  revenue={listing.revenue} 
-                  ebitda={listing.ebitda} 
-                  formatCurrency={formatCurrency} 
-                />
-              </div>
-            ) : (
-              <BlurredFinancials
-                onRequestConnection={() => handleRequestConnection()}
-                isRequesting={isRequesting}
-                connectionExists={connectionExists}
-                connectionStatus={connectionStatusValue}
-              />
-            )}
+        {/* Right column - Financial info and connection button */}
+        <div className="space-y-4">
+          <ListingFinancials 
+            revenue={listing.revenue} 
+            ebitda={listing.ebitda} 
+            formatCurrency={formatCurrency} 
+          />
 
-            {/* Connection Status */}
-            <div className="bg-white rounded-xl p-4 border border-border/50 shadow-sm">
+          {/* Connection Button Card */}
+          <Card>
+            <CardContent className="p-4">
               <ConnectionButton 
                 connectionExists={connectionExists}
                 connectionStatus={connectionStatusValue}
@@ -232,31 +173,76 @@ const ListingDetail = () => {
                 handleRequestConnection={handleRequestConnection}
                 listingTitle={listing.title}
               />
-            </div>
+            </CardContent>
+          </Card>
 
-            {/* Save Button */}
-            <div className="bg-white rounded-xl p-4 border border-border/50 shadow-sm">
+          {/* Save Button Card */}
+          <Card>
+            <CardContent className="p-4">
               <Button
                 variant="outline"
-                className="w-full h-11 font-medium border-2 hover:border-[#D7B65C] hover:bg-[#D7B65C]/5 transition-all duration-200"
+                className="w-full"
                 onClick={handleToggleSave}
                 disabled={isSaving || isSavedLoading}
               >
                 <Bookmark
-                  className={`h-4 w-4 mr-2 transition-colors duration-200 ${
-                    isSaved ? "fill-[#D7B65C] text-[#D7B65C]" : "text-slate-400"
+                  className={`h-4 w-4 mr-2 ${
+                    isSaved ? "fill-current text-primary" : ""
                   }`}
                 />
-                {isSaved ? "Saved to Watchlist" : "Save to Watchlist"}
+                {isSaved ? "Saved" : "Save Listing"}
               </Button>
-            </div>
+            </CardContent>
+          </Card>
 
-            {/* Listing Info */}
-            <div className="bg-white rounded-xl border border-border/50 shadow-sm">
-              <ListingInfo id={listing.id} createdAt={listing.created_at} />
-            </div>
-          </div>
+          <ListingInfo id={listing.id} createdAt={listing.createdAt} />
         </div>
+      </div>
+
+      {/* Title and badges section */}
+      <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 mb-6">
+        <div className="flex-1">
+          <div className="flex flex-wrap gap-2 mb-2">
+            <Badge variant="outline" className="bg-background font-normal">
+              <Building2 className="h-3 w-3 mr-1" />
+              {listing.category}
+            </Badge>
+            <Badge variant="outline" className="bg-background font-normal">
+              <MapPin className="h-3 w-3 mr-1" />
+              {listing.location}
+            </Badge>
+            {isInactive && isAdmin && (
+              <Badge variant="destructive" className="font-normal">
+                <AlertTriangle className="h-3 w-3 mr-1" />
+                Inactive
+              </Badge>
+            )}
+          </div>
+          <h1 className="text-2xl md:text-3xl font-bold">{listing.title}</h1>
+        </div>
+      </div>
+
+      {/* Business overview section */}
+      <div className="grid grid-cols-1 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Business Overview</CardTitle>
+          </CardHeader>
+          <CardContent className="prose max-w-none">
+            <p>{listing.description}</p>
+          </CardContent>
+        </Card>
+
+        {isAdmin && listing.owner_notes && (
+          <Card className="border-primary/20 bg-primary/5">
+            <CardHeader>
+              <CardTitle>Admin Notes</CardTitle>
+            </CardHeader>
+            <CardContent className="prose max-w-none">
+              <p>{listing.owner_notes}</p>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );

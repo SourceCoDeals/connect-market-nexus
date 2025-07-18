@@ -50,7 +50,6 @@ const ConnectionButton = ({
           return {
             icon: CheckCircle2,
             text: "Connected",
-            subtitle: "Your connection request has been approved",
             className: "bg-emerald-50 text-emerald-700 border-2 border-emerald-200 cursor-default hover:bg-emerald-50",
             disabled: true
           };
@@ -79,33 +78,17 @@ const ConnectionButton = ({
     };
   };
 
-  const { icon: ButtonIcon, text: buttonText, subtitle, className, disabled } = getButtonContent();
+  const { icon: ButtonIcon, text: buttonText, className, disabled } = getButtonContent();
   const isPremiumButton = className.includes("gradient");
 
   if (isAdmin) {
     return (
-      <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg">
-        <div className="flex items-center gap-3 mb-2">
-          <Wifi className="h-5 w-5 text-blue-600" />
-          <div>
-            <p className="text-sm font-semibold text-blue-900">Admin Access</p>
-          </div>
+      <div className="flex items-center gap-3 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+        <Wifi className="h-5 w-5 text-blue-600" />
+        <div>
+          <p className="text-sm font-medium text-blue-900">Admin Access</p>
+          <p className="text-xs text-blue-700">You have full access to this listing</p>
         </div>
-        <p className="text-xs text-blue-700">You have full access to all listing information</p>
-      </div>
-    );
-  }
-
-  if (connectionExists && connectionStatus === "approved") {
-    return (
-      <div className="p-4 bg-gradient-to-r from-emerald-50 to-green-50 border border-emerald-200 rounded-lg">
-        <div className="flex items-center gap-3 mb-2">
-          <CheckCircle2 className="h-5 w-5 text-emerald-600" />
-          <div>
-            <p className="text-sm font-semibold text-emerald-900">Connected</p>
-          </div>
-        </div>
-        <p className="text-xs text-emerald-700">Your connection request has been approved</p>
       </div>
     );
   }

@@ -12,7 +12,7 @@ const ListingInfo = ({ id, createdAt }: ListingInfoProps) => {
   const getListingAge = (dateString: string) => {
     const days = differenceInDays(new Date(), new Date(dateString));
     if (days >= 30) {
-      return "Longer than 30 days";
+      return "30+ days";
     }
     return days === 0 ? "Today" : days === 1 ? "1 day ago" : `${days} days ago`;
   };
