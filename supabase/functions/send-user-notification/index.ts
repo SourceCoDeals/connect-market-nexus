@@ -13,15 +13,20 @@ serve(async (req) => {
   }
 
   try {
+    console.log('📧 Email notification request received:', req.method)
+    
     const { type, userEmail, firstName, lastName, reason } = await req.json()
+    console.log('📧 Email data:', { type, userEmail, firstName, lastName })
 
     const resendApiKey = Deno.env.get('RESEND_API_KEY')
     if (!resendApiKey) {
+      console.error('❌ RESEND_API_KEY is not set')
       throw new Error('RESEND_API_KEY is not set')
     }
 
     let subject: string
     let htmlContent: string
+    const siteUrl = Deno.env.get('SITE_URL') || 'https://vhzipqarkmmfuqadefep.supabase.co'
 
     switch (type) {
       case 'approved':
@@ -57,7 +62,7 @@ serve(async (req) => {
               </div>
               
               <div style="text-align: center; margin: 30px 0;">
-                <a href="${Deno.env.get('SITE_URL') || 'https://vhzipqarkmmfuqadefep.supabase.co'}/login" 
+                <a href="${siteUrl}/login" 
                    style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; display: inline-block; transition: transform 0.2s;">
                   🚀 Start Exploring Now
                 </a>
@@ -131,9 +136,29 @@ serve(async (req) => {
         `
         break
         
+      case 'test':
+        subject = 'SourceCodeals Email Test'
+        htmlContent = `
+          <h1>Email Test Successful</h1>
+          <p>This is a test email to verify the email delivery system is working.</p>
+          <p>Timestamp: ${new Date().toISOString()}</p>
+        `
+        break
+        
       default:
         throw new Error('Invalid notification type')
     }
+
+    console.log('📧 Sending email via Resend API...')
+    
+    const emailPayload = {
+      from: 'SourceCo <onboarding@resend.dev>', // Using verified domain
+      to: [userEmail],
+      subject: subject,
+      html: htmlContent,
+    }
+    
+    console.log('📧 Email payload:', { ...emailPayload, html: '[HTML_CONTENT]' })
 
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
@@ -141,22 +166,20 @@ serve(async (req) => {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${resendApiKey}`,
       },
-      body: JSON.stringify({
-        from: 'SourceCo <noreply@sourceco.com>',
-        to: [userEmail],
-        subject: subject,
-        html: htmlContent,
-      }),
+      body: JSON.stringify(emailPayload),
     })
 
+    const responseText = await res.text()
+    console.log('📧 Resend API response status:', res.status)
+    console.log('📧 Resend API response:', responseText)
+
     if (!res.ok) {
-      const errorText = await res.text()
-      console.error('Resend API error:', errorText)
-      throw new Error(`Failed to send email: ${res.status} ${errorText}`)
+      console.error('❌ Resend API error:', responseText)
+      throw new Error(`Failed to send email: ${res.status} ${responseText}`)
     }
 
-    const data = await res.json()
-    console.log('Email sent successfully:', data)
+    const data = JSON.parse(responseText)
+    console.log('✅ Email sent successfully:', data)
 
     return new Response(
       JSON.stringify({ success: true, data }),
@@ -167,7 +190,7 @@ serve(async (req) => {
     )
 
   } catch (error) {
-    console.error('Error in send-user-notification function:', error)
+    console.error('💥 Error in send-user-notification function:', error)
     return new Response(
       JSON.stringify({ 
         error: error.message,

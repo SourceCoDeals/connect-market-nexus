@@ -7,6 +7,7 @@ import {
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import { AuthProvider } from "@/context/AuthContext";
+import { AuthFlowManager } from "@/components/auth/AuthFlowManager";
 import { SessionMonitoringProvider } from "@/components/security/SessionMonitoringProvider";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import MainLayout from "@/components/MainLayout";
@@ -41,40 +42,42 @@ function App() {
         <Toaster />
         <SessionMonitoringProvider>
           <RealtimeProvider>
-            <Routes>
-              {/* Authentication routes - no protection needed */}
-              <Route path="/login" element={<Login />} />
-              <Route path="/signup" element={<Signup />} />
-              <Route path="/verify-email" element={<VerifyEmail />} />
-              <Route path="/email-verification-required" element={<EmailVerificationRequired />} />
-              <Route path="/verify-email-handler" element={<VerifyEmailHandler />} />
-              <Route path="/pending-approval" element={<PendingApproval />} />
-              <Route path="/verification-success" element={<VerificationSuccess />} />
-              <Route path="/unauthorized" element={<Unauthorized />} />
-              
-              {/* Main app routes with MainLayout - require approval */}
-              <Route path="/" element={<ProtectedRoute requireApproved={true}><MainLayout /></ProtectedRoute>}>
-                <Route index element={<Marketplace />} />
-                <Route path="profile" element={<Profile />} />
-                <Route path="listing/:id" element={<ListingDetail />} />
-                <Route path="my-requests" element={<MyRequests />} />
-                <Route path="saved-listings" element={<SavedListings />} />
-              </Route>
-              
-              {/* Redirect /marketplace to / */}
-              <Route path="/marketplace" element={<Navigate to="/" replace />} />
-              
-              {/* Admin routes with AdminLayout - require admin */}
-              <Route path="/admin" element={<ProtectedRoute requireAdmin={true}><AdminLayout /></ProtectedRoute>}>
-                <Route index element={<AdminDashboard />} />
-                <Route path="listings" element={<AdminListings />} />
-                <Route path="users" element={<AdminUsers />} />
-                <Route path="requests" element={<AdminRequests />} />
-              </Route>
-              
-              {/* Catch-all route for 404 Not Found */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
+            <AuthFlowManager>
+              <Routes>
+                {/* Authentication routes - no protection needed */}
+                <Route path="/login" element={<Login />} />
+                <Route path="/signup" element={<Signup />} />
+                <Route path="/verify-email" element={<VerifyEmail />} />
+                <Route path="/email-verification-required" element={<EmailVerificationRequired />} />
+                <Route path="/verify-email-handler" element={<VerifyEmailHandler />} />
+                <Route path="/pending-approval" element={<PendingApproval />} />
+                <Route path="/verification-success" element={<VerificationSuccess />} />
+                <Route path="/unauthorized" element={<Unauthorized />} />
+                
+                {/* Main app routes with MainLayout - require approval */}
+                <Route path="/" element={<ProtectedRoute requireApproved={true}><MainLayout /></ProtectedRoute>}>
+                  <Route index element={<Marketplace />} />
+                  <Route path="profile" element={<Profile />} />
+                  <Route path="listing/:id" element={<ListingDetail />} />
+                  <Route path="my-requests" element={<MyRequests />} />
+                  <Route path="saved-listings" element={<SavedListings />} />
+                </Route>
+                
+                {/* Redirect /marketplace to / */}
+                <Route path="/marketplace" element={<Navigate to="/" replace />} />
+                
+                {/* Admin routes with AdminLayout - require admin */}
+                <Route path="/admin" element={<ProtectedRoute requireAdmin={true}><AdminLayout /></ProtectedRoute>}>
+                  <Route index element={<AdminDashboard />} />
+                  <Route path="listings" element={<AdminListings />} />
+                  <Route path="users" element={<AdminUsers />} />
+                  <Route path="requests" element={<AdminRequests />} />
+                </Route>
+                
+                {/* Catch-all route for 404 Not Found */}
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </AuthFlowManager>
             <RealtimeIndicator />
           </RealtimeProvider>
         </SessionMonitoringProvider>
