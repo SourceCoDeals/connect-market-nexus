@@ -1,3 +1,4 @@
+
 import { useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
@@ -15,63 +16,77 @@ export const AuthFlowManager: React.FC<{ children: React.ReactNode }> = ({ child
     if (!authChecked || isLoading) return;
     
     const currentPath = location.pathname;
+    console.log('AuthFlowManager: Processing auth state', {
+      currentPath,
+      userEmail: user?.email,
+      emailVerified: user?.email_verified,
+      approvalStatus: user?.approval_status,
+      isAdmin: user?.is_admin
+    });
     
     // If user is authenticated, handle redirects based on verification/approval status
     if (user) {
-      console.log('AuthFlowManager: User authenticated, checking status', {
-        email: user.email,
-        emailVerified: user.email_verified,
-        approvalStatus: user.approval_status,
-        isAdmin: user.is_admin,
-        currentPath
-      });
-      
-      // Don't redirect if user is already on the correct page
-      if (currentPath === '/verify-email-handler' || 
-          currentPath === '/verification-success' ||
-          currentPath === '/pending-approval') {
+      // Don't redirect if user is already on auth handling pages
+      if (['/verify-email-handler', '/verification-success'].includes(currentPath)) {
+        console.log('AuthFlowManager: User on auth handling page, not redirecting');
         return;
       }
       
-      // If email not verified, redirect to verification page
+      // Check email verification status first
       if (!user.email_verified) {
-        console.log('AuthFlowManager: Email not verified, redirecting to verify-email');
-        navigate('/verify-email', { 
+        console.log('AuthFlowManager: Email not verified, redirecting to email verification required');
+        navigate('/email-verification-required', { 
           state: { email: user.email },
           replace: true 
         });
         return;
       }
       
-      // If email verified but not approved, redirect to pending approval
+      // Email is verified, now check approval status
       if (user.approval_status === 'pending' && !user.is_admin) {
-        console.log('AuthFlowManager: Account pending approval, redirecting to pending-approval');
-        navigate('/pending-approval', { replace: true });
+        console.log('AuthFlowManager: Account pending approval, redirecting to pending approval');
+        // Don't redirect if already on pending approval page
+        if (currentPath !== '/pending-approval') {
+          navigate('/pending-approval', { replace: true });
+        }
         return;
       }
       
-      // If account rejected
+      // Handle rejected accounts
       if (user.approval_status === 'rejected') {
-        console.log('AuthFlowManager: Account rejected, redirecting to login with message');
-        navigate('/login', { replace: true });
+        console.log('AuthFlowManager: Account rejected, redirecting to login');
+        navigate('/login', { 
+          state: { message: 'Your account application has been rejected.' },
+          replace: true 
+        });
         return;
       }
       
-      // If approved, redirect to appropriate dashboard if on auth pages
+      // User is verified and approved (or admin) - handle successful auth
       if (user.approval_status === 'approved' || user.is_admin) {
-        if (currentPath === '/login' || currentPath === '/signup' || currentPath === '/') {
+        // If user is on auth pages, redirect to appropriate dashboard
+        if (['/login', '/signup', '/email-verification-required', '/pending-approval'].includes(currentPath) || currentPath === '/') {
           const redirectPath = user.is_admin ? '/admin' : '/marketplace';
-          console.log('AuthFlowManager: User approved, redirecting to', redirectPath);
+          console.log('AuthFlowManager: User approved/admin, redirecting to', redirectPath);
           navigate(redirectPath, { replace: true });
           return;
         }
       }
     } else {
-      // User not authenticated - redirect auth-required pages to login
-      const publicPaths = ['/login', '/signup', '/verify-email', '/verify-email-handler', '/verification-success', '/pending-approval', '/forgot-password'];
+      // User not authenticated - redirect protected pages to login
+      const publicPaths = [
+        '/login', 
+        '/signup', 
+        '/email-verification-required', 
+        '/verify-email', 
+        '/verify-email-handler', 
+        '/verification-success', 
+        '/pending-approval',
+        '/forgot-password'
+      ];
       
       if (!publicPaths.includes(currentPath) && currentPath !== '/') {
-        console.log('AuthFlowManager: User not authenticated, redirecting to login from', currentPath);
+        console.log('AuthFlowManager: User not authenticated, redirecting to login');
         navigate('/login', { 
           state: { from: currentPath },
           replace: true 

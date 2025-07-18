@@ -19,14 +19,16 @@ const Login = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Get redirect path from location state or default routes
-  const getRedirectPath = () => {
-    const from = location.state?.from;
-    if (from && typeof from === 'string' && from !== '/login') {
-      return from;
+  // Display message from location state if present
+  useEffect(() => {
+    if (location.state?.message) {
+      toast({
+        variant: "destructive",
+        title: "Account Status",
+        description: location.state.message,
+      });
     }
-    return user?.isAdmin ? "/admin" : "/marketplace";
-  };
+  }, [location.state]);
 
   // Cleanup auth state on mount to prevent auth issues
   useEffect(() => {
@@ -41,14 +43,6 @@ const Login = () => {
     };
     cleanup();
   }, []);
-
-  // Redirect if user is already logged in
-  useEffect(() => {
-    if (authChecked && user) {
-      console.log("User already logged in, redirecting to", getRedirectPath());
-      navigate(getRedirectPath(), { replace: true });
-    }
-  }, [user, navigate, authChecked]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,16 +62,16 @@ const Login = () => {
     }
     
     try {
-      console.log(`Attempting login with email: ${email}`);
+      console.log(`🔑 Attempting login with email: ${email}`);
       
       // Clean up auth state before attempting login
       await cleanupAuthState();
       
-      // Attempt global sign out
+      // Attempt global sign out first
       try {
         await supabase.auth.signOut({ scope: 'global' });
       } catch (err) {
-        // Continue even if this fails
+        console.log("Sign out attempt (expected to fail if not logged in)");
       }
       
       // Sign in with email/password
@@ -94,9 +88,9 @@ const Login = () => {
         throw new Error("Failed to login. No user data returned.");
       }
       
-      console.log("Login successful, user ID:", data.user.id);
+      console.log("✅ Login successful, user ID:", data.user.id);
       
-      // Fetch user profile to determine next steps
+      // Fetch user profile to determine auth state
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('*')
@@ -104,68 +98,38 @@ const Login = () => {
         .single();
       
       if (profileError || !profile) {
+        console.error("❌ Profile fetch error:", profileError);
         throw profileError || new Error("Profile not found");
       }
       
-      console.log("Profile data:", {
+      console.log("📋 Profile data:", {
         email: profile.email,
         email_verified: profile.email_verified,
         approval_status: profile.approval_status,
         is_admin: profile.is_admin
       });
       
-      // Handle different states based on profile data
-      if (!profile.email_verified) {
-        console.log("Email not verified, redirecting to email verification required page");
-        await supabase.auth.signOut();
-        navigate("/email-verification-required", { 
-          state: { email: profile.email },
-          replace: true 
-        });
-        return;
-      }
+      // Let AuthFlowManager handle the redirects based on user state
+      // This will ensure correct navigation to verification, pending, or dashboard
+      console.log("🔄 Login successful, letting AuthFlowManager handle navigation");
       
-      // If email is verified but account is still pending approval
-      if (profile.approval_status === 'pending') {
-        console.log("Account pending approval, redirecting to pending approval page");
-        await supabase.auth.signOut();
-        navigate("/pending-approval", { 
-          state: { email: profile.email },
-          replace: true 
-        });
-        return;
-      }
-      
-      if (profile.approval_status === 'rejected') {
-        console.log("Account rejected");
-        toast({
-          variant: "destructive",
-          title: "Account rejected",
-          description: "Your account application has been rejected.",
-        });
-        await supabase.auth.signOut();
-        return;
-      }
-      
-      // Success - user is verified and approved
-      console.log("Login successful, user is verified and approved");
       toast({
-        title: "Welcome back",
-        description: "You have successfully logged in.",
+        title: "Login successful",
+        description: "You have been signed in successfully.",
       });
       
-      // Redirect based on user role
-      setTimeout(() => {
-        if (profile.is_admin) {
-          window.location.href = "/admin";
-        } else {
-          window.location.href = "/marketplace";
-        }
-      }, 100);
-      
     } catch (err: any) {
-      console.error("Login error:", err);
-      setError(err.message || "Failed to sign in");
+      console.error("❌ Login error:", err);
+      
+      // Handle specific error cases
+      if (err.message?.includes('Email not confirmed')) {
+        setError("Please verify your email address before logging in.");
+      } else if (err.message?.includes('Invalid login credentials')) {
+        setError("Invalid email or password. Please check your credentials and try again.");
+      } else {
+        setError(err.message || "Failed to sign in. Please try again.");
+      }
+      
       toast({
         variant: "destructive",
         title: "Login failed",
@@ -176,7 +140,7 @@ const Login = () => {
     }
   };
 
-  // Show loading state while we check authentication
+  // Show loading state while checking authentication
   if (!authChecked && isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-muted/30">
