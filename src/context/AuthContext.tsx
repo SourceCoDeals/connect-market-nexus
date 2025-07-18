@@ -1,11 +1,9 @@
 
 import React, { createContext, useContext, useEffect } from "react";
-import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { User as AppUser } from "@/types";
-import { useAuthState } from "@/hooks/auth/use-auth-state";
+import { useFreshAuthState } from "@/hooks/auth/use-fresh-auth-state";
 import { useEnhancedAuthActions } from "@/hooks/auth/use-enhanced-auth-actions";
-import { isUserAdmin } from "@/lib/auth-helpers";
 
 interface AuthContextType {
   user: AppUser | null;
@@ -33,8 +31,16 @@ export const useAuth = () => {
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  // Use the dedicated auth state hook
-  const { user, isLoading, isAdmin, isBuyer, authChecked } = useAuthState();
+  // Use the new robust auth state management
+  const { 
+    user, 
+    isLoading, 
+    isAdmin, 
+    isBuyer, 
+    authChecked, 
+    refreshUserData,
+    clearAuthState 
+  } = useFreshAuthState();
   
   // Use the enhanced auth actions hook
   const { signUp, signIn, signOut } = useEnhancedAuthActions();
@@ -54,7 +60,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         console.log('📡 Profile updated in real-time:', payload);
         // Trigger a refresh of the user profile to get the latest data
         setTimeout(() => {
-          refreshUserProfile();
+          refreshUserData();
         }, 100);
       })
       .subscribe();
@@ -62,48 +68,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     return () => {
       subscription.unsubscribe();
     };
-  }, [user?.id]);
+  }, [user?.id, refreshUserData]);
 
   const refreshUserProfile = async () => {
-    if (!user?.id) return;
-
-    try {
-      console.log('🔄 Refreshing user profile for:', user.email);
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
-
-      if (error) {
-        console.error('Error refreshing user profile:', error);
-        return;
-      }
-
-      console.log('✅ Profile refreshed successfully:', data.email, 'Email verified:', data.email_verified, 'Approval status:', data.approval_status);
-      
-      // Update localStorage with fresh data
-      const updatedUser = {
-        ...user,
-        email_verified: data.email_verified,
-        approval_status: data.approval_status,
-        is_admin: data.is_admin,
-        // Update other fields as needed
-        first_name: data.first_name,
-        last_name: data.last_name,
-        company: data.company,
-        phone_number: data.phone_number,
-        updated_at: data.updated_at
-      };
-      
-      localStorage.setItem("user", JSON.stringify(updatedUser));
-      
-      // Force a re-render by triggering auth state change
-      // This will cause useAuthState to pick up the new data
-      window.dispatchEvent(new Event('storage'));
-      
-    } catch (error) {
-      console.error('Error refreshing user profile:', error);
+    if (refreshUserData) {
+      await refreshUserData();
     }
   };
 
@@ -114,6 +83,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       throw new Error("Email is required for signup");
     }
     
+    // Clear any existing auth state before signup
+    await clearAuthState();
+    
     const result = await signUp(email, password, userData);
     if (result.error) {
       throw result.error;
@@ -121,13 +93,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const login = async (email: string, password: string) => {
+    console.log('🔐 Starting login process for:', email);
+    
+    // Clear any existing auth state before login
+    await clearAuthState();
+    
     const result = await signIn(email, password);
     if (result.error) {
       throw result.error;
     }
+    
+    console.log('✅ Login successful for:', email);
   };
 
   const logout = async () => {
+    console.log('👋 Starting logout process');
+    await clearAuthState();
+    
     const result = await signOut();
     if (result.error) {
       throw result.error;
@@ -151,24 +133,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     // Refresh the profile data
     await refreshUserProfile();
   };
-
-  // Update session when it changes
-  useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        console.log("Auth state changed:", event, session?.user?.email);
-        if (event === 'SIGNED_IN' && session?.user) {
-          console.log("User signed in, updating profile");
-          // Give a small delay to allow profile to be created/updated
-          setTimeout(() => {
-            refreshUserProfile();
-          }, 500);
-        }
-      }
-    );
-
-    return () => subscription.unsubscribe();
-  }, []);
 
   const value: AuthContextType = {
     user,

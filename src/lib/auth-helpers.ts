@@ -4,13 +4,13 @@ import { User, ApprovalStatus, BuyerType } from "@/types";
 export function createUserObject(profile: any): User {
   // Enhanced validation for profile object
   if (!profile || !profile.id) {
-    console.warn('Invalid profile data received:', profile);
+    console.warn('❌ Invalid profile data received:', profile);
     throw new Error('Invalid profile data: missing required fields');
   }
 
   // Validate required fields
   if (!profile.email || !profile.first_name || !profile.last_name) {
-    console.warn('Profile missing required fields:', {
+    console.warn('⚠️ Profile missing required fields:', {
       id: profile.id,
       hasEmail: !!profile.email,
       hasFirstName: !!profile.first_name,
@@ -19,7 +19,7 @@ export function createUserObject(profile: any): User {
   }
 
   try {
-    // Enhanced user object creation with better defaults and validation
+    // Enhanced user object creation with strict boolean conversion
     const user: User = {
       id: profile.id,
       email: profile.email || '',
@@ -29,9 +29,10 @@ export function createUserObject(profile: any): User {
       website: profile.website || '',
       phone_number: profile.phone_number || '',
       role: 'buyer' as const,
-      email_verified: Boolean(profile.email_verified),
+      // CRITICAL: Ensure email_verified is always a proper boolean
+      email_verified: Boolean(profile.email_verified === true),
       approval_status: (profile.approval_status || 'pending') as ApprovalStatus,
-      is_admin: Boolean(profile.is_admin),
+      is_admin: Boolean(profile.is_admin === true),
       buyer_type: (profile.buyer_type || 'corporate') as BuyerType,
       created_at: profile.created_at || new Date().toISOString(),
       updated_at: profile.updated_at || new Date().toISOString(),
@@ -67,7 +68,14 @@ export function createUserObject(profile: any): User {
       throw new Error('Created user object is missing critical fields');
     }
 
-    console.log('✅ Successfully created user object for:', user.email);
+    console.log('✅ Successfully created user object:', {
+      email: user.email,
+      email_verified: user.email_verified,
+      email_verified_type: typeof user.email_verified,
+      approval_status: user.approval_status,
+      is_admin: user.is_admin
+    });
+    
     return user;
   } catch (error) {
     console.error('❌ Error creating user object:', error, 'Profile:', profile);
@@ -131,7 +139,7 @@ export function validateUserData(user: User): { isValid: boolean; errors: string
 
 export async function cleanupAuthState(): Promise<void> {
   try {
-    console.log('🧹 Cleaning up auth state...');
+    console.log('🧹 Starting comprehensive auth state cleanup...');
     
     // Remove standard auth tokens
     localStorage.removeItem('supabase.auth.token');
@@ -140,6 +148,7 @@ export async function cleanupAuthState(): Promise<void> {
     // Remove all Supabase auth keys from localStorage
     Object.keys(localStorage).forEach((key) => {
       if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
+        console.log('🗑️ Removing localStorage key:', key);
         localStorage.removeItem(key);
       }
     });
@@ -148,6 +157,7 @@ export async function cleanupAuthState(): Promise<void> {
     if (typeof sessionStorage !== 'undefined') {
       Object.keys(sessionStorage).forEach((key) => {
         if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
+          console.log('🗑️ Removing sessionStorage key:', key);
           sessionStorage.removeItem(key);
         }
       });

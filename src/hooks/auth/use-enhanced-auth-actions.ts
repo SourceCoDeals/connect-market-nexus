@@ -1,197 +1,111 @@
 
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { User } from '@/types';
+import { cleanupAuthState } from '@/lib/auth-helpers';
 import { toast } from '@/hooks/use-toast';
-import { withPerformanceMonitoring } from '@/lib/performance-monitor';
-import { errorLogger } from '@/lib/error-logger';
 
 export function useEnhancedAuthActions() {
   const [isLoading, setIsLoading] = useState(false);
 
-  const signUp = async (email: string, password: string, userData: any) => {
-    return withPerformanceMonitoring('enhanced-signup', async () => {
-      setIsLoading(true);
-      try {
-        console.log('🔐 Starting enhanced signup process for:', email);
-        
-        const redirectUrl = `${window.location.origin}/verify-email-handler`;
-        
-        const { data, error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            emailRedirectTo: redirectUrl,
-            data: userData
+  const signUp = async (email: string, password: string, userData: Partial<User>) => {
+    setIsLoading(true);
+    
+    try {
+      console.log('📝 Starting signup process for:', email);
+      
+      // Clean up any existing auth state first
+      await cleanupAuthState();
+      
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/verify-email-handler`,
+          data: {
+            first_name: userData.first_name || '',
+            last_name: userData.last_name || '',
+            company: userData.company || '',
+            website: userData.website || '',
+            phone_number: userData.phone_number || '',
+            buyer_type: userData.buyer_type || 'corporate',
           }
-        });
-
-        console.log('📧 Signup response:', { data, error });
-
-        if (error) {
-          console.error('❌ Signup error:', error);
-          await errorLogger.logError(error, {
-            context: 'enhanced-signup',
-            email,
-            userData: JSON.stringify(userData)
-          });
-          throw error;
         }
+      });
 
-        console.log('✅ Signup successful for:', email);
-        
-        // Always send verification email for new signups
-        console.log('📧 Sending verification email for new user');
-        
-        try {
-          // Generate a proper verification token using Supabase's built-in functionality
-          const { data: otpData, error: otpError } = await supabase.auth.resend({
-            type: 'signup',
-            email: data.user.email!,
-            options: {
-              emailRedirectTo: redirectUrl
-            }
-          });
-          
-          if (otpError) {
-            console.error('❌ Failed to send Supabase verification email:', otpError);
-            
-            // Fallback to custom verification email
-            console.log('📧 Trying custom verification email as fallback');
-            const { error: customEmailError } = await supabase.functions.invoke('send-verification-email', {
-              body: { 
-                email: data.user.email,
-                token: data.user.id,
-                redirectTo: redirectUrl
-              }
-            });
-            
-            if (customEmailError) {
-              console.error('❌ Failed to send custom verification email:', customEmailError);
-            } else {
-              console.log('✅ Custom verification email sent successfully');
-            }
-          } else {
-            console.log('✅ Supabase verification email sent successfully');
-          }
-        } catch (emailError) {
-          console.error('❌ Error sending verification email:', emailError);
-        }
-        
-        toast({
-          title: 'Account created successfully',
-          description: 'Please check your email to verify your account before logging in.',
-        });
-
-        return { data, error: null };
-      } catch (error: any) {
-        console.error('💥 Enhanced signup failed:', error);
-        await errorLogger.logError(error, {
-          context: 'enhanced-signup-catch',
-          email
-        });
-        
-        toast({
-          variant: 'destructive',
-          title: 'Signup failed',
-          description: error.message || 'An unexpected error occurred during signup.',
-        });
-        
-        return { data: null, error };
-      } finally {
-        setIsLoading(false);
+      if (error) {
+        console.error('❌ Signup error:', error);
+        return { error };
       }
-    });
+
+      console.log('✅ Signup successful for:', email);
+      return { data, error: null };
+      
+    } catch (error: any) {
+      console.error('❌ Signup exception:', error);
+      return { error };
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const signIn = async (email: string, password: string) => {
-    return withPerformanceMonitoring('enhanced-signin', async () => {
-      setIsLoading(true);
-      try {
-        console.log('🔐 Starting enhanced signin process for:', email);
-        
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
+    setIsLoading(true);
+    
+    try {
+      console.log('🔐 Starting signin process for:', email);
+      
+      // Clean up any existing auth state first
+      await cleanupAuthState();
+      
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-        if (error) {
-          console.error('❌ Signin error:', error);
-          await errorLogger.logError(error, {
-            context: 'enhanced-signin',
-            email
-          });
-          throw error;
-        }
-
-        console.log('✅ Signin successful for:', email);
-        
-        toast({
-          title: 'Welcome back!',
-          description: 'You have been successfully signed in.',
-        });
-
-        return { data, error: null };
-      } catch (error: any) {
-        console.error('💥 Enhanced signin failed:', error);
-        await errorLogger.logError(error, {
-          context: 'enhanced-signin-catch',
-          email
-        });
-        
-        toast({
-          variant: 'destructive',
-          title: 'Sign in failed',
-          description: error.message || 'An unexpected error occurred during sign in.',
-        });
-        
-        return { data: null, error };
-      } finally {
-        setIsLoading(false);
+      if (error) {
+        console.error('❌ Signin error:', error);
+        return { error };
       }
-    });
+
+      console.log('✅ Signin successful for:', email);
+      
+      // The auth state will be handled by the useFreshAuthState hook
+      return { data, error: null };
+      
+    } catch (error: any) {
+      console.error('❌ Signin exception:', error);
+      return { error };
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const signOut = async () => {
-    return withPerformanceMonitoring('enhanced-signout', async () => {
-      setIsLoading(true);
-      try {
-        console.log('🔐 Starting enhanced signout process');
-        
-        const { error } = await supabase.auth.signOut();
-
-        if (error) {
-          console.error('❌ Signout error:', error);
-          await errorLogger.logError(error, {
-            context: 'enhanced-signout'
-          });
-          throw error;
-        }
-
-        console.log('✅ Signout successful');
-        
-        toast({
-          title: 'Signed out successfully',
-          description: 'You have been logged out of your account.',
-        });
-
-        return { error: null };
-      } catch (error: any) {
-        console.error('💥 Enhanced signout failed:', error);
-        await errorLogger.logError(error, {
-          context: 'enhanced-signout-catch'
-        });
-        
-        toast({
-          variant: 'destructive',
-          title: 'Sign out failed',
-          description: error.message || 'An unexpected error occurred during sign out.',
-        });
-        
+    setIsLoading(true);
+    
+    try {
+      console.log('👋 Starting signout process');
+      
+      // Clean up auth state first
+      await cleanupAuthState();
+      
+      const { error } = await supabase.auth.signOut({ scope: 'global' });
+      
+      if (error) {
+        console.error('❌ Signout error:', error);
         return { error };
-      } finally {
-        setIsLoading(false);
       }
-    });
+
+      console.log('✅ Signout successful');
+      return { error: null };
+      
+    } catch (error: any) {
+      console.error('❌ Signout exception:', error);
+      return { error };
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return {
