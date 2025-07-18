@@ -49,7 +49,9 @@ export const useSaveListingMutation = () => {
       }
     },
     onSuccess: (_, variables) => {
+      // Invalidate all related queries to ensure UI updates
       queryClient.invalidateQueries({ queryKey: ['saved-status'] });
+      queryClient.invalidateQueries({ queryKey: ['saved-listings'] });
       toast({
         title: variables.action === 'save' ? 'Listing Saved' : 'Listing Removed',
         description: variables.action === 'save' 

@@ -33,7 +33,7 @@ export const AuthFlowManager: React.FC<{ children: React.ReactNode }> = ({ child
         return;
       }
       
-      // If email not verified, redirect to verification page ONLY
+      // PRIORITY 1: If email not verified, always show email verification screen
       if (!user.email_verified) {
         console.log('AuthFlowManager: Email not verified, redirecting to verify-email');
         navigate('/verify-email', { 
@@ -43,22 +43,22 @@ export const AuthFlowManager: React.FC<{ children: React.ReactNode }> = ({ child
         return;
       }
       
-      // If email verified but pending approval (and not admin), redirect to pending approval
+      // PRIORITY 2: If email verified but pending approval (and not admin), show pending approval screen
       if (user.email_verified && user.approval_status === 'pending' && !user.is_admin) {
         console.log('AuthFlowManager: Email verified but account pending approval, redirecting to pending-approval');
         navigate('/pending-approval', { replace: true });
         return;
       }
       
-      // If account rejected
+      // PRIORITY 3: If account rejected
       if (user.approval_status === 'rejected') {
         console.log('AuthFlowManager: Account rejected, redirecting to login with message');
         navigate('/login', { replace: true });
         return;
       }
       
-      // If approved, redirect to appropriate dashboard if on auth pages
-      if (user.approval_status === 'approved' || user.is_admin) {
+      // PRIORITY 4: If approved or admin, redirect to appropriate dashboard if on auth pages
+      if ((user.approval_status === 'approved' && user.email_verified) || user.is_admin) {
         if (currentPath === '/login' || currentPath === '/signup' || currentPath === '/') {
           const redirectPath = user.is_admin ? '/admin' : '/marketplace';
           console.log('AuthFlowManager: User approved, redirecting to', redirectPath);
