@@ -69,7 +69,9 @@ export function useUpdateListing() {
             const { data: updatedData, error: updateError } = await supabase
               .from('listings')
               .update({ 
-                image_url: publicUrl
+                image_url: publicUrl,
+                // Add the image URL to files array as well
+                files: [publicUrl]
               })
               .eq('id', id)
               .select()

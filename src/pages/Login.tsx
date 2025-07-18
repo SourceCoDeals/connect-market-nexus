@@ -1,12 +1,13 @@
 
 import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
 import { AlertCircle } from "lucide-react";
+import { cleanupAuthState } from "@/lib/auth-helpers";
 import { supabase } from "@/integrations/supabase/client";
 
 const Login = () => {
@@ -14,16 +15,40 @@ const Login = () => {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { user, authChecked } = useAuth();
+  const { user, isLoading, authChecked } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
-  // If user is already authenticated, redirect will be handled by AuthFlowManager
+  // Get redirect path from location state or default routes
+  const getRedirectPath = () => {
+    const from = location.state?.from;
+    if (from && typeof from === 'string' && from !== '/login') {
+      return from;
+    }
+    return user?.isAdmin ? "/admin" : "/marketplace";
+  };
+
+  // Cleanup auth state on mount to prevent auth issues
+  useEffect(() => {
+    console.log("Login page mounted, cleaning up previous auth state");
+    const cleanup = async () => {
+      try {
+        await cleanupAuthState();
+        console.log("Auth state cleaned up on login page mount");
+      } catch (error) {
+        console.error("Error cleaning up auth state:", error);
+      }
+    };
+    cleanup();
+  }, []);
+
+  // Redirect if user is already logged in
   useEffect(() => {
     if (authChecked && user) {
-      // AuthFlowManager will handle the redirect based on user state
-      console.log("User already authenticated, AuthFlowManager will handle redirect");
+      console.log("User already logged in, redirecting to", getRedirectPath());
+      navigate(getRedirectPath(), { replace: true });
     }
-  }, [user, authChecked]);
+  }, [user, navigate, authChecked]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,9 +68,19 @@ const Login = () => {
     }
     
     try {
-      console.log(`🔐 Attempting login with email: ${email}`);
+      console.log(`Attempting login with email: ${email}`);
       
-      // Simple sign in - let AuthFlowManager handle the rest
+      // Clean up auth state before attempting login
+      await cleanupAuthState();
+      
+      // Attempt global sign out
+      try {
+        await supabase.auth.signOut({ scope: 'global' });
+      } catch (err) {
+        // Continue even if this fails
+      }
+      
+      // Sign in with email/password
       const { data, error: signInError } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -59,17 +94,78 @@ const Login = () => {
         throw new Error("Failed to login. No user data returned.");
       }
       
-      console.log("✅ Login successful, user ID:", data.user.id);
+      console.log("Login successful, user ID:", data.user.id);
       
+      // Fetch user profile to determine next steps
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', data.user.id)
+        .single();
+      
+      if (profileError || !profile) {
+        throw profileError || new Error("Profile not found");
+      }
+      
+      console.log("Profile data:", {
+        email: profile.email,
+        email_verified: profile.email_verified,
+        approval_status: profile.approval_status,
+        is_admin: profile.is_admin
+      });
+      
+      // Handle different states based on profile data
+      if (!profile.email_verified) {
+        console.log("Email not verified, redirecting to verify email page");
+        await supabase.auth.signOut();
+        navigate("/verify-email", { 
+          state: { email: profile.email },
+          replace: true 
+        });
+        return;
+      }
+      
+      // If email is verified but account is still pending approval
+      if (profile.approval_status === 'pending') {
+        console.log("Account pending approval, signing out and redirecting to pending approval");
+        toast({
+          title: "Account under review",
+          description: "Your account is being reviewed by our team.",
+        });
+        await supabase.auth.signOut();
+        navigate("/pending-approval", { replace: true });
+        return;
+      }
+      
+      if (profile.approval_status === 'rejected') {
+        console.log("Account rejected");
+        toast({
+          variant: "destructive",
+          title: "Account rejected",
+          description: "Your account application has been rejected.",
+        });
+        await supabase.auth.signOut();
+        return;
+      }
+      
+      // Success - user is verified and approved
+      console.log("Login successful, user is verified and approved");
       toast({
         title: "Welcome back",
         description: "You have successfully logged in.",
       });
       
-      // AuthFlowManager will handle the redirect based on user verification/approval status
+      // Redirect based on user role
+      setTimeout(() => {
+        if (profile.is_admin) {
+          window.location.href = "/admin";
+        } else {
+          window.location.href = "/marketplace";
+        }
+      }, 100);
       
     } catch (err: any) {
-      console.error("❌ Login error:", err);
+      console.error("Login error:", err);
       setError(err.message || "Failed to sign in");
       toast({
         variant: "destructive",
@@ -80,6 +176,18 @@ const Login = () => {
       setIsSubmitting(false);
     }
   };
+
+  // Show loading state while we check authentication
+  if (!authChecked && isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-muted/30">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-16 h-16 border-4 border-t-primary border-r-transparent border-b-transparent border-l-transparent rounded-full animate-spin"></div>
+          <p className="text-muted-foreground">Checking authentication...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-muted/30">

@@ -77,14 +77,14 @@ const MyRequests = () => {
           {requests.map((request) => (
             <Link 
               key={request.id}
-              to={request.listings?.id ? `/listing/${request.listings.id}` : '#'}
+              to={request.listing?.id ? `/listing/${request.listing.id}` : '#'}
               className="block"
             >
               <Card className="hover:border-primary/50 transition-colors cursor-pointer">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-base">{request.listings?.title || "Unknown Listing"}</CardTitle>
+                  <CardTitle className="text-base">{request.listing?.title || "Unknown Listing"}</CardTitle>
                   <div className="flex justify-between items-center">
-                    <CardDescription>{request.listings?.category || "-"}</CardDescription>
+                    <CardDescription>{request.listing?.category || "-"}</CardDescription>
                     {getStatusBadge(request.status)}
                   </div>
                 </CardHeader>
@@ -127,15 +127,15 @@ const MyRequests = () => {
                   key={request.id}
                   className="cursor-pointer hover:bg-muted/50"
                   onClick={() => {
-                    if (request.listings?.id) {
-                      window.location.href = `/listing/${request.listings.id}`;
+                    if (request.listing?.id) {
+                      window.location.href = `/listing/${request.listing.id}`;
                     }
                   }}
                 >
                   <TableCell className="font-medium">
-                    {request.listings?.title || "Unknown Listing"}
+                    {request.listing?.title || "Unknown Listing"}
                   </TableCell>
-                  <TableCell>{request.listings?.category || "-"}</TableCell>
+                  <TableCell>{request.listing?.category || "-"}</TableCell>
                   <TableCell className="max-w-[200px]">
                     {request.user_message ? (
                       <div className="truncate" title={request.user_message}>
@@ -150,8 +150,8 @@ const MyRequests = () => {
                   </TableCell>
                   <TableCell>{getStatusBadge(request.status)}</TableCell>
                   <TableCell>
-                    {request.listings?.id && (
-                      <Link to={`/listing/${request.listings.id}`}>
+                    {request.listing?.id && (
+                      <Link to={`/listing/${request.listing.id}`}>
                         <ExternalLink className="h-4 w-4 text-muted-foreground" />
                       </Link>
                     )}
