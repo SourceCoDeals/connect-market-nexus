@@ -20,10 +20,14 @@ export function useAdminEmail() {
     
     try {
       const notificationPayload = {
-        type: 'approved',
-        userEmail: user.email,
-        firstName: user.first_name,
-        lastName: user.last_name
+        user: {
+          email: user.email,
+          first_name: user.first_name,
+          last_name: user.last_name,
+          company: user.company || 'Not specified',
+          buyer_type: user.buyer_type || 'Not specified'
+        },
+        type: 'approval'
       };
       
       const { data, error } = await supabase.functions.invoke(
@@ -89,10 +93,14 @@ export function useAdminEmail() {
     
     try {
       const notificationPayload = {
-        type: 'rejected',
-        userEmail: user.email,
-        firstName: user.first_name,
-        lastName: user.last_name,
+        user: {
+          email: user.email,
+          first_name: user.first_name,
+          last_name: user.last_name,
+          company: user.company || 'Not specified',
+          buyer_type: user.buyer_type || 'Not specified'
+        },
+        type: 'rejection',
         reason: reason
       };
       

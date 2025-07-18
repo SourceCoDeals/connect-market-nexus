@@ -13,7 +13,27 @@ serve(async (req) => {
   }
 
   try {
-    const { user, type, reason } = await req.json()
+    const requestBody = await req.json()
+    console.log('Received request body:', requestBody)
+    
+    // Handle both old and new payload formats for backward compatibility
+    let user, type, reason
+    if (requestBody.user && requestBody.type) {
+      // Old format
+      user = requestBody.user
+      type = requestBody.type
+      reason = requestBody.reason
+    } else {
+      // New format from use-admin-email.ts
+      const { userEmail, firstName, lastName, type: requestType, reason: requestReason } = requestBody
+      user = {
+        email: userEmail,
+        first_name: firstName,
+        last_name: lastName
+      }
+      type = requestType === 'approved' ? 'approval' : requestType === 'rejected' ? 'rejection' : requestType
+      reason = requestReason
+    }
 
     const resendApiKey = Deno.env.get('RESEND_API_KEY')
     if (!resendApiKey) {

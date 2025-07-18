@@ -33,7 +33,7 @@ export const AuthFlowManager: React.FC<{ children: React.ReactNode }> = ({ child
         return;
       }
       
-      // If email not verified, redirect to verification page
+      // If email not verified, redirect to verification page ONLY
       if (!user.email_verified) {
         console.log('AuthFlowManager: Email not verified, redirecting to verify-email');
         navigate('/verify-email', { 
@@ -43,9 +43,9 @@ export const AuthFlowManager: React.FC<{ children: React.ReactNode }> = ({ child
         return;
       }
       
-      // If email verified but not approved, redirect to pending approval
-      if (user.approval_status === 'pending' && !user.is_admin) {
-        console.log('AuthFlowManager: Account pending approval, redirecting to pending-approval');
+      // If email verified but pending approval (and not admin), redirect to pending approval
+      if (user.email_verified && user.approval_status === 'pending' && !user.is_admin) {
+        console.log('AuthFlowManager: Email verified but account pending approval, redirecting to pending-approval');
         navigate('/pending-approval', { replace: true });
         return;
       }
