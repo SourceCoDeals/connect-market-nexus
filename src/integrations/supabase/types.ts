@@ -210,6 +210,51 @@ export type Database = {
           },
         ]
       }
+      feedback_messages: {
+        Row: {
+          admin_id: string | null
+          admin_response: string | null
+          category: string | null
+          created_at: string
+          id: string
+          message: string
+          page_url: string | null
+          priority: string | null
+          status: string
+          updated_at: string
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          admin_id?: string | null
+          admin_response?: string | null
+          category?: string | null
+          created_at?: string
+          id?: string
+          message: string
+          page_url?: string | null
+          priority?: string | null
+          status?: string
+          updated_at?: string
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          admin_id?: string | null
+          admin_response?: string | null
+          category?: string | null
+          created_at?: string
+          id?: string
+          message?: string
+          page_url?: string | null
+          priority?: string | null
+          status?: string
+          updated_at?: string
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       listings: {
         Row: {
           categories: string[] | null

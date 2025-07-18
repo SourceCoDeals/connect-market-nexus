@@ -7,6 +7,7 @@ import { Store, Users, MessageSquare, TrendingUp } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
 import { AdminAnalyticsDashboard } from "@/components/admin/AdminAnalyticsDashboard";
+import { AdminFeedbackTab } from "@/components/admin/AdminFeedbackTab";
 
 const AdminDashboard = () => {
   const { useStats, useRecentActivities } = useAdmin();
@@ -50,6 +51,7 @@ const AdminDashboard = () => {
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="analytics">User Analytics</TabsTrigger>
+          <TabsTrigger value="feedback">Feedback</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
@@ -163,6 +165,10 @@ const AdminDashboard = () => {
 
         <TabsContent value="analytics">
           <AdminAnalyticsDashboard />
+        </TabsContent>
+
+        <TabsContent value="feedback">
+          <AdminFeedbackTab />
         </TabsContent>
       </Tabs>
     </div>
