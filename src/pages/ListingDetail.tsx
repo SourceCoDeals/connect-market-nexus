@@ -19,6 +19,7 @@ import { DEFAULT_IMAGE } from "@/lib/storage-utils";
 import ListingFinancials from "@/components/listing-detail/ListingFinancials";
 import ListingInfo from "@/components/listing-detail/ListingInfo";
 import ConnectionButton from "@/components/listing-detail/ConnectionButton";
+import BlurredFinancialTeaser from "@/components/listing-detail/BlurredFinancialTeaser";
 
 const ListingDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -120,21 +121,22 @@ const ListingDetail = () => {
   const imageUrl = listing?.image_url || DEFAULT_IMAGE;
 
   return (
-    <div className="container mx-auto pt-6">
-      <div className="mb-6">
+    <div className="container mx-auto pt-6 pb-12">
+      <div className="mb-8">
         <Link
           to="/marketplace"
-          className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
+          className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors duration-200"
         >
           <ChevronLeft className="mr-1 h-4 w-4" />
           Back to Marketplace
         </Link>
       </div>
       
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-        {/* Left column - Image */}
-        <div className="lg:col-span-2">
-          <div className="rounded-lg overflow-hidden border border-border min-h-[300px] max-h-[400px] aspect-[16/9] relative mb-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Left column - Image and Content */}
+        <div className="lg:col-span-2 space-y-8">
+          {/* Image */}
+          <div className="rounded-xl overflow-hidden border border-border/50 shadow-lg min-h-[300px] max-h-[400px] aspect-[16/9] relative bg-gradient-to-br from-background to-muted/10">
             {imageUrl ? (
               <img
                 src={imageUrl}
@@ -147,24 +149,78 @@ const ListingDetail = () => {
                 }}
               />
             ) : (
-              <div className="w-full h-full bg-muted flex items-center justify-center">
+              <div className="w-full h-full bg-gradient-to-br from-muted/20 to-muted/40 flex items-center justify-center">
                 <ImageIcon className="h-16 w-16 text-muted-foreground/50" />
               </div>
             )}
           </div>
-        </div>
 
-        {/* Right column - Financial info and connection button */}
-        <div className="space-y-4">
-          <ListingFinancials 
-            revenue={listing.revenue} 
-            ebitda={listing.ebitda} 
-            formatCurrency={formatCurrency} 
+          {/* Title and badges section - moved here */}
+          <div className="space-y-4">
+            <div className="flex flex-wrap gap-2">
+              <Badge variant="outline" className="bg-background/80 backdrop-blur-sm border-border/50 font-medium px-3 py-1">
+                <Building2 className="h-3 w-3 mr-1.5" />
+                {listing.category}
+              </Badge>
+              <Badge variant="outline" className="bg-background/80 backdrop-blur-sm border-border/50 font-medium px-3 py-1">
+                <MapPin className="h-3 w-3 mr-1.5" />
+                {listing.location}
+              </Badge>
+              {isInactive && isAdmin && (
+                <Badge variant="destructive" className="font-medium px-3 py-1">
+                  <AlertTriangle className="h-3 w-3 mr-1.5" />
+                  Inactive
+                </Badge>
+              )}
+            </div>
+            <h1 className="text-3xl md:text-4xl font-bold tracking-tight bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
+              {listing.title}
+            </h1>
+          </div>
+
+          {/* Business overview section - moved here */}
+          <Card className="bg-gradient-to-br from-background to-muted/10 border-border/50 shadow-sm">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-xl">Business Overview</CardTitle>
+            </CardHeader>
+            <CardContent className="prose max-w-none text-foreground/90 leading-relaxed">
+              <p>{listing.description}</p>
+            </CardContent>
+          </Card>
+
+          {/* Blurred Financial Teaser */}
+          <BlurredFinancialTeaser 
+            onRequestConnection={() => handleRequestConnection()}
+            isRequesting={isRequesting}
+            hasConnection={connectionExists}
+            connectionStatus={connectionStatusValue}
           />
 
+          {isAdmin && listing.owner_notes && (
+            <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-primary/10 shadow-sm">
+              <CardHeader className="pb-4">
+                <CardTitle className="text-xl">Admin Notes</CardTitle>
+              </CardHeader>
+              <CardContent className="prose max-w-none text-foreground/90 leading-relaxed">
+                <p>{listing.owner_notes}</p>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+
+        {/* Right column - Financial info and actions */}
+        <div className="space-y-6">
+          <Card className="bg-gradient-to-br from-background to-muted/10 border-border/50 shadow-sm">
+            <ListingFinancials 
+              revenue={listing.revenue} 
+              ebitda={listing.ebitda} 
+              formatCurrency={formatCurrency} 
+            />
+          </Card>
+
           {/* Connection Button Card */}
-          <Card>
-            <CardContent className="p-4">
+          <Card className="bg-gradient-to-br from-background to-muted/10 border-border/50 shadow-sm">
+            <CardContent className="p-6">
               <ConnectionButton 
                 connectionExists={connectionExists}
                 connectionStatus={connectionStatusValue}
@@ -177,11 +233,11 @@ const ListingDetail = () => {
           </Card>
 
           {/* Save Button Card */}
-          <Card>
-            <CardContent className="p-4">
+          <Card className="bg-gradient-to-br from-background to-muted/10 border-border/50 shadow-sm">
+            <CardContent className="p-6">
               <Button
                 variant="outline"
-                className="w-full"
+                className="w-full h-11 border-border/50 bg-background/50 hover:bg-background/80 transition-all duration-200 font-medium"
                 onClick={handleToggleSave}
                 disabled={isSaving || isSavedLoading}
               >
@@ -195,54 +251,10 @@ const ListingDetail = () => {
             </CardContent>
           </Card>
 
-          <ListingInfo id={listing.id} createdAt={listing.createdAt} />
-        </div>
-      </div>
-
-      {/* Title and badges section */}
-      <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 mb-6">
-        <div className="flex-1">
-          <div className="flex flex-wrap gap-2 mb-2">
-            <Badge variant="outline" className="bg-background font-normal">
-              <Building2 className="h-3 w-3 mr-1" />
-              {listing.category}
-            </Badge>
-            <Badge variant="outline" className="bg-background font-normal">
-              <MapPin className="h-3 w-3 mr-1" />
-              {listing.location}
-            </Badge>
-            {isInactive && isAdmin && (
-              <Badge variant="destructive" className="font-normal">
-                <AlertTriangle className="h-3 w-3 mr-1" />
-                Inactive
-              </Badge>
-            )}
-          </div>
-          <h1 className="text-2xl md:text-3xl font-bold">{listing.title}</h1>
-        </div>
-      </div>
-
-      {/* Business overview section */}
-      <div className="grid grid-cols-1 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Business Overview</CardTitle>
-          </CardHeader>
-          <CardContent className="prose max-w-none">
-            <p>{listing.description}</p>
-          </CardContent>
-        </Card>
-
-        {isAdmin && listing.owner_notes && (
-          <Card className="border-primary/20 bg-primary/5">
-            <CardHeader>
-              <CardTitle>Admin Notes</CardTitle>
-            </CardHeader>
-            <CardContent className="prose max-w-none">
-              <p>{listing.owner_notes}</p>
-            </CardContent>
+          <Card className="bg-gradient-to-br from-background to-muted/10 border-border/50 shadow-sm">
+            <ListingInfo id={listing.id} createdAt={listing.createdAt} />
           </Card>
-        )}
+        </div>
       </div>
     </div>
   );

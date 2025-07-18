@@ -49,7 +49,7 @@ const ConnectionButton = ({
         case "approved":
           return {
             icon: CheckCircle2,
-            text: "Connected",
+            text: "Connected - Your connection request has been approved",
             className: "bg-emerald-50 text-emerald-700 border-2 border-emerald-200 cursor-default hover:bg-emerald-50",
             disabled: true
           };
