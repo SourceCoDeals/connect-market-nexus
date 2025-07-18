@@ -92,6 +92,10 @@ export interface ConnectionRequest {
 export interface FilterOptions {
   category?: string;
   location?: string;
+  minRevenue?: number;
+  maxRevenue?: number;
+  minEbitda?: number;
+  maxEbitda?: number;
   revenueMin?: number;
   revenueMax?: number;
   ebitdaMin?: number;

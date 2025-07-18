@@ -62,7 +62,12 @@ export function useListings(filters: FilterOptions) {
       }
 
       return {
-        listings: data as Listing[],
+        listings: data?.map(listing => ({
+          ...listing,
+          ownerNotes: listing.owner_notes || '',
+          createdAt: listing.created_at,
+          updatedAt: listing.updated_at,
+        })) as Listing[] || [],
         totalCount: count || 0
       };
     },
@@ -92,7 +97,12 @@ export function useListing(id: string) {
         throw error;
       }
 
-      return data as Listing;
+      return {
+        ...data,
+        ownerNotes: data.owner_notes || '',
+        createdAt: data.created_at,
+        updatedAt: data.updated_at,
+      } as Listing;
     },
     staleTime: 10 * 60 * 1000, // 10 minutes
     gcTime: 15 * 60 * 1000, // 15 minutes

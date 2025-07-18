@@ -8,10 +8,14 @@ export function useRequestConnection() {
   
   return useMutation({
     mutationFn: async ({ listingId, message }: { listingId: string; message?: string }) => {
+      const { data: user } = await supabase.auth.getUser();
+      if (!user.user?.id) throw new Error('User not authenticated');
+      
       const { data, error } = await supabase
         .from('connection_requests')
         .insert({
           listing_id: listingId,
+          user_id: user.user.id,
           user_message: message,
         })
         .select()
