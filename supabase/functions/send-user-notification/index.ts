@@ -1,6 +1,5 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -18,10 +17,10 @@ serve(async (req) => {
     const { type, userEmail, firstName, lastName, reason } = await req.json()
     console.log('📧 Email data:', { type, userEmail, firstName, lastName })
 
-    const resendApiKey = Deno.env.get('RESEND_API_KEY')
-    if (!resendApiKey) {
-      console.error('❌ RESEND_API_KEY is not set')
-      throw new Error('RESEND_API_KEY is not set')
+    const brevoApiKey = Deno.env.get('BREVO_API_KEY')
+    if (!brevoApiKey) {
+      console.error('❌ BREVO_API_KEY is not set')
+      throw new Error('BREVO_API_KEY is not set')
     }
 
     let subject: string
@@ -149,32 +148,40 @@ serve(async (req) => {
         throw new Error('Invalid notification type')
     }
 
-    console.log('📧 Sending email via Resend API...')
+    console.log('📧 Sending email via Brevo API...')
     
     const emailPayload = {
-      from: 'SourceCo <onboarding@resend.dev>', // Using verified domain
-      to: [userEmail],
+      sender: {
+        name: "SourceCo Marketplace",
+        email: "adam.haile@sourcecodeals.com"
+      },
+      to: [{ email: userEmail, name: firstName }],
       subject: subject,
-      html: htmlContent,
+      htmlContent: htmlContent,
+      replyTo: {
+        email: "adam.haile@sourcecodeals.com",
+        name: "Adam Haile"
+      }
     }
     
-    console.log('📧 Email payload:', { ...emailPayload, html: '[HTML_CONTENT]' })
+    console.log('📧 Email payload:', { ...emailPayload, htmlContent: '[HTML_CONTENT]' })
 
-    const res = await fetch('https://api.resend.com/emails', {
+    const res = await fetch('https://api.brevo.com/v3/smtp/email', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${resendApiKey}`,
+        'api-key': brevoApiKey,
+        'Accept': 'application/json'
       },
       body: JSON.stringify(emailPayload),
     })
 
     const responseText = await res.text()
-    console.log('📧 Resend API response status:', res.status)
-    console.log('📧 Resend API response:', responseText)
+    console.log('📧 Brevo API response status:', res.status)
+    console.log('📧 Brevo API response:', responseText)
 
     if (!res.ok) {
-      console.error('❌ Resend API error:', responseText)
+      console.error('❌ Brevo API error:', responseText)
       throw new Error(`Failed to send email: ${res.status} ${responseText}`)
     }
 
