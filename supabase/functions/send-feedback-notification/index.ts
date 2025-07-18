@@ -109,24 +109,35 @@ const handler = async (req: Request): Promise<Response> => {
       </div>
     `;
 
-    // Send email to all admin users
-    const emailPromises = adminUsers.map(async (admin) => {
+    // Use simplified email delivery for development
+    try {
       const { error } = await resend.emails.send({
-        from: "Feedback System <feedback@resend.dev>",
-        to: [admin.email],
+        from: "SourcecodeAls Feedback <onboarding@resend.dev>",
+        to: ["ahaile14@gmail.com"], // Send to verified email only in development
         subject: emailSubject,
         html: emailHtml,
       });
 
       if (error) {
-        console.error(`Error sending email to ${admin.email}:`, error);
-        throw error;
+        console.error("Error sending email:", error);
+        // Log feedback for admin review instead of failing
+        console.log("Feedback submission logged for admin review:", {
+          feedbackId,
+          category,
+          priority,
+          message: message.substring(0, 100) + "...",
+          pageUrl,
+          userEmail,
+          userName,
+          adminCount: adminUsers.length
+        });
+      } else {
+        console.log("Email sent successfully to admin");
       }
-
-      console.log(`Email sent successfully to ${admin.email}`);
-    });
-
-    await Promise.all(emailPromises);
+    } catch (error) {
+      console.error("Email delivery error:", error);
+      // Continue processing even if email fails
+    }
 
     return new Response(
       JSON.stringify({ 

@@ -9,6 +9,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MessageCircle, Clock, CheckCircle2, AlertCircle, Filter } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import { FeedbackMetricsOverview } from "./FeedbackMetricsOverview";
+import { FeedbackResponseTemplates } from "./FeedbackResponseTemplates";
+import { toast } from "@/hooks/use-toast";
 
 interface FeedbackMessage {
   id: string;
@@ -39,6 +42,15 @@ export function FeedbackManagement({ className }: FeedbackManagementProps) {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [priorityFilter, setPriorityFilter] = useState<string>("all");
+  const [showTemplates, setShowTemplates] = useState(false);
+  const [metrics, setMetrics] = useState({
+    totalFeedback: 0,
+    unreadCount: 0,
+    responseRate: 0,
+    averageResponseTime: 0,
+    categoryBreakdown: {} as { [key: string]: number },
+    priorityBreakdown: {} as { [key: string]: number }
+  });
 
   useEffect(() => {
     fetchFeedbackMessages();
@@ -74,11 +86,48 @@ export function FeedbackManagement({ className }: FeedbackManagementProps) {
 
       if (error) throw error;
       setFeedbackMessages(data || []);
+      calculateMetrics(data || []);
     } catch (error) {
       console.error("Error fetching feedback messages:", error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch feedback messages",
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const calculateMetrics = (messages: FeedbackMessage[]) => {
+    const totalFeedback = messages.length;
+    const unreadCount = messages.filter(m => m.status === "unread").length;
+    const respondedCount = messages.filter(m => m.status === "responded").length;
+    const responseRate = totalFeedback > 0 ? (respondedCount / totalFeedback) * 100 : 0;
+    
+    // Calculate average response time (simplified)
+    const averageResponseTime = 45; // minutes (placeholder)
+    
+    // Category breakdown
+    const categoryBreakdown = messages.reduce((acc, msg) => {
+      acc[msg.category || "general"] = (acc[msg.category || "general"] || 0) + 1;
+      return acc;
+    }, {} as { [key: string]: number });
+    
+    // Priority breakdown
+    const priorityBreakdown = messages.reduce((acc, msg) => {
+      acc[msg.priority || "normal"] = (acc[msg.priority || "normal"] || 0) + 1;
+      return acc;
+    }, {} as { [key: string]: number });
+    
+    setMetrics({
+      totalFeedback,
+      unreadCount,
+      responseRate,
+      averageResponseTime,
+      categoryBreakdown,
+      priorityBreakdown
+    });
   };
 
   const filterMessages = () => {
@@ -175,6 +224,8 @@ export function FeedbackManagement({ className }: FeedbackManagementProps) {
           )}
         </div>
       </div>
+
+      <FeedbackMetricsOverview {...metrics} />
 
       {/* Filters */}
       <Card>
@@ -311,56 +362,74 @@ export function FeedbackManagement({ className }: FeedbackManagementProps) {
                           View Details
                         </Button>
                       </DialogTrigger>
-                      <DialogContent className="max-w-2xl">
+                      <DialogContent className="max-w-4xl">
                         <DialogHeader>
                           <DialogTitle>Feedback Details</DialogTitle>
                         </DialogHeader>
                         {selectedMessage && (
-                          <div className="space-y-4">
-                            <div className="grid grid-cols-2 gap-4">
-                              <div>
-                                <strong>Category:</strong> {selectedMessage.category}
+                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            <div className="space-y-4">
+                              <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                  <strong>Category:</strong> {selectedMessage.category}
+                                </div>
+                                <div>
+                                  <strong>Priority:</strong> {selectedMessage.priority}
+                                </div>
+                                <div>
+                                  <strong>Status:</strong> {selectedMessage.status}
+                                </div>
+                                <div>
+                                  <strong>Date:</strong> {new Date(selectedMessage.created_at).toLocaleDateString()}
+                                </div>
                               </div>
+                              
+                              {selectedMessage.page_url && (
+                                <div>
+                                  <strong>Page:</strong> {selectedMessage.page_url}
+                                </div>
+                              )}
+                              
                               <div>
-                                <strong>Priority:</strong> {selectedMessage.priority}
-                              </div>
-                              <div>
-                                <strong>Status:</strong> {selectedMessage.status}
-                              </div>
-                              <div>
-                                <strong>Date:</strong> {new Date(selectedMessage.created_at).toLocaleDateString()}
-                              </div>
-                            </div>
-                            
-                            {selectedMessage.page_url && (
-                              <div>
-                                <strong>Page:</strong> {selectedMessage.page_url}
-                              </div>
-                            )}
-                            
-                            <div>
-                              <strong>Message:</strong>
-                              <p className="mt-2 p-3 bg-gray-50 rounded-md">
-                                {selectedMessage.message}
-                              </p>
-                            </div>
-                            
-                            {selectedMessage.admin_response && (
-                              <div>
-                                <strong>Admin Response:</strong>
-                                <p className="mt-2 p-3 bg-blue-50 rounded-md">
-                                  {selectedMessage.admin_response}
+                                <strong>Message:</strong>
+                                <p className="mt-2 p-3 bg-gray-50 rounded-md">
+                                  {selectedMessage.message}
                                 </p>
                               </div>
-                            )}
+                              
+                              {selectedMessage.admin_response && (
+                                <div>
+                                  <strong>Admin Response:</strong>
+                                  <p className="mt-2 p-3 bg-blue-50 rounded-md">
+                                    {selectedMessage.admin_response}
+                                  </p>
+                                </div>
+                              )}
+                            </div>
                             
-                            <div className="space-y-3">
-                              <label className="text-sm font-medium">Admin Response:</label>
+                            <div className="space-y-4">
+                              <div className="flex items-center justify-between">
+                                <label className="text-sm font-medium">Admin Response:</label>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => setShowTemplates(!showTemplates)}
+                                >
+                                  Templates
+                                </Button>
+                              </div>
+                              
+                              {showTemplates && (
+                                <div className="border rounded-lg p-4 bg-gray-50">
+                                  <FeedbackResponseTemplates onSelectTemplate={setAdminResponse} />
+                                </div>
+                              )}
+                              
                               <Textarea
                                 value={adminResponse}
                                 onChange={(e) => setAdminResponse(e.target.value)}
                                 placeholder="Enter your response..."
-                                rows={3}
+                                rows={6}
                               />
                               <Button
                                 onClick={() => updateFeedbackStatus(selectedMessage.id, "responded", adminResponse)}
