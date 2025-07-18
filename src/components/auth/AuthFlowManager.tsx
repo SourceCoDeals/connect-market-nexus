@@ -12,14 +12,16 @@ export const AuthFlowManager: React.FC<{ children: React.ReactNode }> = ({ child
   const navigate = useNavigate();
   const location = useLocation();
   
+  // Don't render children until auth is fully resolved to prevent flash
+  if (!authChecked || isLoading) {
+    console.log('🔄 AuthFlowManager: Waiting for auth check completion', {
+      authChecked,
+      isLoading
+    });
+    return null; // Return null instead of rendering children to prevent flash
+  }
+  
   useEffect(() => {
-    if (!authChecked || isLoading) {
-      console.log('🔄 AuthFlowManager: Waiting for auth check completion', {
-        authChecked,
-        isLoading
-      });
-      return;
-    }
     
     const currentPath = location.pathname;
     

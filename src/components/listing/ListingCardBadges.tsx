@@ -20,8 +20,11 @@ const ListingCardBadges = ({ categories, location, category }: ListingCardBadges
           {cat}
         </Badge>
       ))}
-      <Badge variant="outline" className="bg-background font-normal">
-        <MapPin className="h-3 w-3 mr-1" />
+      <Badge 
+        variant="secondary" 
+        className="bg-primary/10 text-primary font-medium border-primary/20 shadow-sm"
+      >
+        <MapPin className="h-3.5 w-3.5 mr-1.5" />
         {location}
       </Badge>
     </div>
