@@ -49,7 +49,7 @@ const ConnectionButton = ({
         case "approved":
           return {
             icon: CheckCircle2,
-            text: "Connected - Your connection request has been approved",
+            text: "Connected",
             className: "bg-emerald-50 text-emerald-700 border-2 border-emerald-200 cursor-default hover:bg-emerald-50",
             disabled: true
           };
@@ -93,6 +93,22 @@ const ConnectionButton = ({
     );
   }
 
+  // Special layout for approved connections
+  if (connectionExists && connectionStatus === "approved") {
+    return (
+      <div className="flex items-center gap-3 p-4 bg-emerald-50 border border-emerald-200 rounded-lg">
+        <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+        <div>
+          <p className="text-sm font-medium text-emerald-900">Connected</p>
+          <p className="text-xs text-emerald-700">Your connection request has been approved</p>
+        </div>
+        {connectionsConnected && (
+          <Wifi className="h-3 w-3 text-emerald-500 ml-auto" />
+        )}
+      </div>
+    );
+  }
+
   return (
     <>
       <Button
@@ -115,8 +131,8 @@ const ConnectionButton = ({
           <span>{isRequesting ? "Sending Request..." : buttonText}</span>
         </div>
 
-        {/* Realtime indicator */}
-        {connectionsConnected && (
+        {/* Realtime indicator - only show on non-disabled buttons */}
+        {connectionsConnected && !disabled && (
           <Wifi className="absolute -top-1 -right-1 h-3 w-3 text-green-500" />
         )}
       </Button>

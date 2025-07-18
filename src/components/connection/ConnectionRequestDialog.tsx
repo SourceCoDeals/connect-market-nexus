@@ -29,8 +29,10 @@ const ConnectionRequestDialog = ({
   const [message, setMessage] = useState("");
 
   const handleSubmit = () => {
-    onSubmit(message);
-    setMessage("");
+    if (message.trim()) {
+      onSubmit(message);
+      setMessage("");
+    }
   };
 
   const handleClose = () => {
@@ -54,7 +56,7 @@ const ConnectionRequestDialog = ({
         <div className="space-y-4">
           <div>
             <label htmlFor="message" className="block text-sm font-medium mb-2">
-              Your message (optional)
+              Your message *
             </label>
             <Textarea
               id="message"
@@ -63,18 +65,34 @@ const ConnectionRequestDialog = ({
               onChange={(e) => setMessage(e.target.value)}
               rows={4}
               className="w-full"
+              required
             />
             <p className="text-xs text-muted-foreground mt-1">
               Providing context helps business owners understand your interest and relevance.
             </p>
           </div>
+          
+          <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <p className="text-sm text-blue-900">
+              <strong>What happens next:</strong> We'll review your request based on your profile and the business owner's criteria. You'll receive a response with further details shortly.
+            </p>
+          </div>
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={handleClose} disabled={isSubmitting}>
+          <Button 
+            variant="outline" 
+            onClick={handleClose} 
+            disabled={isSubmitting}
+            className="bg-slate-900 text-white hover:bg-slate-800 border-slate-900"
+          >
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={isSubmitting}>
+          <Button 
+            onClick={handleSubmit} 
+            disabled={isSubmitting || !message.trim()}
+            className="bg-slate-900 text-white hover:bg-slate-800"
+          >
             {isSubmitting ? "Submitting..." : "Submit Request"}
           </Button>
         </DialogFooter>
