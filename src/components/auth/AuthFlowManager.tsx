@@ -23,7 +23,8 @@ export const AuthFlowManager: React.FC<{ children: React.ReactNode }> = ({ child
         emailVerified: user.email_verified,
         approvalStatus: user.approval_status,
         isAdmin: user.is_admin,
-        currentPath
+        currentPath,
+        userObject: user // Log the full user object to debug
       });
       
       // Don't redirect if user is already on the correct page
@@ -35,7 +36,10 @@ export const AuthFlowManager: React.FC<{ children: React.ReactNode }> = ({ child
       
       // PRIORITY 1: If email not verified, always show email verification screen
       if (!user.email_verified) {
-        console.log('AuthFlowManager: Email not verified, redirecting to verify-email');
+        console.log('AuthFlowManager: Email not verified, redirecting to verify-email', {
+          emailVerified: user.email_verified,
+          emailVerifiedType: typeof user.email_verified
+        });
         navigate('/verify-email', { 
           state: { email: user.email },
           replace: true 
@@ -59,7 +63,8 @@ export const AuthFlowManager: React.FC<{ children: React.ReactNode }> = ({ child
       
       // PRIORITY 4: If approved or admin, redirect to appropriate dashboard if on auth pages
       if ((user.approval_status === 'approved' && user.email_verified) || user.is_admin) {
-        if (currentPath === '/login' || currentPath === '/signup' || currentPath === '/') {
+        if (currentPath === '/login' || currentPath === '/signup' || currentPath === '/' || 
+            currentPath === '/verify-email') {
           const redirectPath = user.is_admin ? '/admin' : '/marketplace';
           console.log('AuthFlowManager: User approved, redirecting to', redirectPath);
           navigate(redirectPath, { replace: true });

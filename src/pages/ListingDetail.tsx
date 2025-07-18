@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useMarketplace } from "@/hooks/use-marketplace";
 import { useAuth } from "@/context/AuthContext";
+import { useSavedStatus, useSaveListingMutation } from "@/hooks/marketplace/use-saved-listings";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,7 +12,8 @@ import {
   ChevronLeft,
   AlertTriangle,
   ImageIcon,
-  MapPin
+  MapPin,
+  Bookmark
 } from "lucide-react";
 import { DEFAULT_IMAGE } from "@/lib/storage-utils";
 import ListingFinancials from "@/components/listing-detail/ListingFinancials";
@@ -30,6 +32,8 @@ const ListingDetail = () => {
   const { data: listing, isLoading, error } = useListing(id);
   const { mutate: requestConnection, isPending: isRequesting } = useRequestConnection();
   const { data: connectionStatus } = useConnectionStatus(id);
+  const { data: isSaved, isLoading: isSavedLoading } = useSavedStatus(id);
+  const { mutate: toggleSave, isPending: isSaving } = useSaveListingMutation();
   
   const isAdmin = user?.is_admin === true;
 
@@ -55,6 +59,17 @@ const ListingDetail = () => {
   // Extract connection status safely with fallbacks
   const connectionExists = connectionStatus?.exists || false;
   const connectionStatusValue = connectionStatus?.status || "";
+  
+  const handleToggleSave = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (id) {
+      toggleSave({ 
+        listingId: id, 
+        action: isSaved ? 'unsave' : 'save' 
+      });
+    }
+  };
 
   if (isLoading) {
     return (
@@ -158,6 +173,25 @@ const ListingDetail = () => {
                 handleRequestConnection={handleRequestConnection}
                 listingTitle={listing.title}
               />
+            </CardContent>
+          </Card>
+
+          {/* Save Button Card */}
+          <Card>
+            <CardContent className="p-4">
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={handleToggleSave}
+                disabled={isSaving || isSavedLoading}
+              >
+                <Bookmark
+                  className={`h-4 w-4 mr-2 ${
+                    isSaved ? "fill-current text-primary" : ""
+                  }`}
+                />
+                {isSaved ? "Saved" : "Save Listing"}
+              </Button>
             </CardContent>
           </Card>
 
