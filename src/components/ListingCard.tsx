@@ -1,4 +1,5 @@
 
+import React from "react";
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { useMarketplace } from "@/hooks/use-marketplace";
@@ -15,34 +16,34 @@ interface ListingCardProps {
   viewType: "grid" | "list";
 }
 
-const ListingCard = ({ listing, viewType }: ListingCardProps) => {
+const ListingCard = React.memo(({ listing, viewType }: ListingCardProps) => {
   const { useRequestConnection, useConnectionStatus, useSaveListingMutation, useSavedStatus } = useMarketplace();
   const { mutate: requestConnection, isPending: isRequesting } = useRequestConnection();
   const { data: connectionStatus } = useConnectionStatus(listing.id);
   const { mutate: toggleSave, isPending: isSaving } = useSaveListingMutation();
   const { data: isSaved } = useSavedStatus(listing.id);
 
-  const handleRequestConnection = (e: React.MouseEvent, message?: string) => {
+  const handleRequestConnection = React.useCallback((e: React.MouseEvent, message?: string) => {
     e.preventDefault();
     requestConnection({ listingId: listing.id, message });
-  };
+  }, [requestConnection, listing.id]);
 
-  const handleToggleSave = (e: React.MouseEvent) => {
+  const handleToggleSave = React.useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     toggleSave({
       listingId: listing.id,
       action: isSaved ? "unsave" : "save",
     });
-  };
+  }, [toggleSave, listing.id, isSaved]);
 
-  const formatCurrency = (value: number) => {
+  const formatCurrency = React.useCallback((value: number) => {
     return new Intl.NumberFormat("en-US", {
       style: "currency",
       currency: "USD",
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
     }).format(value);
-  };
+  }, []);
 
   // Extract connection status safely with fallbacks
   const connectionExists = connectionStatus?.exists || false;
@@ -117,6 +118,8 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
       </Card>
     </Link>
   );
-};
+});
+
+ListingCard.displayName = "ListingCard";
 
 export default ListingCard;

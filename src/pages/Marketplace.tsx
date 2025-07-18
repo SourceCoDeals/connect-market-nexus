@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from "react";
 import { useMarketplace } from "@/hooks/use-marketplace";
 import { FilterOptions, PaginationState } from "@/types";
@@ -22,7 +23,6 @@ const Marketplace = () => {
   const [filters, setFilters] = useState<FilterOptions>({
     page: 1,
     perPage: 20
-    // Removed default restrictive filters - let all listings show initially
   });
   const [viewType, setViewType] = useState<"grid" | "list">("grid");
   const [pagination, setPagination] = useState<PaginationState>({
@@ -40,18 +40,12 @@ const Marketplace = () => {
   const listings = listingsData?.listings || [];
   const totalItems = listingsData?.totalCount || 0;
   
-  // Debug logging for marketplace component
+  // Reduced logging - only critical information
   useEffect(() => {
-    console.log('🏪 Marketplace component state:', {
-      filters,
-      isLoading,
-      error,
-      listingsCount: listings.length,
-      totalItems,
-      listingTitles: listings.map(l => l.title),
-      listingIds: listings.map(l => l.id)
-    });
-  }, [filters, isLoading, error, listings.length, totalItems]);
+    if (error) {
+      console.error('Marketplace error:', error.message);
+    }
+  }, [error]);
   
   // Update pagination whenever total count or filters change
   useEffect(() => {
@@ -65,20 +59,12 @@ const Marketplace = () => {
         totalItems,
         perPage
       });
-      
-      console.log('📊 Updated pagination:', {
-        currentPage: filters.page || 1,
-        totalPages,
-        totalItems,
-        perPage
-      });
     }
   }, [listingsData, totalItems, filters.page, filters.perPage]);
   
   // Error handling
   useEffect(() => {
     if (error) {
-      console.error("❌ Error loading marketplace listings:", error);
       toast({
         variant: "destructive",
         title: "Error loading listings",
@@ -89,10 +75,8 @@ const Marketplace = () => {
 
   // Memoize filter change handler to prevent unnecessary re-renders
   const handleFilterChange = useCallback((newFilters: FilterOptions) => {
-    console.log("🔄 Filter change requested:", newFilters);
     setFilters(prev => {
-      const updated = { ...newFilters, page: 1 }; // Reset to page 1 when filters change
-      console.log("✅ Applying filters:", updated);
+      const updated = { ...newFilters, page: 1 };
       return updated;
     });
   }, []);
@@ -111,34 +95,30 @@ const Marketplace = () => {
     setFilters(prev => ({
       ...prev,
       perPage,
-      page: 1 // Reset to first page when changing items per page
+      page: 1
     }));
   }, []);
   
   // Generate page numbers for pagination
   const getPageNumbers = () => {
     const { currentPage, totalPages } = pagination;
-    const delta = 1; // Number of pages to show before and after current page
+    const delta = 1;
     
     const range = [];
     const rangeWithDots = [];
     
     if (totalPages <= 1) return [];
     
-    // Always include first page
     range.push(1);
     
-    // Calculate the range of pages to show
     for (let i = Math.max(2, currentPage - delta); i <= Math.min(totalPages - 1, currentPage + delta); i++) {
       range.push(i);
     }
     
-    // Always include last page if more than 1 page
     if (totalPages > 1) {
       range.push(totalPages);
     }
     
-    // Add dots where needed
     let prev = 0;
     for (const i of range) {
       if (prev && i - prev === 2) {
@@ -154,29 +134,30 @@ const Marketplace = () => {
   };
 
   const renderSkeletons = () => {
-    return Array(filters.perPage || 8)
+    return Array(8)
       .fill(0)
       .map((_, index) => (
         <div
           key={`skeleton-${index}`}
           className="bg-white rounded-lg border border-border overflow-hidden h-full flex flex-col"
         >
-          <div className="p-6">
-            <div className="flex space-x-2 mb-2">
-              <div className="h-6 w-16 bg-muted rounded skeleton"></div>
-              <div className="h-6 w-20 bg-muted rounded skeleton"></div>
+          <Skeleton className="h-48 w-full" />
+          <div className="p-6 space-y-4">
+            <div className="flex space-x-2">
+              <Skeleton className="h-6 w-16" />
+              <Skeleton className="h-6 w-20" />
             </div>
-            <div className="h-7 w-4/5 bg-muted rounded mb-4 skeleton"></div>
-            <div className="grid grid-cols-2 gap-2 mb-4">
-              <div className="h-16 bg-muted rounded skeleton"></div>
-              <div className="h-16 bg-muted rounded skeleton"></div>
+            <Skeleton className="h-7 w-4/5" />
+            <div className="grid grid-cols-2 gap-2">
+              <Skeleton className="h-16 w-full" />
+              <Skeleton className="h-16 w-full" />
             </div>
-            <div className="space-y-2 mb-6">
-              <div className="h-4 w-full bg-muted rounded skeleton"></div>
-              <div className="h-4 w-11/12 bg-muted rounded skeleton"></div>
-              <div className="h-4 w-4/5 bg-muted rounded skeleton"></div>
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-11/12" />
+              <Skeleton className="h-4 w-4/5" />
             </div>
-            <div className="h-10 w-full bg-muted rounded skeleton"></div>
+            <Skeleton className="h-10 w-full" />
           </div>
         </div>
       ));
@@ -199,7 +180,6 @@ const Marketplace = () => {
           </div>
           
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-            {/* Filter sidebar */}
             <div className="col-span-1">
               <FilterPanel
                 onFilterChange={handleFilterChange}
@@ -210,9 +190,7 @@ const Marketplace = () => {
               />
             </div>
             
-            {/* Listings */}
             <div className="col-span-1 lg:col-span-3 flex flex-col gap-4">
-              {/* View type and sorting */}
               <div className="flex flex-wrap justify-between items-center gap-4">
                 <div className="text-sm text-muted-foreground">
                   {isLoading ? "Loading listings..." : `${totalItems} listings found, showing ${listings.length}`}
@@ -252,7 +230,6 @@ const Marketplace = () => {
                 </div>
               </div>
               
-              {/* Listings grid/list */}
               {isLoading ? (
                 <div className={viewType === "grid" ? "grid grid-cols-1 md:grid-cols-2 gap-4" : "flex flex-col gap-4"}>
                   {renderSkeletons()}
@@ -286,25 +263,15 @@ const Marketplace = () => {
                   <div className={viewType === "grid" 
                     ? "grid grid-cols-1 md:grid-cols-2 gap-4" 
                     : "flex flex-col gap-4"}>
-                    {listings.map((listing) => {
-                      console.log('🎯 Rendering listing card:', {
-                        id: listing.id,
-                        title: listing.title,
-                        status: listing.status,
-                        revenue: listing.revenue,
-                        ebitda: listing.ebitda
-                      });
-                      return (
-                        <ListingCard
-                          key={listing.id}
-                          listing={listing}
-                          viewType={viewType}
-                        />
-                      );
-                    })}
+                    {listings.map((listing) => (
+                      <ListingCard
+                        key={listing.id}
+                        listing={listing}
+                        viewType={viewType}
+                      />
+                    ))}
                   </div>
                   
-                  {/* Pagination controls */}
                   {pagination.totalPages > 1 && (
                     <div className="flex items-center justify-center mt-8">
                       <div className="flex items-center space-x-2">
