@@ -116,9 +116,9 @@ const Login = () => {
       
       // Handle different states based on profile data
       if (!profile.email_verified) {
-        console.log("Email not verified, redirecting to verify email page");
+        console.log("Email not verified, redirecting to email verification required page");
         await supabase.auth.signOut();
-        navigate("/verify-email", { 
+        navigate("/email-verification-required", { 
           state: { email: profile.email },
           replace: true 
         });
@@ -127,13 +127,12 @@ const Login = () => {
       
       // If email is verified but account is still pending approval
       if (profile.approval_status === 'pending') {
-        console.log("Account pending approval, signing out and redirecting to pending approval");
-        toast({
-          title: "Account under review",
-          description: "Your account is being reviewed by our team.",
-        });
+        console.log("Account pending approval, redirecting to pending approval page");
         await supabase.auth.signOut();
-        navigate("/pending-approval", { replace: true });
+        navigate("/pending-approval", { 
+          state: { email: profile.email },
+          replace: true 
+        });
         return;
       }
       

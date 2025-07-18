@@ -13,7 +13,7 @@ serve(async (req) => {
   }
 
   try {
-    const { user, type, reason } = await req.json()
+    const { type, userEmail, firstName, lastName, reason } = await req.json()
 
     const resendApiKey = Deno.env.get('RESEND_API_KEY')
     if (!resendApiKey) {
@@ -24,7 +24,7 @@ serve(async (req) => {
     let htmlContent: string
 
     switch (type) {
-      case 'approval':
+      case 'approved':
         subject = '🎉 Welcome to SourceCodeals - Your Account is Approved!'
         htmlContent = `
           <!DOCTYPE html>
@@ -40,7 +40,7 @@ serve(async (req) => {
             </div>
             
             <div style="background: #ffffff; padding: 30px; border: 1px solid #e1e5e9; border-top: none; border-radius: 0 0 10px 10px;">
-              <h2 style="color: #333; margin-top: 0;">Great news, ${user.first_name}!</h2>
+              <h2 style="color: #333; margin-top: 0;">Great news, ${firstName}!</h2>
               
               <p style="font-size: 16px; margin-bottom: 20px;">
                 Your account has been approved by our admin team. You now have full access to our marketplace of business opportunities.
@@ -65,11 +65,10 @@ serve(async (req) => {
               
               <div style="border-top: 1px solid #e1e5e9; padding-top: 20px; margin-top: 30px;">
                 <h4 style="color: #495057; margin-bottom: 15px;">Your Account Details:</h4>
-                <div style="background: #f8f9fa; padding: 15px; border-radius: 6px; font-size: 14px;">
-                  <strong>Email:</strong> ${user.email}<br>
-                  <strong>Company:</strong> ${user.company || 'Not specified'}<br>
-                  <strong>Buyer Type:</strong> ${user.buyer_type || 'Not specified'}
-                </div>
+                 <div style="background: #f8f9fa; padding: 15px; border-radius: 6px; font-size: 14px;">
+                   <strong>Email:</strong> ${userEmail}<br>
+                   <strong>Name:</strong> ${firstName} ${lastName}
+                 </div>
               </div>
               
               <p style="margin-top: 25px; font-size: 14px; color: #6c757d;">
@@ -88,7 +87,7 @@ serve(async (req) => {
         `
         break
         
-      case 'rejection':
+      case 'rejected':
         subject = 'SourceCodeals Account Update'
         htmlContent = `
           <!DOCTYPE html>
@@ -104,7 +103,7 @@ serve(async (req) => {
             </div>
             
             <div style="background: #ffffff; padding: 30px; border: 1px solid #e1e5e9; border-top: none; border-radius: 0 0 10px 10px;">
-              <h2 style="color: #333; margin-top: 0;">Hello ${user.first_name},</h2>
+              <h2 style="color: #333; margin-top: 0;">Hello ${firstName},</h2>
               
               <p style="font-size: 16px; margin-bottom: 20px;">
                 Thank you for your interest in SourceCodeals. After reviewing your application, we're unable to approve your account at this time.
@@ -143,8 +142,8 @@ serve(async (req) => {
         'Authorization': `Bearer ${resendApiKey}`,
       },
       body: JSON.stringify({
-        from: 'SourceCodeals <noreply@sourcecodeals.com>',
-        to: [user.email],
+        from: 'SourceCo <noreply@sourceco.com>',
+        to: [userEmail],
         subject: subject,
         html: htmlContent,
       }),
