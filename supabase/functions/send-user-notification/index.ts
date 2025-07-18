@@ -13,13 +13,10 @@ serve(async (req) => {
   }
 
   try {
-    console.log('🔔 Send user notification function called');
     const { type, userEmail, firstName, lastName, reason } = await req.json()
-    console.log('📧 Request payload:', { type, userEmail, firstName, lastName, reason: reason ? 'provided' : 'not provided' });
 
     const resendApiKey = Deno.env.get('RESEND_API_KEY')
     if (!resendApiKey) {
-      console.error('❌ RESEND_API_KEY is not set');
       throw new Error('RESEND_API_KEY is not set')
     }
 
@@ -28,18 +25,18 @@ serve(async (req) => {
 
     switch (type) {
       case 'approved':
-        subject = '🎉 Welcome to SourceCo - Your Account is Approved!'
+        subject = '🎉 Welcome to SourceCodeals - Your Account is Approved!'
         htmlContent = `
           <!DOCTYPE html>
           <html>
           <head>
             <meta charset="utf-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Account Approved - SourceCo</title>
+            <title>Account Approved - SourceCodeals</title>
           </head>
           <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
             <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-              <h1 style="color: white; margin: 0; font-size: 28px;">🎉 Welcome to SourceCo!</h1>
+              <h1 style="color: white; margin: 0; font-size: 28px;">🎉 Welcome to SourceCodeals!</h1>
             </div>
             
             <div style="background: #ffffff; padding: 30px; border: 1px solid #e1e5e9; border-top: none; border-radius: 0 0 10px 10px;">
@@ -62,7 +59,7 @@ serve(async (req) => {
               <div style="text-align: center; margin: 30px 0;">
                 <a href="${Deno.env.get('SITE_URL') || 'https://vhzipqarkmmfuqadefep.supabase.co'}/login" 
                    style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; display: inline-block; transition: transform 0.2s;">
-                  🚀 Access Your Account
+                  🚀 Start Exploring Now
                 </a>
               </div>
               
@@ -80,8 +77,8 @@ serve(async (req) => {
               
               <div style="text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e1e5e9;">
                 <p style="margin: 0; font-size: 14px; color: #6c757d;">
-                  Welcome to the SourceCo community!<br>
-                  <strong>The SourceCo Team</strong>
+                  Welcome to the SourceCodeals community!<br>
+                  <strong>The SourceCodeals Team</strong>
                 </p>
               </div>
             </div>
@@ -91,14 +88,14 @@ serve(async (req) => {
         break
         
       case 'rejected':
-        subject = 'SourceCo Account Update'
+        subject = 'SourceCodeals Account Update'
         htmlContent = `
           <!DOCTYPE html>
           <html>
           <head>
             <meta charset="utf-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Account Update - SourceCo</title>
+            <title>Account Update - SourceCodeals</title>
           </head>
           <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
             <div style="background: #dc3545; padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
@@ -109,7 +106,7 @@ serve(async (req) => {
               <h2 style="color: #333; margin-top: 0;">Hello ${firstName},</h2>
               
               <p style="font-size: 16px; margin-bottom: 20px;">
-                Thank you for your interest in SourceCo. After reviewing your application, we're unable to approve your account at this time.
+                Thank you for your interest in SourceCodeals. After reviewing your application, we're unable to approve your account at this time.
               </p>
               
               ${reason ? `
@@ -125,7 +122,7 @@ serve(async (req) => {
               
               <div style="text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e1e5e9;">
                 <p style="margin: 0; font-size: 14px; color: #6c757d;">
-                  <strong>The SourceCo Team</strong>
+                  <strong>The SourceCodeals Team</strong>
                 </p>
               </div>
             </div>
@@ -135,11 +132,9 @@ serve(async (req) => {
         break
         
       default:
-        console.error('❌ Invalid notification type:', type);
         throw new Error('Invalid notification type')
     }
 
-    console.log('📤 Sending email via Resend...');
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
@@ -147,7 +142,7 @@ serve(async (req) => {
         'Authorization': `Bearer ${resendApiKey}`,
       },
       body: JSON.stringify({
-        from: 'SourceCo <onboarding@resend.dev>',
+        from: 'SourceCo <noreply@sourceco.com>',
         to: [userEmail],
         subject: subject,
         html: htmlContent,
@@ -156,12 +151,12 @@ serve(async (req) => {
 
     if (!res.ok) {
       const errorText = await res.text()
-      console.error('❌ Resend API error:', errorText)
+      console.error('Resend API error:', errorText)
       throw new Error(`Failed to send email: ${res.status} ${errorText}`)
     }
 
     const data = await res.json()
-    console.log('✅ Email sent successfully:', data)
+    console.log('Email sent successfully:', data)
 
     return new Response(
       JSON.stringify({ success: true, data }),
@@ -172,7 +167,7 @@ serve(async (req) => {
     )
 
   } catch (error) {
-    console.error('💥 Error in send-user-notification function:', error)
+    console.error('Error in send-user-notification function:', error)
     return new Response(
       JSON.stringify({ 
         error: error.message,
