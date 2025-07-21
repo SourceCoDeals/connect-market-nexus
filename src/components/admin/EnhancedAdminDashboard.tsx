@@ -1,8 +1,6 @@
 import React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { EnhancedFeedbackManagement } from './EnhancedFeedbackManagement';
 import { AdvancedAnalyticsDashboard } from './AdvancedAnalyticsDashboard';
-import { EmailTemplateManager } from './EmailTemplateManager';
 import { UserActivityFeed } from './UserActivityFeed';
 import { EnhancedAnalyticsHealthDashboard } from './EnhancedAnalyticsHealthDashboard';
 
@@ -18,7 +16,7 @@ export function EnhancedAdminDashboard() {
 
       <Tabs defaultValue="analytics" className="space-y-4">
         <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="analytics">Analytics</TabsTrigger>
+          <TabsTrigger value="analytics">Advanced Analytics</TabsTrigger>
           <TabsTrigger value="health">Analytics Health</TabsTrigger>
           <TabsTrigger value="activity">Live Activity</TabsTrigger>
         </TabsList>

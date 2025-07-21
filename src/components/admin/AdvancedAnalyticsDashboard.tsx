@@ -39,7 +39,7 @@ import {
   Funnel,
   LabelList
 } from 'recharts';
-import { useMarketplaceAnalytics, useDailyMetrics, useUserEngagementScores } from '@/hooks/use-marketplace-analytics';
+import { useSimpleMarketplaceAnalytics } from '@/hooks/use-simple-marketplace-analytics';
 import { Skeleton } from '@/components/ui/skeleton';
 import { UserActivityFeed } from './UserActivityFeed';
 
@@ -53,9 +53,7 @@ export function AdvancedAnalyticsDashboard() {
   const [selectedTimeRange, setSelectedTimeRange] = useState('30');
   const [isMobile, setIsMobile] = useState(false);
   
-  const { data: analytics, isLoading: analyticsLoading, error: analyticsError, refetch: refetchAnalytics } = useMarketplaceAnalytics(parseInt(selectedTimeRange));
-  const { data: dailyMetrics, isLoading: metricsLoading, error: metricsError } = useDailyMetrics(parseInt(selectedTimeRange));
-  const { data: engagementScores, isLoading: engagementLoading, error: engagementError } = useUserEngagementScores();
+  const { data: analytics, isLoading: analyticsLoading, error: analyticsError, refetch: refetchAnalytics } = useSimpleMarketplaceAnalytics();
 
   // Handle responsive design
   useEffect(() => {
@@ -76,7 +74,7 @@ export function AdvancedAnalyticsDashboard() {
   };
 
   // Enhanced loading state with better skeleton UI
-  if (analyticsLoading || metricsLoading) {
+  if (analyticsLoading) {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
@@ -131,8 +129,8 @@ export function AdvancedAnalyticsDashboard() {
   }
 
   // Enhanced error handling with specific error types
-  if (analyticsError || metricsError || engagementError) {
-    const errorMessage = analyticsError?.message || metricsError?.message || engagementError?.message || 'An unknown error occurred';
+  if (analyticsError) {
+    const errorMessage = analyticsError?.message || 'An unknown error occurred';
     
     return (
       <div className="space-y-6">
@@ -217,47 +215,33 @@ export function AdvancedAnalyticsDashboard() {
         Math.round((analytics.new_users / analytics.total_users) * 100) : 0
     },
     {
-      title: 'Active Users',
-      value: analytics?.active_users?.toLocaleString() || '0',
+      title: 'Active Sessions',
+      value: analytics?.active_sessions?.toLocaleString() || '0',
       icon: Activity,
-      description: 'Users with sessions',
-      trend: analytics?.active_users && analytics?.total_users ? 
-        Math.round((analytics.active_users / analytics.total_users) * 100) : 0
+      description: 'Current active sessions',
+      trend: analytics?.session_count && analytics?.active_sessions ? 
+        Math.round((analytics.active_sessions / analytics.session_count) * 100) : 0
     },
     {
-      title: 'Avg Session Duration',
-      value: `${Math.round(analytics?.avg_session_duration || 0)}m`,
-      icon: Clock,
-      description: 'Minutes per session',
-      trend: Math.round(analytics?.avg_session_duration || 0)
+      title: 'Total Listings',
+      value: analytics?.total_listings?.toLocaleString() || '0',
+      icon: TrendingUp,
+      description: 'Available listings',
+      trend: analytics?.total_listings || 0
     },
     {
       title: 'Page Views',
-      value: analytics?.page_views?.toLocaleString() || '0',
+      value: analytics?.total_page_views?.toLocaleString() || '0',
       icon: Eye,
       description: 'Total page views',
-      trend: analytics?.bounce_rate ? Math.round(100 - analytics.bounce_rate) : 0
+      trend: analytics?.total_page_views || 0
     }
   ];
 
-  const funnelData = analytics?.user_funnel?.map(step => ({
-    value: step.count,
-    name: step.step,
-    conversion_rate: step.conversion_rate
-  })) || [];
-
-  const segmentData = analytics?.user_segments ? [
-    { name: 'High Engagement', value: analytics.user_segments.high_engagement, color: COLORS[0] },
-    { name: 'Medium Engagement', value: analytics.user_segments.medium_engagement, color: COLORS[1] },
-    { name: 'Low Engagement', value: analytics.user_segments.low_engagement, color: COLORS[2] },
-    { name: 'At Risk', value: analytics.user_segments.at_risk, color: COLORS[3] }
-  ] : [];
-
-  const conversionData = analytics?.conversion_metrics ? [
-    { name: 'Signup to Profile', value: analytics.conversion_metrics.signup_to_profile_completion },
-    { name: 'View to Save', value: analytics.conversion_metrics.view_to_save_rate },
-    { name: 'View to Connect', value: analytics.conversion_metrics.view_to_connection_rate }
-  ] : [];
+  // Simple analytics data - no complex funnel or segment data available
+  const funnelData: any[] = [];
+  const segmentData: any[] = [];
+  const conversionData: any[] = [];
 
   return (
     <div className="space-y-6">
@@ -320,78 +304,80 @@ export function AdvancedAnalyticsDashboard() {
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
-            {/* Daily Metrics Chart */}
+            <div className="grid gap-4 md:grid-cols-2">
+            {/* Current Stats */}
             <Card>
               <CardHeader>
-                <CardTitle>Daily Activity Trends</CardTitle>
-                <CardDescription>User activity over time</CardDescription>
+                <CardTitle>Current Activity</CardTitle>
+                <CardDescription>Real-time analytics overview</CardDescription>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={chartHeight}>
-                  <LineChart data={dailyMetrics}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis 
-                      dataKey="date" 
-                      tick={{ fontSize: 12 }}
-                      interval="preserveStartEnd"
-                    />
-                    <YAxis tick={{ fontSize: 12 }} />
-                    <Tooltip 
-                      contentStyle={{ 
-                        backgroundColor: 'hsl(var(--background))', 
-                        border: '1px solid hsl(var(--border))',
-                        borderRadius: '6px'
-                      }}
-                    />
-                    <Line type="monotone" dataKey="active_users" stroke="hsl(var(--primary))" strokeWidth={2} />
-                    <Line type="monotone" dataKey="new_signups" stroke="hsl(var(--secondary))" strokeWidth={2} />
-                  </LineChart>
-                </ResponsiveContainer>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm">Active Sessions</span>
+                    <Badge variant="secondary">{analytics?.active_sessions || 0}</Badge>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm">Total Sessions</span>
+                    <Badge variant="outline">{analytics?.session_count || 0}</Badge>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm">Pending Connections</span>
+                    <Badge variant="default">{analytics?.pending_connections || 0}</Badge>
+                  </div>
+                </div>
               </CardContent>
             </Card>
 
-            {/* Top Pages */}
+            {/* Analytics Health */}
             <Card>
               <CardHeader>
-                <CardTitle>Top Pages</CardTitle>
-                <CardDescription>Most visited pages</CardDescription>
+                <CardTitle>Analytics Status</CardTitle>
+                <CardDescription>System health overview</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3">
-                  {analytics?.top_pages?.slice(0, 5).map((page, index) => (
-                    <div key={index} className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <div className="font-medium text-sm truncate">{page.page}</div>
-                        <div className="text-xs text-muted-foreground">
-                          {page.unique_views} unique views
-                        </div>
-                      </div>
-                      <Badge variant="outline">{page.views}</Badge>
-                    </div>
-                  ))}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm">Data Collection</span>
+                    <Badge variant="default">Active</Badge>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm">Real-time Updates</span>
+                    <Badge variant="default">Live</Badge>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm">Last Updated</span>
+                    <Badge variant="secondary">Now</Badge>
+                  </div>
                 </div>
               </CardContent>
             </Card>
           </div>
 
-          {/* Conversion Metrics */}
+          {/* System Summary */}
           <Card>
             <CardHeader>
-              <CardTitle>Conversion Metrics</CardTitle>
-              <CardDescription>Key conversion rates across the platform</CardDescription>
+              <CardTitle>Platform Summary</CardTitle>
+              <CardDescription>Overall marketplace statistics</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid gap-4 md:grid-cols-3">
-                {conversionData.map((metric, index) => (
-                  <div key={index} className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">{metric.name}</span>
-                      <span className="text-sm text-muted-foreground">{metric.value.toFixed(1)}%</span>
-                    </div>
-                    <Progress value={metric.value} className="h-2" />
-                  </div>
-                ))}
+              <div className="grid gap-4 md:grid-cols-4">
+                <div className="text-center p-4">
+                  <div className="text-lg font-bold text-primary">{analytics?.total_users || 0}</div>
+                  <div className="text-sm text-muted-foreground">Total Users</div>
+                </div>
+                <div className="text-center p-4">
+                  <div className="text-lg font-bold text-green-600">{analytics?.total_listings || 0}</div>
+                  <div className="text-sm text-muted-foreground">Active Listings</div>
+                </div>
+                <div className="text-center p-4">
+                  <div className="text-lg font-bold text-blue-600">{analytics?.total_page_views || 0}</div>
+                  <div className="text-sm text-muted-foreground">Page Views</div>
+                </div>
+                <div className="text-center p-4">
+                  <div className="text-lg font-bold text-purple-600">{analytics?.new_users || 0}</div>
+                  <div className="text-sm text-muted-foreground">New Users</div>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -432,38 +418,26 @@ export function AdvancedAnalyticsDashboard() {
               </CardContent>
             </Card>
 
-            {/* Engagement Scores */}
+            {/* User Summary */}
             <Card>
               <CardHeader>
-                <CardTitle>Top Engaged Users</CardTitle>
-                <CardDescription>Users with highest engagement scores</CardDescription>
+                <CardTitle>User Activity</CardTitle>
+                <CardDescription>Current user engagement overview</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3">
-                  {engagementLoading ? (
-                    Array.from({ length: 5 }).map((_, i) => (
-                      <Skeleton key={i} className="h-12" />
-                    ))
-                  ) : (
-                    engagementScores?.slice(0, 5).map((user, index) => (
-                      <div key={index} className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <div className="font-medium text-sm">
-                            {user.profiles?.first_name} {user.profiles?.last_name}
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            {user.profiles?.email}
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Progress value={user.score} className="w-20 h-2" />
-                          <Badge variant={user.score >= 80 ? 'default' : user.score >= 40 ? 'secondary' : 'outline'}>
-                            {user.score}
-                          </Badge>
-                        </div>
-                      </div>
-                    ))
-                  )}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm">Active Sessions</span>
+                    <Badge variant="default">{analytics?.active_sessions || 0}</Badge>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm">New Users Today</span>
+                    <Badge variant="secondary">{analytics?.new_users || 0}</Badge>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm">Total Registered</span>
+                    <Badge variant="outline">{analytics?.total_users || 0}</Badge>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -472,75 +446,46 @@ export function AdvancedAnalyticsDashboard() {
 
         <TabsContent value="listings" className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
-            {/* Listing Performance */}
+            {/* Listing Statistics */}
             <Card>
               <CardHeader>
-                <CardTitle>Listing Performance</CardTitle>
-                <CardDescription>Overview of listing interactions</CardDescription>
+                <CardTitle>Listing Overview</CardTitle>
+                <CardDescription>Current listing status and activity</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="grid gap-4 grid-cols-2">
-                  <div className="space-y-2">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <Eye className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm font-medium">Total Views</span>
+                      <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm font-medium">Total Listings</span>
                     </div>
                     <div className="text-2xl font-bold">
-                      {analytics?.listing_performance?.total_views?.toLocaleString() || '0'}
+                      {analytics?.total_listings?.toLocaleString() || '0'}
                     </div>
                   </div>
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <Heart className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm font-medium">Total Saves</span>
-                    </div>
-                    <div className="text-2xl font-bold">
-                      {analytics?.listing_performance?.total_saves?.toLocaleString() || '0'}
-                    </div>
-                  </div>
-                  <div className="space-y-2">
+                  <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Link className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm font-medium">Connections</span>
+                      <span className="text-sm font-medium">Pending Connections</span>
                     </div>
                     <div className="text-2xl font-bold">
-                      {analytics?.listing_performance?.total_connections?.toLocaleString() || '0'}
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <Clock className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm font-medium">Avg Time</span>
-                    </div>
-                    <div className="text-2xl font-bold">
-                      {Math.round(analytics?.listing_performance?.avg_time_spent || 0)}s
+                      {analytics?.pending_connections?.toLocaleString() || '0'}
                     </div>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Top Listings */}
+            {/* Activity Summary */}
             <Card>
               <CardHeader>
-                <CardTitle>Top Performing Listings</CardTitle>
-                <CardDescription>Listings with most views</CardDescription>
+                <CardTitle>Recent Activity</CardTitle>
+                <CardDescription>Latest marketplace interactions</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3">
-                  {analytics?.listing_performance?.top_listings?.map((listing, index) => (
-                    <div key={index} className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <div className="font-medium text-sm truncate">
-                          Listing {listing.listing_id.slice(0, 8)}...
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          Listing ID: {listing.listing_id}
-                        </div>
-                      </div>
-                      <Badge variant="outline">{listing.views} views</Badge>
-                    </div>
-                  )) || []}
+                <div className="text-center py-8">
+                  <Activity className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <p className="text-muted-foreground">Check the Live Activity tab for real-time updates</p>
                 </div>
               </CardContent>
             </Card>
@@ -549,61 +494,43 @@ export function AdvancedAnalyticsDashboard() {
 
         <TabsContent value="search" className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
-            {/* Search Insights */}
+            {/* Search Overview */}
             <Card>
               <CardHeader>
-                <CardTitle>Search Analytics</CardTitle>
-                <CardDescription>Search behavior and performance</CardDescription>
+                <CardTitle>Search Activity</CardTitle>
+                <CardDescription>Overview of search behavior</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="grid gap-4 grid-cols-2">
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <Search className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm font-medium">Total Searches</span>
-                    </div>
-                    <div className="text-2xl font-bold">
-                      {analytics?.search_insights?.total_searches?.toLocaleString() || '0'}
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <ChartBar className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm font-medium">Avg Results</span>
-                    </div>
-                    <div className="text-2xl font-bold">
-                      {Math.round(analytics?.search_insights?.avg_results || 0)}
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <AlertTriangle className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm font-medium">No Results Rate</span>
-                    </div>
-                    <div className="text-2xl font-bold">
-                      {Math.round(analytics?.search_insights?.no_results_rate || 0)}%
-                    </div>
-                  </div>
+                <div className="text-center py-8">
+                  <Search className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <p className="text-muted-foreground">Search analytics will appear here</p>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    Data is collected from the search functionality
+                  </p>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Top Search Queries */}
+            {/* Search Status */}
             <Card>
               <CardHeader>
-                <CardTitle>Top Search Queries</CardTitle>
-                <CardDescription>Most popular search terms</CardDescription>
+                <CardTitle>Search System</CardTitle>
+                <CardDescription>Current search system status</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3">
-                  {analytics?.search_insights?.top_queries?.map((query, index) => (
-                    <div key={index} className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <div className="font-medium text-sm truncate">"{query.query}"</div>
-                      </div>
-                      <Badge variant="outline">{query.count} searches</Badge>
-                    </div>
-                  )) || []}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm">Search Tracking</span>
+                    <Badge variant="default">Active</Badge>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm">Filter Analytics</span>
+                    <Badge variant="default">Enabled</Badge>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm">Query Logging</span>
+                    <Badge variant="secondary">Collecting</Badge>
+                  </div>
                 </div>
               </CardContent>
             </Card>

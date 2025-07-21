@@ -16,7 +16,7 @@ import {
   RefreshCw,
   Radio
 } from 'lucide-react';
-import { useRecentUserActivity } from '@/hooks/use-user-activity';
+import { useRecentUserActivity } from '@/hooks/use-recent-user-activity';
 import { Button } from '@/components/ui/button';
 import { format } from 'date-fns';
 
