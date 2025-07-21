@@ -1,8 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { Resend } from "npm:resend@2.0.0";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
-
-const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const supabase = createClient(supabaseUrl, supabaseKey);
@@ -32,12 +29,21 @@ const handler = async (req: Request): Promise<Response> => {
     // Log the email attempt
     const correlationId = crypto.randomUUID();
     
-    // Send email using Resend
-    const emailResponse = await resend.emails.send({
-      from: "Feedback System <feedback@connect-market-nexus.lovable.app>",
-      to: [to],
+    // Get Brevo API key
+    const brevoApiKey = Deno.env.get("BREVO_API_KEY");
+    if (!brevoApiKey) {
+      throw new Error("BREVO_API_KEY environment variable is not set");
+    }
+
+    // Prepare Brevo email payload
+    const brevoPayload = {
+      sender: {
+        name: "SourceCo Feedback",
+        email: "adam.haile@sourcecodeals.com"
+      },
+      to: [{ email: to }],
       subject: subject,
-      html: `
+      htmlContent: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; text-align: center;">
             <h1 style="color: white; margin: 0;">Feedback Response</h1>
@@ -52,20 +58,63 @@ const handler = async (req: Request): Promise<Response> => {
           </div>
         </div>
       `,
+      textContent: content,
+      replyTo: {
+        email: "adam.haile@sourcecodeals.com",
+        name: "Adam Haile"
+      }
+    };
+
+    // Send email using Brevo
+    const emailResponse = await fetch("https://api.brevo.com/v3/smtp/email", {
+      method: "POST",
+      headers: {
+        "api-key": brevoApiKey,
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+      },
+      body: JSON.stringify(brevoPayload)
     });
+
+    // Check if email was successful
+    if (!emailResponse.ok) {
+      const errorText = await emailResponse.text();
+      console.error("Email sending failed:", errorText);
+      
+      // Log email delivery status
+      await supabase.from('email_delivery_logs').insert({
+        email: to,
+        email_type: 'feedback_response',
+        status: 'failed',
+        correlation_id: correlationId,
+        error_message: errorText,
+        sent_at: null
+      });
+
+      return new Response(
+        JSON.stringify({ error: errorText }),
+        {
+          status: 500,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        }
+      );
+    }
+
+    const emailData = await emailResponse.json();
+    console.log("Email sent successfully:", emailData);
 
     // Log email delivery status
     await supabase.from('email_delivery_logs').insert({
       email: to,
       email_type: 'feedback_response',
-      status: emailResponse.error ? 'failed' : 'sent',
+      status: 'sent',
       correlation_id: correlationId,
-      error_message: emailResponse.error?.message || null,
-      sent_at: emailResponse.error ? null : new Date().toISOString()
+      error_message: null,
+      sent_at: new Date().toISOString()
     });
 
     // Update feedback message with delivery status
-    if (!emailResponse.error && feedbackId) {
+    if (feedbackId) {
       await supabase
         .from('feedback_messages')
         .update({ 
@@ -75,23 +124,10 @@ const handler = async (req: Request): Promise<Response> => {
         .eq('id', feedbackId);
     }
 
-    if (emailResponse.error) {
-      console.error("Email sending failed:", emailResponse.error);
-      return new Response(
-        JSON.stringify({ error: emailResponse.error.message }),
-        {
-          status: 500,
-          headers: { "Content-Type": "application/json", ...corsHeaders },
-        }
-      );
-    }
-
-    console.log("Email sent successfully:", emailResponse);
-
     return new Response(
       JSON.stringify({ 
         success: true, 
-        messageId: emailResponse.data?.id,
+        messageId: emailData.messageId,
         correlationId
       }),
       {
