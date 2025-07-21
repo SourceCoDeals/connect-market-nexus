@@ -93,16 +93,11 @@ const updateAnalyticsStats = (success: boolean, error?: any) => {
     analyticsStats.failedInsertions++;
     analyticsStats.lastFailureTime = Date.now();
     
-    // Open circuit breaker if too many failures
+    // Open circuit breaker if too many failures (silent for users)
     if (analyticsStats.failedInsertions >= CIRCUIT_BREAKER_THRESHOLD && 
         !analyticsStats.circuitBreakerOpen) {
       analyticsStats.circuitBreakerOpen = true;
       console.error('🚨 Analytics circuit breaker OPENED - too many failures');
-      toast({
-        title: "Analytics System Issue",
-        description: "Analytics temporarily disabled due to errors",
-        variant: "destructive",
-      });
     }
   }
 };

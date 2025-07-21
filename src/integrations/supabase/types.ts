@@ -440,13 +440,6 @@ export type Database = {
             referencedRelation: "listings"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "listing_analytics_session_id_fkey"
-            columns: ["session_id"]
-            isOneToOne: false
-            referencedRelation: "user_sessions"
-            referencedColumns: ["id"]
-          },
         ]
       }
       listings: {
@@ -570,15 +563,7 @@ export type Database = {
           time_on_page?: number | null
           user_id?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "page_views_session_id_fkey"
-            columns: ["session_id"]
-            isOneToOne: false
-            referencedRelation: "user_sessions"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       password_reset_tokens: {
         Row: {
@@ -823,15 +808,7 @@ export type Database = {
           time_to_click?: number | null
           user_id?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "search_analytics_session_id_fkey"
-            columns: ["session_id"]
-            isOneToOne: false
-            referencedRelation: "user_sessions"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       user_activity: {
         Row: {
@@ -911,15 +888,7 @@ export type Database = {
           session_id?: string | null
           user_id?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "user_events_session_id_fkey"
-            columns: ["session_id"]
-            isOneToOne: false
-            referencedRelation: "user_sessions"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       user_sessions: {
         Row: {

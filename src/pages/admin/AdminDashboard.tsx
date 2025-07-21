@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { AdminAnalyticsDashboard } from "@/components/admin/AdminAnalyticsDashboard";
 import { AdminFeedbackTab } from "@/components/admin/AdminFeedbackTab";
 import { AdvancedAnalyticsDashboard } from "@/components/admin/AdvancedAnalyticsDashboard";
+import { EnhancedAnalyticsHealthDashboard } from "@/components/admin/EnhancedAnalyticsHealthDashboard";
 
 const AdminDashboard = () => {
   const { useStats, useRecentActivities } = useAdmin();
@@ -49,9 +50,10 @@ const AdminDashboard = () => {
       </div>
 
       <Tabs defaultValue="overview" className="space-y-4 md:space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="overview" className="text-xs md:text-sm">Overview</TabsTrigger>
           <TabsTrigger value="analytics" className="text-xs md:text-sm">Analytics</TabsTrigger>
+          <TabsTrigger value="health" className="text-xs md:text-sm">Health</TabsTrigger>
           <TabsTrigger value="feedback" className="text-xs md:text-sm">Feedback</TabsTrigger>
         </TabsList>
 
@@ -166,6 +168,10 @@ const AdminDashboard = () => {
 
         <TabsContent value="analytics">
           <AdvancedAnalyticsDashboard />
+        </TabsContent>
+
+        <TabsContent value="health">
+          <EnhancedAnalyticsHealthDashboard />
         </TabsContent>
 
         <TabsContent value="feedback">
