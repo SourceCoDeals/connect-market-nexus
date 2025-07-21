@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useAdmin } from "@/hooks/use-admin";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -5,9 +6,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Store, Users, MessageSquare, TrendingUp } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
-import { AdminAnalyticsDashboard } from "@/components/admin/AdminAnalyticsDashboard";
 import { AdminFeedbackTab } from "@/components/admin/AdminFeedbackTab";
-import { MobileOptimizedAnalytics } from "@/components/admin/MobileOptimizedAnalytics";
+import { AdvancedAnalyticsDashboard } from "@/components/admin/AdvancedAnalyticsDashboard";
 
 const AdminDashboard = () => {
   const { useStats, useRecentActivities } = useAdmin();
@@ -165,7 +165,7 @@ const AdminDashboard = () => {
         </TabsContent>
 
         <TabsContent value="analytics">
-          <MobileOptimizedAnalytics />
+          <AdvancedAnalyticsDashboard />
         </TabsContent>
 
         <TabsContent value="feedback">

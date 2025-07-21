@@ -1,48 +1,32 @@
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { useAuth } from "@/context/AuthContext";
-import { toast } from "@/hooks/use-toast";
-import { z } from "zod";
+
+import { useState, useEffect } from "react";
+import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { BuyerType, User } from "@/types";
-
-const steps = [
-  "Account Information",
-  "Personal Details", 
-  "Buyer Type",
-];
-
-const buyerTypeOptions = [
-  { value: "corporate", label: "Corporate" },
-  { value: "privateEquity", label: "Private Equity" },
-  { value: "familyOffice", label: "Family Office" },
-  { value: "searchFund", label: "Search Fund" },
-  { value: "individual", label: "Individual" },
-];
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useToast } from "@/hooks/use-toast";
+import { useAuthActions } from "@/hooks/auth/use-auth-actions";
+import { useAuthState } from "@/hooks/auth/use-auth-state";
+import { useRegistrationTracking } from "@/hooks/use-registration-tracking";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { PasswordStrengthIndicator } from "@/components/security/PasswordStrengthIndicator";
 
 const Signup = () => {
-  const { signup, isLoading } = useAuth();
   const navigate = useNavigate();
-  const [currentStep, setCurrentStep] = useState(0);
-  const [validationErrors, setValidationErrors] = useState<string[]>([]);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  
-  const [formData, setFormData] = useState<{
-    email: string;
-    password: string;
-    confirmPassword: string;
-    firstName: string;
-    lastName: string;
-    company: string;
-    website: string;
-    phone: string;
-    buyerType: BuyerType | "";
-    additionalInfo: Record<string, any>;
-  }>({
+  const { toast } = useToast();
+  const { signUp } = useAuthActions();
+  const { user, isLoading } = useAuthState();
+  const {
+    trackRegistrationStepWithTiming,
+    trackFormFieldInteraction,
+    trackFormValidationError,
+    trackFormSubmission,
+  } = useRegistrationTracking();
+
+  const [formData, setFormData] = useState({
     email: "",
     password: "",
     confirmPassword: "",
@@ -50,569 +34,364 @@ const Signup = () => {
     lastName: "",
     company: "",
     website: "",
-    phone: "",
+    phoneNumber: "",
     buyerType: "",
-    additionalInfo: {},
+    companyName: "",
+    estimatedRevenue: "",
+    fundSize: "",
+    investmentSize: "",
+    aum: "",
+    isFunded: "",
+    fundedBy: "",
+    targetCompanySize: "",
+    fundingSource: "",
+    needsLoan: "",
+    idealTarget: "",
+    bio: "",
   });
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [currentStep, setCurrentStep] = useState(1);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleAdditionalInfoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      additionalInfo: { ...prev.additionalInfo, [name]: value },
-    }));
-  };
+  // Track initial landing
+  useEffect(() => {
+    trackRegistrationStepWithTiming('signup_page_landed', 1);
+  }, [trackRegistrationStepWithTiming]);
 
-  const handleBuyerTypeChange = (value: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      buyerType: value as BuyerType,
-      additionalInfo: {}, // Reset additional info when type changes
-    }));
-  };
-
-  const validateStep = (): boolean => {
-    const errors: string[] = [];
-    
-    switch (currentStep) {
-      case 0: {
-        // Email validation
-        if (!formData.email) {
-          errors.push("Email is required");
-        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-          errors.push("Please enter a valid email address");
-        }
-        
-        // Password validation
-        if (!formData.password) {
-          errors.push("Password is required");
-        } else if (formData.password.length < 6) {
-          errors.push("Password must be at least 6 characters");
-        }
-        
-        // Confirm password validation
-        if (formData.password !== formData.confirmPassword) {
-          errors.push("Passwords do not match");
-        }
-        break;
-      }
-      case 1: {
-        // Name validation
-        if (!formData.firstName) {
-          errors.push("First name is required");
-        }
-        if (!formData.lastName) {
-          errors.push("Last name is required");
-        }
-        // Company validation
-        if (!formData.company) {
-          errors.push("Company name is required");
-        }
-        // Phone validation
-        if (!formData.phone) {
-          errors.push("Phone number is required");
-        }
-        break;
-      }
-      case 2: {
-        // Buyer type validation
-        if (!formData.buyerType) {
-          errors.push("Please select a buyer type");
-        }
-        
-        // Specific validations based on buyer type
-        switch (formData.buyerType) {
-          case "corporate":
-            if (!formData.additionalInfo.estimatedRevenue) {
-              errors.push("Estimated revenue is required");
-            }
-            break;
-          case "privateEquity":
-          case "familyOffice":
-            if (!formData.additionalInfo.fundSize) {
-              errors.push("Fund size is required");
-            }
-            break;
-          case "searchFund":
-            if (formData.additionalInfo.isFunded === undefined) {
-              errors.push("Please specify if you're funded");
-            }
-            break;
-          case "individual":
-            if (!formData.additionalInfo.fundingSource) {
-              errors.push("Funding source is required");
-            }
-            break;
-        }
-        break;
-      }
+  // Redirect if already logged in
+  useEffect(() => {
+    if (user && !isLoading) {
+      navigate("/dashboard");
     }
+  }, [user, isLoading, navigate]);
+
+  const validateStep1 = () => {
+    const newErrors: Record<string, string> = {};
     
-    setValidationErrors(errors);
-    return errors.length === 0;
+    if (!formData.email) {
+      newErrors.email = "Email is required";
+      trackFormValidationError('email', 'Email is required');
+    }
+    if (!formData.password) {
+      newErrors.password = "Password is required";
+      trackFormValidationError('password', 'Password is required');
+    }
+    if (formData.password !== formData.confirmPassword) {
+      newErrors.confirmPassword = "Passwords do not match";
+      trackFormValidationError('confirmPassword', 'Passwords do not match');
+    }
+    if (!formData.firstName) {
+      newErrors.firstName = "First name is required";
+      trackFormValidationError('firstName', 'First name is required');
+    }
+    if (!formData.lastName) {
+      newErrors.lastName = "Last name is required";
+      trackFormValidationError('lastName', 'Last name is required');
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
-  const handleNext = () => {
-    if (validateStep()) {
-      setCurrentStep((prev) => Math.min(prev + 1, steps.length - 1));
+  const validateStep2 = () => {
+    const newErrors: Record<string, string> = {};
+    
+    if (!formData.buyerType) {
+      newErrors.buyerType = "Buyer type is required";
+      trackFormValidationError('buyerType', 'Buyer type is required');
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleInputChange = (field: string, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    trackFormFieldInteraction(field, value);
+    
+    // Clear field error when user starts typing
+    if (errors[field]) {
+      setErrors(prev => ({ ...prev, [field]: "" }));
     }
   };
 
-  const handlePrevious = () => {
-    setCurrentStep((prev) => Math.max(prev - 1, 0));
+  const handleNextStep = () => {
+    if (currentStep === 1 && validateStep1()) {
+      trackRegistrationStepWithTiming('basic_info_completed', 2, {
+        email: formData.email,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+      });
+      setCurrentStep(2);
+    } else if (currentStep === 2 && validateStep2()) {
+      trackRegistrationStepWithTiming('buyer_type_selected', 3, {
+        buyerType: formData.buyerType,
+      });
+      setCurrentStep(3);
+    }
+  };
+
+  const handlePrevStep = () => {
+    if (currentStep > 1) {
+      setCurrentStep(currentStep - 1);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!validateStep()) return;
-    
+    if (!validateStep1() || !validateStep2()) {
+      trackFormSubmission('final_submit', false, 'Validation failed');
+      return;
+    }
+
     setIsSubmitting(true);
-    
+
     try {
-      // Prepare user data for signup
-      const { firstName, lastName, email, company, website, phone, buyerType, additionalInfo } = formData;
-      const signupData: Partial<User> = {
-        first_name: firstName,
-        last_name: lastName,
-        email: email,
-        company: company,
-        website: website,
-        phone_number: phone,
-        buyer_type: buyerType as BuyerType,
-        ...additionalInfo, // Include all additional info
-      };
+      trackRegistrationStepWithTiming('form_submission_started', 4, formData);
       
-      await signup(signupData, formData.password);
+      const { error } = await signUp(
+        formData.email,
+        formData.password,
+        formData
+      );
+
+      if (error) {
+        trackFormSubmission('signup_attempt', false, error.message);
+        toast({
+          title: "Error",
+          description: error.message,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      trackFormSubmission('signup_attempt', true);
+      trackRegistrationStepWithTiming('account_created', 5, { email: formData.email });
       
-      // Show success toast
       toast({
         title: "Account created successfully!",
         description: "Please check your email to verify your account.",
       });
       
-      // Navigate to the verify email page after successful signup
-      navigate('/verify-email', { state: { email: formData.email } });
-      
+      navigate("/email-verification-required");
     } catch (error: any) {
-      console.error('Signup error:', error);
-      
-      // More specific error handling
-      let errorMessage = "An unexpected error occurred. Please try again.";
-      
-      if (error.message?.includes('User already registered')) {
-        errorMessage = "An account with this email already exists. Please sign in instead.";
-      } else if (error.message?.includes('Password')) {
-        errorMessage = "Password requirements not met. Please ensure it's at least 6 characters.";
-      } else if (error.message?.includes('Email')) {
-        errorMessage = "Invalid email address. Please check and try again.";
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-      
+      trackFormSubmission('signup_attempt', false, error.message);
       toast({
+        title: "Error",
+        description: "An unexpected error occurred. Please try again.",
         variant: "destructive",
-        title: "Signup failed",
-        description: errorMessage,
       });
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const renderStepContent = () => {
-    switch (currentStep) {
-      case 0:
-        return (
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                name="email"
-                type="email"
-                placeholder="name@company.com"
-                value={formData.email}
-                onChange={handleInputChange}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                name="password"
-                type="password"
-                placeholder="••••••••"
-                value={formData.password}
-                onChange={handleInputChange}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="confirmPassword">Confirm Password</Label>
-              <Input
-                id="confirmPassword"
-                name="confirmPassword"
-                type="password"
-                placeholder="••••••••"
-                value={formData.confirmPassword}
-                onChange={handleInputChange}
-                required
-              />
-            </div>
-          </div>
-        );
-      case 1:
-        return (
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="firstName">First Name</Label>
-                <Input
-                  id="firstName"
-                  name="firstName"
-                  placeholder="John"
-                  value={formData.firstName}
-                  onChange={handleInputChange}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="lastName">Last Name</Label>
-                <Input
-                  id="lastName"
-                  name="lastName"
-                  placeholder="Doe"
-                  value={formData.lastName}
-                  onChange={handleInputChange}
-                  required
-                />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="company">Company</Label>
-              <Input
-                id="company"
-                name="company"
-                placeholder="Acme Inc."
-                value={formData.company}
-                onChange={handleInputChange}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="website">Website</Label>
-              <Input
-                id="website"
-                name="website"
-                placeholder="https://www.example.com"
-                value={formData.website}
-                onChange={handleInputChange}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="phone">Phone</Label>
-              <Input
-                id="phone"
-                name="phone"
-                placeholder="(123) 456-7890"
-                value={formData.phone}
-                onChange={handleInputChange}
-                required
-              />
-            </div>
-          </div>
-        );
-      case 2:
-        return (
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="buyerType">Type of Buyer</Label>
-              <Select
-                onValueChange={handleBuyerTypeChange}
-                value={formData.buyerType}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select buyer type" />
-                </SelectTrigger>
-                <SelectContent>
-                  {buyerTypeOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            
-            {/* Conditional fields based on buyer type */}
-            {formData.buyerType === "corporate" && (
-              <div className="space-y-2">
-                <Label htmlFor="estimatedRevenue">Estimated Revenue</Label>
-                <Input
-                  id="estimatedRevenue"
-                  name="estimatedRevenue"
-                  placeholder="$1M-$5M"
-                  value={formData.additionalInfo.estimatedRevenue || ""}
-                  onChange={handleAdditionalInfoChange}
-                  required
-                />
-              </div>
-            )}
-            
-            {(formData.buyerType === "privateEquity" || formData.buyerType === "familyOffice") && (
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="fundSize">Fund Size</Label>
-                  <Input
-                    id="fundSize"
-                    name="fundSize"
-                    placeholder="$10M-$50M"
-                    value={formData.additionalInfo.fundSize || ""}
-                    onChange={handleAdditionalInfoChange}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="platformSize">Platform Size</Label>
-                  <Input
-                    id="platformSize"
-                    name="platformSize"
-                    placeholder="5 companies"
-                    value={formData.additionalInfo.platformSize || ""}
-                    onChange={handleAdditionalInfoChange}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="aum">Assets Under Management</Label>
-                  <Input
-                    id="aum"
-                    name="aum"
-                    placeholder="$100M"
-                    value={formData.additionalInfo.aum || ""}
-                    onChange={handleAdditionalInfoChange}
-                  />
-                </div>
-              </div>
-            )}
-            
-            {formData.buyerType === "searchFund" && (
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="isFunded">Are you funded?</Label>
-                  <Select
-                    onValueChange={(value) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        additionalInfo: {
-                          ...prev.additionalInfo,
-                          isFunded: value === "yes",
-                        },
-                      }))
-                    }
-                    value={
-                      formData.additionalInfo.isFunded === undefined
-                        ? ""
-                        : formData.additionalInfo.isFunded
-                        ? "yes"
-                        : "no"
-                    }
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select option" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="yes">Yes</SelectItem>
-                      <SelectItem value="no">No</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                {formData.additionalInfo.isFunded && (
-                  <div className="space-y-2">
-                    <Label htmlFor="funder">Who is your funder?</Label>
-                    <Input
-                      id="funder"
-                      name="funder"
-                      placeholder="Investor name"
-                      value={formData.additionalInfo.funder || ""}
-                      onChange={handleAdditionalInfoChange}
-                    />
-                  </div>
-                )}
-                
-                <div className="space-y-2">
-                  <Label htmlFor="targetSize">Target size</Label>
-                  <Input
-                    id="targetSize"
-                    name="targetSize"
-                    placeholder="$5M-$20M"
-                    value={formData.additionalInfo.targetSize || ""}
-                    onChange={handleAdditionalInfoChange}
-                  />
-                </div>
-              </div>
-            )}
-            
-            {formData.buyerType === "individual" && (
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="fundingSource">Funding Source</Label>
-                  <Input
-                    id="fundingSource"
-                    name="fundingSource"
-                    placeholder="Personal funds, investors, etc."
-                    value={formData.additionalInfo.fundingSource || ""}
-                    onChange={handleAdditionalInfoChange}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="sbaLoan">SBA/Bank loan?</Label>
-                  <Select
-                    onValueChange={(value) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        additionalInfo: {
-                          ...prev.additionalInfo,
-                          sbaLoan: value === "yes",
-                        },
-                      }))
-                    }
-                    value={
-                      formData.additionalInfo.sbaLoan === undefined
-                        ? ""
-                        : formData.additionalInfo.sbaLoan
-                        ? "yes"
-                        : "no"
-                    }
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select option" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="yes">Yes</SelectItem>
-                      <SelectItem value="no">No</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="idealTarget">Ideal Target</Label>
-                  <Input
-                    id="idealTarget"
-                    name="idealTarget"
-                    placeholder="Description of ideal acquisition"
-                    value={formData.additionalInfo.idealTarget || ""}
-                    onChange={handleAdditionalInfoChange}
-                  />
-                </div>
-              </div>
-            )}
-          </div>
-        );
-      default:
-        return null;
-    }
-  };
+  const renderStep1 = () => (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="firstName">First Name</Label>
+          <Input
+            id="firstName"
+            type="text"
+            value={formData.firstName}
+            onChange={(e) => handleInputChange('firstName', e.target.value)}
+            className={errors.firstName ? "border-destructive" : ""}
+          />
+          {errors.firstName && (
+            <p className="text-sm text-destructive">{errors.firstName}</p>
+          )}
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="lastName">Last Name</Label>
+          <Input
+            id="lastName"
+            type="text"
+            value={formData.lastName}
+            onChange={(e) => handleInputChange('lastName', e.target.value)}
+            className={errors.lastName ? "border-destructive" : ""}
+          />
+          {errors.lastName && (
+            <p className="text-sm text-destructive">{errors.lastName}</p>
+          )}
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="email">Email</Label>
+        <Input
+          id="email"
+          type="email"
+          value={formData.email}
+          onChange={(e) => handleInputChange('email', e.target.value)}
+          className={errors.email ? "border-destructive" : ""}
+        />
+        {errors.email && (
+          <p className="text-sm text-destructive">{errors.email}</p>
+        )}
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="password">Password</Label>
+        <Input
+          id="password"
+          type="password"
+          value={formData.password}
+          onChange={(e) => handleInputChange('password', e.target.value)}
+          className={errors.password ? "border-destructive" : ""}
+        />
+        <PasswordStrengthIndicator password={formData.password} />
+        {errors.password && (
+          <p className="text-sm text-destructive">{errors.password}</p>
+        )}
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="confirmPassword">Confirm Password</Label>
+        <Input
+          id="confirmPassword"
+          type="password"
+          value={formData.confirmPassword}
+          onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
+          className={errors.confirmPassword ? "border-destructive" : ""}
+        />
+        {errors.confirmPassword && (
+          <p className="text-sm text-destructive">{errors.confirmPassword}</p>
+        )}
+      </div>
+    </div>
+  );
+
+  const renderStep2 = () => (
+    <div className="space-y-4">
+      <div className="space-y-2">
+        <Label htmlFor="buyerType">I am a...</Label>
+        <Select
+          value={formData.buyerType}
+          onValueChange={(value) => handleInputChange('buyerType', value)}
+        >
+          <SelectTrigger className={errors.buyerType ? "border-destructive" : ""}>
+            <SelectValue placeholder="Select buyer type" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="corporate">Corporate Buyer</SelectItem>
+            <SelectItem value="individual">Individual Investor</SelectItem>
+            <SelectItem value="pe_vc">PE/VC Fund</SelectItem>
+            <SelectItem value="family_office">Family Office</SelectItem>
+            <SelectItem value="search_fund">Search Fund</SelectItem>
+            <SelectItem value="other">Other</SelectItem>
+          </SelectContent>
+        </Select>
+        {errors.buyerType && (
+          <p className="text-sm text-destructive">{errors.buyerType}</p>
+        )}
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="company">Company</Label>
+        <Input
+          id="company"
+          type="text"
+          value={formData.company}
+          onChange={(e) => handleInputChange('company', e.target.value)}
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="website">Website (Optional)</Label>
+        <Input
+          id="website"
+          type="url"
+          value={formData.website}
+          onChange={(e) => handleInputChange('website', e.target.value)}
+          placeholder="https://example.com"
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="phoneNumber">Phone Number (Optional)</Label>
+        <Input
+          id="phoneNumber"
+          type="tel"
+          value={formData.phoneNumber}
+          onChange={(e) => handleInputChange('phoneNumber', e.target.value)}
+        />
+      </div>
+    </div>
+  );
+
+  const renderStep3 = () => (
+    <div className="space-y-4">
+      <div className="space-y-2">
+        <Label htmlFor="bio">Tell us about yourself and your investment criteria (Optional)</Label>
+        <Textarea
+          id="bio"
+          value={formData.bio}
+          onChange={(e) => handleInputChange('bio', e.target.value)}
+          placeholder="Describe your background, investment focus, deal size preferences, etc."
+          rows={4}
+        />
+      </div>
+
+      <Alert>
+        <AlertDescription>
+          Your profile will be reviewed by our team. Once approved, you'll gain access to the marketplace.
+        </AlertDescription>
+      </Alert>
+    </div>
+  );
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-muted/30 py-8">
-      <div className="w-full max-w-lg mx-4 space-y-6">
-        {/* Brand Header */}
-        <div className="flex flex-col items-center space-y-3">
-          <div className="flex items-center">
-            <img 
-              src="/lovable-uploads/b879fa06-6a99-4263-b973-b9ced4404acb.png" 
-              alt="SourceCo Logo" 
-              className="h-10 w-10 mr-3"
-            />
-            <div className="text-center">
-              <h1 className="text-2xl font-bold">SourceCo</h1>
-              <p className="text-lg text-muted-foreground font-light">Marketplace</p>
-            </div>
-          </div>
-        </div>
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <Card className="w-full max-w-md">
+        <CardHeader className="space-y-1">
+          <CardTitle className="text-2xl font-bold text-center">Create Account</CardTitle>
+          <CardDescription className="text-center">
+            Step {currentStep} of 3 - Join our marketplace
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {currentStep === 1 && renderStep1()}
+            {currentStep === 2 && renderStep2()}
+            {currentStep === 3 && renderStep3()}
 
-        <Card>
-          <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl font-bold text-center">
-              Create an account
-            </CardTitle>
-            <CardDescription className="text-center">
-              Step {currentStep + 1} of {steps.length}: {steps[currentStep]}
-            </CardDescription>
-            
-            {/* Progress bar */}
-            <div className="w-full bg-secondary h-2 rounded-full mt-4">
-              <div
-                className="bg-primary h-2 rounded-full transition-all"
-                style={{
-                  width: `${((currentStep + 1) / steps.length) * 100}%`,
-                }}
-              ></div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {validationErrors.length > 0 && (
-              <div className="bg-destructive/15 text-destructive p-3 rounded-md mb-4">
-                <ul className="list-disc pl-5">
-                  {validationErrors.map((error, index) => (
-                    <li key={index}>{error}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            
-            <form onSubmit={handleSubmit}>{renderStepContent()}</form>
-          </CardContent>
-          <CardFooter className="flex flex-col space-y-4">
-            <div className="flex justify-between w-full">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handlePrevious}
-                disabled={currentStep === 0 || isLoading || isSubmitting}
-              >
-                Back
-              </Button>
-              
-              {currentStep === steps.length - 1 ? (
-                <Button
-                  type="submit"
-                  onClick={handleSubmit}
-                  disabled={isLoading || isSubmitting}
-                >
-                  {isLoading || isSubmitting ? "Creating account..." : "Create account"}
+            <div className="flex justify-between">
+              {currentStep > 1 && (
+                <Button type="button" variant="outline" onClick={handlePrevStep}>
+                  Previous
+                </Button>
+              )}
+              {currentStep < 3 ? (
+                <Button type="button" onClick={handleNextStep} className="ml-auto">
+                  Next
                 </Button>
               ) : (
-                <Button
-                  type="button"
-                  onClick={handleNext}
-                  disabled={isLoading || isSubmitting}
-                >
-                  Continue
+                <Button type="submit" disabled={isSubmitting} className="ml-auto">
+                  {isSubmitting ? "Creating Account..." : "Create Account"}
                 </Button>
               )}
             </div>
-            
-            <div className="text-sm text-center text-muted-foreground">
-              <span>Already have an account? </span>
-              <Link
-                to="/login"
-                className="text-primary font-medium hover:underline"
-              >
-                Sign in
-              </Link>
-            </div>
-          </CardFooter>
-        </Card>
-      </div>
+          </form>
+
+          <div className="mt-6 text-center text-sm">
+            <span className="text-muted-foreground">Already have an account? </span>
+            <Link to="/login" className="text-primary hover:underline">
+              Sign in
+            </Link>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };
