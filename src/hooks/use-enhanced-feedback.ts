@@ -90,22 +90,25 @@ export function useEnhancedFeedback() {
         }
 
         const userName = profile ? `${profile.first_name} ${profile.last_name}`.trim() : '';
+        const userEmail = profile?.email || user.email;
         
+        // Always send confirmation email regardless of category
         const { data: emailResult, error: emailError } = await supabase.functions.invoke('send-contact-response', {
           body: {
-            to: user.email,
+            to: userEmail,
             subject: feedbackData.category === 'contact' 
               ? `Thank you for contacting us${userName ? `, ${userName}` : ''}` 
-              : `Thank you for your feedback${userName ? `, ${userName}` : ''}`,
+              : `Thank you for your ${feedbackData.category || 'feedback'}${userName ? `, ${userName}` : ''}`,
             content: feedbackData.message,
             feedbackId: feedback.id,
             userName: userName || undefined,
-            category: feedbackData.category
+            category: feedbackData.category || 'general'
           }
         });
 
         if (emailError) {
           console.error('Email sending failed:', emailError);
+          console.error('Email error details:', emailError.message || emailError);
           // Don't throw - feedback was saved successfully
         } else {
           console.log('Confirmation response email sent successfully:', emailResult);
