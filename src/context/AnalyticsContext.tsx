@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuthState } from '@/hooks/auth/use-auth-state';
+import { useAuth } from '@/context/AuthContext';
 
 interface AnalyticsContextType {
   trackEvent: (eventType: string, eventData?: any) => void;
@@ -24,7 +24,7 @@ const generateSessionId = () => {
 
 export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
   const location = useLocation();
-  const { user } = useAuthState();
+  const { user } = useAuth();
 
   // Initialize session on mount
   useEffect(() => {

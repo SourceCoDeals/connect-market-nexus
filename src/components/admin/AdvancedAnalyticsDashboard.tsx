@@ -41,6 +41,7 @@ import {
 } from 'recharts';
 import { useMarketplaceAnalytics, useDailyMetrics, useUserEngagementScores } from '@/hooks/use-marketplace-analytics';
 import { Skeleton } from '@/components/ui/skeleton';
+import { UserActivityFeed } from './UserActivityFeed';
 
 const COLORS = ['hsl(var(--primary))', 'hsl(var(--secondary))', 'hsl(var(--accent))', 'hsl(var(--muted))'];
 
@@ -309,8 +310,9 @@ export function AdvancedAnalyticsDashboard() {
       </div>
 
       <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-5 lg:grid-cols-5 md:grid-cols-3 sm:grid-cols-2">
+        <TabsList className="grid w-full grid-cols-6 lg:grid-cols-6 md:grid-cols-3 sm:grid-cols-2">
           <TabsTrigger value="overview" className="text-xs sm:text-sm">Overview</TabsTrigger>
+          <TabsTrigger value="activity" className="text-xs sm:text-sm">Live Activity</TabsTrigger>
           <TabsTrigger value="users" className="text-xs sm:text-sm">Users</TabsTrigger>
           <TabsTrigger value="listings" className="text-xs sm:text-sm">Listings</TabsTrigger>
           <TabsTrigger value="search" className="text-xs sm:text-sm">Search</TabsTrigger>
@@ -393,6 +395,10 @@ export function AdvancedAnalyticsDashboard() {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="activity" className="space-y-4">
+          <UserActivityFeed />
         </TabsContent>
 
         <TabsContent value="users" className="space-y-4">
