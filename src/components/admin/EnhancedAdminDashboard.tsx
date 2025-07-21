@@ -4,43 +4,35 @@ import { EnhancedFeedbackManagement } from './EnhancedFeedbackManagement';
 import { AdvancedAnalyticsDashboard } from './AdvancedAnalyticsDashboard';
 import { EmailTemplateManager } from './EmailTemplateManager';
 import { UserActivityFeed } from './UserActivityFeed';
-import { AnalyticsTestPanel } from './AnalyticsTestPanel';
+import { AnalyticsHealthDashboard } from './AnalyticsHealthDashboard';
 
 export function EnhancedAdminDashboard() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Enhanced Admin Dashboard</h1>
+        <h1 className="text-3xl font-bold">Marketplace Analytics Dashboard</h1>
         <p className="text-muted-foreground">
-          Comprehensive feedback management with advanced analytics and automation
+          Advanced marketplace analytics and system monitoring
         </p>
       </div>
 
-      <Tabs defaultValue="feedback" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="feedback">Feedback Management</TabsTrigger>
+      <Tabs defaultValue="analytics" className="space-y-4">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
+          <TabsTrigger value="health">Analytics Health</TabsTrigger>
           <TabsTrigger value="activity">Live Activity</TabsTrigger>
-          <TabsTrigger value="templates">Email Templates</TabsTrigger>
         </TabsList>
-
-        <TabsContent value="feedback" className="space-y-4">
-          <EnhancedFeedbackManagement />
-        </TabsContent>
 
         <TabsContent value="analytics" className="space-y-4">
           <AdvancedAnalyticsDashboard />
         </TabsContent>
 
-        <TabsContent value="activity" className="space-y-4">
-          <div className="grid gap-6">
-            <AnalyticsTestPanel />
-            <UserActivityFeed />
-          </div>
+        <TabsContent value="health" className="space-y-4">
+          <AnalyticsHealthDashboard />
         </TabsContent>
 
-        <TabsContent value="templates" className="space-y-4">
-          <EmailTemplateManager />
+        <TabsContent value="activity" className="space-y-4">
+          <UserActivityFeed />
         </TabsContent>
       </Tabs>
     </div>
