@@ -995,21 +995,16 @@ export type Database = {
           top_users: Json
         }[]
       }
-      get_marketplace_analytics: {
+      get_simple_marketplace_analytics: {
         Args: { days_back?: number }
         Returns: {
           total_users: number
           new_users: number
-          active_users: number
-          avg_session_duration: number
-          bounce_rate: number
-          page_views: number
-          top_pages: Json
-          user_funnel: Json
-          listing_performance: Json
-          search_insights: Json
-          user_segments: Json
-          conversion_metrics: Json
+          active_sessions: number
+          total_page_views: number
+          total_listings: number
+          pending_connections: number
+          session_count: number
         }[]
       }
       is_admin: {
