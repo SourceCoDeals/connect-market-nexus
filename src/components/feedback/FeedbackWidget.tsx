@@ -98,7 +98,7 @@ export function FeedbackWidget({ className }: FeedbackWidgetProps) {
                 <MessageSquare className="h-5 w-5 text-primary" />
                 Get in Touch
               </CardTitle>
-              <CardDescription>
+              <CardDescription className="mb-4">
                 Send us a message, report bugs, or share feature ideas
               </CardDescription>
             </CardHeader>

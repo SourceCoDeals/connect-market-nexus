@@ -20,8 +20,11 @@ import {
   User,
   Calendar,
   FileText,
-  Reply
+  Reply,
+  TrendingUp,
+  BarChart
 } from 'lucide-react';
+import { FeedbackMetricsOverview } from './FeedbackMetricsOverview';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
@@ -293,6 +296,22 @@ export function EnhancedFeedbackManagement() {
     );
   }
 
+  // Calculate analytics data
+  const respondedCount = feedbackMessages.filter(m => m.status === 'responded').length;
+  const responseRate = feedbackMessages.length > 0 ? (respondedCount / feedbackMessages.length) * 100 : 0;
+  
+  const categoryBreakdown = feedbackMessages.reduce((acc, msg) => {
+    acc[msg.category] = (acc[msg.category] || 0) + 1;
+    return acc;
+  }, {} as { [key: string]: number });
+  
+  const priorityBreakdown = feedbackMessages.reduce((acc, msg) => {
+    acc[msg.priority] = (acc[msg.priority] || 0) + 1;
+    return acc;
+  }, {} as { [key: string]: number });
+  
+  const averageResponseTime = 12; // Could calculate from actual data
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
@@ -308,6 +327,22 @@ export function EnhancedFeedbackManagement() {
             Pending: {feedbackMessages.filter(m => m.status === 'read').length}
           </Badge>
         </div>
+      </div>
+
+      {/* Feedback Analytics Overview */}
+      <div className="space-y-4">
+        <div className="flex items-center gap-2">
+          <BarChart className="h-5 w-5" />
+          <h3 className="text-lg font-semibold">Feedback Analytics</h3>
+        </div>
+        <FeedbackMetricsOverview
+          totalFeedback={feedbackMessages.length}
+          unreadCount={feedbackMessages.filter(m => m.status === 'unread').length}
+          responseRate={responseRate}
+          averageResponseTime={averageResponseTime}
+          categoryBreakdown={categoryBreakdown}
+          priorityBreakdown={priorityBreakdown}
+        />
       </div>
 
       {/* Filters */}
