@@ -4,7 +4,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { AuthContext } from "@/context/AuthContext";
+import { AuthProvider } from "@/context/AuthContext";
 import { RealtimeProvider } from "@/components/realtime/RealtimeProvider";
 import { SessionMonitoringProvider } from "@/components/security/SessionMonitoringProvider";
 import { AnalyticsProvider } from "@/components/analytics/AnalyticsProvider";
@@ -30,8 +30,8 @@ import VerifyEmailHandler from "./pages/VerifyEmailHandler";
 import NotFound from "./pages/NotFound";
 import AuthCallback from "./pages/auth/callback";
 import ProtectedRoute from "./components/ProtectedRoute";
-import { MainLayout } from "./components/MainLayout";
-import { AdminLayout } from "./components/admin/AdminLayout";
+import MainLayout from "./components/MainLayout";
+import AdminLayout from "./components/admin/AdminLayout";
 import "./App.css";
 
 const queryClient = new QueryClient();
@@ -40,7 +40,7 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <AuthContext>
+        <AuthProvider>
           <SessionMonitoringProvider>
             <RealtimeProvider>
               <BrowserRouter>
@@ -149,7 +149,7 @@ function App() {
               </BrowserRouter>
             </RealtimeProvider>
           </SessionMonitoringProvider>
-        </AuthContext>
+        </AuthProvider>
         <Toaster />
         <Sonner />
       </TooltipProvider>

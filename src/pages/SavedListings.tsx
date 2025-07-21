@@ -235,7 +235,6 @@ const SavedListings = () => {
                     <ListingCard
                       key={listing.id}
                       listing={listing}
-                      viewType={viewType}
                     />
                   ))}
                 </div>

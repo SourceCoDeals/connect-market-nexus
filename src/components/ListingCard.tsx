@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Heart, MapPin, TrendingUp, Building, Users, DollarSign, Eye } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useSavedListings } from "@/hooks/marketplace/use-saved-listings";
+import { useSaveListingMutation, useSavedStatus } from "@/hooks/marketplace/use-saved-listings";
 import { useListingAnalytics } from "@/hooks/use-listing-analytics";
 import { useToast } from "@/hooks/use-toast";
 
@@ -32,12 +32,8 @@ const ListingCard = ({ listing, showSaveButton = true }: ListingCardProps) => {
   const { toast } = useToast();
   const [imageError, setImageError] = useState(false);
   
-  const { 
-    savedListings, 
-    saveListing, 
-    removeListing, 
-    isLoading 
-  } = useSavedListings();
+  const saveListingMutation = useSaveListingMutation();
+  const { data: isSaved, isLoading } = useSavedStatus(listing.id);
   
   const {
     trackListingView,
@@ -45,7 +41,7 @@ const ListingCard = ({ listing, showSaveButton = true }: ListingCardProps) => {
     trackListingUnsave,
   } = useListingAnalytics();
 
-  const isSaved = savedListings?.some(saved => saved.listing_id === listing.id);
+  
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -71,33 +67,22 @@ const ListingCard = ({ listing, showSaveButton = true }: ListingCardProps) => {
     e.stopPropagation();
     
     try {
-      if (isSaved) {
-        await removeListing.mutateAsync(listing.id);
-        trackListingUnsave(listing.id, {
-          title: listing.title,
-          category: listing.category,
-        });
-        toast({
-          title: "Listing removed",
-          description: "The listing has been removed from your saved items.",
-        });
-      } else {
-        await saveListing.mutateAsync(listing.id);
+      const action = isSaved ? 'unsave' : 'save';
+      await saveListingMutation.mutateAsync({ listingId: listing.id, action });
+      
+      if (action === 'save') {
         trackListingSave(listing.id, {
           title: listing.title,
           category: listing.category,
         });
-        toast({
-          title: "Listing saved",
-          description: "The listing has been added to your saved items.",
+      } else {
+        trackListingUnsave(listing.id, {
+          title: listing.title,
+          category: listing.category,
         });
       }
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to update saved listing. Please try again.",
-        variant: "destructive",
-      });
+      console.error('Error toggling save status:', error);
     }
   };
 
@@ -127,7 +112,7 @@ const ListingCard = ({ listing, showSaveButton = true }: ListingCardProps) => {
               size="sm"
               className="absolute top-2 right-2 h-8 w-8 p-0 bg-white/80 hover:bg-white shadow-sm"
               onClick={handleSaveToggle}
-              disabled={isLoading}
+              disabled={isLoading || saveListingMutation.isPending}
             >
               <Heart 
                 className={`h-4 w-4 ${isSaved ? 'fill-red-500 text-red-500' : 'text-gray-600'}`} 

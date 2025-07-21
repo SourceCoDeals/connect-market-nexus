@@ -151,10 +151,31 @@ const Signup = () => {
     try {
       trackRegistrationStepWithTiming('form_submission_started', 4, formData);
       
+      const signupData = {
+        email: formData.email,
+        first_name: formData.firstName,
+        last_name: formData.lastName,
+        company: formData.company,
+        website: formData.website,
+        phone_number: formData.phoneNumber,
+        buyer_type: formData.buyerType as 'corporate' | 'privateEquity' | 'familyOffice' | 'searchFund' | 'individual',
+        company_name: formData.companyName,
+        estimated_revenue: formData.estimatedRevenue,
+        fund_size: formData.fundSize,
+        investment_size: formData.investmentSize,
+        target_company_size: formData.targetCompanySize,
+        funding_source: formData.fundingSource,
+        needs_loan: formData.needsLoan,
+        is_funded: formData.isFunded,
+        funded_by: formData.fundedBy,
+        ideal_target: formData.idealTarget,
+        bio: formData.bio,
+      };
+      
       const { error } = await signUp(
         formData.email,
         formData.password,
-        formData
+        signupData
       );
 
       if (error) {

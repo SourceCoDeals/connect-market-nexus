@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Search, Filter, X, Grid, List, SlidersHorizontal } from "lucide-react";
-import { useListings } from "@/hooks/marketplace/use-listings";
+import { useMarketplace } from "@/hooks/use-marketplace";
 import { useAnalytics } from "@/components/analytics/AnalyticsProvider";
 import ListingCard from "@/components/ListingCard";
 import FilterPanel from "@/components/FilterPanel";
@@ -24,7 +24,9 @@ const Marketplace = () => {
   const [lastSearchTime, setLastSearchTime] = useState<number>(Date.now());
   
   const { trackSearch, trackEvent } = useAnalytics();
-  const { data: listings, isLoading, error } = useListings();
+  const { useListings } = useMarketplace();
+  const { data: listingsData, isLoading, error } = useListings();
+  const listings = listingsData?.listings || [];
 
   // Filter listings based on search criteria
   const filteredListings = useMemo(() => {
@@ -120,8 +122,8 @@ const Marketplace = () => {
   };
 
   const categories = useMemo(() => {
-    if (!listings) return [];
-    return Array.from(new Set(listings.map(listing => listing.category)));
+    if (!listings || listings.length === 0) return [];
+    return Array.from(new Set(listings.map(listing => listing.category))) as string[];
   }, [listings]);
 
   if (error) {
@@ -207,17 +209,11 @@ const Marketplace = () => {
         {/* Filter Panel */}
         {showFilters && (
           <div className="w-80 flex-shrink-0">
-            <FilterPanel
-              selectedCategory={selectedCategory}
-              setSelectedCategory={setSelectedCategory}
-              selectedLocation={selectedLocation}
-              setSelectedLocation={setSelectedLocation}
-              revenueRange={revenueRange}
-              setRevenueRange={setRevenueRange}
-              ebitdaRange={ebitdaRange}
-              setEbitdaRange={setEbitdaRange}
+            <FilterPanel 
+              onFilterChange={() => {}}
+              totalListings={listings.length}
+              filteredCount={filteredListings.length}
               categories={categories}
-              listings={listings || []}
             />
           </div>
         )}
