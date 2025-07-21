@@ -25,8 +25,11 @@ const Marketplace = () => {
   
   const { trackSearch, trackEvent } = useAnalytics();
   const { useListings } = useMarketplace();
-  const { data: listingsData, isLoading, error } = useListings();
+  const { data: listingsData, isLoading, error } = useListings({});
   const listings = listingsData?.listings || [];
+  
+  // Debug logging
+  console.log('Marketplace Debug:', { listingsData, listings: listings.length, isLoading, error });
 
   // Filter listings based on search criteria
   const filteredListings = useMemo(() => {
