@@ -200,7 +200,7 @@ const AdminUsers = () => {
       {/* Users Table */}
       <div className="bg-card rounded-lg border overflow-hidden">
         {isMobile ? (
-          <div className="p-4">
+          <div className="p-2 md:p-4">
             <MobileUsersTable
               users={filteredUsers}
               onApprove={approveUser}

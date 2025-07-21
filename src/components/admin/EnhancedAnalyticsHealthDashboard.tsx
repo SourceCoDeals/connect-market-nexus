@@ -228,13 +228,13 @@ export function EnhancedAnalyticsHealthDashboard() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 md:space-y-6">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h2 className="text-2xl font-bold">Analytics Health Dashboard</h2>
-          <p className="text-muted-foreground">Real-time monitoring and testing of the analytics system</p>
+          <h2 className="text-xl md:text-2xl font-bold">Analytics Health Dashboard</h2>
+          <p className="text-sm md:text-base text-muted-foreground">Real-time monitoring and testing of the analytics system</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button
             onClick={() => setAutoRefresh(!autoRefresh)}
             variant={autoRefresh ? "default" : "outline"}
@@ -251,59 +251,59 @@ export function EnhancedAnalyticsHealthDashboard() {
       </div>
 
       <Tabs defaultValue="health" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="health">Health Status</TabsTrigger>
-          <TabsTrigger value="testing">Live Testing</TabsTrigger>
-          <TabsTrigger value="actions">Actions</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-1 sm:grid-cols-3 h-auto">
+          <TabsTrigger value="health" className="text-xs md:text-sm py-2">Health Status</TabsTrigger>
+          <TabsTrigger value="testing" className="text-xs md:text-sm py-2">Live Testing</TabsTrigger>
+          <TabsTrigger value="actions" className="text-xs md:text-sm py-2">Actions</TabsTrigger>
         </TabsList>
 
         <TabsContent value="health" className="space-y-4">
           {/* Live Statistics */}
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm">Page Views</CardTitle>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-2 md:gap-4">
+            <Card className="p-2 md:p-4">
+              <CardHeader className="pb-2 p-2 md:p-3">
+                <CardTitle className="text-xs md:text-sm">Page Views</CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{liveStats.pageViews}</div>
+              <CardContent className="p-2 md:p-3">
+                <div className="text-lg md:text-2xl font-bold">{liveStats.pageViews}</div>
               </CardContent>
             </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm">Listing Analytics</CardTitle>
+            <Card className="p-2 md:p-4">
+              <CardHeader className="pb-2 p-2 md:p-3">
+                <CardTitle className="text-xs md:text-sm">Listing Analytics</CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{liveStats.listingAnalytics}</div>
+              <CardContent className="p-2 md:p-3">
+                <div className="text-lg md:text-2xl font-bold">{liveStats.listingAnalytics}</div>
               </CardContent>
             </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm">User Events</CardTitle>
+            <Card className="p-2 md:p-4">
+              <CardHeader className="pb-2 p-2 md:p-3">
+                <CardTitle className="text-xs md:text-sm">User Events</CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{liveStats.userEvents}</div>
+              <CardContent className="p-2 md:p-3">
+                <div className="text-lg md:text-2xl font-bold">{liveStats.userEvents}</div>
               </CardContent>
             </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm">Search Analytics</CardTitle>
+            <Card className="p-2 md:p-4">
+              <CardHeader className="pb-2 p-2 md:p-3">
+                <CardTitle className="text-xs md:text-sm">Search Analytics</CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{liveStats.searchAnalytics}</div>
+              <CardContent className="p-2 md:p-3">
+                <div className="text-lg md:text-2xl font-bold">{liveStats.searchAnalytics}</div>
               </CardContent>
             </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm">User Sessions</CardTitle>
+            <Card className="p-2 md:p-4 col-span-2 md:col-span-1">
+              <CardHeader className="pb-2 p-2 md:p-3">
+                <CardTitle className="text-xs md:text-sm">User Sessions</CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{liveStats.userSessions}</div>
+              <CardContent className="p-2 md:p-3">
+                <div className="text-lg md:text-2xl font-bold">{liveStats.userSessions}</div>
               </CardContent>
             </Card>
           </div>
 
           {/* Health Status Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {healthStatus.map((status) => (
               <Card key={status.table}>
                 <CardHeader className="pb-2">

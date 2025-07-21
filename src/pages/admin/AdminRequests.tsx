@@ -127,7 +127,7 @@ const AdminRequests = () => {
 
       <div className="bg-card rounded-lg border overflow-hidden">
         {isMobile ? (
-          <div className="p-4">
+          <div className="p-2 md:p-4">
             <MobileConnectionRequestsTable 
               requests={filteredRequests}
               onApprove={(request) => handleAction(request, "approve")}

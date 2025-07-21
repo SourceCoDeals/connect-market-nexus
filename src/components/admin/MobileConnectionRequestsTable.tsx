@@ -175,7 +175,7 @@ export const MobileConnectionRequestsTable = ({
 }: MobileConnectionRequestsTableProps) => {
   if (isLoading) {
     return (
-      <div className="space-y-4">
+      <div className="space-y-3">
         {[1, 2, 3].map((i) => (
           <Card key={i} className="animate-pulse">
             <CardContent className="p-4">

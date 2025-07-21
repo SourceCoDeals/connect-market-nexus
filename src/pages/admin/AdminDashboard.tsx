@@ -7,7 +7,7 @@ import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
 import { AdminAnalyticsDashboard } from "@/components/admin/AdminAnalyticsDashboard";
 import { AdminFeedbackTab } from "@/components/admin/AdminFeedbackTab";
-import { EnhancedAdminDashboard } from "@/components/admin/EnhancedAdminDashboard";
+import { MobileOptimizedAdminDashboard } from "@/components/admin/MobileOptimizedAdminDashboard";
 import { EnhancedAnalyticsHealthDashboard } from "@/components/admin/EnhancedAnalyticsHealthDashboard";
 
 const AdminDashboard = () => {
@@ -167,7 +167,7 @@ const AdminDashboard = () => {
         </TabsContent>
 
         <TabsContent value="analytics">
-          <EnhancedAdminDashboard />
+          <MobileOptimizedAdminDashboard />
         </TabsContent>
 
         <TabsContent value="health">
