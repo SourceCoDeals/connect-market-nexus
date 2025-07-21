@@ -20,7 +20,11 @@ const AdminDashboard = () => {
 
   // Mobile Layout - Use dedicated mobile component with full functionality
   if (isMobile) {
-    return <MobileDashboardTabs />;
+    return (
+      <div className="min-h-screen bg-background">
+        <MobileDashboardTabs />
+      </div>
+    );
   }
 
   // Desktop Layout

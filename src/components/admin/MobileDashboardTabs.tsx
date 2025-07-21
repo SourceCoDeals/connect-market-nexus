@@ -109,30 +109,30 @@ export function MobileDashboardTabs() {
       </div>
 
       <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 sm:grid-cols-6 mb-4 h-auto">
-          <TabsTrigger value="overview" className="flex flex-col items-center gap-1 p-2 text-xs">
-            <LayoutDashboard className="h-3 w-3" />
-            <span>Overview</span>
+        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-6 mb-4 h-auto">
+          <TabsTrigger value="overview" className="flex flex-col items-center gap-1 p-1.5 text-[10px] sm:text-xs">
+            <LayoutDashboard className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
+            <span className="hidden xs:inline">Overview</span>
           </TabsTrigger>
-          <TabsTrigger value="users" className="flex flex-col items-center gap-1 p-2 text-xs">
-            <Users className="h-3 w-3" />
-            <span>Users</span>
+          <TabsTrigger value="users" className="flex flex-col items-center gap-1 p-1.5 text-[10px] sm:text-xs">
+            <Users className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
+            <span className="hidden xs:inline">Users</span>
           </TabsTrigger>
-          <TabsTrigger value="requests" className="flex flex-col items-center gap-1 p-2 text-xs">
-            <MessageSquare className="h-3 w-3" />
-            <span>Requests</span>
+          <TabsTrigger value="requests" className="flex flex-col items-center gap-1 p-1.5 text-[10px] sm:text-xs">
+            <MessageSquare className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
+            <span className="hidden xs:inline">Requests</span>
           </TabsTrigger>
-          <TabsTrigger value="analytics" className="flex flex-col items-center gap-1 p-2 text-xs">
-            <BarChart className="h-3 w-3" />
-            <span>Analytics</span>
+          <TabsTrigger value="analytics" className="flex flex-col items-center gap-1 p-1.5 text-[10px] sm:text-xs">
+            <BarChart className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
+            <span className="hidden xs:inline">Analytics</span>
           </TabsTrigger>
-          <TabsTrigger value="health" className="flex flex-col items-center gap-1 p-2 text-xs">
-            <Shield className="h-3 w-3" />
-            <span>Health</span>
+          <TabsTrigger value="health" className="flex flex-col items-center gap-1 p-1.5 text-[10px] sm:text-xs">
+            <Shield className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
+            <span className="hidden xs:inline">Health</span>
           </TabsTrigger>
-          <TabsTrigger value="feedback" className="flex flex-col items-center gap-1 p-2 text-xs">
-            <MessageSquare className="h-3 w-3" />
-            <span>Feedback</span>
+          <TabsTrigger value="feedback" className="flex flex-col items-center gap-1 p-1.5 text-[10px] sm:text-xs">
+            <Activity className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
+            <span className="hidden xs:inline">Feedback</span>
           </TabsTrigger>
         </TabsList>
 

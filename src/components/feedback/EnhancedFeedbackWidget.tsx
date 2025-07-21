@@ -105,12 +105,11 @@ export function EnhancedFeedbackWidget({ className }: FeedbackWidgetProps) {
   };
 
   const categories = [
-    { value: 'general', label: 'General Inquiry' },
+    { value: 'general', label: 'Contact Us' },
     { value: 'bug', label: 'Bug Report' },
     { value: 'feature', label: 'Feature Request' },
-    { value: 'contact', label: 'Contact Us' },
     { value: 'ui', label: 'UI/UX Feedback' },
-    { value: 'support', label: 'Support Request' }
+    { value: 'other', label: 'Other' }
   ];
 
   const priorities = [
