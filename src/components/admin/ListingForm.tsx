@@ -185,29 +185,33 @@ export function ListingForm({
     <Form {...form}>
       <form
         onSubmit={form.handleSubmit(handleSubmit)}
-        className="space-y-5"
+        className="space-y-4 sm:space-y-5"
       >
         <FormField
           control={form.control}
           name="title"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Business Title</FormLabel>
+              <FormLabel className="text-sm font-medium">Business Title</FormLabel>
               <FormControl>
-                <Input placeholder="E.g., Profitable SaaS Business" {...field} />
+                <Input 
+                  placeholder="E.g., Profitable SaaS Business" 
+                  className="h-11" 
+                  {...field} 
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5">
           <FormField
             control={form.control}
             name="categories"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Categories (Select up to 2)</FormLabel>
+                <FormLabel className="text-sm font-medium">Categories (Select up to 2)</FormLabel>
                 <FormControl>
                   <MultiSelect
                     options={categoryOptions}
@@ -227,9 +231,13 @@ export function ListingForm({
             name="location"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Location</FormLabel>
+                <FormLabel className="text-sm font-medium">Location</FormLabel>
                 <FormControl>
-                  <Input placeholder="E.g., New York, NY" {...field} />
+                  <Input 
+                    placeholder="E.g., New York, NY" 
+                    className="h-11" 
+                    {...field} 
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -237,16 +245,17 @@ export function ListingForm({
           />
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5">
           <FormField
             control={form.control}
             name="revenue"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Annual Revenue</FormLabel>
+                <FormLabel className="text-sm font-medium">Annual Revenue</FormLabel>
                 <FormControl>
                   <CurrencyInput
                     placeholder="Enter annual revenue"
+                    className="h-11"
                     {...field}
                   />
                 </FormControl>
@@ -260,10 +269,11 @@ export function ListingForm({
             name="ebitda"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Annual EBITDA</FormLabel>
+                <FormLabel className="text-sm font-medium">Annual EBITDA</FormLabel>
                 <FormControl>
                   <CurrencyInput
                     placeholder="Enter annual EBITDA"
+                    className="h-11"
                     {...field}
                   />
                 </FormControl>
@@ -344,8 +354,12 @@ export function ListingForm({
           />
         </div>
 
-        <div className="flex justify-end pt-4">
-          <Button type="submit" disabled={isLoading || !!imageError}>
+        <div className="flex flex-col sm:flex-row sm:justify-end pt-6">
+          <Button 
+            type="submit" 
+            disabled={isLoading || !!imageError}
+            className="w-full sm:w-auto h-11 touch-manipulation"
+          >
             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {listing ? "Update Listing" : "Create Listing"}
           </Button>
