@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { BarChart, Shield, Activity, MessageSquare, LayoutDashboard, Users, Store, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { MobileAnalyticsDashboard } from './MobileAnalyticsDashboard';
+import { AdvancedAnalyticsDashboard } from './AdvancedAnalyticsDashboard';
 import { EnhancedAnalyticsHealthDashboard } from './EnhancedAnalyticsHealthDashboard';
 import { UserActivityFeed } from './UserActivityFeed';
 import { EnhancedFeedbackManagement } from './EnhancedFeedbackManagement';
@@ -126,28 +126,28 @@ export function MobileDashboardTabs() {
 
       <div className="p-4 space-y-6">
         <Tabs defaultValue="overview" className="w-full">
-          {/* Mobile-optimized tab navigation */}
-          <TabsList className="grid w-full grid-cols-3 h-16 mb-6 bg-card">
+          {/* Main navigation tabs */}
+          <TabsList className="grid w-full grid-cols-2 h-16 mb-6 bg-card">
             <TabsTrigger value="overview" className="flex flex-col items-center gap-1 py-2 px-1">
               <LayoutDashboard className="h-4 w-4" />
               <span className="text-xs font-medium">Overview</span>
             </TabsTrigger>
-            <TabsTrigger value="users" className="flex flex-col items-center gap-1 py-2 px-1">
-              <Users className="h-4 w-4" />
-              <span className="text-xs font-medium">Users</span>
-            </TabsTrigger>
-            <TabsTrigger value="requests" className="flex flex-col items-center gap-1 py-2 px-1">
-              <MessageSquare className="h-4 w-4" />
-              <span className="text-xs font-medium">Requests</span>
+            <TabsTrigger value="analytics" className="flex flex-col items-center gap-1 py-2 px-1">
+              <BarChart className="h-4 w-4" />
+              <span className="text-xs font-medium">Analytics</span>
             </TabsTrigger>
           </TabsList>
 
           {/* Secondary tabs for additional features */}
           <div className="mb-4">
-            <TabsList className="grid w-full grid-cols-3 h-14 bg-muted/50">
-              <TabsTrigger value="analytics" className="flex flex-col items-center gap-1 py-1 px-1">
-                <BarChart className="h-3 w-3" />
-                <span className="text-xs">Analytics</span>
+            <TabsList className="grid w-full grid-cols-4 h-14 bg-muted/50">
+              <TabsTrigger value="users" className="flex flex-col items-center gap-1 py-1 px-1">
+                <Users className="h-3 w-3" />
+                <span className="text-xs">Users</span>
+              </TabsTrigger>
+              <TabsTrigger value="requests" className="flex flex-col items-center gap-1 py-1 px-1">
+                <MessageSquare className="h-3 w-3" />
+                <span className="text-xs">Requests</span>
               </TabsTrigger>
               <TabsTrigger value="health" className="flex flex-col items-center gap-1 py-1 px-1">
                 <Shield className="h-3 w-3" />
@@ -316,7 +316,17 @@ export function MobileDashboardTabs() {
             </TabsContent>
 
             <TabsContent value="analytics" className="mt-0 space-y-4">
-              <MobileAnalyticsDashboard />
+              <div className="space-y-4">
+                <Card className="p-4">
+                  <CardHeader className="p-0 pb-4">
+                    <CardTitle className="text-lg">Advanced Analytics</CardTitle>
+                    <CardDescription className="text-sm">Comprehensive marketplace analytics and insights</CardDescription>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    <AdvancedAnalyticsDashboard />
+                  </CardContent>
+                </Card>
+              </div>
             </TabsContent>
 
             <TabsContent value="health" className="mt-0 space-y-4">

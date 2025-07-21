@@ -162,6 +162,48 @@ export function useEnhancedFeedback() {
       
       console.log('📧 Preparing to send confirmation email to:', userEmail);
 
+      // Get contextual success message helper function
+      const getSuccessMessage = (category: string, emailWorked: boolean = true) => {
+        switch (category) {
+          case 'contact':
+          case 'general':
+            return {
+              title: emailWorked ? "Message sent successfully!" : "Message sent!",
+              description: emailWorked 
+                ? "Thanks for reaching out! We'll get back to you soon."
+                : "Your message was saved successfully. We'll respond to you soon."
+            };
+          case 'bug':
+            return {
+              title: emailWorked ? "Bug report submitted!" : "Bug report saved!",
+              description: emailWorked 
+                ? "Thank you for reporting this issue. We'll investigate and fix it promptly."
+                : "Your bug report was saved. We'll investigate and fix it promptly."
+            };
+          case 'feature':
+            return {
+              title: emailWorked ? "Feature request received!" : "Feature request saved!",
+              description: emailWorked 
+                ? "Thanks for the suggestion! We'll consider it for future updates."
+                : "Your feature request was saved. We'll consider it for future updates."
+            };
+          case 'ui':
+            return {
+              title: emailWorked ? "UI feedback submitted!" : "UI feedback saved!",
+              description: emailWorked 
+                ? "Thank you for helping us improve the user experience."
+                : "Your UI feedback was saved. Thank you for helping us improve!"
+            };
+          default:
+            return {
+              title: emailWorked ? "Feedback submitted successfully!" : "Feedback saved!",
+              description: emailWorked 
+                ? "Thank you for your feedback! We'll review it and get back to you."
+                : "Your feedback was saved successfully. We'll review it shortly."
+            };
+        }
+      };
+
       // Send confirmation email with enhanced error handling
       try {
         const emailPayload = {
@@ -185,27 +227,28 @@ export function useEnhancedFeedback() {
           console.error('❌ Email sending failed:', emailError);
           
           // Show success since feedback was saved, but mention email issue
+          const failureMsg = getSuccessMessage(originalCategory, false);
           toast({
-            title: originalCategory === "contact" ? "Message sent!" : "Feedback submitted!",
-            description: "Your message was saved successfully. We'll respond to you soon.",
+            title: failureMsg.title,
+            description: failureMsg.description,
           });
         } else {
           console.log('✅ Confirmation email sent successfully:', emailResult);
           
+          const successMsg = getSuccessMessage(originalCategory, true);
           toast({
-            title: originalCategory === "contact" ? "Message sent successfully!" : "Feedback submitted successfully!",
-            description: originalCategory === "contact" 
-              ? "Thank you for contacting us! We'll get back to you within 24 hours."
-              : "Thank you for your feedback! We'll review it shortly.",
+            title: successMsg.title,
+            description: successMsg.description,
           });
         }
       } catch (emailError) {
         console.warn('⚠️ Email delivery attempt failed:', emailError);
         
         // Still show success since feedback was saved
+        const fallbackMsg = getSuccessMessage(originalCategory, false);
         toast({
-          title: originalCategory === "contact" ? "Message sent!" : "Feedback submitted!",
-          description: "Your message was saved successfully. We'll respond to you soon.",
+          title: fallbackMsg.title,
+          description: fallbackMsg.description,
         });
       }
 

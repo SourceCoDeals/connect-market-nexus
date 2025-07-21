@@ -85,12 +85,56 @@ serve(async (req: Request) => {
         </div>
       `;
     } else {
-      // For other categories (bug, feature, etc.)
-      emailSubject = `Thank you for your ${category || 'feedback'}${userName ? `, ${userName}` : ''}`;
+      // Create contextual emails for different categories
+      const getEmailContent = (category: string) => {
+        switch (category) {
+          case 'bug':
+            return {
+              subject: `Thank you for reporting a bug${userName ? `, ${userName}` : ''}`,
+              title: 'Thank You for Reporting a Bug!',
+              mainText: 'Thank you for helping us improve our platform by reporting this bug! Your report has been received and our development team will investigate the issue.',
+              followUpText: 'We take all bug reports seriously and work quickly to fix issues. We\'ll keep you updated on the progress.',
+              borderColor: '#dc3545',
+              backgroundColor: '#fff5f5'
+            };
+          case 'feature':
+            return {
+              subject: `Thank you for your feature suggestion${userName ? `, ${userName}` : ''}`,
+              title: 'Thank You for Your Feature Request!',
+              mainText: 'Thank you for sharing your feature suggestion! Your request has been received and will be reviewed by our product team.',
+              followUpText: 'We value your input and use it to prioritize new features. We\'ll consider your suggestion for future updates.',
+              borderColor: '#6f42c1',
+              backgroundColor: '#f8f5ff'
+            };
+          case 'ui':
+            return {
+              subject: `Thank you for your UI feedback${userName ? `, ${userName}` : ''}`,
+              title: 'Thank You for Your UI Feedback!',
+              mainText: 'Thank you for helping us improve the user experience! Your UI feedback has been received and will be reviewed by our design team.',
+              followUpText: 'Your insights help us create a better, more intuitive platform for everyone. We appreciate your attention to detail.',
+              borderColor: '#fd7e14',
+              backgroundColor: '#fff8f0'
+            };
+          case 'general':
+          default:
+            return {
+              subject: `Thank you for your feedback${userName ? `, ${userName}` : ''}`,
+              title: 'Thank You for Your Feedback!',
+              mainText: 'Thank you for your valuable feedback! Your submission has been received and is being reviewed by our team.',
+              followUpText: 'We take all feedback seriously and use it to improve our platform. If your feedback requires a response, we\'ll get back to you soon.',
+              borderColor: '#28a745',
+              backgroundColor: '#f8fff9'
+            };
+        }
+      };
+
+      const emailContent = getEmailContent(category || 'general');
+      emailSubject = emailContent.subject;
+      
       emailHtml = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <div style="background-color: #f8f9fa; padding: 20px; text-align: center;">
-            <h1 style="color: #333; margin: 0;">Thank You for Your ${category ? category.charAt(0).toUpperCase() + category.slice(1) : 'Feedback'}!</h1>
+          <div style="background-color: ${emailContent.backgroundColor}; padding: 20px; text-align: center;">
+            <h1 style="color: #333; margin: 0;">${emailContent.title}</h1>
           </div>
           
           <div style="padding: 30px; background-color: white;">
@@ -99,16 +143,16 @@ serve(async (req: Request) => {
             </p>
             
             <p style="font-size: 16px; line-height: 1.6; color: #333;">
-              Thank you for your valuable ${category || 'feedback'}! Your submission has been received and is being reviewed by our team.
+              ${emailContent.mainText}
             </p>
             
-            <div style="background-color: #f8f9fa; padding: 20px; border-left: 4px solid #28a745; margin: 20px 0;">
+            <div style="background-color: #f8f9fa; padding: 20px; border-left: 4px solid ${emailContent.borderColor}; margin: 20px 0;">
               <h3 style="margin: 0 0 10px 0; color: #333;">Your ${category || 'feedback'}:</h3>
               <p style="margin: 0; color: #666; font-style: italic;">${content}</p>
             </div>
             
             <p style="font-size: 16px; line-height: 1.6; color: #333;">
-              We take all ${category || 'feedback'} seriously and use it to improve our platform. If your ${category || 'feedback'} requires a response, we'll get back to you soon.
+              ${emailContent.followUpText}
             </p>
             
             <p style="font-size: 16px; line-height: 1.6; color: #333;">
