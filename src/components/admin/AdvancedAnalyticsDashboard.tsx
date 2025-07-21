@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -19,7 +19,8 @@ import {
   Target,
   AlertTriangle,
   MessageSquare,
-  Star
+  Star,
+  AlertCircle
 } from 'lucide-react';
 import { 
   LineChart, 
@@ -43,33 +44,164 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 const COLORS = ['hsl(var(--primary))', 'hsl(var(--secondary))', 'hsl(var(--accent))', 'hsl(var(--muted))'];
 
+// Mobile-responsive breakpoints and optimizations
+const MOBILE_CHART_HEIGHT = 250;
+const DESKTOP_CHART_HEIGHT = 300;
+
 export function AdvancedAnalyticsDashboard() {
   const [selectedTimeRange, setSelectedTimeRange] = useState('30');
-  const { data: analytics, isLoading: analyticsLoading, refetch: refetchAnalytics } = useMarketplaceAnalytics(parseInt(selectedTimeRange));
-  const { data: dailyMetrics, isLoading: metricsLoading } = useDailyMetrics(parseInt(selectedTimeRange));
-  const { data: engagementScores, isLoading: engagementLoading } = useUserEngagementScores();
+  const [isMobile, setIsMobile] = useState(false);
+  
+  const { data: analytics, isLoading: analyticsLoading, error: analyticsError, refetch: refetchAnalytics } = useMarketplaceAnalytics(parseInt(selectedTimeRange));
+  const { data: dailyMetrics, isLoading: metricsLoading, error: metricsError } = useDailyMetrics(parseInt(selectedTimeRange));
+  const { data: engagementScores, isLoading: engagementLoading, error: engagementError } = useUserEngagementScores();
+
+  // Handle responsive design
+  useEffect(() => {
+    const checkIsMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    checkIsMobile();
+    window.addEventListener('resize', checkIsMobile);
+    
+    return () => window.removeEventListener('resize', checkIsMobile);
+  }, []);
+
+  const chartHeight = isMobile ? MOBILE_CHART_HEIGHT : DESKTOP_CHART_HEIGHT;
 
   const handleRefresh = () => {
     refetchAnalytics();
   };
 
+  // Enhanced loading state with better skeleton UI
   if (analyticsLoading || metricsLoading) {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <Skeleton className="h-8 w-64" />
-          <Skeleton className="h-10 w-32" />
+          <div className="space-y-2">
+            <Skeleton className="h-8 w-64" />
+            <Skeleton className="h-4 w-96" />
+          </div>
+          <div className="flex items-center gap-2">
+            <Skeleton className="h-9 w-32" />
+            <Skeleton className="h-9 w-20" />
+          </div>
         </div>
+        
+        {/* Loading skeleton for overview cards */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-32" />
+            <Card key={i} className="animate-pulse">
+              <CardHeader className="space-y-0 pb-2">
+                <div className="flex items-center justify-between">
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-4 w-4 rounded" />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-8 w-16 mb-2" />
+                <Skeleton className="h-3 w-32 mb-2" />
+                <Skeleton className="h-5 w-12" />
+              </CardContent>
+            </Card>
           ))}
         </div>
-        <div className="grid gap-4 md:grid-cols-2">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-80" />
-          ))}
+        
+        {/* Loading skeleton for tabs and charts */}
+        <div className="space-y-4">
+          <Skeleton className="h-10 w-full rounded-md" />
+          <div className="grid gap-4 md:grid-cols-2">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Card key={i} className="animate-pulse">
+                <CardHeader>
+                  <Skeleton className="h-6 w-32 mb-2" />
+                  <Skeleton className="h-4 w-48" />
+                </CardHeader>
+                <CardContent>
+                  <Skeleton className="h-64 w-full rounded-md" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         </div>
+      </div>
+    );
+  }
+
+  // Enhanced error handling with specific error types
+  if (analyticsError || metricsError || engagementError) {
+    const errorMessage = analyticsError?.message || metricsError?.message || engagementError?.message || 'An unknown error occurred';
+    
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold">Advanced Analytics</h1>
+            <p className="text-destructive">Failed to load analytics data</p>
+          </div>
+          <Button onClick={handleRefresh} variant="outline" size="sm">
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Retry
+          </Button>
+        </div>
+        
+        <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-6">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
+            <div className="space-y-2">
+              <h3 className="font-semibold text-destructive">Analytics Unavailable</h3>
+              <p className="text-sm text-muted-foreground">
+                Unable to load analytics data. This might be due to a temporary issue with the database functions.
+              </p>
+              <p className="text-xs text-muted-foreground font-mono bg-muted/50 p-2 rounded">
+                Error: {errorMessage}
+              </p>
+              <div className="flex items-center gap-2 pt-2">
+                <Button onClick={handleRefresh} size="sm">
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Try Again
+                </Button>
+                <p className="text-xs text-muted-foreground">
+                  If this persists, please contact support
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        {/* Fallback analytics display with sample data */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-warning" />
+              Limited Analytics Preview
+            </CardTitle>
+            <CardDescription>
+              Showing basic metrics while full analytics are unavailable
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+              <div className="text-center p-4 border rounded-lg">
+                <div className="text-2xl font-bold text-muted-foreground">—</div>
+                <div className="text-sm font-medium">Total Users</div>
+              </div>
+              <div className="text-center p-4 border rounded-lg">
+                <div className="text-2xl font-bold text-muted-foreground">—</div>
+                <div className="text-sm font-medium">Active Users</div>
+              </div>
+              <div className="text-center p-4 border rounded-lg">
+                <div className="text-2xl font-bold text-muted-foreground">—</div>
+                <div className="text-sm font-medium">Sessions</div>
+              </div>
+              <div className="text-center p-4 border rounded-lg">
+                <div className="text-2xl font-bold text-muted-foreground">—</div>
+                <div className="text-sm font-medium">Page Views</div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -177,12 +309,12 @@ export function AdvancedAnalyticsDashboard() {
       </div>
 
       <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="users">Users</TabsTrigger>
-          <TabsTrigger value="listings">Listings</TabsTrigger>
-          <TabsTrigger value="search">Search</TabsTrigger>
-          <TabsTrigger value="funnel">Funnel</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-5 lg:grid-cols-5 md:grid-cols-3 sm:grid-cols-2">
+          <TabsTrigger value="overview" className="text-xs sm:text-sm">Overview</TabsTrigger>
+          <TabsTrigger value="users" className="text-xs sm:text-sm">Users</TabsTrigger>
+          <TabsTrigger value="listings" className="text-xs sm:text-sm">Listings</TabsTrigger>
+          <TabsTrigger value="search" className="text-xs sm:text-sm">Search</TabsTrigger>
+          <TabsTrigger value="funnel" className="text-xs sm:text-sm">Funnel</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4">
@@ -194,12 +326,22 @@ export function AdvancedAnalyticsDashboard() {
                 <CardDescription>User activity over time</CardDescription>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
+                <ResponsiveContainer width="100%" height={chartHeight}>
                   <LineChart data={dailyMetrics}>
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="date" />
-                    <YAxis />
-                    <Tooltip />
+                    <XAxis 
+                      dataKey="date" 
+                      tick={{ fontSize: 12 }}
+                      interval="preserveStartEnd"
+                    />
+                    <YAxis tick={{ fontSize: 12 }} />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: 'hsl(var(--background))', 
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '6px'
+                      }}
+                    />
                     <Line type="monotone" dataKey="active_users" stroke="hsl(var(--primary))" strokeWidth={2} />
                     <Line type="monotone" dataKey="new_signups" stroke="hsl(var(--secondary))" strokeWidth={2} />
                   </LineChart>
