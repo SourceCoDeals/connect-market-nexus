@@ -1,9 +1,5 @@
-import { EnhancedFeedbackManagement } from "./EnhancedFeedbackManagement";
+import { EnhancedAdminDashboard } from "./EnhancedAdminDashboard";
 
 export function AdminFeedbackTab() {
-  return (
-    <div className="space-y-6">
-      <EnhancedFeedbackManagement />
-    </div>
-  );
+  return <EnhancedAdminDashboard />;
 }
