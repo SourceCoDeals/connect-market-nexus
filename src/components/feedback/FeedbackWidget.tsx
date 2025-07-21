@@ -1,11 +1,11 @@
 import { useState } from "react";
-import { MessageCircle, X, Send, CheckCircle2 } from "lucide-react";
+import { MessageCircle, X, Send, CheckCircle2, Mail, Bug, Lightbulb, MessageSquare, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { useFeedback } from "@/hooks/use-feedback";
+import { useEnhancedFeedback } from "@/hooks/use-enhanced-feedback";
 import { useAuth } from "@/context/AuthContext";
 
 interface FeedbackWidgetProps {
@@ -15,11 +15,11 @@ interface FeedbackWidgetProps {
 export function FeedbackWidget({ className }: FeedbackWidgetProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [message, setMessage] = useState("");
-  const [category, setCategory] = useState<string>("general");
+  const [category, setCategory] = useState<string>("contact");
   const [priority, setPriority] = useState<string>("normal");
   const [isSubmitted, setIsSubmitted] = useState(false);
   
-  const { submitFeedback, isLoading } = useFeedback();
+  const { submitFeedback, isLoading } = useEnhancedFeedback();
   const { user } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -38,7 +38,7 @@ export function FeedbackWidget({ className }: FeedbackWidgetProps) {
       
       setIsSubmitted(true);
       setMessage("");
-      setCategory("general");
+      setCategory("contact");
       setPriority("normal");
       
       // Auto-close after success
@@ -62,35 +62,44 @@ export function FeedbackWidget({ className }: FeedbackWidgetProps) {
 
   return (
     <>
-      {/* Floating Feedback Button */}
+      {/* Floating Contact Button */}
       <Button
         onClick={() => setIsOpen(true)}
-        className={`fixed bottom-6 right-6 z-50 shadow-lg hover:shadow-xl transition-all duration-300 bg-slate-900 hover:bg-slate-800 text-white rounded-full w-14 h-14 p-0 ${className}`}
-        aria-label="Send Feedback"
+        className={`fixed bottom-6 right-6 z-50 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-primary-foreground rounded-full w-14 h-14 p-0 group ${className}`}
+        aria-label="Contact Us"
       >
-        <MessageCircle className="h-6 w-6" />
+        <MessageCircle className="h-6 w-6 group-hover:scale-110 transition-transform duration-200" />
       </Button>
 
-      {/* Feedback Panel */}
+      {/* Chat Panel */}
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <Card className="w-full max-w-md mx-auto animate-scale-in">
-            <CardHeader className="relative">
+        <div className="fixed inset-0 z-50 flex items-end justify-center p-4 bg-black/50 backdrop-blur-sm md:items-center">
+          <Card className="w-full max-w-lg mx-auto animate-slide-up md:animate-scale-in">
+            <CardHeader className="relative bg-gradient-to-r from-primary/5 to-primary/10 border-b">
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={handleClose}
-                className="absolute right-2 top-2 h-8 w-8 p-0"
+                className="absolute right-2 top-2 h-8 w-8 p-0 hover:bg-primary/10"
               >
                 <X className="h-4 w-4" />
               </Button>
               
-              <CardTitle className="flex items-center gap-2">
-                <MessageCircle className="h-5 w-5" />
-                Send Feedback
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <User className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">
+                    {user?.email || "Guest"}
+                  </span>
+                </div>
+              </div>
+              
+              <CardTitle className="flex items-center gap-2 text-xl">
+                <MessageSquare className="h-5 w-5 text-primary" />
+                Get in Touch
               </CardTitle>
               <CardDescription>
-                Help us improve by sharing your thoughts and suggestions
+                Send us a message, report bugs, or share feature ideas
               </CardDescription>
             </CardHeader>
 
@@ -104,19 +113,69 @@ export function FeedbackWidget({ className }: FeedbackWidgetProps) {
                   </p>
                 </div>
               ) : (
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <form onSubmit={handleSubmit} className="space-y-6">
+                  {/* Quick Action Buttons */}
+                  <div className="grid grid-cols-3 gap-2">
+                    <Button
+                      type="button"
+                      variant={category === "contact" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setCategory("contact")}
+                      className="flex flex-col items-center gap-1 h-auto py-3"
+                    >
+                      <Mail className="h-4 w-4" />
+                      <span className="text-xs">Contact Us</span>
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={category === "bug" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setCategory("bug")}
+                      className="flex flex-col items-center gap-1 h-auto py-3"
+                    >
+                      <Bug className="h-4 w-4" />
+                      <span className="text-xs">Bug Report</span>
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={category === "feature" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setCategory("feature")}
+                      className="flex flex-col items-center gap-1 h-auto py-3"
+                    >
+                      <Lightbulb className="h-4 w-4" />
+                      <span className="text-xs">Idea</span>
+                    </Button>
+                  </div>
+
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-2">
-                      <label className="text-sm font-medium">Category</label>
+                      <label className="text-sm font-medium">Type</label>
                       <Select value={category} onValueChange={setCategory}>
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
+                          <SelectItem value="contact">
+                            <div className="flex items-center gap-2">
+                              <Mail className="h-4 w-4" />
+                              Contact Us
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="bug">
+                            <div className="flex items-center gap-2">
+                              <Bug className="h-4 w-4" />
+                              Bug Report
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="feature">
+                            <div className="flex items-center gap-2">
+                              <Lightbulb className="h-4 w-4" />
+                              Feature Request
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="ui">UI/UX Feedback</SelectItem>
                           <SelectItem value="general">General</SelectItem>
-                          <SelectItem value="bug">Bug Report</SelectItem>
-                          <SelectItem value="feature">Feature Request</SelectItem>
-                          <SelectItem value="ui">UI/UX</SelectItem>
                           <SelectItem value="other">Other</SelectItem>
                         </SelectContent>
                       </Select>
@@ -159,17 +218,35 @@ export function FeedbackWidget({ className }: FeedbackWidgetProps) {
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">Your Message *</label>
+                    <label className="text-sm font-medium">
+                      Your Message *
+                      {category === "contact" && (
+                        <span className="text-xs text-muted-foreground ml-2">
+                          (We'll respond via email)
+                        </span>
+                      )}
+                    </label>
                     <Textarea
                       value={message}
                       onChange={(e) => setMessage(e.target.value)}
-                      placeholder="Tell us what's on your mind..."
-                      rows={4}
-                      className="resize-none"
+                      placeholder={
+                        category === "contact" 
+                          ? "How can we help you today? We'll get back to you soon..." 
+                          : category === "bug"
+                          ? "Describe the issue you encountered. Include steps to reproduce if possible..."
+                          : category === "feature"
+                          ? "What feature would you like to see? How would it help you..."
+                          : "Tell us what's on your mind..."
+                      }
+                      rows={5}
+                      className="resize-none min-h-[120px]"
                       required
                     />
                     <p className="text-xs text-muted-foreground">
-                      Be specific and detailed to help us understand your feedback better.
+                      {category === "contact" 
+                        ? "Our team will respond to your message within 24 hours."
+                        : "Be specific and detailed to help us understand better."
+                      }
                     </p>
                   </div>
 
@@ -186,7 +263,7 @@ export function FeedbackWidget({ className }: FeedbackWidgetProps) {
                     <Button
                       type="submit"
                       disabled={!message.trim() || isLoading}
-                      className="flex-1 bg-slate-900 hover:bg-slate-800"
+                      className="flex-1 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary/80"
                     >
                       {isLoading ? (
                         <>
@@ -196,7 +273,7 @@ export function FeedbackWidget({ className }: FeedbackWidgetProps) {
                       ) : (
                         <>
                           <Send className="h-4 w-4 mr-2" />
-                          Send Feedback
+                          {category === "contact" ? "Send Message" : "Send Feedback"}
                         </>
                       )}
                     </Button>
