@@ -1,78 +1,87 @@
-import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
 import { 
-  MessageCircle, 
-  Clock, 
-  CheckCircle2, 
-  AlertCircle, 
-  Filter, 
-  User, 
-  Mail, 
-  Phone, 
-  Building, 
-  ExternalLink,
-  Reply,
-  Eye,
-  Menu,
-  Search,
-  Send
-} from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
-import { FeedbackMetricsOverview } from "./FeedbackMetricsOverview";
-import { FeedbackResponseTemplates } from "./FeedbackResponseTemplates";
-import { toast } from "@/hooks/use-toast";
-import { useEnhancedFeedback, FeedbackMessageWithUser } from "@/hooks/use-enhanced-feedback";
-import { Input } from "@/components/ui/input";
+  Search, 
+  Send, 
+  MessageSquare, 
+  AlertTriangle, 
+  CheckCircle, 
+  Clock,
+  Star,
+  User,
+  Calendar,
+  FileText,
+  Reply
+} from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/context/AuthContext';
 
-interface EnhancedFeedbackManagementProps {
-  className?: string;
+interface FeedbackMessage {
+  id: string;
+  message: string;
+  category: string;
+  priority: string;
+  status: string;
+  user_id: string;
+  admin_id: string | null;
+  admin_response: string | null;
+  created_at: string;
+  updated_at: string;
+  page_url: string | null;
+  satisfaction_rating: number | null;
+  user_email?: string;
+  user_first_name?: string;
+  user_last_name?: string;
+  read_by_admin?: boolean;
 }
 
-export function EnhancedFeedbackManagement({ className }: EnhancedFeedbackManagementProps) {
-  const [feedbackMessages, setFeedbackMessages] = useState<FeedbackMessageWithUser[]>([]);
-  const [filteredMessages, setFilteredMessages] = useState<FeedbackMessageWithUser[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [selectedMessage, setSelectedMessage] = useState<FeedbackMessageWithUser | null>(null);
-  const [adminResponse, setAdminResponse] = useState("");
-  const [isResponding, setIsResponding] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [categoryFilter, setCategoryFilter] = useState<string>("all");
-  const [priorityFilter, setPriorityFilter] = useState<string>("all");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [showTemplates, setShowTemplates] = useState(false);
-  const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
+export function EnhancedFeedbackManagement() {
+  const [feedbackMessages, setFeedbackMessages] = useState<FeedbackMessage[]>([]);
+  const [filteredMessages, setFilteredMessages] = useState<FeedbackMessage[]>([]);
+  const [selectedMessage, setSelectedMessage] = useState<FeedbackMessage | null>(null);
+  const [isResponseDialogOpen, setIsResponseDialogOpen] = useState(false);
+  const [responseText, setResponseText] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [priorityFilter, setPriorityFilter] = useState('all');
+  const [isProcessing, setIsProcessing] = useState(false);
   
-  const { getFeedbackWithUserDetails } = useEnhancedFeedback();
-  
-  const [metrics, setMetrics] = useState({
-    totalFeedback: 0,
-    unreadCount: 0,
-    responseRate: 0,
-    averageResponseTime: 0,
-    categoryBreakdown: {} as { [key: string]: number },
-    priorityBreakdown: {} as { [key: string]: number }
-  });
+  const { toast } = useToast();
+  const { user } = useAuth();
 
   useEffect(() => {
-    fetchFeedbackMessages();
-    
-    // Set up real-time subscription
+    loadFeedbackMessages();
+    setupRealtimeSubscription();
+  }, []);
+
+  useEffect(() => {
+    filterMessages();
+  }, [feedbackMessages, searchQuery, statusFilter, categoryFilter, priorityFilter]);
+
+  const setupRealtimeSubscription = () => {
     const channel = supabase
-      .channel("feedback-changes")
+      .channel('feedback-updates')
       .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "feedback_messages" },
-        (payload) => {
-          console.log("Feedback real-time update:", payload);
-          fetchFeedbackMessages();
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'feedback_messages'
+        },
+        () => {
+          loadFeedbackMessages();
         }
       )
       .subscribe();
@@ -80,575 +89,455 @@ export function EnhancedFeedbackManagement({ className }: EnhancedFeedbackManage
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  };
 
-  useEffect(() => {
-    filterMessages();
-  }, [feedbackMessages, statusFilter, categoryFilter, priorityFilter, searchQuery]);
-
-  const fetchFeedbackMessages = async () => {
+  const loadFeedbackMessages = async () => {
     try {
-      const data = await getFeedbackWithUserDetails();
-      setFeedbackMessages(data);
-      calculateMetrics(data);
+      const { data: messages, error } = await supabase
+        .from('feedback_messages')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      // Get user profiles for each message
+      const messagesWithProfiles: FeedbackMessage[] = [];
+      
+      for (const msg of messages || []) {
+        let userProfile = null;
+        
+        if (msg.user_id) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('email, first_name, last_name')
+            .eq('id', msg.user_id)
+            .single();
+          
+          userProfile = profile;
+        }
+
+        messagesWithProfiles.push({
+          id: msg.id,
+          message: msg.message,
+          category: msg.category,
+          priority: msg.priority,
+          status: msg.status,
+          user_id: msg.user_id,
+          admin_id: msg.admin_id,
+          admin_response: msg.admin_response,
+          created_at: msg.created_at,
+          updated_at: msg.updated_at,
+          page_url: msg.page_url,
+          satisfaction_rating: (msg as any).satisfaction_rating || null,
+          user_email: userProfile?.email || 'Unknown',
+          user_first_name: userProfile?.first_name || 'Unknown',
+          user_last_name: userProfile?.last_name || 'User',
+          read_by_admin: (msg as any).read_by_admin || false
+        });
+      }
+
+      setFeedbackMessages(messagesWithProfiles);
     } catch (error) {
-      console.error("Error fetching feedback messages:", error);
+      console.error('Error loading feedback messages:', error);
       toast({
         title: "Error",
-        description: "Failed to fetch feedback messages",
+        description: "Failed to load feedback messages.",
         variant: "destructive",
       });
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
-  };
-
-  const calculateMetrics = (messages: FeedbackMessageWithUser[]) => {
-    const totalFeedback = messages.length;
-    const unreadCount = messages.filter(m => m.status === "unread").length;
-    const respondedCount = messages.filter(m => m.status === "responded").length;
-    const responseRate = totalFeedback > 0 ? (respondedCount / totalFeedback) * 100 : 0;
-    
-    const averageResponseTime = 45; // minutes (placeholder)
-    
-    const categoryBreakdown = messages.reduce((acc, msg) => {
-      acc[msg.category || "general"] = (acc[msg.category || "general"] || 0) + 1;
-      return acc;
-    }, {} as { [key: string]: number });
-    
-    const priorityBreakdown = messages.reduce((acc, msg) => {
-      acc[msg.priority || "normal"] = (acc[msg.priority || "normal"] || 0) + 1;
-      return acc;
-    }, {} as { [key: string]: number });
-    
-    setMetrics({
-      totalFeedback,
-      unreadCount,
-      responseRate,
-      averageResponseTime,
-      categoryBreakdown,
-      priorityBreakdown
-    });
   };
 
   const filterMessages = () => {
     let filtered = feedbackMessages;
 
-    if (statusFilter !== "all") {
-      filtered = filtered.filter((msg) => msg.status === statusFilter);
-    }
-
-    if (categoryFilter !== "all") {
-      filtered = filtered.filter((msg) => msg.category === categoryFilter);
-    }
-
-    if (priorityFilter !== "all") {
-      filtered = filtered.filter((msg) => msg.priority === priorityFilter);
-    }
-
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter((msg) => 
-        msg.message.toLowerCase().includes(query) ||
-        msg.user_email.toLowerCase().includes(query) ||
-        msg.user_first_name.toLowerCase().includes(query) ||
-        msg.user_last_name.toLowerCase().includes(query) ||
-        (msg.user_company && msg.user_company.toLowerCase().includes(query))
+    if (searchQuery) {
+      filtered = filtered.filter(msg =>
+        msg.message.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        msg.user_email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        msg.user_first_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        msg.user_last_name?.toLowerCase().includes(searchQuery.toLowerCase())
       );
+    }
+
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter(msg => msg.status === statusFilter);
+    }
+
+    if (categoryFilter !== 'all') {
+      filtered = filtered.filter(msg => msg.category === categoryFilter);
+    }
+
+    if (priorityFilter !== 'all') {
+      filtered = filtered.filter(msg => msg.priority === priorityFilter);
     }
 
     setFilteredMessages(filtered);
   };
 
-  const updateFeedbackStatus = async (messageId: string, newStatus: string, response?: string) => {
-    setIsResponding(true);
+  const handleSendResponse = async () => {
+    if (!selectedMessage || !responseText.trim()) return;
+
+    setIsProcessing(true);
     try {
-      const { error } = await supabase
-        .from("feedback_messages")
-        .update({
-          status: newStatus,
-          admin_response: response || null,
-          admin_id: newStatus === "responded" ? (await supabase.auth.getUser()).data.user?.id : null,
-          read_by_admin: true,
-        })
-        .eq("id", messageId);
+      // Use the email sending edge function
+      const { data, error } = await supabase.functions.invoke('send-feedback-email', {
+        body: {
+          to: selectedMessage.user_email,
+          subject: `Re: Your feedback - ${selectedMessage.category}`,
+          content: responseText,
+          feedbackId: selectedMessage.id
+        }
+      });
 
       if (error) throw error;
-      
-      await fetchFeedbackMessages();
-      setSelectedMessage(null);
-      setAdminResponse("");
-      
+
+      // Update the feedback message
+      await supabase
+        .from('feedback_messages')
+        .update({
+          admin_response: responseText,
+          admin_id: user?.id,
+          status: 'responded',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', selectedMessage.id);
+
+      // Create notification for admin
+      await supabase
+        .from('admin_notifications')
+        .insert({
+          admin_id: user?.id,
+          feedback_id: selectedMessage.id,
+          notification_type: 'response_sent',
+          title: 'Response Sent',
+          message: `Response sent to ${selectedMessage.user_first_name} ${selectedMessage.user_last_name}`
+        });
+
       toast({
-        title: "Success",
-        description: newStatus === "responded" ? "Response sent successfully" : "Status updated",
+        title: "Response sent",
+        description: "Your response has been sent successfully.",
       });
+
+      setIsResponseDialogOpen(false);
+      setResponseText('');
+      loadFeedbackMessages();
     } catch (error) {
-      console.error("Error updating feedback status:", error);
+      console.error('Error sending response:', error);
       toast({
         title: "Error",
-        description: "Failed to update feedback status",
+        description: "Failed to send response. Please try again.",
         variant: "destructive",
       });
     } finally {
-      setIsResponding(false);
+      setIsProcessing(false);
     }
   };
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case "urgent": return "destructive";
-      case "high": return "secondary";
-      case "normal": return "outline";
-      case "low": return "outline";
-      default: return "outline";
-    }
-  };
-
-  const getCategoryIcon = (category: string) => {
-    switch (category) {
-      case "contact": return <Mail className="h-4 w-4" />;
-      case "bug": return <AlertCircle className="h-4 w-4" />;
-      case "feature": return <MessageCircle className="h-4 w-4" />;
-      default: return <MessageCircle className="h-4 w-4" />;
+  const markAsRead = async (messageId: string) => {
+    try {
+      await supabase
+        .from('feedback_messages')
+        .update({ status: 'read' } as any)
+        .eq('id', messageId);
+      
+      loadFeedbackMessages();
+    } catch (error) {
+      console.error('Error marking as read:', error);
     }
   };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case "unread": return <MessageCircle className="h-4 w-4 text-blue-500" />;
-      case "read": return <Eye className="h-4 w-4 text-yellow-500" />;
-      case "responded": return <CheckCircle2 className="h-4 w-4 text-green-500" />;
-      default: return <AlertCircle className="h-4 w-4 text-gray-500" />;
+      case 'unread':
+        return <AlertTriangle className="w-4 h-4 text-red-500" />;
+      case 'read':
+        return <Clock className="w-4 h-4 text-yellow-500" />;
+      case 'responded':
+        return <CheckCircle className="w-4 h-4 text-green-500" />;
+      default:
+        return <MessageSquare className="w-4 h-4" />;
     }
   };
 
-  // Mobile-optimized filters component
-  const FiltersContent = () => (
-    <div className="space-y-4">
-      <div className="space-y-2">
-        <label className="text-sm font-medium">Search</label>
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search messages, users..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9"
-          />
-        </div>
-      </div>
-      
-      <div className="grid grid-cols-1 gap-4">
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Status</label>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Statuses</SelectItem>
-              <SelectItem value="unread">Unread</SelectItem>
-              <SelectItem value="read">Read</SelectItem>
-              <SelectItem value="responded">Responded</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case 'urgent':
+        return 'destructive';
+      case 'high':
+        return 'default';
+      case 'normal':
+        return 'secondary';
+      case 'low':
+        return 'outline';
+      default:
+        return 'secondary';
+    }
+  };
 
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Category</label>
-          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Categories</SelectItem>
-              <SelectItem value="contact">Contact Us</SelectItem>
-              <SelectItem value="bug">Bug Report</SelectItem>
-              <SelectItem value="feature">Feature Request</SelectItem>
-              <SelectItem value="ui">UI/UX</SelectItem>
-              <SelectItem value="general">General</SelectItem>
-              <SelectItem value="other">Other</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Priority</label>
-          <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Priorities</SelectItem>
-              <SelectItem value="urgent">Urgent</SelectItem>
-              <SelectItem value="high">High</SelectItem>
-              <SelectItem value="normal">Normal</SelectItem>
-              <SelectItem value="low">Low</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-    </div>
-  );
-
-  if (isLoading) {
+  if (loading) {
     return (
-      <div className="flex items-center justify-center p-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      <div className="p-6 space-y-4">
+        <div className="animate-pulse space-y-4">
+          {[...Array(5)].map((_, i) => (
+            <Card key={i}>
+              <CardContent className="p-4">
+                <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       </div>
     );
   }
 
-  const unreadCount = feedbackMessages.filter(msg => msg.status === "unread").length;
-  const urgentCount = feedbackMessages.filter(msg => msg.priority === "urgent").length;
-  const contactCount = feedbackMessages.filter(msg => msg.category === "contact").length;
-
   return (
-    <div className={`space-y-4 lg:space-y-6 ${className}`}>
-      {/* Header - Mobile Optimized */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-xl lg:text-2xl font-bold">Messages & Feedback</h2>
-          <p className="text-sm text-muted-foreground">
-            Manage user messages and feedback
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {contactCount > 0 && (
-            <Badge variant="default" className="text-xs">
-              {contactCount} contact{contactCount !== 1 ? "s" : ""}
-            </Badge>
-          )}
-          {unreadCount > 0 && (
-            <Badge variant="destructive" className="text-xs">
-              {unreadCount} unread
-            </Badge>
-          )}
-          {urgentCount > 0 && (
-            <Badge variant="destructive" className="text-xs">
-              {urgentCount} urgent
-            </Badge>
-          )}
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
+        <h2 className="text-2xl font-bold">Feedback Management</h2>
+        <div className="flex flex-wrap gap-2">
+          <Badge variant="outline">
+            Total: {feedbackMessages.length}
+          </Badge>
+          <Badge variant="destructive">
+            Unread: {feedbackMessages.filter(m => m.status === 'unread').length}
+          </Badge>
+          <Badge variant="default">
+            Pending: {feedbackMessages.filter(m => m.status === 'read').length}
+          </Badge>
         </div>
       </div>
 
-      <FeedbackMetricsOverview {...metrics} />
-
-      {/* Mobile Filters */}
-      <div className="flex items-center gap-2 lg:hidden">
-        <Sheet open={isMobileFiltersOpen} onOpenChange={setIsMobileFiltersOpen}>
-          <SheetTrigger asChild>
-            <Button variant="outline" size="sm" className="flex-1">
-              <Filter className="h-4 w-4 mr-2" />
-              Filters
-            </Button>
-          </SheetTrigger>
-          <SheetContent side="bottom" className="h-[400px]">
-            <SheetHeader>
-              <SheetTitle>Filter Messages</SheetTitle>
-              <SheetDescription>
-                Filter and search through messages
-              </SheetDescription>
-            </SheetHeader>
-            <div className="mt-6">
-              <FiltersContent />
+      {/* Filters */}
+      <Card>
+        <CardContent className="p-4 space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search messages..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9"
+              />
             </div>
-          </SheetContent>
-        </Sheet>
-        
-        <div className="relative flex-2">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9"
-          />
-        </div>
-      </div>
+            
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger>
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="unread">Unread</SelectItem>
+                <SelectItem value="read">Read</SelectItem>
+                <SelectItem value="responded">Responded</SelectItem>
+              </SelectContent>
+            </Select>
 
-      {/* Desktop Filters */}
-      <Card className="hidden lg:block">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Filter className="h-5 w-5" />
-            Filters
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <FiltersContent />
+            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+              <SelectTrigger>
+                <SelectValue placeholder="Category" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Categories</SelectItem>
+                <SelectItem value="general">General</SelectItem>
+                <SelectItem value="bug">Bug Report</SelectItem>
+                <SelectItem value="feature">Feature Request</SelectItem>
+                <SelectItem value="contact">Contact</SelectItem>
+                <SelectItem value="ui">UI/UX</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+              <SelectTrigger>
+                <SelectValue placeholder="Priority" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Priorities</SelectItem>
+                <SelectItem value="urgent">Urgent</SelectItem>
+                <SelectItem value="high">High</SelectItem>
+                <SelectItem value="normal">Normal</SelectItem>
+                <SelectItem value="low">Low</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Button variant="outline" onClick={() => {
+              setSearchQuery('');
+              setStatusFilter('all');
+              setCategoryFilter('all');
+              setPriorityFilter('all');
+            }}>
+              Clear Filters
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
-      {/* Messages List - Mobile Optimized */}
-      <div className="space-y-3">
-        {filteredMessages.length === 0 ? (
-          <Card>
-            <CardContent className="p-6 lg:p-8 text-center">
-              <MessageCircle className="h-8 lg:h-12 w-8 lg:w-12 mx-auto mb-4 text-muted-foreground" />
-              <p className="text-muted-foreground">No messages found.</p>
+      {/* Messages List */}
+      <div className="grid gap-4">
+        {filteredMessages.map((message) => (
+          <Card 
+            key={message.id} 
+            className={`cursor-pointer transition-colors hover:bg-accent ${
+              message.status === 'unread' ? 'border-l-4 border-l-red-500' : ''
+            }`}
+            onClick={() => {
+              setSelectedMessage(message);
+              if (message.status === 'unread') {
+                markAsRead(message.id);
+              }
+            }}
+          >
+            <CardContent className="p-4">
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex items-center gap-3">
+                  {getStatusIcon(message.status)}
+                  <div>
+                    <h3 className="font-medium">
+                      {message.user_first_name} {message.user_last_name}
+                    </h3>
+                    <p className="text-sm text-muted-foreground">{message.user_email}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge variant={getPriorityColor(message.priority)} className="text-xs">
+                    {message.priority}
+                  </Badge>
+                  <Badge variant="outline" className="text-xs">
+                    {message.category}
+                  </Badge>
+                  <span className="text-xs text-muted-foreground">
+                    {new Date(message.created_at).toLocaleDateString()}
+                  </span>
+                </div>
+              </div>
+              
+              <p className="text-sm mb-3 line-clamp-2">{message.message}</p>
+              
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                  {message.page_url && (
+                    <span className="flex items-center gap-1">
+                      <FileText className="w-3 h-3" />
+                      Page: {new URL(message.page_url).pathname}
+                    </span>
+                  )}
+                  {message.satisfaction_rating && (
+                    <span className="flex items-center gap-1">
+                      <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
+                      {message.satisfaction_rating}/5
+                    </span>
+                  )}
+                </div>
+                
+                <div className="flex gap-2">
+                  {message.status !== 'responded' && (
+                    <Button
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedMessage(message);
+                        setIsResponseDialogOpen(true);
+                      }}
+                    >
+                      <Reply className="w-4 h-4 mr-1" />
+                      Respond
+                    </Button>
+                  )}
+                </div>
+              </div>
             </CardContent>
           </Card>
-        ) : (
-          filteredMessages.map((message) => (
-            <Card 
-              key={message.id} 
-              className={`transition-all hover:shadow-md ${
-                message.status === "unread" ? "border-primary/20 bg-primary/5" : ""
-              }`}
-            >
-              <CardHeader className="pb-2 lg:pb-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-start gap-3 min-w-0 flex-1">
-                    {getStatusIcon(message.status)}
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        {getCategoryIcon(message.category)}
-                        <CardTitle className="text-sm lg:text-base truncate">
-                          {message.category === "contact" ? "Contact Message" : 
-                           `${message.category.charAt(0).toUpperCase() + message.category.slice(1)} Feedback`}
-                        </CardTitle>
-                      </div>
-                      
-                      {/* User Info - Mobile Optimized */}
-                      <div className="flex flex-col lg:flex-row lg:items-center gap-1 lg:gap-4 text-xs lg:text-sm text-muted-foreground">
-                        <div className="flex items-center gap-1">
-                          <User className="h-3 w-3" />
-                          <span className="font-medium">
-                            {message.user_first_name && message.user_last_name 
-                              ? `${message.user_first_name} ${message.user_last_name}`
-                              : message.user_email}
-                          </span>
-                        </div>
-                        {message.user_company && (
-                          <div className="flex items-center gap-1">
-                            <Building className="h-3 w-3" />
-                            <span className="truncate">{message.user_company}</span>
-                          </div>
-                        )}
-                            <div className="flex items-center gap-1">
-                              <Clock className="h-3 w-3" />
-                              <span>{formatDistanceToNow(new Date(message.created_at), { addSuffix: true })}</span>
-                            </div>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="flex flex-col lg:flex-row items-end lg:items-center gap-1 lg:gap-2">
-                    <Badge variant={getPriorityColor(message.priority)} className="text-xs">
-                      {message.priority.toUpperCase()}
-                    </Badge>
-                  </div>
-                </div>
-              </CardHeader>
-              
-              <CardContent className="pt-0">
-                <p className="text-sm text-muted-foreground mb-3 lg:mb-4 line-clamp-2 lg:line-clamp-3">
-                  {message.message}
-                </p>
-                
-                <div className="flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-between">
-                  <div className="flex items-center gap-2">
-                    <a 
-                      href={`mailto:${message.user_email}`}
-                      className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
-                    >
-                      <Mail className="h-3 w-3" />
-                      {message.user_email}
-                      <ExternalLink className="h-3 w-3" />
-                    </a>
-                  </div>
-                  
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => updateFeedbackStatus(message.id, "read")}
-                      disabled={message.status === "read" || message.status === "responded"}
-                      className="text-xs"
-                    >
-                      <Eye className="h-3 w-3 mr-1" />
-                      Mark Read
-                    </Button>
-                    
-                    <Dialog>
-                      <DialogTrigger asChild>
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => setSelectedMessage(message)}
-                          className="text-xs"
-                        >
-                          <Reply className="h-3 w-3 mr-1" />
-                          Reply
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent className="max-w-2xl lg:max-w-4xl max-h-[90vh] overflow-y-auto">
-                        <DialogHeader>
-                          <DialogTitle className="flex items-center gap-2">
-                            {getCategoryIcon(message.category)}
-                            Message Details
-                          </DialogTitle>
-                        </DialogHeader>
-                        {selectedMessage && (
-                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                            <div className="space-y-4">
-                              {/* User Details Card */}
-                              <Card>
-                                <CardHeader className="pb-3">
-                                  <CardTitle className="text-base flex items-center gap-2">
-                                    <User className="h-4 w-4" />
-                                    User Information
-                                  </CardTitle>
-                                </CardHeader>
-                                <CardContent className="space-y-3">
-                                  <div className="grid grid-cols-1 gap-2 text-sm">
-                                    <div>
-                                      <span className="font-medium">Name: </span>
-                                      {selectedMessage.user_first_name && selectedMessage.user_last_name 
-                                        ? `${selectedMessage.user_first_name} ${selectedMessage.user_last_name}`
-                                        : "Not provided"}
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                      <span className="font-medium">Email: </span>
-                                      <a 
-                                        href={`mailto:${selectedMessage.user_email}`}
-                                        className="text-primary hover:underline flex items-center gap-1"
-                                      >
-                                        {selectedMessage.user_email}
-                                        <ExternalLink className="h-3 w-3" />
-                                      </a>
-                                    </div>
-                                    {selectedMessage.user_company && (
-                                      <div>
-                                        <span className="font-medium">Company: </span>
-                                        {selectedMessage.user_company}
-                                      </div>
-                                    )}
-                                    {selectedMessage.user_phone_number && (
-                                      <div>
-                                        <span className="font-medium">Phone: </span>
-                                        {selectedMessage.user_phone_number}
-                                      </div>
-                                    )}
-                                  </div>
-                                </CardContent>
-                              </Card>
-                              
-                              {/* Message Details */}
-                              <div className="grid grid-cols-2 gap-4 text-sm">
-                                <div>
-                                  <span className="font-medium">Category: </span>
-                                  {selectedMessage.category}
-                                </div>
-                                <div>
-                                  <span className="font-medium">Priority: </span>
-                                  {selectedMessage.priority}
-                                </div>
-                                <div>
-                                  <span className="font-medium">Status: </span>
-                                  {selectedMessage.status}
-                                </div>
-                                <div>
-                                  <span className="font-medium">Date: </span>
-                                  {new Date(selectedMessage.created_at).toLocaleDateString()}
-                                </div>
-                              </div>
-                              
-                              {selectedMessage.page_url && (
-                                <div className="text-sm">
-                                  <span className="font-medium">Page: </span>
-                                  <a 
-                                    href={selectedMessage.page_url} 
-                                    target="_blank" 
-                                    rel="noopener noreferrer"
-                                    className="text-primary hover:underline inline-flex items-center gap-1"
-                                  >
-                                    {selectedMessage.page_url}
-                                    <ExternalLink className="h-3 w-3" />
-                                  </a>
-                                </div>
-                              )}
-                              
-                              <div>
-                                <span className="font-medium text-sm">Message:</span>
-                                <div className="mt-2 p-3 bg-muted rounded-md text-sm">
-                                  {selectedMessage.message}
-                                </div>
-                              </div>
-                              
-                              {selectedMessage.admin_response && (
-                                <div>
-                                  <span className="font-medium text-sm">Previous Response:</span>
-                                  <div className="mt-2 p-3 bg-primary/10 rounded-md text-sm">
-                                    {selectedMessage.admin_response}
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                            
-                            <div className="space-y-4">
-                              <div className="flex items-center justify-between">
-                                <label className="text-sm font-medium">Your Response:</label>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => setShowTemplates(!showTemplates)}
-                                >
-                                  Templates
-                                </Button>
-                              </div>
-                              
-                              {showTemplates && (
-                                <div className="border rounded-lg p-4 bg-muted/50">
-                                  <FeedbackResponseTemplates onSelectTemplate={setAdminResponse} />
-                                </div>
-                              )}
-                              
-                              <Textarea
-                                value={adminResponse}
-                                onChange={(e) => setAdminResponse(e.target.value)}
-                                placeholder="Enter your response... (This will be sent via email)"
-                                rows={8}
-                                className="min-h-[200px]"
-                              />
-                              
-                              <div className="flex gap-2">
-                                <Button
-                                  onClick={() => updateFeedbackStatus(selectedMessage.id, "responded", adminResponse)}
-                                  disabled={isResponding || !adminResponse.trim()}
-                                  className="flex-1"
-                                >
-                                  {isResponding ? (
-                                    <>
-                                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                                      Sending...
-                                    </>
-                                  ) : (
-                                    <>
-                                      <Send className="h-4 w-4 mr-2" />
-                                      Send Response
-                                    </>
-                                  )}
-                                </Button>
-                              </div>
-                              
-                              <p className="text-xs text-muted-foreground">
-                                Response will be sent directly to {selectedMessage.user_email}
-                              </p>
-                            </div>
-                          </div>
-                        )}
-                      </DialogContent>
-                    </Dialog>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))
-        )}
+        ))}
       </div>
+
+      {filteredMessages.length === 0 && (
+        <Card>
+          <CardContent className="p-8 text-center">
+            <MessageSquare className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+            <h3 className="text-lg font-medium mb-2">No feedback messages found</h3>
+            <p className="text-muted-foreground">
+              {searchQuery || statusFilter !== 'all' || categoryFilter !== 'all' || priorityFilter !== 'all'
+                ? "Try adjusting your filters to see more messages."
+                : "New feedback messages will appear here."}
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Response Dialog */}
+      <Dialog open={isResponseDialogOpen} onOpenChange={setIsResponseDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Respond to Feedback</DialogTitle>
+          </DialogHeader>
+          
+          {selectedMessage && (
+            <div className="space-y-4">
+              <div className="bg-muted p-4 rounded-lg">
+                <div className="flex items-center gap-2 mb-2">
+                  <User className="w-4 h-4" />
+                  <span className="font-medium">
+                    {selectedMessage.user_first_name} {selectedMessage.user_last_name}
+                  </span>
+                  <Badge variant="outline">{selectedMessage.category}</Badge>
+                  <Badge variant={getPriorityColor(selectedMessage.priority)}>
+                    {selectedMessage.priority}
+                  </Badge>
+                </div>
+                <p className="text-sm">{selectedMessage.message}</p>
+                <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
+                  <span className="flex items-center gap-1">
+                    <Calendar className="w-3 h-3" />
+                    {new Date(selectedMessage.created_at).toLocaleString()}
+                  </span>
+                  {selectedMessage.page_url && (
+                    <span className="flex items-center gap-1">
+                      <FileText className="w-3 h-3" />
+                      {new URL(selectedMessage.page_url).pathname}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium">Your Response</label>
+                <Textarea
+                  value={responseText}
+                  onChange={(e) => setResponseText(e.target.value)}
+                  placeholder="Type your response here..."
+                  className="mt-2 min-h-[120px]"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setIsResponseDialogOpen(false)}
+                  disabled={isProcessing}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleSendResponse}
+                  disabled={!responseText.trim() || isProcessing}
+                >
+                  {isProcessing ? (
+                    <>Processing...</>
+                  ) : (
+                    <>
+                      <Send className="w-4 h-4 mr-2" />
+                      Send Response
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

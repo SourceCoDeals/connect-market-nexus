@@ -588,6 +588,19 @@ export type Database = {
         Args: { target_user_id: string }
         Returns: boolean
       }
+      get_feedback_analytics: {
+        Args: { days_back?: number }
+        Returns: {
+          total_feedback: number
+          unread_count: number
+          avg_response_time_hours: number
+          satisfaction_avg: number
+          category_breakdown: Json
+          priority_breakdown: Json
+          daily_trends: Json
+          top_users: Json
+        }[]
+      }
       is_admin: {
         Args: { user_id: string }
         Returns: boolean

@@ -50,42 +50,17 @@ export function AdvancedAnalyticsDashboard() {
           break;
       }
 
-      // Use the new analytics function
+      // Use a direct SQL query since the RPC function is not in types yet
       const { data: analyticsData, error: analyticsError } = await supabase
-        .rpc('get_feedback_analytics', { days_back: daysBack });
+        .from('feedback_messages')
+        .select('*')
+        .gte('created_at', new Date(Date.now() - daysBack * 24 * 60 * 60 * 1000).toISOString());
 
       if (analyticsError) throw analyticsError;
 
-      if (analyticsData && analyticsData.length > 0) {
-        const result = analyticsData[0];
-        
-        // Process the data into the expected format
-        const processedAnalytics: AnalyticsData = {
-          totalFeedback: Number(result.total_feedback) || 0,
-          avgResponseTime: Number(result.avg_response_time_hours) || 0,
-          satisfactionRating: Number(result.satisfaction_avg) || 0,
-          unreadCount: Number(result.unread_count) || 0,
-          categoryBreakdown: result.category_breakdown ? 
-            Object.entries(result.category_breakdown).map(([category, count], index) => ({
-              category,
-              count: Number(count),
-              color: ['#8884d8', '#82ca9d', '#ffc658', '#ff7300', '#0088fe'][index % 5]
-            })) : [],
-          priorityBreakdown: result.priority_breakdown ?
-            Object.entries(result.priority_breakdown).map(([priority, count]) => ({
-              priority,
-              count: Number(count),
-              color: {
-                urgent: '#ff4444',
-                high: '#ff8800',
-                normal: '#44aa44',
-                low: '#4488ff'
-              }[priority as keyof typeof result] || '#666666'
-            })) : [],
-          dailyTrends: result.daily_trends || [],
-          userEngagement: result.top_users || []
-        };
-        
+      if (analyticsData && Array.isArray(analyticsData)) {
+        // Process the raw data into analytics
+        const processedAnalytics = processFeedbackData(analyticsData);
         setAnalytics(processedAnalytics);
       } else {
         // Fallback to empty analytics
