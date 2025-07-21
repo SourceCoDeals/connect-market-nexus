@@ -83,7 +83,7 @@ export function ConversationThread({
       const uploadedAttachments = [];
       for (const file of attachments) {
         const fileExt = file.name.split('.').pop();
-        const fileName = `${threadId}/${Date.now()}.${fileExt}`;
+        const fileName = `${user?.id}/${threadId}/${Date.now()}.${fileExt}`;
         
         const { data, error } = await supabase.storage
           .from('feedback-attachments')
@@ -98,27 +98,47 @@ export function ConversationThread({
         });
       }
 
-      // Auto-categorize and assign priority (simplified for now)
+      // Auto-categorize and assign priority with enhanced logic
       let category = 'general';
       let priority = 'normal';
       
-      if (newMessage.toLowerCase().includes('bug') || newMessage.toLowerCase().includes('error')) {
+      const message = newMessage.toLowerCase();
+      
+      if (message.includes('bug') || message.includes('error') || message.includes('broken') || message.includes('crash')) {
         category = 'bug';
         priority = 'high';
-      } else if (newMessage.toLowerCase().includes('urgent')) {
+      } else if (message.includes('feature') || message.includes('request') || message.includes('suggest') || message.includes('enhancement')) {
+        category = 'feature';
+        priority = 'normal';
+      } else if (message.includes('contact') || message.includes('help') || message.includes('support') || message.includes('question')) {
+        category = 'contact';
+        priority = 'normal';
+      } else if (message.includes('ui') || message.includes('design') || message.includes('interface') || message.includes('layout')) {
+        category = 'ui';
+        priority = 'normal';
+      }
+      
+      if (message.includes('urgent') || message.includes('critical') || message.includes('immediately') || message.includes('asap')) {
         priority = 'urgent';
+      } else if (message.includes('important') || message.includes('soon')) {
+        priority = 'high';
+      } else if (message.includes('low') || message.includes('minor') || message.includes('when possible')) {
+        priority = 'low';
       }
 
       // Insert message
       const { data, error } = await supabase
         .from('feedback_messages')
         .insert({
+          thread_id: threadId,
           message: newMessage,
           user_id: isAdmin ? null : user?.id,
           admin_id: isAdmin ? user?.id : null,
+          attachments: uploadedAttachments,
           category,
           priority,
-          status: 'unread'
+          status: 'unread',
+          page_url: window.location.href
         } as any)
         .select()
         .single();

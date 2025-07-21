@@ -14,6 +14,47 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_notifications: {
+        Row: {
+          admin_id: string
+          created_at: string | null
+          feedback_id: string
+          id: string
+          is_read: boolean | null
+          message: string
+          notification_type: string
+          title: string
+        }
+        Insert: {
+          admin_id: string
+          created_at?: string | null
+          feedback_id: string
+          id?: string
+          is_read?: boolean | null
+          message: string
+          notification_type: string
+          title: string
+        }
+        Update: {
+          admin_id?: string
+          created_at?: string | null
+          feedback_id?: string
+          id?: string
+          is_read?: boolean | null
+          message?: string
+          notification_type?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "admin_notifications_feedback_id_fkey"
+            columns: ["feedback_id"]
+            isOneToOne: false
+            referencedRelation: "feedback_messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       audit_logs: {
         Row: {
           admin_id: string | null

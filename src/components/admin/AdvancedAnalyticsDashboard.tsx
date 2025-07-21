@@ -33,43 +33,73 @@ export function AdvancedAnalyticsDashboard() {
   const loadAnalytics = async () => {
     setLoading(true);
     try {
-      const endDate = new Date();
-      const startDate = new Date();
+      let daysBack = 30;
       
       switch (timeRange) {
         case '24h':
-          startDate.setHours(startDate.getHours() - 24);
+          daysBack = 1;
           break;
         case '7d':
-          startDate.setDate(startDate.getDate() - 7);
+          daysBack = 7;
           break;
         case '30d':
-          startDate.setDate(startDate.getDate() - 30);
+          daysBack = 30;
           break;
         case '90d':
-          startDate.setDate(startDate.getDate() - 90);
+          daysBack = 90;
           break;
       }
 
-      // Fetch feedback analytics
-      const { data: feedbackData, error: feedbackError } = await supabase
-        .from('feedback_messages')
-        .select(`
-          *,
-          profiles!feedback_messages_user_id_fkey (
-            first_name,
-            last_name,
-            email
-          )
-        `)
-        .gte('created_at', startDate.toISOString())
-        .lte('created_at', endDate.toISOString());
+      // Use the new analytics function
+      const { data: analyticsData, error: analyticsError } = await supabase
+        .rpc('get_feedback_analytics', { days_back: daysBack });
 
-      if (feedbackError) throw feedbackError;
+      if (analyticsError) throw analyticsError;
 
-      // Process analytics data
-      const processedAnalytics = processFeedbackData(feedbackData || []);
-      setAnalytics(processedAnalytics);
+      if (analyticsData && analyticsData.length > 0) {
+        const result = analyticsData[0];
+        
+        // Process the data into the expected format
+        const processedAnalytics: AnalyticsData = {
+          totalFeedback: Number(result.total_feedback) || 0,
+          avgResponseTime: Number(result.avg_response_time_hours) || 0,
+          satisfactionRating: Number(result.satisfaction_avg) || 0,
+          unreadCount: Number(result.unread_count) || 0,
+          categoryBreakdown: result.category_breakdown ? 
+            Object.entries(result.category_breakdown).map(([category, count], index) => ({
+              category,
+              count: Number(count),
+              color: ['#8884d8', '#82ca9d', '#ffc658', '#ff7300', '#0088fe'][index % 5]
+            })) : [],
+          priorityBreakdown: result.priority_breakdown ?
+            Object.entries(result.priority_breakdown).map(([priority, count]) => ({
+              priority,
+              count: Number(count),
+              color: {
+                urgent: '#ff4444',
+                high: '#ff8800',
+                normal: '#44aa44',
+                low: '#4488ff'
+              }[priority as keyof typeof result] || '#666666'
+            })) : [],
+          dailyTrends: result.daily_trends || [],
+          userEngagement: result.top_users || []
+        };
+        
+        setAnalytics(processedAnalytics);
+      } else {
+        // Fallback to empty analytics
+        setAnalytics({
+          totalFeedback: 0,
+          avgResponseTime: 0,
+          satisfactionRating: 0,
+          unreadCount: 0,
+          categoryBreakdown: [],
+          priorityBreakdown: [],
+          dailyTrends: [],
+          userEngagement: []
+        });
+      }
     } catch (error) {
       console.error('Error loading analytics:', error);
       toast({
