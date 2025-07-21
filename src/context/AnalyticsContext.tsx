@@ -42,36 +42,50 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
     const createOrUpdateSession = async () => {
       try {
         // Check if session already exists
-        const { data: existingSession } = await supabase
+        const { data: existingSession, error: selectError } = await supabase
           .from('user_sessions')
           .select('id')
           .eq('session_id', currentSessionId)
-          .single();
+          .maybeSingle();
+
+        if (selectError) {
+          console.error('❌ Error checking existing session:', selectError);
+          return;
+        }
 
         if (existingSession) {
           // Update existing session with user info
-          await supabase
+          const { error: updateError } = await supabase
             .from('user_sessions')
             .update({
               user_id: user?.id || null,
               updated_at: new Date().toISOString(),
             })
             .eq('session_id', currentSessionId);
-          console.log('✅ Analytics session updated:', currentSessionId, 'for user:', user?.id || 'anonymous');
+
+          if (updateError) {
+            console.error('❌ Failed to update session:', updateError);
+          } else {
+            console.log('✅ Analytics session updated:', currentSessionId, 'for user:', user?.id || 'anonymous');
+          }
         } else {
           // Create new session
-          await supabase.from('user_sessions').insert({
+          const { error: insertError } = await supabase.from('user_sessions').insert({
             session_id: currentSessionId,
             user_id: user?.id || null,
             started_at: sessionStartTime?.toISOString() || new Date().toISOString(),
             user_agent: navigator.userAgent,
             referrer: document.referrer || null,
           });
-          console.log('✅ Analytics session created:', currentSessionId, 'for user:', user?.id || 'anonymous');
+
+          if (insertError) {
+            console.error('❌ Failed to create session:', insertError);
+          } else {
+            console.log('✅ Analytics session created:', currentSessionId, 'for user:', user?.id || 'anonymous');
+          }
         }
       } catch (error) {
         console.error('❌ Failed to create/update session:', error);
-        // Continue anyway - don't block analytics for session creation failures
       }
     };
 
@@ -86,10 +100,15 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
   }, [location.pathname]);
 
   const trackEvent = async (eventType: string, eventData?: any) => {
-    if (!currentSessionId) return;
+    if (!currentSessionId) {
+      console.warn('❌ No session ID for event:', eventType);
+      return;
+    }
+
+    console.log('📊 Tracking event:', eventType, 'session:', currentSessionId, 'user:', user?.id);
 
     try {
-      await supabase.from('user_events').insert({
+      const { error } = await supabase.from('user_events').insert({
         session_id: currentSessionId,
         user_id: user?.id || null,
         event_type: eventType,
@@ -98,8 +117,14 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
         page_path: location.pathname,
         metadata: eventData || {},
       });
+
+      if (error) {
+        console.error('❌ Failed to track event:', error);
+      } else {
+        console.log('✅ Event tracked successfully:', eventType);
+      }
     } catch (error) {
-      console.error('Failed to track event:', error);
+      console.error('❌ Failed to track event:', error);
     }
   };
 
@@ -112,14 +137,19 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
     console.log('📊 Tracking page view:', pagePath, 'session:', currentSessionId, 'user:', user?.id);
 
     try {
-      await supabase.from('page_views').insert({
+      const { error } = await supabase.from('page_views').insert({
         session_id: currentSessionId,
         user_id: user?.id || null,
         page_path: pagePath,
         page_title: document.title,
         referrer: document.referrer || null,
       });
-      console.log('✅ Page view tracked successfully');
+
+      if (error) {
+        console.error('❌ Failed to track page view:', error);
+      } else {
+        console.log('✅ Page view tracked successfully');
+      }
     } catch (error) {
       console.error('❌ Failed to track page view:', error);
     }
@@ -134,14 +164,19 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
     console.log('👀 Tracking listing view:', listingId, 'session:', currentSessionId, 'user:', user?.id);
 
     try {
-      await supabase.from('listing_analytics').insert({
+      const { error } = await supabase.from('listing_analytics').insert({
         session_id: currentSessionId,
         user_id: user?.id || null,
         listing_id: listingId,
         action_type: 'view',
         referrer_page: location.pathname,
       });
-      console.log('✅ Listing view tracked successfully');
+
+      if (error) {
+        console.error('❌ Failed to track listing view:', error);
+      } else {
+        console.log('✅ Listing view tracked successfully');
+      }
     } catch (error) {
       console.error('❌ Failed to track listing view:', error);
     }
@@ -156,40 +191,61 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
     console.log('💾 Tracking listing save:', listingId, 'session:', currentSessionId, 'user:', user?.id);
 
     try {
-      await supabase.from('listing_analytics').insert({
+      const { error } = await supabase.from('listing_analytics').insert({
         session_id: currentSessionId,
         user_id: user?.id || null,
         listing_id: listingId,
         action_type: 'save',
         referrer_page: location.pathname,
       });
-      console.log('✅ Listing save tracked successfully');
+
+      if (error) {
+        console.error('❌ Failed to track listing save:', error);
+      } else {
+        console.log('✅ Listing save tracked successfully');
+      }
     } catch (error) {
       console.error('❌ Failed to track listing save:', error);
     }
   };
 
   const trackConnectionRequest = async (listingId: string) => {
-    if (!currentSessionId) return;
+    if (!currentSessionId) {
+      console.warn('❌ No session ID for connection request:', listingId);
+      return;
+    }
+
+    console.log('🔗 Tracking connection request:', listingId, 'session:', currentSessionId, 'user:', user?.id);
 
     try {
-      await supabase.from('listing_analytics').insert({
+      const { error } = await supabase.from('listing_analytics').insert({
         session_id: currentSessionId,
         user_id: user?.id || null,
         listing_id: listingId,
         action_type: 'request_connection',
         referrer_page: location.pathname,
       });
+
+      if (error) {
+        console.error('❌ Failed to track connection request:', error);
+      } else {
+        console.log('✅ Connection request tracked successfully');
+      }
     } catch (error) {
-      console.error('Failed to track connection request:', error);
+      console.error('❌ Failed to track connection request:', error);
     }
   };
 
   const trackSearch = async (query: string, filters?: any, results?: number) => {
-    if (!currentSessionId) return;
+    if (!currentSessionId) {
+      console.warn('❌ No session ID for search:', query);
+      return;
+    }
+
+    console.log('🔍 Tracking search:', query, 'session:', currentSessionId, 'user:', user?.id);
 
     try {
-      await supabase.from('search_analytics').insert({
+      const { error } = await supabase.from('search_analytics').insert({
         session_id: currentSessionId,
         user_id: user?.id || null,
         search_query: query,
@@ -197,8 +253,14 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
         results_count: results || 0,
         no_results: (results || 0) === 0,
       });
+
+      if (error) {
+        console.error('❌ Failed to track search:', error);
+      } else {
+        console.log('✅ Search tracked successfully');
+      }
     } catch (error) {
-      console.error('Failed to track search:', error);
+      console.error('❌ Failed to track search:', error);
     }
   };
 

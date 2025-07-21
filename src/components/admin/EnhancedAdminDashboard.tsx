@@ -3,6 +3,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { EnhancedFeedbackManagement } from './EnhancedFeedbackManagement';
 import { AdvancedAnalyticsDashboard } from './AdvancedAnalyticsDashboard';
 import { EmailTemplateManager } from './EmailTemplateManager';
+import { UserActivityFeed } from './UserActivityFeed';
+import { AnalyticsTestPanel } from './AnalyticsTestPanel';
 
 export function EnhancedAdminDashboard() {
   return (
@@ -15,9 +17,10 @@ export function EnhancedAdminDashboard() {
       </div>
 
       <Tabs defaultValue="feedback" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="feedback">Feedback Management</TabsTrigger>
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
+          <TabsTrigger value="activity">Live Activity</TabsTrigger>
           <TabsTrigger value="templates">Email Templates</TabsTrigger>
         </TabsList>
 
@@ -27,6 +30,13 @@ export function EnhancedAdminDashboard() {
 
         <TabsContent value="analytics" className="space-y-4">
           <AdvancedAnalyticsDashboard />
+        </TabsContent>
+
+        <TabsContent value="activity" className="space-y-4">
+          <div className="grid gap-6">
+            <AnalyticsTestPanel />
+            <UserActivityFeed />
+          </div>
         </TabsContent>
 
         <TabsContent value="templates" className="space-y-4">
