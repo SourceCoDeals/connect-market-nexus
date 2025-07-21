@@ -50,14 +50,14 @@ const AdminDashboard = () => {
       </div>
 
       <Tabs defaultValue="overview" className="space-y-4 md:space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-4 mb-6">
           <TabsTrigger value="overview" className="text-xs md:text-sm">Overview</TabsTrigger>
           <TabsTrigger value="analytics" className="text-xs md:text-sm">Analytics</TabsTrigger>
           <TabsTrigger value="health" className="text-xs md:text-sm">Health</TabsTrigger>
           <TabsTrigger value="feedback" className="text-xs md:text-sm">Feedback</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="overview" className="space-y-4 md:space-y-6">
+        <TabsContent value="overview" className="space-y-4 md:space-y-6 mt-6">
           {/* Overview Stats */}
           {isLoadingStats ? (
             renderSkeleton()
