@@ -270,17 +270,17 @@ export function UsersTable({
         <TableHeader>
           <TableRow>
             <TableHead className="w-[200px]">User</TableHead>
-            <TableHead>Company</TableHead>
-            <TableHead>Buyer Type</TableHead>
+            <TableHead className="hidden sm:table-cell">Company</TableHead>
+            <TableHead className="hidden md:table-cell">Buyer Type</TableHead>
             <TableHead className="text-center">Status</TableHead>
-            <TableHead>Joined</TableHead>
+            <TableHead className="hidden lg:table-cell">Joined</TableHead>
             <TableHead className="text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {users.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={6} className="h-24 text-center">
+              <TableCell colSpan={6} className="h-24 text-center text-sm">
                 No users found.
               </TableCell>
             </TableRow>
@@ -298,35 +298,35 @@ export function UsersTable({
                         <ChevronRight className="h-4 w-4 text-muted-foreground" />
                       }
                       <div className="flex flex-col">
-                        <span>{user.first_name} {user.last_name}</span>
-                        <span className="text-sm text-muted-foreground">{user.email}</span>
+                        <span className="text-sm sm:text-base">{user.first_name} {user.last_name}</span>
+                        <span className="text-xs sm:text-sm text-muted-foreground">{user.email}</span>
                       </div>
                     </div>
                   </TableCell>
-                  <TableCell>{user.company || "—"}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className="capitalize">
+                  <TableCell className="hidden sm:table-cell">{user.company || "—"}</TableCell>
+                  <TableCell className="hidden md:table-cell">
+                    <Badge variant="outline" className="capitalize text-xs">
                       {user.buyer_type || "—"}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-center">
                     {user.approval_status === "approved" && (
-                      <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
+                      <Badge className="bg-green-100 text-green-800 hover:bg-green-100 text-xs">
                         Approved
                       </Badge>
                     )}
                     {user.approval_status === "pending" && (
-                      <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100">
+                      <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100 text-xs">
                         Pending
                       </Badge>
                     )}
                     {user.approval_status === "rejected" && (
-                      <Badge className="bg-red-100 text-red-800 hover:bg-red-100">
+                      <Badge className="bg-red-100 text-red-800 hover:bg-red-100 text-xs">
                         Rejected
                       </Badge>
                     )}
                   </TableCell>
-                  <TableCell>{formatDate(user.created_at)}</TableCell>
+                  <TableCell className="hidden lg:table-cell text-xs">{formatDate(user.created_at)}</TableCell>
                   <TableCell className="text-right">
                     <UserActionButtons 
                       user={user}

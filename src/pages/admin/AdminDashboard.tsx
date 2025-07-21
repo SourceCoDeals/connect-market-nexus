@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useAdmin } from "@/hooks/use-admin";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,6 +7,7 @@ import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
 import { AdminAnalyticsDashboard } from "@/components/admin/AdminAnalyticsDashboard";
 import { AdminFeedbackTab } from "@/components/admin/AdminFeedbackTab";
+import { MobileOptimizedAnalytics } from "@/components/admin/MobileOptimizedAnalytics";
 
 const AdminDashboard = () => {
   const { useStats, useRecentActivities } = useAdmin();
@@ -15,15 +15,15 @@ const AdminDashboard = () => {
   const { data: activities = [], isLoading: isLoadingActivities } = useRecentActivities();
 
   const renderSkeleton = () => (
-    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4">
       {[1, 2, 3, 4].map((_, i) => (
-        <Card key={i}>
-          <CardHeader className="pb-2">
-            <CardDescription className="h-4 w-20 bg-muted rounded skeleton"></CardDescription>
-            <CardTitle className="h-8 w-24 bg-muted rounded skeleton mt-1"></CardTitle>
+        <Card key={i} className="p-3 md:p-4">
+          <CardHeader className="p-0 pb-2">
+            <CardDescription className="h-3 w-16 bg-muted rounded skeleton"></CardDescription>
+            <CardTitle className="h-5 w-20 bg-muted rounded skeleton mt-1"></CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="h-4 w-32 bg-muted rounded skeleton"></div>
+          <CardContent className="p-0 pt-2">
+            <div className="h-3 w-24 bg-muted rounded skeleton"></div>
           </CardContent>
         </Card>
       ))}
@@ -31,87 +31,88 @@ const AdminDashboard = () => {
   );
 
   const renderActivitySkeleton = () => (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {[1, 2, 3, 4].map((_, i) => (
-        <div key={i} className="border-l-4 border-muted pl-4 py-1">
-          <div className="h-4 w-3/4 bg-muted rounded skeleton"></div>
-          <div className="h-3 w-1/3 bg-muted rounded skeleton mt-1"></div>
+        <div key={i} className="border-l-4 border-muted pl-3 py-1">
+          <div className="h-3 w-3/4 bg-muted rounded skeleton"></div>
+          <div className="h-2 w-1/3 bg-muted rounded skeleton mt-1"></div>
         </div>
       ))}
     </div>
   );
 
   return (
-    <div className="p-8 max-w-7xl mx-auto">
-      <div className="flex items-center justify-between mb-8">
-        <h1 className="text-3xl font-bold">Admin Dashboard</h1>
+    <div className="space-y-4 md:space-y-6">
+      <div>
+        <h1 className="text-2xl md:text-3xl font-bold">Admin Dashboard</h1>
+        <p className="text-sm md:text-base text-muted-foreground">Overview of your marketplace</p>
       </div>
 
-      <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="analytics">User Analytics</TabsTrigger>
-          <TabsTrigger value="feedback">Feedback</TabsTrigger>
+      <Tabs defaultValue="overview" className="space-y-4 md:space-y-6">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="overview" className="text-xs md:text-sm">Overview</TabsTrigger>
+          <TabsTrigger value="analytics" className="text-xs md:text-sm">Analytics</TabsTrigger>
+          <TabsTrigger value="feedback" className="text-xs md:text-sm">Feedback</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="overview" className="space-y-6">
+        <TabsContent value="overview" className="space-y-4 md:space-y-6">
           {/* Overview Stats */}
           {isLoadingStats ? (
             renderSkeleton()
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardDescription className="flex items-center">
-                    <Store className="h-4 w-4 mr-1" /> Listings
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4">
+              <Card className="p-3 md:p-4">
+                <CardHeader className="p-0 pb-2">
+                  <CardDescription className="flex items-center text-xs md:text-sm">
+                    <Store className="h-3 w-3 md:h-4 md:w-4 mr-1" /> Listings
                   </CardDescription>
-                  <CardTitle>{stats?.totalListings || 0}</CardTitle>
+                  <CardTitle className="text-lg md:text-2xl">{stats?.totalListings || 0}</CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground">
-                    Active listings in marketplace
+                <CardContent className="p-0">
+                  <p className="text-xs md:text-sm text-muted-foreground">
+                    Active listings
                   </p>
                 </CardContent>
               </Card>
               
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardDescription className="flex items-center">
-                    <Users className="h-4 w-4 mr-1" /> Users
+              <Card className="p-3 md:p-4">
+                <CardHeader className="p-0 pb-2">
+                  <CardDescription className="flex items-center text-xs md:text-sm">
+                    <Users className="h-3 w-3 md:h-4 md:w-4 mr-1" /> Users
                   </CardDescription>
-                  <CardTitle>{stats?.pendingUsers || 0}</CardTitle>
+                  <CardTitle className="text-lg md:text-2xl">{stats?.pendingUsers || 0}</CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground">
-                    Pending approval requests
+                <CardContent className="p-0">
+                  <p className="text-xs md:text-sm text-muted-foreground">
+                    Pending approval
                   </p>
                 </CardContent>
               </Card>
               
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardDescription className="flex items-center">
-                    <MessageSquare className="h-4 w-4 mr-1" /> Connections
+              <Card className="p-3 md:p-4">
+                <CardHeader className="p-0 pb-2">
+                  <CardDescription className="flex items-center text-xs md:text-sm">
+                    <MessageSquare className="h-3 w-3 md:h-4 md:w-4 mr-1" /> Connections
                   </CardDescription>
-                  <CardTitle>{stats?.pendingConnections || 0}</CardTitle>
+                  <CardTitle className="text-lg md:text-2xl">{stats?.pendingConnections || 0}</CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground">
-                    New connection requests
+                <CardContent className="p-0">
+                  <p className="text-xs md:text-sm text-muted-foreground">
+                    New requests
                   </p>
                 </CardContent>
               </Card>
               
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardDescription className="flex items-center">
-                    <TrendingUp className="h-4 w-4 mr-1" /> Activity
+              <Card className="p-3 md:p-4">
+                <CardHeader className="p-0 pb-2">
+                  <CardDescription className="flex items-center text-xs md:text-sm">
+                    <TrendingUp className="h-3 w-3 md:h-4 md:w-4 mr-1" /> Total
                   </CardDescription>
-                  <CardTitle>{stats?.totalUsers || 0}</CardTitle>
+                  <CardTitle className="text-lg md:text-2xl">{stats?.totalUsers || 0}</CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground">
-                    Total registered users
+                <CardContent className="p-0">
+                  <p className="text-xs md:text-sm text-muted-foreground">
+                    Registered users
                   </p>
                 </CardContent>
               </Card>
@@ -119,14 +120,14 @@ const AdminDashboard = () => {
           )}
           
           {/* Recent Activity */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Recent Activity</CardTitle>
-              <CardDescription>
+          <Card className="p-4 md:p-6">
+            <CardHeader className="p-0 pb-4">
+              <CardTitle className="text-base md:text-lg">Recent Activity</CardTitle>
+              <CardDescription className="text-sm">
                 Latest actions across the marketplace
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-0">
               {isLoadingActivities ? (
                 renderActivitySkeleton()
               ) : activities.length === 0 ? (
@@ -134,12 +135,12 @@ const AdminDashboard = () => {
                   No recent activity to display
                 </p>
               ) : (
-                <div className="space-y-4">
-                  {activities.map((activity) => (
+                <div className="space-y-3">
+                  {activities.slice(0, 5).map((activity) => (
                     <div
                       key={activity.id}
                       className={cn(
-                        "border-l-4 pl-4 py-1",
+                        "border-l-4 pl-3 py-1",
                         activity.type === "signup"
                           ? "border-green-500"
                           : activity.type === "connection_request"
@@ -164,7 +165,7 @@ const AdminDashboard = () => {
         </TabsContent>
 
         <TabsContent value="analytics">
-          <AdminAnalyticsDashboard />
+          <MobileOptimizedAnalytics />
         </TabsContent>
 
         <TabsContent value="feedback">

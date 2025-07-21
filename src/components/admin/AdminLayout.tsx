@@ -19,7 +19,7 @@ const AdminLayout = () => {
   const isMobile = useIsMobile();
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen w-full">
       {/* Admin sidebar */}
       <aside className="w-64 bg-muted/30 border-r border-border flex-shrink-0 p-4 hidden md:block">
         <div className="flex flex-col h-full">
@@ -70,7 +70,7 @@ const AdminLayout = () => {
         <AdminNavbar className="md:hidden" />
         
         {/* Main content */}
-        <main className="flex-1 overflow-auto p-4 md:p-8">
+        <main className="flex-1 overflow-auto p-3 md:p-6 lg:p-8 w-full min-w-0">
           <Outlet />
         </main>
       </div>
