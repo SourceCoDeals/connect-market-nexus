@@ -7,6 +7,7 @@ import {
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import { AuthProvider } from "@/context/AuthContext";
+import { AnalyticsProvider } from "@/context/AnalyticsContext";
 import { SessionMonitoringProvider } from "@/components/security/SessionMonitoringProvider";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import MainLayout from "@/components/MainLayout";
@@ -38,9 +39,10 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <Toaster />
-        <SessionMonitoringProvider>
-          <RealtimeProvider>
+        <AnalyticsProvider>
+          <Toaster />
+          <SessionMonitoringProvider>
+            <RealtimeProvider>
             <Routes>
               {/* Authentication routes - no protection needed */}
               <Route path="/login" element={<Login />} />
@@ -75,9 +77,10 @@ function App() {
               {/* Catch-all route for 404 Not Found */}
               <Route path="*" element={<NotFound />} />
             </Routes>
-            <RealtimeIndicator />
-          </RealtimeProvider>
-        </SessionMonitoringProvider>
+              <RealtimeIndicator />
+            </RealtimeProvider>
+          </SessionMonitoringProvider>
+        </AnalyticsProvider>
       </AuthProvider>
     </QueryClientProvider>
   );

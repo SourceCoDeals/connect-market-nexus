@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { Filter, DollarSign } from "lucide-react";
+import { useAnalyticsTracking } from "@/hooks/use-analytics-tracking";
 
 // Filter panel props
 export interface FilterPanelProps {
@@ -76,6 +77,7 @@ const FilterPanel = ({
   const [location, setLocation] = useState<string | undefined>(undefined);
   const [revenueRange, setRevenueRange] = useState<string>('any');
   const [ebitdaRange, setEbitdaRange] = useState<string>('any');
+  const { trackSearch } = useAnalyticsTracking();
 
   // Merge categories from database with our complete list
   const allCategories = [...new Set([...ALL_CATEGORIES, ...categories])].sort();
@@ -107,7 +109,12 @@ const FilterPanel = ({
     }
     
     onFilterChange(filters);
-  }, [searchTerm, category, location, revenueRange, ebitdaRange, onFilterChange]);
+    
+    // Track search analytics when search term is used
+    if (searchTerm.trim()) {
+      trackSearch(searchTerm, filters, filteredCount, filteredCount === 0);
+    }
+  }, [searchTerm, category, location, revenueRange, ebitdaRange, onFilterChange, filteredCount, trackSearch]);
 
   const handleResetFilters = () => {
     setSearchTerm("");
