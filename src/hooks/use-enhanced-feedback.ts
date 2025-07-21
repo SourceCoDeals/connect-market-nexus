@@ -74,45 +74,45 @@ export function useEnhancedFeedback() {
 
       console.log('Feedback saved successfully:', feedback);
 
-      // For "contact" category, send automatic response email to user
-      if (feedbackData.category === 'contact') {
-        try {
-          console.log('Sending contact response email...');
-          
-          // Get user profile for name
-          const { data: profile, error: profileError } = await supabase
-            .from('profiles')
-            .select('first_name, last_name, email')
-            .eq('id', user.id)
-            .single();
+      // Send automatic response email to user for all feedback types
+      try {
+        console.log('Sending confirmation response email...');
+        
+        // Get user profile for name
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('first_name, last_name, email')
+          .eq('id', user.id)
+          .single();
 
-          if (profileError) {
-            console.warn('Could not fetch user profile for email:', profileError);
-          }
-
-          const userName = profile ? `${profile.first_name} ${profile.last_name}`.trim() : '';
-          
-          const { data: emailResult, error: emailError } = await supabase.functions.invoke('send-contact-response', {
-            body: {
-              to: user.email,
-              subject: `Thank you for contacting us${userName ? `, ${userName}` : ''}`,
-              content: feedbackData.message,
-              feedbackId: feedback.id,
-              userName: userName || undefined,
-              category: feedbackData.category
-            }
-          });
-
-          if (emailError) {
-            console.error('Email sending failed:', emailError);
-            // Don't throw - feedback was saved successfully
-          } else {
-            console.log('Contact response email sent successfully:', emailResult);
-          }
-        } catch (emailError) {
-          console.warn('Failed to send contact response email:', emailError);
-          // Don't fail the whole operation
+        if (profileError) {
+          console.warn('Could not fetch user profile for email:', profileError);
         }
+
+        const userName = profile ? `${profile.first_name} ${profile.last_name}`.trim() : '';
+        
+        const { data: emailResult, error: emailError } = await supabase.functions.invoke('send-contact-response', {
+          body: {
+            to: user.email,
+            subject: feedbackData.category === 'contact' 
+              ? `Thank you for contacting us${userName ? `, ${userName}` : ''}` 
+              : `Thank you for your feedback${userName ? `, ${userName}` : ''}`,
+            content: feedbackData.message,
+            feedbackId: feedback.id,
+            userName: userName || undefined,
+            category: feedbackData.category
+          }
+        });
+
+        if (emailError) {
+          console.error('Email sending failed:', emailError);
+          // Don't throw - feedback was saved successfully
+        } else {
+          console.log('Confirmation response email sent successfully:', emailResult);
+        }
+      } catch (emailError) {
+        console.warn('Failed to send confirmation response email:', emailError);
+        // Don't fail the whole operation
       }
 
       // Try to send admin notification, but don't fail if it errors
