@@ -162,6 +162,72 @@ export type Database = {
           },
         ]
       }
+      daily_metrics: {
+        Row: {
+          active_users: number | null
+          avg_session_duration: number | null
+          bounce_rate: number | null
+          connection_requests: number | null
+          conversion_rate: number | null
+          created_at: string | null
+          date: string
+          id: string
+          listing_views: number | null
+          new_listings: number | null
+          new_signups: number | null
+          page_views: number | null
+          returning_users: number | null
+          searches_performed: number | null
+          successful_connections: number | null
+          total_sessions: number | null
+          total_users: number | null
+          unique_page_views: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          active_users?: number | null
+          avg_session_duration?: number | null
+          bounce_rate?: number | null
+          connection_requests?: number | null
+          conversion_rate?: number | null
+          created_at?: string | null
+          date: string
+          id?: string
+          listing_views?: number | null
+          new_listings?: number | null
+          new_signups?: number | null
+          page_views?: number | null
+          returning_users?: number | null
+          searches_performed?: number | null
+          successful_connections?: number | null
+          total_sessions?: number | null
+          total_users?: number | null
+          unique_page_views?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          active_users?: number | null
+          avg_session_duration?: number | null
+          bounce_rate?: number | null
+          connection_requests?: number | null
+          conversion_rate?: number | null
+          created_at?: string | null
+          date?: string
+          id?: string
+          listing_views?: number | null
+          new_listings?: number | null
+          new_signups?: number | null
+          page_views?: number | null
+          returning_users?: number | null
+          searches_performed?: number | null
+          successful_connections?: number | null
+          total_sessions?: number | null
+          total_users?: number | null
+          unique_page_views?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       email_delivery_logs: {
         Row: {
           correlation_id: string
@@ -206,37 +272,67 @@ export type Database = {
       }
       engagement_scores: {
         Row: {
+          activity_streak: number | null
+          avg_session_duration: number | null
+          bounce_rate: number | null
+          churn_risk_score: number | null
           connections_requested: number
+          conversion_events: number | null
           created_at: string
+          days_since_signup: number | null
           id: string
           last_active: string | null
+          last_login: string | null
           listings_saved: number
           listings_viewed: number
+          page_views: number | null
           score: number
+          search_count: number | null
+          session_count: number | null
           total_session_time: number
           updated_at: string
           user_id: string | null
         }
         Insert: {
+          activity_streak?: number | null
+          avg_session_duration?: number | null
+          bounce_rate?: number | null
+          churn_risk_score?: number | null
           connections_requested?: number
+          conversion_events?: number | null
           created_at?: string
+          days_since_signup?: number | null
           id?: string
           last_active?: string | null
+          last_login?: string | null
           listings_saved?: number
           listings_viewed?: number
+          page_views?: number | null
           score?: number
+          search_count?: number | null
+          session_count?: number | null
           total_session_time?: number
           updated_at?: string
           user_id?: string | null
         }
         Update: {
+          activity_streak?: number | null
+          avg_session_duration?: number | null
+          bounce_rate?: number | null
+          churn_risk_score?: number | null
           connections_requested?: number
+          conversion_events?: number | null
           created_at?: string
+          days_since_signup?: number | null
           id?: string
           last_active?: string | null
+          last_login?: string | null
           listings_saved?: number
           listings_viewed?: number
+          page_views?: number | null
           score?: number
+          search_count?: number | null
+          session_count?: number | null
           total_session_time?: number
           updated_at?: string
           user_id?: string | null
@@ -295,6 +391,63 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: []
+      }
+      listing_analytics: {
+        Row: {
+          action_type: string
+          clicked_elements: Json | null
+          created_at: string | null
+          id: string
+          listing_id: string | null
+          referrer_page: string | null
+          scroll_depth: number | null
+          search_query: string | null
+          session_id: string | null
+          time_spent: number | null
+          user_id: string | null
+        }
+        Insert: {
+          action_type: string
+          clicked_elements?: Json | null
+          created_at?: string | null
+          id?: string
+          listing_id?: string | null
+          referrer_page?: string | null
+          scroll_depth?: number | null
+          search_query?: string | null
+          session_id?: string | null
+          time_spent?: number | null
+          user_id?: string | null
+        }
+        Update: {
+          action_type?: string
+          clicked_elements?: Json | null
+          created_at?: string | null
+          id?: string
+          listing_id?: string | null
+          referrer_page?: string | null
+          scroll_depth?: number | null
+          search_query?: string | null
+          session_id?: string | null
+          time_spent?: number | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "listing_analytics_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "listing_analytics_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "user_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       listings: {
         Row: {
@@ -379,6 +532,53 @@ export type Database = {
           window_start?: string
         }
         Relationships: []
+      }
+      page_views: {
+        Row: {
+          created_at: string | null
+          exit_page: boolean | null
+          id: string
+          page_path: string
+          page_title: string | null
+          referrer: string | null
+          scroll_depth: number | null
+          session_id: string | null
+          time_on_page: number | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          exit_page?: boolean | null
+          id?: string
+          page_path: string
+          page_title?: string | null
+          referrer?: string | null
+          scroll_depth?: number | null
+          session_id?: string | null
+          time_on_page?: number | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          exit_page?: boolean | null
+          id?: string
+          page_path?: string
+          page_title?: string | null
+          referrer?: string | null
+          scroll_depth?: number | null
+          session_id?: string | null
+          time_on_page?: number | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "page_views_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "user_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       password_reset_tokens: {
         Row: {
@@ -494,6 +694,56 @@ export type Database = {
         }
         Relationships: []
       }
+      registration_funnel: {
+        Row: {
+          completed_at: string | null
+          created_at: string | null
+          drop_off_reason: string | null
+          dropped_off: boolean | null
+          email: string | null
+          form_data: Json | null
+          id: string
+          session_id: string | null
+          step_name: string
+          step_order: number
+          time_spent: number | null
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string | null
+          drop_off_reason?: string | null
+          dropped_off?: boolean | null
+          email?: string | null
+          form_data?: Json | null
+          id?: string
+          session_id?: string | null
+          step_name: string
+          step_order: number
+          time_spent?: number | null
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string | null
+          drop_off_reason?: string | null
+          dropped_off?: boolean | null
+          email?: string | null
+          form_data?: Json | null
+          id?: string
+          session_id?: string | null
+          step_name?: string
+          step_order?: number
+          time_spent?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "registration_funnel_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "user_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       saved_listings: {
         Row: {
           created_at: string
@@ -530,6 +780,59 @@ export type Database = {
           },
         ]
       }
+      search_analytics: {
+        Row: {
+          created_at: string | null
+          filters_applied: Json | null
+          id: string
+          no_results: boolean | null
+          position_clicked: number | null
+          refined_search: boolean | null
+          results_clicked: number | null
+          results_count: number | null
+          search_query: string
+          session_id: string | null
+          time_to_click: number | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          filters_applied?: Json | null
+          id?: string
+          no_results?: boolean | null
+          position_clicked?: number | null
+          refined_search?: boolean | null
+          results_clicked?: number | null
+          results_count?: number | null
+          search_query: string
+          session_id?: string | null
+          time_to_click?: number | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          filters_applied?: Json | null
+          id?: string
+          no_results?: boolean | null
+          position_clicked?: number | null
+          refined_search?: boolean | null
+          results_clicked?: number | null
+          results_count?: number | null
+          search_query?: string
+          session_id?: string | null
+          time_to_click?: number | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "search_analytics_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "user_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_activity: {
         Row: {
           activity_type: string
@@ -561,6 +864,128 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      user_events: {
+        Row: {
+          created_at: string | null
+          element_class: string | null
+          element_id: string | null
+          event_action: string
+          event_category: string
+          event_label: string | null
+          event_type: string
+          event_value: number | null
+          id: string
+          metadata: Json | null
+          page_path: string | null
+          session_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          element_class?: string | null
+          element_id?: string | null
+          event_action: string
+          event_category: string
+          event_label?: string | null
+          event_type: string
+          event_value?: number | null
+          id?: string
+          metadata?: Json | null
+          page_path?: string | null
+          session_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          element_class?: string | null
+          element_id?: string | null
+          event_action?: string
+          event_category?: string
+          event_label?: string | null
+          event_type?: string
+          event_value?: number | null
+          id?: string
+          metadata?: Json | null
+          page_path?: string | null
+          session_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_events_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "user_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_sessions: {
+        Row: {
+          browser: string | null
+          city: string | null
+          country: string | null
+          created_at: string | null
+          device_type: string | null
+          ended_at: string | null
+          id: string
+          ip_address: unknown | null
+          is_active: boolean | null
+          os: string | null
+          referrer: string | null
+          session_id: string
+          started_at: string | null
+          updated_at: string | null
+          user_agent: string | null
+          user_id: string | null
+          utm_campaign: string | null
+          utm_medium: string | null
+          utm_source: string | null
+        }
+        Insert: {
+          browser?: string | null
+          city?: string | null
+          country?: string | null
+          created_at?: string | null
+          device_type?: string | null
+          ended_at?: string | null
+          id?: string
+          ip_address?: unknown | null
+          is_active?: boolean | null
+          os?: string | null
+          referrer?: string | null
+          session_id: string
+          started_at?: string | null
+          updated_at?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+          utm_campaign?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+        }
+        Update: {
+          browser?: string | null
+          city?: string | null
+          country?: string | null
+          created_at?: string | null
+          device_type?: string | null
+          ended_at?: string | null
+          id?: string
+          ip_address?: unknown | null
+          is_active?: boolean | null
+          os?: string | null
+          referrer?: string | null
+          session_id?: string
+          started_at?: string | null
+          updated_at?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+          utm_campaign?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+        }
+        Relationships: []
       }
     }
     Views: {
@@ -601,6 +1026,23 @@ export type Database = {
           top_users: Json
         }[]
       }
+      get_marketplace_analytics: {
+        Args: { days_back?: number }
+        Returns: {
+          total_users: number
+          new_users: number
+          active_users: number
+          avg_session_duration: number
+          bounce_rate: number
+          page_views: number
+          top_pages: Json
+          user_funnel: Json
+          listing_performance: Json
+          search_insights: Json
+          user_segments: Json
+          conversion_metrics: Json
+        }[]
+      }
       is_admin: {
         Args: { user_id: string }
         Returns: boolean
@@ -620,6 +1062,10 @@ export type Database = {
       soft_delete_profile: {
         Args: { profile_id: string }
         Returns: boolean
+      }
+      update_daily_metrics: {
+        Args: { target_date?: string }
+        Returns: undefined
       }
       update_engagement_scores: {
         Args: Record<PropertyKey, never>

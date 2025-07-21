@@ -1,342 +1,280 @@
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import React, { useState } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
-import { TrendingUp, MessageSquare, Clock, Users, Star, AlertTriangle, CheckCircle } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
+import { Button } from '@/components/ui/button';
+import { 
+  Users, 
+  Activity, 
+  TrendingUp, 
+  Clock, 
+  Search, 
+  Eye, 
+  Heart, 
+  Link,
+  RefreshCw,
+  ChartBar,
+  Target,
+  AlertTriangle,
+  MessageSquare,
+  Star
+} from 'lucide-react';
+import { 
+  LineChart, 
+  Line, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  Cell,
+  FunnelChart,
+  Funnel,
+  LabelList
+} from 'recharts';
+import { useMarketplaceAnalytics, useDailyMetrics, useUserEngagementScores } from '@/hooks/use-marketplace-analytics';
+import { Skeleton } from '@/components/ui/skeleton';
 
-interface AnalyticsData {
-  totalFeedback: number;
-  avgResponseTime: number;
-  satisfactionRating: number;
-  unreadCount: number;
-  categoryBreakdown: Array<{ category: string; count: number; color: string }>;
-  priorityBreakdown: Array<{ priority: string; count: number; color: string }>;
-  dailyTrends: Array<{ date: string; count: number; responseTime: number }>;
-  userEngagement: Array<{ userId: string; name: string; feedbackCount: number; avgRating: number }>;
-}
+const COLORS = ['hsl(var(--primary))', 'hsl(var(--secondary))', 'hsl(var(--accent))', 'hsl(var(--muted))'];
 
 export function AdvancedAnalyticsDashboard() {
-  const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [timeRange, setTimeRange] = useState('7d');
-  const { toast } = useToast();
+  const [selectedTimeRange, setSelectedTimeRange] = useState('30');
+  const { data: analytics, isLoading: analyticsLoading, refetch: refetchAnalytics } = useMarketplaceAnalytics(parseInt(selectedTimeRange));
+  const { data: dailyMetrics, isLoading: metricsLoading } = useDailyMetrics(parseInt(selectedTimeRange));
+  const { data: engagementScores, isLoading: engagementLoading } = useUserEngagementScores();
 
-  useEffect(() => {
-    loadAnalytics();
-  }, [timeRange]);
-
-  const loadAnalytics = async () => {
-    setLoading(true);
-    try {
-      let daysBack = 30;
-      
-      switch (timeRange) {
-        case '24h':
-          daysBack = 1;
-          break;
-        case '7d':
-          daysBack = 7;
-          break;
-        case '30d':
-          daysBack = 30;
-          break;
-        case '90d':
-          daysBack = 90;
-          break;
-      }
-
-      // Use a direct SQL query since the RPC function is not in types yet
-      const { data: analyticsData, error: analyticsError } = await supabase
-        .from('feedback_messages')
-        .select('*')
-        .gte('created_at', new Date(Date.now() - daysBack * 24 * 60 * 60 * 1000).toISOString());
-
-      if (analyticsError) throw analyticsError;
-
-      if (analyticsData && Array.isArray(analyticsData)) {
-        // Process the raw data into analytics
-        const processedAnalytics = processFeedbackData(analyticsData);
-        setAnalytics(processedAnalytics);
-      } else {
-        // Fallback to empty analytics
-        setAnalytics({
-          totalFeedback: 0,
-          avgResponseTime: 0,
-          satisfactionRating: 0,
-          unreadCount: 0,
-          categoryBreakdown: [],
-          priorityBreakdown: [],
-          dailyTrends: [],
-          userEngagement: []
-        });
-      }
-    } catch (error) {
-      console.error('Error loading analytics:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load analytics data.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
+  const handleRefresh = () => {
+    refetchAnalytics();
   };
 
-  const processFeedbackData = (data: any[]): AnalyticsData => {
-    const totalFeedback = data.length;
-    const unreadCount = data.filter(item => item.status === 'unread').length;
-    
-    // Calculate average response time
-    const respondedFeedback = data.filter(item => item.admin_response && item.updated_at > item.created_at);
-    const avgResponseTime = respondedFeedback.reduce((acc, item) => {
-      const responseTime = new Date(item.updated_at).getTime() - new Date(item.created_at).getTime();
-      return acc + responseTime / (1000 * 60 * 60); // Convert to hours
-    }, 0) / respondedFeedback.length || 0;
-
-    // Calculate satisfaction rating
-    const ratedFeedback = data.filter(item => item.satisfaction_rating);
-    const satisfactionRating = ratedFeedback.reduce((acc, item) => acc + item.satisfaction_rating, 0) / ratedFeedback.length || 0;
-
-    // Category breakdown
-    const categoryCount = data.reduce((acc, item) => {
-      acc[item.category] = (acc[item.category] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
-
-    const categoryColors = ['#8884d8', '#82ca9d', '#ffc658', '#ff7300', '#0088fe'];
-    const categoryBreakdown = Object.entries(categoryCount).map(([category, count]: [string, number], index) => ({
-      category,
-      count,
-      color: categoryColors[index % categoryColors.length]
-    }));
-
-    // Priority breakdown
-    const priorityCount = data.reduce((acc, item) => {
-      acc[item.priority] = (acc[item.priority] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
-
-    const priorityColors = {
-      urgent: '#ff4444',
-      high: '#ff8800',
-      normal: '#44aa44',
-      low: '#4488ff'
-    };
-    
-    const priorityBreakdown = Object.entries(priorityCount).map(([priority, count]: [string, number]) => ({
-      priority,
-      count,
-      color: priorityColors[priority as keyof typeof priorityColors] || '#666666'
-    }));
-
-    // Daily trends
-    const dailyData = data.reduce((acc, item) => {
-      const date = new Date(item.created_at).toISOString().split('T')[0];
-      if (!acc[date]) {
-        acc[date] = { count: 0, totalResponseTime: 0, responseCount: 0 };
-      }
-      acc[date].count++;
-      
-      if (item.admin_response && item.updated_at > item.created_at) {
-        const responseTime = new Date(item.updated_at).getTime() - new Date(item.created_at).getTime();
-        acc[date].totalResponseTime += responseTime / (1000 * 60 * 60);
-        acc[date].responseCount++;
-      }
-      
-      return acc;
-    }, {} as Record<string, any>);
-
-    const dailyTrends = Object.entries(dailyData).map(([date, data]: [string, any]) => ({
-      date,
-      count: data.count,
-      responseTime: data.responseCount > 0 ? data.totalResponseTime / data.responseCount : 0
-    }));
-
-    // User engagement
-    const userEngagement = data.reduce((acc, item) => {
-      if (item.user_id) {
-        const key = item.user_id;
-        if (!acc[key]) {
-          acc[key] = {
-            userId: item.user_id,
-            name: item.profiles ? `${item.profiles.first_name} ${item.profiles.last_name}` : 'Unknown User',
-            feedbackCount: 0,
-            totalRating: 0,
-            ratingCount: 0
-          };
-        }
-        acc[key].feedbackCount++;
-        if (item.satisfaction_rating) {
-          acc[key].totalRating += item.satisfaction_rating;
-          acc[key].ratingCount++;
-        }
-      }
-      return acc;
-    }, {} as Record<string, any>);
-
-    const userEngagementArray = Object.values(userEngagement).map((user: any) => ({
-      userId: user.userId,
-      name: user.name,
-      feedbackCount: user.feedbackCount,
-      avgRating: user.ratingCount > 0 ? user.totalRating / user.ratingCount : 0
-    }));
-
-    return {
-      totalFeedback,
-      avgResponseTime,
-      satisfactionRating,
-      unreadCount,
-      categoryBreakdown,
-      priorityBreakdown,
-      dailyTrends,
-      userEngagement: userEngagementArray
-    };
-  };
-
-  const renderMetricCard = (title: string, value: string | number, icon: React.ReactNode, trend?: number) => (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium">{title}</CardTitle>
-        {icon}
-      </CardHeader>
-      <CardContent>
-        <div className="text-2xl font-bold">{value}</div>
-        {trend !== undefined && (
-          <p className={`text-xs ${trend >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-            {trend >= 0 ? '+' : ''}{trend}% from last period
-          </p>
-        )}
-      </CardContent>
-    </Card>
-  );
-
-  if (loading) {
+  if (analyticsLoading || metricsLoading) {
     return (
-      <div className="p-6 space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {[...Array(4)].map((_, i) => (
-            <Card key={i} className="animate-pulse">
-              <CardHeader className="space-y-2">
-                <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-                <div className="h-8 bg-gray-200 rounded w-1/2"></div>
-              </CardHeader>
-            </Card>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-8 w-64" />
+          <Skeleton className="h-10 w-32" />
+        </div>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-32" />
+          ))}
+        </div>
+        <div className="grid gap-4 md:grid-cols-2">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-80" />
           ))}
         </div>
       </div>
     );
   }
 
-  if (!analytics) {
-    return (
-      <div className="p-6 text-center">
-        <p className="text-muted-foreground">No analytics data available.</p>
-      </div>
-    );
-  }
+  const overviewCards = [
+    {
+      title: 'Total Users',
+      value: analytics?.total_users?.toLocaleString() || '0',
+      icon: Users,
+      description: `${analytics?.new_users || 0} new this period`,
+      trend: analytics?.new_users && analytics?.total_users ? 
+        Math.round((analytics.new_users / analytics.total_users) * 100) : 0
+    },
+    {
+      title: 'Active Users',
+      value: analytics?.active_users?.toLocaleString() || '0',
+      icon: Activity,
+      description: 'Users with sessions',
+      trend: analytics?.active_users && analytics?.total_users ? 
+        Math.round((analytics.active_users / analytics.total_users) * 100) : 0
+    },
+    {
+      title: 'Avg Session Duration',
+      value: `${Math.round(analytics?.avg_session_duration || 0)}m`,
+      icon: Clock,
+      description: 'Minutes per session',
+      trend: Math.round(analytics?.avg_session_duration || 0)
+    },
+    {
+      title: 'Page Views',
+      value: analytics?.page_views?.toLocaleString() || '0',
+      icon: Eye,
+      description: 'Total page views',
+      trend: analytics?.bounce_rate ? Math.round(100 - analytics.bounce_rate) : 0
+    }
+  ];
+
+  const funnelData = analytics?.user_funnel?.map(step => ({
+    value: step.count,
+    name: step.step,
+    conversion_rate: step.conversion_rate
+  })) || [];
+
+  const segmentData = analytics?.user_segments ? [
+    { name: 'High Engagement', value: analytics.user_segments.high_engagement, color: COLORS[0] },
+    { name: 'Medium Engagement', value: analytics.user_segments.medium_engagement, color: COLORS[1] },
+    { name: 'Low Engagement', value: analytics.user_segments.low_engagement, color: COLORS[2] },
+    { name: 'At Risk', value: analytics.user_segments.at_risk, color: COLORS[3] }
+  ] : [];
+
+  const conversionData = analytics?.conversion_metrics ? [
+    { name: 'Signup to Profile', value: analytics.conversion_metrics.signup_to_profile_completion },
+    { name: 'View to Save', value: analytics.conversion_metrics.view_to_save_rate },
+    { name: 'View to Connect', value: analytics.conversion_metrics.view_to_connection_rate }
+  ] : [];
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Time Range Selector */}
-      <div className="flex justify-between items-center">
-        <h2 className="text-3xl font-bold">Analytics Dashboard</h2>
-        <div className="flex gap-2">
-          {[
-            { value: '24h', label: '24 Hours' },
-            { value: '7d', label: '7 Days' },
-            { value: '30d', label: '30 Days' },
-            { value: '90d', label: '90 Days' }
-          ].map((option) => (
-            <Button
-              key={option.value}
-              variant={timeRange === option.value ? 'default' : 'outline'}
-              onClick={() => setTimeRange(option.value)}
-              size="sm"
-            >
-              {option.label}
-            </Button>
-          ))}
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Advanced Analytics</h1>
+          <p className="text-muted-foreground">
+            Comprehensive marketplace insights and user behavior analysis
+          </p>
+        </div>
+        <div className="flex items-center gap-4">
+          <Select value={selectedTimeRange} onValueChange={setSelectedTimeRange}>
+            <SelectTrigger className="w-32">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="7">Last 7 days</SelectItem>
+              <SelectItem value="30">Last 30 days</SelectItem>
+              <SelectItem value="90">Last 90 days</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button onClick={handleRefresh} variant="outline" size="sm">
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Refresh
+          </Button>
         </div>
       </div>
 
-      {/* Key Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {renderMetricCard(
-          'Total Feedback',
-          analytics.totalFeedback,
-          <MessageSquare className="h-4 w-4 text-muted-foreground" />
-        )}
-        {renderMetricCard(
-          'Avg Response Time',
-          `${analytics.avgResponseTime.toFixed(1)}h`,
-          <Clock className="h-4 w-4 text-muted-foreground" />
-        )}
-        {renderMetricCard(
-          'Satisfaction Rating',
-          `${analytics.satisfactionRating.toFixed(1)}/5`,
-          <Star className="h-4 w-4 text-muted-foreground" />
-        )}
-        {renderMetricCard(
-          'Unread Messages',
-          analytics.unreadCount,
-          <AlertTriangle className="h-4 w-4 text-muted-foreground" />
-        )}
-      </div>
-
-      {/* Charts */}
-      <Tabs defaultValue="trends" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="trends">Trends</TabsTrigger>
-          <TabsTrigger value="categories">Categories</TabsTrigger>
-          <TabsTrigger value="priorities">Priorities</TabsTrigger>
-          <TabsTrigger value="users">User Engagement</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="trends" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Daily Feedback Trends</CardTitle>
+      {/* Overview Cards */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {overviewCards.map((card, index) => (
+          <Card key={index}>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">{card.title}</CardTitle>
+              <card.icon className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={analytics.dailyTrends}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" />
-                  <YAxis />
-                  <Tooltip />
-                  <Line type="monotone" dataKey="count" stroke="#8884d8" name="Feedback Count" />
-                  <Line type="monotone" dataKey="responseTime" stroke="#82ca9d" name="Response Time (hours)" />
-                </LineChart>
-              </ResponsiveContainer>
+              <div className="text-2xl font-bold">{card.value}</div>
+              <p className="text-xs text-muted-foreground">
+                {card.description}
+              </p>
+              <div className="flex items-center mt-2">
+                <Badge variant="secondary" className="text-xs">
+                  {card.trend}%
+                </Badge>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      <Tabs defaultValue="overview" className="space-y-4">
+        <TabsList className="grid w-full grid-cols-5">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="users">Users</TabsTrigger>
+          <TabsTrigger value="listings">Listings</TabsTrigger>
+          <TabsTrigger value="search">Search</TabsTrigger>
+          <TabsTrigger value="funnel">Funnel</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="overview" className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2">
+            {/* Daily Metrics Chart */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Daily Activity Trends</CardTitle>
+                <CardDescription>User activity over time</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <LineChart data={dailyMetrics}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="date" />
+                    <YAxis />
+                    <Tooltip />
+                    <Line type="monotone" dataKey="active_users" stroke="hsl(var(--primary))" strokeWidth={2} />
+                    <Line type="monotone" dataKey="new_signups" stroke="hsl(var(--secondary))" strokeWidth={2} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            {/* Top Pages */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Top Pages</CardTitle>
+                <CardDescription>Most visited pages</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {analytics?.top_pages?.slice(0, 5).map((page, index) => (
+                    <div key={index} className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="font-medium text-sm truncate">{page.page}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {page.unique_views} unique views
+                        </div>
+                      </div>
+                      <Badge variant="outline">{page.views}</Badge>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Conversion Metrics */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Conversion Metrics</CardTitle>
+              <CardDescription>Key conversion rates across the platform</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4 md:grid-cols-3">
+                {conversionData.map((metric, index) => (
+                  <div key={index} className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">{metric.name}</span>
+                      <span className="text-sm text-muted-foreground">{metric.value.toFixed(1)}%</span>
+                    </div>
+                    <Progress value={metric.value} className="h-2" />
+                  </div>
+                ))}
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="categories" className="space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <TabsContent value="users" className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2">
+            {/* User Segments */}
             <Card>
               <CardHeader>
-                <CardTitle>Category Distribution</CardTitle>
+                <CardTitle>User Engagement Segments</CardTitle>
+                <CardDescription>Users categorized by engagement level</CardDescription>
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
                   <PieChart>
                     <Pie
-                      data={analytics.categoryBreakdown}
+                      data={segmentData}
                       cx="50%"
                       cy="50%"
                       labelLine={false}
-                      label={({ category, percent }) => `${category} (${(percent * 100).toFixed(0)}%)`}
+                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
                       outerRadius={80}
                       fill="#8884d8"
-                      dataKey="count"
+                      dataKey="value"
                     >
-                      {analytics.categoryBreakdown.map((entry, index) => (
+                      {segmentData.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={entry.color} />
                       ))}
                     </Pie>
@@ -346,79 +284,200 @@ export function AdvancedAnalyticsDashboard() {
               </CardContent>
             </Card>
 
+            {/* Engagement Scores */}
             <Card>
               <CardHeader>
-                <CardTitle>Category Breakdown</CardTitle>
+                <CardTitle>Top Engaged Users</CardTitle>
+                <CardDescription>Users with highest engagement scores</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {analytics.categoryBreakdown.map((item, index) => (
-                    <div key={index} className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div 
-                          className="w-3 h-3 rounded-full" 
-                          style={{ backgroundColor: item.color }}
-                        />
-                        <span className="capitalize">{item.category}</span>
+                  {engagementLoading ? (
+                    Array.from({ length: 5 }).map((_, i) => (
+                      <Skeleton key={i} className="h-12" />
+                    ))
+                  ) : (
+                    engagementScores?.slice(0, 5).map((user, index) => (
+                      <div key={index} className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <div className="font-medium text-sm">
+                            {user.profiles?.first_name} {user.profiles?.last_name}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {user.profiles?.email}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Progress value={user.score} className="w-20 h-2" />
+                          <Badge variant={user.score >= 80 ? 'default' : user.score >= 40 ? 'secondary' : 'outline'}>
+                            {user.score}
+                          </Badge>
+                        </div>
                       </div>
-                      <Badge variant="secondary">{item.count}</Badge>
-                    </div>
-                  ))}
+                    ))
+                  )}
                 </div>
               </CardContent>
             </Card>
           </div>
         </TabsContent>
 
-        <TabsContent value="priorities" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Priority Distribution</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={analytics.priorityBreakdown}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="priority" />
-                  <YAxis />
-                  <Tooltip />
-                  <Bar dataKey="count" fill="#8884d8" />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="users" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Top Users by Feedback Volume</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {analytics.userEngagement.slice(0, 10).map((user, index) => (
-                  <div key={index} className="flex items-center justify-between p-2 rounded-lg bg-secondary/20">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                        <span className="text-sm font-medium">{user.name.charAt(0)}</span>
-                      </div>
-                      <div>
-                        <p className="font-medium">{user.name}</p>
-                        <p className="text-sm text-muted-foreground">{user.feedbackCount} messages</p>
-                      </div>
-                    </div>
+        <TabsContent value="listings" className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2">
+            {/* Listing Performance */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Listing Performance</CardTitle>
+                <CardDescription>Overview of listing interactions</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-4 grid-cols-2">
+                  <div className="space-y-2">
                     <div className="flex items-center gap-2">
-                      {user.avgRating > 0 && (
-                        <div className="flex items-center gap-1">
-                          <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                          <span className="text-sm">{user.avgRating.toFixed(1)}</span>
-                        </div>
-                      )}
-                      <Badge variant="outline">{user.feedbackCount}</Badge>
+                      <Eye className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm font-medium">Total Views</span>
+                    </div>
+                    <div className="text-2xl font-bold">
+                      {analytics?.listing_performance?.total_views?.toLocaleString() || '0'}
                     </div>
                   </div>
-                ))}
-              </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Heart className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm font-medium">Total Saves</span>
+                    </div>
+                    <div className="text-2xl font-bold">
+                      {analytics?.listing_performance?.total_saves?.toLocaleString() || '0'}
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Link className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm font-medium">Connections</span>
+                    </div>
+                    <div className="text-2xl font-bold">
+                      {analytics?.listing_performance?.total_connections?.toLocaleString() || '0'}
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm font-medium">Avg Time</span>
+                    </div>
+                    <div className="text-2xl font-bold">
+                      {Math.round(analytics?.listing_performance?.avg_time_spent || 0)}s
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Top Listings */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Top Performing Listings</CardTitle>
+                <CardDescription>Listings with most views</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {analytics?.listing_performance?.top_listings?.map((listing, index) => (
+                    <div key={index} className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="font-medium text-sm truncate">
+                          Listing {listing.listing_id.slice(0, 8)}...
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          Listing ID: {listing.listing_id}
+                        </div>
+                      </div>
+                      <Badge variant="outline">{listing.views} views</Badge>
+                    </div>
+                  )) || []}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="search" className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2">
+            {/* Search Insights */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Search Analytics</CardTitle>
+                <CardDescription>Search behavior and performance</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-4 grid-cols-2">
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Search className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm font-medium">Total Searches</span>
+                    </div>
+                    <div className="text-2xl font-bold">
+                      {analytics?.search_insights?.total_searches?.toLocaleString() || '0'}
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <ChartBar className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm font-medium">Avg Results</span>
+                    </div>
+                    <div className="text-2xl font-bold">
+                      {Math.round(analytics?.search_insights?.avg_results || 0)}
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm font-medium">No Results Rate</span>
+                    </div>
+                    <div className="text-2xl font-bold">
+                      {Math.round(analytics?.search_insights?.no_results_rate || 0)}%
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Top Search Queries */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Top Search Queries</CardTitle>
+                <CardDescription>Most popular search terms</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {analytics?.search_insights?.top_queries?.map((query, index) => (
+                    <div key={index} className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="font-medium text-sm truncate">"{query.query}"</div>
+                      </div>
+                      <Badge variant="outline">{query.count} searches</Badge>
+                    </div>
+                  )) || []}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="funnel" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>User Registration Funnel</CardTitle>
+              <CardDescription>Track user conversion through registration process</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={400}>
+                <BarChart data={funnelData} layout="horizontal">
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis type="number" />
+                  <YAxis dataKey="name" type="category" />
+                  <Tooltip />
+                  <Bar dataKey="value" fill="hsl(var(--primary))" />
+                </BarChart>
+              </ResponsiveContainer>
             </CardContent>
           </Card>
         </TabsContent>
