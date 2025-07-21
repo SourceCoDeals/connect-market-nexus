@@ -1,10 +1,15 @@
 
-import { Link } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 
 const Index = () => {
   const { user, isAdmin } = useAuth();
+
+  // If user is logged in, redirect to marketplace
+  if (user) {
+    return <Navigate to="/marketplace" replace />;
+  }
 
   return (
     <div className="flex flex-col min-h-screen">
