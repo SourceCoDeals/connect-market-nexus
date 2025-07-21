@@ -13,11 +13,7 @@ import { Button } from "@/components/ui/button";
 import { AdminNavbar } from "./AdminNavbar";
 import { useIsMobile } from "@/hooks/use-mobile";
 
-interface AdminLayoutProps {
-  children?: React.ReactNode;
-}
-
-const AdminLayout = ({ children }: AdminLayoutProps) => {
+const AdminLayout = () => {
   const { user } = useAuth();
   const location = useLocation();
   const isMobile = useIsMobile();
@@ -76,7 +72,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
         {/* Main content */}
         <main className="flex-1 overflow-auto p-3 sm:p-4 md:p-6 lg:p-8 w-full min-w-0">
           <div className="max-w-full">
-            {children || <Outlet />}
+            <Outlet />
           </div>
         </main>
       </div>

@@ -1,277 +1,354 @@
-
-import { useState, useEffect, useMemo } from "react";
-import { useSearchParams } from "react-router-dom";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
-import { Search, Filter, X, Grid, List, SlidersHorizontal } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
 import { useMarketplace } from "@/hooks/use-marketplace";
-import { useAnalytics } from "@/components/analytics/AnalyticsProvider";
+import { FilterOptions, PaginationState } from "@/types";
 import ListingCard from "@/components/ListingCard";
 import FilterPanel from "@/components/FilterPanel";
+import { Button } from "@/components/ui/button";
+import { LayoutGrid, LayoutList, ChevronLeft, ChevronRight } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { toast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useRealtime } from "@/components/realtime/RealtimeProvider";
+import { Wifi } from "lucide-react";
 
 const Marketplace = () => {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const [searchQuery, setSearchQuery] = useState(searchParams.get("search") || "");
-  const [selectedCategory, setSelectedCategory] = useState(searchParams.get("category") || "");
-  const [selectedLocation, setSelectedLocation] = useState(searchParams.get("location") || "");
-  const [revenueRange, setRevenueRange] = useState<[number, number]>([0, 100000000]);
-  const [ebitdaRange, setEbitdaRange] = useState<[number, number]>([0, 10000000]);
-  const [showFilters, setShowFilters] = useState(false);
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [lastSearchTime, setLastSearchTime] = useState<number>(Date.now());
+  const [filters, setFilters] = useState<FilterOptions>({
+    page: 1,
+    perPage: 20
+    // Removed default restrictive filters - let all listings show initially
+  });
+  const [viewType, setViewType] = useState<"grid" | "list">("grid");
+  const [pagination, setPagination] = useState<PaginationState>({
+    currentPage: 1,
+    totalPages: 1,
+    totalItems: 0,
+    perPage: 20
+  });
   
-  const { trackSearch, trackEvent } = useAnalytics();
-  const { useListings } = useMarketplace();
-  const { data: listingsData, isLoading, error } = useListings({});
+  const { useListings, useListingMetadata } = useMarketplace();
+  const { data: listingsData, isLoading, error } = useListings(filters);
+  const { data: metadata, isLoading: isMetadataLoading } = useListingMetadata();
+  const { listingsConnected } = useRealtime();
+  
   const listings = listingsData?.listings || [];
+  const totalItems = listingsData?.totalCount || 0;
   
-  // Debug logging
-  console.log('Marketplace Debug:', { listingsData, listings: listings.length, isLoading, error });
-
-  // Filter listings based on search criteria
-  const filteredListings = useMemo(() => {
-    if (!listings) return [];
-
-    return listings.filter(listing => {
-      const matchesSearch = !searchQuery || 
-        listing.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        listing.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        listing.location.toLowerCase().includes(searchQuery.toLowerCase());
-      
-      const matchesCategory = !selectedCategory || listing.category === selectedCategory;
-      const matchesLocation = !selectedLocation || listing.location.toLowerCase().includes(selectedLocation.toLowerCase());
-      const matchesRevenue = listing.revenue >= revenueRange[0] && listing.revenue <= revenueRange[1];
-      const matchesEbitda = listing.ebitda >= ebitdaRange[0] && listing.ebitda <= ebitdaRange[1];
-
-      return matchesSearch && matchesCategory && matchesLocation && matchesRevenue && matchesEbitda;
-    });
-  }, [listings, searchQuery, selectedCategory, selectedLocation, revenueRange, ebitdaRange]);
-
-  // Track search when filters change
+  // Debug logging for marketplace component
   useEffect(() => {
-    if (listings && (searchQuery || selectedCategory || selectedLocation)) {
-      const filters = {
-        category: selectedCategory,
-        location: selectedLocation,
-        revenueMin: revenueRange[0],
-        revenueMax: revenueRange[1],
-        ebitdaMin: ebitdaRange[0],
-        ebitdaMax: ebitdaRange[1],
-      };
-
-      trackSearch(
-        searchQuery,
-        filters,
-        filteredListings.length,
-        filteredListings.length === 0
-      );
+    console.log('🏪 Marketplace component state:', {
+      filters,
+      isLoading,
+      error,
+      listingsCount: listings.length,
+      totalItems,
+      listingTitles: listings.map(l => l.title),
+      listingIds: listings.map(l => l.id)
+    });
+  }, [filters, isLoading, error, listings.length, totalItems]);
+  
+  // Update pagination whenever total count or filters change
+  useEffect(() => {
+    if (listingsData) {
+      const perPage = filters.perPage || 20;
+      const totalPages = Math.ceil(totalItems / perPage);
+      
+      setPagination({
+        currentPage: filters.page || 1,
+        totalPages,
+        totalItems,
+        perPage
+      });
+      
+      console.log('📊 Updated pagination:', {
+        currentPage: filters.page || 1,
+        totalPages,
+        totalItems,
+        perPage
+      });
     }
-  }, [searchQuery, selectedCategory, selectedLocation, revenueRange, ebitdaRange, filteredListings.length, listings, trackSearch]);
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    setLastSearchTime(Date.now());
-    
-    // Update URL params
-    const newParams = new URLSearchParams(searchParams);
-    if (searchQuery) {
-      newParams.set("search", searchQuery);
-    } else {
-      newParams.delete("search");
+  }, [listingsData, totalItems, filters.page, filters.perPage]);
+  
+  // Error handling
+  useEffect(() => {
+    if (error) {
+      console.error("❌ Error loading marketplace listings:", error);
+      toast({
+        variant: "destructive",
+        title: "Error loading listings",
+        description: "There was a problem loading the marketplace listings. Please try again later.",
+      });
     }
-    setSearchParams(newParams);
+  }, [error]);
 
-    // Track search event
-    trackEvent({
-      eventType: 'search',
-      eventCategory: 'marketplace',
-      eventAction: 'search_submitted',
-      eventLabel: searchQuery,
-      metadata: {
-        resultsCount: filteredListings.length,
-        hasFilters: !!(selectedCategory || selectedLocation),
-      },
+  // Memoize filter change handler to prevent unnecessary re-renders
+  const handleFilterChange = useCallback((newFilters: FilterOptions) => {
+    console.log("🔄 Filter change requested:", newFilters);
+    setFilters(prev => {
+      const updated = { ...newFilters, page: 1 }; // Reset to page 1 when filters change
+      console.log("✅ Applying filters:", updated);
+      return updated;
     });
-  };
-
-  const handleClearFilters = () => {
-    setSearchQuery("");
-    setSelectedCategory("");
-    setSelectedLocation("");
-    setRevenueRange([0, 100000000]);
-    setEbitdaRange([0, 10000000]);
-    setSearchParams({});
+  }, []);
+  
+  const handlePageChange = useCallback((newPage: number) => {
+    if (newPage < 1 || newPage > pagination.totalPages) return;
     
-    trackEvent({
-      eventType: 'interaction',
-      eventCategory: 'marketplace',
-      eventAction: 'clear_filters',
-    });
-  };
-
-  const toggleViewMode = () => {
-    const newMode = viewMode === 'grid' ? 'list' : 'grid';
-    setViewMode(newMode);
+    setFilters(prev => ({
+      ...prev,
+      page: newPage
+    }));
+  }, [pagination.totalPages]);
+  
+  const handlePerPageChange = useCallback((value: string) => {
+    const perPage = Number(value);
+    setFilters(prev => ({
+      ...prev,
+      perPage,
+      page: 1 // Reset to first page when changing items per page
+    }));
+  }, []);
+  
+  // Generate page numbers for pagination
+  const getPageNumbers = () => {
+    const { currentPage, totalPages } = pagination;
+    const delta = 1; // Number of pages to show before and after current page
     
-    trackEvent({
-      eventType: 'interaction',
-      eventCategory: 'marketplace',
-      eventAction: 'change_view_mode',
-      eventLabel: newMode,
-    });
+    const range = [];
+    const rangeWithDots = [];
+    
+    if (totalPages <= 1) return [];
+    
+    // Always include first page
+    range.push(1);
+    
+    // Calculate the range of pages to show
+    for (let i = Math.max(2, currentPage - delta); i <= Math.min(totalPages - 1, currentPage + delta); i++) {
+      range.push(i);
+    }
+    
+    // Always include last page if more than 1 page
+    if (totalPages > 1) {
+      range.push(totalPages);
+    }
+    
+    // Add dots where needed
+    let prev = 0;
+    for (const i of range) {
+      if (prev && i - prev === 2) {
+        rangeWithDots.push(prev + 1);
+      } else if (i - prev > 2) {
+        rangeWithDots.push('...');
+      }
+      rangeWithDots.push(i);
+      prev = i;
+    }
+    
+    return rangeWithDots;
   };
 
-  const categories = useMemo(() => {
-    if (!listings || listings.length === 0) return [];
-    return Array.from(new Set(listings.map(listing => listing.category))) as string[];
-  }, [listings]);
-
-  if (error) {
-    return (
-      <div className="container mx-auto px-4 py-8">
-        <Card>
-          <CardContent className="p-8 text-center">
-            <p className="text-destructive">Failed to load listings. Please try again later.</p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  return (
-    <div className="container mx-auto px-4 py-6 space-y-6">
-      {/* Search and Filter Header */}
-      <div className="space-y-4">
-        <div className="flex flex-col sm:flex-row gap-4">
-          <form onSubmit={handleSearch} className="flex-1 flex gap-2">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-              <Input
-                placeholder="Search businesses..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
-              />
+  const renderSkeletons = () => {
+    return Array(filters.perPage || 8)
+      .fill(0)
+      .map((_, index) => (
+        <div
+          key={`skeleton-${index}`}
+          className="bg-white rounded-lg border border-border overflow-hidden h-full flex flex-col"
+        >
+          <div className="p-6">
+            <div className="flex space-x-2 mb-2">
+              <div className="h-6 w-16 bg-muted rounded skeleton"></div>
+              <div className="h-6 w-20 bg-muted rounded skeleton"></div>
             </div>
-            <Button type="submit">Search</Button>
-          </form>
-          
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              onClick={() => setShowFilters(!showFilters)}
-              className="flex items-center gap-2"
-            >
-              <SlidersHorizontal className="h-4 w-4" />
-              Filters
-            </Button>
-            
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={toggleViewMode}
-            >
-              {viewMode === 'grid' ? <List className="h-4 w-4" /> : <Grid className="h-4 w-4" />}
-            </Button>
+            <div className="h-7 w-4/5 bg-muted rounded mb-4 skeleton"></div>
+            <div className="grid grid-cols-2 gap-2 mb-4">
+              <div className="h-16 bg-muted rounded skeleton"></div>
+              <div className="h-16 bg-muted rounded skeleton"></div>
+            </div>
+            <div className="space-y-2 mb-6">
+              <div className="h-4 w-full bg-muted rounded skeleton"></div>
+              <div className="h-4 w-11/12 bg-muted rounded skeleton"></div>
+              <div className="h-4 w-4/5 bg-muted rounded skeleton"></div>
+            </div>
+            <div className="h-10 w-full bg-muted rounded skeleton"></div>
           </div>
         </div>
+      ));
+  };
 
-        {/* Active Filters */}
-        {(searchQuery || selectedCategory || selectedLocation) && (
-          <div className="flex flex-wrap gap-2 items-center">
-            <span className="text-sm text-muted-foreground">Active filters:</span>
-            {searchQuery && (
-              <Badge variant="secondary" className="flex items-center gap-1">
-                Search: {searchQuery}
-                <X className="h-3 w-3 cursor-pointer" onClick={() => setSearchQuery("")} />
-              </Badge>
-            )}
-            {selectedCategory && (
-              <Badge variant="secondary" className="flex items-center gap-1">
-                Category: {selectedCategory}
-                <X className="h-3 w-3 cursor-pointer" onClick={() => setSelectedCategory("")} />
-              </Badge>
-            )}
-            {selectedLocation && (
-              <Badge variant="secondary" className="flex items-center gap-1">
-                Location: {selectedLocation}
-                <X className="h-3 w-3 cursor-pointer" onClick={() => setSelectedLocation("")} />
-              </Badge>
-            )}
-            <Button variant="ghost" size="sm" onClick={handleClearFilters}>
-              Clear all
-            </Button>
-          </div>
-        )}
-      </div>
-
-      <div className="flex gap-6">
-        {/* Filter Panel */}
-        {showFilters && (
-          <div className="w-80 flex-shrink-0">
-            <FilterPanel 
-              onFilterChange={() => {}}
-              totalListings={listings.length}
-              filteredCount={filteredListings.length}
-              categories={categories}
-            />
-          </div>
-        )}
-
-        {/* Main Content */}
-        <div className="flex-1">
-          {/* Results Header */}
-          <div className="flex items-center justify-between mb-4">
-            <div className="text-sm text-muted-foreground">
-              {isLoading ? (
-                "Loading..."
-              ) : (
-                `${filteredListings.length} ${filteredListings.length === 1 ? 'result' : 'results'} found`
+  return (
+    <div className="min-h-screen bg-background">
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex flex-col gap-6">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div className="flex items-center gap-3">
+              <h1 className="text-3xl font-bold">Marketplace Listings</h1>
+              {listingsConnected && (
+                <div className="flex items-center gap-1 text-green-600 text-sm">
+                  <Wifi className="h-4 w-4" />
+                  <span>Live</span>
+                </div>
               )}
             </div>
           </div>
-
-          {/* Results Grid/List */}
-          {isLoading ? (
-            <div className={`grid gap-6 ${viewMode === 'grid' ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' : 'grid-cols-1'}`}>
-              {[1, 2, 3, 4, 5, 6].map(i => (
-                <Skeleton key={i} className="h-96" />
-              ))}
+          
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+            {/* Filter sidebar */}
+            <div className="col-span-1">
+              <FilterPanel
+                onFilterChange={handleFilterChange}
+                totalListings={totalItems}
+                filteredCount={listings.length}
+                categories={metadata?.categories || []}
+                locations={metadata?.locations || []}
+              />
             </div>
-          ) : filteredListings.length === 0 ? (
-            <Card>
-              <CardContent className="p-12 text-center">
-                <div className="space-y-4">
-                  <div className="w-16 h-16 mx-auto bg-muted rounded-full flex items-center justify-center">
-                    <Search className="h-8 w-8 text-muted-foreground" />
+            
+            {/* Listings */}
+            <div className="col-span-1 lg:col-span-3 flex flex-col gap-4">
+              {/* View type and sorting */}
+              <div className="flex flex-wrap justify-between items-center gap-4">
+                <div className="text-sm text-muted-foreground">
+                  {isLoading ? "Loading listings..." : `${totalItems} listings found, showing ${listings.length}`}
+                </div>
+                
+                <div className="flex flex-wrap items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm">Results per page:</span>
+                    <Select 
+                      value={String(filters.perPage || 20)} 
+                      onValueChange={handlePerPageChange}
+                    >
+                      <SelectTrigger className="w-[80px]">
+                        <SelectValue placeholder="20" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="10">10</SelectItem>
+                        <SelectItem value="20">20</SelectItem>
+                        <SelectItem value="50">50</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
-                  <div>
-                    <h3 className="text-lg font-semibold">No businesses found</h3>
-                    <p className="text-muted-foreground">
-                      Try adjusting your search criteria or filters to find more results.
-                    </p>
+                  
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm">View:</span>
+                    <Tabs value={viewType} onValueChange={(v) => setViewType(v as "grid" | "list")}>
+                      <TabsList>
+                        <TabsTrigger value="grid">
+                          <LayoutGrid className="h-4 w-4" />
+                        </TabsTrigger>
+                        <TabsTrigger value="list">
+                          <LayoutList className="h-4 w-4" />
+                        </TabsTrigger>
+                      </TabsList>
+                    </Tabs>
                   </div>
-                  {(searchQuery || selectedCategory || selectedLocation) && (
-                    <Button variant="outline" onClick={handleClearFilters}>
+                </div>
+              </div>
+              
+              {/* Listings grid/list */}
+              {isLoading ? (
+                <div className={viewType === "grid" ? "grid grid-cols-1 md:grid-cols-2 gap-4" : "flex flex-col gap-4"}>
+                  {renderSkeletons()}
+                </div>
+              ) : error ? (
+                <div className="bg-muted/30 border border-border rounded-lg p-8 text-center">
+                  <h3 className="text-lg font-medium mb-2">Failed to load listings</h3>
+                  <p className="text-muted-foreground mb-4">
+                    There was a problem loading the marketplace listings. Please try again later.
+                  </p>
+                </div>
+              ) : listings.length === 0 ? (
+                <div className="bg-muted/30 border border-border rounded-lg p-8 text-center">
+                  <h3 className="text-lg font-medium mb-2">No listings found</h3>
+                  <p className="text-muted-foreground mb-4">
+                    {Object.keys(filters).some(key => key !== 'page' && key !== 'perPage' && filters[key as keyof FilterOptions])
+                      ? "Try adjusting your filters to see more results" 
+                      : "There are currently no listings available"}
+                  </p>
+                  {Object.keys(filters).some(key => key !== 'page' && key !== 'perPage' && filters[key as keyof FilterOptions]) && (
+                    <Button
+                      variant="outline"
+                      onClick={() => handleFilterChange({ page: 1, perPage: filters.perPage })}
+                    >
                       Clear all filters
                     </Button>
                   )}
                 </div>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className={`grid gap-6 ${viewMode === 'grid' ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' : 'grid-cols-1'}`}>
-              {filteredListings.map((listing) => (
-                <ListingCard
-                  key={listing.id}
-                  listing={listing}
-                />
-              ))}
+              ) : (
+                <>
+                  <div className={viewType === "grid" 
+                    ? "grid grid-cols-1 md:grid-cols-2 gap-4" 
+                    : "flex flex-col gap-4"}>
+                    {listings.map((listing) => {
+                      console.log('🎯 Rendering listing card:', {
+                        id: listing.id,
+                        title: listing.title,
+                        status: listing.status,
+                        revenue: listing.revenue,
+                        ebitda: listing.ebitda
+                      });
+                      return (
+                        <ListingCard
+                          key={listing.id}
+                          listing={listing}
+                          viewType={viewType}
+                        />
+                      );
+                    })}
+                  </div>
+                  
+                  {/* Pagination controls */}
+                  {pagination.totalPages > 1 && (
+                    <div className="flex items-center justify-center mt-8">
+                      <div className="flex items-center space-x-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handlePageChange(pagination.currentPage - 1)}
+                          disabled={pagination.currentPage === 1}
+                        >
+                          <ChevronLeft className="h-4 w-4 mr-1" />
+                          Previous
+                        </Button>
+                        
+                        {getPageNumbers().map((pageNum, idx) => (
+                          pageNum === '...' ? (
+                            <span key={`ellipsis-${idx}`} className="px-2">...</span>
+                          ) : (
+                            <Button
+                              key={`page-${pageNum}`}
+                              variant={pagination.currentPage === pageNum ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => handlePageChange(pageNum as number)}
+                            >
+                              {pageNum}
+                            </Button>
+                          )
+                        ))}
+                        
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handlePageChange(pagination.currentPage + 1)}
+                          disabled={pagination.currentPage === pagination.totalPages}
+                        >
+                          Next
+                          <ChevronRight className="h-4 w-4 ml-1" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
             </div>
-          )}
+          </div>
         </div>
       </div>
     </div>

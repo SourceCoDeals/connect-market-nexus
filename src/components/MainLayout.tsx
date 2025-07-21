@@ -3,7 +3,7 @@ import { Outlet } from "react-router-dom";
 import Navbar from "./Navbar";
 import { FeedbackWidget } from "./feedback/FeedbackWidget";
 
-export interface MainLayoutProps {
+interface MainLayoutProps {
   children?: React.ReactNode;
 }
 

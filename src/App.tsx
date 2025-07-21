@@ -1,159 +1,97 @@
 
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
+import {
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+
 import { AuthProvider } from "@/context/AuthContext";
-import { RealtimeProvider } from "@/components/realtime/RealtimeProvider";
 import { SessionMonitoringProvider } from "@/components/security/SessionMonitoringProvider";
-import { AnalyticsProvider } from "@/components/analytics/AnalyticsProvider";
-import Index from "./pages/Index";
-import Login from "./pages/Login";
-import Signup from "./pages/Signup";
-import Dashboard from "./pages/Dashboard";
-import Marketplace from "./pages/Marketplace";
-import ListingDetail from "./pages/ListingDetail";
-import Profile from "./pages/Profile";
-import SavedListings from "./pages/SavedListings";
-import MyRequests from "./pages/MyRequests";
-import AdminDashboard from "./pages/admin/AdminDashboard";
-import AdminUsers from "./pages/admin/AdminUsers";
-import AdminListings from "./pages/admin/AdminListings";
-import AdminRequests from "./pages/admin/AdminRequests";
-import Unauthorized from "./pages/Unauthorized";
-import PendingApproval from "./pages/PendingApproval";
-import EmailVerificationRequired from "./pages/EmailVerificationRequired";
-import VerifyEmail from "./pages/VerifyEmail";
-import VerificationSuccess from "./pages/VerificationSuccess";
-import VerifyEmailHandler from "./pages/VerifyEmailHandler";
-import NotFound from "./pages/NotFound";
-import AuthCallback from "./pages/auth/callback";
-import ProtectedRoute from "./components/ProtectedRoute";
-import MainLayout from "./components/MainLayout";
-import AdminLayout from "./components/admin/AdminLayout";
-import "./App.css";
+import ProtectedRoute from "@/components/ProtectedRoute";
+import MainLayout from "@/components/MainLayout";
+import AdminLayout from "@/components/admin/AdminLayout";
+import Login from "@/pages/Login";
+import Signup from "@/pages/Signup";
+import VerifyEmail from "@/pages/VerifyEmail";
+import VerifyEmailHandler from "@/pages/VerifyEmailHandler";
+import EmailVerificationRequired from "@/pages/EmailVerificationRequired";
+import PendingApproval from "@/pages/PendingApproval";
+import VerificationSuccess from "@/pages/VerificationSuccess";
+import Unauthorized from "@/pages/Unauthorized";
+import Profile from "@/pages/Profile";
+import Marketplace from "@/pages/Marketplace";
+import ListingDetail from "@/pages/ListingDetail";
+import MyRequests from "@/pages/MyRequests";
+import SavedListings from "@/pages/SavedListings";
+import AdminDashboard from "@/pages/admin/AdminDashboard";
+import AdminListings from "@/pages/admin/AdminListings";
+import AdminUsers from "@/pages/admin/AdminUsers";
+import AdminRequests from "@/pages/admin/AdminRequests";
+import { Toaster } from "@/components/ui/toaster";
+import { RealtimeProvider } from '@/components/realtime/RealtimeProvider';
+import { RealtimeIndicator } from '@/components/realtime/RealtimeIndicator';
 
 const queryClient = new QueryClient();
 
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <AuthProvider>
-          <SessionMonitoringProvider>
-            <RealtimeProvider>
-              <BrowserRouter>
-                <AnalyticsProvider>
-                  <div className="min-h-screen bg-background">
-                    <Routes>
-                      {/* Public routes */}
-                      <Route path="/" element={<Index />} />
-                      <Route path="/login" element={<Login />} />
-                      <Route path="/signup" element={<Signup />} />
-                      <Route path="/unauthorized" element={<Unauthorized />} />
-                      <Route path="/pending-approval" element={<PendingApproval />} />
-                      <Route path="/email-verification-required" element={<EmailVerificationRequired />} />
-                      <Route path="/verify-email" element={<VerifyEmail />} />
-                      <Route path="/verification-success" element={<VerificationSuccess />} />
-                      <Route path="/verify-email-handler" element={<VerifyEmailHandler />} />
-                      <Route path="/auth/callback" element={<AuthCallback />} />
-
-                      {/* Protected routes */}
-                      <Route path="/dashboard" element={
-                        <ProtectedRoute requireApproved>
-                          <MainLayout>
-                            <Dashboard />
-                          </MainLayout>
-                        </ProtectedRoute>
-                      } />
-                      
-                      <Route path="/marketplace" element={
-                        <ProtectedRoute requireApproved>
-                          <MainLayout>
-                            <Marketplace />
-                          </MainLayout>
-                        </ProtectedRoute>
-                      } />
-                      
-                      <Route path="/listing/:id" element={
-                        <ProtectedRoute requireApproved>
-                          <MainLayout>
-                            <ListingDetail />
-                          </MainLayout>
-                        </ProtectedRoute>
-                      } />
-                      
-                      <Route path="/profile" element={
-                        <ProtectedRoute requireApproved>
-                          <MainLayout>
-                            <Profile />
-                          </MainLayout>
-                        </ProtectedRoute>
-                      } />
-                      
-                      <Route path="/saved" element={
-                        <ProtectedRoute requireApproved>
-                          <MainLayout>
-                            <SavedListings />
-                          </MainLayout>
-                        </ProtectedRoute>
-                      } />
-                      
-                      <Route path="/requests" element={
-                        <ProtectedRoute requireApproved>
-                          <MainLayout>
-                            <MyRequests />
-                          </MainLayout>
-                        </ProtectedRoute>
-                      } />
-
-                      {/* Admin routes */}
-                      <Route path="/admin" element={
-                        <ProtectedRoute requireAdmin requireApproved>
-                          <AdminLayout>
-                            <AdminDashboard />
-                          </AdminLayout>
-                        </ProtectedRoute>
-                      } />
-                      
-                      <Route path="/admin/users" element={
-                        <ProtectedRoute requireAdmin requireApproved>
-                          <AdminLayout>
-                            <AdminUsers />
-                          </AdminLayout>
-                        </ProtectedRoute>
-                      } />
-                      
-                      <Route path="/admin/listings" element={
-                        <ProtectedRoute requireAdmin requireApproved>
-                          <AdminLayout>
-                            <AdminListings />
-                          </AdminLayout>
-                        </ProtectedRoute>
-                      } />
-                      
-                      <Route path="/admin/requests" element={
-                        <ProtectedRoute requireAdmin requireApproved>
-                          <AdminLayout>
-                            <AdminRequests />
-                          </AdminLayout>
-                        </ProtectedRoute>
-                      } />
-
-                      {/* 404 route */}
-                      <Route path="*" element={<NotFound />} />
-                    </Routes>
-                  </div>
-                </AnalyticsProvider>
-              </BrowserRouter>
-            </RealtimeProvider>
-          </SessionMonitoringProvider>
-        </AuthProvider>
+      <AuthProvider>
         <Toaster />
-        <Sonner />
-      </TooltipProvider>
+        <SessionMonitoringProvider>
+          <RealtimeProvider>
+            <Routes>
+              {/* Authentication routes - no protection needed */}
+              <Route path="/login" element={<Login />} />
+              <Route path="/signup" element={<Signup />} />
+              <Route path="/verify-email" element={<VerifyEmail />} />
+              <Route path="/email-verification-required" element={<EmailVerificationRequired />} />
+              <Route path="/verify-email-handler" element={<VerifyEmailHandler />} />
+              <Route path="/pending-approval" element={<PendingApproval />} />
+              <Route path="/verification-success" element={<VerificationSuccess />} />
+              <Route path="/unauthorized" element={<Unauthorized />} />
+              
+              {/* Main app routes with MainLayout - require approval */}
+              <Route path="/" element={<ProtectedRoute requireApproved={true}><MainLayout /></ProtectedRoute>}>
+                <Route index element={<Marketplace />} />
+                <Route path="profile" element={<Profile />} />
+                <Route path="listing/:id" element={<ListingDetail />} />
+                <Route path="my-requests" element={<MyRequests />} />
+                <Route path="saved-listings" element={<SavedListings />} />
+              </Route>
+              
+              {/* Redirect /marketplace to / */}
+              <Route path="/marketplace" element={<Navigate to="/" replace />} />
+              
+              {/* Admin routes with AdminLayout - require admin */}
+              <Route path="/admin" element={<ProtectedRoute requireAdmin={true}><AdminLayout /></ProtectedRoute>}>
+                <Route index element={<AdminDashboard />} />
+                <Route path="listings" element={<AdminListings />} />
+                <Route path="users" element={<AdminUsers />} />
+                <Route path="requests" element={<AdminRequests />} />
+              </Route>
+              
+              {/* Catch-all route for 404 Not Found */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+            <RealtimeIndicator />
+          </RealtimeProvider>
+        </SessionMonitoringProvider>
+      </AuthProvider>
     </QueryClientProvider>
+  );
+}
+
+function NotFound() {
+  return (
+    <div className="flex items-center justify-center h-screen bg-gray-100">
+      <div className="text-center">
+        <h1 className="text-4xl font-bold text-gray-800">404 Not Found</h1>
+        <p className="text-gray-600 mt-2">The page you are looking for does not exist.</p>
+        <a href="/" className="text-blue-500 mt-4 inline-block">Go back to homepage</a>
+      </div>
+    </div>
   );
 }
 
