@@ -93,7 +93,7 @@ const AdminListings = () => {
 
   if (isCreateFormOpen || editingListing) {
     return (
-      <div className="p-8 max-w-4xl mx-auto">
+      <div className="p-4 md:p-8 max-w-4xl mx-auto">
         <ListingForm
           listing={editingListing}
           onSubmit={handleFormSubmit}
@@ -109,54 +109,67 @@ const AdminListings = () => {
   }
 
   return (
-    <div className="p-8 max-w-7xl mx-auto">
-      <div className="flex flex-col md:flex-row md:items-center justify-between mb-8">
-        <h1 className="text-3xl font-bold mb-4 md:mb-0">Listings Management</h1>
-        <Button onClick={() => setIsCreateFormOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          Add New Listing
-        </Button>
-      </div>
-
-      <div className="flex flex-col md:flex-row gap-4 mb-6">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-          <Input
-            placeholder="Search listings..."
-            className="pl-10"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
+    <div className="space-y-4 md:space-y-6">
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold">Listings Management</h1>
+            <p className="text-sm md:text-base text-muted-foreground">
+              Manage marketplace listings
+            </p>
+          </div>
+          <Button onClick={() => setIsCreateFormOpen(true)} className="w-full sm:w-auto">
+            <Plus className="mr-2 h-4 w-4" />
+            Add New Listing
+          </Button>
         </div>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-full md:w-[180px]">
-            <SelectValue placeholder="Filter by status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="active">Active</SelectItem>
-            <SelectItem value="inactive">Inactive</SelectItem>
-          </SelectContent>
-        </Select>
+
+        <div className="flex flex-col gap-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+            <Input
+              placeholder="Search listings..."
+              className="pl-10"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Filter by status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="active">Active</SelectItem>
+              <SelectItem value="inactive">Inactive</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
-      <div className="flex gap-4 mb-6 flex-wrap">
-        <Badge className="bg-background text-foreground border">
+      <div className="flex gap-2 flex-wrap">
+        <Badge variant="outline" className="text-xs">
           Total: {listings.length}
         </Badge>
-        <Badge className="bg-background text-foreground border">
+        <Badge variant="outline" className="text-xs">
           Active: {listings.filter((l) => l.status === "active").length}
         </Badge>
-        <Badge className="bg-background text-foreground border">
+        <Badge variant="outline" className="text-xs">
           Inactive: {listings.filter((l) => l.status === "inactive").length}
         </Badge>
       </div>
 
+      {searchQuery && (
+        <div className="text-sm text-muted-foreground">
+          Found {filteredListings.length} listing{filteredListings.length !== 1 ? 's' : ''} matching "{searchQuery}"
+        </div>
+      )}
+
       {isLoading ? (
-        <div className="grid gap-6">
+        <div className="grid gap-4">
           {[...Array(3)].map((_, i) => (
             <Card key={i} className="animate-pulse">
-              <CardContent className="p-6">
+              <CardContent className="p-4 md:p-6">
                 <div className="h-6 bg-muted rounded mb-4"></div>
                 <div className="h-4 bg-muted rounded mb-2"></div>
                 <div className="h-4 bg-muted rounded w-2/3"></div>
@@ -165,45 +178,50 @@ const AdminListings = () => {
           ))}
         </div>
       ) : (
-        <div className="grid gap-6">
+        <div className="grid gap-4 md:gap-6">
           {filteredListings.map((listing) => {
             const displayCategories = listing.categories || (listing.category ? [listing.category] : []);
             
             return (
               <Card key={listing.id}>
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <CardTitle className="text-xl">{listing.title}</CardTitle>
-                        <Badge 
-                          variant={listing.status === "active" ? "default" : "secondary"}
-                          className={listing.status === "active" ? "bg-green-100 text-green-800" : ""}
-                        >
-                          {listing.status}
-                        </Badge>
-                      </div>
-                      <div className="flex flex-wrap gap-2 mb-2">
-                        {displayCategories.map((cat, index) => (
-                          <Badge key={index} variant="outline">{cat}</Badge>
-                        ))}
-                        <Badge variant="outline">{listing.location}</Badge>
+                <CardHeader className="pb-3">
+                  <div className="flex flex-col gap-3">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-2 flex-wrap">
+                          <CardTitle className="text-lg md:text-xl">{listing.title}</CardTitle>
+                          <Badge 
+                            variant={listing.status === "active" ? "default" : "secondary"}
+                            className={listing.status === "active" ? "bg-green-100 text-green-800 text-xs" : "text-xs"}
+                          >
+                            {listing.status}
+                          </Badge>
+                        </div>
+                        <div className="flex flex-wrap gap-2 mb-2">
+                          {displayCategories.map((cat, index) => (
+                            <Badge key={index} variant="outline" className="text-xs">{cat}</Badge>
+                          ))}
+                          <Badge variant="outline" className="text-xs">{listing.location}</Badge>
+                        </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
+                    
+                    {/* Mobile Action Buttons */}
+                    <div className="flex flex-wrap gap-2">
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={() => toggleExpanded(listing.id)}
+                        className="text-xs"
                       >
                         {expandedListings.has(listing.id) ? (
                           <>
-                            <ChevronUp className="h-4 w-4 mr-1" />
+                            <ChevronUp className="h-3 w-3 mr-1" />
                             Less
                           </>
                         ) : (
                           <>
-                            <ChevronDown className="h-4 w-4 mr-1" />
+                            <ChevronDown className="h-3 w-3 mr-1" />
                             More
                           </>
                         )}
@@ -212,15 +230,16 @@ const AdminListings = () => {
                         variant="outline"
                         size="sm"
                         onClick={() => handleToggleStatus(listing)}
+                        className="text-xs"
                       >
                         {listing.status === "active" ? (
                           <>
-                            <EyeOff className="h-4 w-4 mr-1" />
+                            <EyeOff className="h-3 w-3 mr-1" />
                             Deactivate
                           </>
                         ) : (
                           <>
-                            <Eye className="h-4 w-4 mr-1" />
+                            <Eye className="h-3 w-3 mr-1" />
                             Activate
                           </>
                         )}
@@ -229,37 +248,39 @@ const AdminListings = () => {
                         variant="outline"
                         size="sm"
                         onClick={() => setEditingListing(listing)}
+                        className="text-xs"
                       >
-                        <Edit className="h-4 w-4 mr-1" />
+                        <Edit className="h-3 w-3 mr-1" />
                         Edit
                       </Button>
                       <Button
                         variant="destructive"
                         size="sm"
                         onClick={() => handleDelete(listing.id)}
+                        className="text-xs"
                       >
-                        <Trash2 className="h-4 w-4 mr-1" />
+                        <Trash2 className="h-3 w-3 mr-1" />
                         Delete
                       </Button>
                     </div>
                   </div>
                 </CardHeader>
-                <CardContent>
-                  <div className="grid md:grid-cols-2 gap-4 mb-4">
+                <CardContent className="pt-0">
+                  <div className="grid grid-cols-2 gap-4 mb-4">
                     <div>
                       <div className="text-sm font-medium mb-1">Revenue</div>
-                      <div className="text-lg font-semibold">
+                      <div className="text-base md:text-lg font-semibold">
                         {formatCurrency(Number(listing.revenue))}
                       </div>
                     </div>
                     <div>
                       <div className="text-sm font-medium mb-1">EBITDA</div>
-                      <div className="text-lg font-semibold">
+                      <div className="text-base md:text-lg font-semibold">
                         {formatCurrency(Number(listing.ebitda))}
                       </div>
                     </div>
                   </div>
-                  <p className="text-muted-foreground mb-4 line-clamp-2">
+                  <p className="text-muted-foreground mb-4 text-sm line-clamp-2">
                     {listing.description}
                   </p>
                   
@@ -299,7 +320,7 @@ const AdminListings = () => {
             <Card>
               <CardContent className="p-8 text-center">
                 <h3 className="text-lg font-medium mb-2">No listings found</h3>
-                <p className="text-muted-foreground mb-4">
+                <p className="text-muted-foreground mb-4 text-sm">
                   {searchQuery || statusFilter !== "all" 
                     ? "Try adjusting your search or filter criteria."
                     : "Get started by creating your first listing."

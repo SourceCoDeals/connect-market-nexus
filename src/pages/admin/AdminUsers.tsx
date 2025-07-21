@@ -1,20 +1,24 @@
+
 import { useState, useEffect } from "react";
 import { useAdmin } from "@/hooks/use-admin";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Search, AlertCircle, RefreshCw, Users, CheckCircle, XCircle, Clock, AlertTriangle } from "lucide-react";
+import { Search, AlertCircle, RefreshCw, AlertTriangle } from "lucide-react";
 import { UsersTable } from "@/components/admin/UsersTable";
+import { MobileUsersTable } from "@/components/admin/MobileUsersTable";
 import { UserDetailDialog } from "@/components/admin/UserDetailDialog";
 import { UserActions } from "@/components/admin/UserActions";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 
 const AdminUsers = () => {
   const { users } = useAdmin();
   const { data: usersData = [], isLoading, error, refetch } = users;
   const { toast } = useToast();
+  const isMobile = useIsMobile();
   
   const [searchQuery, setSearchQuery] = useState("");
   
@@ -110,34 +114,34 @@ const AdminUsers = () => {
 
   return (
     <div className="space-y-4 md:space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col gap-4">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold">User Management</h1>
           <p className="text-sm md:text-base text-muted-foreground">
             Manage user accounts and permissions
           </p>
         </div>
-        <Button
-          onClick={handleRetry}
-          variant="outline"
-          disabled={isLoading}
-          className="w-full sm:w-auto"
-        >
-          <RefreshCw className={cn("h-4 w-4 mr-2", isLoading && "animate-spin")} />
-          Refresh
-        </Button>
-      </div>
-
-      {/* Search Bar */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-          <Input
-            placeholder="Search users by email, name, company..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
-          />
+        
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+            <Input
+              placeholder="Search users by email, name, company..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+          
+          <Button
+            onClick={handleRetry}
+            variant="outline"
+            disabled={isLoading}
+            className="w-full sm:w-auto"
+          >
+            <RefreshCw className={cn("h-4 w-4 mr-2", isLoading && "animate-spin")} />
+            Refresh
+          </Button>
         </div>
       </div>
 
@@ -195,17 +199,31 @@ const AdminUsers = () => {
 
       {/* Users Table */}
       <div className="bg-card rounded-lg border overflow-hidden">
-        <div className="overflow-x-auto">
-          <UsersTable
-            users={filteredUsers}
-            onApprove={approveUser}
-            onReject={rejectUser}
-            onMakeAdmin={makeAdmin}
-            onRevokeAdmin={revokeAdmin}
-            onDelete={deleteUser}
-            isLoading={isLoading}
-          />
-        </div>
+        {isMobile ? (
+          <div className="p-4">
+            <MobileUsersTable
+              users={filteredUsers}
+              onApprove={approveUser}
+              onReject={rejectUser}
+              onMakeAdmin={makeAdmin}
+              onRevokeAdmin={revokeAdmin}
+              onDelete={deleteUser}
+              isLoading={isLoading}
+            />
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <UsersTable
+              users={filteredUsers}
+              onApprove={approveUser}
+              onReject={rejectUser}
+              onMakeAdmin={makeAdmin}
+              onRevokeAdmin={revokeAdmin}
+              onDelete={deleteUser}
+              isLoading={isLoading}
+            />
+          </div>
+        )}
       </div>
 
       <UserDetailDialog

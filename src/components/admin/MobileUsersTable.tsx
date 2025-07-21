@@ -1,0 +1,277 @@
+
+import React from 'react';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { User } from '@/types';
+import { MoreHorizontal, UserCheck, UserX, UserPlus, UserMinus, Trash2, Mail, Building, Phone, Globe } from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
+
+interface MobileUsersTableProps {
+  users: User[];
+  onApprove: (user: User) => void;
+  onReject: (user: User) => void;
+  onMakeAdmin: (user: User) => void;
+  onRevokeAdmin: (user: User) => void;
+  onDelete: (user: User) => void;
+  isLoading: boolean;
+}
+
+const StatusBadge = ({ status }: { status: string }) => {
+  switch (status) {
+    case "approved":
+      return <Badge className="bg-green-100 text-green-800 hover:bg-green-100 text-xs">Approved</Badge>;
+    case "pending":
+      return <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100 text-xs">Pending</Badge>;
+    case "rejected":
+      return <Badge className="bg-red-100 text-red-800 hover:bg-red-100 text-xs">Rejected</Badge>;
+    default:
+      return <Badge variant="outline" className="text-xs">{status}</Badge>;
+  }
+};
+
+const MobileUserCard = ({ 
+  user, 
+  onApprove, 
+  onReject,
+  onMakeAdmin,
+  onRevokeAdmin,
+  onDelete,
+  isLoading 
+}: { 
+  user: User;
+  onApprove: (user: User) => void;
+  onReject: (user: User) => void;
+  onMakeAdmin: (user: User) => void;
+  onRevokeAdmin: (user: User) => void;
+  onDelete: (user: User) => void;
+  isLoading: boolean;
+}) => (
+  <Card className="w-full">
+    <CardHeader className="pb-3">
+      <div className="flex items-start justify-between">
+        <div className="flex-1 min-w-0">
+          <CardTitle className="text-base font-semibold">
+            {user.first_name} {user.last_name}
+            {user.is_admin && (
+              <Badge variant="outline" className="ml-2 text-xs bg-purple-50 text-purple-700">
+                Admin
+              </Badge>
+            )}
+          </CardTitle>
+          <div className="flex items-center gap-2 mt-1">
+            <StatusBadge status={user.approval_status} />
+            {user.email_verified && (
+              <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700">
+                Verified
+              </Badge>
+            )}
+          </div>
+        </div>
+        
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="sm" disabled={isLoading}>
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuLabel>User Actions</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            
+            {user.approval_status === "pending" && (
+              <>
+                <DropdownMenuItem 
+                  onClick={() => onApprove(user)}
+                  className="text-green-600"
+                >
+                  <UserCheck className="h-4 w-4 mr-2" />
+                  Approve User
+                </DropdownMenuItem>
+                <DropdownMenuItem 
+                  onClick={() => onReject(user)}
+                  className="text-red-600"
+                >
+                  <UserX className="h-4 w-4 mr-2" />
+                  Reject User
+                </DropdownMenuItem>
+              </>
+            )}
+            
+            {user.approval_status === "rejected" && (
+              <DropdownMenuItem 
+                onClick={() => onApprove(user)}
+                className="text-green-600"
+              >
+                <UserCheck className="h-4 w-4 mr-2" />
+                Approve User
+              </DropdownMenuItem>
+            )}
+            
+            {user.approval_status === "approved" && (
+              <DropdownMenuItem 
+                onClick={() => onReject(user)}
+                className="text-red-600"
+              >
+                <UserX className="h-4 w-4 mr-2" />
+                Reject User
+              </DropdownMenuItem>
+            )}
+            
+            <DropdownMenuSeparator />
+            
+            {!user.is_admin ? (
+              <DropdownMenuItem 
+                onClick={() => onMakeAdmin(user)}
+                className="text-blue-600"
+              >
+                <UserPlus className="h-4 w-4 mr-2" />
+                Make Admin
+              </DropdownMenuItem>
+            ) : (
+              <DropdownMenuItem 
+                onClick={() => onRevokeAdmin(user)}
+                className="text-orange-600"
+              >
+                <UserMinus className="h-4 w-4 mr-2" />
+                Revoke Admin
+              </DropdownMenuItem>
+            )}
+            
+            <DropdownMenuSeparator />
+            <DropdownMenuItem 
+              onClick={() => onDelete(user)}
+              className="text-red-600"
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete User
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </CardHeader>
+    
+    <CardContent className="pt-0 space-y-3">
+      {/* Contact Information */}
+      <div className="space-y-2">
+        <div className="flex items-center gap-2 text-sm">
+          <Mail className="h-4 w-4 text-muted-foreground" />
+          <span className="text-muted-foreground truncate">{user.email}</span>
+        </div>
+        
+        {user.company && (
+          <div className="flex items-center gap-2 text-sm">
+            <Building className="h-4 w-4 text-muted-foreground" />
+            <span className="text-muted-foreground truncate">{user.company}</span>
+          </div>
+        )}
+        
+        {user.phone_number && (
+          <div className="flex items-center gap-2 text-sm">
+            <Phone className="h-4 w-4 text-muted-foreground" />
+            <span className="text-muted-foreground">{user.phone_number}</span>
+          </div>
+        )}
+        
+        {user.website && (
+          <div className="flex items-center gap-2 text-sm">
+            <Globe className="h-4 w-4 text-muted-foreground" />
+            <span className="text-muted-foreground truncate">{user.website}</span>
+          </div>
+        )}
+      </div>
+
+      {/* Buyer Type & Additional Info */}
+      <div className="border-t pt-3 space-y-2">
+        {user.buyer_type && (
+          <div className="text-sm">
+            <span className="font-medium">Buyer Type:</span>{" "}
+            <Badge variant="outline" className="capitalize text-xs ml-1">
+              {user.buyer_type}
+            </Badge>
+          </div>
+        )}
+        
+        <div className="flex items-center justify-between text-xs text-muted-foreground">
+          <span>Joined {formatDistanceToNow(new Date(user.created_at), { addSuffix: true })}</span>
+        </div>
+      </div>
+
+      {/* Additional Details for certain buyer types */}
+      {(user.estimated_revenue || user.fund_size || user.aum) && (
+        <div className="border-t pt-3 space-y-1">
+          <div className="font-medium text-sm mb-2">Additional Information</div>
+          {user.estimated_revenue && (
+            <div className="text-sm">
+              <span className="font-medium">Est. Revenue:</span> {user.estimated_revenue}
+            </div>
+          )}
+          {user.fund_size && (
+            <div className="text-sm">
+              <span className="font-medium">Fund Size:</span> {user.fund_size}
+            </div>
+          )}
+          {user.aum && (
+            <div className="text-sm">
+              <span className="font-medium">AUM:</span> {user.aum}
+            </div>
+          )}
+        </div>
+      )}
+    </CardContent>
+  </Card>
+);
+
+export const MobileUsersTable = ({ 
+  users, 
+  onApprove, 
+  onReject,
+  onMakeAdmin,
+  onRevokeAdmin,
+  onDelete,
+  isLoading 
+}: MobileUsersTableProps) => {
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        {[1, 2, 3].map((i) => (
+          <Card key={i} className="animate-pulse">
+            <CardContent className="p-4">
+              <div className="h-4 bg-muted rounded mb-2"></div>
+              <div className="h-3 bg-muted rounded w-2/3 mb-4"></div>
+              <div className="h-16 bg-muted rounded"></div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    );
+  }
+
+  if (users.length === 0) {
+    return (
+      <Card>
+        <CardContent className="p-8 text-center text-muted-foreground">
+          No users found.
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {users.map((user) => (
+        <MobileUserCard
+          key={user.id}
+          user={user}
+          onApprove={onApprove}
+          onReject={onReject}
+          onMakeAdmin={onMakeAdmin}
+          onRevokeAdmin={onRevokeAdmin}
+          onDelete={onDelete}
+          isLoading={isLoading}
+        />
+      ))}
+    </div>
+  );
+};

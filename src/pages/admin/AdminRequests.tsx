@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Search } from "lucide-react";
 import { AdminConnectionRequest } from "@/types/admin";
 import { ConnectionRequestsTable } from "@/components/admin/ConnectionRequestsTable";
+import { MobileConnectionRequestsTable } from "@/components/admin/MobileConnectionRequestsTable";
 import { ConnectionRequestDialog } from "@/components/admin/ConnectionRequestDialog";
 import { toast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -83,10 +84,16 @@ const AdminRequests = () => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto">
-      <div className="flex flex-col md:flex-row md:items-center justify-between mb-8">
-        <h1 className="text-3xl font-bold mb-4 md:mb-0">Connection Requests</h1>
-        <div className="relative w-full md:w-72">
+    <div className="space-y-4 md:space-y-6">
+      <div className="flex flex-col gap-4">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-bold">Connection Requests</h1>
+          <p className="text-sm md:text-base text-muted-foreground">
+            Manage buyer connection requests
+          </p>
+        </div>
+        
+        <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
           <Input
             placeholder="Search requests..."
@@ -97,27 +104,48 @@ const AdminRequests = () => {
         </div>
       </div>
 
-      <div className="flex gap-4 mb-6 flex-wrap">
-        <Badge className="bg-background text-foreground border">
+      <div className="flex gap-2 flex-wrap">
+        <Badge variant="outline" className="text-xs">
           Total: {requests.length}
         </Badge>
-        <Badge className="bg-background text-foreground border">
+        <Badge variant="outline" className="text-xs">
           Pending: {requests.filter((r) => r.status === "pending").length}
         </Badge>
-        <Badge className="bg-background text-foreground border">
+        <Badge variant="outline" className="text-xs">
           Approved: {requests.filter((r) => r.status === "approved").length}
         </Badge>
-        <Badge className="bg-background text-foreground border">
+        <Badge variant="outline" className="text-xs">
           Rejected: {requests.filter((r) => r.status === "rejected").length}
         </Badge>
       </div>
 
-      <ConnectionRequestsTable 
-        requests={filteredRequests}
-        onApprove={(request) => handleAction(request, "approve")}
-        onReject={(request) => handleAction(request, "reject")}
-        isLoading={isLoading}
-      />
+      {searchQuery && (
+        <div className="text-sm text-muted-foreground">
+          Found {filteredRequests.length} request{filteredRequests.length !== 1 ? 's' : ''} matching "{searchQuery}"
+        </div>
+      )}
+
+      <div className="bg-card rounded-lg border overflow-hidden">
+        {isMobile ? (
+          <div className="p-4">
+            <MobileConnectionRequestsTable 
+              requests={filteredRequests}
+              onApprove={(request) => handleAction(request, "approve")}
+              onReject={(request) => handleAction(request, "reject")}
+              isLoading={isLoading}
+            />
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <ConnectionRequestsTable 
+              requests={filteredRequests}
+              onApprove={(request) => handleAction(request, "approve")}
+              onReject={(request) => handleAction(request, "reject")}
+              isLoading={isLoading}
+            />
+          </div>
+        )}
+      </div>
 
       <ConnectionRequestDialog
         isOpen={isDialogOpen}
