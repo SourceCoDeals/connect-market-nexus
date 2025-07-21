@@ -2,7 +2,7 @@
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { useMarketplace } from "@/hooks/use-marketplace";
-import { useAnalyticsTracking } from "@/hooks/use-analytics-tracking";
+import { useAnalytics } from "@/context/AnalyticsContext";
 import { Listing } from "@/types";
 
 import ListingCardImage from "./listing/ListingCardImage";
@@ -22,17 +22,17 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
   const { data: connectionStatus } = useConnectionStatus(listing.id);
   const { mutate: toggleSave, isPending: isSaving } = useSaveListingMutation();
   const { data: isSaved } = useSavedStatus(listing.id);
-  const { trackListingInteraction } = useAnalyticsTracking();
+  const { trackListingSave, trackListingView, trackConnectionRequest } = useAnalytics();
 
   const handleRequestConnection = (e: React.MouseEvent, message?: string) => {
     e.preventDefault();
-    trackListingInteraction(listing.id, 'request_connection');
+    trackConnectionRequest(listing.id);
     requestConnection({ listingId: listing.id, message });
   };
 
   const handleToggleSave = (e: React.MouseEvent) => {
     e.preventDefault();
-    trackListingInteraction(listing.id, isSaved ? 'unsave' : 'save');
+    trackListingSave(listing.id);
     toggleSave({
       listingId: listing.id,
       action: isSaved ? "unsave" : "save",
@@ -56,7 +56,7 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
     <Link 
       to={`/listing/${listing.id}`} 
       className="group block h-full"
-      onClick={() => trackListingInteraction(listing.id, 'view')}
+      onClick={() => trackListingView(listing.id)}
     >
       <Card
         className={`h-full overflow-hidden transition-all hover:shadow-md ${

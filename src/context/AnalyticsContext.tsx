@@ -34,15 +34,21 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
       
       // Create session record
       if (user) {
-        supabase.from('user_sessions').insert({
-          session_id: currentSessionId,
-          user_id: user.id,
-          started_at: sessionStartTime.toISOString(),
-          user_agent: navigator.userAgent,
-          referrer: document.referrer || null,
-        }).then(() => {
-          console.log('Analytics session started:', currentSessionId);
-        });
+        const createSession = async () => {
+          try {
+            await supabase.from('user_sessions').insert({
+              session_id: currentSessionId,
+              user_id: user.id,
+              started_at: sessionStartTime.toISOString(),
+              user_agent: navigator.userAgent,
+              referrer: document.referrer || null,
+            });
+            console.log('✅ Analytics session started:', currentSessionId, 'for user:', user.id);
+          } catch (error) {
+            console.error('❌ Failed to create session:', error);
+          }
+        };
+        createSession();
       }
     }
   }, [user]);
@@ -73,7 +79,12 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
   };
 
   const trackPageView = async (pagePath: string) => {
-    if (!currentSessionId) return;
+    if (!currentSessionId) {
+      console.warn('❌ No session ID for page view:', pagePath);
+      return;
+    }
+
+    console.log('📊 Tracking page view:', pagePath, 'session:', currentSessionId, 'user:', user?.id);
 
     try {
       await supabase.from('page_views').insert({
@@ -83,13 +94,19 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
         page_title: document.title,
         referrer: document.referrer || null,
       });
+      console.log('✅ Page view tracked successfully');
     } catch (error) {
-      console.error('Failed to track page view:', error);
+      console.error('❌ Failed to track page view:', error);
     }
   };
 
   const trackListingView = async (listingId: string) => {
-    if (!currentSessionId) return;
+    if (!currentSessionId) {
+      console.warn('❌ No session ID for listing view:', listingId);
+      return;
+    }
+
+    console.log('👀 Tracking listing view:', listingId, 'session:', currentSessionId, 'user:', user?.id);
 
     try {
       await supabase.from('listing_analytics').insert({
@@ -99,13 +116,19 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
         action_type: 'view',
         referrer_page: location.pathname,
       });
+      console.log('✅ Listing view tracked successfully');
     } catch (error) {
-      console.error('Failed to track listing view:', error);
+      console.error('❌ Failed to track listing view:', error);
     }
   };
 
   const trackListingSave = async (listingId: string) => {
-    if (!currentSessionId) return;
+    if (!currentSessionId) {
+      console.warn('❌ No session ID for listing save:', listingId);
+      return;
+    }
+
+    console.log('💾 Tracking listing save:', listingId, 'session:', currentSessionId, 'user:', user?.id);
 
     try {
       await supabase.from('listing_analytics').insert({
@@ -115,8 +138,9 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
         action_type: 'save',
         referrer_page: location.pathname,
       });
+      console.log('✅ Listing save tracked successfully');
     } catch (error) {
-      console.error('Failed to track listing save:', error);
+      console.error('❌ Failed to track listing save:', error);
     }
   };
 
