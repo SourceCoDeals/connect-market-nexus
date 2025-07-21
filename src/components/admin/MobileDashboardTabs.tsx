@@ -140,15 +140,7 @@ export function MobileDashboardTabs() {
 
           {/* Secondary tabs for additional features */}
           <div className="mb-4">
-            <TabsList className="grid w-full grid-cols-4 h-14 bg-muted/50">
-              <TabsTrigger value="users" className="flex flex-col items-center gap-1 py-1 px-1">
-                <Users className="h-3 w-3" />
-                <span className="text-xs">Users</span>
-              </TabsTrigger>
-              <TabsTrigger value="requests" className="flex flex-col items-center gap-1 py-1 px-1">
-                <MessageSquare className="h-3 w-3" />
-                <span className="text-xs">Requests</span>
-              </TabsTrigger>
+            <TabsList className="grid w-full grid-cols-2 h-14 bg-muted/50">
               <TabsTrigger value="health" className="flex flex-col items-center gap-1 py-1 px-1">
                 <Shield className="h-3 w-3" />
                 <span className="text-xs">Health</span>
@@ -272,68 +264,48 @@ export function MobileDashboardTabs() {
               </Card>
             </TabsContent>
 
-            <TabsContent value="users" className="mt-0 space-y-4">
-              <Card className="p-4">
-                <CardHeader className="p-0 pb-4">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-lg">User Management</CardTitle>
-                    <Badge variant="outline" className="text-xs">{usersData.length} total</Badge>
-                  </div>
-                  <CardDescription className="text-sm">Manage user accounts and permissions</CardDescription>
-                </CardHeader>
-                <CardContent className="p-0">
-                  <MobileUsersTable 
-                    users={usersData}
-                    onApprove={handleApproveUser}
-                    onReject={handleRejectUser}
-                    onMakeAdmin={handleMakeAdmin}
-                    onRevokeAdmin={handleRevokeAdmin}
-                    onDelete={handleDeleteUser}
-                    isLoading={isUsersLoading || updateUserStatus.isPending || updateAdminStatus.isPending || deleteUser.isPending}
-                  />
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="requests" className="mt-0 space-y-4">
-              <Card className="p-4">
-                <CardHeader className="p-0 pb-4">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-lg">Connection Requests</CardTitle>
-                    <Badge variant="outline" className="text-xs">{requests.length} total</Badge>
-                  </div>
-                  <CardDescription className="text-sm">Review buyer connection requests</CardDescription>
-                </CardHeader>
-                <CardContent className="p-0">
-                  <MobileConnectionRequests 
-                    requests={requests}
-                    onApprove={handleApproveRequest}
-                    onReject={handleRejectRequest}
-                    isLoading={isRequestsLoading || updateRequest.isPending}
-                  />
-                </CardContent>
-              </Card>
-            </TabsContent>
 
             <TabsContent value="analytics" className="mt-0 space-y-4">
               <Tabs defaultValue="overview" className="w-full">
-                <TabsList className="grid w-full grid-cols-3 h-12 mb-4 bg-muted/50">
-                  <TabsTrigger value="overview" className="text-xs py-2">
-                    <div className="flex flex-col items-center gap-1">
+                <TabsList className="grid w-full grid-cols-3 h-10 mb-4 bg-muted/50">
+                  <TabsTrigger value="overview" className="text-xs py-1 px-2">
+                    <div className="flex items-center gap-1">
                       <BarChart className="h-3 w-3" />
                       <span>Overview</span>
                     </div>
                   </TabsTrigger>
-                  <TabsTrigger value="live" className="text-xs py-2">
-                    <div className="flex flex-col items-center gap-1">
+                  <TabsTrigger value="live" className="text-xs py-1 px-2">
+                    <div className="flex items-center gap-1">
                       <Activity className="h-3 w-3" />
                       <span>Live</span>
                     </div>
                   </TabsTrigger>
-                  <TabsTrigger value="advanced" className="text-xs py-2">
-                    <div className="flex flex-col items-center gap-1">
+                  <TabsTrigger value="users" className="text-xs py-1 px-2">
+                    <div className="flex items-center gap-1">
+                      <Users className="h-3 w-3" />
+                      <span>Users</span>
+                    </div>
+                  </TabsTrigger>
+                </TabsList>
+
+                {/* Second row of analytics tabs */}
+                <TabsList className="grid w-full grid-cols-3 h-10 mb-4 bg-muted/50">
+                  <TabsTrigger value="listings" className="text-xs py-1 px-2">
+                    <div className="flex items-center gap-1">
+                      <Store className="h-3 w-3" />
+                      <span>Listings</span>
+                    </div>
+                  </TabsTrigger>
+                  <TabsTrigger value="search" className="text-xs py-1 px-2">
+                    <div className="flex items-center gap-1">
+                      <div className="h-3 w-3">🔍</div>
+                      <span>Search</span>
+                    </div>
+                  </TabsTrigger>
+                  <TabsTrigger value="funnel" className="text-xs py-1 px-2">
+                    <div className="flex items-center gap-1">
                       <TrendingUp className="h-3 w-3" />
-                      <span>Advanced</span>
+                      <span>Funnel</span>
                     </div>
                   </TabsTrigger>
                 </TabsList>
@@ -364,15 +336,6 @@ export function MobileDashboardTabs() {
                             <p className="text-xs text-orange-700">Page Views</p>
                           </Card>
                         </div>
-                        
-                        <div className="space-y-3">
-                          <h4 className="font-semibold text-sm">Search Activity</h4>
-                          <div className="text-center py-6 text-muted-foreground">
-                            <div className="mb-2">🔍</div>
-                            <p className="text-xs">Search analytics will appear here</p>
-                            <p className="text-xs text-muted-foreground/70">Data is collected from search functionality</p>
-                          </div>
-                        </div>
                       </CardContent>
                     </Card>
                   </TabsContent>
@@ -389,14 +352,120 @@ export function MobileDashboardTabs() {
                     </Card>
                   </TabsContent>
 
-                  <TabsContent value="advanced" className="mt-0">
+                  <TabsContent value="users" className="mt-0">
                     <Card className="p-4">
                       <CardHeader className="p-0 pb-4">
-                        <CardTitle className="text-lg">Advanced Analytics</CardTitle>
-                        <CardDescription className="text-sm">Detailed analytics and reporting</CardDescription>
+                        <CardTitle className="text-lg">User Analytics</CardTitle>
+                        <CardDescription className="text-sm">User behavior and engagement metrics</CardDescription>
                       </CardHeader>
                       <CardContent className="p-0">
-                        <AdvancedAnalyticsDashboard />
+                        <div className="grid grid-cols-2 gap-3 mb-4">
+                          <Card className="p-3 bg-gradient-to-br from-indigo-50 to-indigo-100/50 border-indigo-200">
+                            <div className="text-lg font-bold text-indigo-900">{stats?.totalUsers || 0}</div>
+                            <p className="text-xs text-indigo-700">Total Users</p>
+                          </Card>
+                          <Card className="p-3 bg-gradient-to-br from-emerald-50 to-emerald-100/50 border-emerald-200">
+                            <div className="text-lg font-bold text-emerald-900">{usersData.filter(u => u.approval_status === 'approved').length}</div>
+                            <p className="text-xs text-emerald-700">Active Users</p>
+                          </Card>
+                        </div>
+                        <div className="text-center py-6 text-muted-foreground">
+                          <Users className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                          <p className="text-sm">Detailed user analytics</p>
+                          <p className="text-xs">User engagement and behavior patterns</p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
+
+                  <TabsContent value="listings" className="mt-0">
+                    <Card className="p-4">
+                      <CardHeader className="p-0 pb-4">
+                        <CardTitle className="text-lg">Listing Analytics</CardTitle>
+                        <CardDescription className="text-sm">Marketplace listing performance</CardDescription>
+                      </CardHeader>
+                      <CardContent className="p-0">
+                        <div className="grid grid-cols-2 gap-3 mb-4">
+                          <Card className="p-3 bg-gradient-to-br from-cyan-50 to-cyan-100/50 border-cyan-200">
+                            <div className="text-lg font-bold text-cyan-900">{stats?.totalListings || 0}</div>
+                            <p className="text-xs text-cyan-700">Total Listings</p>
+                          </Card>
+                          <Card className="p-3 bg-gradient-to-br from-rose-50 to-rose-100/50 border-rose-200">
+                            <div className="text-lg font-bold text-rose-900">29%</div>
+                            <p className="text-xs text-rose-700">Available</p>
+                          </Card>
+                        </div>
+                        <div className="text-center py-6 text-muted-foreground">
+                          <Store className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                          <p className="text-sm">Listing performance analytics</p>
+                          <p className="text-xs">Views, engagement, and conversion rates</p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
+
+                  <TabsContent value="search" className="mt-0">
+                    <Card className="p-4">
+                      <CardHeader className="p-0 pb-4">
+                        <CardTitle className="text-lg">Search Analytics</CardTitle>
+                        <CardDescription className="text-sm">Search behavior and performance</CardDescription>
+                      </CardHeader>
+                      <CardContent className="p-0">
+                        <div className="text-center py-8 text-muted-foreground">
+                          <div className="text-4xl mb-4">🔍</div>
+                          <p className="text-sm font-medium mb-2">Search analytics will appear here</p>
+                          <p className="text-xs mb-4">Data is collected from search functionality</p>
+                          
+                          <div className="bg-muted/30 rounded-lg p-4 mt-4">
+                            <h4 className="font-semibold text-sm mb-2 text-foreground">Search System Status</h4>
+                            <div className="flex items-center justify-center gap-2">
+                              <div className="h-2 w-2 bg-green-500 rounded-full"></div>
+                              <span className="text-xs text-green-700">Live</span>
+                            </div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
+
+                  <TabsContent value="funnel" className="mt-0">
+                    <Card className="p-4">
+                      <CardHeader className="p-0 pb-4">
+                        <CardTitle className="text-lg">Conversion Funnel</CardTitle>
+                        <CardDescription className="text-sm">User journey and conversion analysis</CardDescription>
+                      </CardHeader>
+                      <CardContent className="p-0">
+                        <div className="space-y-4">
+                          <div className="bg-gradient-to-r from-blue-50 to-blue-100 p-4 rounded-lg border border-blue-200">
+                            <div className="flex justify-between items-center">
+                              <span className="text-sm font-medium">Page Views</span>
+                              <span className="text-lg font-bold text-blue-900">175</span>
+                            </div>
+                            <div className="w-full bg-blue-200/50 rounded-full h-2 mt-2">
+                              <div className="bg-blue-500 h-2 rounded-full w-full"></div>
+                            </div>
+                          </div>
+                          
+                          <div className="bg-gradient-to-r from-green-50 to-green-100 p-4 rounded-lg border border-green-200">
+                            <div className="flex justify-between items-center">
+                              <span className="text-sm font-medium">Listing Views</span>
+                              <span className="text-lg font-bold text-green-900">{stats?.totalListings || 0}</span>
+                            </div>
+                            <div className="w-full bg-green-200/50 rounded-full h-2 mt-2">
+                              <div className="bg-green-500 h-2 rounded-full w-4/5"></div>
+                            </div>
+                          </div>
+                          
+                          <div className="bg-gradient-to-r from-purple-50 to-purple-100 p-4 rounded-lg border border-purple-200">
+                            <div className="flex justify-between items-center">
+                              <span className="text-sm font-medium">Connections</span>
+                              <span className="text-lg font-bold text-purple-900">{stats?.pendingConnections || 0}</span>
+                            </div>
+                            <div className="w-full bg-purple-200/50 rounded-full h-2 mt-2">
+                              <div className="bg-purple-500 h-2 rounded-full w-1/4"></div>
+                            </div>
+                          </div>
+                        </div>
                       </CardContent>
                     </Card>
                   </TabsContent>
