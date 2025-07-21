@@ -72,27 +72,31 @@ export function useEnhancedFeedback() {
 
       if (insertError) throw insertError;
 
-      // Send notification to admins
-      const { error: notificationError } = await supabase.functions.invoke(
-        "send-feedback-notification",
-        {
-          body: {
-            feedbackId: feedback.id,
-            message: feedbackData.message,
-            category: feedbackData.category,
-            priority: feedbackData.priority,
-            pageUrl: feedbackData.pageUrl,
-            userAgent: feedbackData.userAgent,
-            userId: user.id,
-            userEmail: user.email,
-            userName: user.email,
-          },
-        }
-      );
+      // Try to send notification to admins, but don't fail if it errors
+      try {
+        const { error: notificationError } = await supabase.functions.invoke(
+          "send-feedback-notification",
+          {
+            body: {
+              feedbackId: feedback.id,
+              message: feedbackData.message,
+              category: feedbackData.category,
+              priority: feedbackData.priority,
+              pageUrl: feedbackData.pageUrl,
+              userAgent: feedbackData.userAgent,
+              userId: user.id,
+              userEmail: user.email,
+              userName: user.email,
+            },
+          }
+        );
 
-      if (notificationError) {
-        console.error("Error sending notification:", notificationError);
-        // Don't throw here - feedback was saved successfully
+        if (notificationError) {
+          console.warn("Notification failed but feedback was saved:", notificationError);
+        }
+      } catch (notificationError) {
+        console.warn("Failed to send admin notification:", notificationError);
+        // Continue - feedback was saved successfully
       }
 
       toast({

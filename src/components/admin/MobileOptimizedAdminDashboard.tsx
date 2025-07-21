@@ -6,7 +6,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { AdvancedAnalyticsDashboard } from './AdvancedAnalyticsDashboard';
 import { UserActivityFeed } from './UserActivityFeed';
 import { EnhancedAnalyticsHealthDashboard } from './EnhancedAnalyticsHealthDashboard';
-import { MobileOptimizedAnalytics } from './MobileOptimizedAnalytics';
+import { MobileAnalyticsDashboard } from './MobileAnalyticsDashboard';
 import { BarChart, Activity, Shield, TrendingUp } from 'lucide-react';
 
 export function MobileOptimizedAdminDashboard() {
@@ -45,7 +45,7 @@ export function MobileOptimizedAdminDashboard() {
           </TabsList>
 
           <TabsContent value="analytics" className="space-y-4 mt-4">
-            <MobileOptimizedAnalytics />
+            <MobileAnalyticsDashboard />
           </TabsContent>
 
           <TabsContent value="health" className="space-y-4 mt-4">

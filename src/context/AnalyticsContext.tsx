@@ -121,17 +121,18 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
 
     const createOrUpdateSession = async () => {
       try {
-        // Check if session already exists
-        const { data: existingSession, error: selectError } = await supabase
+        // Check if session already exists (handle duplicates gracefully)
+        const { data: existingSessions, error: selectError } = await supabase
           .from('user_sessions')
-          .select('id')
-          .eq('session_id', currentSessionId)
-          .maybeSingle();
+          .select('id, session_id')
+          .eq('session_id', currentSessionId);
 
         if (selectError) {
           console.error('❌ Error checking existing session:', selectError);
           return;
         }
+
+        const existingSession = existingSessions?.[0]; // Take first if multiple exist
 
         if (existingSession) {
           // Update existing session with user info
