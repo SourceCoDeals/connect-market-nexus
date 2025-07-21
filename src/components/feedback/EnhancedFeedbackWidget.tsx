@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -6,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { MessageSquare, X, Send, Paperclip, Star, ChevronDown, ChevronUp } from 'lucide-react';
+import { MessageSquare, X, Send, Paperclip, Star, ChevronDown, ChevronUp, Mail, Bug, Lightbulb, User } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
 import { ConversationThread } from './ConversationThread';
@@ -48,11 +49,18 @@ export function EnhancedFeedbackWidget({ className }: FeedbackWidgetProps) {
   };
 
   const handleSubmitFeedback = async () => {
-    if (!message.trim()) return;
+    if (!message.trim()) {
+      toast({
+        title: "Message required",
+        description: "Please enter a message before submitting.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     try {
       const result = await submitFeedback({
-        message,
+        message: message.trim(),
         category: category as any,
         priority: priority as any,
         pageUrl: window.location.href,
@@ -69,17 +77,9 @@ export function EnhancedFeedbackWidget({ className }: FeedbackWidgetProps) {
       // Refresh conversation history
       await loadConversationHistory();
       
-      toast({
-        title: "Feedback submitted",
-        description: "Thank you for your feedback! We'll get back to you soon.",
-      });
     } catch (error) {
       console.error('Error submitting feedback:', error);
-      toast({
-        title: "Error",
-        description: "Failed to submit feedback. Please try again.",
-        variant: "destructive",
-      });
+      // Error handling is done in the hook
     }
   };
 
@@ -105,19 +105,21 @@ export function EnhancedFeedbackWidget({ className }: FeedbackWidgetProps) {
   };
 
   const categories = [
-    { value: 'general', label: 'Contact Us' },
-    { value: 'bug', label: 'Bug Report' },
-    { value: 'feature', label: 'Feature Request' },
-    { value: 'ui', label: 'UI/UX Feedback' },
-    { value: 'other', label: 'Other' }
+    { value: 'general', label: 'Contact Us', icon: Mail },
+    { value: 'bug', label: 'Bug Report', icon: Bug },
+    { value: 'feature', label: 'Feature Request', icon: Lightbulb },
+    { value: 'ui', label: 'UI/UX Feedback', icon: User },
+    { value: 'other', label: 'Other', icon: MessageSquare }
   ];
 
   const priorities = [
-    { value: 'low', label: 'Low' },
-    { value: 'normal', label: 'Normal' },
-    { value: 'high', label: 'High' },
-    { value: 'urgent', label: 'Urgent' }
+    { value: 'low', label: 'Low', color: 'bg-green-100 text-green-800' },
+    { value: 'normal', label: 'Normal', color: 'bg-blue-100 text-blue-800' },
+    { value: 'high', label: 'High', color: 'bg-orange-100 text-orange-800' },
+    { value: 'urgent', label: 'Urgent', color: 'bg-red-100 text-red-800' }
   ];
+
+  if (!user) return null;
 
   // Floating widget when closed
   if (!isOpen) {
@@ -125,7 +127,7 @@ export function EnhancedFeedbackWidget({ className }: FeedbackWidgetProps) {
       <div className={`fixed bottom-4 right-4 z-50 ${className}`}>
         <Button
           onClick={() => setIsOpen(true)}
-          className="rounded-full w-12 h-12 shadow-lg hover:shadow-xl transition-shadow"
+          className="rounded-full w-14 h-14 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
           size="icon"
         >
           <MessageSquare className="w-6 h-6" />
@@ -172,7 +174,10 @@ export function EnhancedFeedbackWidget({ className }: FeedbackWidgetProps) {
       <Card className="w-96 h-[600px] shadow-xl flex flex-col">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-lg">Feedback & Support</CardTitle>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <MessageSquare className="h-5 w-5 text-primary" />
+              Get in Touch
+            </CardTitle>
             <div className="flex gap-1">
               <Button
                 variant="ghost"
@@ -191,6 +196,11 @@ export function EnhancedFeedbackWidget({ className }: FeedbackWidgetProps) {
                 <X className="w-4 h-4" />
               </Button>
             </div>
+          </div>
+          
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <User className="h-4 w-4" />
+            <span>{user?.email || "Guest"}</span>
           </div>
           
           {/* Navigation */}
@@ -232,12 +242,12 @@ export function EnhancedFeedbackWidget({ className }: FeedbackWidgetProps) {
                             {conversation.message}
                           </p>
                           <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            <Badge variant="secondary" className="text-xs">
+                            <Badge variant="secondary" className="text-xs capitalize">
                               {conversation.category}
                             </Badge>
                             <Badge 
                               variant={conversation.priority === 'urgent' ? 'destructive' : 'outline'}
-                              className="text-xs"
+                              className="text-xs capitalize"
                             >
                               {conversation.priority}
                             </Badge>
@@ -257,13 +267,29 @@ export function EnhancedFeedbackWidget({ className }: FeedbackWidgetProps) {
               threadId={currentThreadId}
               initialMessages={[]}
               onNewMessage={(message) => {
-                // Handle new message
                 console.log('New message:', message);
               }}
               isAdmin={false}
             />
           ) : (
             <div className="h-full flex flex-col space-y-4">
+              {/* Quick Action Buttons */}
+              <div className="grid grid-cols-3 gap-2">
+                {categories.slice(0, 3).map((cat) => (
+                  <Button
+                    key={cat.value}
+                    type="button"
+                    variant={category === cat.value ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setCategory(cat.value)}
+                    className="flex flex-col items-center gap-1 h-auto py-2"
+                  >
+                    <cat.icon className="h-3 w-3" />
+                    <span className="text-xs">{cat.label}</span>
+                  </Button>
+                ))}
+              </div>
+
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="text-sm font-medium mb-1 block">Category</label>
@@ -274,7 +300,10 @@ export function EnhancedFeedbackWidget({ className }: FeedbackWidgetProps) {
                     <SelectContent>
                       {categories.map((cat) => (
                         <SelectItem key={cat.value} value={cat.value}>
-                          {cat.label}
+                          <div className="flex items-center gap-2">
+                            <cat.icon className="h-4 w-4" />
+                            {cat.label}
+                          </div>
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -289,7 +318,10 @@ export function EnhancedFeedbackWidget({ className }: FeedbackWidgetProps) {
                     <SelectContent>
                       {priorities.map((prio) => (
                         <SelectItem key={prio.value} value={prio.value}>
-                          {prio.label}
+                          <div className="flex items-center gap-2">
+                            <div className={`w-2 h-2 rounded-full ${prio.color.split(' ')[0]} ${prio.color.split(' ')[1]}`}></div>
+                            {prio.label}
+                          </div>
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -298,13 +330,35 @@ export function EnhancedFeedbackWidget({ className }: FeedbackWidgetProps) {
               </div>
 
               <div className="flex-1">
-                <label className="text-sm font-medium mb-1 block">Message</label>
+                <label className="text-sm font-medium mb-1 block">
+                  Your Message *
+                  {category === "general" && (
+                    <span className="text-xs text-muted-foreground ml-2">
+                      (We'll respond via email)
+                    </span>
+                  )}
+                </label>
                 <Textarea
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
-                  placeholder="How can we help you today?"
+                  placeholder={
+                    category === "general" 
+                      ? "How can we help you today? We'll get back to you soon..." 
+                      : category === "bug"
+                      ? "Describe the issue you encountered. Include steps to reproduce if possible..."
+                      : category === "feature"
+                      ? "What feature would you like to see? How would it help you..."
+                      : "Tell us what's on your mind..."
+                  }
                   className="h-32 resize-none"
+                  required
                 />
+                <p className="text-xs text-muted-foreground mt-1">
+                  {category === "general" 
+                    ? "Our team will respond to your message within 24 hours."
+                    : "Be specific and detailed to help us understand better."
+                  }
+                </p>
               </div>
 
               {attachments.length > 0 && (
@@ -346,11 +400,20 @@ export function EnhancedFeedbackWidget({ className }: FeedbackWidgetProps) {
                 <Button
                   onClick={handleSubmitFeedback}
                   disabled={isLoading || !message.trim()}
-                  className="flex-1"
+                  className="flex-1 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary/80"
                   size="sm"
                 >
-                  <Send className="w-4 h-4 mr-2" />
-                  Send Message
+                  {isLoading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Sending...
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-4 h-4 mr-2" />
+                      {category === "general" ? "Send Message" : "Send Feedback"}
+                    </>
+                  )}
                 </Button>
               </div>
             </div>

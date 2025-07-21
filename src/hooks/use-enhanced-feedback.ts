@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
@@ -6,7 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 
 export interface EnhancedFeedbackData {
   message: string;
-  category?: "contact" | "general" | "bug" | "feature" | "ui" | "other";
+  category?: "general" | "bug" | "feature" | "ui" | "other";
   priority?: "low" | "normal" | "high" | "urgent";
   pageUrl?: string;
   userAgent?: string;
@@ -41,6 +40,16 @@ export interface FeedbackMessageWithUser {
   user_phone_number: string;
 }
 
+// Valid database categories mapping
+const CATEGORY_MAPPING = {
+  'contact': 'general',
+  'general': 'general',
+  'bug': 'bug',
+  'feature': 'feature',
+  'ui': 'ui',
+  'other': 'other'
+};
+
 export function useEnhancedFeedback() {
   const [isLoading, setIsLoading] = useState(false);
   const { user } = useAuth();
@@ -63,16 +72,31 @@ export function useEnhancedFeedback() {
       throw new Error("User must be authenticated to submit feedback");
     }
 
+    if (!feedbackData.message?.trim()) {
+      toast({
+        title: "Message required",
+        description: "Please enter a message before submitting.",
+        variant: "destructive",
+      });
+      throw new Error("Message is required");
+    }
+
     setIsLoading(true);
     
     try {
-      console.log('📝 Inserting feedback into database...');
+      console.log('📝 Processing feedback submission...');
       
-      // Insert feedback into database with comprehensive logging
+      // Map category to valid database value
+      const originalCategory = feedbackData.category || 'general';
+      const dbCategory = CATEGORY_MAPPING[originalCategory as keyof typeof CATEGORY_MAPPING] || 'general';
+      
+      console.log('🔄 Category mapping:', { original: originalCategory, database: dbCategory });
+      
+      // Insert feedback into database with comprehensive validation
       const feedbackPayload = {
         user_id: user.id,
-        message: feedbackData.message?.trim(),
-        category: feedbackData.category || "general",
+        message: feedbackData.message.trim(),
+        category: dbCategory,
         priority: feedbackData.priority || "normal",
         page_url: feedbackData.pageUrl || window?.location?.href,
         user_agent: feedbackData.userAgent || navigator?.userAgent,
@@ -81,7 +105,7 @@ export function useEnhancedFeedback() {
         parent_message_id: feedbackData.parentMessageId || undefined,
       };
 
-      console.log('📊 Feedback payload:', feedbackPayload);
+      console.log('📊 Feedback payload:', { ...feedbackPayload, message: '[HIDDEN]' });
 
       const { data: feedback, error: insertError } = await supabase
         .from("feedback_messages")
@@ -91,11 +115,31 @@ export function useEnhancedFeedback() {
 
       if (insertError) {
         console.error('❌ Database insertion failed:', insertError);
+        
+        // Provide user-friendly error messages
+        if (insertError.code === '23514') {
+          toast({
+            title: "Invalid category",
+            description: "Please select a valid feedback category.",
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "Submission failed",
+            description: `Failed to save your message: ${insertError.message}. Please try again.`,
+            variant: "destructive",
+          });
+        }
         throw new Error(`Database error: ${insertError.message}`);
       }
 
       if (!feedback) {
         console.error('❌ No feedback data returned after insertion');
+        toast({
+          title: "Submission failed",
+          description: "Failed to save feedback. Please try again.",
+          variant: "destructive",
+        });
         throw new Error("Failed to save feedback - no data returned");
       }
 
@@ -118,17 +162,17 @@ export function useEnhancedFeedback() {
       
       console.log('📧 Preparing to send confirmation email to:', userEmail);
 
-      // Send confirmation email with detailed error handling
+      // Send confirmation email with enhanced error handling
       try {
         const emailPayload = {
           to: userEmail,
-          subject: feedbackData.category === 'contact' 
+          subject: originalCategory === 'contact' 
             ? `Thank you for contacting us${userName ? `, ${userName}` : ''}` 
-            : `Thank you for your ${feedbackData.category || 'feedback'}${userName ? `, ${userName}` : ''}`,
+            : `Thank you for your ${originalCategory || 'feedback'}${userName ? `, ${userName}` : ''}`,
           content: feedbackData.message,
           feedbackId: feedback.id,
           userName: userName || undefined,
-          category: feedbackData.category || 'general'
+          category: originalCategory || 'general'
         };
 
         console.log('📬 Email payload:', { ...emailPayload, content: '[CONTENT_HIDDEN]' });
@@ -139,19 +183,18 @@ export function useEnhancedFeedback() {
 
         if (emailError) {
           console.error('❌ Email sending failed:', emailError);
-          console.error('📧 Email error details:', emailError.message);
           
-          // Don't fail the whole operation for email errors
+          // Show success since feedback was saved, but mention email issue
           toast({
-            title: feedbackData.category === "contact" ? "Message sent!" : "Feedback submitted!",
-            description: "Your message was saved, but we couldn't send a confirmation email. We'll still respond to you.",
+            title: originalCategory === "contact" ? "Message sent!" : "Feedback submitted!",
+            description: "Your message was saved successfully. We'll respond to you soon.",
           });
         } else {
           console.log('✅ Confirmation email sent successfully:', emailResult);
           
           toast({
-            title: feedbackData.category === "contact" ? "Message sent successfully!" : "Feedback submitted successfully",
-            description: feedbackData.category === "contact" 
+            title: originalCategory === "contact" ? "Message sent successfully!" : "Feedback submitted successfully!",
+            description: originalCategory === "contact" 
               ? "Thank you for contacting us! We'll get back to you within 24 hours."
               : "Thank you for your feedback! We'll review it shortly.",
           });
@@ -161,7 +204,7 @@ export function useEnhancedFeedback() {
         
         // Still show success since feedback was saved
         toast({
-          title: feedbackData.category === "contact" ? "Message sent!" : "Feedback submitted!",
+          title: originalCategory === "contact" ? "Message sent!" : "Feedback submitted!",
           description: "Your message was saved successfully. We'll respond to you soon.",
         });
       }
@@ -176,7 +219,7 @@ export function useEnhancedFeedback() {
             body: {
               feedbackId: feedback.id,
               message: feedbackData.message,
-              category: feedbackData.category,
+              category: dbCategory,
               priority: feedbackData.priority,
               pageUrl: feedbackData.pageUrl,
               userAgent: feedbackData.userAgent,
@@ -201,17 +244,15 @@ export function useEnhancedFeedback() {
 
     } catch (error: any) {
       console.error("💥 Critical error in feedback submission:", error);
-      console.error("🔍 Error details:", {
-        name: error?.name,
-        message: error?.message,
-        stack: error?.stack
-      });
       
-      toast({
-        title: "Error sending message",
-        description: `Failed to submit your message: ${error.message || 'Unknown error'}. Please try again.`,
-        variant: "destructive",
-      });
+      // Only show toast if we haven't already shown one
+      if (!error.message.includes("Database error") && !error.message.includes("Message is required")) {
+        toast({
+          title: "Submission error",
+          description: `Failed to submit your message: ${error.message || 'Unknown error'}. Please try again.`,
+          variant: "destructive",
+        });
+      }
       throw error;
     } finally {
       setIsLoading(false);

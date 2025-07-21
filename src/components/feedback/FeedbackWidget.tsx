@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { MessageCircle, X, Send, CheckCircle2, Mail, Bug, Lightbulb, MessageSquare, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -15,7 +16,7 @@ interface FeedbackWidgetProps {
 export function FeedbackWidget({ className }: FeedbackWidgetProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [message, setMessage] = useState("");
-  const [category, setCategory] = useState<string>("contact");
+  const [category, setCategory] = useState<string>("general");
   const [priority, setPriority] = useState<string>("normal");
   const [isSubmitted, setIsSubmitted] = useState(false);
   
@@ -38,7 +39,7 @@ export function FeedbackWidget({ className }: FeedbackWidgetProps) {
       
       setIsSubmitted(true);
       setMessage("");
-      setCategory("contact");
+      setCategory("general");
       setPriority("normal");
       
       // Auto-close after success
@@ -118,9 +119,9 @@ export function FeedbackWidget({ className }: FeedbackWidgetProps) {
                   <div className="grid grid-cols-3 gap-2">
                     <Button
                       type="button"
-                      variant={category === "contact" ? "default" : "outline"}
+                      variant={category === "general" ? "default" : "outline"}
                       size="sm"
-                      onClick={() => setCategory("contact")}
+                      onClick={() => setCategory("general")}
                       className="flex flex-col items-center gap-1 h-auto py-3"
                     >
                       <Mail className="h-4 w-4" />
@@ -156,7 +157,7 @@ export function FeedbackWidget({ className }: FeedbackWidgetProps) {
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="contact">
+                          <SelectItem value="general">
                             <div className="flex items-center gap-2">
                               <Mail className="h-4 w-4" />
                               Contact Us
@@ -175,7 +176,6 @@ export function FeedbackWidget({ className }: FeedbackWidgetProps) {
                             </div>
                           </SelectItem>
                           <SelectItem value="ui">UI/UX Feedback</SelectItem>
-                          <SelectItem value="general">General</SelectItem>
                           <SelectItem value="other">Other</SelectItem>
                         </SelectContent>
                       </Select>
@@ -220,7 +220,7 @@ export function FeedbackWidget({ className }: FeedbackWidgetProps) {
                   <div className="space-y-2">
                     <label className="text-sm font-medium">
                       Your Message *
-                      {category === "contact" && (
+                      {category === "general" && (
                         <span className="text-xs text-muted-foreground ml-2">
                           (We'll respond via email)
                         </span>
@@ -230,7 +230,7 @@ export function FeedbackWidget({ className }: FeedbackWidgetProps) {
                       value={message}
                       onChange={(e) => setMessage(e.target.value)}
                       placeholder={
-                        category === "contact" 
+                        category === "general" 
                           ? "How can we help you today? We'll get back to you soon..." 
                           : category === "bug"
                           ? "Describe the issue you encountered. Include steps to reproduce if possible..."
@@ -243,7 +243,7 @@ export function FeedbackWidget({ className }: FeedbackWidgetProps) {
                       required
                     />
                     <p className="text-xs text-muted-foreground">
-                      {category === "contact" 
+                      {category === "general" 
                         ? "Our team will respond to your message within 24 hours."
                         : "Be specific and detailed to help us understand better."
                       }
@@ -273,7 +273,7 @@ export function FeedbackWidget({ className }: FeedbackWidgetProps) {
                       ) : (
                         <>
                           <Send className="h-4 w-4 mr-2" />
-                          {category === "contact" ? "Send Message" : "Send Feedback"}
+                          {category === "general" ? "Send Message" : "Send Feedback"}
                         </>
                       )}
                     </Button>
