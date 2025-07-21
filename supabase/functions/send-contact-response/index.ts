@@ -16,18 +16,32 @@ interface ContactResponseData {
 }
 
 serve(async (req: Request) => {
+  console.log('🚀 Contact response function invoked');
+  
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
+    console.log('✅ Handling CORS preflight request');
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { to, subject, content, feedbackId, userName, category }: ContactResponseData = await req.json();
+    const requestBody = await req.json();
+    console.log('📝 Request body received:', { ...requestBody, content: '[HIDDEN]' });
+    
+    const { to, subject, content, feedbackId, userName, category }: ContactResponseData = requestBody;
+    
+    if (!to || !subject || !content) {
+      console.error('❌ Missing required fields:', { to: !!to, subject: !!subject, content: !!content });
+      throw new Error('Missing required fields: to, subject, or content');
+    }
     
     const brevoApiKey = Deno.env.get('BREVO_API_KEY');
     if (!brevoApiKey) {
+      console.error('❌ BREVO_API_KEY not configured');
       throw new Error('BREVO_API_KEY not configured');
     }
+
+    console.log('📧 Preparing email for category:', category);
 
     // Create email content based on category
     let emailHtml = '';
@@ -72,11 +86,11 @@ serve(async (req: Request) => {
       `;
     } else {
       // For other categories (bug, feature, etc.)
-      emailSubject = `Thank you for your feedback${userName ? `, ${userName}` : ''}`;
+      emailSubject = `Thank you for your ${category || 'feedback'}${userName ? `, ${userName}` : ''}`;
       emailHtml = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <div style="background-color: #f8f9fa; padding: 20px; text-align: center;">
-            <h1 style="color: #333; margin: 0;">Thank You for Your Feedback!</h1>
+            <h1 style="color: #333; margin: 0;">Thank You for Your ${category ? category.charAt(0).toUpperCase() + category.slice(1) : 'Feedback'}!</h1>
           </div>
           
           <div style="padding: 30px; background-color: white;">
@@ -85,7 +99,7 @@ serve(async (req: Request) => {
             </p>
             
             <p style="font-size: 16px; line-height: 1.6; color: #333;">
-              Thank you for your valuable feedback! Your ${category || 'feedback'} has been received and is being reviewed by our team.
+              Thank you for your valuable ${category || 'feedback'}! Your submission has been received and is being reviewed by our team.
             </p>
             
             <div style="background-color: #f8f9fa; padding: 20px; border-left: 4px solid #28a745; margin: 20px 0;">
@@ -94,7 +108,7 @@ serve(async (req: Request) => {
             </div>
             
             <p style="font-size: 16px; line-height: 1.6; color: #333;">
-              We take all feedback seriously and use it to improve our platform. If your feedback requires a response, we'll get back to you soon.
+              We take all ${category || 'feedback'} seriously and use it to improve our platform. If your ${category || 'feedback'} requires a response, we'll get back to you soon.
             </p>
             
             <p style="font-size: 16px; line-height: 1.6; color: #333;">
@@ -103,12 +117,14 @@ serve(async (req: Request) => {
             </p>
           </div>
           
-          <div style="background-color: #f8f9fa; padding: 15px; text-center; font-size: 14px; color: #666;">
+          <div style="background-color: #f8f9fa; padding: 15px; text-align: center; font-size: 14px; color: #666;">
             <p style="margin: 0;">This is an automated response. Please do not reply to this email.</p>
           </div>
         </div>
       `;
     }
+
+    console.log('📬 Sending email via Brevo API...');
 
     // Send email using Brevo API
     const emailResponse = await fetch('https://api.brevo.com/v3/smtp/email', {
@@ -132,17 +148,19 @@ serve(async (req: Request) => {
 
     if (!emailResponse.ok) {
       const errorData = await emailResponse.text();
-      console.error('Brevo API error:', errorData);
-      throw new Error(`Failed to send email: ${emailResponse.statusText}`);
+      console.error('❌ Brevo API error response:', errorData);
+      console.error('❌ Brevo API status:', emailResponse.status, emailResponse.statusText);
+      throw new Error(`Failed to send email via Brevo: ${emailResponse.statusText} - ${errorData}`);
     }
 
     const result = await emailResponse.json();
-    console.log('Email sent successfully via Brevo:', result);
+    console.log('✅ Email sent successfully via Brevo:', result);
 
     return new Response(JSON.stringify({ 
       success: true, 
       messageId: result.messageId,
-      feedbackId 
+      feedbackId,
+      emailSent: true
     }), {
       status: 200,
       headers: {
@@ -152,11 +170,14 @@ serve(async (req: Request) => {
     });
 
   } catch (error: any) {
-    console.error('Error in send-contact-response function:', error);
+    console.error('💥 Critical error in send-contact-response function:', error);
+    console.error('🔍 Error stack:', error.stack);
+    
     return new Response(
       JSON.stringify({ 
-        error: error.message,
-        success: false 
+        error: error.message || 'Unknown error occurred',
+        success: false,
+        details: error.stack || 'No stack trace available'
       }),
       {
         status: 500,

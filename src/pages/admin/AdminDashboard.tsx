@@ -18,34 +18,7 @@ const AdminDashboard = () => {
   const { data: activities = [], isLoading: isLoadingActivities } = useRecentActivities();
   const isMobile = useIsMobile();
 
-  const renderSkeleton = () => (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4">
-      {[1, 2, 3, 4].map((_, i) => (
-        <Card key={i} className="p-3 md:p-4">
-          <CardHeader className="p-0 pb-2">
-            <CardDescription className="h-3 w-16 bg-muted rounded animate-pulse"></CardDescription>
-            <CardTitle className="h-5 w-20 bg-muted rounded animate-pulse mt-1"></CardTitle>
-          </CardHeader>
-          <CardContent className="p-0 pt-2">
-            <div className="h-3 w-24 bg-muted rounded animate-pulse"></div>
-          </CardContent>
-        </Card>
-      ))}
-    </div>
-  );
-
-  const renderActivitySkeleton = () => (
-    <div className="space-y-3">
-      {[1, 2, 3, 4].map((_, i) => (
-        <div key={i} className="border-l-4 border-muted pl-3 py-1">
-          <div className="h-3 w-3/4 bg-muted rounded animate-pulse"></div>
-          <div className="h-2 w-1/3 bg-muted rounded animate-pulse mt-1"></div>
-        </div>
-      ))}
-    </div>
-  );
-
-  // Mobile Layout
+  // Mobile Layout - Use dedicated mobile component with full functionality
   if (isMobile) {
     return <MobileDashboardTabs />;
   }
@@ -189,6 +162,37 @@ const AdminDashboard = () => {
       </Tabs>
     </div>
   );
+
+  function renderSkeleton() {
+    return (
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4">
+        {[1, 2, 3, 4].map((_, i) => (
+          <Card key={i} className="p-3 md:p-4">
+            <CardHeader className="p-0 pb-2">
+              <CardDescription className="h-3 w-16 bg-muted rounded animate-pulse"></CardDescription>
+              <CardTitle className="h-5 w-20 bg-muted rounded animate-pulse mt-1"></CardTitle>
+            </CardHeader>
+            <CardContent className="p-0 pt-2">
+              <div className="h-3 w-24 bg-muted rounded animate-pulse"></div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    )
+  }
+
+  function renderActivitySkeleton() {
+    return (
+      <div className="space-y-3">
+        {[1, 2, 3, 4].map((_, i) => (
+          <div key={i} className="border-l-4 border-muted pl-3 py-1">
+            <div className="h-3 w-3/4 bg-muted rounded animate-pulse"></div>
+            <div className="h-2 w-1/3 bg-muted rounded animate-pulse mt-1"></div>
+          </div>
+        ))}
+      </div>
+    )
+  }
 };
 
 export default AdminDashboard;

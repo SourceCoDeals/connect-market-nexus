@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
@@ -46,80 +47,129 @@ export function useEnhancedFeedback() {
   const { toast } = useToast();
 
   const submitFeedback = async (feedbackData: EnhancedFeedbackData) => {
+    console.log('🚀 Starting feedback submission:', { 
+      category: feedbackData.category, 
+      messageLength: feedbackData.message?.length,
+      userExists: !!user 
+    });
+
     if (!user) {
+      console.error('❌ No authenticated user found');
+      toast({
+        title: "Authentication required",
+        description: "You must be logged in to submit feedback.",
+        variant: "destructive",
+      });
       throw new Error("User must be authenticated to submit feedback");
     }
 
     setIsLoading(true);
     
     try {
-      // Insert feedback into database
+      console.log('📝 Inserting feedback into database...');
+      
+      // Insert feedback into database with comprehensive logging
+      const feedbackPayload = {
+        user_id: user.id,
+        message: feedbackData.message?.trim(),
+        category: feedbackData.category || "general",
+        priority: feedbackData.priority || "normal",
+        page_url: feedbackData.pageUrl || window?.location?.href,
+        user_agent: feedbackData.userAgent || navigator?.userAgent,
+        status: "unread",
+        thread_id: feedbackData.threadId || undefined,
+        parent_message_id: feedbackData.parentMessageId || undefined,
+      };
+
+      console.log('📊 Feedback payload:', feedbackPayload);
+
       const { data: feedback, error: insertError } = await supabase
         .from("feedback_messages")
-        .insert({
-          user_id: user.id,
-          message: feedbackData.message,
-          category: feedbackData.category || "general",
-          priority: feedbackData.priority || "normal",
-          page_url: feedbackData.pageUrl,
-          user_agent: feedbackData.userAgent,
-          status: "unread",
-          thread_id: feedbackData.threadId,
-          parent_message_id: feedbackData.parentMessageId,
-        })
+        .insert(feedbackPayload)
         .select()
         .single();
 
-      if (insertError) throw insertError;
+      if (insertError) {
+        console.error('❌ Database insertion failed:', insertError);
+        throw new Error(`Database error: ${insertError.message}`);
+      }
 
-      console.log('Feedback saved successfully:', feedback);
+      if (!feedback) {
+        console.error('❌ No feedback data returned after insertion');
+        throw new Error("Failed to save feedback - no data returned");
+      }
 
-      // Send automatic response email to user for all feedback types
+      console.log('✅ Feedback saved successfully:', feedback.id);
+
+      // Get user profile for personalized email
+      console.log('👤 Fetching user profile for email...');
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('first_name, last_name, email')
+        .eq('id', user.id)
+        .single();
+
+      if (profileError) {
+        console.warn('⚠️ Could not fetch user profile:', profileError);
+      }
+
+      const userName = profile ? `${profile.first_name} ${profile.last_name}`.trim() : '';
+      const userEmail = profile?.email || user.email;
+      
+      console.log('📧 Preparing to send confirmation email to:', userEmail);
+
+      // Send confirmation email with detailed error handling
       try {
-        console.log('Sending confirmation response email...');
-        
-        // Get user profile for name
-        const { data: profile, error: profileError } = await supabase
-          .from('profiles')
-          .select('first_name, last_name, email')
-          .eq('id', user.id)
-          .single();
+        const emailPayload = {
+          to: userEmail,
+          subject: feedbackData.category === 'contact' 
+            ? `Thank you for contacting us${userName ? `, ${userName}` : ''}` 
+            : `Thank you for your ${feedbackData.category || 'feedback'}${userName ? `, ${userName}` : ''}`,
+          content: feedbackData.message,
+          feedbackId: feedback.id,
+          userName: userName || undefined,
+          category: feedbackData.category || 'general'
+        };
 
-        if (profileError) {
-          console.warn('Could not fetch user profile for email:', profileError);
-        }
+        console.log('📬 Email payload:', { ...emailPayload, content: '[CONTENT_HIDDEN]' });
 
-        const userName = profile ? `${profile.first_name} ${profile.last_name}`.trim() : '';
-        const userEmail = profile?.email || user.email;
-        
-        // Always send confirmation email regardless of category
         const { data: emailResult, error: emailError } = await supabase.functions.invoke('send-contact-response', {
-          body: {
-            to: userEmail,
-            subject: feedbackData.category === 'contact' 
-              ? `Thank you for contacting us${userName ? `, ${userName}` : ''}` 
-              : `Thank you for your ${feedbackData.category || 'feedback'}${userName ? `, ${userName}` : ''}`,
-            content: feedbackData.message,
-            feedbackId: feedback.id,
-            userName: userName || undefined,
-            category: feedbackData.category || 'general'
-          }
+          body: emailPayload
         });
 
         if (emailError) {
-          console.error('Email sending failed:', emailError);
-          console.error('Email error details:', emailError.message || emailError);
-          // Don't throw - feedback was saved successfully
+          console.error('❌ Email sending failed:', emailError);
+          console.error('📧 Email error details:', emailError.message);
+          
+          // Don't fail the whole operation for email errors
+          toast({
+            title: feedbackData.category === "contact" ? "Message sent!" : "Feedback submitted!",
+            description: "Your message was saved, but we couldn't send a confirmation email. We'll still respond to you.",
+          });
         } else {
-          console.log('Confirmation response email sent successfully:', emailResult);
+          console.log('✅ Confirmation email sent successfully:', emailResult);
+          
+          toast({
+            title: feedbackData.category === "contact" ? "Message sent successfully!" : "Feedback submitted successfully",
+            description: feedbackData.category === "contact" 
+              ? "Thank you for contacting us! We'll get back to you within 24 hours."
+              : "Thank you for your feedback! We'll review it shortly.",
+          });
         }
       } catch (emailError) {
-        console.warn('Failed to send confirmation response email:', emailError);
-        // Don't fail the whole operation
+        console.warn('⚠️ Email delivery attempt failed:', emailError);
+        
+        // Still show success since feedback was saved
+        toast({
+          title: feedbackData.category === "contact" ? "Message sent!" : "Feedback submitted!",
+          description: "Your message was saved successfully. We'll respond to you soon.",
+        });
       }
 
-      // Try to send admin notification, but don't fail if it errors
+      // Try to send admin notification (optional)
       try {
+        console.log('🔔 Sending admin notification...');
+        
         const { error: notificationError } = await supabase.functions.invoke(
           "send-feedback-notification",
           {
@@ -132,32 +182,34 @@ export function useEnhancedFeedback() {
               userAgent: feedbackData.userAgent,
               userId: user.id,
               userEmail: user.email,
-              userName: user.email,
+              userName: userName || user.email,
             },
           }
         );
 
         if (notificationError) {
-          console.warn("Admin notification failed but feedback was saved:", notificationError);
+          console.warn("⚠️ Admin notification failed (non-critical):", notificationError);
+        } else {
+          console.log('✅ Admin notification sent');
         }
       } catch (notificationError) {
-        console.warn("Failed to send admin notification:", notificationError);
-        // Continue - feedback was saved successfully
+        console.warn("⚠️ Admin notification attempt failed (non-critical):", notificationError);
       }
 
-      toast({
-        title: feedbackData.category === "contact" ? "Message sent successfully!" : "Feedback submitted successfully",
-        description: feedbackData.category === "contact" 
-          ? "Thank you for contacting us! We'll get back to you within 24 hours."
-          : "Thank you for your feedback! We'll review it shortly.",
-      });
-
+      console.log('🎉 Feedback submission completed successfully');
       return feedback;
-    } catch (error) {
-      console.error("Error submitting feedback:", error);
+
+    } catch (error: any) {
+      console.error("💥 Critical error in feedback submission:", error);
+      console.error("🔍 Error details:", {
+        name: error?.name,
+        message: error?.message,
+        stack: error?.stack
+      });
+      
       toast({
         title: "Error sending message",
-        description: "Something went wrong. Please try again.",
+        description: `Failed to submit your message: ${error.message || 'Unknown error'}. Please try again.`,
         variant: "destructive",
       });
       throw error;
@@ -168,20 +220,28 @@ export function useEnhancedFeedback() {
 
   const getFeedbackWithUserDetails = async (): Promise<FeedbackMessageWithUser[]> => {
     try {
+      console.log('📊 Fetching feedback with user details...');
+      
       // Get feedback messages first
       const { data: messages, error: messagesError } = await supabase
         .from("feedback_messages")
         .select("*")
         .order("created_at", { ascending: false });
 
-      if (messagesError) throw messagesError;
+      if (messagesError) {
+        console.error('❌ Error fetching feedback messages:', messagesError);
+        throw messagesError;
+      }
 
       // Get user profiles
       const { data: profiles, error: profilesError } = await supabase
         .from("profiles")
         .select("id, email, first_name, last_name, company, phone_number");
 
-      if (profilesError) throw profilesError;
+      if (profilesError) {
+        console.error('❌ Error fetching profiles:', profilesError);
+        throw profilesError;
+      }
 
       // Combine data
       const result = (messages || []).map(msg => {
@@ -203,9 +263,10 @@ export function useEnhancedFeedback() {
         };
       });
 
+      console.log('✅ Successfully fetched feedback with user details:', result.length);
       return result as FeedbackMessageWithUser[];
     } catch (error) {
-      console.error("Error fetching feedback with user details:", error);
+      console.error("❌ Error fetching feedback with user details:", error);
       return [];
     }
   };

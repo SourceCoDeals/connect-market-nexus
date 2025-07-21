@@ -10,24 +10,69 @@ import { EnhancedFeedbackManagement } from './EnhancedFeedbackManagement';
 import { MobileUsersTable } from './MobileUsersTable';
 import { MobileConnectionRequests } from './MobileConnectionRequests';
 import { useAdmin } from '@/hooks/use-admin';
+import { useAdminUsers } from '@/hooks/admin/use-admin-users';
+import { useAdminRequests } from '@/hooks/admin/use-admin-requests';
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
+import { toast } from "@/hooks/use-toast";
 
 export function MobileDashboardTabs() {
   const { 
     useStats, 
     useRecentActivities, 
-    users, 
-    useConnectionRequests, 
-    useConnectionRequestsMutation,
-    sendConnectionApprovalEmail,
-    sendConnectionRejectionEmail 
   } = useAdmin();
+  
+  const { 
+    useUsers,
+    useUpdateUserStatus,
+    useUpdateAdminStatus,
+    useDeleteUser
+  } = useAdminUsers();
+  
+  const {
+    useConnectionRequests,
+    useConnectionRequestsMutation
+  } = useAdminRequests();
+  
   const { data: stats, isLoading: isLoadingStats } = useStats();
   const { data: activities = [], isLoading: isLoadingActivities } = useRecentActivities();
-  const { data: usersData = [], isLoading: isUsersLoading, refetch: refetchUsers } = users;
+  const { data: usersData = [], isLoading: isUsersLoading } = useUsers();
   const { data: requests = [], isLoading: isRequestsLoading } = useConnectionRequests();
-  const { mutate: updateRequest, isPending: isUpdating } = useConnectionRequestsMutation();
+  
+  const updateUserStatus = useUpdateUserStatus();
+  const updateAdminStatus = useUpdateAdminStatus();
+  const deleteUser = useDeleteUser();
+  const updateRequest = useConnectionRequestsMutation();
+
+  const handleApproveUser = (user: any) => {
+    updateUserStatus.mutate({ userId: user.id, status: 'approved' });
+  };
+
+  const handleRejectUser = (user: any) => {
+    updateUserStatus.mutate({ userId: user.id, status: 'rejected' });
+  };
+
+  const handleMakeAdmin = (user: any) => {
+    updateAdminStatus.mutate({ userId: user.id, isAdmin: true });
+  };
+
+  const handleRevokeAdmin = (user: any) => {
+    updateAdminStatus.mutate({ userId: user.id, isAdmin: false });
+  };
+
+  const handleDeleteUser = (user: any) => {
+    if (window.confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
+      deleteUser.mutate(user.id);
+    }
+  };
+
+  const handleApproveRequest = (request: any) => {
+    updateRequest.mutate({ requestId: request.id, status: 'approved' });
+  };
+
+  const handleRejectRequest = (request: any) => {
+    updateRequest.mutate({ requestId: request.id, status: 'rejected' });
+  };
 
   const renderSkeleton = () => (
     <div className="grid grid-cols-2 gap-3">
@@ -196,12 +241,12 @@ export function MobileDashboardTabs() {
               </div>
               <MobileUsersTable 
                 users={usersData}
-                onApprove={() => {}}
-                onReject={() => {}}
-                onMakeAdmin={() => {}}
-                onRevokeAdmin={() => {}}
-                onDelete={() => {}}
-                isLoading={isUsersLoading}
+                onApprove={handleApproveUser}
+                onReject={handleRejectUser}
+                onMakeAdmin={handleMakeAdmin}
+                onRevokeAdmin={handleRevokeAdmin}
+                onDelete={handleDeleteUser}
+                isLoading={isUsersLoading || updateUserStatus.isPending || updateAdminStatus.isPending || deleteUser.isPending}
               />
             </div>
           </TabsContent>
@@ -213,9 +258,9 @@ export function MobileDashboardTabs() {
               </div>
               <MobileConnectionRequests 
                 requests={requests}
-                onApprove={(request) => updateRequest({ requestId: request.id, status: 'approved' })}
-                onReject={(request) => updateRequest({ requestId: request.id, status: 'rejected' })}
-                isLoading={isUpdating}
+                onApprove={handleApproveRequest}
+                onReject={handleRejectRequest}
+                isLoading={isRequestsLoading || updateRequest.isPending}
               />
             </div>
           </TabsContent>
