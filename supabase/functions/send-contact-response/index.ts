@@ -48,42 +48,21 @@ serve(async (req: Request) => {
     let emailSubject = subject;
 
     if (category === 'contact') {
-      emailSubject = `Thank you for contacting us${userName ? `, ${userName}` : ''}`;
-      emailHtml = `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <div style="background-color: #f8f9fa; padding: 20px; text-align: center;">
-            <h1 style="color: #333; margin: 0;">Thank You for Contacting Us!</h1>
-          </div>
-          
-          <div style="padding: 30px; background-color: white;">
-            <p style="font-size: 16px; line-height: 1.6; color: #333;">
-              Hello${userName ? ` ${userName}` : ''},
-            </p>
-            
-            <p style="font-size: 16px; line-height: 1.6; color: #333;">
-              Thank you for reaching out to us! We have received your message and our team will get back to you within 24 hours.
-            </p>
-            
-            <div style="background-color: #f8f9fa; padding: 20px; border-left: 4px solid #007bff; margin: 20px 0;">
-              <h3 style="margin: 0 0 10px 0; color: #333;">Your Message:</h3>
-              <p style="margin: 0; color: #666; font-style: italic;">${content}</p>
-            </div>
-            
-            <p style="font-size: 16px; line-height: 1.6; color: #333;">
-              In the meantime, feel free to explore our marketplace and discover great business opportunities.
-            </p>
-            
-            <p style="font-size: 16px; line-height: 1.6; color: #333;">
-              Best regards,<br>
-              <strong>The SourcecodeAls Team</strong>
-            </p>
-          </div>
-          
-          <div style="background-color: #f8f9fa; padding: 15px; text-align: center; font-size: 14px; color: #666;">
-            <p style="margin: 0;">This is an automated response. Please do not reply to this email.</p>
-          </div>
-        </div>
-      `;
+      emailSubject = `Thank you for your message${userName ? `, ${userName}` : ''}`;
+      emailHtml = `Hello${userName ? ` ${userName}` : ''},
+
+Thank you for reaching out to us! We have received your message and our team will get back to you within 24 hours.
+
+Your message:
+"${content}"
+
+In the meantime, feel free to explore our marketplace and discover great business opportunities.
+
+Best regards,
+The SourcecodeAls Team
+
+---
+This is an automated response. Please do not reply to this email.`;
     } else {
       // Create contextual emails for different categories
       const getEmailContent = (category: string) => {
@@ -131,41 +110,20 @@ serve(async (req: Request) => {
       const emailContent = getEmailContent(category || 'general');
       emailSubject = emailContent.subject;
       
-      emailHtml = `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <div style="background-color: ${emailContent.backgroundColor}; padding: 20px; text-align: center;">
-            <h1 style="color: #333; margin: 0;">${emailContent.title}</h1>
-          </div>
-          
-          <div style="padding: 30px; background-color: white;">
-            <p style="font-size: 16px; line-height: 1.6; color: #333;">
-              Hello${userName ? ` ${userName}` : ''},
-            </p>
-            
-            <p style="font-size: 16px; line-height: 1.6; color: #333;">
-              ${emailContent.mainText}
-            </p>
-            
-            <div style="background-color: #f8f9fa; padding: 20px; border-left: 4px solid ${emailContent.borderColor}; margin: 20px 0;">
-              <h3 style="margin: 0 0 10px 0; color: #333;">Your ${category || 'feedback'}:</h3>
-              <p style="margin: 0; color: #666; font-style: italic;">${content}</p>
-            </div>
-            
-            <p style="font-size: 16px; line-height: 1.6; color: #333;">
-              ${emailContent.followUpText}
-            </p>
-            
-            <p style="font-size: 16px; line-height: 1.6; color: #333;">
-              Best regards,<br>
-              <strong>The SourcecodeAls Team</strong>
-            </p>
-          </div>
-          
-          <div style="background-color: #f8f9fa; padding: 15px; text-align: center; font-size: 14px; color: #666;">
-            <p style="margin: 0;">This is an automated response. Please do not reply to this email.</p>
-          </div>
-        </div>
-      `;
+      emailHtml = `Hello${userName ? ` ${userName}` : ''},
+
+${emailContent.mainText}
+
+Your ${category || 'feedback'}:
+"${content}"
+
+${emailContent.followUpText}
+
+Best regards,
+The SourcecodeAls Team
+
+---
+This is an automated response. Please do not reply to this email.`;
     }
 
     console.log('📬 Sending email via Brevo API...');
@@ -185,7 +143,7 @@ serve(async (req: Request) => {
           name: 'SourcecodeAls Team' 
         },
         subject: emailSubject,
-        htmlContent: emailHtml,
+        textContent: emailHtml,
         tags: ['contact-response', category || 'feedback'],
       }),
     });

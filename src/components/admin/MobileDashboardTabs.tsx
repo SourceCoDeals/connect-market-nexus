@@ -2,7 +2,7 @@
 import React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { BarChart, Shield, Activity, MessageSquare, LayoutDashboard, Users, Store, RefreshCw } from 'lucide-react';
+import { BarChart, Shield, Activity, MessageSquare, LayoutDashboard, Users, Store, RefreshCw, TrendingUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { AdvancedAnalyticsDashboard } from './AdvancedAnalyticsDashboard';
@@ -316,17 +316,92 @@ export function MobileDashboardTabs() {
             </TabsContent>
 
             <TabsContent value="analytics" className="mt-0 space-y-4">
-              <div className="space-y-4">
-                <Card className="p-4">
-                  <CardHeader className="p-0 pb-4">
-                    <CardTitle className="text-lg">Advanced Analytics</CardTitle>
-                    <CardDescription className="text-sm">Comprehensive marketplace analytics and insights</CardDescription>
-                  </CardHeader>
-                  <CardContent className="p-0">
-                    <AdvancedAnalyticsDashboard />
-                  </CardContent>
-                </Card>
-              </div>
+              <Tabs defaultValue="overview" className="w-full">
+                <TabsList className="grid w-full grid-cols-3 h-12 mb-4 bg-muted/50">
+                  <TabsTrigger value="overview" className="text-xs py-2">
+                    <div className="flex flex-col items-center gap-1">
+                      <BarChart className="h-3 w-3" />
+                      <span>Overview</span>
+                    </div>
+                  </TabsTrigger>
+                  <TabsTrigger value="live" className="text-xs py-2">
+                    <div className="flex flex-col items-center gap-1">
+                      <Activity className="h-3 w-3" />
+                      <span>Live</span>
+                    </div>
+                  </TabsTrigger>
+                  <TabsTrigger value="advanced" className="text-xs py-2">
+                    <div className="flex flex-col items-center gap-1">
+                      <TrendingUp className="h-3 w-3" />
+                      <span>Advanced</span>
+                    </div>
+                  </TabsTrigger>
+                </TabsList>
+
+                <div className="space-y-4">
+                  <TabsContent value="overview" className="mt-0">
+                    <Card className="p-4">
+                      <CardHeader className="p-0 pb-4">
+                        <CardTitle className="text-lg">Analytics Overview</CardTitle>
+                        <CardDescription className="text-sm">Key marketplace metrics and insights</CardDescription>
+                      </CardHeader>
+                      <CardContent className="p-0">
+                        <div className="grid grid-cols-2 gap-3 mb-6">
+                          <Card className="p-3 bg-gradient-to-br from-blue-50 to-blue-100/50 border-blue-200">
+                            <div className="text-lg font-bold text-blue-900">{stats?.totalListings || 0}</div>
+                            <p className="text-xs text-blue-700">Total Listings</p>
+                          </Card>
+                          <Card className="p-3 bg-gradient-to-br from-green-50 to-green-100/50 border-green-200">
+                            <div className="text-lg font-bold text-green-900">{stats?.totalUsers || 0}</div>
+                            <p className="text-xs text-green-700">Active Users</p>
+                          </Card>
+                          <Card className="p-3 bg-gradient-to-br from-purple-50 to-purple-100/50 border-purple-200">
+                            <div className="text-lg font-bold text-purple-900">{stats?.pendingConnections || 0}</div>
+                            <p className="text-xs text-purple-700">Connections</p>
+                          </Card>
+                          <Card className="p-3 bg-gradient-to-br from-orange-50 to-orange-100/50 border-orange-200">
+                            <div className="text-lg font-bold text-orange-900">175</div>
+                            <p className="text-xs text-orange-700">Page Views</p>
+                          </Card>
+                        </div>
+                        
+                        <div className="space-y-3">
+                          <h4 className="font-semibold text-sm">Search Activity</h4>
+                          <div className="text-center py-6 text-muted-foreground">
+                            <div className="mb-2">🔍</div>
+                            <p className="text-xs">Search analytics will appear here</p>
+                            <p className="text-xs text-muted-foreground/70">Data is collected from search functionality</p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
+
+                  <TabsContent value="live" className="mt-0">
+                    <Card className="p-4">
+                      <CardHeader className="p-0 pb-4">
+                        <CardTitle className="text-lg">Live Activity</CardTitle>
+                        <CardDescription className="text-sm">Real-time user activity and engagement</CardDescription>
+                      </CardHeader>
+                      <CardContent className="p-0">
+                        <UserActivityFeed />
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
+
+                  <TabsContent value="advanced" className="mt-0">
+                    <Card className="p-4">
+                      <CardHeader className="p-0 pb-4">
+                        <CardTitle className="text-lg">Advanced Analytics</CardTitle>
+                        <CardDescription className="text-sm">Detailed analytics and reporting</CardDescription>
+                      </CardHeader>
+                      <CardContent className="p-0">
+                        <AdvancedAnalyticsDashboard />
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
+                </div>
+              </Tabs>
             </TabsContent>
 
             <TabsContent value="health" className="mt-0 space-y-4">
