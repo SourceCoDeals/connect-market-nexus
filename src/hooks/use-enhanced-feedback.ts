@@ -5,7 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 
 export interface EnhancedFeedbackData {
   message: string;
-  category?: "general" | "bug" | "feature" | "ui" | "other";
+  category?: "contact" | "general" | "bug" | "feature" | "ui" | "other";
   priority?: "low" | "normal" | "high" | "urgent";
   pageUrl?: string;
   userAgent?: string;
