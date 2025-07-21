@@ -143,13 +143,13 @@ export function useEnhancedFeedback() {
           user_last_name: profile?.last_name || '',
           user_company: profile?.company || '',
           user_phone_number: profile?.phone_number || '',
-          attachments: msg.attachments || [],
-          read_by_user: msg.read_by_user || false,
-          read_by_admin: msg.read_by_admin || false,
-          is_internal_note: msg.is_internal_note || false,
-          thread_id: msg.thread_id || msg.id,
-          parent_message_id: msg.parent_message_id || null,
-          satisfaction_rating: msg.satisfaction_rating || null,
+          attachments: (msg as any).attachments || [],
+          read_by_user: (msg as any).read_by_user || false,
+          read_by_admin: (msg as any).read_by_admin || false,
+          is_internal_note: (msg as any).is_internal_note || false,
+          thread_id: (msg as any).thread_id || msg.id,
+          parent_message_id: (msg as any).parent_message_id || null,
+          satisfaction_rating: (msg as any).satisfaction_rating || null,
         };
       });
 
