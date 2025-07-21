@@ -4,7 +4,7 @@ import { EnhancedFeedbackManagement } from './EnhancedFeedbackManagement';
 import { AdvancedAnalyticsDashboard } from './AdvancedAnalyticsDashboard';
 import { EmailTemplateManager } from './EmailTemplateManager';
 import { UserActivityFeed } from './UserActivityFeed';
-import { AnalyticsHealthDashboard } from './AnalyticsHealthDashboard';
+import { EnhancedAnalyticsHealthDashboard } from './EnhancedAnalyticsHealthDashboard';
 
 export function EnhancedAdminDashboard() {
   return (
@@ -28,7 +28,7 @@ export function EnhancedAdminDashboard() {
         </TabsContent>
 
         <TabsContent value="health" className="space-y-4">
-          <AnalyticsHealthDashboard />
+          <EnhancedAnalyticsHealthDashboard />
         </TabsContent>
 
         <TabsContent value="activity" className="space-y-4">
