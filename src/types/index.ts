@@ -35,6 +35,14 @@ export interface User {
   needs_loan?: string;
   ideal_target?: string;
   bio?: string;
+  // New buyer profile fields
+  linkedin_profile?: string;
+  ideal_target_description?: string;
+  business_categories?: string[];
+  target_locations?: string;
+  revenue_range_min?: number;
+  revenue_range_max?: number;
+  specific_business_search?: string;
   
   // Computed properties (aliases for snake_case properties)
   readonly firstName: string;

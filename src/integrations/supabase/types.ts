@@ -597,6 +597,7 @@ export type Database = {
           approval_status: string
           aum: string | null
           bio: string | null
+          business_categories: Json | null
           buyer_type: string | null
           company: string | null
           company_name: string | null
@@ -611,13 +612,19 @@ export type Database = {
           funding_source: string | null
           id: string
           ideal_target: string | null
+          ideal_target_description: string | null
           investment_size: string | null
           is_admin: boolean | null
           is_funded: string | null
           last_name: string
+          linkedin_profile: string | null
           needs_loan: string | null
           phone_number: string | null
+          revenue_range_max: number | null
+          revenue_range_min: number | null
+          specific_business_search: string | null
           target_company_size: string | null
+          target_locations: string | null
           updated_at: string
           website: string | null
         }
@@ -625,6 +632,7 @@ export type Database = {
           approval_status?: string
           aum?: string | null
           bio?: string | null
+          business_categories?: Json | null
           buyer_type?: string | null
           company?: string | null
           company_name?: string | null
@@ -639,13 +647,19 @@ export type Database = {
           funding_source?: string | null
           id: string
           ideal_target?: string | null
+          ideal_target_description?: string | null
           investment_size?: string | null
           is_admin?: boolean | null
           is_funded?: string | null
           last_name: string
+          linkedin_profile?: string | null
           needs_loan?: string | null
           phone_number?: string | null
+          revenue_range_max?: number | null
+          revenue_range_min?: number | null
+          specific_business_search?: string | null
           target_company_size?: string | null
+          target_locations?: string | null
           updated_at?: string
           website?: string | null
         }
@@ -653,6 +667,7 @@ export type Database = {
           approval_status?: string
           aum?: string | null
           bio?: string | null
+          business_categories?: Json | null
           buyer_type?: string | null
           company?: string | null
           company_name?: string | null
@@ -667,13 +682,19 @@ export type Database = {
           funding_source?: string | null
           id?: string
           ideal_target?: string | null
+          ideal_target_description?: string | null
           investment_size?: string | null
           is_admin?: boolean | null
           is_funded?: string | null
           last_name?: string
+          linkedin_profile?: string | null
           needs_loan?: string | null
           phone_number?: string | null
+          revenue_range_max?: number | null
+          revenue_range_min?: number | null
+          specific_business_search?: string | null
           target_company_size?: string | null
+          target_locations?: string | null
           updated_at?: string
           website?: string | null
         }

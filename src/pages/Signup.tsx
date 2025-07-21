@@ -9,11 +9,39 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { BuyerType, User } from "@/types";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Textarea } from "@/components/ui/textarea";
+import { Separator } from "@/components/ui/separator";
 
 const steps = [
   "Account Information",
   "Personal Details", 
   "Buyer Type",
+  "Buyer Profile",
+];
+
+const businessCategories = [
+  { value: "any", label: "Any kind of business" },
+  { value: "agriculture", label: "Agriculture" },
+  { value: "automotive", label: "Automotive / Boat" },
+  { value: "beauty", label: "Beauty & Personal Care" },
+  { value: "construction", label: "Building & Construction" },
+  { value: "communication", label: "Communication / Media" },
+  { value: "education", label: "Education / Childcare" },
+  { value: "entertainment", label: "Entertainment / Recreation" },
+  { value: "financial", label: "Financial Services" },
+  { value: "healthcare", label: "Health Care & Fitness" },
+  { value: "home", label: "Home Services" },
+  { value: "technology", label: "Online / Technology" },
+  { value: "other_services", label: "Other Services" },
+  { value: "pets", label: "Pet Services" },
+  { value: "professional", label: "Professional Services" },
+  { value: "restaurants", label: "Restaurants & Food" },
+  { value: "retail", label: "Retail" },
+  { value: "transportation", label: "Transportation & Storage" },
+  { value: "travel", label: "Travel" },
+  { value: "wholesale", label: "Wholesale & Distributors" },
+  { value: "other", label: "Other" },
 ];
 
 const buyerTypeOptions = [
@@ -39,9 +67,16 @@ const Signup = () => {
     lastName: string;
     company: string;
     website: string;
+    linkedinProfile: string;
     phone: string;
     buyerType: BuyerType | "";
     additionalInfo: Record<string, any>;
+    idealTargetDescription: string;
+    businessCategories: string[];
+    targetLocations: string;
+    revenueRangeMin: string;
+    revenueRangeMax: string;
+    specificBusinessSearch: string;
   }>({
     email: "",
     password: "",
@@ -50,9 +85,16 @@ const Signup = () => {
     lastName: "",
     company: "",
     website: "",
+    linkedinProfile: "",
     phone: "",
     buyerType: "",
     additionalInfo: {},
+    idealTargetDescription: "",
+    businessCategories: [],
+    targetLocations: "",
+    revenueRangeMin: "",
+    revenueRangeMax: "",
+    specificBusinessSearch: "",
   });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -73,6 +115,15 @@ const Signup = () => {
       ...prev,
       buyerType: value as BuyerType,
       additionalInfo: {}, // Reset additional info when type changes
+    }));
+  };
+
+  const handleBusinessCategoryChange = (categoryValue: string, checked: boolean) => {
+    setFormData((prev) => ({
+      ...prev,
+      businessCategories: checked
+        ? [...prev.businessCategories, categoryValue]
+        : prev.businessCategories.filter((cat) => cat !== categoryValue),
     }));
   };
 
@@ -151,6 +202,23 @@ const Signup = () => {
         }
         break;
       }
+      case 3: {
+        // Buyer profile validation
+        if (!formData.idealTargetDescription.trim()) {
+          errors.push("Please describe your ideal targets");
+        }
+        if (formData.businessCategories.length === 0) {
+          errors.push("Please select at least one business category");
+        }
+        if (formData.revenueRangeMin && formData.revenueRangeMax) {
+          const min = parseFloat(formData.revenueRangeMin.replace(/[^0-9.]/g, ""));
+          const max = parseFloat(formData.revenueRangeMax.replace(/[^0-9.]/g, ""));
+          if (min >= max) {
+            errors.push("Maximum revenue must be greater than minimum revenue");
+          }
+        }
+        break;
+      }
     }
     
     setValidationErrors(errors);
@@ -176,15 +244,39 @@ const Signup = () => {
     
     try {
       // Prepare user data for signup
-      const { firstName, lastName, email, company, website, phone, buyerType, additionalInfo } = formData;
+      const { 
+        firstName, 
+        lastName, 
+        email, 
+        company, 
+        website, 
+        linkedinProfile, 
+        phone, 
+        buyerType, 
+        additionalInfo,
+        idealTargetDescription,
+        businessCategories,
+        targetLocations,
+        revenueRangeMin,
+        revenueRangeMax,
+        specificBusinessSearch
+      } = formData;
+      
       const signupData: Partial<User> = {
         first_name: firstName,
         last_name: lastName,
         email: email,
         company: company,
         website: website,
+        linkedin_profile: linkedinProfile,
         phone_number: phone,
         buyer_type: buyerType as BuyerType,
+        ideal_target_description: idealTargetDescription,
+        business_categories: businessCategories,
+        target_locations: targetLocations,
+        revenue_range_min: revenueRangeMin ? parseFloat(revenueRangeMin.replace(/[^0-9.]/g, "")) : undefined,
+        revenue_range_max: revenueRangeMax ? parseFloat(revenueRangeMax.replace(/[^0-9.]/g, "")) : undefined,
+        specific_business_search: specificBusinessSearch,
         ...additionalInfo, // Include all additional info
       };
       
@@ -307,6 +399,26 @@ const Signup = () => {
               />
             </div>
             <div className="space-y-2">
+              <Label htmlFor="phone">Phone</Label>
+              <Input
+                id="phone"
+                name="phone"
+                placeholder="(123) 456-7890"
+                value={formData.phone}
+                onChange={handleInputChange}
+                required
+              />
+            </div>
+
+            <Separator className="my-6" />
+            <div className="text-sm text-muted-foreground mb-4">
+              <strong>Professional Profile (Strongly encouraged)</strong>
+              <p className="text-xs mt-1">
+                Owners tell us this is extremely important in helping them see how their business aligns with your unique investment criteria.
+              </p>
+            </div>
+
+            <div className="space-y-2">
               <Label htmlFor="website">Website</Label>
               <Input
                 id="website"
@@ -317,14 +429,13 @@ const Signup = () => {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="phone">Phone</Label>
+              <Label htmlFor="linkedinProfile">LinkedIn Profile</Label>
               <Input
-                id="phone"
-                name="phone"
-                placeholder="(123) 456-7890"
-                value={formData.phone}
+                id="linkedinProfile"
+                name="linkedinProfile"
+                placeholder="https://linkedin.com/in/yourprofile"
+                value={formData.linkedinProfile}
                 onChange={handleInputChange}
-                required
               />
             </div>
           </div>
@@ -514,6 +625,115 @@ const Signup = () => {
                 </div>
               </div>
             )}
+          </div>
+        );
+      case 3:
+        return (
+          <div className="space-y-6">
+            <div className="text-center space-y-2">
+              <h3 className="text-lg font-semibold">Let's build your buyer profile</h3>
+              <p className="text-sm text-muted-foreground">
+                This helps us understand what type of targets you're looking for and show you hand-picked deals that align with your criteria.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="idealTargetDescription">
+                Please describe your ideal targets in 2-3 sentences
+              </Label>
+              <Textarea
+                id="idealTargetDescription"
+                name="idealTargetDescription"
+                placeholder="I'm looking for profitable service businesses in the healthcare sector with stable customer bases and growth potential..."
+                rows={3}
+                value={formData.idealTargetDescription}
+                onChange={(e) => setFormData(prev => ({ ...prev, idealTargetDescription: e.target.value }))}
+                required
+              />
+            </div>
+
+            <div className="space-y-4">
+              <Label className="text-base font-medium">
+                What kind of businesses are you looking to buy?
+              </Label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {businessCategories.map((category) => (
+                  <div key={category.value} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={category.value}
+                      checked={formData.businessCategories.includes(category.value)}
+                      onCheckedChange={(checked) =>
+                        handleBusinessCategoryChange(category.value, checked as boolean)
+                      }
+                    />
+                    <Label
+                      htmlFor={category.value}
+                      className="text-sm font-normal cursor-pointer"
+                    >
+                      {category.label}
+                    </Label>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="targetLocations">
+                What locations are you considering purchasing in?
+              </Label>
+              <Input
+                id="targetLocations"
+                name="targetLocations"
+                placeholder="Midwest, Northeast, California, etc."
+                value={formData.targetLocations}
+                onChange={(e) => setFormData(prev => ({ ...prev, targetLocations: e.target.value }))}
+              />
+            </div>
+
+            <div className="space-y-4">
+              <Label className="text-base font-medium">
+                What is the revenue range you're looking for in a potential acquisition?
+              </Label>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="revenueRangeMin">$ Minimum</Label>
+                  <Input
+                    id="revenueRangeMin"
+                    name="revenueRangeMin"
+                    placeholder="500,000"
+                    value={formData.revenueRangeMin}
+                    onChange={(e) => setFormData(prev => ({ ...prev, revenueRangeMin: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="revenueRangeMax">$ Maximum</Label>
+                  <Input
+                    id="revenueRangeMax"
+                    name="revenueRangeMax"
+                    placeholder="5,000,000"
+                    value={formData.revenueRangeMax}
+                    onChange={(e) => setFormData(prev => ({ ...prev, revenueRangeMax: e.target.value }))}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="specificBusinessSearch">
+                Know exactly what business you're looking for? Tell us!
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                This will help expedite your search so we can send hyper-targeted deals your way.
+              </p>
+              <Textarea
+                id="specificBusinessSearch"
+                name="specificBusinessSearch"
+                placeholder="I'm looking for a non-union HVAC business with $2-5M EBITDA, established customer contracts..."
+                rows={3}
+                value={formData.specificBusinessSearch}
+                onChange={(e) => setFormData(prev => ({ ...prev, specificBusinessSearch: e.target.value }))}
+              />
+            </div>
           </div>
         );
       default:

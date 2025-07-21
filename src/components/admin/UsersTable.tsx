@@ -21,13 +21,22 @@ interface UsersTableProps {
 
 // Component for user detail view
 const UserDetails = ({ user }: { user: User }) => (
-  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
     <div>
-      <div className="text-sm font-semibold">Contact Information</div>
-      <div className="text-sm mt-1">
+      <div className="text-sm font-semibold mb-2">Contact Information</div>
+      <div className="text-sm space-y-1">
         <div><strong>Email:</strong> {user.email}</div>
         <div><strong>Phone:</strong> {user.phone_number || "—"}</div>
-        <div><strong>Website:</strong> {user.website || "—"}</div>
+        <div><strong>Website:</strong> {user.website ? (
+          <a href={user.website} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+            {user.website}
+          </a>
+        ) : "—"}</div>
+        <div><strong>LinkedIn:</strong> {user.linkedin_profile ? (
+          <a href={user.linkedin_profile} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+            View Profile
+          </a>
+        ) : "—"}</div>
       </div>
     </div>
     
@@ -72,8 +81,64 @@ const UserDetails = ({ user }: { user: User }) => (
       </div>
     </div>
 
+    {/* Buyer Profile Section */}
+    {(user.ideal_target_description || user.business_categories || user.target_locations || user.revenue_range_min || user.revenue_range_max || user.specific_business_search) && (
+      <div className="col-span-1 md:col-span-2 lg:col-span-3 mt-4">
+        <div className="text-sm font-semibold mb-3">Buyer Profile</div>
+        <div className="space-y-4">
+          {user.ideal_target_description && (
+            <div className="p-3 bg-muted/30 rounded-md">
+              <div className="text-sm font-medium mb-1">Ideal Target Description</div>
+              <div className="text-sm text-muted-foreground">{user.ideal_target_description}</div>
+            </div>
+          )}
+          
+          {user.business_categories && user.business_categories.length > 0 && (
+            <div>
+              <div className="text-sm font-medium mb-2">Business Categories of Interest</div>
+              <div className="flex flex-wrap gap-2">
+                {user.business_categories.map((category, index) => (
+                  <span key={index} className="px-2 py-1 bg-primary/10 text-primary text-xs rounded-md">
+                    {category.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {user.target_locations && (
+              <div className="text-sm">
+                <strong>Target Locations:</strong> {user.target_locations}
+              </div>
+            )}
+            
+            {(user.revenue_range_min || user.revenue_range_max) && (
+              <div className="text-sm">
+                <strong>Revenue Range:</strong> 
+                {user.revenue_range_min && user.revenue_range_max 
+                  ? ` $${user.revenue_range_min.toLocaleString()} - $${user.revenue_range_max.toLocaleString()}`
+                  : user.revenue_range_min 
+                  ? ` $${user.revenue_range_min.toLocaleString()}+`
+                  : user.revenue_range_max
+                  ? ` Up to $${user.revenue_range_max.toLocaleString()}`
+                  : "—"}
+              </div>
+            )}
+          </div>
+
+          {user.specific_business_search && (
+            <div className="p-3 bg-muted/30 rounded-md">
+              <div className="text-sm font-medium mb-1">Specific Business Search</div>
+              <div className="text-sm text-muted-foreground">{user.specific_business_search}</div>
+            </div>
+          )}
+        </div>
+      </div>
+    )}
+
     {/* Additional buyer information */}
-    <div className="mt-2 col-span-1 md:col-span-2 lg:col-span-3">
+    <div className="mt-4 col-span-1 md:col-span-2 lg:col-span-3">
       <div className="text-sm font-semibold mb-2">Additional Information</div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {user.target_company_size && (

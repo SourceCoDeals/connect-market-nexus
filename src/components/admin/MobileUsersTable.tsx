@@ -180,6 +180,15 @@ const MobileUserCard = ({
             <span className="text-muted-foreground truncate">{user.website}</span>
           </div>
         )}
+        
+        {user.linkedin_profile && (
+          <div className="flex items-center gap-2 text-sm">
+            <Globe className="h-4 w-4 text-muted-foreground" />
+            <a href={user.linkedin_profile} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline truncate">
+              LinkedIn Profile
+            </a>
+          </div>
+        )}
       </div>
 
       {/* Buyer Type & Additional Info */}
@@ -197,6 +206,57 @@ const MobileUserCard = ({
           <span>Joined {formatDistanceToNow(new Date(user.created_at), { addSuffix: true })}</span>
         </div>
       </div>
+
+      {/* Buyer Profile */}
+      {(user.ideal_target_description || user.business_categories?.length || user.target_locations || user.revenue_range_min || user.revenue_range_max) && (
+        <div className="border-t pt-3 space-y-2">
+          <div className="font-medium text-sm mb-2">Buyer Profile</div>
+          
+          {user.ideal_target_description && (
+            <div className="text-sm p-2 bg-muted/30 rounded-md">
+              <div className="font-medium mb-1">Ideal Targets:</div>
+              <div className="text-muted-foreground text-xs leading-relaxed">{user.ideal_target_description}</div>
+            </div>
+          )}
+          
+          {user.business_categories && user.business_categories.length > 0 && (
+            <div className="text-sm">
+              <div className="font-medium mb-1">Business Categories:</div>
+              <div className="flex flex-wrap gap-1">
+                {user.business_categories.slice(0, 3).map((category, index) => (
+                  <Badge key={index} variant="secondary" className="text-xs">
+                    {category.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                  </Badge>
+                ))}
+                {user.business_categories.length > 3 && (
+                  <Badge variant="secondary" className="text-xs">
+                    +{user.business_categories.length - 3} more
+                  </Badge>
+                )}
+              </div>
+            </div>
+          )}
+          
+          {user.target_locations && (
+            <div className="text-sm">
+              <span className="font-medium">Target Locations:</span> {user.target_locations}
+            </div>
+          )}
+          
+          {(user.revenue_range_min || user.revenue_range_max) && (
+            <div className="text-sm">
+              <span className="font-medium">Revenue Range:</span> 
+              {user.revenue_range_min && user.revenue_range_max 
+                ? ` $${user.revenue_range_min.toLocaleString()} - $${user.revenue_range_max.toLocaleString()}`
+                : user.revenue_range_min 
+                ? ` $${user.revenue_range_min.toLocaleString()}+`
+                : user.revenue_range_max
+                ? ` Up to $${user.revenue_range_max.toLocaleString()}`
+                : "—"}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Additional Details for certain buyer types */}
       {(user.estimated_revenue || user.fund_size || user.aum) && (
