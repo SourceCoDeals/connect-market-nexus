@@ -4,6 +4,7 @@ import { Link, useParams } from "react-router-dom";
 import { useMarketplace } from "@/hooks/use-marketplace";
 import { useAuth } from "@/context/AuthContext";
 import { useSavedStatus, useSaveListingMutation } from "@/hooks/marketplace/use-saved-listings";
+import { useAnalytics } from "@/context/AnalyticsContext";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -35,12 +36,20 @@ const ListingDetail = () => {
   const { data: connectionStatus } = useConnectionStatus(id);
   const { data: isSaved, isLoading: isSavedLoading } = useSavedStatus(id);
   const { mutate: toggleSave, isPending: isSaving } = useSaveListingMutation();
+  const { trackListingView, trackListingSave, trackConnectionRequest } = useAnalytics();
   
   const isAdmin = user?.is_admin === true;
 
   useEffect(() => {
     document.title = listing ? `${listing.title} | Marketplace` : "Listing Detail | Marketplace";
   }, [listing]);
+
+  // Track listing view when page loads
+  useEffect(() => {
+    if (id && listing) {
+      trackListingView(id);
+    }
+  }, [id, listing, trackListingView]);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("en-US", {
@@ -53,6 +62,7 @@ const ListingDetail = () => {
 
   const handleRequestConnection = (message?: string) => {
     if (id) {
+      trackConnectionRequest(id);
       requestConnection({ listingId: id, message });
     }
   };
@@ -65,6 +75,7 @@ const ListingDetail = () => {
     e.preventDefault();
     e.stopPropagation();
     if (id) {
+      trackListingSave(id);
       toggleSave({ 
         listingId: id, 
         action: isSaved ? 'unsave' : 'save' 

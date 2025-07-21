@@ -24,34 +24,59 @@ const generateSessionId = () => {
 
 export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
   const location = useLocation();
-  const { user } = useAuth();
+  const { user, authChecked } = useAuth();
 
-  // Initialize session on mount
+  // Initialize session immediately on mount
   useEffect(() => {
     if (!currentSessionId) {
       currentSessionId = generateSessionId();
       sessionStartTime = new Date();
-      
-      // Create session record
-      if (user) {
-        const createSession = async () => {
-          try {
-            await supabase.from('user_sessions').insert({
-              session_id: currentSessionId,
-              user_id: user.id,
-              started_at: sessionStartTime.toISOString(),
-              user_agent: navigator.userAgent,
-              referrer: document.referrer || null,
-            });
-            console.log('✅ Analytics session started:', currentSessionId, 'for user:', user.id);
-          } catch (error) {
-            console.error('❌ Failed to create session:', error);
-          }
-        };
-        createSession();
-      }
+      console.log('📊 Analytics session initialized:', currentSessionId);
     }
-  }, [user]);
+  }, []);
+
+  // Create/update session record when auth state is available
+  useEffect(() => {
+    if (!authChecked || !currentSessionId) return;
+
+    const createOrUpdateSession = async () => {
+      try {
+        // Check if session already exists
+        const { data: existingSession } = await supabase
+          .from('user_sessions')
+          .select('id')
+          .eq('session_id', currentSessionId)
+          .single();
+
+        if (existingSession) {
+          // Update existing session with user info
+          await supabase
+            .from('user_sessions')
+            .update({
+              user_id: user?.id || null,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('session_id', currentSessionId);
+          console.log('✅ Analytics session updated:', currentSessionId, 'for user:', user?.id || 'anonymous');
+        } else {
+          // Create new session
+          await supabase.from('user_sessions').insert({
+            session_id: currentSessionId,
+            user_id: user?.id || null,
+            started_at: sessionStartTime?.toISOString() || new Date().toISOString(),
+            user_agent: navigator.userAgent,
+            referrer: document.referrer || null,
+          });
+          console.log('✅ Analytics session created:', currentSessionId, 'for user:', user?.id || 'anonymous');
+        }
+      } catch (error) {
+        console.error('❌ Failed to create/update session:', error);
+        // Continue anyway - don't block analytics for session creation failures
+      }
+    };
+
+    createOrUpdateSession();
+  }, [user, authChecked]);
 
   // Track page views on location change
   useEffect(() => {

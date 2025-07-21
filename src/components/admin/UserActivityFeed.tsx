@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { supabase } from '@/integrations/supabase/client';
 import { 
   Eye, 
   Heart, 
@@ -12,14 +13,87 @@ import {
   Clock,
   User,
   Activity,
-  RefreshCw
+  RefreshCw,
+  Radio
 } from 'lucide-react';
 import { useRecentUserActivity } from '@/hooks/use-user-activity';
 import { Button } from '@/components/ui/button';
 import { format } from 'date-fns';
 
 export function UserActivityFeed() {
-  const { data: activities, isLoading, error, refetch } = useRecentUserActivity();
+  const { data: activities, isLoading, error, refetch, isRefetching } = useRecentUserActivity();
+
+  // Set up real-time subscriptions for activity updates
+  useEffect(() => {
+    console.log('📡 Setting up real-time subscriptions for user activity...');
+    
+    // Subscribe to listing analytics changes
+    const listingAnalyticsChannel = supabase
+      .channel('listing-analytics-changes')
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'listing_analytics'
+      }, (payload) => {
+        console.log('📊 New listing analytics event:', payload);
+        refetch();
+      })
+      .subscribe();
+
+    // Subscribe to page views changes
+    const pageViewsChannel = supabase
+      .channel('page-views-changes')
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'page_views'
+      }, (payload) => {
+        console.log('📄 New page view event:', payload);
+        refetch();
+      })
+      .subscribe();
+
+    // Subscribe to user events changes
+    const userEventsChannel = supabase
+      .channel('user-events-changes')
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'user_events'
+      }, (payload) => {
+        console.log('🔔 New user event:', payload);
+        refetch();
+      })
+      .subscribe();
+
+    // Subscribe to connection requests changes
+    const connectionRequestsChannel = supabase
+      .channel('connection-requests-changes')
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'connection_requests'
+      }, (payload) => {
+        console.log('🤝 New connection request:', payload);
+        refetch();
+      })
+      .subscribe();
+
+    // Auto-refresh every 30 seconds as fallback
+    const autoRefreshInterval = setInterval(() => {
+      console.log('🔄 Auto-refreshing activity feed...');
+      refetch();
+    }, 30000);
+
+    return () => {
+      console.log('🔌 Cleaning up real-time subscriptions...');
+      listingAnalyticsChannel.unsubscribe();
+      pageViewsChannel.unsubscribe();
+      userEventsChannel.unsubscribe();
+      connectionRequestsChannel.unsubscribe();
+      clearInterval(autoRefreshInterval);
+    };
+  }, [refetch]);
 
   const getActivityIcon = (activityType: string, actionType?: string) => {
     switch (activityType) {
@@ -109,10 +183,19 @@ export function UserActivityFeed() {
         <CardTitle className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Activity className="h-5 w-5" />
-            Recent User Activity
+            Live User Activity
+            <Badge variant="secondary" className="flex items-center gap-1 text-xs">
+              <Radio className="h-3 w-3 text-green-500 animate-pulse" />
+              Real-time
+            </Badge>
           </div>
-          <Button onClick={() => refetch()} variant="outline" size="sm">
-            <RefreshCw className="h-4 w-4" />
+          <Button 
+            onClick={() => refetch()} 
+            variant="outline" 
+            size="sm"
+            disabled={isRefetching}
+          >
+            <RefreshCw className={`h-4 w-4 ${isRefetching ? 'animate-spin' : ''}`} />
           </Button>
         </CardTitle>
       </CardHeader>
