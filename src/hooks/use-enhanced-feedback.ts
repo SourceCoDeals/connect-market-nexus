@@ -72,7 +72,50 @@ export function useEnhancedFeedback() {
 
       if (insertError) throw insertError;
 
-      // Try to send notification to admins, but don't fail if it errors
+      console.log('Feedback saved successfully:', feedback);
+
+      // For "contact" category, send automatic response email to user
+      if (feedbackData.category === 'contact') {
+        try {
+          console.log('Sending contact response email...');
+          
+          // Get user profile for name
+          const { data: profile, error: profileError } = await supabase
+            .from('profiles')
+            .select('first_name, last_name, email')
+            .eq('id', user.id)
+            .single();
+
+          if (profileError) {
+            console.warn('Could not fetch user profile for email:', profileError);
+          }
+
+          const userName = profile ? `${profile.first_name} ${profile.last_name}`.trim() : '';
+          
+          const { data: emailResult, error: emailError } = await supabase.functions.invoke('send-contact-response', {
+            body: {
+              to: user.email,
+              subject: `Thank you for contacting us${userName ? `, ${userName}` : ''}`,
+              content: feedbackData.message,
+              feedbackId: feedback.id,
+              userName: userName || undefined,
+              category: feedbackData.category
+            }
+          });
+
+          if (emailError) {
+            console.error('Email sending failed:', emailError);
+            // Don't throw - feedback was saved successfully
+          } else {
+            console.log('Contact response email sent successfully:', emailResult);
+          }
+        } catch (emailError) {
+          console.warn('Failed to send contact response email:', emailError);
+          // Don't fail the whole operation
+        }
+      }
+
+      // Try to send admin notification, but don't fail if it errors
       try {
         const { error: notificationError } = await supabase.functions.invoke(
           "send-feedback-notification",
@@ -92,7 +135,7 @@ export function useEnhancedFeedback() {
         );
 
         if (notificationError) {
-          console.warn("Notification failed but feedback was saved:", notificationError);
+          console.warn("Admin notification failed but feedback was saved:", notificationError);
         }
       } catch (notificationError) {
         console.warn("Failed to send admin notification:", notificationError);
@@ -100,9 +143,9 @@ export function useEnhancedFeedback() {
       }
 
       toast({
-        title: feedbackData.category === "contact" ? "Message sent successfully" : "Feedback submitted successfully",
+        title: feedbackData.category === "contact" ? "Message sent successfully!" : "Feedback submitted successfully",
         description: feedbackData.category === "contact" 
-          ? "We'll get back to you within 24 hours!"
+          ? "Thank you for contacting us! We'll get back to you within 24 hours."
           : "Thank you for your feedback! We'll review it shortly.",
       });
 

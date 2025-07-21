@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useAdmin } from "@/hooks/use-admin";
 import { Input } from "@/components/ui/input";
@@ -10,6 +9,7 @@ import { MobileConnectionRequestsTable } from "@/components/admin/MobileConnecti
 import { ConnectionRequestDialog } from "@/components/admin/ConnectionRequestDialog";
 import { toast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { MobileConnectionRequests } from "@/components/admin/MobileConnectionRequests";
 
 const AdminRequests = () => {
   const { useConnectionRequests, useConnectionRequestsMutation, sendConnectionApprovalEmail, sendConnectionRejectionEmail } = useAdmin();
@@ -39,12 +39,38 @@ const AdminRequests = () => {
     );
   });
   
-  const handleAction = (request: AdminConnectionRequest, action: "approve" | "reject") => {
-    setSelectedRequest(request);
-    setActionType(action);
-    setIsDialogOpen(true);
+  const handleAction = async (request: AdminConnectionRequest, action: "approve" | "reject") => {
+    try {
+      await updateRequest({
+        requestId: request.id,
+        status: action === "approve" ? "approved" : "rejected",
+        adminComment: `Request ${action}d by admin`,
+      });
+      
+      // Send email notification based on action type
+      if (action === "approve") {
+        await sendConnectionApprovalEmail(request);
+        toast({
+          title: "Request approved",
+          description: "Notification email sent to user",
+        });
+      } else {
+        await sendConnectionRejectionEmail(request);
+        toast({
+          title: "Request rejected",
+          description: "Notification email sent to user",
+        });
+      }
+    } catch (error) {
+      console.error("Error updating request:", error);
+      toast({
+        variant: "destructive",
+        title: "Update failed",
+        description: "Could not update connection request status",
+      });
+    }
   };
-  
+
   const confirmAction = async (comment: string) => {
     if (selectedRequest && actionType) {
       try {
@@ -83,6 +109,19 @@ const AdminRequests = () => {
     }
   };
 
+  // Mobile Layout
+  if (isMobile) {
+    return (
+      <MobileConnectionRequests
+        requests={filteredRequests}
+        onApprove={(request) => handleAction(request, "approve")}
+        onReject={(request) => handleAction(request, "reject")}
+        isLoading={isLoading}
+      />
+    );
+  }
+
+  // Desktop Layout
   return (
     <div className="space-y-4 md:space-y-6">
       <div className="flex flex-col gap-4">
@@ -126,25 +165,22 @@ const AdminRequests = () => {
       )}
 
       <div className="bg-card rounded-lg border overflow-hidden">
-        {isMobile ? (
-          <div className="p-2 md:p-4">
-            <MobileConnectionRequestsTable 
-              requests={filteredRequests}
-              onApprove={(request) => handleAction(request, "approve")}
-              onReject={(request) => handleAction(request, "reject")}
-              isLoading={isLoading}
-            />
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <ConnectionRequestsTable 
-              requests={filteredRequests}
-              onApprove={(request) => handleAction(request, "approve")}
-              onReject={(request) => handleAction(request, "reject")}
-              isLoading={isLoading}
-            />
-          </div>
-        )}
+        <div className="overflow-x-auto">
+          <ConnectionRequestsTable 
+            requests={filteredRequests}
+            onApprove={(request) => {
+              setSelectedRequest(request);
+              setActionType("approve");
+              setIsDialogOpen(true);
+            }}
+            onReject={(request) => {
+              setSelectedRequest(request);
+              setActionType("reject");
+              setIsDialogOpen(true);
+            }}
+            isLoading={isLoading}
+          />
+        </div>
       </div>
 
       <ConnectionRequestDialog
