@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Textarea } from "@/components/ui/textarea";
+import { MultiSelect } from "@/components/ui/multi-select";
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@/types";
 
@@ -30,9 +31,16 @@ const Profile = () => {
     last_name: user?.last_name || "",
     company: user?.company || "",
     website: user?.website || "",
+    linkedin_profile: user?.linkedin_profile || "",
     phone_number: user?.phone_number || "",
     buyer_type: user?.buyer_type || "corporate",
     bio: user?.bio || "",
+    ideal_target_description: user?.ideal_target_description || "",
+    business_categories: user?.business_categories || [],
+    target_locations: user?.target_locations || "",
+    revenue_range_min: user?.revenue_range_min || undefined,
+    revenue_range_max: user?.revenue_range_max || undefined,
+    specific_business_search: user?.specific_business_search || "",
   });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -43,7 +51,7 @@ const Profile = () => {
     }));
   };
 
-  const handleSelectChange = (value: string, name: string) => {
+  const handleSelectChange = (value: string | string[], name: string) => {
     setFormData((prev) => ({
       ...prev,
       [name]: value,
@@ -224,12 +232,34 @@ const Profile = () => {
                   </div>
                   
                   <div className="space-y-2">
+                    <Label htmlFor="linkedin_profile">LinkedIn Profile</Label>
+                    <Input 
+                      id="linkedin_profile" 
+                      name="linkedin_profile" 
+                      value={formData.linkedin_profile} 
+                      onChange={handleInputChange}
+                      placeholder="https://www.linkedin.com/in/yourprofile"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
                     <Label htmlFor="phone_number">Phone Number</Label>
                     <Input 
                       id="phone_number" 
                       name="phone_number" 
                       value={formData.phone_number} 
                       onChange={handleInputChange}
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="target_locations">Target Locations</Label>
+                    <Input 
+                      id="target_locations" 
+                      name="target_locations" 
+                      value={formData.target_locations} 
+                      onChange={handleInputChange}
+                      placeholder="e.g. West Coast, Texas, International"
                     />
                   </div>
                   
@@ -276,16 +306,95 @@ const Profile = () => {
                 
                 <Separator />
                 
-                <div className="space-y-2">
-                  <Label htmlFor="bio">About Me / Bio</Label>
-                  <Textarea 
-                    id="bio" 
-                    name="bio" 
-                    value={formData.bio || ""} 
-                    onChange={handleInputChange}
-                    placeholder="Tell us about yourself and your investment interests..."
-                    className="min-h-[120px]"
-                  />
+                <div className="space-y-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="ideal_target_description">Ideal Target Description</Label>
+                    <Textarea 
+                      id="ideal_target_description" 
+                      name="ideal_target_description" 
+                      value={formData.ideal_target_description || ""} 
+                      onChange={handleInputChange}
+                      placeholder="Describe your ideal acquisition target or investment criteria..."
+                      className="min-h-[100px]"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="business_categories">Business Categories of Interest</Label>
+                    <MultiSelect
+                      options={[
+                        { label: "Technology", value: "technology" },
+                        { label: "Healthcare", value: "healthcare" },
+                        { label: "Manufacturing", value: "manufacturing" },
+                        { label: "Retail", value: "retail" },
+                        { label: "Financial Services", value: "financial_services" },
+                        { label: "Real Estate", value: "real_estate" },
+                        { label: "Energy", value: "energy" },
+                        { label: "Transportation", value: "transportation" },
+                        { label: "Education", value: "education" },
+                        { label: "Food & Beverage", value: "food_beverage" },
+                        { label: "Construction", value: "construction" },
+                        { label: "Media", value: "media" },
+                        { label: "Hospitality", value: "hospitality" },
+                        { label: "Agriculture", value: "agriculture" },
+                        { label: "Professional Services", value: "professional_services" }
+                      ]}
+                      selected={formData.business_categories || []}
+                      onSelectedChange={(value) => handleSelectChange(value, "business_categories")}
+                      placeholder="Select business categories..."
+                      className="w-full"
+                    />
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="revenue_range_min">Revenue Range (Min)</Label>
+                      <Input 
+                        id="revenue_range_min" 
+                        name="revenue_range_min" 
+                        type="number"
+                        value={formData.revenue_range_min || ""} 
+                        onChange={handleInputChange}
+                        placeholder="1000000"
+                      />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="revenue_range_max">Revenue Range (Max)</Label>
+                      <Input 
+                        id="revenue_range_max" 
+                        name="revenue_range_max" 
+                        type="number"
+                        value={formData.revenue_range_max || ""} 
+                        onChange={handleInputChange}
+                        placeholder="10000000"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="specific_business_search">Specific Business Search</Label>
+                    <Textarea 
+                      id="specific_business_search" 
+                      name="specific_business_search" 
+                      value={formData.specific_business_search || ""} 
+                      onChange={handleInputChange}
+                      placeholder="Describe any specific types of businesses you're looking for..."
+                      className="min-h-[80px]"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="bio">About Me / Bio</Label>
+                    <Textarea 
+                      id="bio" 
+                      name="bio" 
+                      value={formData.bio || ""} 
+                      onChange={handleInputChange}
+                      placeholder="Tell us about yourself and your investment interests..."
+                      className="min-h-[120px]"
+                    />
+                  </div>
                 </div>
                 
                 <div className="flex justify-end">
