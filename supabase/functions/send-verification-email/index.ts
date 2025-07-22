@@ -107,6 +107,11 @@ const handler = async (req: Request): Promise<Response> => {
         replyTo: {
           email: "support@sourcecodeals.com",
           name: "SourceCo Support"
+        },
+        // CRITICAL: Disable click tracking to prevent broken links
+        params: {
+          trackClicks: false,
+          trackOpens: true
         }
       })
     });

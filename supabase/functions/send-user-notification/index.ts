@@ -1,143 +1,149 @@
 
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
+};
+
+interface UserNotificationRequest {
+  email: string;
+  subject: string;
+  message: string;
+  type?: 'info' | 'success' | 'warning' | 'error';
+  actionUrl?: string;
+  actionText?: string;
 }
 
-serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+const handler = async (req: Request): Promise<Response> => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const requestBody = await req.json()
-    console.log('Received request body:', requestBody)
-    
-    // Handle both old and new payload formats for backward compatibility
-    let user, type, reason
-    if (requestBody.user && requestBody.type) {
-      // Old format
-      user = requestBody.user
-      type = requestBody.type
-      reason = requestBody.reason
-    } else {
-      // New format from use-admin-email.ts
-      const { userEmail, firstName, lastName, type: requestType, reason: requestReason } = requestBody
-      user = {
-        email: userEmail,
-        first_name: firstName,
-        last_name: lastName
-      }
-      type = requestType === 'approved' ? 'approval' : requestType === 'rejected' ? 'rejection' : requestType
-      reason = requestReason
-    }
+    const {
+      email,
+      subject,
+      message,
+      type = 'info',
+      actionUrl,
+      actionText
+    }: UserNotificationRequest = await req.json();
+
+    console.log("Sending user notification:", { email, subject, type });
+
+    const typeColors = {
+      info: '#3b82f6',
+      success: '#059669',
+      warning: '#d97706',
+      error: '#dc2626'
+    };
+
+    const typeEmojis = {
+      info: 'ℹ️',
+      success: '✅',
+      warning: '⚠️',
+      error: '❌'
+    };
+
+    const htmlContent = `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); color: white; padding: 30px; border-radius: 12px; margin-bottom: 20px;">
+          <h1 style="margin: 0; font-size: 24px; font-weight: 600;">
+            ${typeEmojis[type]} ${subject}
+          </h1>
+          <p style="margin: 10px 0 0 0; opacity: 0.9;">SourceCo Marketplace Notification</p>
+        </div>
+        
+        <div style="background: #f8fafc; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+          <div style="background: white; padding: 20px; border-radius: 6px; border-left: 4px solid ${typeColors[type]};">
+            ${message.replace(/\n/g, "<br>")}
+          </div>
+        </div>
+        
+        ${actionUrl && actionText ? `
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${actionUrl}" 
+             style="background: ${typeColors[type]}; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 500;">
+            ${actionText}
+          </a>
+        </div>
+        ` : ''}
+        
+        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e2e8f0; color: #64748b; font-size: 14px;">
+          <p>This notification was sent from SourceCo Marketplace.</p>
+          <p>If you have any questions, contact us at <a href="mailto:support@sourcecodeals.com" style="color: #059669;">support@sourcecodeals.com</a></p>
+        </div>
+      </div>
+    `;
 
     const brevoApiKey = Deno.env.get("BREVO_API_KEY");
     if (!brevoApiKey) {
-      throw new Error("BREVO_API_KEY environment variable is not set");
+      throw new Error("BREVO_API_KEY not configured");
     }
 
-    let subject: string
-    let htmlContent: string
-    let textContent: string
-
-    switch (type) {
-      case 'approval':
-        subject = '✅ Your account has been approved!'
-        htmlContent = `
-          <h1>Welcome, ${user.first_name}!</h1>
-          <p>Great news! Your account has been approved and you now have access to our marketplace.</p>
-          <p><strong>Your account details:</strong></p>
-          <ul>
-            <li>Name: ${user.first_name} ${user.last_name}</li>
-            <li>Email: ${user.email}</li>
-            <li>Company: ${user.company || 'Not specified'}</li>
-          </ul>
-          <p>You can now browse and connect with business opportunities.</p>
-          <p><a href="https://market.sourcecodeals.com/marketplace" style="display: inline-block; background-color: #0070f3; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Access Marketplace</a></p>
-          <p>Welcome aboard!</p>
-          <p>— The SourceCo Team</p>
-        `
-        textContent = `Welcome, ${user.first_name}!\n\nGreat news! Your account has been approved and you now have access to our marketplace.\n\nYour account details:\n- Name: ${user.first_name} ${user.last_name}\n- Email: ${user.email}\n- Company: ${user.company || 'Not specified'}\n\nYou can now browse and connect with business opportunities.\n\nAccess the marketplace: https://market.sourcecodeals.com/marketplace\n\nWelcome aboard!\n\n— The SourceCo Team`
-        break
-        
-      case 'rejection':
-        subject = '❌ Account Application Update'
-        htmlContent = `
-          <h1>Hi ${user.first_name},</h1>
-          <p>Thank you for your interest in our marketplace.</p>
-          <p>After careful review, we are unable to approve your account at this time.</p>
-          ${reason ? `<p><strong>Reason:</strong> ${reason}</p>` : ''}
-          <p>If you have any questions or would like to discuss this further, please reply to this email.</p>
-          <p>— The SourceCo Team</p>
-        `
-        textContent = `Hi ${user.first_name},\n\nThank you for your interest in our marketplace.\n\nAfter careful review, we are unable to approve your account at this time.\n\n${reason ? `Reason: ${reason}\n\n` : ''}If you have any questions or would like to discuss this further, please reply to this email.\n\n— The SourceCo Team`
-        break
-        
-      default:
-        throw new Error('Invalid notification type')
-    }
-
-    console.log('Preparing to send email with Brevo...')
-    
-    const brevoPayload = {
-      sender: {
-        name: "SourceCo Marketplace",
-        email: "noreply@sourcecodeals.com"
-      },
-      to: [{ email: user.email, name: `${user.first_name} ${user.last_name}` }],
-      subject,
-      htmlContent,
-      textContent,
-      replyTo: {
-        email: "support@sourcecodeals.com",
-        name: "SourceCo Support"
-      }
-    };
-
-    console.log('Brevo email payload:', JSON.stringify(brevoPayload, null, 2))
-
-    const res = await fetch("https://api.brevo.com/v3/smtp/email", {
+    const emailResponse = await fetch("https://api.brevo.com/v3/smtp/email", {
       method: "POST",
       headers: {
         "api-key": brevoApiKey,
         "Content-Type": "application/json",
         "Accept": "application/json"
       },
-      body: JSON.stringify(brevoPayload)
+      body: JSON.stringify({
+        sender: {
+          name: "SourceCo Marketplace",
+          email: "noreply@sourcecodeals.com"
+        },
+        to: [{
+          email: email,
+          name: ""
+        }],
+        subject: subject,
+        htmlContent: htmlContent,
+        replyTo: {
+          email: "support@sourcecodeals.com",
+          name: "SourceCo Support"
+        },
+        // Disable click tracking to prevent broken links
+        params: {
+          trackClicks: false,
+          trackOpens: true
+        }
+      })
     });
 
-    if (!res.ok) {
-      const errorText = await res.text()
+    if (!emailResponse.ok) {
+      const errorText = await emailResponse.text();
       console.error("Error sending email via Brevo:", errorText);
-      throw new Error(`Failed to send email: ${res.status} ${errorText}`)
+      throw new Error(`Brevo API error: ${errorText}`);
     }
 
-    const data = await res.json()
-    console.log('Email sent successfully:', data)
+    console.log("User notification sent successfully");
 
-    return new Response(
-      JSON.stringify({ success: true, data }),
-      { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
-      },
-    )
-
-  } catch (error) {
-    console.error('Error in send-user-notification function:', error)
     return new Response(
       JSON.stringify({ 
-        error: error.message,
-        success: false 
+        success: true, 
+        message: "User notification sent successfully" 
       }),
       { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 400,
-      },
-    )
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200 
+      }
+    );
+
+  } catch (error: any) {
+    console.error("Error in send-user-notification function:", error);
+    return new Response(
+      JSON.stringify({ 
+        error: error.message || "Failed to send user notification" 
+      }),
+      { 
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 500 
+      }
+    );
   }
-})
+};
+
+serve(handler);

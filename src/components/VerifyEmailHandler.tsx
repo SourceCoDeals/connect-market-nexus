@@ -33,11 +33,11 @@ export default function VerifyEmailHandler() {
         const type = params.get('type');
         const token = params.get('token_hash') || params.get('token');
         
+        console.log('🔍 Verification attempt:', { type, tokenLength: token?.length });
+        
         if (!type || !token) {
           throw new Error('Invalid verification link');
         }
-        
-        
         
         if (type === 'signup' || type === 'recovery' || type === 'invite') {
           // Try Supabase's default verification first
@@ -46,14 +46,14 @@ export default function VerifyEmailHandler() {
             type: type === 'invite' ? 'invite' : type === 'recovery' ? 'recovery' : 'signup',
           });
           
-          
+          console.log('🔑 Supabase verification result:', { data: !!data, error: error?.message });
           
           if (error) {
             console.error('Verification error:', error);
             
             // If it's a custom token (user ID), try manual verification
             if (token.length === 36 && token.includes('-')) { // UUID format
-              
+              console.log('🔄 Attempting manual verification with UUID token');
               
               try {
                 // Update the user's email_verified status directly
@@ -79,7 +79,7 @@ export default function VerifyEmailHandler() {
                   throw profileError;
                 }
                 
-                
+                console.log('✅ Manual verification successful');
                 setVerificationSuccess(true);
                 setEmail(profileData.email);
                 setApprovalStatus(profileData.approval_status as ApprovalStatus);
@@ -102,7 +102,7 @@ export default function VerifyEmailHandler() {
                   } else if (profileData.approval_status === 'approved') {
                     navigate('/marketplace', { replace: true });
                   } else {
-                    navigate('/verification-success', { replace: true });
+                    navigate('/pending-approval', { replace: true });
                   }
                 }, 2000);
                 
@@ -143,7 +143,11 @@ export default function VerifyEmailHandler() {
               
             if (profileError) throw profileError;
             
-            
+            console.log('👤 Profile data retrieved:', { 
+              approvalStatus: profileData.approval_status, 
+              isAdmin: profileData.is_admin,
+              emailVerified: profileData.email_verified 
+            });
             
             // Set approval status and admin status from profile
             setApprovalStatus(profileData.approval_status as ApprovalStatus);
@@ -151,7 +155,7 @@ export default function VerifyEmailHandler() {
             
             // Explicitly update profile email_verified field if needed
             if (!profileData.email_verified) {
-              
+              console.log('📧 Updating email_verified status in profile');
               const { error: updateError } = await supabase
                 .from('profiles')
                 .update({ email_verified: true })
@@ -161,31 +165,34 @@ export default function VerifyEmailHandler() {
                 console.error('Error updating email_verified status:', updateError);
                 // Continue even if this update fails, as the auth token is verified
               } else {
-                
+                console.log('✅ Profile email_verified status updated');
               }
             } else {
-              
+              console.log('✅ Profile already marked as email verified');
             }
             
             // Send email verification confirmation using createUserObject
             try {
               const userObject = createUserObject(profileData);
               await sendEmailVerificationConfirmation(userObject);
-              
+              console.log('📧 Email verification confirmation sent');
             } catch (emailError) {
               console.error('Failed to send email verification confirmation:', emailError);
               // Continue even if email fails
             }
             
-            // Set redirect flag and delay redirect
+            // Set redirect flag and delay redirect to appropriate destination
             setShouldRedirect(true);
             setTimeout(() => {
               if (profileData.is_admin === true) {
+                console.log('🔄 Redirecting admin to /admin');
                 navigate('/admin', { replace: true });
               } else if (profileData.approval_status === 'approved') {
+                console.log('🔄 Redirecting approved user to /marketplace');
                 navigate('/marketplace', { replace: true });
               } else {
-                navigate('/verification-success', { replace: true });
+                console.log('🔄 Redirecting pending user to /pending-approval');
+                navigate('/pending-approval', { replace: true });
               }
             }, 2000);
           }
@@ -278,7 +285,7 @@ export default function VerifyEmailHandler() {
             ? "Welcome admin! You will be redirected to the admin dashboard."
             : approvalStatus === 'approved' 
               ? "Your account has been approved. You will be redirected to the marketplace."
-              : "Your email has been verified. You will be redirected to the next step."}
+              : "Your email has been verified. You will be redirected to the approval status page."}
         </p>
         {!shouldRedirect && (
           <Button onClick={handleContinue}>Continue</Button>
