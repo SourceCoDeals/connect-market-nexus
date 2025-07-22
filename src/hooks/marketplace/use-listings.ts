@@ -168,7 +168,7 @@ export const useListings = (filters: FilterOptions = {}) => {
         }
       });
     },
-    enabled: !!(authChecked && user && user.email_verified && (user.approval_status === 'approved' || user.is_admin)),
+    enabled: !!(user && user.email_verified && (user.approval_status === 'approved' || user.is_admin)), // Remove authChecked dependency
     staleTime: 1000 * 60 * 2,
     gcTime: 1000 * 60 * 5,
     refetchOnWindowFocus: false,
@@ -254,7 +254,7 @@ export const useListing = (id: string | undefined) => {
         }
       });
     },
-    enabled: !!(id && authChecked && user && user.email_verified && (user.approval_status === 'approved' || user.is_admin)),
+    enabled: !!(id && user && user.email_verified && (user.approval_status === 'approved' || user.is_admin)), // Remove authChecked dependency
     staleTime: 1000 * 60 * 5,
     refetchOnWindowFocus: false,
     retry: 1,
@@ -316,7 +316,7 @@ export const useListingMetadata = () => {
         }
       });
     },
-    enabled: !!(authChecked && user && user.email_verified && (user.approval_status === 'approved' || user.is_admin)),
+    enabled: !!(user && user.email_verified && (user.approval_status === 'approved' || user.is_admin)), // Remove authChecked dependency
     staleTime: 1000 * 60 * 5,
     refetchOnWindowFocus: false,
     retry: 1,

@@ -83,7 +83,7 @@ class AuthStateManager {
     return {
       user: cachedUser || this.user,
       isLoading: this.isLoading,
-      authChecked: this.authChecked || isStableAuthPeriod,
+      authChecked: true, // Always consider auth as checked during stable periods to prevent query disabling
       isAdmin: (cachedUser || this.user)?.is_admin === true,
       isBuyer: (cachedUser || this.user)?.role === "buyer"
     };
@@ -218,16 +218,16 @@ class AuthStateManager {
   private setupTabVisibilityHandling(): void {
     this.tabVisibilitySubscription = tabVisibilityManager.subscribe((isVisible) => {
       if (isVisible && !this.isActiveAuthFlow) {
-        // Only refresh auth if tab was hidden for a significant time and we have a user
+        // Only refresh auth if tab was hidden for a very long time and we have a user
         const timeSinceHidden = tabVisibilityManager.getTimeSinceLastVisibilityChange();
         
-        if (this.user && timeSinceHidden > 120000) { // Increased to 2 minutes
-          console.log('👁️ AuthStateManager: Tab visible after long time, checking auth state');
+        if (this.user && timeSinceHidden > 300000) { // 5 minutes instead of 2
+          console.log('👁️ AuthStateManager: Tab visible after very long time, checking auth state');
           setTimeout(() => {
             this.refreshUserData(this.user?.id);
-          }, 1000); // Increased delay to avoid interference with auth flows
+          }, 2000); // Even longer delay
         } else {
-          console.log('👁️ AuthStateManager: Tab visible, auth state stable');
+          console.log('👁️ AuthStateManager: Tab visible, auth state stable (no refresh needed)');
         }
       }
     });
