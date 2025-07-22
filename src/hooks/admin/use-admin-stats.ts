@@ -1,6 +1,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/context/AuthContext';
 import { AdminStats, AdminActivity } from '@/types/admin';
 import { toast } from '@/hooks/use-toast';
 
@@ -8,6 +9,8 @@ import { toast } from '@/hooks/use-toast';
  * Hook for fetching admin dashboard statistics and activities
  */
 export function useAdminStats() {
+  const { user, authChecked, isAdmin } = useAuth();
+  
   // Get admin dashboard stats
   const useStats = () => {
     return useQuery({
@@ -86,6 +89,7 @@ export function useAdminStats() {
           } as AdminStats;
         }
       },
+      enabled: authChecked && user && isAdmin,
     });
   };
 
@@ -192,6 +196,7 @@ export function useAdminStats() {
           return [];
         }
       },
+      enabled: authChecked && user && isAdmin,
     });
   };
 

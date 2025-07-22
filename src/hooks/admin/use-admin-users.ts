@@ -3,9 +3,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { User, ApprovalStatus } from "@/types";
 import { createUserObject } from "@/lib/auth-helpers";
+import { useAuth } from "@/context/AuthContext";
 
 export function useAdminUsers() {
   const queryClient = useQueryClient();
+  const { user, authChecked, isAdmin } = useAuth();
 
   const useUsers = () => {
     return useQuery({
@@ -40,6 +42,7 @@ export function useAdminUsers() {
           throw error;
         }
       },
+      enabled: authChecked && user && isAdmin,
       retry: 3,
       retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
       staleTime: 30 * 1000,

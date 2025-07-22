@@ -495,7 +495,7 @@ const Signup = () => {
                   <Input
                     id="platformSize"
                     name="platformSize"
-                    placeholder="2-20M"
+                    placeholder="1-100M"
                     value={formData.additionalInfo.platformSize || ""}
                     onChange={handleAdditionalInfoChange}
                   />

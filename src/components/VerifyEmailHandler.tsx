@@ -212,7 +212,7 @@ export default function VerifyEmailHandler() {
       } else if (approvalStatus === 'approved') {
         navigate('/marketplace', { replace: true });
       } else {
-        navigate('/verification-success', { replace: true });
+        navigate('/pending-approval', { replace: true });
       }
     } else {
       // If verification failed, go back to login

@@ -3,9 +3,12 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { FilterOptions, Listing, ListingStatus } from '@/types';
 import { withPerformanceMonitoring } from '@/lib/performance-monitor';
+import { useAuth } from '@/context/AuthContext';
 
 // Fetch listings with filters and pagination
 export const useListings = (filters: FilterOptions = {}) => {
+  const { user, authChecked } = useAuth();
+  
   return useQuery({
     queryKey: ['marketplace-listings', filters],
     queryFn: async () => {
@@ -132,6 +135,7 @@ export const useListings = (filters: FilterOptions = {}) => {
         }
       });
     },
+    enabled: authChecked && user && user.email_verified && (user.approval_status === 'approved' || user.is_admin),
     staleTime: 0, // Always consider data stale to ensure fresh fetches
     gcTime: 1000 * 60 * 2, // Keep in cache for 2 minutes
     refetchOnWindowFocus: true, // Refetch when window gains focus
@@ -214,6 +218,8 @@ export const useListing = (id: string | undefined) => {
 
 // Get listing metadata for filters (categories, locations)
 export const useListingMetadata = () => {
+  const { user, authChecked } = useAuth();
+  
   return useQuery({
     queryKey: ['listing-metadata'],
     queryFn: async () => {
@@ -256,6 +262,7 @@ export const useListingMetadata = () => {
         }
       });
     },
+    enabled: authChecked && user && user.email_verified && (user.approval_status === 'approved' || user.is_admin),
     staleTime: 1000 * 60 * 5, // 5 minutes for metadata
     refetchOnWindowFocus: false,
   });
