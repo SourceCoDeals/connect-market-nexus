@@ -19,7 +19,7 @@ const OnboardingPopup = ({ isOpen, onClose, userId }: OnboardingPopupProps) => {
     try {
       await supabase
         .from('profiles')
-        .update({ onboarding_completed: true })
+        .update({ onboarding_completed: true } as any)
         .eq('id', userId);
     } catch (error) {
       console.error('Error updating onboarding status:', error);
