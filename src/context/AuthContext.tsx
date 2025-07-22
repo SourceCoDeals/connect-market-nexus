@@ -45,30 +45,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   // Use the enhanced auth actions hook
   const { signUp, signIn, signOut } = useEnhancedAuthActions();
 
-  // Subscribe to profile changes for real-time updates
-  useEffect(() => {
-    if (!user?.id) return;
-
-    const subscription = supabase
-      .channel('profile-changes')
-      .on('postgres_changes', {
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'profiles',
-        filter: `id=eq.${user.id}`,
-      }, (payload) => {
-        console.log('📡 Profile updated in real-time:', payload);
-        // Trigger a refresh of the user profile to get the latest data
-        setTimeout(() => {
-          refreshUserData();
-        }, 100);
-      })
-      .subscribe();
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, [user?.id, refreshUserData]);
+  // Remove real-time subscription that causes excessive re-renders
+  // Profile updates will be handled through normal auth flow refreshes
 
   const refreshUserProfile = async () => {
     if (refreshUserData) {
@@ -83,8 +61,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       throw new Error("Email is required for signup");
     }
     
-    // Clear any existing auth state before signup
-    await clearAuthState();
+    // Only clear auth state if there's an existing user to avoid unnecessary flash
+    if (user) {
+      await clearAuthState();
+    }
     
     const result = await signUp(email, password, userData);
     if (result.error) {
@@ -95,8 +75,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const login = async (email: string, password: string) => {
     console.log('🔐 Starting login process for:', email);
     
-    // Clear any existing auth state before login
-    await clearAuthState();
+    // Only clear auth state if there's an existing user to avoid unnecessary flash
+    if (user) {
+      await clearAuthState();
+    }
     
     const result = await signIn(email, password);
     if (result.error) {

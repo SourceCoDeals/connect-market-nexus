@@ -1,6 +1,6 @@
 
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useMarketplace } from "@/hooks/use-marketplace";
 import { Badge } from "@/components/ui/badge";
@@ -12,6 +12,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 
 const MyRequests = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const { useUserConnectionRequests } = useMarketplace();
   const { data: requests = [], isLoading, error } = useUserConnectionRequests();
   const isMobile = useIsMobile();
@@ -128,7 +129,7 @@ const MyRequests = () => {
                   className="cursor-pointer hover:bg-muted/50"
                   onClick={() => {
                     if (request.listing?.id) {
-                      window.location.href = `/listing/${request.listing.id}`;
+                      navigate(`/listing/${request.listing.id}`);
                     }
                   }}
                 >

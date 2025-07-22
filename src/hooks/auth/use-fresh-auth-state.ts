@@ -30,12 +30,17 @@ export function useFreshAuthState() {
         email_verified: profileData.email_verified,
         approval_status: profileData.approval_status,
         is_admin: profileData.is_admin
-      });
+       });
 
       const userData = createUserObject(profileData);
       
-      // Always update localStorage with fresh data
-      localStorage.setItem("user", JSON.stringify(userData));
+      // Only update localStorage if the data has actually changed
+      const currentStoredUser = localStorage.getItem("user");
+      const newUserString = JSON.stringify(userData);
+      
+      if (currentStoredUser !== newUserString) {
+        localStorage.setItem("user", newUserString);
+      }
       
       return userData;
     } catch (error) {

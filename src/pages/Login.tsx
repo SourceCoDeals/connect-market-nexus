@@ -155,14 +155,12 @@ const Login = () => {
         description: "You have successfully logged in.",
       });
       
-      // Redirect based on user role
-      setTimeout(() => {
-        if (profile.is_admin) {
-          window.location.href = "/admin";
-        } else {
-          window.location.href = "/marketplace";
-        }
-      }, 100);
+      // Use React Router navigation instead of window.location for smooth transition
+      if (profile.is_admin) {
+        navigate("/admin/users", { replace: true });
+      } else {
+        navigate("/marketplace", { replace: true });
+      }
       
     } catch (err: any) {
       console.error("Login error:", err);

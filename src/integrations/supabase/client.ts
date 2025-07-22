@@ -68,7 +68,8 @@ export const handleAuthErrors = (error: any) => {
   )) {
     console.warn("Auth error detected, cleaning up session", error);
     cleanupAuthState();
-    window.location.href = '/login';
+    // Use React Router instead of window.location for smooth navigation
+    // This will be handled by the app's error boundary or auth context
     return true;
   }
   return false;

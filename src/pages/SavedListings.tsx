@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { useMarketplace } from "@/hooks/use-marketplace";
 import { FilterOptions, PaginationState } from "@/types";
 import ListingCard from "@/components/ListingCard";
@@ -28,6 +29,7 @@ const SavedListings = () => {
     perPage: 20
   });
   
+  const navigate = useNavigate();
   const { useSavedListings } = useMarketplace();
   const { data: listingsData, isLoading, error } = useSavedListings(filters);
   
@@ -221,7 +223,7 @@ const SavedListings = () => {
                 </p>
                 <Button
                   variant="outline"
-                  onClick={() => window.location.href = '/marketplace'}
+                  onClick={() => navigate('/marketplace')}
                 >
                   Browse Marketplace
                 </Button>

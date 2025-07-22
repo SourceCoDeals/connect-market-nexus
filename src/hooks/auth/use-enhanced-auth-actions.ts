@@ -14,8 +14,8 @@ export function useEnhancedAuthActions() {
     try {
       console.log('📝 Starting signup process for:', email);
       
-      // Clean up any existing auth state first
-      await cleanupAuthState();
+      // Only cleanup if necessary to reduce flashing
+      // The auth state will be managed by the main auth flow
       
       // Sanitize data before sending to database - ensure arrays are properly stringified
       const sanitizedBusinessCategories = Array.isArray(userData.business_categories) 
@@ -84,8 +84,8 @@ export function useEnhancedAuthActions() {
     try {
       console.log('🔐 Starting signin process for:', email);
       
-      // Clean up any existing auth state first
-      await cleanupAuthState();
+      // Only cleanup if necessary to reduce flashing
+      // The auth state will be managed by the main auth flow
       
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
