@@ -101,10 +101,10 @@ async function handleUserNotification(data: UserNotificationRequest): Promise<Re
       <p><strong>${listingName}</strong></p>
       <p>has been approved!</p>
       <p>Please log in to your account to view the details.</p>
-      <p><a href="https://preview--connect-market-nexus.lovable.app/my-requests" style="display: inline-block; background-color: #0070f3; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; margin-top: 15px;">→ View My Requests</a></p>
+      <p><a href="https://market.sourcecodeals.com/my-requests" style="display: inline-block; background-color: #0070f3; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; margin-top: 15px;">→ View My Requests</a></p>
       <p>— The SourceCo Team</p>
     `;
-    textContent = `Hi ${firstName},\n\nGreat news! Your connection request for ${listingName} has been approved.\n\nYou can now log in and view the details here:\nhttps://preview--connect-market-nexus.lovable.app/my-requests\n\n— The SourceCo Team`;
+    textContent = `Hi ${firstName},\n\nGreat news! Your connection request for ${listingName} has been approved.\n\nYou can now log in and view the details here:\nhttps://market.sourcecodeals.com/my-requests\n\n— The SourceCo Team`;
   } else {
     subject = '❌ Your connection request update';
     htmlContent = `
@@ -145,7 +145,7 @@ async function handleRequestReceivedNotification(data: UserNotificationRequest):
     <p>We've received your request to connect with the owner. Our team will review it and reach out if it's a fit.</p>
 
     <p>
-      <a href="https://preview--connect-market-nexus.lovable.app/my-requests"
+      <a href="https://market.sourcecodeals.com/my-requests"
          style="display: inline-block; background-color: #0070f3; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; margin-top: 15px;">
          🔗 View Your Requests
       </a>
@@ -161,7 +161,7 @@ async function handleRequestReceivedNotification(data: UserNotificationRequest):
 
     We've received your request to connect with the owner. Our team will review it and reach out soon if it's a fit.
 
-    → View your requests: https://preview--connect-market-nexus.lovable.app/my-requests
+    → View your requests: https://market.sourcecodeals.com/my-requests
 
     — The SourceCo Team
   `;
@@ -226,14 +226,14 @@ ${buyer.message}
   htmlContent += `
     <p><strong>Submitted:</strong> ${timestamp}</p>
 
-    <p><a href="https://preview--connect-market-nexus.lovable.app/admin/connection-requests" style="display: inline-block; background-color: #0070f3; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; margin-top: 15px;">→ View Request</a></p>
+    <p><a href="https://market.sourcecodeals.com/admin/connection-requests" style="display: inline-block; background-color: #0070f3; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; margin-top: 15px;">→ View Request</a></p>
   `;
   
   textContent += `
 
 Submitted: ${timestamp}
 
-View Request: https://preview--connect-market-nexus.lovable.app/admin/connection-requests
+View Request: https://market.sourcecodeals.com/admin/connection-requests
   `;
 
   console.log("Sending admin notification email");

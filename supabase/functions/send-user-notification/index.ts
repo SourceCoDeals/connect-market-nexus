@@ -57,11 +57,11 @@ serve(async (req) => {
             <li>Company: ${user.company || 'Not specified'}</li>
           </ul>
           <p>You can now browse and connect with business opportunities.</p>
-          <p><a href="https://preview--connect-market-nexus.lovable.app/marketplace" style="display: inline-block; background-color: #0070f3; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Access Marketplace</a></p>
+          <p><a href="https://market.sourcecodeals.com/marketplace" style="display: inline-block; background-color: #0070f3; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Access Marketplace</a></p>
           <p>Welcome aboard!</p>
           <p>— The SourceCo Team</p>
         `
-        textContent = `Welcome, ${user.first_name}!\n\nGreat news! Your account has been approved and you now have access to our marketplace.\n\nYour account details:\n- Name: ${user.first_name} ${user.last_name}\n- Email: ${user.email}\n- Company: ${user.company || 'Not specified'}\n\nYou can now browse and connect with business opportunities.\n\nAccess the marketplace: https://preview--connect-market-nexus.lovable.app/marketplace\n\nWelcome aboard!\n\n— The SourceCo Team`
+        textContent = `Welcome, ${user.first_name}!\n\nGreat news! Your account has been approved and you now have access to our marketplace.\n\nYour account details:\n- Name: ${user.first_name} ${user.last_name}\n- Email: ${user.email}\n- Company: ${user.company || 'Not specified'}\n\nYou can now browse and connect with business opportunities.\n\nAccess the marketplace: https://market.sourcecodeals.com/marketplace\n\nWelcome aboard!\n\n— The SourceCo Team`
         break
         
       case 'rejection':

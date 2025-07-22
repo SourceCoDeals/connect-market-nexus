@@ -76,8 +76,8 @@ const handler = async (req: Request): Promise<Response> => {
       },
       body: JSON.stringify({
         sender: {
-          name: "Connect Market Nexus",
-          email: "noreply@connect-market-nexus.com"
+          name: "SourceCo Marketplace",
+          email: "adam.haile@sourcecodeals.com"
         },
         to: [{
           email: email,
