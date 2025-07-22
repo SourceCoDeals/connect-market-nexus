@@ -12,10 +12,12 @@ export function useRealtimeAdmin() {
   const isAdmin = user?.is_admin || false;
 
   useEffect(() => {
-    // Only setup admin real-time for admin users
-    if (!isAdmin) return;
+    if (!isAdmin) {
+      setIsConnected(false);
+      return;
+    }
 
-    console.log('🔴 Setting up real-time admin notifications');
+    console.log('🔴 Setting up consolidated realtime admin notifications');
     
     const channel = supabase
       .channel('admin-notifications-realtime')
@@ -76,7 +78,8 @@ export function useRealtimeAdmin() {
         },
         (payload) => {
           console.log('🔄 User profile updated:', payload.new);
-          // Check if approval status changed
+          
+          // Enhanced status change notifications (consolidated from enhanced hook)
           if (payload.old?.approval_status !== payload.new?.approval_status) {
             const status = payload.new.approval_status;
             const userName = `${payload.new.first_name} ${payload.new.last_name}`;
@@ -85,7 +88,8 @@ export function useRealtimeAdmin() {
               description: `${userName} status changed to ${status}`,
             });
           }
-          // Check if admin status changed
+          
+          // Admin privilege changes (consolidated from enhanced hook)
           if (payload.old?.is_admin !== payload.new?.is_admin) {
             const userName = `${payload.new.first_name} ${payload.new.last_name}`;
             toast({
@@ -114,12 +118,12 @@ export function useRealtimeAdmin() {
         }
       )
       .subscribe((status) => {
-        console.log('📡 Admin notifications realtime status:', status);
+        console.log('📡 Consolidated admin notifications realtime status:', status);
         setIsConnected(status === 'SUBSCRIBED');
       });
 
     return () => {
-      console.log('🔌 Cleaning up admin notifications realtime subscription');
+      console.log('🔌 Cleaning up consolidated admin realtime subscription');
       supabase.removeChannel(channel);
       setIsConnected(false);
     };

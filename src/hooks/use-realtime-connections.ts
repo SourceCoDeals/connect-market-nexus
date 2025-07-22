@@ -9,7 +9,7 @@ export function useRealtimeConnections() {
   const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {
-    console.log('🔴 Setting up real-time connection requests subscription');
+    console.log('🔴 Setting up consolidated realtime connection requests');
     
     const channel = supabase
       .channel('connection-requests-realtime')
@@ -22,7 +22,7 @@ export function useRealtimeConnections() {
         },
         (payload) => {
           console.log('🆕 New connection request:', payload.new);
-          // Invalidate connection-related queries
+          // Invalidate all connection-related queries
           queryClient.invalidateQueries({ queryKey: ['connection-status'] });
           queryClient.invalidateQueries({ queryKey: ['user-connection-requests'] });
           queryClient.invalidateQueries({ queryKey: ['admin-connection-requests'] });
@@ -38,7 +38,7 @@ export function useRealtimeConnections() {
         (payload) => {
           console.log('📝 Connection request updated:', payload.new);
           
-          // Show notification for status changes
+          // Enhanced notifications for status changes (consolidated from enhanced hook)
           if (payload.old?.status !== payload.new?.status) {
             const newStatus = payload.new.status;
             if (newStatus === 'approved') {
@@ -62,12 +62,12 @@ export function useRealtimeConnections() {
         }
       )
       .subscribe((status) => {
-        console.log('📡 Connection requests realtime status:', status);
+        console.log('📡 Consolidated connections realtime status:', status);
         setIsConnected(status === 'SUBSCRIBED');
       });
 
     return () => {
-      console.log('🔌 Cleaning up connection requests realtime subscription');
+      console.log('🔌 Cleaning up consolidated connections realtime');
       supabase.removeChannel(channel);
       setIsConnected(false);
     };
