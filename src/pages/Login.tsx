@@ -7,15 +7,13 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
 import { AlertCircle } from "lucide-react";
-import { cleanupAuthState } from "@/lib/auth-helpers";
-import { supabase } from "@/integrations/supabase/client";
 
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { user, isLoading, authChecked } = useAuth();
+  const { user, isLoading, authChecked, login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -25,10 +23,8 @@ const Login = () => {
     if (from && typeof from === 'string' && from !== '/login') {
       return from;
     }
-    return user?.isAdmin ? "/admin" : "/marketplace";
+    return user?.is_admin ? "/admin" : "/marketplace";
   };
-
-  // Note: No automatic cleanup on mount to prevent destroying valid sessions
 
   // Redirect if user is already logged in
   useEffect(() => {
@@ -58,94 +54,14 @@ const Login = () => {
     try {
       console.log(`Attempting login with email: ${email}`);
       
-      // Only sign out the current session before new login
-      try {
-        await supabase.auth.signOut();
-      } catch (err) {
-        // Continue even if this fails
-      }
+      await login(email, password);
       
-      // Sign in with email/password
-      const { data, error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-      
-      if (signInError) {
-        throw signInError;
-      }
-      
-      if (!data || !data.user) {
-        throw new Error("Failed to login. No user data returned.");
-      }
-      
-      console.log("Login successful, user ID:", data.user.id);
-      
-      // Fetch user profile to determine next steps
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', data.user.id)
-        .single();
-      
-      if (profileError || !profile) {
-        throw profileError || new Error("Profile not found");
-      }
-      
-      console.log("Profile data:", {
-        email: profile.email,
-        email_verified: profile.email_verified,
-        approval_status: profile.approval_status,
-        is_admin: profile.is_admin
-      });
-      
-      // Handle different states based on profile data
-      if (!profile.email_verified) {
-        console.log("Email not verified, redirecting to verify email page");
-        await supabase.auth.signOut();
-        navigate("/verify-email", { 
-          state: { email: profile.email },
-          replace: true 
-        });
-        return;
-      }
-      
-      // If email is verified but account is still pending approval
-      if (profile.approval_status === 'pending') {
-        console.log("Account pending approval, signing out and redirecting to pending approval");
-        toast({
-          title: "Account under review",
-          description: "Your account is being reviewed by our team.",
-        });
-        await supabase.auth.signOut();
-        navigate("/pending-approval", { replace: true });
-        return;
-      }
-      
-      if (profile.approval_status === 'rejected') {
-        console.log("Account rejected");
-        toast({
-          variant: "destructive",
-          title: "Account rejected",
-          description: "Your account application has been rejected.",
-        });
-        await supabase.auth.signOut();
-        return;
-      }
-      
-      // Success - user is verified and approved
-      console.log("Login successful, user is verified and approved");
       toast({
         title: "Welcome back",
         description: "You have successfully logged in.",
       });
       
-      // Use React Router navigation instead of window.location for smooth transition
-      if (profile.is_admin) {
-        navigate("/admin/users", { replace: true });
-      } else {
-        navigate("/marketplace", { replace: true });
-      }
+      // Navigation will be handled by the auth system and ProtectedRoute
       
     } catch (err: any) {
       console.error("Login error:", err);

@@ -1,10 +1,9 @@
 
-import React, { createContext, useContext, useEffect } from "react";
+import React, { createContext, useContext } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { User as AppUser } from "@/types";
-import { useFreshAuthState } from "@/hooks/auth/use-fresh-auth-state";
-import { useEnhancedAuthState } from "@/hooks/auth/use-enhanced-auth-state";
-import { useEnhancedAuthActions } from "@/hooks/auth/use-enhanced-auth-actions";
+import { useSimpleAuthState } from "@/hooks/auth/use-simple-auth-state";
+import { useSimpleAuthActions } from "@/hooks/auth/use-simple-auth-actions";
 
 interface AuthContextType {
   user: AppUser | null;
@@ -32,13 +31,6 @@ export const useAuth = () => {
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  // Phase 3: Enhanced Auth State (✅ Implemented)
-  // Phase 4 & 5: Enhanced Realtime + Navigation Protection
-  const useEnhanced = true; // Feature flag for safe migration
-  
-  const freshAuthState = useFreshAuthState();
-  const enhancedAuthState = useEnhancedAuthState();
-  
   const { 
     user, 
     isLoading, 
@@ -47,10 +39,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     authChecked, 
     refreshUserData,
     clearAuthState 
-  } = useEnhanced ? enhancedAuthState : freshAuthState;
+  } = useSimpleAuthState();
   
-  // Use the enhanced auth actions hook
-  const { signUp, signIn, signOut } = useEnhancedAuthActions();
+  const { signUp, signIn, signOut } = useSimpleAuthActions();
 
   const refreshUserProfile = async () => {
     if (refreshUserData) {
@@ -58,15 +49,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  // Create wrapper functions to match the expected interface
   const signup = async (userData: Partial<AppUser>, password: string) => {
     const email = userData.email;
     if (!email) {
       throw new Error("Email is required for signup");
-    }
-    
-    if (user) {
-      await clearAuthState();
     }
     
     const result = await signUp(email, password, userData);
@@ -76,22 +62,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const login = async (email: string, password: string) => {
-    console.log('🔐 Starting login process for:', email);
-    
-    if (user) {
-      await clearAuthState();
-    }
+    console.log('🔐 AuthContext: Starting login for:', email);
     
     const result = await signIn(email, password);
     if (result.error) {
       throw result.error;
     }
     
-    console.log('✅ Login successful for:', email);
+    console.log('✅ AuthContext: Login successful');
   };
 
   const logout = async () => {
-    console.log('👋 Starting logout process');
+    console.log('👋 AuthContext: Starting logout');
     await clearAuthState();
     
     const result = await signOut();
