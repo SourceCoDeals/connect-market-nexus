@@ -41,7 +41,7 @@ function App() {
       <AuthProvider>
         <AnalyticsProvider>
           <Toaster />
-          <SessionMonitoringProvider>
+          {/* <SessionMonitoringProvider> */}
             <RealtimeProvider>
             <Routes>
               {/* Authentication routes - no protection needed */}
@@ -79,7 +79,7 @@ function App() {
             </Routes>
               <RealtimeIndicator />
             </RealtimeProvider>
-          </SessionMonitoringProvider>
+          {/* </SessionMonitoringProvider> */}
         </AnalyticsProvider>
       </AuthProvider>
     </QueryClientProvider>
