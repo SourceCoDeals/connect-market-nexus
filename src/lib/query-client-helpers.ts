@@ -1,27 +1,32 @@
-
 import { QueryClient } from '@tanstack/react-query';
+import { INVALIDATION_PATTERNS } from './query-keys';
 
-// Ultra-simple query invalidation helpers
-export const invalidateListings = (queryClient: QueryClient) => {
-  queryClient.invalidateQueries({ queryKey: ['listings'] });
+// Enhanced query client helpers with safe invalidation
+export const safeInvalidateQueries = async (
+  queryClient: QueryClient,
+  patterns: Array<{ queryKey: readonly unknown[] }>
+) => {
+  try {
+    await Promise.all(
+      patterns.map(pattern => 
+        queryClient.invalidateQueries({ queryKey: pattern.queryKey })
+      )
+    );
+  } catch (error) {
+    console.error('Error invalidating queries:', error);
+    // Don't throw - invalidation errors shouldn't break user operations
+  }
 };
 
+// Centralized invalidation helpers
 export const invalidateSavedListings = (queryClient: QueryClient) => {
-  queryClient.invalidateQueries({ queryKey: ['saved-listings'] });
+  return safeInvalidateQueries(queryClient, INVALIDATION_PATTERNS.savedListings());
 };
 
 export const invalidateConnectionRequests = (queryClient: QueryClient) => {
-  queryClient.invalidateQueries({ queryKey: ['connection-requests'] });
-  queryClient.invalidateQueries({ queryKey: ['user-connection-requests'] });
-  queryClient.invalidateQueries({ queryKey: ['admin-connection-requests'] });
+  return safeInvalidateQueries(queryClient, INVALIDATION_PATTERNS.connectionRequests());
 };
 
-export const invalidateUserProfile = (queryClient: QueryClient) => {
-  queryClient.invalidateQueries({ queryKey: ['user-profile'] });
-};
-
-export const invalidateAdminData = (queryClient: QueryClient) => {
-  queryClient.invalidateQueries({ queryKey: ['admin-users'] });
-  queryClient.invalidateQueries({ queryKey: ['admin-connection-requests'] });
-  queryClient.invalidateQueries({ queryKey: ['admin-listings'] });
+export const invalidateUserProfile = (queryClient: QueryClient, userId?: string) => {
+  return safeInvalidateQueries(queryClient, INVALIDATION_PATTERNS.userProfile(userId));
 };

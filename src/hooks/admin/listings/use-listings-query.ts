@@ -5,7 +5,7 @@ import { AdminListing } from '@/types/admin';
 import { toast } from '@/hooks/use-toast';
 import { withPerformanceMonitoring } from '@/lib/performance-monitor';
 import { useAuth } from '@/context/AuthContext';
-
+import { useTabAwareQuery } from '@/hooks/use-tab-aware-query';
 
 /**
  * Hook for fetching admin listings with status filtering and soft delete support
@@ -26,9 +26,9 @@ export function useListingsQuery(status?: 'active' | 'inactive' | 'all') {
   const isAdminUser = user?.is_admin === true || cachedAuthState?.is_admin === true;
   const shouldEnable = (authChecked || cachedAuthState) && isAdminUser;
 
-  return useQuery({
-    queryKey: ['admin-listings', status],
-    queryFn: async () => {
+  return useTabAwareQuery(
+    ['admin-listings', status],
+    async () => {
       return withPerformanceMonitoring('admin-listings-query', async () => {
         try {
           console.log(`🔍 Admin fetching listings with status filter: ${status || 'all'}`);
@@ -79,13 +79,16 @@ export function useListingsQuery(status?: 'active' | 'inactive' | 'all') {
         }
       });
     },
-    enabled: shouldEnable,
-    staleTime: 1000 * 60 * 2,
-    retry: (failureCount, error) => {
-      if (error?.message?.includes('Admin authentication')) {
-        return false;
-      }
-      return failureCount < 2;
-    },
-  });
+    {
+      enabled: shouldEnable,
+      staleTime: 1000 * 60 * 2,
+      // Remove refetchOnWindowFocus - let global settings handle this
+      retry: (failureCount, error) => {
+        if (error?.message?.includes('Admin authentication')) {
+          return false;
+        }
+        return failureCount < 2;
+      },
+    }
+  );
 }

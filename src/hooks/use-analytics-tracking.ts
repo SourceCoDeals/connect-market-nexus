@@ -1,6 +1,6 @@
 import { useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/context/AuthContext';
+import { useAuthState } from './auth/use-auth-state';
 
 interface TrackEventParams {
   eventType: string;
@@ -18,7 +18,7 @@ interface TrackPageViewParams {
 }
 
 export function useAnalyticsTracking() {
-  const { user } = useAuth();
+  const { user } = useAuthState();
   const sessionIdRef = useRef<string | null>(null);
   const pageStartTimeRef = useRef<number>(Date.now());
   const currentPageRef = useRef<string>('');
