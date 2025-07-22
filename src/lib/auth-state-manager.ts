@@ -1,3 +1,4 @@
+
 /**
  * Centralized Auth State Manager
  * 
@@ -8,6 +9,7 @@
 import { User } from "@/types";
 import { supabase } from "@/integrations/supabase/client";
 import { createUserObject, cleanupAuthState } from "@/lib/auth-helpers";
+import { tabVisibilityManager } from "@/lib/tab-visibility-manager";
 
 type AuthStateListener = (user: User | null, isLoading: boolean) => void;
 
@@ -19,6 +21,7 @@ class AuthStateManager {
   private initializationPromise: Promise<void> | null = null;
   private authSubscription: any = null;
   private isDestroyed: boolean = false;
+  private tabVisibilitySubscription: (() => void) | null = null;
 
   // Debounced state update to prevent race conditions
   private updateStateDebounce: NodeJS.Timeout | null = null;
@@ -27,6 +30,7 @@ class AuthStateManager {
 
   constructor() {
     this.initialize();
+    this.setupTabVisibilityHandling();
   }
 
   /**
@@ -153,6 +157,20 @@ class AuthStateManager {
     }
   }
 
+  private setupTabVisibilityHandling(): void {
+    this.tabVisibilitySubscription = tabVisibilityManager.subscribe((isVisible) => {
+      if (isVisible && tabVisibilityManager.isRecentlyVisible(2000)) {
+        console.log('👁️ AuthStateManager: Tab became visible, checking auth state');
+        
+        // Only refresh if we have a user and tab was hidden for a while
+        if (this.user && tabVisibilityManager.getTimeSinceLastVisibilityChange() > 30000) {
+          console.log('🔄 AuthStateManager: Refreshing auth state after long tab hide');
+          this.refreshUserData(this.user.id);
+        }
+      }
+    });
+  }
+
   private setupAuthListener(): void {
     if (this.authSubscription || this.isDestroyed) return;
 
@@ -161,6 +179,12 @@ class AuthStateManager {
         if (this.isDestroyed) return;
 
         console.log('🔔 AuthStateManager: Auth event:', event);
+        
+        // Skip auth events when tab is not visible to prevent race conditions
+        if (!tabVisibilityManager.getVisibility() && event === 'TOKEN_REFRESHED') {
+          console.log('⏸️ AuthStateManager: Skipping auth event while tab hidden');
+          return;
+        }
         
         switch (event) {
           case 'SIGNED_OUT':
@@ -264,6 +288,11 @@ class AuthStateManager {
     if (this.authSubscription) {
       this.authSubscription.unsubscribe();
       this.authSubscription = null;
+    }
+
+    if (this.tabVisibilitySubscription) {
+      this.tabVisibilitySubscription();
+      this.tabVisibilitySubscription = null;
     }
   }
 }

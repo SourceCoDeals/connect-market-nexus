@@ -1,12 +1,14 @@
+
 /**
- * Enhanced Real-time Manager (Phase 4)
+ * Enhanced Real-time Manager (Phase 4 + 6)
  * 
  * Prevents real-time interference with loading states and implements smart cache invalidation.
- * Uses debouncing and loading state awareness to prevent query flooding.
+ * Uses debouncing, loading state awareness, and tab visibility management.
  */
 
 import { QueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { tabVisibilityManager } from '@/lib/tab-visibility-manager';
 
 type InvalidationCallback = () => void;
 
@@ -14,6 +16,7 @@ interface RealtimeSubscription {
   channel: any;
   queryKeys: string[];
   isConnected: boolean;
+  isPaused: boolean;
 }
 
 class EnhancedRealtimeManager {
@@ -22,6 +25,8 @@ class EnhancedRealtimeManager {
   private pendingInvalidations: Set<string> = new Set();
   private debounceTimeouts: Map<string, NodeJS.Timeout> = new Map();
   private loadingStates: Map<string, boolean> = new Map();
+  private tabVisibilitySubscription: (() => void) | null = null;
+  private pausedInvalidations: Map<string, string[]> = new Map();
 
   // Configuration
   private readonly DEBOUNCE_DELAY = 300; // ms
@@ -29,6 +34,7 @@ class EnhancedRealtimeManager {
 
   initialize(queryClient: QueryClient) {
     this.queryClient = queryClient;
+    this.setupTabVisibilityHandling();
     console.log('🚀 EnhancedRealtimeManager initialized');
   }
 
@@ -45,10 +51,25 @@ class EnhancedRealtimeManager {
   }
 
   /**
-   * Smart invalidation that respects loading states
+   * Smart invalidation that respects loading states and tab visibility
    */
   invalidateQueries(queryKeys: string[], source: string = 'realtime') {
     if (!this.queryClient) return;
+
+    // Skip invalidations if tab is not visible
+    if (!tabVisibilityManager.getVisibility()) {
+      console.log(`⏸️ Pausing ${queryKeys.length} invalidations (tab hidden)`);
+      this.pausedInvalidations.set(source, queryKeys);
+      return;
+    }
+
+    // Check if we recently became visible and should throttle invalidations
+    if (tabVisibilityManager.isRecentlyVisible(5000)) {
+      console.log(`🔄 Tab recently visible, throttling invalidations`);
+      // Increase debounce delay for recently visible tabs
+      this.debouncedInvalidateWithDelay(queryKeys, source, 1000);
+      return;
+    }
 
     const safeInvalidations: string[] = [];
     const deferredInvalidations: string[] = [];
@@ -132,7 +153,8 @@ class EnhancedRealtimeManager {
     const subscription: RealtimeSubscription = {
       channel,
       queryKeys: allQueryKeys,
-      isConnected: false
+      isConnected: false,
+      isPaused: false
     };
 
     channel.subscribe((status) => {
@@ -163,7 +185,8 @@ class EnhancedRealtimeManager {
    * Get connection status for a subscription
    */
   getConnectionStatus(subscriptionId: string): boolean {
-    return this.subscriptions.get(subscriptionId)?.isConnected || false;
+    const subscription = this.subscriptions.get(subscriptionId);
+    return subscription ? subscription.isConnected && !subscription.isPaused : false;
   }
 
   /**
@@ -172,12 +195,54 @@ class EnhancedRealtimeManager {
   getAllConnectionStatuses() {
     const statuses: Record<string, boolean> = {};
     this.subscriptions.forEach((subscription, id) => {
-      statuses[id] = subscription.isConnected;
+      statuses[id] = subscription.isConnected && !subscription.isPaused;
     });
     return statuses;
   }
 
+  private setupTabVisibilityHandling(): void {
+    this.tabVisibilitySubscription = tabVisibilityManager.subscribe((isVisible) => {
+      if (isVisible) {
+        console.log('👁️ EnhancedRealtimeManager: Tab visible, resuming subscriptions');
+        this.resumeAllSubscriptions();
+        this.processPausedInvalidations();
+      } else {
+        console.log('👁️ EnhancedRealtimeManager: Tab hidden, pausing subscriptions');
+        this.pauseAllSubscriptions();
+      }
+    });
+  }
+
+  private pauseAllSubscriptions(): void {
+    this.subscriptions.forEach((subscription) => {
+      subscription.isPaused = true;
+    });
+  }
+
+  private resumeAllSubscriptions(): void {
+    this.subscriptions.forEach((subscription) => {
+      subscription.isPaused = false;
+    });
+  }
+
+  private processPausedInvalidations(): void {
+    if (this.pausedInvalidations.size === 0) return;
+
+    console.log(`🔄 Processing ${this.pausedInvalidations.size} paused invalidation groups`);
+    
+    // Process all paused invalidations with extra delay for tab switching
+    this.pausedInvalidations.forEach((queryKeys, source) => {
+      this.debouncedInvalidateWithDelay(queryKeys, `paused-${source}`, 2000);
+    });
+
+    this.pausedInvalidations.clear();
+  }
+
   private debouncedInvalidate(queryKeys: string[], source: string) {
+    this.debouncedInvalidateWithDelay(queryKeys, source, this.DEBOUNCE_DELAY);
+  }
+
+  private debouncedInvalidateWithDelay(queryKeys: string[], source: string, delay: number) {
     if (!this.queryClient) return;
 
     const timeoutKey = `${source}-debounce`;
@@ -206,7 +271,7 @@ class EnhancedRealtimeManager {
       });
 
       this.debounceTimeouts.delete(timeoutKey);
-    }, this.DEBOUNCE_DELAY);
+    }, delay);
 
     this.debounceTimeouts.set(timeoutKey, timeout);
   }
@@ -262,9 +327,16 @@ class EnhancedRealtimeManager {
     });
     this.subscriptions.clear();
 
+    // Clean up tab visibility subscription
+    if (this.tabVisibilitySubscription) {
+      this.tabVisibilitySubscription();
+      this.tabVisibilitySubscription = null;
+    }
+
     // Clear state
     this.loadingStates.clear();
     this.pendingInvalidations.clear();
+    this.pausedInvalidations.clear();
     this.queryClient = null;
   }
 }
