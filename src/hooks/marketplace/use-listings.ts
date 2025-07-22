@@ -1,3 +1,4 @@
+
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { FilterOptions, Listing, ListingStatus } from '@/types';
@@ -182,7 +183,7 @@ export const useListings = (filters: FilterOptions = {}) => {
         }
       });
     },
-    enabled: authChecked && user && user.email_verified && (user.approval_status === 'approved' || user.is_admin),
+    enabled: !!(authChecked && user && user.email_verified && (user.approval_status === 'approved' || user.is_admin)),
     staleTime: 0,
     gcTime: 1000 * 60 * 2,
     refetchOnWindowFocus: true,
@@ -276,12 +277,12 @@ export const useListing = (id: string | undefined) => {
         }
       });
     },
-    enabled: !!id && authChecked && user && user.email_verified && (user.approval_status === 'approved' || user.is_admin),
+    enabled: !!(id && authChecked && user && user.email_verified && (user.approval_status === 'approved' || user.is_admin)),
     staleTime: 1000 * 60 * 5,
     refetchOnWindowFocus: false,
     retry: (failureCount, error) => {
       if (error?.message?.includes('Authentication') || error?.message?.includes('not ready')) {
-        return failureCount < 3;
+        return failureCount < 2;
       }
       return false;
     },
@@ -343,12 +344,12 @@ export const useListingMetadata = () => {
         }
       });
     },
-    enabled: authChecked && user && user.email_verified && (user.approval_status === 'approved' || user.is_admin),
+    enabled: !!(authChecked && user && user.email_verified && (user.approval_status === 'approved' || user.is_admin)),
     staleTime: 1000 * 60 * 5,
     refetchOnWindowFocus: false,
     retry: (failureCount, error) => {
       if (error?.message?.includes('Authentication') || error?.message?.includes('not ready')) {
-        return failureCount < 3;
+        return failureCount < 2;
       }
       return false;
     },

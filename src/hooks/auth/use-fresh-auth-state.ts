@@ -64,12 +64,33 @@ export function useFreshAuthState() {
 
     const initializeAuth = async () => {
       try {
+        console.log('🚀 Starting auth initialization...');
         setIsLoading(true);
 
-        // Set up auth state listener first
+        // First, check for existing session
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        
+        if (sessionError) {
+          console.error('❌ Session error:', sessionError);
+          if (isSubscribed) {
+            await clearAuthState();
+          }
+          return;
+        }
+
+        console.log('📋 Initial session check:', {
+          hasSession: !!session,
+          userEmail: session?.user?.email,
+          sessionExpiry: session?.expires_at
+        });
+
+        // Set up auth state listener
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
           async (event, session) => {
-            console.log('🔔 Auth state change:', event, session?.user?.email);
+            console.log('🔔 Auth state change:', event, {
+              hasSession: !!session,
+              userEmail: session?.user?.email
+            });
             
             if (!isSubscribed) return;
 
@@ -108,19 +129,10 @@ export function useFreshAuthState() {
 
         authSubscription = subscription;
 
-        // Check for existing session with simplified logic
-        const { data: { session }, error } = await supabase.auth.getSession();
-        
-        if (error) {
-          console.error('❌ Session error:', error);
-          await clearAuthState();
-          return;
-        }
-
+        // If we have an initial session, load user data
         if (session?.user && isSubscribed) {
           console.log('🔍 Found existing session for:', session.user.email);
           
-          // Always fetch fresh profile data on initialization
           const freshUserData = await refreshUserData(session.user.id);
           if (freshUserData && isSubscribed) {
             console.log('🎯 Setting initial user data:', {

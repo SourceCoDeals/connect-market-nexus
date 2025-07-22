@@ -4,17 +4,30 @@ import { supabase } from '@/integrations/supabase/client';
 import { AdminListing } from '@/types/admin';
 import { toast } from '@/hooks/use-toast';
 import { withPerformanceMonitoring } from '@/lib/performance-monitor';
+import { useAuth } from '@/context/AuthContext';
 
 /**
  * Hook for fetching admin listings with status filtering and soft delete support
  */
 export function useListingsQuery(status?: 'active' | 'inactive' | 'all') {
+  const { user, authChecked } = useAuth();
+
   return useQuery({
     queryKey: ['admin-listings', status],
     queryFn: async () => {
       return withPerformanceMonitoring('admin-listings-query', async () => {
         try {
-          console.log(`Fetching listings with status filter: ${status || 'all'}`);
+          console.log(`🔍 Admin fetching listings with status filter: ${status || 'all'}`);
+          console.log('🔐 Admin auth state:', {
+            authChecked,
+            user: user?.email,
+            is_admin: user?.is_admin
+          });
+
+          // Ensure we have proper auth state and admin access
+          if (!authChecked || !user || !user.is_admin) {
+            throw new Error('Admin authentication required');
+          }
           
           let query = supabase
             .from('listings')
@@ -29,11 +42,11 @@ export function useListingsQuery(status?: 'active' | 'inactive' | 'all') {
           const { data, error } = await query.order('created_at', { ascending: false });
 
           if (error) {
-            console.error('Supabase error fetching listings:', error);
+            console.error('❌ Supabase error fetching admin listings:', error);
             throw error;
           }
           
-          console.log(`Retrieved ${data?.length} non-deleted listings with status: ${status || 'all'}`);
+          console.log(`✅ Retrieved ${data?.length} non-deleted listings with status: ${status || 'all'}`);
           
           // Add detailed logging for image URLs
           data?.forEach(listing => {
@@ -52,7 +65,7 @@ export function useListingsQuery(status?: 'active' | 'inactive' | 'all') {
           
           return mappedData as AdminListing[];
         } catch (error: any) {
-          console.error('Error fetching listings:', error);
+          console.error('💥 Error fetching admin listings:', error);
           toast({
             variant: 'destructive',
             title: 'Error fetching listings',
@@ -61,6 +74,15 @@ export function useListingsQuery(status?: 'active' | 'inactive' | 'all') {
           return [];
         }
       });
+    },
+    enabled: !!(authChecked && user && user.is_admin),
+    staleTime: 1000 * 60 * 2,
+    refetchOnWindowFocus: true,
+    retry: (failureCount, error) => {
+      if (error?.message?.includes('Admin authentication')) {
+        return false; // Don't retry auth errors
+      }
+      return failureCount < 2;
     },
   });
 }

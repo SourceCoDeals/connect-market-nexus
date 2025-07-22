@@ -28,49 +28,48 @@ const OnboardingPopup = ({ isOpen, onClose, userId }: OnboardingPopupProps) => {
         .from('profiles')
         .select('id, onboarding_completed')
         .eq('id', userId)
-        .maybeSingle();
+        .single();
 
       if (checkError) {
         console.error('❌ Error checking user profile:', checkError);
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: "Failed to check your profile. Please try again.",
-        });
-        setIsCompleting(false);
-        return;
-      }
-
-      if (!existingProfile) {
-        console.error('❌ No profile found for user:', userId);
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: "Your profile was not found. Please try logging in again.",
-        });
+        
+        // If user not found, they might not be properly authenticated
+        if (checkError.code === 'PGRST116') {
+          console.error('❌ User profile not found - possible auth issue');
+          toast({
+            variant: "destructive",
+            title: "Authentication Error",
+            description: "Please try logging out and logging back in.",
+          });
+        } else {
+          toast({
+            variant: "destructive",
+            title: "Error",
+            description: "Failed to check your profile. Please try again.",
+          });
+        }
         setIsCompleting(false);
         return;
       }
 
       console.log('✅ Found user profile:', existingProfile);
 
-      // If already completed, just close the popup
+      // If already completed, just close the popup without further action
       if (existingProfile.onboarding_completed) {
         console.log('✅ Onboarding already completed, closing popup');
         onClose();
         return;
       }
 
-      // Update onboarding status - use maybeSingle to avoid errors if no rows affected
-      const { data, error } = await supabase
+      // Update onboarding status
+      console.log('🔄 Updating onboarding status to completed...');
+      const { error: updateError } = await supabase
         .from('profiles')
         .update({ onboarding_completed: true })
-        .eq('id', userId)
-        .select('onboarding_completed')
-        .maybeSingle();
+        .eq('id', userId);
 
-      if (error) {
-        console.error('❌ Error updating onboarding status:', error);
+      if (updateError) {
+        console.error('❌ Error updating onboarding status:', updateError);
         toast({
           variant: "destructive",
           title: "Error",
@@ -80,7 +79,7 @@ const OnboardingPopup = ({ isOpen, onClose, userId }: OnboardingPopupProps) => {
         return;
       }
 
-      console.log('✅ Onboarding completion successful:', data);
+      console.log('✅ Onboarding completion successful');
       
       // Close immediately after successful update
       onClose();

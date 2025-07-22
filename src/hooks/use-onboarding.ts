@@ -17,9 +17,17 @@ export const useOnboarding = () => {
         approval_status: user?.approval_status
       });
 
-      if (!authChecked || !user || !user.email_verified || user.approval_status !== 'approved') {
+      // Wait for auth to be fully checked
+      if (!authChecked) {
+        console.log('⏳ Auth not yet checked, waiting...');
+        setIsLoading(true);
+        setShowOnboarding(false);
+        return;
+      }
+
+      // Check if user is ready for onboarding
+      if (!user || !user.email_verified || user.approval_status !== 'approved') {
         console.log('⚠️ User not ready for onboarding check:', {
-          authChecked,
           hasUser: !!user,
           email_verified: user?.email_verified,
           approval_status: user?.approval_status
@@ -36,7 +44,7 @@ export const useOnboarding = () => {
           .from('profiles')
           .select('onboarding_completed')
           .eq('id', user.id)
-          .maybeSingle();
+          .single();
 
         if (error) {
           console.error('❌ Error checking onboarding status:', error);
@@ -47,7 +55,7 @@ export const useOnboarding = () => {
 
         console.log('📊 Onboarding status data:', data);
 
-        // Show onboarding if user hasn't completed it yet or if data is null
+        // Only show onboarding if user hasn't completed it yet
         const shouldShow = !data?.onboarding_completed;
         console.log('🎯 Should show onboarding:', shouldShow);
         
