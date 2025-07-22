@@ -1,5 +1,6 @@
 
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import { AnalyticsProvider } from "./context/AnalyticsContext";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { AuthProvider } from "./context/AuthContext";
@@ -41,7 +42,8 @@ function App() {
     <Router>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
-          <SimpleRealtimeProvider>
+          <AnalyticsProvider>
+            <SimpleRealtimeProvider>
             <div className="min-h-screen bg-background">
               <Routes>
                 {/* Public routes */}
@@ -133,9 +135,10 @@ function App() {
                 <Route path="*" element={<Navigate to="/marketplace" replace />} />
               </Routes>
             </div>
-            <Toaster />
-            <ReactQueryDevtools initialIsOpen={false} />
-          </SimpleRealtimeProvider>
+              <Toaster />
+              <ReactQueryDevtools initialIsOpen={false} />
+            </SimpleRealtimeProvider>
+          </AnalyticsProvider>
         </AuthProvider>
       </QueryClientProvider>
     </Router>
