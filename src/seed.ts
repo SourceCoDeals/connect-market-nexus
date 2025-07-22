@@ -1,5 +1,6 @@
 
 import { supabase } from "./integrations/supabase/client";
+import { errorLogger } from "./lib/error-logger";
 
 // Sample data for listings
 const sampleListings = [
@@ -83,14 +84,13 @@ export const seedDatabase = async () => {
       
       if (listingsError) throw listingsError;
       
-      console.log('Database seeded successfully');
+      await errorLogger.info('Database seeded successfully with sample data');
       return true;
     } else {
-      console.log('Database already has data, skipping seed');
-      return false;
+      return false; // Silent - already has data
     }
   } catch (error) {
-    console.error('Error seeding database:', error);
+    await errorLogger.error('Database seeding failed', { error: error instanceof Error ? error.message : String(error) });
     return false;
   }
 };

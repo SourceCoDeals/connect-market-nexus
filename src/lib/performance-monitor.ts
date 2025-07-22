@@ -1,5 +1,6 @@
 
 import { supabase } from '@/integrations/supabase/client';
+import { errorLogger } from './error-logger';
 
 interface MemoryUsage {
   total: number;
@@ -32,10 +33,12 @@ export async function withPerformanceMonitoring<T>(
   const startTime = Date.now();
   const memoryBefore = getMemoryUsage();
   
-  console.log(`🚀 Starting ${operationName}`, {
-    timestamp: new Date().toISOString(),
-    memoryBefore
-  });
+  if (import.meta.env.DEV) {
+    await errorLogger.info(`Starting performance monitoring: ${operationName}`, {
+      timestamp: new Date().toISOString(),
+      memoryBefore
+    });
+  }
   
   try {
     const result = await operation();
@@ -56,23 +59,24 @@ export async function withPerformanceMonitoring<T>(
       success: true
     };
     
-    console.log(`✅ Completed ${operationName}`, {
-      duration: `${duration}ms`,
-      memoryDelta: `${Math.round(metrics.memoryUsage.delta / 1024 / 1024 * 100) / 100}MB`,
-      ...metrics
-    });
+    if (import.meta.env.DEV) {
+      await errorLogger.info(`Completed ${operationName}`, {
+        duration: `${duration}ms`,
+        memoryDelta: `${Math.round(metrics.memoryUsage.delta / 1024 / 1024 * 100) / 100}MB`
+      });
+    }
     
     // Store metrics for analysis
-    storeMetrics(metrics);
+    await storeMetrics(metrics);
     
     // Alert on slow operations
     if (duration > PERFORMANCE_THRESHOLDS.SLOW_OPERATION) {
-      console.warn(`⚠️ Slow operation detected: ${operationName} took ${duration}ms`);
+      await errorLogger.warning(`Slow operation detected: ${operationName} took ${duration}ms`);
     }
     
     // Alert on high memory usage
     if (memoryAfter.used > PERFORMANCE_THRESHOLDS.HIGH_MEMORY) {
-      console.warn(`⚠️ High memory usage detected: ${Math.round(memoryAfter.used / 1024 / 1024)}MB`);
+      await errorLogger.warning(`High memory usage detected: ${Math.round(memoryAfter.used / 1024 / 1024)}MB`);
     }
     
     return result;
@@ -93,13 +97,12 @@ export async function withPerformanceMonitoring<T>(
       error: error instanceof Error ? error.message : 'Unknown error'
     };
     
-    console.error(`❌ Failed ${operationName}`, {
+    await errorLogger.error(`Failed ${operationName}`, {
       duration: `${duration}ms`,
-      error: metrics.error,
-      ...metrics
+      error: metrics.error
     });
     
-    storeMetrics(metrics);
+    await storeMetrics(metrics);
     throw error;
   }
 }
@@ -125,30 +128,36 @@ function getMemoryUsage(): MemoryUsage {
 
 const metricsStore: PerformanceMetrics[] = [];
 
-function storeMetrics(metrics: PerformanceMetrics): void {
+async function storeMetrics(metrics: PerformanceMetrics): Promise<void> {
   metricsStore.push(metrics);
   
-  // Basic logging to console, can be extended to send to monitoring tools
-  console.debug('📊 Stored performance metrics:', metrics);
+  // Track performance metrics for analysis
+  if (import.meta.env.DEV) {
+    await errorLogger.trackPerformance(metrics.operationName, metrics.duration, {
+      success: metrics.success,
+      memoryDelta: metrics.memoryUsage.delta
+    });
+  }
 }
 
 export async function refreshAnalyticsViews(): Promise<void> {
   return withPerformanceMonitoring('refresh-analytics-views', async () => {
     try {
-      console.log('🔄 Refreshing analytics materialized views');
+      await errorLogger.info('Refreshing analytics materialized views');
       
       // Use the refresh function that was created in the migration
-      // Type assertion to work around the types not being updated yet
       const { error } = await supabase.rpc('refresh_analytics_views' as any);
       
       if (error) {
-        console.error('Error refreshing analytics views:', error);
+        await errorLogger.error('Error refreshing analytics views', { error: error.message });
         throw error;
       }
       
-      console.log('✅ Analytics views refreshed successfully');
+      await errorLogger.info('Analytics views refreshed successfully');
     } catch (error: any) {
-      console.error('💥 Failed to refresh analytics views:', error);
+      await errorLogger.error('Failed to refresh analytics views', { 
+        error: error instanceof Error ? error.message : String(error) 
+      });
       throw error;
     }
   });
@@ -156,13 +165,15 @@ export async function refreshAnalyticsViews(): Promise<void> {
 
 // Example usage in a scheduled task or background job
 export async function runPeriodicTasks(): Promise<void> {
-  console.log('⏰ Running periodic tasks...');
+  await errorLogger.info('Running periodic tasks');
   
   try {
     await refreshAnalyticsViews();
-    console.log('✅ Periodic tasks completed successfully.');
+    await errorLogger.info('Periodic tasks completed successfully');
   } catch (error) {
-    console.error('❌ Periodic tasks failed:', error);
+    await errorLogger.error('Periodic tasks failed', { 
+      error: error instanceof Error ? error.message : String(error) 
+    });
   }
 }
 
