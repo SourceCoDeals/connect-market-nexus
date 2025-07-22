@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { useAdmin } from "@/hooks/use-admin";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { adminErrorHandler } from "@/lib/error-handler";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Store, Users, MessageSquare, TrendingUp } from "lucide-react";
@@ -29,7 +31,12 @@ const AdminDashboard = () => {
 
   // Desktop Layout
   return (
-    <div className="space-y-4 md:space-y-6">
+    <ErrorBoundary
+      onError={(error, errorInfo) => {
+        adminErrorHandler(error, 'dashboard loading');
+      }}
+    >
+      <div className="space-y-4 md:space-y-6">
       <div>
         <h1 className="text-2xl md:text-3xl font-bold">Admin Dashboard</h1>
         <p className="text-sm md:text-base text-muted-foreground">Overview of your marketplace</p>
@@ -164,7 +171,8 @@ const AdminDashboard = () => {
           <AdminFeedbackTab />
         </TabsContent>
       </Tabs>
-    </div>
+      </div>
+    </ErrorBoundary>
   );
 
   function renderSkeleton() {

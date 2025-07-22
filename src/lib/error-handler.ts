@@ -1,5 +1,6 @@
 import React from 'react';
 import { toast } from '@/hooks/use-toast';
+import { errorLogger } from '@/lib/error-logger';
 
 export type ErrorSeverity = 'low' | 'medium' | 'high' | 'critical';
 
@@ -59,6 +60,9 @@ class ErrorManager {
     if (process.env.NODE_ENV === 'production' && severity !== 'low') {
       this.reportToExternalService(error, context, severity);
     }
+
+    // Always log to error logger for production monitoring
+    errorLogger.logError(error, context, severity === 'low' ? 'info' : 'error');
   };
 
   private addToQueue(errorEntry: { error: Error | string; context?: ErrorContext; severity: ErrorSeverity; timestamp: Date }) {

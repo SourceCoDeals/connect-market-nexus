@@ -31,6 +31,8 @@ import AdminListings from "@/pages/admin/AdminListings";
 import AdminUsers from "@/pages/admin/AdminUsers";
 import AdminRequests from "@/pages/admin/AdminRequests";
 import { Toaster } from "@/components/ui/toaster";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { errorHandler } from "@/lib/error-handler";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -49,12 +51,21 @@ const queryClient = new QueryClient({
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <TabVisibilityProvider>
-        <NavigationStateProvider>
-          <AuthProvider>
-            <AnalyticsProvider>
-              <Toaster />
+    <ErrorBoundary
+      onError={(error, errorInfo) => {
+        errorHandler(error, { 
+          component: 'App', 
+          operation: 'application root',
+          metadata: { componentStack: errorInfo.componentStack }
+        }, 'critical');
+      }}
+    >
+      <QueryClientProvider client={queryClient}>
+        <TabVisibilityProvider>
+          <NavigationStateProvider>
+            <AuthProvider>
+              <AnalyticsProvider>
+                <Toaster />
           <Routes>
             {/* Authentication routes - no protection needed */}
             <Route path="/login" element={<Login />} />
@@ -89,11 +100,12 @@ function App() {
             {/* Catch-all route for 404 Not Found */}
             <Route path="*" element={<NotFound />} />
           </Routes>
-            </AnalyticsProvider>
-          </AuthProvider>
-        </NavigationStateProvider>
-      </TabVisibilityProvider>
-    </QueryClientProvider>
+              </AnalyticsProvider>
+            </AuthProvider>
+          </NavigationStateProvider>
+        </TabVisibilityProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }
 
