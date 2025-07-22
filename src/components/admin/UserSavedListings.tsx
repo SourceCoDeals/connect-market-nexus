@@ -7,6 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { formatDistanceToNow } from "date-fns";
 import { ChevronDown, ChevronUp } from "lucide-react";
+import { QUERY_KEYS } from "@/lib/query-keys";
 
 interface UserSavedListingsProps {
   userId: string;
@@ -16,7 +17,7 @@ export function UserSavedListings({ userId }: UserSavedListingsProps) {
   const [showAll, setShowAll] = useState(false);
   
   const { data: savedListings, isLoading } = useQuery({
-    queryKey: ['admin-user-saved-listings', userId],
+    queryKey: QUERY_KEYS.admin.userSavedListings(userId),
     queryFn: async () => {
       const { data, error } = await supabase
         .from('saved_listings')

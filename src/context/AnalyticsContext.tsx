@@ -104,20 +104,53 @@ const updateAnalyticsStats = (success: boolean, error?: any) => {
 
 export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
   const location = useLocation();
-  const { user, authChecked } = useAuth();
+  // PHASE 1: Remove circular dependency - defer auth usage with local state
+  const [authState, setAuthState] = React.useState<{
+    user: any | null;
+    authChecked: boolean;
+  }>({ user: null, authChecked: false });
 
-  // Initialize session immediately on mount
+  // PHASE 1: Initialize auth state listener and session
   useEffect(() => {
+    // Initialize session immediately
     if (!currentSessionId) {
       currentSessionId = generateSessionId();
       sessionStartTime = new Date();
       console.log('📊 Analytics session initialized:', currentSessionId);
     }
+
+    // Listen to auth changes without circular dependency
+    const checkAuth = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        setAuthState({
+          user: session?.user || null,
+          authChecked: true
+        });
+      } catch (error) {
+        console.error('Analytics: Failed to get session:', error);
+        setAuthState({ user: null, authChecked: true });
+      }
+    };
+
+    checkAuth();
+
+    // Listen for auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      setAuthState({
+        user: session?.user || null,
+        authChecked: true
+      });
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   // Create/update session record when auth state is available
   useEffect(() => {
-    if (!authChecked || !currentSessionId) return;
+    if (!authState.authChecked || !currentSessionId) return;
 
     const createOrUpdateSession = async () => {
       try {
@@ -139,7 +172,7 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
           const { error: updateError } = await supabase
             .from('user_sessions')
             .update({
-              user_id: user?.id || null,
+              user_id: authState.user?.id || null,
               updated_at: new Date().toISOString(),
             })
             .eq('session_id', currentSessionId);
@@ -147,13 +180,13 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
           if (updateError) {
             console.error('❌ Failed to update session:', updateError);
           } else {
-            console.log('✅ Analytics session updated:', currentSessionId, 'for user:', user?.id || 'anonymous');
+            console.log('✅ Analytics session updated:', currentSessionId, 'for user:', authState.user?.id || 'anonymous');
           }
         } else {
           // Create new session
           const { error: insertError } = await supabase.from('user_sessions').insert({
             session_id: currentSessionId,
-            user_id: user?.id || null,
+            user_id: authState.user?.id || null,
             started_at: sessionStartTime?.toISOString() || new Date().toISOString(),
             user_agent: navigator.userAgent,
             referrer: document.referrer || null,
@@ -162,7 +195,7 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
           if (insertError) {
             console.error('❌ Failed to create session:', insertError);
           } else {
-            console.log('✅ Analytics session created:', currentSessionId, 'for user:', user?.id || 'anonymous');
+            console.log('✅ Analytics session created:', currentSessionId, 'for user:', authState.user?.id || 'anonymous');
           }
         }
       } catch (error) {
@@ -171,7 +204,7 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
     };
 
     createOrUpdateSession();
-  }, [user, authChecked]);
+  }, [authState.user, authState.authChecked]);
 
   // Track page views on location change
   useEffect(() => {
@@ -191,12 +224,12 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
       return false;
     }
 
-    console.log('📊 Tracking event:', eventType, 'session:', currentSessionId, 'user:', user?.id);
+    console.log('📊 Tracking event:', eventType, 'session:', currentSessionId, 'user:', authState.user?.id);
 
     const result = await retryWithBackoff(async () => {
       const { error } = await supabase.from('user_events').insert({
         session_id: currentSessionId,
-        user_id: user?.id || null,
+        user_id: authState.user?.id || null,
         event_type: eventType,
         event_category: 'user_interaction',
         event_action: eventType,
@@ -231,12 +264,12 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
       return false;
     }
 
-    console.log('📊 Tracking page view:', pagePath, 'session:', currentSessionId, 'user:', user?.id);
+    console.log('📊 Tracking page view:', pagePath, 'session:', currentSessionId, 'user:', authState.user?.id);
 
     const result = await retryWithBackoff(async () => {
       const { error } = await supabase.from('page_views').insert({
         session_id: currentSessionId,
-        user_id: user?.id || null,
+        user_id: authState.user?.id || null,
         page_path: pagePath,
         page_title: document.title,
         referrer: document.referrer || null,
@@ -269,12 +302,12 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
       return false;
     }
 
-    console.log('👀 Tracking listing view:', listingId, 'session:', currentSessionId, 'user:', user?.id);
+    console.log('👀 Tracking listing view:', listingId, 'session:', currentSessionId, 'user:', authState.user?.id);
 
     const result = await retryWithBackoff(async () => {
       const { error } = await supabase.from('listing_analytics').insert({
         session_id: currentSessionId,
-        user_id: user?.id || null,
+        user_id: authState.user?.id || null,
         listing_id: listingId,
         action_type: 'view',
         referrer_page: location.pathname,
@@ -307,12 +340,12 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
       return false;
     }
 
-    console.log('💾 Tracking listing save:', listingId, 'session:', currentSessionId, 'user:', user?.id);
+    console.log('💾 Tracking listing save:', listingId, 'session:', currentSessionId, 'user:', authState.user?.id);
 
     const result = await retryWithBackoff(async () => {
       const { error } = await supabase.from('listing_analytics').insert({
         session_id: currentSessionId,
-        user_id: user?.id || null,
+        user_id: authState.user?.id || null,
         listing_id: listingId,
         action_type: 'save',
         referrer_page: location.pathname,
@@ -345,12 +378,12 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
       return false;
     }
 
-    console.log('🔗 Tracking connection request:', listingId, 'session:', currentSessionId, 'user:', user?.id);
+    console.log('🔗 Tracking connection request:', listingId, 'session:', currentSessionId, 'user:', authState.user?.id);
 
     const result = await retryWithBackoff(async () => {
       const { error } = await supabase.from('listing_analytics').insert({
         session_id: currentSessionId,
-        user_id: user?.id || null,
+        user_id: authState.user?.id || null,
         listing_id: listingId,
         action_type: 'request_connection',
         referrer_page: location.pathname,
@@ -383,12 +416,12 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
       return false;
     }
 
-    console.log('🔍 Tracking search:', query, 'session:', currentSessionId, 'user:', user?.id);
+    console.log('🔍 Tracking search:', query, 'session:', currentSessionId, 'user:', authState.user?.id);
 
     const result = await retryWithBackoff(async () => {
       const { error } = await supabase.from('search_analytics').insert({
         session_id: currentSessionId,
-        user_id: user?.id || null,
+        user_id: authState.user?.id || null,
         search_query: query,
         filters_applied: filters || {},
         results_count: results || 0,

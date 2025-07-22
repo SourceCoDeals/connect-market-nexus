@@ -6,6 +6,7 @@ import { toast } from '@/hooks/use-toast';
 import { useAdminEmail } from '../use-admin-email';
 import { createUserObject } from '@/lib/auth-helpers';
 import { ListingStatus } from '@/types';
+import { invalidateConnectionRequests } from '@/lib/query-client-helpers';
 
 /**
  * Hook for managing connection request mutations in admin dashboard
@@ -135,8 +136,8 @@ export function useConnectionRequestsMutation() {
       }
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['admin-connection-requests'] });
-      queryClient.invalidateQueries({ queryKey: ['user-connection-requests'] });
+      // PHASE 2: Use centralized cache invalidation
+      invalidateConnectionRequests(queryClient);
       
       const status = data.status;
       const action = status === 'approved' ? 'approved' : 'rejected';

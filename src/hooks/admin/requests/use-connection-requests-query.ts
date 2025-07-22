@@ -5,13 +5,14 @@ import { AdminConnectionRequest } from '@/types/admin';
 import { toast } from '@/hooks/use-toast';
 import { createUserObject } from '@/lib/auth-helpers';
 import { createListingFromData } from '@/utils/user-helpers';
+import { createQueryKey } from '@/lib/query-keys';
 
 /**
  * Hook for fetching connection requests in admin dashboard
  */
 export function useConnectionRequestsQuery() {
   return useQuery({
-    queryKey: ['admin-connection-requests'],
+    queryKey: createQueryKey.adminConnectionRequests(),
     queryFn: async () => {
       try {
         // First get all connection requests

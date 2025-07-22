@@ -3,6 +3,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { ConnectionRequest } from '@/types';
+import { createQueryKey } from '@/lib/query-keys';
+import { invalidateConnectionRequests } from '@/lib/query-client-helpers';
 
 // Request connection to a listing
 export const useRequestConnection = () => {
@@ -116,8 +118,8 @@ export const useRequestConnection = () => {
         description: 'Your connection request has been submitted for review.',
       });
       
-      // Invalidate connection status query to update UI
-      queryClient.invalidateQueries({ queryKey: ['connection-status'] });
+      // PHASE 2: Use centralized cache invalidation
+      invalidateConnectionRequests(queryClient);
     },
     onError: (error: any) => {
       toast({
@@ -132,7 +134,7 @@ export const useRequestConnection = () => {
 // Get connection status for a listing
 export const useConnectionStatus = (listingId: string | undefined) => {
   return useQuery({
-    queryKey: ['connection-status', listingId],
+    queryKey: createQueryKey.connectionStatus(listingId),
     queryFn: async () => {
       if (!listingId) return { exists: false, status: '' };
       
@@ -166,7 +168,7 @@ export const useConnectionStatus = (listingId: string | undefined) => {
 // Get user connection requests
 export const useUserConnectionRequests = () => {
   return useQuery({
-    queryKey: ['user-connection-requests'],
+    queryKey: createQueryKey.userConnectionRequests(),
     queryFn: async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();

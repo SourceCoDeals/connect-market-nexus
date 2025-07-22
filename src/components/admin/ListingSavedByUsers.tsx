@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatDistanceToNow } from "date-fns";
 import { User } from "lucide-react";
+import { QUERY_KEYS } from "@/lib/query-keys";
 
 interface ListingSavedByUsersProps {
   listingId: string;
@@ -13,7 +14,7 @@ interface ListingSavedByUsersProps {
 
 export function ListingSavedByUsers({ listingId }: ListingSavedByUsersProps) {
   const { data: savedByUsers, isLoading } = useQuery({
-    queryKey: ['admin-listing-saved-by', listingId],
+    queryKey: QUERY_KEYS.admin.listingSavedBy(listingId),
     queryFn: async () => {
       const { data, error } = await supabase
         .from('saved_listings')

@@ -2,10 +2,11 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Listing, FilterOptions } from '@/types';
+import { createQueryKey } from '@/lib/query-keys';
 
 export const useSavedListings = (filters: FilterOptions = {}) => {
   return useQuery({
-    queryKey: ['saved-listings', filters],
+    queryKey: createQueryKey.savedListings(filters),
     queryFn: async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();

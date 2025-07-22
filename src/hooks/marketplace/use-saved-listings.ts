@@ -2,6 +2,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import { createQueryKey } from '@/lib/query-keys';
+import { invalidateSavedListings } from '@/lib/query-client-helpers';
 
 // Save/unsave a listing
 export const useSaveListingMutation = () => {
@@ -49,9 +51,8 @@ export const useSaveListingMutation = () => {
       }
     },
     onSuccess: (_, variables) => {
-      // Invalidate all related queries to ensure UI updates
-      queryClient.invalidateQueries({ queryKey: ['saved-status'] });
-      queryClient.invalidateQueries({ queryKey: ['saved-listings'] });
+      // PHASE 2: Use centralized cache invalidation with backward compatibility
+      invalidateSavedListings(queryClient);
       toast({
         title: variables.action === 'save' ? 'Listing Saved' : 'Listing Removed',
         description: variables.action === 'save' 
@@ -72,7 +73,7 @@ export const useSaveListingMutation = () => {
 // Check if listing is saved
 export const useSavedStatus = (listingId: string | undefined) => {
   return useQuery({
-    queryKey: ['saved-status', listingId],
+    queryKey: createQueryKey.savedStatus(listingId),
     queryFn: async () => {
       if (!listingId) return false;
       
