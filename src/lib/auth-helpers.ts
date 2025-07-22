@@ -51,6 +51,15 @@ export function createUserObject(profile: any): User {
       ideal_target: profile.ideal_target || '',
       bio: profile.bio || '',
       
+      // Buyer profile fields that show in admin dashboard
+      linkedin_profile: profile.linkedin_profile || '',
+      ideal_target_description: profile.ideal_target_description || '',
+      business_categories: Array.isArray(profile.business_categories) ? profile.business_categories : [],
+      target_locations: profile.target_locations || '',
+      revenue_range_min: profile.revenue_range_min || null,
+      revenue_range_max: profile.revenue_range_max || null,
+      specific_business_search: profile.specific_business_search || '',
+      
       // Computed properties (aliases for snake_case properties)
       get firstName() { return this.first_name; },
       get lastName() { return this.last_name; },

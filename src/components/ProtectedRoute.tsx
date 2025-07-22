@@ -74,6 +74,14 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     // Check if email is verified - use strict comparison and handle edge cases
     const isEmailVerified = user.email_verified === true;
     
+    console.log("🔍 User verification status check:", {
+      email: user.email,
+      email_verified: user.email_verified,
+      email_verified_type: typeof user.email_verified,
+      approval_status: user.approval_status,
+      is_admin: user.is_admin
+    });
+    
     // If email is not verified, redirect to pending approval (which shows verification required)
     if (!isEmailVerified) {
       console.log("User email not verified, redirecting to pending approval");
