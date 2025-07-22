@@ -857,28 +857,33 @@ const Signup = () => {
                   Why SourceCo?
                 </h2>
                 <p className="text-sm text-muted-foreground leading-relaxed max-w-md">
-                  The premier marketplace connecting serious business buyers with quality, 
-                  pre-vetted acquisition opportunities.
+                  Stop wasting time on unqualified opportunities. Access pre-vetted businesses 
+                  with verified financials and motivated sellers ready to transact.
                 </p>
               </div>
 
               <Card className="bg-gradient-to-br from-muted/30 to-muted/10 border border-border/50 shadow-sm">
                 <CardContent className="p-6 space-y-4">
                   <div className="flex items-start space-x-3">
-                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                      <div className="w-5 h-5 rounded-full bg-primary/20" />
+                    <div className="w-10 h-10 rounded-full overflow-hidden bg-muted flex-shrink-0">
+                      <img 
+                        src="/lovable-uploads/252f5573-94e8-40ff-a88d-685794544b28.png" 
+                        alt="Mellisa Berry"
+                        className="w-full h-full object-cover"
+                      />
                     </div>
                     <div className="space-y-2">
                       <blockquote className="text-sm text-foreground leading-relaxed italic">
-                        "SourceCo saved us months of deal sourcing. Within 60 days, we found 
-                        three qualified targets that perfectly matched our investment thesis."
+                        "We sourced three acquisitions through SourceCo in six months—deals we 
+                        never would have found through traditional channels. The quality of opportunities 
+                        and direct seller access changed our entire sourcing strategy."
                       </blockquote>
                       <div className="space-y-1">
                         <div className="text-xs font-medium text-foreground">
-                          Michael Chen
+                          Mellisa Berry
                         </div>
                         <div className="text-xs text-muted-foreground">
-                          Managing Partner, Meridian Capital
+                          Partner, New Heritage Capital
                         </div>
                       </div>
                     </div>
@@ -889,15 +894,15 @@ const Signup = () => {
               <div className="grid grid-cols-1 gap-4 text-xs text-muted-foreground">
                 <div className="flex items-center space-x-2">
                   <div className="w-1.5 h-1.5 rounded-full bg-primary/40" />
-                  <span>Vetted, quality opportunities</span>
+                  <span>Break free from broker gatekeepers</span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <div className="w-1.5 h-1.5 rounded-full bg-primary/40" />
-                  <span>Direct owner connections</span>
+                  <span>Connect directly with motivated sellers</span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <div className="w-1.5 h-1.5 rounded-full bg-primary/40" />
-                  <span>Institutional-grade due diligence</span>
+                  <span>Transform reactive to proactive sourcing</span>
                 </div>
               </div>
             </div>
