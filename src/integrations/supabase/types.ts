@@ -996,7 +996,7 @@ export type Database = {
         Returns: string
       }
       delete_user_completely: {
-        Args: { user_id: string }
+        Args: { target_user_id: string }
         Returns: boolean
       }
       demote_admin_user: {

@@ -495,7 +495,7 @@ const Signup = () => {
                   <Input
                     id="platformSize"
                     name="platformSize"
-                    placeholder="5 companies"
+                    placeholder="2-20M"
                     value={formData.additionalInfo.platformSize || ""}
                     onChange={handleAdditionalInfoChange}
                   />
@@ -690,33 +690,36 @@ const Signup = () => {
               />
             </div>
 
-            <div className="space-y-4">
-              <Label className="text-base font-medium">
-                What is the revenue range you're looking for in a potential acquisition?
-              </Label>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="revenueRangeMin">$ Minimum</Label>
-                  <Input
-                    id="revenueRangeMin"
-                    name="revenueRangeMin"
-                    placeholder="500,000"
-                    value={formData.revenueRangeMin}
-                    onChange={(e) => setFormData(prev => ({ ...prev, revenueRangeMin: e.target.value }))}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="revenueRangeMax">$ Maximum</Label>
-                  <Input
-                    id="revenueRangeMax"
-                    name="revenueRangeMax"
-                    placeholder="5,000,000"
-                    value={formData.revenueRangeMax}
-                    onChange={(e) => setFormData(prev => ({ ...prev, revenueRangeMax: e.target.value }))}
-                  />
+            {/* Only show revenue range if buyer type is not Private Equity */}
+            {formData.buyerType !== "privateEquity" && (
+              <div className="space-y-4">
+                <Label className="text-base font-medium">
+                  What is the revenue range you're looking for in a potential acquisition?
+                </Label>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="revenueRangeMin">$ Minimum</Label>
+                    <Input
+                      id="revenueRangeMin"
+                      name="revenueRangeMin"
+                      placeholder="500,000"
+                      value={formData.revenueRangeMin}
+                      onChange={(e) => setFormData(prev => ({ ...prev, revenueRangeMin: e.target.value }))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="revenueRangeMax">$ Maximum</Label>
+                    <Input
+                      id="revenueRangeMax"
+                      name="revenueRangeMax"
+                      placeholder="5,000,000"
+                      value={formData.revenueRangeMax}
+                      onChange={(e) => setFormData(prev => ({ ...prev, revenueRangeMax: e.target.value }))}
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
 
             <div className="space-y-2">
               <Label htmlFor="specificBusinessSearch">
