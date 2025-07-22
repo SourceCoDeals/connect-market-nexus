@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { User as AppUser } from '@/types';
+import { createUserObject } from '@/lib/auth-helpers';
 
 // Ultra-simple auth state - no caching, no localStorage interference, no managers
 export function useNuclearAuth() {
@@ -29,50 +30,7 @@ export function useNuclearAuth() {
             .single();
 
           if (profile && isMounted) {
-            const appUser: AppUser = {
-              id: profile.id,
-              email: profile.email,
-              first_name: profile.first_name || '',
-              last_name: profile.last_name || '',
-              company: profile.company || '',
-              website: profile.website || '',
-              phone_number: profile.phone_number || '',
-              role: 'buyer' as const,
-              email_verified: Boolean(profile.email_verified === true),
-              approval_status: profile.approval_status || 'pending',
-              is_admin: Boolean(profile.is_admin === true),
-              buyer_type: profile.buyer_type || 'corporate',
-              created_at: profile.created_at,
-              updated_at: profile.updated_at,
-              company_name: profile.company_name || '',
-              estimated_revenue: profile.estimated_revenue || '',
-              fund_size: profile.fund_size || '',
-              investment_size: profile.investment_size || '',
-              aum: profile.aum || '',
-              is_funded: profile.is_funded || '',
-              funded_by: profile.funded_by || '',
-              target_company_size: profile.target_company_size || '',
-              funding_source: profile.funding_source || '',
-              needs_loan: profile.needs_loan || '',
-              ideal_target: profile.ideal_target || '',
-              bio: profile.bio || '',
-              linkedin_profile: profile.linkedin_profile || '',
-              ideal_target_description: profile.ideal_target_description || '',
-              business_categories: profile.business_categories || [],
-              target_locations: profile.target_locations || '',
-              revenue_range_min: profile.revenue_range_min,
-              revenue_range_max: profile.revenue_range_max,
-              specific_business_search: profile.specific_business_search || '',
-              get firstName() { return this.first_name; },
-              get lastName() { return this.last_name; },
-              get phoneNumber() { return this.phone_number; },
-              get isAdmin() { return this.is_admin; },
-              get buyerType() { return this.buyer_type; },
-              get emailVerified() { return this.email_verified; },
-              get isApproved() { return this.approval_status === 'approved'; },
-              get createdAt() { return this.created_at; },
-              get updatedAt() { return this.updated_at; }
-            };
+            const appUser = createUserObject(profile);
             setUser(appUser);
           }
         } else {
@@ -182,7 +140,8 @@ export function useNuclearAuth() {
         
       if (profile) {
         // Update user state with new data
-        setUser(prev => prev ? { ...prev, ...data } : null);
+        const updatedUser = createUserObject(profile);
+        setUser(updatedUser);
       }
     }
   };
@@ -207,7 +166,8 @@ export function useNuclearAuth() {
           .single();
         if (profile) {
           // Simple user object update
-          setUser(prev => prev ? { ...prev, ...profile } : null);
+          const updatedUser = createUserObject(profile);
+          setUser(updatedUser);
         }
       }
     }
