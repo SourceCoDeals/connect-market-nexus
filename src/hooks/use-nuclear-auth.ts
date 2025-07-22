@@ -97,7 +97,7 @@ export function useNuclearAuth() {
       email: userData.email,
       password,
       options: {
-        emailRedirectTo: `${window.location.origin}/verify-email-handler`,
+        emailRedirectTo: `https://market.sourcecodeals.com/verify-email-handler`,
         data: {
           first_name: userData.first_name || '',
           last_name: userData.last_name || '',
@@ -129,28 +129,9 @@ export function useNuclearAuth() {
     
     if (error) throw error;
 
-    // If signup successful but user needs email verification, send custom verification email
-    if (data.user && !data.user.email_confirmed_at) {
-      try {
-        console.log('🔄 Sending custom verification email...');
-        
-        // Generate a simple verification token (in production, use a more secure method)
-        const token = btoa(`${data.user.id}:${Date.now()}`);
-        
-        await supabase.functions.invoke('send-verification-email', {
-          body: {
-            email: userData.email,
-            token: token,
-            redirectTo: `${window.location.origin}/verify-email-handler`
-          }
-        });
-        
-        console.log('✅ Custom verification email sent');
-      } catch (emailError) {
-        console.error('❌ Failed to send verification email:', emailError);
-        // Don't fail the signup if email sending fails
-      }
-    }
+    // Note: Removed duplicate verification email sending - 
+    // Supabase will handle this automatically with proper redirect URL
+    console.log('✅ User signup completed, verification email sent by Supabase');
   };
 
   const updateUserProfile = async (data: Partial<AppUser>) => {

@@ -267,15 +267,15 @@ async function sendEmail(options: EmailOptions): Promise<Response> {
   const brevoPayload = {
     sender: {
       name: "SourceCo Marketplace",
-      email: "adam.haile@sourcecodeals.com"
+      email: "noreply@sourcecodeals.com"
     },
     to: options.to,
     subject: options.subject,
     htmlContent: options.htmlContent,
     textContent: options.textContent,
     replyTo: {
-      email: "adam.haile@sourcecodeals.com",
-      name: "Adam Haile"
+      email: "support@sourcecodeals.com",
+      name: "SourceCo Support"
     }
   };
   

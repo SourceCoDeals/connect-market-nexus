@@ -86,15 +86,15 @@ serve(async (req) => {
     const brevoPayload = {
       sender: {
         name: "SourceCo Marketplace",
-        email: "adam.haile@sourcecodeals.com"
+        email: "noreply@sourcecodeals.com"
       },
       to: [{ email: user.email, name: `${user.first_name} ${user.last_name}` }],
       subject,
       htmlContent,
       textContent,
       replyTo: {
-        email: "adam.haile@sourcecodeals.com",
-        name: "Adam Haile"
+        email: "support@sourcecodeals.com",
+        name: "SourceCo Support"
       }
     };
 

@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
@@ -11,9 +12,9 @@ export function useVerificationEmail() {
     try {
       console.log('🔄 Sending verification email to:', email);
       
-      const redirectUrl = redirectTo || `${window.location.origin}/verify-email-handler`;
+      const redirectUrl = redirectTo || `https://market.sourcecodeals.com/verify-email-handler`;
       
-      // First try Supabase's built-in verification email
+      // Use only Supabase's built-in verification email with proper redirect URL
       const { error: supabaseError } = await supabase.auth.resend({
         type: 'signup',
         email: email,
@@ -23,27 +24,11 @@ export function useVerificationEmail() {
       });
 
       if (supabaseError) {
-        console.warn('⚠️ Supabase verification email failed:', supabaseError.message);
-        
-        // Fallback to custom edge function
-        console.log('📧 Trying custom verification email as fallback');
-        const { error: customError } = await supabase.functions.invoke('send-verification-email', {
-          body: { 
-            email,
-            token: 'verification-request',
-            redirectTo: redirectUrl
-          }
-        });
-        
-        if (customError) {
-          console.error('❌ Custom verification email also failed:', customError);
-          throw new Error('Failed to send verification email. Please try again.');
-        }
-        
-        console.log('✅ Custom verification email sent successfully');
-      } else {
-        console.log('✅ Supabase verification email sent successfully');
+        console.error('❌ Failed to send verification email:', supabaseError.message);
+        throw new Error('Failed to send verification email. Please try again.');
       }
+      
+      console.log('✅ Verification email sent successfully');
       
       toast({
         title: 'Verification email sent',
