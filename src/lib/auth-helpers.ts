@@ -2,24 +2,12 @@
 import { User, ApprovalStatus, BuyerType } from "@/types";
 
 export function createUserObject(profile: any): User {
-  // Enhanced validation for profile object
   if (!profile || !profile.id) {
     console.warn('❌ Invalid profile data received:', profile);
     throw new Error('Invalid profile data: missing required fields');
   }
 
-  // Validate required fields
-  if (!profile.email || !profile.first_name || !profile.last_name) {
-    console.warn('⚠️ Profile missing required fields:', {
-      id: profile.id,
-      hasEmail: !!profile.email,
-      hasFirstName: !!profile.first_name,
-      hasLastName: !!profile.last_name
-    });
-  }
-
   try {
-    // Enhanced user object creation with strict boolean conversion
     const user: User = {
       id: profile.id,
       email: profile.email || '',
@@ -29,15 +17,12 @@ export function createUserObject(profile: any): User {
       website: profile.website || '',
       phone_number: profile.phone_number || '',
       role: 'buyer' as const,
-      // CRITICAL: Ensure email_verified is always a proper boolean
       email_verified: Boolean(profile.email_verified === true),
       approval_status: (profile.approval_status || 'pending') as ApprovalStatus,
       is_admin: Boolean(profile.is_admin === true),
       buyer_type: (profile.buyer_type || 'corporate') as BuyerType,
       created_at: profile.created_at || new Date().toISOString(),
       updated_at: profile.updated_at || new Date().toISOString(),
-      
-      // Enhanced profile fields with better defaults
       company_name: profile.company_name || profile.company || '',
       estimated_revenue: profile.estimated_revenue || '',
       fund_size: profile.fund_size || '',
@@ -50,8 +35,6 @@ export function createUserObject(profile: any): User {
       needs_loan: profile.needs_loan || '',
       ideal_target: profile.ideal_target || '',
       bio: profile.bio || '',
-      
-      // Buyer profile fields that show in admin dashboard
       linkedin_profile: profile.linkedin_profile || '',
       ideal_target_description: profile.ideal_target_description || '',
       business_categories: Array.isArray(profile.business_categories) ? profile.business_categories : [],
@@ -59,8 +42,6 @@ export function createUserObject(profile: any): User {
       revenue_range_min: profile.revenue_range_min || null,
       revenue_range_max: profile.revenue_range_max || null,
       specific_business_search: profile.specific_business_search || '',
-      
-      // Computed properties (aliases for snake_case properties)
       get firstName() { return this.first_name; },
       get lastName() { return this.last_name; },
       get phoneNumber() { return this.phone_number; },
@@ -71,19 +52,6 @@ export function createUserObject(profile: any): User {
       get createdAt() { return this.created_at; },
       get updatedAt() { return this.updated_at; },
     };
-
-    // Validate the created user object
-    if (!user.id || !user.email) {
-      throw new Error('Created user object is missing critical fields');
-    }
-
-    console.log('✅ Successfully created user object:', {
-      email: user.email,
-      email_verified: user.email_verified,
-      email_verified_type: typeof user.email_verified,
-      approval_status: user.approval_status,
-      is_admin: user.is_admin
-    });
     
     return user;
   } catch (error) {
@@ -122,19 +90,16 @@ export function validateUserData(user: User): { isValid: boolean; errors: string
   if (!user.first_name) errors.push('First name is required');
   if (!user.last_name) errors.push('Last name is required');
   
-  // Validate email format
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (user.email && !emailRegex.test(user.email)) {
     errors.push('Invalid email format');
   }
   
-  // Validate approval status
   const validStatuses: ApprovalStatus[] = ['pending', 'approved', 'rejected'];
   if (!validStatuses.includes(user.approval_status)) {
     errors.push('Invalid approval status');
   }
   
-  // Validate buyer type
   const validBuyerTypes: BuyerType[] = ['corporate', 'privateEquity', 'familyOffice', 'searchFund', 'individual'];
   if (!validBuyerTypes.includes(user.buyer_type)) {
     errors.push('Invalid buyer type');
@@ -146,34 +111,8 @@ export function validateUserData(user: User): { isValid: boolean; errors: string
   };
 }
 
+// Nuclear simplification: Remove all localStorage cleanup functions
+// Let Supabase handle all session management
 export async function cleanupAuthState(): Promise<void> {
-  try {
-    console.log('🧹 Starting comprehensive auth state cleanup...');
-    
-    // Remove standard auth tokens
-    localStorage.removeItem('supabase.auth.token');
-    localStorage.removeItem('user');
-    
-    // Remove all Supabase auth keys from localStorage
-    Object.keys(localStorage).forEach((key) => {
-      if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
-        console.log('🗑️ Removing localStorage key:', key);
-        localStorage.removeItem(key);
-      }
-    });
-    
-    // Remove from sessionStorage if in use
-    if (typeof sessionStorage !== 'undefined') {
-      Object.keys(sessionStorage).forEach((key) => {
-        if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
-          console.log('🗑️ Removing sessionStorage key:', key);
-          sessionStorage.removeItem(key);
-        }
-      });
-    }
-    
-    console.log('✅ Auth state cleanup completed');
-  } catch (error) {
-    console.error('❌ Error cleaning up auth state:', error);
-  }
+  console.log('🧹 Nuclear auth cleanup - letting Supabase handle everything');
 }

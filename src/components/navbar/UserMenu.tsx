@@ -13,6 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { User as AuthUser } from "@/types";
 import MobileNavItems from "./MobileNavItems";
+import { useAuth } from "@/context/AuthContext";
 
 interface UserMenuProps {
   user: AuthUser;
@@ -23,8 +24,20 @@ interface UserMenuProps {
 }
 
 const UserMenu = ({ user, isAdmin, isMobile, handleLogout, onNavigateToAdmin }: UserMenuProps) => {
+  const { logout } = useAuth();
+  
   const getInitials = (firstName: string, lastName: string) => {
     return `${firstName?.charAt(0) || ""}${lastName?.charAt(0) || ""}`.toUpperCase();
+  };
+
+  const handleSimpleLogout = async () => {
+    try {
+      await logout();
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Force navigation on error
+      window.location.href = '/login';
+    }
   };
 
   return (
@@ -73,7 +86,7 @@ const UserMenu = ({ user, isAdmin, isMobile, handleLogout, onNavigateToAdmin }: 
           </Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={handleLogout}>
+        <DropdownMenuItem onClick={handleSimpleLogout}>
           <LogOut className="mr-2 h-4 w-4" />
           <span>Log Out</span>
         </DropdownMenuItem>

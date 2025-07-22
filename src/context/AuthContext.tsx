@@ -1,9 +1,7 @@
 
 import React, { createContext, useContext } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { User as AppUser } from "@/types";
-import { useSimpleAuthState } from "@/hooks/auth/use-simple-auth-state";
-import { useSimpleAuthActions } from "@/hooks/auth/use-simple-auth-actions";
+import { useNuclearAuth } from "@/hooks/use-nuclear-auth";
 
 interface AuthContextType {
   user: AppUser | null;
@@ -31,85 +29,19 @@ export const useAuth = () => {
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  const { 
-    user, 
-    isLoading, 
-    isAdmin, 
-    isBuyer, 
-    authChecked, 
-    refreshUserData,
-    clearAuthState 
-  } = useSimpleAuthState();
-  
-  const { signUp, signIn, signOut } = useSimpleAuthActions();
-
-  const refreshUserProfile = async () => {
-    if (refreshUserData) {
-      await refreshUserData();
-    }
-  };
-
-  const signup = async (userData: Partial<AppUser>, password: string) => {
-    const email = userData.email;
-    if (!email) {
-      throw new Error("Email is required for signup");
-    }
-    
-    const result = await signUp(email, password, userData);
-    if (result.error) {
-      throw result.error;
-    }
-  };
-
-  const login = async (email: string, password: string) => {
-    console.log('🔐 AuthContext: Starting login for:', email);
-    
-    const result = await signIn(email, password);
-    if (result.error) {
-      throw result.error;
-    }
-    
-    console.log('✅ AuthContext: Login successful');
-  };
-
-  const logout = async () => {
-    console.log('👋 AuthContext: Starting logout');
-    await clearAuthState();
-    
-    const result = await signOut();
-    if (result.error) {
-      throw result.error;
-    }
-  };
-
-  const updateUserProfile = async (data: Partial<AppUser>) => {
-    if (!user) {
-      throw new Error("No user logged in");
-    }
-
-    const { error } = await supabase
-      .from('profiles')
-      .update(data)
-      .eq('id', user.id);
-
-    if (error) {
-      throw error;
-    }
-
-    await refreshUserProfile();
-  };
+  const auth = useNuclearAuth();
 
   const value: AuthContextType = {
-    user,
-    login,
-    logout,
-    signup,
-    updateUserProfile,
-    refreshUserProfile,
-    isLoading,
-    isAdmin,
-    isBuyer,
-    authChecked,
+    user: auth.user,
+    login: auth.login,
+    logout: auth.logout,
+    signup: auth.signup,
+    updateUserProfile: auth.updateUserProfile,
+    refreshUserProfile: auth.refreshUserProfile,
+    isLoading: auth.isLoading,
+    isAdmin: auth.isAdmin,
+    isBuyer: auth.isBuyer,
+    authChecked: auth.authChecked,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
