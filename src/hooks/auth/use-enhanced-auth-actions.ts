@@ -17,6 +17,17 @@ export function useEnhancedAuthActions() {
       // Clean up any existing auth state first
       await cleanupAuthState();
       
+      // Sanitize data before sending to database - ensure arrays are properly stringified
+      const sanitizedBusinessCategories = Array.isArray(userData.business_categories) 
+        ? JSON.stringify(userData.business_categories)
+        : '[]';
+
+      console.log('🔧 Sanitized signup data:', {
+        email,
+        business_categories: sanitizedBusinessCategories,
+        buyer_type: userData.buyer_type
+      });
+      
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -31,7 +42,7 @@ export function useEnhancedAuthActions() {
             buyer_type: userData.buyer_type || 'corporate',
             linkedin_profile: userData.linkedin_profile || '',
             ideal_target_description: userData.ideal_target_description || '',
-            business_categories: userData.business_categories || [],
+            business_categories: sanitizedBusinessCategories,
             target_locations: userData.target_locations || '',
             revenue_range_min: userData.revenue_range_min,
             revenue_range_max: userData.revenue_range_max,
