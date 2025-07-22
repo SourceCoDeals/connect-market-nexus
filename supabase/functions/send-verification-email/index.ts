@@ -31,7 +31,7 @@ const handler = async (req: Request): Promise<Response> => {
     console.log('📨 Processing verification email:', { email, redirectTo });
 
     // Use the correct domain and proper verification URL structure
-    const verificationUrl = `https://market.sourcecodeals.com/verify-email-handler?token=${token}&type=signup`;
+    const verificationUrl = `https://marketplace.sourcecodeals.com/verify-email-handler?token=${token}&type=signup`;
 
     const subject = "Please verify your email address - SourceCo Marketplace";
     const htmlContent = `

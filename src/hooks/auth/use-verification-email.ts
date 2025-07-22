@@ -13,7 +13,7 @@ export function useVerificationEmail() {
       console.log('🔄 Sending verification email to:', email);
       
       // Always use production domain - never accept dynamic redirectTo
-      const redirectUrl = `https://market.sourcecodeals.com/verify-email-handler`;
+      const redirectUrl = `https://marketplace.sourcecodeals.com/verify-email-handler`;
       
       // Use only Supabase's built-in verification email with proper redirect URL
       const { error: supabaseError } = await supabase.auth.resend({

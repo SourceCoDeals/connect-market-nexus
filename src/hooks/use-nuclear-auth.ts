@@ -97,7 +97,7 @@ export function useNuclearAuth() {
       password,
       options: {
         // Use production domain consistently - never dynamic URLs
-        emailRedirectTo: `https://market.sourcecodeals.com/verify-email-handler`,
+        emailRedirectTo: `https://marketplace.sourcecodeals.com/verify-email-handler`,
         data: {
           first_name: userData.first_name || '',
           last_name: userData.last_name || '',
@@ -129,8 +129,6 @@ export function useNuclearAuth() {
     
     if (error) throw error;
 
-    // Note: Removed duplicate verification email sending - 
-    // Supabase will handle this automatically with proper redirect URL
     console.log('✅ User signup completed, verification email sent by Supabase');
   };
 

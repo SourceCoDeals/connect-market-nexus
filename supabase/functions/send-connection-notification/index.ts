@@ -39,8 +39,8 @@ const handler = async (req: Request): Promise<Response> => {
       listingTitle
     });
 
-    const loginUrl = `https://market.sourcecodeals.com/login`;
-    const listingUrl = `https://market.sourcecodeals.com/listing/${listingId}`;
+    const loginUrl = `https://marketplace.sourcecodeals.com/login`;
+    const listingUrl = `https://marketplace.sourcecodeals.com/listing/${listingId}`;
 
     const subject = `New Connection Request for "${listingTitle}"`;
     

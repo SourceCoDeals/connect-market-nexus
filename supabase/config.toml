@@ -39,13 +39,13 @@ file_size_limit = "50MiB"
 
 [auth]
 enabled = true
-site_url = "https://market.sourcecodeals.com"
+site_url = "https://marketplace.sourcecodeals.com"
 additional_redirect_urls = [
-  "https://market.sourcecodeals.com",
-  "https://market.sourcecodeals.com/auth/callback",
-  "https://market.sourcecodeals.com/verification-success",
-  "https://market.sourcecodeals.com/verify-email-handler",
-  "https://market.sourcecodeals.com/pending-approval"
+  "https://marketplace.sourcecodeals.com",
+  "https://marketplace.sourcecodeals.com/auth/callback",
+  "https://marketplace.sourcecodeals.com/verification-success",
+  "https://marketplace.sourcecodeals.com/verify-email-handler",
+  "https://marketplace.sourcecodeals.com/pending-approval"
 ]
 jwt_expiry = 3600
 enable_refresh_token_rotation = true
