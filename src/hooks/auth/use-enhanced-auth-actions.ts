@@ -29,6 +29,24 @@ export function useEnhancedAuthActions() {
             website: userData.website || '',
             phone_number: userData.phone_number || '',
             buyer_type: userData.buyer_type || 'corporate',
+            linkedin_profile: userData.linkedin_profile || '',
+            ideal_target_description: userData.ideal_target_description || '',
+            business_categories: userData.business_categories || [],
+            target_locations: userData.target_locations || '',
+            revenue_range_min: userData.revenue_range_min,
+            revenue_range_max: userData.revenue_range_max,
+            specific_business_search: userData.specific_business_search || '',
+            // Include any additional buyer-type specific fields
+            ...(userData.estimated_revenue && { estimated_revenue: userData.estimated_revenue }),
+            ...(userData.fund_size && { fund_size: userData.fund_size }),
+            ...(userData.investment_size && { investment_size: userData.investment_size }),
+            ...(userData.aum && { aum: userData.aum }),
+            ...(userData.is_funded && { is_funded: userData.is_funded }),
+            ...(userData.funded_by && { funded_by: userData.funded_by }),
+            ...(userData.target_company_size && { target_company_size: userData.target_company_size }),
+            ...(userData.funding_source && { funding_source: userData.funding_source }),
+            ...(userData.needs_loan && { needs_loan: userData.needs_loan }),
+            ...(userData.ideal_target && { ideal_target: userData.ideal_target }),
           }
         }
       });
