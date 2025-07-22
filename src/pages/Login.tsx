@@ -28,19 +28,7 @@ const Login = () => {
     return user?.isAdmin ? "/admin" : "/marketplace";
   };
 
-  // Cleanup auth state on mount to prevent auth issues
-  useEffect(() => {
-    console.log("Login page mounted, cleaning up previous auth state");
-    const cleanup = async () => {
-      try {
-        await cleanupAuthState();
-        console.log("Auth state cleaned up on login page mount");
-      } catch (error) {
-        console.error("Error cleaning up auth state:", error);
-      }
-    };
-    cleanup();
-  }, []);
+  // Note: No automatic cleanup on mount to prevent destroying valid sessions
 
   // Redirect if user is already logged in
   useEffect(() => {
@@ -70,12 +58,9 @@ const Login = () => {
     try {
       console.log(`Attempting login with email: ${email}`);
       
-      // Clean up auth state before attempting login
-      await cleanupAuthState();
-      
-      // Attempt global sign out
+      // Only sign out the current session before new login
       try {
-        await supabase.auth.signOut({ scope: 'global' });
+        await supabase.auth.signOut();
       } catch (err) {
         // Continue even if this fails
       }

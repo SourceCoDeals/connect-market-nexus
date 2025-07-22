@@ -30,7 +30,7 @@ class AuthStateManager {
 
   // Tab switching stability - more permissive for login flows
   private lastAuthCheckTime: number = 0;
-  private stableAuthGracePeriod: number = 2000; // Reduced to 2 seconds for better UX
+  private stableAuthGracePeriod: number = 5000; // 5 seconds for better stability
   private isActiveAuthFlow: boolean = false; // Track active login/signup flows
 
   constructor() {
