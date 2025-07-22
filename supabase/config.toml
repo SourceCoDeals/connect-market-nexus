@@ -1,6 +1,4 @@
 
-# A string used to distinguish different Supabase projects on the same host. Defaults to the 
-# working directory name when running `supabase init`.
 project_id = "vhzipqarkmmfuqadefep"
 
 [api]
@@ -47,12 +45,7 @@ additional_redirect_urls = [
   "https://market.sourcecodeals.com/auth/callback",
   "https://market.sourcecodeals.com/verification-success",
   "https://market.sourcecodeals.com/verify-email-handler",
-  "https://market.sourcecodeals.com/pending-approval",
-  "https://preview--connect-market-nexus.lovable.app",
-  "https://preview--connect-market-nexus.lovable.app/auth/callback",
-  "https://preview--connect-market-nexus.lovable.app/verification-success",
-  "https://preview--connect-market-nexus.lovable.app/verify-email-handler",
-  "https://preview--connect-market-nexus.lovable.app/pending-approval"
+  "https://market.sourcecodeals.com/pending-approval"
 ]
 jwt_expiry = 3600
 enable_refresh_token_rotation = true

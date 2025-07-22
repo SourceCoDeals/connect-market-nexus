@@ -35,7 +35,7 @@ export default function AuthCallback() {
           if (profile?.email_verified && profile?.approval_status === 'approved') {
             navigate(profile.is_admin ? '/admin' : '/marketplace');
           } else if (profile?.email_verified) {
-            navigate('/verification-success');
+            navigate('/pending-approval');
           } else {
             navigate('/verify-email', { state: { email: data.session.user.email } });
           }

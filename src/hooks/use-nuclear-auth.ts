@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -97,6 +96,7 @@ export function useNuclearAuth() {
       email: userData.email,
       password,
       options: {
+        // Use production domain consistently - never dynamic URLs
         emailRedirectTo: `https://market.sourcecodeals.com/verify-email-handler`,
         data: {
           first_name: userData.first_name || '',

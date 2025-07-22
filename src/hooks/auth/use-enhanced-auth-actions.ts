@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { User } from '@/types';
@@ -29,7 +28,8 @@ export function useEnhancedAuthActions() {
         email,
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/verify-email-handler`,
+          // Use production domain consistently - never dynamic URLs
+          emailRedirectTo: `https://market.sourcecodeals.com/verify-email-handler`,
           data: {
             first_name: userData.first_name || '',
             last_name: userData.last_name || '',
