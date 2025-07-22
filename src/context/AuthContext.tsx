@@ -3,6 +3,7 @@ import React, { createContext, useContext, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { User as AppUser } from "@/types";
 import { useFreshAuthState } from "@/hooks/auth/use-fresh-auth-state";
+import { useEnhancedAuthState } from "@/hooks/auth/use-enhanced-auth-state";
 import { useEnhancedAuthActions } from "@/hooks/auth/use-enhanced-auth-actions";
 
 interface AuthContextType {
@@ -31,7 +32,13 @@ export const useAuth = () => {
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  // Use the new robust auth state management
+  // Gradually migrate to enhanced auth state (Phase 3)
+  // Use enhanced auth state when available, fallback to existing
+  const useEnhanced = true; // Feature flag for safe migration
+  
+  const freshAuthState = useFreshAuthState();
+  const enhancedAuthState = useEnhancedAuthState();
+  
   const { 
     user, 
     isLoading, 
@@ -40,7 +47,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     authChecked, 
     refreshUserData,
     clearAuthState 
-  } = useFreshAuthState();
+  } = useEnhanced ? enhancedAuthState : freshAuthState;
   
   // Use the enhanced auth actions hook
   const { signUp, signIn, signOut } = useEnhancedAuthActions();
