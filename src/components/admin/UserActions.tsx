@@ -4,6 +4,7 @@ import { User } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { useAdminUsers } from "@/hooks/admin/use-admin-users";
 import { useAdminEmail } from "@/hooks/admin/use-admin-email";
+import { adminErrorHandler } from "@/lib/error-handler";
 
 interface UserActionsProps {
   onUserStatusUpdated?: () => void;
@@ -249,6 +250,11 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
     setIsDialogOpen,
     selectedUser,
     actionType,
-    isLoading: updateUserStatusMutation.isPending || updateAdminStatusMutation.isPending || deleteUserMutation.isPending
+    isLoading: updateUserStatusMutation.isPending || updateAdminStatusMutation.isPending || deleteUserMutation.isPending,
+    retryStates: {
+      updateStatus: (updateUserStatusMutation as any).meta?.retryState,
+      updateAdmin: (updateAdminStatusMutation as any).meta?.retryState,
+      deleteUser: (deleteUserMutation as any).meta?.retryState,
+    },
   };
 }

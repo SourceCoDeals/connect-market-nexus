@@ -45,9 +45,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   // Use the enhanced auth actions hook
   const { signUp, signIn, signOut } = useEnhancedAuthActions();
 
-  // Remove real-time subscription that causes excessive re-renders
-  // Profile updates will be handled through normal auth flow refreshes
-
   const refreshUserProfile = async () => {
     if (refreshUserData) {
       await refreshUserData();
@@ -61,7 +58,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       throw new Error("Email is required for signup");
     }
     
-    // Only clear auth state if there's an existing user to avoid unnecessary flash
     if (user) {
       await clearAuthState();
     }
@@ -75,7 +71,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const login = async (email: string, password: string) => {
     console.log('🔐 Starting login process for:', email);
     
-    // Only clear auth state if there's an existing user to avoid unnecessary flash
     if (user) {
       await clearAuthState();
     }
@@ -112,7 +107,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       throw error;
     }
 
-    // Refresh the profile data
     await refreshUserProfile();
   };
 

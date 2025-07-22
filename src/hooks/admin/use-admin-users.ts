@@ -4,6 +4,8 @@ import { toast } from "@/hooks/use-toast";
 import { User, ApprovalStatus } from "@/types";
 import { createUserObject } from "@/lib/auth-helpers";
 import { useAuth } from "@/context/AuthContext";
+import { adminErrorHandler } from "@/lib/error-handler";
+import { useRetry, retryConditions } from "@/hooks/use-retry";
 
 export function useAdminUsers() {
   const queryClient = useQueryClient();
@@ -53,8 +55,8 @@ export function useAdminUsers() {
   };
 
   const useUpdateUserStatus = () => {
-    return useMutation({
-      mutationFn: async ({ userId, status }: { userId: string; status: ApprovalStatus }) => {
+    const { execute, state: retryState } = useRetry(
+      async ({ userId, status }: { userId: string; status: ApprovalStatus }) => {
         console.log('🔄 Updating user approval status:', { userId, status });
         
         const { error } = await supabase
@@ -73,6 +75,14 @@ export function useAdminUsers() {
         console.log('✅ User approval updated successfully');
         return { userId, status };
       },
+      {
+        maxRetries: 3,
+        retryCondition: retryConditions.networkOnly,
+      }
+    );
+
+    return useMutation({
+      mutationFn: execute,
       onSuccess: ({ status, userId }) => {
         console.log('🎉 User status update successful:', status);
         // Optimistically update the user in cache
@@ -89,18 +99,22 @@ export function useAdminUsers() {
       },
       onError: (error: any) => {
         console.error('💥 Failed to update user approval:', error);
+        adminErrorHandler(error, 'update user approval status');
         toast({
           variant: 'destructive',
           title: 'Update failed',
-          description: error.message || 'Failed to update user approval status.',
+          description: error.message || 'Failed to update user approval status. Please try again.',
         });
+      },
+      meta: {
+        retryState,
       },
     });
   };
 
   const useUpdateAdminStatus = () => {
-    return useMutation({
-      mutationFn: async ({ userId, isAdmin }: { userId: string; isAdmin: boolean }) => {
+    const { execute, state: retryState } = useRetry(
+      async ({ userId, isAdmin }: { userId: string; isAdmin: boolean }) => {
         console.log('🔄 Updating admin status:', { userId, isAdmin });
         
         try {
@@ -123,6 +137,14 @@ export function useAdminUsers() {
           throw error;
         }
       },
+      {
+        maxRetries: 2,
+        retryCondition: retryConditions.nonAuthErrors,
+      }
+    );
+
+    return useMutation({
+      mutationFn: execute,
       onSuccess: ({ isAdmin, userId }) => {
         console.log('🎉 Admin status update successful:', { userId, isAdmin });
         const message = isAdmin ? 'User has been granted admin privileges.' : 'User no longer has admin privileges.';
@@ -144,6 +166,7 @@ export function useAdminUsers() {
       },
       onError: (error: any) => {
         console.error('💥 Failed to update admin status:', error);
+        adminErrorHandler(error, 'update admin status');
         const errorMessage = error.message || 'Failed to update admin status.';
         toast({
           variant: 'destructive',
@@ -151,12 +174,15 @@ export function useAdminUsers() {
           description: errorMessage,
         });
       },
+      meta: {
+        retryState,
+      },
     });
   };
 
   const useDeleteUser = () => {
-    return useMutation({
-      mutationFn: async (userId: string) => {
+    const { execute, state: retryState } = useRetry(
+      async (userId: string) => {
         console.log('🔄 Permanently deleting user:', userId);
         
         // Use the new RPC function for complete user deletion
@@ -172,6 +198,14 @@ export function useAdminUsers() {
         console.log('✅ User deleted completely');
         return data;
       },
+      {
+        maxRetries: 2,
+        retryCondition: retryConditions.networkOnly,
+      }
+    );
+
+    return useMutation({
+      mutationFn: execute,
       onSuccess: (_, userId) => {
         toast({
           title: 'User deleted',
@@ -187,11 +221,15 @@ export function useAdminUsers() {
       },
       onError: (error: any) => {
         console.error('💥 Failed to delete user:', error);
+        adminErrorHandler(error, 'delete user');
         toast({
           variant: 'destructive',
           title: 'Deletion failed',
-          description: error.message || 'Failed to delete user.',
+          description: error.message || 'Failed to delete user. Please try again.',
         });
+      },
+      meta: {
+        retryState,
       },
     });
   };
