@@ -8,10 +8,10 @@ import { supabase } from '@/integrations/supabase/client';
 interface OnboardingPopupProps {
   isOpen: boolean;
   onClose: () => void;
-  userEmail: string;
+  userId: string;
 }
 
-const OnboardingPopup = ({ isOpen, onClose, userEmail }: OnboardingPopupProps) => {
+const OnboardingPopup = ({ isOpen, onClose, userId }: OnboardingPopupProps) => {
   const [currentStep, setCurrentStep] = useState(1);
 
   const handleClose = async () => {
@@ -20,7 +20,7 @@ const OnboardingPopup = ({ isOpen, onClose, userEmail }: OnboardingPopupProps) =
       await supabase
         .from('profiles')
         .update({ onboarding_completed: true })
-        .eq('email', userEmail);
+        .eq('id', userId);
     } catch (error) {
       console.error('Error updating onboarding status:', error);
     }

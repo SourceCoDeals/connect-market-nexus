@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
 import { useMarketplace } from "@/hooks/use-marketplace";
+import { useOnboarding } from "@/hooks/use-onboarding";
 import { FilterOptions, PaginationState } from "@/types";
 import ListingCard from "@/components/ListingCard";
 import FilterPanel from "@/components/FilterPanel";
+import OnboardingPopup from "@/components/onboarding/OnboardingPopup";
 import { Button } from "@/components/ui/button";
 import { LayoutGrid, LayoutList, ChevronLeft, ChevronRight } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -16,9 +18,12 @@ import {
 import { toast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useRealtime } from "@/components/realtime/RealtimeProvider";
+import { useAuth } from "@/context/AuthContext";
 import { Wifi } from "lucide-react";
 
 const Marketplace = () => {
+  const { user } = useAuth();
+  const { showOnboarding, completeOnboarding, shouldShowOnboarding } = useOnboarding();
   const [filters, setFilters] = useState<FilterOptions>({
     page: 1,
     perPage: 20
@@ -184,6 +189,15 @@ const Marketplace = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Onboarding Popup */}
+      {shouldShowOnboarding && user && (
+        <OnboardingPopup
+          isOpen={shouldShowOnboarding}
+          onClose={completeOnboarding}
+          userId={user.id}
+        />
+      )}
+      
       <div className="container mx-auto px-4 py-8">
         <div className="flex flex-col gap-6">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">

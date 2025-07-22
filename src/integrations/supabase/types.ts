@@ -619,6 +619,7 @@ export type Database = {
           last_name: string
           linkedin_profile: string | null
           needs_loan: string | null
+          onboarding_completed: boolean | null
           phone_number: string | null
           revenue_range_max: number | null
           revenue_range_min: number | null
@@ -654,6 +655,7 @@ export type Database = {
           last_name: string
           linkedin_profile?: string | null
           needs_loan?: string | null
+          onboarding_completed?: boolean | null
           phone_number?: string | null
           revenue_range_max?: number | null
           revenue_range_min?: number | null
@@ -689,6 +691,7 @@ export type Database = {
           last_name?: string
           linkedin_profile?: string | null
           needs_loan?: string | null
+          onboarding_completed?: boolean | null
           phone_number?: string | null
           revenue_range_max?: number | null
           revenue_range_min?: number | null

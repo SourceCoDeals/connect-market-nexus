@@ -227,32 +227,110 @@ function generateEmailContent(type: string, recipientName: string, data?: Record
         subject: '🎉 Welcome to SourceCo Marketplace!',
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-            <h2>Welcome ${firstName}!</h2>
-            <p>Thank you for joining SourceCo Marketplace. Your account has been created successfully.</p>
-            <p>Your account is currently under review and will be approved within 1-2 business days.</p>
-            <p>You'll receive another email once your account is approved.</p>
+            <h2>Welcome to SourceCo Marketplace, ${firstName}!</h2>
+            <p>Thank you for joining our curated marketplace for founder-led businesses. Your account has been created successfully.</p>
+            
+            <div style="background-color: #f8fafc; border-left: 4px solid #3b82f6; padding: 20px; margin: 25px 0; border-radius: 0 8px 8px 0;">
+              <h3 style="color: #1e40af; margin: 0 0 15px 0;">🏪 How SourceCo Marketplace Works</h3>
+              
+              <div style="margin: 15px 0;">
+                <h4 style="color: #374151; margin: 0 0 8px 0; display: flex; align-items: center;">
+                  <span style="background: #3b82f6; color: white; border-radius: 50%; width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; margin-right: 10px; font-size: 12px;">🔍</span>
+                  Browse Premium Listings
+                </h4>
+                <p style="color: #6b7280; margin: 0 0 15px 34px;">Explore verified businesses with real financials and genuine seller intent. Every listing is curated and vetted.</p>
+              </div>
+              
+              <div style="margin: 15px 0;">
+                <h4 style="color: #374151; margin: 0 0 8px 0; display: flex; align-items: center;">
+                  <span style="background: #3b82f6; color: white; border-radius: 50%; width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; margin-right: 10px; font-size: 12px;">🤝</span>
+                  Request Connections
+                </h4>
+                <p style="color: #6b7280; margin: 0 0 15px 34px;">Connect directly with sellers when you find opportunities that match your criteria. No platform fees or exclusivity required.</p>
+              </div>
+              
+              <div style="margin: 15px 0;">
+                <h4 style="color: #374151; margin: 0 0 8px 0; display: flex; align-items: center;">
+                  <span style="background: #3b82f6; color: white; border-radius: 50%; width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; margin-right: 10px; font-size: 12px;">💬</span>
+                  Get Support Anytime
+                </h4>
+                <p style="color: #6b7280; margin: 0 0 0 34px;">Use our feedback widget on any page if you need help or have questions about the process.</p>
+              </div>
+            </div>
+            
+            <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; margin: 25px 0; border-radius: 0 8px 8px 0;">
+              <h4 style="color: #92400e; margin: 0 0 10px 0;">🔒 Our Approach</h4>
+              <ul style="color: #78350f; margin: 0; padding-left: 20px;">
+                <li>Success-based pricing - you only pay when deals close</li>
+                <li>Curated, selective access - quality over quantity</li>
+                <li>Direct seller connections - no intermediaries</li>
+                <li>Weekly new listings from real sellers, not scraped data</li>
+              </ul>
+            </div>
+            
+            <p><strong>Next Steps:</strong> Your account is currently under review and will be approved within 1-2 business days. You'll receive another email once approved.</p>
             <p>Best regards,<br>The SourceCo Team</p>
           </div>
         `,
-        text: `Welcome ${firstName}!\n\nThank you for joining SourceCo Marketplace. Your account has been created successfully.\n\nYour account is currently under review and will be approved within 1-2 business days.\n\nYou'll receive another email once your account is approved.\n\nBest regards,\nThe SourceCo Team`
+        text: `Welcome to SourceCo Marketplace, ${firstName}!\n\nThank you for joining our curated marketplace for founder-led businesses. Your account has been created successfully.\n\nHow SourceCo Marketplace Works:\n\n🔍 Browse Premium Listings\nExplore verified businesses with real financials and genuine seller intent. Every listing is curated and vetted.\n\n🤝 Request Connections\nConnect directly with sellers when you find opportunities that match your criteria. No platform fees or exclusivity required.\n\n💬 Get Support Anytime\nUse our feedback widget on any page if you need help or have questions about the process.\n\nOur Approach:\n- Success-based pricing - you only pay when deals close\n- Curated, selective access - quality over quantity\n- Direct seller connections - no intermediaries\n- Weekly new listings from real sellers, not scraped data\n\nNext Steps: Your account is currently under review and will be approved within 1-2 business days. You'll receive another email once approved.\n\nBest regards,\nThe SourceCo Team`
       };
       
     case 'approval':
       return {
-        subject: '✅ Your SourceCo account is approved!',
+        subject: '✅ Welcome to the SourceCo Marketplace!',
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
             <h2>Great news, ${firstName}!</h2>
-            <p>Your SourceCo Marketplace account has been approved.</p>
-            <p>You can now access all available listings and submit connection requests.</p>
-            <a href="${data?.loginUrl || 'https://marketplace.sourcecodeals.com/login'}" 
-               style="display: inline-block; background-color: #007bff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; margin: 16px 0;">
-              Access Marketplace
-            </a>
+            <p>Your SourceCo Marketplace account has been approved. You now have access to our curated marketplace of founder-led businesses.</p>
+            
+            <div style="background-color: #f0fdf4; border-left: 4px solid #10b981; padding: 20px; margin: 25px 0; border-radius: 0 8px 8px 0;">
+              <h3 style="color: #059669; margin: 0 0 15px 0;">🚀 Getting Started</h3>
+              
+              <div style="margin: 15px 0;">
+                <h4 style="color: #374151; margin: 0 0 8px 0; display: flex; align-items: center;">
+                  <span style="background: #10b981; color: white; border-radius: 50%; width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; margin-right: 10px; font-size: 12px;">1</span>
+                  Explore Data Room
+                </h4>
+                <p style="color: #6b7280; margin: 0 0 15px 34px;">Browse detailed business listings with verified financials and comprehensive documentation.</p>
+              </div>
+              
+              <div style="margin: 15px 0;">
+                <h4 style="color: #374151; margin: 0 0 8px 0; display: flex; align-items: center;">
+                  <span style="background: #10b981; color: white; border-radius: 50%; width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; margin-right: 10px; font-size: 12px;">2</span>
+                  Request Information
+                </h4>
+                <p style="color: #6b7280; margin: 0 0 15px 34px;">When you find interesting opportunities, request additional information or schedule calls with business owners.</p>
+              </div>
+              
+              <div style="margin: 15px 0;">
+                <h4 style="color: #374151; margin: 0 0 8px 0; display: flex; align-items: center;">
+                  <span style="background: #10b981; color: white; border-radius: 50%; width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; margin-right: 10px; font-size: 12px;">3</span>
+                  Save Your Interests
+                </h4>
+                <p style="color: #6b7280; margin: 0 0 0 34px;">Any business you save or take next steps on will be available in your Buyer Dashboard for future reference.</p>
+              </div>
+            </div>
+            
+            <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; margin: 25px 0; border-radius: 0 8px 8px 0;">
+              <h4 style="color: #92400e; margin: 0 0 10px 0;">💡 Remember</h4>
+              <ul style="color: #78350f; margin: 0; padding-left: 20px;">
+                <li>Every seller must approve buyer outreach - we only introduce aligned buyers</li>
+                <li>Use the feedback widget anytime you need help navigating the platform</li>
+                <li>New founder-led deals are added weekly based on real seller readiness</li>
+              </ul>
+            </div>
+            
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${data?.loginUrl || 'https://marketplace.sourcecodeals.com/login'}" 
+                 style="display: inline-block; background-color: #10b981; color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">
+                START YOUR SEARCH
+              </a>
+            </div>
+            
             <p>Best regards,<br>The SourceCo Team</p>
           </div>
         `,
-        text: `Great news, ${firstName}!\n\nYour SourceCo Marketplace account has been approved.\n\nYou can now access all available listings and submit connection requests.\n\nAccess the marketplace at: ${data?.loginUrl || 'https://marketplace.sourcecodeals.com/login'}\n\nBest regards,\nThe SourceCo Team`
+        text: `Great news, ${firstName}!\n\nYour SourceCo Marketplace account has been approved. You now have access to our curated marketplace of founder-led businesses.\n\nGetting Started:\n\n1. Explore Data Room\nBrowse detailed business listings with verified financials and comprehensive documentation.\n\n2. Request Information\nWhen you find interesting opportunities, request additional information or schedule calls with business owners.\n\n3. Save Your Interests\nAny business you save or take next steps on will be available in your Buyer Dashboard for future reference.\n\nRemember:\n- Every seller must approve buyer outreach - we only introduce aligned buyers\n- Use the feedback widget anytime you need help navigating the platform\n- New founder-led deals are added weekly based on real seller readiness\n\nAccess the marketplace at: ${data?.loginUrl || 'https://marketplace.sourcecodeals.com/login'}\n\nBest regards,\nThe SourceCo Team`
       };
       
     case 'email_verified':
