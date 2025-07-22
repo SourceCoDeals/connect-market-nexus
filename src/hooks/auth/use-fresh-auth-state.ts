@@ -55,9 +55,52 @@ export function useFreshAuthState() {
     let isSubscribed = true;
     let authSubscription: any = null;
 
+    // Define functions inside useEffect to avoid circular dependencies
+    const internalRefreshUserData = async (userId: string) => {
+      try {
+        console.log('🔄 Refreshing user data for:', userId);
+        
+        const { data: profileData, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', userId)
+          .single();
+
+        if (error) {
+          console.error('❌ Error fetching fresh profile data:', error);
+          return null;
+        }
+
+        console.log('✅ Fresh profile data fetched:', {
+          email: profileData.email,
+          email_verified: profileData.email_verified,
+          approval_status: profileData.approval_status,
+          is_admin: profileData.is_admin
+        });
+
+        const userData = createUserObject(profileData);
+        localStorage.setItem("user", JSON.stringify(userData));
+        
+        return userData;
+      } catch (error) {
+        console.error('❌ Error in refreshUserData:', error);
+        return null;
+      }
+    };
+
+    const internalClearAuthState = async () => {
+      console.log('🧹 Clearing auth state');
+      await cleanupAuthState();
+      if (isSubscribed) {
+        setUser(null);
+        setIsLoading(false);
+        setAuthChecked(true);
+      }
+    };
+
     const initializeAuth = async () => {
       try {
-        console.log('🚀 Starting simplified auth initialization...');
+        console.log('🚀 Starting auth initialization...');
 
         // Check for existing session immediately
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
@@ -65,7 +108,7 @@ export function useFreshAuthState() {
         if (sessionError) {
           console.error('❌ Session error:', sessionError);
           if (isSubscribed) {
-            await clearAuthState();
+            await internalClearAuthState();
           }
           return;
         }
@@ -79,7 +122,7 @@ export function useFreshAuthState() {
         if (session?.user && isSubscribed) {
           console.log('🔍 Loading user data for existing session:', session.user.email);
           
-          const freshUserData = await refreshUserData(session.user.id);
+          const freshUserData = await internalRefreshUserData(session.user.id);
           if (freshUserData && isSubscribed) {
             console.log('✅ User data loaded successfully');
             setUser(freshUserData);
@@ -104,7 +147,7 @@ export function useFreshAuthState() {
             } else if ((event === "SIGNED_IN" || event === "TOKEN_REFRESHED") && session?.user) {
               console.log(`🔐 User ${event}:`, session.user.email);
               
-              const freshUserData = await refreshUserData(session.user.id);
+              const freshUserData = await internalRefreshUserData(session.user.id);
               if (freshUserData && isSubscribed) {
                 console.log('✅ Updated user data after auth change');
                 setUser(freshUserData);
@@ -117,7 +160,7 @@ export function useFreshAuthState() {
 
       } catch (error) {
         console.error('❌ Auth initialization error:', error);
-        if (isSubscribed) await clearAuthState();
+        if (isSubscribed) await internalClearAuthState();
       } finally {
         if (isSubscribed) {
           setIsLoading(false);
@@ -134,7 +177,7 @@ export function useFreshAuthState() {
         authSubscription.unsubscribe();
       }
     };
-  }, [refreshUserData, clearAuthState]);
+  }, []); // Remove dependencies to break circular loop
 
   return {
     user,

@@ -51,11 +51,11 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   });
 
   // Force navigation after waiting if auth check is still not complete
-  if ((isLoading || !authChecked) && waitTime < 6) {
+  if ((isLoading || !authChecked) && waitTime < 3) {
     return (
       <div className="flex flex-col items-center justify-center gap-4 min-h-screen">
         <Loader2 className="h-16 w-16 text-primary animate-spin" />
-        <p className="text-muted-foreground">Loading authentication...</p>
+        <p className="text-muted-foreground">Checking authentication...</p>
         {waitTime > 1 && (
           <p className="text-sm text-muted-foreground">This is taking longer than expected... ({waitTime}s)</p>
         )}
@@ -64,7 +64,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   }
 
   // If waited too long or auth check complete but no user, redirect to login
-  if ((waitTime >= 6 && isLoading) || (authChecked && !user)) {
+  if ((waitTime >= 3 && isLoading) || (authChecked && !user)) {
     console.log(`Redirecting to login: auth checked = ${authChecked}, user = ${!!user}, from path = ${location.pathname}`);
     return <Navigate to="/login" state={{ from: location.pathname }} replace />;
   }

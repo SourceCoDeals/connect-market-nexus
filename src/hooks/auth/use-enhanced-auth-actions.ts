@@ -114,19 +114,25 @@ export function useEnhancedAuthActions() {
     setIsLoading(true);
     
     try {
-      console.log('👋 Starting signout process');
+      console.log('👋 Starting fast signout process');
       
-      // Clean up auth state first
-      await cleanupAuthState();
+      // Do signOut and cleanup in parallel for speed
+      const [signOutResult] = await Promise.allSettled([
+        supabase.auth.signOut({ scope: 'global' }),
+        cleanupAuthState() // Run cleanup in parallel
+      ]);
       
-      const { error } = await supabase.auth.signOut({ scope: 'global' });
-      
-      if (error) {
-        console.error('❌ Signout error:', error);
-        return { error };
+      if (signOutResult.status === 'rejected') {
+        console.error('❌ Signout error:', signOutResult.reason);
+        return { error: signOutResult.reason };
       }
 
-      console.log('✅ Signout successful');
+      if (signOutResult.value.error) {
+        console.error('❌ Supabase signout error:', signOutResult.value.error);
+        return { error: signOutResult.value.error };
+      }
+
+      console.log('✅ Fast signout successful');
       return { error: null };
       
     } catch (error: any) {
