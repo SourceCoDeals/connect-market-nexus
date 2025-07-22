@@ -22,12 +22,11 @@ import { useAuth } from "@/context/AuthContext";
 import { Wifi } from "lucide-react";
 
 const Marketplace = () => {
-  const { user } = useAuth();
-  const { showOnboarding, completeOnboarding, shouldShowOnboarding } = useOnboarding();
+  const { user, authChecked } = useAuth();
+  const { showOnboarding, completeOnboarding, shouldShowOnboarding, isLoading: onboardingLoading } = useOnboarding();
   const [filters, setFilters] = useState<FilterOptions>({
     page: 1,
     perPage: 20
-    // Removed default restrictive filters - let all listings show initially
   });
   const [viewType, setViewType] = useState<"grid" | "list">("grid");
   const [pagination, setPagination] = useState<PaginationState>({
@@ -38,25 +37,32 @@ const Marketplace = () => {
   });
   
   const { useListings, useListingMetadata } = useMarketplace();
-  const { data: listingsData, isLoading, error } = useListings(filters);
+  const { data: listingsData, isLoading, error, isError } = useListings(filters);
   const { data: metadata, isLoading: isMetadataLoading } = useListingMetadata();
   const { listingsConnected } = useRealtime();
   
   const listings = listingsData?.listings || [];
   const totalItems = listingsData?.totalCount || 0;
   
-  // Debug logging for marketplace component
+  // Enhanced debug logging for marketplace component
   useEffect(() => {
-    console.log('🏪 Marketplace component state:', {
+    console.log('🏪 Marketplace component state update:', {
+      authChecked,
+      user: user?.email,
+      email_verified: user?.email_verified,
+      approval_status: user?.approval_status,
+      is_admin: user?.is_admin,
+      onboardingLoading,
+      shouldShowOnboarding,
       filters,
       isLoading,
-      error,
+      isError,
+      error: error?.message,
       listingsCount: listings.length,
       totalItems,
-      listingTitles: listings.map(l => l.title),
-      listingIds: listings.map(l => l.id)
+      listingTitles: listings.slice(0, 3).map(l => l.title),
     });
-  }, [filters, isLoading, error, listings.length, totalItems]);
+  }, [authChecked, user, onboardingLoading, shouldShowOnboarding, filters, isLoading, isError, error, listings.length, totalItems]);
   
   // Update pagination whenever total count or filters change
   useEffect(() => {
@@ -187,6 +193,18 @@ const Marketplace = () => {
       ));
   };
 
+  // Show loading while auth is being checked or onboarding is loading
+  if (!authChecked || onboardingLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background">
       {/* Onboarding Popup */}
@@ -277,6 +295,15 @@ const Marketplace = () => {
                   <p className="text-muted-foreground mb-4">
                     There was a problem loading the marketplace listings. Please try again later.
                   </p>
+                  <p className="text-sm text-red-600 mb-4">
+                    Error: {error?.message || 'Unknown error'}
+                  </p>
+                  <Button
+                    variant="outline"
+                    onClick={() => window.location.reload()}
+                  >
+                    Refresh Page
+                  </Button>
                 </div>
               ) : listings.length === 0 ? (
                 <div className="bg-muted/30 border border-border rounded-lg p-8 text-center">

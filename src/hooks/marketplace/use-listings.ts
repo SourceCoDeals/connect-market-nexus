@@ -15,6 +15,34 @@ export const useListings = (filters: FilterOptions = {}) => {
       return withPerformanceMonitoring('marketplace-listings-query', async () => {
         try {
           console.log('🔍 Fetching marketplace listings with filters:', filters);
+          console.log('🔐 Auth state:', {
+            authChecked,
+            user: user?.email,
+            email_verified: user?.email_verified,
+            approval_status: user?.approval_status,
+            is_admin: user?.is_admin
+          });
+
+          // Ensure we have proper auth state before proceeding
+          if (!authChecked) {
+            console.log('⏳ Auth not yet checked, waiting...');
+            throw new Error('Authentication state not ready');
+          }
+
+          if (!user) {
+            console.log('❌ No user found');
+            throw new Error('User not authenticated');
+          }
+
+          if (!user.email_verified) {
+            console.log('❌ User email not verified');
+            throw new Error('Email not verified');
+          }
+
+          if (user.approval_status !== 'approved' && !user.is_admin) {
+            console.log('❌ User not approved and not admin');
+            throw new Error('User not approved');
+          }
           
           // Start building the query
           let query = supabase
@@ -84,11 +112,25 @@ export const useListings = (filters: FilterOptions = {}) => {
           
           if (error) {
             console.error('❌ Error fetching marketplace listings:', error);
+            console.error('❌ Error details:', {
+              message: error.message,
+              details: error.details,
+              hint: error.hint,
+              code: error.code
+            });
             throw error;
           }
           
           console.log(`✅ Successfully fetched ${data?.length || 0} listings from marketplace`);
           console.log('📊 Total count from database:', count);
+          
+          if (!data || data.length === 0) {
+            console.log('⚠️ No data returned from query');
+            return {
+              listings: [],
+              totalCount: count || 0
+            };
+          }
           
           // Transform data to include computed properties
           const listings = data?.map((item: any) => {
@@ -131,21 +173,38 @@ export const useListings = (filters: FilterOptions = {}) => {
           };
         } catch (error: any) {
           console.error('💥 Error in useListings:', error);
+          
+          // Handle specific auth-related errors
+          if (error.message?.includes('Authentication') || error.message?.includes('not ready')) {
+            console.log('🔄 Auth-related error, will retry when auth state is ready');
+          }
+          
           throw error;
         }
       });
     },
     enabled: authChecked && user && user.email_verified && (user.approval_status === 'approved' || user.is_admin),
-    staleTime: 0, // Always consider data stale to ensure fresh fetches
-    gcTime: 1000 * 60 * 2, // Keep in cache for 2 minutes
-    refetchOnWindowFocus: true, // Refetch when window gains focus
-    refetchOnMount: true, // Always refetch on mount
-    refetchInterval: false, // Don't auto-refetch on interval
+    staleTime: 0,
+    gcTime: 1000 * 60 * 2,
+    refetchOnWindowFocus: true,
+    refetchOnMount: true,
+    refetchInterval: false,
+    retry: (failureCount, error) => {
+      // Retry auth-related errors up to 3 times
+      if (error?.message?.includes('Authentication') || error?.message?.includes('not ready')) {
+        return failureCount < 3;
+      }
+      // Don't retry other errors
+      return false;
+    },
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
 };
 
 // Get a single listing by ID
 export const useListing = (id: string | undefined) => {
+  const { user, authChecked } = useAuth();
+  
   return useQuery({
     queryKey: ['listing', id],
     queryFn: async () => {
@@ -154,12 +213,23 @@ export const useListing = (id: string | undefined) => {
       return withPerformanceMonitoring('single-listing-query', async () => {
         try {
           console.log('🔍 Fetching single listing:', id);
+          console.log('🔐 Auth state for single listing:', {
+            authChecked,
+            user: user?.email,
+            email_verified: user?.email_verified,
+            approval_status: user?.approval_status
+          });
+
+          // Ensure we have proper auth state
+          if (!authChecked || !user || !user.email_verified) {
+            throw new Error('Authentication state not ready for single listing');
+          }
           
           const { data, error } = await supabase
             .from('listings')
             .select('*')
             .eq('id', id)
-            .is('deleted_at', null) // Respect soft deletes
+            .is('deleted_at', null)
             .maybeSingle();
           
           if (error) {
@@ -177,13 +247,10 @@ export const useListing = (id: string | undefined) => {
           // Transform to Listing type with computed properties
           const listing: Listing = {
             ...data,
-            // Ensure categories is always an array, fallback to single category
             categories: data.categories || (data.category ? [data.category] : []),
-            // Add computed properties
             ownerNotes: data.owner_notes || '',
             createdAt: data.created_at,
             updatedAt: data.updated_at,
-            // Ensure status is properly typed as ListingStatus
             status: data.status as ListingStatus,
             multiples: data.revenue > 0 ? {
               revenue: (data.ebitda / data.revenue).toFixed(2),
@@ -210,9 +277,15 @@ export const useListing = (id: string | undefined) => {
         }
       });
     },
-    enabled: !!id,
-    staleTime: 1000 * 60 * 5, // 5 minutes
+    enabled: !!id && authChecked && user && user.email_verified && (user.approval_status === 'approved' || user.is_admin),
+    staleTime: 1000 * 60 * 5,
     refetchOnWindowFocus: false,
+    retry: (failureCount, error) => {
+      if (error?.message?.includes('Authentication') || error?.message?.includes('not ready')) {
+        return failureCount < 3;
+      }
+      return false;
+    },
   });
 };
 
@@ -226,8 +299,18 @@ export const useListingMetadata = () => {
       return withPerformanceMonitoring('listing-metadata-query', async () => {
         try {
           console.log('🔍 Fetching listing metadata');
+          console.log('🔐 Auth state for metadata:', {
+            authChecked,
+            user: user?.email,
+            email_verified: user?.email_verified,
+            approval_status: user?.approval_status
+          });
+
+          // Ensure we have proper auth state
+          if (!authChecked || !user || !user.email_verified) {
+            throw new Error('Authentication state not ready for metadata');
+          }
           
-          // Only query active, non-deleted listings for metadata
           const { data, error } = await supabase
             .from('listings')
             .select('category, categories, location')
@@ -241,7 +324,6 @@ export const useListingMetadata = () => {
           
           console.log('📊 Metadata raw data:', data);
           
-          // Extract unique categories from both old and new fields
           const allCategories = new Set<string>();
           data.forEach(item => {
             if (item.category) allCategories.add(item.category);
@@ -263,7 +345,13 @@ export const useListingMetadata = () => {
       });
     },
     enabled: authChecked && user && user.email_verified && (user.approval_status === 'approved' || user.is_admin),
-    staleTime: 1000 * 60 * 5, // 5 minutes for metadata
+    staleTime: 1000 * 60 * 5,
     refetchOnWindowFocus: false,
+    retry: (failureCount, error) => {
+      if (error?.message?.includes('Authentication') || error?.message?.includes('not ready')) {
+        return failureCount < 3;
+      }
+      return false;
+    },
   });
 };
