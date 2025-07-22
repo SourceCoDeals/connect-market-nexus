@@ -93,7 +93,7 @@ export function useNuclearAuth() {
   const signup = async (userData: Partial<AppUser>, password: string) => {
     if (!userData.email) throw new Error("Email is required");
     
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email: userData.email,
       password,
       options: {
@@ -112,11 +112,45 @@ export function useNuclearAuth() {
           revenue_range_min: userData.revenue_range_min,
           revenue_range_max: userData.revenue_range_max,
           specific_business_search: userData.specific_business_search || '',
+          // Additional fields for different buyer types
+          estimated_revenue: userData.estimated_revenue || '',
+          fund_size: userData.fund_size || '',
+          investment_size: userData.investment_size || '',
+          aum: userData.aum || '',
+          is_funded: userData.is_funded || '',
+          funded_by: userData.funded_by || '',
+          target_company_size: userData.target_company_size || '',
+          funding_source: userData.funding_source || '',
+          needs_loan: userData.needs_loan || '',
+          ideal_target: userData.ideal_target || '',
         }
       }
     });
     
     if (error) throw error;
+
+    // If signup successful but user needs email verification, send custom verification email
+    if (data.user && !data.user.email_confirmed_at) {
+      try {
+        console.log('🔄 Sending custom verification email...');
+        
+        // Generate a simple verification token (in production, use a more secure method)
+        const token = btoa(`${data.user.id}:${Date.now()}`);
+        
+        await supabase.functions.invoke('send-verification-email', {
+          body: {
+            email: userData.email,
+            token: token,
+            redirectTo: `${window.location.origin}/verify-email-handler`
+          }
+        });
+        
+        console.log('✅ Custom verification email sent');
+      } catch (emailError) {
+        console.error('❌ Failed to send verification email:', emailError);
+        // Don't fail the signup if email sending fails
+      }
+    }
   };
 
   const updateUserProfile = async (data: Partial<AppUser>) => {

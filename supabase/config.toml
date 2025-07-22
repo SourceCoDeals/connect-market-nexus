@@ -88,3 +88,7 @@ verify_jwt = true
 verify_jwt = false
 [functions.send-verification-email]
 verify_jwt = false
+[functions.enhanced-email-delivery]
+verify_jwt = false
+[functions.send-feedback-email]
+verify_jwt = true
