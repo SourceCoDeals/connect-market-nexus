@@ -43,7 +43,7 @@ const Login = () => {
         description: "You have successfully logged in.",
       });
     } catch (err: any) {
-      console.error("Login error:", err);
+      // Error logged by error handler
       setError(err.message || "Failed to sign in");
       toast({
         variant: "destructive",

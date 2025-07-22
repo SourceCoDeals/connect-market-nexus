@@ -62,7 +62,7 @@ export function FeedbackManagement({ className }: FeedbackManagementProps) {
         "postgres_changes",
         { event: "*", schema: "public", table: "feedback_messages" },
         (payload) => {
-          console.log("Feedback real-time update:", payload);
+          // Real-time feedback update received
           fetchFeedbackMessages();
         }
       )
