@@ -11,7 +11,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import Marketplace from "./pages/Marketplace";
-import ListingDetails from "./pages/ListingDetails";
+import ListingDetail from "./pages/ListingDetail";
 import SavedListings from "./pages/SavedListings";
 import MyRequests from "./pages/MyRequests";
 import Profile from "./pages/Profile";
@@ -24,7 +24,7 @@ import Unauthorized from "./pages/Unauthorized";
 import AdminUsers from "./pages/admin/AdminUsers";
 import AdminRequests from "./pages/admin/AdminRequests";
 import AdminListings from "./pages/admin/AdminListings";
-import AdminAnalytics from "./pages/admin/AdminAnalytics";
+import AdminDashboard from "./pages/admin/AdminDashboard";
 
 // Simple query client - no complex configuration
 const queryClient = new QueryClient({
@@ -65,7 +65,7 @@ function App() {
                   path="/listing/:id"
                   element={
                     <ProtectedRoute>
-                      <ListingDetails />
+                      <ListingDetail />
                     </ProtectedRoute>
                   }
                 />
@@ -120,10 +120,10 @@ function App() {
                   }
                 />
                 <Route
-                  path="/admin/analytics"
+                  path="/admin/dashboard"
                   element={
                     <ProtectedRoute requireAdmin>
-                      <AdminAnalytics />
+                      <AdminDashboard />
                     </ProtectedRoute>
                   }
                 />

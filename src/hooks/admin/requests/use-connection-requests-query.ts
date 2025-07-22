@@ -7,7 +7,7 @@ import { createUserObject } from '@/lib/auth-helpers';
 import { createListingFromData } from '@/utils/user-helpers';
 import { createQueryKey } from '@/lib/query-keys';
 import { useAuth } from '@/context/AuthContext';
-import { useTabAwareQuery } from '@/hooks/use-tab-aware-query';
+
 
 /**
  * Hook for fetching connection requests in admin dashboard
@@ -28,9 +28,9 @@ export function useConnectionRequestsQuery() {
   const isAdminUser = user?.is_admin === true || cachedAuthState?.is_admin === true;
   const shouldEnable = (authChecked || cachedAuthState) && isAdminUser;
 
-  return useTabAwareQuery(
-    createQueryKey.adminConnectionRequests(),
-    async () => {
+  return useQuery({
+    queryKey: createQueryKey.adminConnectionRequests(),
+    queryFn: async () => {
       try {
         console.log('🔍 Admin fetching connection requests');
         
@@ -88,10 +88,7 @@ export function useConnectionRequestsQuery() {
         return [] as AdminConnectionRequest[];
       }
     },
-    {
-      enabled: shouldEnable,
-      staleTime: 1000 * 60 * 2,
-      // Remove refetchOnWindowFocus - let global settings handle this
-    }
-  );
+    enabled: shouldEnable,
+    staleTime: 1000 * 60 * 2,
+  });
 }
