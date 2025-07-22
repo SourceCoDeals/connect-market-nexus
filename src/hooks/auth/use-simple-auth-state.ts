@@ -68,10 +68,12 @@ export function useSimpleAuthState() {
             
             if (event === "SIGNED_OUT" || !session?.user) {
               console.log('👋 User signed out or no session');
-              setUser(null);
-              localStorage.removeItem("user");
-              setIsLoading(false);
-              setAuthChecked(true);
+              if (mounted) {
+                setUser(null);
+                localStorage.removeItem("user");
+                setIsLoading(false);
+                setAuthChecked(true);
+              }
               return;
             }
             
@@ -91,14 +93,23 @@ export function useSimpleAuthState() {
                   
                   if (error) {
                     console.error('❌ Profile fetch error:', error);
+                    if (mounted) {
+                      setIsLoading(false);
+                      setAuthChecked(true);
+                    }
                   } else if (profile && mounted) {
-                    const userData = createUserObject(profile);
-                    setUser(userData);
-                    localStorage.setItem("user", JSON.stringify(userData));
+                    try {
+                      const userData = createUserObject(profile);
+                      setUser(userData);
+                      localStorage.setItem("user", JSON.stringify(userData));
+                    } catch (userError) {
+                      console.error('❌ Error creating user object:', userError);
+                    }
+                    setIsLoading(false);
+                    setAuthChecked(true);
                   }
                 } catch (err) {
                   console.error('❌ Error in auth state handler:', err);
-                } finally {
                   if (mounted) {
                     setIsLoading(false);
                     setAuthChecked(true);
@@ -117,7 +128,9 @@ export function useSimpleAuthState() {
         if (error) {
           console.error('❌ Session error:', error);
           if (mounted) {
-            await clearAuthState();
+            setUser(null);
+            setIsLoading(false);
+            setAuthChecked(true);
           }
           return;
         }
@@ -125,24 +138,31 @@ export function useSimpleAuthState() {
         if (session?.user && mounted) {
           console.log('📋 Found existing session for:', session.user.email);
           
-          const { data: profileData, error: profileError } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', session.user.id)
-            .single();
-          
-          if (profileError) {
-            console.error('❌ Profile error:', profileError);
-          } else if (profileData && mounted) {
-            const userData = createUserObject(profileData);
-            setUser(userData);
-            localStorage.setItem("user", JSON.stringify(userData));
+          try {
+            const { data: profileData, error: profileError } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', session.user.id)
+              .single();
+            
+            if (profileError) {
+              console.error('❌ Profile error:', profileError);
+            } else if (profileData && mounted) {
+              try {
+                const userData = createUserObject(profileData);
+                setUser(userData);
+                localStorage.setItem("user", JSON.stringify(userData));
+              } catch (userError) {
+                console.error('❌ Error creating user object:', userError);
+              }
+            }
+          } catch (err) {
+            console.error('❌ Error fetching profile:', err);
           }
         }
         
       } catch (error) {
         console.error('❌ Auth initialization error:', error);
-        if (mounted) await clearAuthState();
       } finally {
         if (mounted) {
           setIsLoading(false);
@@ -159,7 +179,7 @@ export function useSimpleAuthState() {
         authSubscription.unsubscribe();
       }
     };
-  }, [clearAuthState]);
+  }, []);
 
   return {
     user,
