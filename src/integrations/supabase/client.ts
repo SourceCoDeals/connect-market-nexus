@@ -13,8 +13,10 @@ export const supabase = createClient<Database>(
     auth: {
       persistSession: true,
       autoRefreshToken: true,
+      storage: window.localStorage,
       storageKey: 'sb-vhzipqarkmmfuqadefep-auth-token',
       detectSessionInUrl: true,
+      flowType: 'pkce'
     }
   }
 );

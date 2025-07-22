@@ -21,11 +21,46 @@ const OnboardingPopup = ({ isOpen, onClose, userId }: OnboardingPopupProps) => {
     setIsCompleting(true);
     
     try {
+      // First check if user exists
+      console.log('🔍 Checking if user profile exists for:', userId);
+      
+      const { data: existingProfile, error: checkError } = await supabase
+        .from('profiles')
+        .select('id, onboarding_completed')
+        .eq('id', userId)
+        .maybeSingle();
+
+      if (checkError) {
+        console.error('❌ Error checking user profile:', checkError);
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to check your profile. Please try again.",
+        });
+        setIsCompleting(false);
+        return;
+      }
+
+      if (!existingProfile) {
+        console.error('❌ No profile found for user:', userId);
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Your profile was not found. Please try logging in again.",
+        });
+        setIsCompleting(false);
+        return;
+      }
+
+      console.log('✅ Found user profile:', existingProfile);
+
+      // Update onboarding status
       const { data, error } = await supabase
         .from('profiles')
-        .update({ onboarding_completed: true } as any)
+        .update({ onboarding_completed: true })
         .eq('id', userId)
-        .select('onboarding_completed');
+        .select('onboarding_completed')
+        .single();
 
       if (error) {
         console.error('❌ Error updating onboarding status:', error);
@@ -38,18 +73,7 @@ const OnboardingPopup = ({ isOpen, onClose, userId }: OnboardingPopupProps) => {
         return;
       }
 
-      if (!data || data.length === 0) {
-        console.error('❌ No data returned from onboarding update');
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: "Failed to update your profile. Please try again.",
-        });
-        setIsCompleting(false);
-        return;
-      }
-
-      console.log('✅ Onboarding completion successful:', data[0]);
+      console.log('✅ Onboarding completion successful:', data);
       
       // Close immediately after successful update
       onClose();

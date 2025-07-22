@@ -66,13 +66,6 @@ export const useOnboarding = () => {
   const completeOnboarding = () => {
     console.log('✅ Onboarding completed via hook');
     setShowOnboarding(false);
-    // Force a re-check after completion to ensure state is updated
-    if (user?.id) {
-      setTimeout(() => {
-        console.log('🔄 Re-checking onboarding status after completion');
-        // This will trigger the useEffect to re-run
-      }, 100);
-    }
   };
 
   const shouldShowOnboarding = showOnboarding && user && user.email_verified && user.approval_status === 'approved';

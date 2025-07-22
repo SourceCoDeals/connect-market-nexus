@@ -108,11 +108,27 @@ export function useFreshAuthState() {
 
         authSubscription = subscription;
 
-        // Check for existing session
-        const { data: { session }, error } = await supabase.auth.getSession();
+        // Check for existing session - with retry logic
+        let sessionAttempt = 0;
+        let session = null;
+        let sessionError = null;
         
-        if (error) {
-          console.error('❌ Session error:', error);
+        while (sessionAttempt < 3 && !session && !sessionError) {
+          const { data: sessionData, error } = await supabase.auth.getSession();
+          session = sessionData?.session;
+          sessionError = error;
+          
+          if (error) {
+            console.error(`❌ Session error (attempt ${sessionAttempt + 1}):`, error);
+            if (sessionAttempt < 2) {
+              await new Promise(resolve => setTimeout(resolve, 100));
+            }
+          }
+          sessionAttempt++;
+        }
+        
+        if (sessionError) {
+          console.error('❌ Final session error after retries:', sessionError);
           await clearAuthState();
           return;
         }
