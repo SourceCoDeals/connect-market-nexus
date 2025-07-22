@@ -1,87 +1,100 @@
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
+
+import {
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+
 import { AuthProvider } from "@/context/AuthContext";
 import { AnalyticsProvider } from "@/context/AnalyticsContext";
 import { SessionMonitoringProvider } from "@/components/security/SessionMonitoringProvider";
-import { RealtimeProvider } from "@/components/realtime/RealtimeProvider";
-import { useUserSessionRefresh } from "@/hooks/auth/use-user-session-refresh";
-import Marketplace from "@/pages/Marketplace";
-import Profile from "@/pages/Profile";
-import SavedListings from "@/pages/SavedListings";
+import ProtectedRoute from "@/components/ProtectedRoute";
+import MainLayout from "@/components/MainLayout";
+import AdminLayout from "@/components/admin/AdminLayout";
 import Login from "@/pages/Login";
 import Signup from "@/pages/Signup";
-import AdminDashboard from "@/pages/admin/AdminDashboard";
-import AdminUsers from "@/pages/admin/AdminUsers";
-import AdminListings from "@/pages/admin/AdminListings";  
-import AdminRequests from "@/pages/admin/AdminRequests";
-import ProtectedRoute from "@/components/ProtectedRoute";
-import NotFound from "@/pages/NotFound";
-import Dashboard from "@/pages/Dashboard";
-import Unauthorized from "@/pages/Unauthorized";
+import VerifyEmail from "@/pages/VerifyEmail";
 import VerifyEmailHandler from "@/pages/VerifyEmailHandler";
-import { EnhancedAdminDashboard } from "@/components/admin/EnhancedAdminDashboard";
+import EmailVerificationRequired from "@/pages/EmailVerificationRequired";
+import PendingApproval from "@/pages/PendingApproval";
+import VerificationSuccess from "@/pages/VerificationSuccess";
+import Unauthorized from "@/pages/Unauthorized";
+import Profile from "@/pages/Profile";
+import Marketplace from "@/pages/Marketplace";
+import ListingDetail from "@/pages/ListingDetail";
+import MyRequests from "@/pages/MyRequests";
+import SavedListings from "@/pages/SavedListings";
+import AdminDashboard from "@/pages/admin/AdminDashboard";
+import AdminListings from "@/pages/admin/AdminListings";
+import AdminUsers from "@/pages/admin/AdminUsers";
+import AdminRequests from "@/pages/admin/AdminRequests";
+import { Toaster } from "@/components/ui/toaster";
+import { RealtimeProvider } from '@/components/realtime/RealtimeProvider';
+import { RealtimeIndicator } from '@/components/realtime/RealtimeIndicator';
 
-function AppContent() {
-  // Use the user session refresh hook
-  useUserSessionRefresh();
-  
+const queryClient = new QueryClient();
+
+function App() {
   return (
-    <Routes>
-      <Route path="/" element={<Dashboard />} />
-      <Route path="/login" element={<Login />} />
-      <Route path="/signup" element={<Signup />} />
-      <Route path="/unauthorized" element={<Unauthorized />} />
-      <Route path="/verify-email" element={<VerifyEmailHandler />} />
-
-      <Route path="/marketplace" element={<ProtectedRoute><Marketplace /></ProtectedRoute>} />
-      <Route path="/profile/:id" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-      <Route path="/saved-listings" element={<ProtectedRoute><SavedListings /></ProtectedRoute>} />
-
-      <Route path="/admin" element={<ProtectedRoute requireAdmin><AdminDashboard /></ProtectedRoute>} />
-      <Route path="/admin/dashboard" element={<ProtectedRoute requireAdmin><AdminDashboard /></ProtectedRoute>} />
-      <Route path="/admin/users" element={<ProtectedRoute requireAdmin><AdminUsers /></ProtectedRoute>} />
-      <Route path="/admin/listings" element={<ProtectedRoute requireAdmin><AdminListings /></ProtectedRoute>} />
-      <Route path="/admin/requests" element={<ProtectedRoute requireAdmin><AdminRequests /></ProtectedRoute>} />
-      <Route path="/admin/analytics" element={<ProtectedRoute requireAdmin><EnhancedAdminDashboard /></ProtectedRoute>} />
-
-      <Route path="*" element={<NotFound />} />
-    </Routes>
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <AnalyticsProvider>
+          <Toaster />
+          <SessionMonitoringProvider>
+            <RealtimeProvider>
+            <Routes>
+              {/* Authentication routes - no protection needed */}
+              <Route path="/login" element={<Login />} />
+              <Route path="/signup" element={<Signup />} />
+              <Route path="/verify-email" element={<VerifyEmail />} />
+              <Route path="/email-verification-required" element={<EmailVerificationRequired />} />
+              <Route path="/verify-email-handler" element={<VerifyEmailHandler />} />
+              <Route path="/pending-approval" element={<PendingApproval />} />
+              <Route path="/verification-success" element={<VerificationSuccess />} />
+              <Route path="/unauthorized" element={<Unauthorized />} />
+              
+              {/* Main app routes with MainLayout - require approval */}
+              <Route path="/" element={<ProtectedRoute requireApproved={true}><MainLayout /></ProtectedRoute>}>
+                <Route index element={<Marketplace />} />
+                <Route path="profile" element={<Profile />} />
+                <Route path="listing/:id" element={<ListingDetail />} />
+                <Route path="my-requests" element={<MyRequests />} />
+                <Route path="saved-listings" element={<SavedListings />} />
+              </Route>
+              
+              {/* Redirect /marketplace to / */}
+              <Route path="/marketplace" element={<Navigate to="/" replace />} />
+              
+              {/* Admin routes with AdminLayout - require admin */}
+              <Route path="/admin" element={<ProtectedRoute requireAdmin={true}><AdminLayout /></ProtectedRoute>}>
+                <Route index element={<AdminDashboard />} />
+                <Route path="listings" element={<AdminListings />} />
+                <Route path="users" element={<AdminUsers />} />
+                <Route path="requests" element={<AdminRequests />} />
+              </Route>
+              
+              {/* Catch-all route for 404 Not Found */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+              <RealtimeIndicator />
+            </RealtimeProvider>
+          </SessionMonitoringProvider>
+        </AnalyticsProvider>
+      </AuthProvider>
+    </QueryClientProvider>
   );
 }
 
-function App() {
-  const queryClient = new QueryClient({
-    defaultOptions: {
-      queries: {
-        staleTime: 30 * 1000, // 30 seconds
-        gcTime: 2 * 60 * 1000, // 2 minutes
-        retry: 1,
-        refetchOnWindowFocus: false,
-      },
-    },
-  });
-
+function NotFound() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <AuthProvider>
-            <AnalyticsProvider>
-              <SessionMonitoringProvider>
-                <RealtimeProvider>
-                  <AppContent />
-                </RealtimeProvider>
-              </SessionMonitoringProvider>
-            </AnalyticsProvider>
-          </AuthProvider>
-        </BrowserRouter>
-      </TooltipProvider>
-    </QueryClientProvider>
+    <div className="flex items-center justify-center h-screen bg-gray-100">
+      <div className="text-center">
+        <h1 className="text-4xl font-bold text-gray-800">404 Not Found</h1>
+        <p className="text-gray-600 mt-2">The page you are looking for does not exist.</p>
+        <a href="/" className="text-blue-500 mt-4 inline-block">Go back to homepage</a>
+      </div>
+    </div>
   );
 }
 

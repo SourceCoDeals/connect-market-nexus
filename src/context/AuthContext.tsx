@@ -1,8 +1,8 @@
 
-import React, { createContext, useContext } from "react";
+import React, { createContext, useContext, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { User as AppUser } from "@/types";
-import { useOptimizedAuthState } from "@/hooks/auth/use-optimized-auth-state";
+import { useFreshAuthState } from "@/hooks/auth/use-fresh-auth-state";
 import { useEnhancedAuthActions } from "@/hooks/auth/use-enhanced-auth-actions";
 
 interface AuthContextType {
@@ -31,7 +31,7 @@ export const useAuth = () => {
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  // Use the optimized auth state management
+  // Use the new robust auth state management
   const { 
     user, 
     isLoading, 
@@ -40,10 +40,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     authChecked, 
     refreshUserData,
     clearAuthState 
-  } = useOptimizedAuthState();
+  } = useFreshAuthState();
   
   // Use the enhanced auth actions hook
   const { signUp, signIn, signOut } = useEnhancedAuthActions();
+
+  // Remove real-time subscription that causes excessive re-renders
+  // Profile updates will be handled through normal auth flow refreshes
 
   const refreshUserProfile = async () => {
     if (refreshUserData) {
@@ -51,15 +54,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  // Optimized signup function
+  // Create wrapper functions to match the expected interface
   const signup = async (userData: Partial<AppUser>, password: string) => {
     const email = userData.email;
     if (!email) {
       throw new Error("Email is required for signup");
     }
     
-    // Clear any existing auth state first
-    await clearAuthState();
+    // Only clear auth state if there's an existing user to avoid unnecessary flash
+    if (user) {
+      await clearAuthState();
+    }
     
     const result = await signUp(email, password, userData);
     if (result.error) {
@@ -67,12 +72,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  // Optimized login function
   const login = async (email: string, password: string) => {
-    console.log('🔐 Starting optimized login process for:', email);
+    console.log('🔐 Starting login process for:', email);
     
-    // Clear any existing auth state first
-    await clearAuthState();
+    // Only clear auth state if there's an existing user to avoid unnecessary flash
+    if (user) {
+      await clearAuthState();
+    }
     
     const result = await signIn(email, password);
     if (result.error) {
@@ -82,22 +88,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     console.log('✅ Login successful for:', email);
   };
 
-  // Optimized logout function
   const logout = async () => {
-    console.log('👋 Starting optimized logout process');
+    console.log('👋 Starting logout process');
+    await clearAuthState();
     
-    try {
-      // Sign out from Supabase first
-      await supabase.auth.signOut();
-      
-      // Then clear local state
-      await clearAuthState();
-      
-      console.log('✅ Logout completed successfully');
-    } catch (error) {
-      console.error('❌ Error during logout:', error);
-      // Force clear state even if signOut fails
-      await clearAuthState();
+    const result = await signOut();
+    if (result.error) {
+      throw result.error;
     }
   };
 

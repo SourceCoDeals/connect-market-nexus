@@ -1,5 +1,6 @@
 
 import { useState, useEffect } from "react";
+import { useAdmin } from "@/hooks/use-admin";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -12,15 +13,10 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
-import { useRealtimeAdminUsers } from "@/hooks/admin/use-realtime-admin-users";
 
 const AdminUsers = () => {
-  const { useUsers } = useRealtimeAdminUsers();
-  const usersQuery = useUsers();
-  const usersData = usersQuery.data || [];
-  const isUsersLoading = usersQuery.isLoading;
-  const usersError = usersQuery.error;
-  const refetchUsers = usersQuery.refetch;
+  const { users } = useAdmin();
+  const { data: usersData = [], isLoading, error, refetch } = users;
   const { toast } = useToast();
   const isMobile = useIsMobile();
   
@@ -39,28 +35,23 @@ const AdminUsers = () => {
     selectedUser,
     actionType,
     isLoading: isActionLoading
-  } = UserActions({ 
-    onUserStatusUpdated: () => {
-      // Real-time updates will handle this automatically
-      console.log('✅ User status updated - real-time will refresh');
-    }
-  });
+  } = UserActions({ onUserStatusUpdated: refetch });
   
   // Handle errors and show user feedback
   useEffect(() => {
-    if (usersError) {
-      console.error('❌ Admin users error:', usersError);
+    if (error) {
+      console.error('❌ Admin users error:', error);
       toast({
         variant: 'destructive',
         title: 'Error loading users',
         description: 'Failed to load user data. Please try refreshing the page.',
       });
     }
-  }, [usersError, toast]);
+  }, [error, toast]);
   
   const handleRetry = () => {
     console.log('🔄 Retrying user data fetch...');
-    refetchUsers();
+    refetch();
     toast({
       title: 'Refreshing data',
       description: 'Reloading user data...',
@@ -98,7 +89,7 @@ const AdminUsers = () => {
   const deleteUser = (user: any) => handleDeleteUser(user);
 
   // Error state with better UX
-  if (usersError) {
+  if (error) {
     return (
       <div className="p-4 md:p-8 max-w-7xl mx-auto">
         <div className="flex flex-col items-center justify-center py-12">
@@ -127,7 +118,7 @@ const AdminUsers = () => {
         <div>
           <h1 className="text-2xl md:text-3xl font-bold">User Management</h1>
           <p className="text-sm md:text-base text-muted-foreground">
-            Manage user accounts and permissions (Real-time updates enabled)
+            Manage user accounts and permissions
           </p>
         </div>
         
@@ -145,10 +136,10 @@ const AdminUsers = () => {
           <Button
             onClick={handleRetry}
             variant="outline"
-            disabled={isUsersLoading}
+            disabled={isLoading}
             className="w-full sm:w-auto"
           >
-            <RefreshCw className={cn("h-4 w-4 mr-2", isUsersLoading && "animate-spin")} />
+            <RefreshCw className={cn("h-4 w-4 mr-2", isLoading && "animate-spin")} />
             Refresh
           </Button>
         </div>
@@ -217,7 +208,7 @@ const AdminUsers = () => {
               onMakeAdmin={makeAdmin}
               onRevokeAdmin={revokeAdmin}
               onDelete={deleteUser}
-              isLoading={isUsersLoading}
+              isLoading={isLoading}
             />
           </div>
         ) : (
@@ -229,7 +220,7 @@ const AdminUsers = () => {
               onMakeAdmin={makeAdmin}
               onRevokeAdmin={revokeAdmin}
               onDelete={deleteUser}
-              isLoading={isUsersLoading}
+              isLoading={isLoading}
             />
           </div>
         )}

@@ -1,5 +1,6 @@
 
 import React, { useState } from 'react';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { X, ArrowLeft } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -15,13 +16,53 @@ const OnboardingPopup = ({ isOpen, onClose, userId }: OnboardingPopupProps) => {
   const [currentStep, setCurrentStep] = useState(1);
   const [isCompleting, setIsCompleting] = useState(false);
 
-  if (!isOpen) return null;
-
   const handleClose = async () => {
     console.log('🎯 Starting onboarding completion for user:', userId);
     setIsCompleting(true);
     
     try {
+      // First check if user exists and their current onboarding status
+      console.log('🔍 Checking user profile and onboarding status for:', userId);
+      
+      const { data: existingProfile, error: checkError } = await supabase
+        .from('profiles')
+        .select('id, onboarding_completed')
+        .eq('id', userId)
+        .single();
+
+      if (checkError) {
+        console.error('❌ Error checking user profile:', checkError);
+        
+        // If user not found, they might not be properly authenticated
+        if (checkError.code === 'PGRST116') {
+          console.error('❌ User profile not found - possible auth issue');
+          toast({
+            variant: "destructive",
+            title: "Authentication Error",
+            description: "Please try logging out and logging back in.",
+          });
+        } else {
+          toast({
+            variant: "destructive",
+            title: "Error",
+            description: "Failed to check your profile. Please try again.",
+          });
+        }
+        setIsCompleting(false);
+        return;
+      }
+
+      console.log('✅ Found user profile:', existingProfile);
+
+      // If already completed, just close the popup without further action
+      if (existingProfile.onboarding_completed) {
+        console.log('✅ Onboarding already completed, closing popup');
+        onClose();
+        return;
+      }
+
+      // Update onboarding status
+      console.log('🔄 Updating onboarding status to completed...');
       const { error: updateError } = await supabase
         .from('profiles')
         .update({ onboarding_completed: true })
@@ -40,11 +81,13 @@ const OnboardingPopup = ({ isOpen, onClose, userId }: OnboardingPopupProps) => {
 
       console.log('✅ Onboarding completion successful');
       
+      // Show success message
       toast({
         title: "Welcome to SourceCo!",
         description: "Your onboarding is complete. You can now explore all listings.",
       });
       
+      // Close popup after successful update
       onClose();
       
     } catch (error) {
@@ -72,9 +115,13 @@ const OnboardingPopup = ({ isOpen, onClose, userId }: OnboardingPopupProps) => {
     }
   };
 
+  const handleSkip = () => {
+    handleClose();
+  };
+
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full overflow-hidden">
+    <Dialog open={isOpen} onOpenChange={() => {}} modal={true}>
+      <DialogContent className="sm:max-w-[480px] p-0 gap-0 bg-white border-none shadow-[0_20px_40px_-8px_rgba(0,0,0,0.2)] overflow-hidden">
         {/* Header */}
         <div className="relative bg-white border-b border-slate-100">
           <div className="flex justify-between items-center px-6 py-4">
@@ -237,8 +284,8 @@ const OnboardingPopup = ({ isOpen, onClose, userId }: OnboardingPopupProps) => {
             </Button>
           </div>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 };
 
