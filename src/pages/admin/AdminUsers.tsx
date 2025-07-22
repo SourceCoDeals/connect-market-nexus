@@ -15,8 +15,12 @@ import { cn } from "@/lib/utils";
 import { useRealtimeAdminUsers } from "@/hooks/admin/use-realtime-admin-users";
 
 const AdminUsers = () => {
-  const { users } = useRealtimeAdminUsers();
-  const { data: usersData = [], isLoading, error, refetch } = users;
+  const { useUsers } = useRealtimeAdminUsers();
+  const usersQuery = useUsers();
+  const usersData = usersQuery.data || [];
+  const isUsersLoading = usersQuery.isLoading;
+  const usersError = usersQuery.error;
+  const refetchUsers = usersQuery.refetch;
   const { toast } = useToast();
   const isMobile = useIsMobile();
   
@@ -44,19 +48,19 @@ const AdminUsers = () => {
   
   // Handle errors and show user feedback
   useEffect(() => {
-    if (error) {
-      console.error('❌ Admin users error:', error);
+    if (usersError) {
+      console.error('❌ Admin users error:', usersError);
       toast({
         variant: 'destructive',
         title: 'Error loading users',
         description: 'Failed to load user data. Please try refreshing the page.',
       });
     }
-  }, [error, toast]);
+  }, [usersError, toast]);
   
   const handleRetry = () => {
     console.log('🔄 Retrying user data fetch...');
-    refetch();
+    refetchUsers();
     toast({
       title: 'Refreshing data',
       description: 'Reloading user data...',
@@ -94,7 +98,7 @@ const AdminUsers = () => {
   const deleteUser = (user: any) => handleDeleteUser(user);
 
   // Error state with better UX
-  if (error) {
+  if (usersError) {
     return (
       <div className="p-4 md:p-8 max-w-7xl mx-auto">
         <div className="flex flex-col items-center justify-center py-12">
@@ -141,10 +145,10 @@ const AdminUsers = () => {
           <Button
             onClick={handleRetry}
             variant="outline"
-            disabled={isLoading}
+            disabled={isUsersLoading}
             className="w-full sm:w-auto"
           >
-            <RefreshCw className={cn("h-4 w-4 mr-2", isLoading && "animate-spin")} />
+            <RefreshCw className={cn("h-4 w-4 mr-2", isUsersLoading && "animate-spin")} />
             Refresh
           </Button>
         </div>
@@ -213,7 +217,7 @@ const AdminUsers = () => {
               onMakeAdmin={makeAdmin}
               onRevokeAdmin={revokeAdmin}
               onDelete={deleteUser}
-              isLoading={isLoading}
+              isLoading={isUsersLoading}
             />
           </div>
         ) : (
@@ -225,7 +229,7 @@ const AdminUsers = () => {
               onMakeAdmin={makeAdmin}
               onRevokeAdmin={revokeAdmin}
               onDelete={deleteUser}
-              isLoading={isLoading}
+              isLoading={isUsersLoading}
             />
           </div>
         )}

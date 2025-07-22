@@ -9,32 +9,20 @@ import { SessionMonitoringProvider } from "@/components/security/SessionMonitori
 import { RealtimeProvider } from "@/components/realtime/RealtimeProvider";
 import { useUserSessionRefresh } from "@/hooks/auth/use-user-session-refresh";
 import Marketplace from "@/pages/Marketplace";
-import ListingDetails from "@/pages/ListingDetails";
 import Profile from "@/pages/Profile";
-import EditProfile from "@/pages/EditProfile";
+import SavedListings from "@/pages/SavedListings";
+import Login from "@/pages/Login";
+import Signup from "@/pages/Signup";
 import AdminDashboard from "@/pages/admin/AdminDashboard";
 import AdminUsers from "@/pages/admin/AdminUsers";
-import AdminListings from "@/pages/admin/AdminListings";
-import AdminFeedback from "@/pages/admin/AdminFeedback";
-import Onboarding from "@/pages/Onboarding";
-import RequireAuth from "@/components/auth/RequireAuth";
-import RequireAdmin from "@/components/auth/RequireAdmin";
+import AdminListings from "@/pages/admin/AdminListings";  
+import AdminRequests from "@/pages/admin/AdminRequests";
+import ProtectedRoute from "@/components/ProtectedRoute";
 import NotFound from "@/pages/NotFound";
-import Home from "@/pages/Home";
-import Pricing from "@/pages/Pricing";
-import Contact from "@/pages/Contact";
-import Terms from "@/pages/Terms";
-import Privacy from "@/pages/Privacy";
-import ForgotPassword from "@/pages/ForgotPassword";
-import ResetPassword from "@/pages/ResetPassword";
-import EmailVerification from "@/pages/EmailVerification";
-import Connections from "@/pages/Connections";
-import BuyerDashboard from "@/pages/BuyerDashboard";
-import EnhancedAnalyticsDashboard from "@/components/admin/EnhancedAdminDashboard";
-import { useIsMobile } from "@/hooks/use-mobile";
-import MobileOptimizedAdminDashboard from "@/components/admin/MobileOptimizedAdminDashboard";
-import MobileDashboardTabs from "@/components/admin/MobileDashboardTabs";
-import AdminEmail from "@/pages/admin/AdminEmail";
+import Dashboard from "@/pages/Dashboard";
+import Unauthorized from "@/pages/Unauthorized";
+import VerifyEmailHandler from "@/pages/VerifyEmailHandler";
+import { EnhancedAdminDashboard } from "@/components/admin/EnhancedAdminDashboard";
 
 function AppContent() {
   // Use the user session refresh hook
@@ -42,30 +30,22 @@ function AppContent() {
   
   return (
     <Routes>
-      <Route path="/" element={<Home />} />
-      <Route path="/pricing" element={<Pricing />} />
-      <Route path="/contact" element={<Contact />} />
-      <Route path="/terms" element={<Terms />} />
-      <Route path="/privacy" element={<Privacy />} />
-      <Route path="/forgot-password" element={<ForgotPassword />} />
-      <Route path="/reset-password" element={<ResetPassword />} />
-      <Route path="/email-verification" element={<EmailVerification />} />
+      <Route path="/" element={<Dashboard />} />
+      <Route path="/login" element={<Login />} />
+      <Route path="/signup" element={<Signup />} />
+      <Route path="/unauthorized" element={<Unauthorized />} />
+      <Route path="/verify-email" element={<VerifyEmailHandler />} />
 
-      <Route path="/marketplace" element={<RequireAuth><Marketplace /></RequireAuth>} />
-      <Route path="/listings/:id" element={<RequireAuth><ListingDetails /></RequireAuth>} />
-      <Route path="/profile/:id" element={<RequireAuth><Profile /></RequireAuth>} />
-      <Route path="/edit-profile" element={<RequireAuth><EditProfile /></RequireAuth>} />
-      <Route path="/connections" element={<RequireAuth><Connections /></RequireAuth>} />
-      <Route path="/buyer-dashboard" element={<RequireAuth><BuyerDashboard /></RequireAuth>} />
-      <Route path="/onboarding" element={<RequireAuth><Onboarding /></RequireAuth>} />
+      <Route path="/marketplace" element={<ProtectedRoute><Marketplace /></ProtectedRoute>} />
+      <Route path="/profile/:id" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+      <Route path="/saved-listings" element={<ProtectedRoute><SavedListings /></ProtectedRoute>} />
 
-      <Route path="/admin" element={<RequireAdmin><AdminDashboard /></RequireAdmin>} />
-      <Route path="/admin/dashboard" element={<RequireAdmin><AdminDashboard /></RequireAdmin>} />
-      <Route path="/admin/users" element={<RequireAdmin><AdminUsers /></RequireAdmin>} />
-      <Route path="/admin/listings" element={<RequireAdmin><AdminListings /></RequireAdmin>} />
-      <Route path="/admin/feedback" element={<RequireAdmin><AdminFeedback /></RequireAdmin>} />
-      <Route path="/admin/email" element={<RequireAdmin><AdminEmail /></RequireAdmin>} />
-      <Route path="/admin/analytics" element={<RequireAdmin><EnhancedAnalyticsDashboard /></RequireAdmin>} />
+      <Route path="/admin" element={<ProtectedRoute requireAdmin><AdminDashboard /></ProtectedRoute>} />
+      <Route path="/admin/dashboard" element={<ProtectedRoute requireAdmin><AdminDashboard /></ProtectedRoute>} />
+      <Route path="/admin/users" element={<ProtectedRoute requireAdmin><AdminUsers /></ProtectedRoute>} />
+      <Route path="/admin/listings" element={<ProtectedRoute requireAdmin><AdminListings /></ProtectedRoute>} />
+      <Route path="/admin/requests" element={<ProtectedRoute requireAdmin><AdminRequests /></ProtectedRoute>} />
+      <Route path="/admin/analytics" element={<ProtectedRoute requireAdmin><EnhancedAdminDashboard /></ProtectedRoute>} />
 
       <Route path="*" element={<NotFound />} />
     </Routes>
