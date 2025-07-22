@@ -95,7 +95,7 @@ const handler = async (req: Request): Promise<Response> => {
         </div>
         
         <div style="text-align: center; margin-top: 30px;">
-          <a href="https://market.sourcecodeals.com/admin" 
+          <a href="https://marketplace.sourcecodeals.com/admin" 
              style="background: #1e293b; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 500;">
             View in Admin Dashboard
           </a>
@@ -157,6 +157,11 @@ const handler = async (req: Request): Promise<Response> => {
           replyTo: {
             email: "adam.haile@sourcecodeals.com",
             name: "SourceCo Support"
+          },
+          // Disable click tracking to prevent broken links
+          params: {
+            trackClicks: false,
+            trackOpens: true
           }
         })
       });

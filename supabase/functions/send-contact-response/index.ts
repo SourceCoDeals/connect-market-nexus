@@ -145,6 +145,11 @@ This is an automated response. Please do not reply to this email.`;
         subject: emailSubject,
         textContent: emailHtml,
         tags: ['contact-response', category || 'feedback'],
+        // Disable click tracking for consistency
+        params: {
+          trackClicks: false,
+          trackOpens: true
+        }
       }),
     });
 

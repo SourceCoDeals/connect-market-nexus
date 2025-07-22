@@ -125,6 +125,11 @@ const handler = async (req: Request): Promise<Response> => {
       replyTo: {
         email: "adam.haile@sourcecodeals.com",
         name: "Adam Haile"
+      },
+      // Disable click tracking to prevent broken links
+      params: {
+        trackClicks: false,
+        trackOpens: true
       }
     };
     

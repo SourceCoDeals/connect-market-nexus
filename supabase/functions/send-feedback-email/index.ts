@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -62,6 +63,11 @@ const handler = async (req: Request): Promise<Response> => {
       replyTo: {
         email: "adam.haile@sourcecodeals.com",
         name: "Adam Haile"
+      },
+      // Disable click tracking for consistency
+      params: {
+        trackClicks: false,
+        trackOpens: true
       }
     };
 

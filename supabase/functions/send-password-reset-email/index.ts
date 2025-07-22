@@ -99,6 +99,11 @@ const handler = async (req: Request): Promise<Response> => {
                 <p style="color: #666; font-size: 12px;">If the button doesn't work, copy and paste this link: ${resetUrl}</p>
               </div>
             `,
+            // Disable click tracking to prevent broken links
+            params: {
+              trackClicks: false,
+              trackOpens: true
+            }
           }),
         });
 
