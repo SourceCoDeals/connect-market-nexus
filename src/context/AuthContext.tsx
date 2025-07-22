@@ -3,6 +3,7 @@ import React, { createContext, useContext, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { User as AppUser } from "@/types";
 import { useFreshAuthState } from "@/hooks/auth/use-fresh-auth-state";
+import { useEnhancedAuthState } from "@/hooks/auth/use-enhanced-auth-state";
 import { useEnhancedAuthActions } from "@/hooks/auth/use-enhanced-auth-actions";
 
 interface AuthContextType {
@@ -16,6 +17,8 @@ interface AuthContextType {
   isAdmin: boolean;
   isBuyer: boolean;
   authChecked: boolean;
+  // PHASE 3: Add enhanced auth flag for gradual migration
+  useEnhancedAuth?: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -28,10 +31,18 @@ export const useAuth = () => {
   return context;
 };
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
+export const AuthProvider: React.FC<{ 
+  children: React.ReactNode;
+  useEnhanced?: boolean;
+}> = ({
   children,
+  useEnhanced = true, // PHASE 3: Default to enhanced auth with fallback
 }) => {
-  // Use the new robust auth state management
+  // PHASE 3: Gradual migration - use enhanced auth with fallback
+  const legacyAuth = useFreshAuthState();
+  const enhancedAuth = useEnhancedAuthState();
+  
+  // Choose auth state based on feature flag
   const { 
     user, 
     isLoading, 
@@ -40,7 +51,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     authChecked, 
     refreshUserData,
     clearAuthState 
-  } = useFreshAuthState();
+  } = useEnhanced ? enhancedAuth : legacyAuth;
   
   // Use the enhanced auth actions hook
   const { signUp, signIn, signOut } = useEnhancedAuthActions();
@@ -121,6 +132,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     isAdmin,
     isBuyer,
     authChecked,
+    // PHASE 3: Add enhanced auth indicator
+    useEnhancedAuth: useEnhanced,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
