@@ -1,7 +1,8 @@
+
 /**
  * Navigation Protection Hook (Phase 5)
  * 
- * Provides navigation state protection and loading state management.
+ * Simplified navigation protection using only nuclear auth approach.
  */
 
 import { useEffect, useState, useCallback } from 'react';
