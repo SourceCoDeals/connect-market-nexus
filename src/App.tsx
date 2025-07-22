@@ -8,6 +8,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import { AuthProvider } from "@/context/AuthContext";
 import { AnalyticsProvider } from "@/context/AnalyticsContext";
+import { TabVisibilityProvider } from "@/context/TabVisibilityContext";
+import { NavigationStateProvider } from "@/context/NavigationStateContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import MainLayout from "@/components/MainLayout";
 import AdminLayout from "@/components/admin/AdminLayout";
@@ -48,9 +50,11 @@ const queryClient = new QueryClient({
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <AnalyticsProvider>
-          <Toaster />
+      <TabVisibilityProvider>
+        <NavigationStateProvider>
+          <AuthProvider>
+            <AnalyticsProvider>
+              <Toaster />
           <Routes>
             {/* Authentication routes - no protection needed */}
             <Route path="/login" element={<Login />} />
@@ -85,8 +89,10 @@ function App() {
             {/* Catch-all route for 404 Not Found */}
             <Route path="*" element={<NotFound />} />
           </Routes>
-        </AnalyticsProvider>
-      </AuthProvider>
+            </AnalyticsProvider>
+          </AuthProvider>
+        </NavigationStateProvider>
+      </TabVisibilityProvider>
     </QueryClientProvider>
   );
 }

@@ -8,7 +8,7 @@
 
 import { useQuery, QueryKey, UseQueryOptions, UseQueryResult } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
-import { tabVisibilityManager } from '@/lib/tab-visibility-manager';
+import { useTabVisibility } from '@/context/TabVisibilityContext';
 
 interface TabAwareQueryOptions<TData, TError> extends Omit<UseQueryOptions<TData, TError>, 'queryKey' | 'queryFn'> {
   // Custom options for tab awareness
@@ -22,7 +22,8 @@ export function useTabAwareQuery<TData = unknown, TError = Error>(
   queryFn: () => Promise<TData>,
   options: TabAwareQueryOptions<TData, TError> = {}
 ): UseQueryResult<TData, TError> {
-  const [isTabVisible, setIsTabVisible] = useState(tabVisibilityManager.getVisibility());
+  const tabVisibility = useTabVisibility();
+  const [isTabVisible, setIsTabVisible] = useState(tabVisibility.getVisibility());
   const [lastVisibilityChange, setLastVisibilityChange] = useState(Date.now());
 
   const {
@@ -34,13 +35,13 @@ export function useTabAwareQuery<TData = unknown, TError = Error>(
 
   // Track tab visibility
   useEffect(() => {
-    const unsubscribe = tabVisibilityManager.subscribe((visible) => {
+    const unsubscribe = tabVisibility.subscribe((visible) => {
       setIsTabVisible(visible);
       setLastVisibilityChange(Date.now());
     });
 
     return unsubscribe;
-  }, []);
+  }, [tabVisibility]);
 
   // Smart refetch logic - be more permissive to prevent "nothing loads" issues
   const shouldRefetch = () => {
