@@ -1,20 +1,14 @@
 
-import React from 'react'
-import ReactDOM from 'react-dom/client'
-import App from './App.tsx'
-import './index.css'
-import { seedDatabase } from './seed.ts'
-import { BrowserRouter } from 'react-router-dom'
+import { StrictMode } from "react";
+import { createRoot } from "react-dom/client";
+import App from "./App.tsx";
+import "./index.css";
 
-// Seed database with sample data for development
-if (import.meta.env.DEV) {
-  seedDatabase().catch(console.error);
-}
+const rootElement = document.getElementById("root");
+if (!rootElement) throw new Error("Root element not found");
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
-    <BrowserRouter>
-      <App />
-    </BrowserRouter>
-  </React.StrictMode>,
-)
+createRoot(rootElement).render(
+  <StrictMode>
+    <App />
+  </StrictMode>
+);

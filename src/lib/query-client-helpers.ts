@@ -1,32 +1,27 @@
-import { QueryClient } from '@tanstack/react-query';
-import { INVALIDATION_PATTERNS } from './query-keys';
 
-// Enhanced query client helpers with safe invalidation
-export const safeInvalidateQueries = async (
-  queryClient: QueryClient,
-  patterns: Array<{ queryKey: readonly unknown[] }>
-) => {
-  try {
-    await Promise.all(
-      patterns.map(pattern => 
-        queryClient.invalidateQueries({ queryKey: pattern.queryKey })
-      )
-    );
-  } catch (error) {
-    console.error('Error invalidating queries:', error);
-    // Don't throw - invalidation errors shouldn't break user operations
-  }
+import { QueryClient } from '@tanstack/react-query';
+
+// Ultra-simple query invalidation helpers
+export const invalidateListings = (queryClient: QueryClient) => {
+  queryClient.invalidateQueries({ queryKey: ['listings'] });
 };
 
-// Centralized invalidation helpers
 export const invalidateSavedListings = (queryClient: QueryClient) => {
-  return safeInvalidateQueries(queryClient, INVALIDATION_PATTERNS.savedListings());
+  queryClient.invalidateQueries({ queryKey: ['saved-listings'] });
 };
 
 export const invalidateConnectionRequests = (queryClient: QueryClient) => {
-  return safeInvalidateQueries(queryClient, INVALIDATION_PATTERNS.connectionRequests());
+  queryClient.invalidateQueries({ queryKey: ['connection-requests'] });
+  queryClient.invalidateQueries({ queryKey: ['user-connection-requests'] });
+  queryClient.invalidateQueries({ queryKey: ['admin-connection-requests'] });
 };
 
-export const invalidateUserProfile = (queryClient: QueryClient, userId?: string) => {
-  return safeInvalidateQueries(queryClient, INVALIDATION_PATTERNS.userProfile(userId));
+export const invalidateUserProfile = (queryClient: QueryClient) => {
+  queryClient.invalidateQueries({ queryKey: ['user-profile'] });
+};
+
+export const invalidateAdminData = (queryClient: QueryClient) => {
+  queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+  queryClient.invalidateQueries({ queryKey: ['admin-connection-requests'] });
+  queryClient.invalidateQueries({ queryKey: ['admin-listings'] });
 };
