@@ -1,4 +1,3 @@
-
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { FilterOptions, Listing, ListingStatus } from '@/types';
@@ -190,14 +189,14 @@ export const useListings = (filters: FilterOptions = {}) => {
     refetchOnMount: true,
     refetchInterval: false,
     retry: (failureCount, error) => {
-      // Retry auth-related errors up to 3 times
+      // Only retry auth-related errors and only up to 2 times
       if (error?.message?.includes('Authentication') || error?.message?.includes('not ready')) {
-        return failureCount < 3;
+        return failureCount < 2;
       }
       // Don't retry other errors
       return false;
     },
-    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 5000),
   });
 };
 

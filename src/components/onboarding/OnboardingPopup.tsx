@@ -21,8 +21,8 @@ const OnboardingPopup = ({ isOpen, onClose, userId }: OnboardingPopupProps) => {
     setIsCompleting(true);
     
     try {
-      // First check if user exists
-      console.log('🔍 Checking if user profile exists for:', userId);
+      // First check if user exists and their current onboarding status
+      console.log('🔍 Checking user profile and onboarding status for:', userId);
       
       const { data: existingProfile, error: checkError } = await supabase
         .from('profiles')
@@ -54,13 +54,20 @@ const OnboardingPopup = ({ isOpen, onClose, userId }: OnboardingPopupProps) => {
 
       console.log('✅ Found user profile:', existingProfile);
 
-      // Update onboarding status
+      // If already completed, just close the popup
+      if (existingProfile.onboarding_completed) {
+        console.log('✅ Onboarding already completed, closing popup');
+        onClose();
+        return;
+      }
+
+      // Update onboarding status - use maybeSingle to avoid errors if no rows affected
       const { data, error } = await supabase
         .from('profiles')
         .update({ onboarding_completed: true })
         .eq('id', userId)
         .select('onboarding_completed')
-        .single();
+        .maybeSingle();
 
       if (error) {
         console.error('❌ Error updating onboarding status:', error);
