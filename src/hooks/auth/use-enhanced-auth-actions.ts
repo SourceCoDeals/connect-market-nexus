@@ -4,14 +4,12 @@ import { supabase } from '@/integrations/supabase/client';
 import { User } from '@/types';
 import { cleanupAuthState } from '@/lib/auth-helpers';
 import { toast } from '@/hooks/use-toast';
-import { authStateManager } from '@/lib/auth-state-manager';
 
 export function useEnhancedAuthActions() {
   const [isLoading, setIsLoading] = useState(false);
 
   const signUp = async (email: string, password: string, userData: Partial<User>) => {
     setIsLoading(true);
-    authStateManager.setActiveAuthFlow(true);
     
     try {
       console.log('📝 Starting signup process for:', email);
@@ -74,13 +72,11 @@ export function useEnhancedAuthActions() {
       return { error };
     } finally {
       setIsLoading(false);
-      // Auth flow will be marked as complete by the auth listener
     }
   };
 
   const signIn = async (email: string, password: string) => {
     setIsLoading(true);
-    authStateManager.setActiveAuthFlow(true);
     
     try {
       console.log('🔐 Starting signin process for:', email);
@@ -92,19 +88,14 @@ export function useEnhancedAuthActions() {
 
       if (error) {
         console.error('❌ Signin error:', error);
-        authStateManager.setActiveAuthFlow(false);
         return { error };
       }
 
       console.log('✅ Signin successful for:', email);
-      
-      // The auth state will be handled by the auth state manager
-      // Auth flow completion will be marked by the auth listener
       return { data, error: null };
       
     } catch (error: any) {
       console.error('❌ Signin exception:', error);
-      authStateManager.setActiveAuthFlow(false);
       return { error };
     } finally {
       setIsLoading(false);
@@ -113,7 +104,6 @@ export function useEnhancedAuthActions() {
 
   const signOut = async () => {
     setIsLoading(true);
-    authStateManager.setActiveAuthFlow(true);
     
     try {
       console.log('👋 Starting signout process');
@@ -142,7 +132,6 @@ export function useEnhancedAuthActions() {
       return { error };
     } finally {
       setIsLoading(false);
-      authStateManager.setActiveAuthFlow(false);
     }
   };
 
