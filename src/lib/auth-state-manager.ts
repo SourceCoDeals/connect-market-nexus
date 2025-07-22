@@ -28,6 +28,10 @@ class AuthStateManager {
   private pendingUserUpdate: User | null = null;
   private pendingLoadingUpdate: boolean | null = null;
 
+  // Tab switching stability
+  private lastAuthCheckTime: number = 0;
+  private stableAuthGracePeriod: number = 3000; // 3 seconds
+
   constructor() {
     this.initialize();
     this.setupTabVisibilityHandling();
@@ -48,13 +52,17 @@ class AuthStateManager {
   }
 
   /**
-   * Get current auth state
+   * Get current auth state with stability check
    */
   getState() {
+    // During tab switches, use a more stable auth state
+    const timeSinceLastCheck = Date.now() - this.lastAuthCheckTime;
+    const isStableAuthPeriod = timeSinceLastCheck < this.stableAuthGracePeriod;
+    
     return {
       user: this.user,
       isLoading: this.isLoading,
-      authChecked: this.authChecked,
+      authChecked: this.authChecked || isStableAuthPeriod,
       isAdmin: this.user?.is_admin === true,
       isBuyer: this.user?.role === "buyer"
     };
@@ -66,6 +74,12 @@ class AuthStateManager {
   async refreshUserData(userId?: string): Promise<User | null> {
     const targetUserId = userId || this.user?.id;
     if (!targetUserId) return null;
+
+    // Don't refresh during tab visibility changes unless necessary
+    if (!tabVisibilityManager.getVisibility() && tabVisibilityManager.isRecentlyVisible(5000)) {
+      console.log('⏸️ AuthStateManager: Skipping refresh during recent tab switch');
+      return this.user;
+    }
 
     try {
       console.log('🔄 AuthStateManager: Refreshing user data for:', targetUserId);
@@ -84,6 +98,7 @@ class AuthStateManager {
       const userData = createUserObject(profileData);
       this.updateState(userData, false);
       this.syncToLocalStorage(userData);
+      this.lastAuthCheckTime = Date.now();
       
       console.log('✅ AuthStateManager: User data refreshed');
       return userData;
@@ -103,6 +118,7 @@ class AuthStateManager {
       await cleanupAuthState();
       this.updateState(null, false);
       this.authChecked = true;
+      this.lastAuthCheckTime = Date.now();
       
       console.log('✅ AuthStateManager: Auth state cleared');
     } catch (error) {
@@ -126,7 +142,6 @@ class AuthStateManager {
     try {
       console.log('🚀 AuthStateManager: Initializing...');
 
-      // First check for existing session
       const { data: { session }, error } = await supabase.auth.getSession();
       
       if (error) {
@@ -135,7 +150,6 @@ class AuthStateManager {
         return;
       }
 
-      // Load user data if session exists
       if (session?.user && !this.isDestroyed) {
         console.log('🔍 AuthStateManager: Loading user from session:', session.user.email);
         await this.loadUserData(session.user.id);
@@ -144,7 +158,6 @@ class AuthStateManager {
         this.updateState(null, false);
       }
 
-      // Set up auth state listener
       this.setupAuthListener();
       
       console.log('✅ AuthStateManager: Initialization complete');
@@ -153,19 +166,24 @@ class AuthStateManager {
       await this.clearAuthState();
     } finally {
       this.authChecked = true;
-      this.updateState(this.user, false); // Ensure loading is false
+      this.lastAuthCheckTime = Date.now();
+      this.updateState(this.user, false);
     }
   }
 
   private setupTabVisibilityHandling(): void {
     this.tabVisibilitySubscription = tabVisibilityManager.subscribe((isVisible) => {
-      if (isVisible && tabVisibilityManager.isRecentlyVisible(2000)) {
-        console.log('👁️ AuthStateManager: Tab became visible, checking auth state');
+      if (isVisible) {
+        // Only refresh auth if tab was hidden for a significant time and we have a user
+        const timeSinceHidden = tabVisibilityManager.getTimeSinceLastVisibilityChange();
         
-        // Only refresh if we have a user and tab was hidden for a while
-        if (this.user && tabVisibilityManager.getTimeSinceLastVisibilityChange() > 30000) {
-          console.log('🔄 AuthStateManager: Refreshing auth state after long tab hide');
-          this.refreshUserData(this.user.id);
+        if (this.user && timeSinceHidden > 60000) { // 1 minute
+          console.log('👁️ AuthStateManager: Tab visible after long time, checking auth state');
+          setTimeout(() => {
+            this.refreshUserData(this.user?.id);
+          }, 500); // Small delay to avoid race conditions
+        } else {
+          console.log('👁️ AuthStateManager: Tab visible, auth state stable');
         }
       }
     });
@@ -180,9 +198,16 @@ class AuthStateManager {
 
         console.log('🔔 AuthStateManager: Auth event:', event);
         
-        // Skip auth events when tab is not visible to prevent race conditions
+        // Skip certain auth events during tab switches to prevent instability
         if (!tabVisibilityManager.getVisibility() && event === 'TOKEN_REFRESHED') {
-          console.log('⏸️ AuthStateManager: Skipping auth event while tab hidden');
+          console.log('⏸️ AuthStateManager: Skipping TOKEN_REFRESHED while tab hidden');
+          return;
+        }
+        
+        // Add stability check for frequent auth events
+        const timeSinceLastCheck = Date.now() - this.lastAuthCheckTime;
+        if (timeSinceLastCheck < 1000 && (event === 'TOKEN_REFRESHED' || event === 'SIGNED_IN')) {
+          console.log('⏸️ AuthStateManager: Skipping rapid auth event:', event);
           return;
         }
         
@@ -190,6 +215,7 @@ class AuthStateManager {
           case 'SIGNED_OUT':
             this.updateState(null, false);
             localStorage.removeItem("user");
+            this.lastAuthCheckTime = Date.now();
             break;
             
           case 'SIGNED_IN':
@@ -197,6 +223,7 @@ class AuthStateManager {
             if (session?.user) {
               console.log(`🔐 AuthStateManager: ${event} for:`, session.user.email);
               await this.loadUserData(session.user.id);
+              this.lastAuthCheckTime = Date.now();
             }
             break;
         }
@@ -258,7 +285,7 @@ class AuthStateManager {
       }
       
       this.updateStateDebounce = null;
-    }, 0);
+    }, 50); // Slightly longer debounce for stability
   }
 
   private syncToLocalStorage(userData: User | null): void {

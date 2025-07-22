@@ -28,7 +28,7 @@ export function useTabAwareQuery<TData = unknown, TError = Error>(
   const {
     refetchOnVisibilityChange = false,
     minVisibleTimeBeforeRefetch = 1000,
-    pauseWhenHidden = true,
+    pauseWhenHidden = false, // Default to false to prevent queries from being disabled
     ...queryOptions
   } = options;
 
@@ -42,15 +42,16 @@ export function useTabAwareQuery<TData = unknown, TError = Error>(
     return unsubscribe;
   }, []);
 
-  // Smart refetch logic
+  // Smart refetch logic - be more permissive to prevent "nothing loads" issues
   const shouldRefetch = () => {
-    if (!isTabVisible && pauseWhenHidden) {
-      return false;
+    // Always allow queries when tab is visible
+    if (isTabVisible) {
+      return true;
     }
 
-    if (refetchOnVisibilityChange && isTabVisible) {
-      const timeSinceVisible = Date.now() - lastVisibilityChange;
-      return timeSinceVisible >= minVisibleTimeBeforeRefetch;
+    // Only pause queries when explicitly requested AND tab is hidden
+    if (pauseWhenHidden && !isTabVisible) {
+      return false;
     }
 
     return true;
@@ -62,35 +63,36 @@ export function useTabAwareQuery<TData = unknown, TError = Error>(
     queryKey,
     queryFn,
     enabled: (queryOptions.enabled !== false) && shouldRefetch(),
-    refetchOnWindowFocus: false, // We handle this manually
+    refetchOnWindowFocus: false, // We handle this manually with global config
     refetchOnMount: shouldRefetch(),
     refetchOnReconnect: shouldRefetch(),
   };
 
   const queryResult = useQuery(enhancedOptions);
 
-  // Handle manual refetch on visibility change
+  // Handle manual refetch on visibility change - but be conservative
   useEffect(() => {
     if (refetchOnVisibilityChange && isTabVisible && queryResult.refetch) {
       const timeSinceVisible = Date.now() - lastVisibilityChange;
       
+      // Only refetch if explicitly requested and enough time has passed
       if (timeSinceVisible >= minVisibleTimeBeforeRefetch && !queryResult.isFetching) {
         console.log(`🔄 Tab aware refetch for query:`, queryKey);
         
         // Small delay to avoid race conditions
         const timeoutId = setTimeout(() => {
           queryResult.refetch();
-        }, 100);
+        }, 200);
 
         return () => clearTimeout(timeoutId);
       }
     }
-  }, [isTabVisible, lastVisibilityChange, refetchOnVisibilityChange, minVisibleTimeBeforeRefetch, queryResult.refetch, queryResult.isFetching]);
+  }, [isTabVisible, lastVisibilityChange, refetchOnVisibilityChange, minVisibleTimeBeforeRefetch, queryResult.refetch, queryResult.isFetching, queryKey]);
 
   return queryResult;
 }
 
-// Convenience hook for common marketplace queries
+// Convenience hook for common marketplace queries - more permissive settings
 export function useTabAwareMarketplaceQuery<TData = unknown, TError = Error>(
   queryKey: QueryKey,
   queryFn: () => Promise<TData>,
@@ -100,7 +102,7 @@ export function useTabAwareMarketplaceQuery<TData = unknown, TError = Error>(
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes
     refetchOnVisibilityChange: false, // Don't refetch on tab switch for marketplace
-    pauseWhenHidden: true,
+    pauseWhenHidden: false, // Allow queries even when tab is hidden
     ...options,
   });
 }

@@ -6,16 +6,38 @@ import { toast } from '@/hooks/use-toast';
 import { createUserObject } from '@/lib/auth-helpers';
 import { createListingFromData } from '@/utils/user-helpers';
 import { createQueryKey } from '@/lib/query-keys';
+import { useAuth } from '@/context/AuthContext';
+import { useTabAwareQuery } from '@/hooks/use-tab-aware-query';
 
 /**
  * Hook for fetching connection requests in admin dashboard
  */
 export function useConnectionRequestsQuery() {
-  return useQuery({
-    queryKey: createQueryKey.adminConnectionRequests(),
-    queryFn: async () => {
+  const { user, authChecked } = useAuth();
+
+  // Get cached auth state for more stable query enabling
+  const cachedAuthState = (() => {
+    try {
+      const cached = localStorage.getItem('user');
+      return cached ? JSON.parse(cached) : null;
+    } catch {
+      return null;
+    }
+  })();
+
+  const isAdminUser = user?.is_admin === true || cachedAuthState?.is_admin === true;
+  const shouldEnable = (authChecked || cachedAuthState) && isAdminUser;
+
+  return useTabAwareQuery(
+    createQueryKey.adminConnectionRequests(),
+    async () => {
       try {
-        // First get all connection requests
+        console.log('🔍 Admin fetching connection requests');
+        
+        if (!isAdminUser) {
+          throw new Error('Admin authentication required');
+        }
+
         const { data: requests, error } = await supabase
           .from('connection_requests')
           .select('*')
@@ -23,40 +45,30 @@ export function useConnectionRequestsQuery() {
 
         if (error) throw error;
         
-        // For each request, fetch user and listing details separately 
-        // to avoid the relation error
         const enhancedRequests = await Promise.all(requests.map(async (request) => {
-          // Get user details
           const { data: userData, error: userError } = await supabase
             .from('profiles')
-            .select('*')  // Select all fields to get complete user data
+            .select('*')
             .eq('id', request.user_id)
-            .maybeSingle();  // Use maybeSingle instead of single to prevent errors
+            .maybeSingle();
           
           if (userError) console.error("Error fetching user data:", userError);
           
-          // Get listing details - select all fields to ensure we have complete data
           const { data: listingData, error: listingError } = await supabase
             .from('listings')
-            .select('*')  // Select all fields instead of just a subset
+            .select('*')
             .eq('id', request.listing_id)
-            .maybeSingle();  // Use maybeSingle instead of single to prevent errors
+            .maybeSingle();
           
           if (listingError) console.error("Error fetching listing data:", listingError);
           
-          // Transform the user data using createUserObject to ensure it matches the User type
           const user = userError || !userData ? null : createUserObject(userData);
-          
-          // Use createListingFromData to properly construct the listing object
           const listing = listingData ? createListingFromData(listingData) : null;
-          
-          // Explicitly cast the request status to the expected union type
           const status = request.status as "pending" | "approved" | "rejected";
           
-          // Create the final object with explicit type safety
           const result: AdminConnectionRequest = {
             ...request,
-            status, // Use the explicitly typed status
+            status,
             user,
             listing
           };
@@ -64,10 +76,10 @@ export function useConnectionRequestsQuery() {
           return result;
         }));
 
-        console.log("Sample connection request data:", enhancedRequests[0]);
+        console.log("✅ Connection requests fetched successfully");
         return enhancedRequests;
       } catch (error: any) {
-        console.error("Error fetching connection requests:", error);
+        console.error("❌ Error fetching connection requests:", error);
         toast({
           variant: 'destructive',
           title: 'Error fetching connection requests',
@@ -76,5 +88,10 @@ export function useConnectionRequestsQuery() {
         return [] as AdminConnectionRequest[];
       }
     },
-  });
+    {
+      enabled: shouldEnable,
+      staleTime: 1000 * 60 * 2,
+      // Remove refetchOnWindowFocus - let global settings handle this
+    }
+  );
 }
