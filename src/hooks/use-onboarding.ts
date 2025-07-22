@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 
 export const useOnboarding = () => {
   const [showOnboarding, setShowOnboarding] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false); // Start as false to not block UI
   const { user, authChecked } = useAuth();
 
   useEffect(() => {
@@ -18,10 +18,9 @@ export const useOnboarding = () => {
         onboarding_completed: user?.onboarding_completed
       });
 
-      // Wait for auth to be fully checked
+      // Don't block UI while auth is loading
       if (!authChecked) {
-        console.log('⏳ Auth not yet checked, waiting...');
-        setIsLoading(true);
+        console.log('⏳ Auth not yet checked, onboarding waiting...');
         setShowOnboarding(false);
         return;
       }
@@ -33,7 +32,6 @@ export const useOnboarding = () => {
           email_verified: user?.email_verified,
           approval_status: user?.approval_status
         });
-        setIsLoading(false);
         setShowOnboarding(false);
         return;
       }
@@ -41,7 +39,6 @@ export const useOnboarding = () => {
       // Check if onboarding is already completed in user object
       if (user.onboarding_completed) {
         console.log('✅ Onboarding already completed in user object');
-        setIsLoading(false);
         setShowOnboarding(false);
         return;
       }
@@ -58,7 +55,6 @@ export const useOnboarding = () => {
         if (error) {
           console.error('❌ Error checking onboarding status:', error);
           setShowOnboarding(false);
-          setIsLoading(false);
           return;
         }
 
@@ -72,12 +68,12 @@ export const useOnboarding = () => {
       } catch (error) {
         console.error('💥 Exception in onboarding check:', error);
         setShowOnboarding(false);
-      } finally {
-        setIsLoading(false);
       }
     };
 
-    checkOnboardingStatus();
+    // Use timeout to prevent blocking UI during tab switches
+    const timeoutId = setTimeout(checkOnboardingStatus, 100);
+    return () => clearTimeout(timeoutId);
   }, [user, authChecked]);
 
   const completeOnboarding = () => {

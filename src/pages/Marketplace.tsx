@@ -193,8 +193,8 @@ const Marketplace = () => {
       ));
   };
 
-  // Show loading while auth is being checked or onboarding is loading
-  if (!authChecked || onboardingLoading) {
+  // Only show loading while auth is being checked - don't let onboarding block the UI
+  if (!authChecked) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
