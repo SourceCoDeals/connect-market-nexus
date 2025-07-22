@@ -1,6 +1,5 @@
 
 import { useState, useEffect } from "react";
-import { useAdmin } from "@/hooks/use-admin";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -13,9 +12,10 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
+import { useRealtimeAdminUsers } from "@/hooks/admin/use-realtime-admin-users";
 
 const AdminUsers = () => {
-  const { users } = useAdmin();
+  const { users } = useRealtimeAdminUsers();
   const { data: usersData = [], isLoading, error, refetch } = users;
   const { toast } = useToast();
   const isMobile = useIsMobile();
@@ -35,7 +35,12 @@ const AdminUsers = () => {
     selectedUser,
     actionType,
     isLoading: isActionLoading
-  } = UserActions({ onUserStatusUpdated: refetch });
+  } = UserActions({ 
+    onUserStatusUpdated: () => {
+      // Real-time updates will handle this automatically
+      console.log('✅ User status updated - real-time will refresh');
+    }
+  });
   
   // Handle errors and show user feedback
   useEffect(() => {
@@ -118,7 +123,7 @@ const AdminUsers = () => {
         <div>
           <h1 className="text-2xl md:text-3xl font-bold">User Management</h1>
           <p className="text-sm md:text-base text-muted-foreground">
-            Manage user accounts and permissions
+            Manage user accounts and permissions (Real-time updates enabled)
           </p>
         </div>
         

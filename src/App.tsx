@@ -1,100 +1,107 @@
-
-import {
-  Routes,
-  Route,
-  Navigate,
-} from "react-router-dom";
+import { Toaster } from "@/components/ui/toaster";
+import { Toaster as Sonner } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/context/AuthContext";
 import { AnalyticsProvider } from "@/context/AnalyticsContext";
 import { SessionMonitoringProvider } from "@/components/security/SessionMonitoringProvider";
-import ProtectedRoute from "@/components/ProtectedRoute";
-import MainLayout from "@/components/MainLayout";
-import AdminLayout from "@/components/admin/AdminLayout";
-import Login from "@/pages/Login";
-import Signup from "@/pages/Signup";
-import VerifyEmail from "@/pages/VerifyEmail";
-import VerifyEmailHandler from "@/pages/VerifyEmailHandler";
-import EmailVerificationRequired from "@/pages/EmailVerificationRequired";
-import PendingApproval from "@/pages/PendingApproval";
-import VerificationSuccess from "@/pages/VerificationSuccess";
-import Unauthorized from "@/pages/Unauthorized";
-import Profile from "@/pages/Profile";
+import { RealtimeProvider } from "@/components/realtime/RealtimeProvider";
+import { useUserSessionRefresh } from "@/hooks/auth/use-user-session-refresh";
 import Marketplace from "@/pages/Marketplace";
-import ListingDetail from "@/pages/ListingDetail";
-import MyRequests from "@/pages/MyRequests";
-import SavedListings from "@/pages/SavedListings";
+import ListingDetails from "@/pages/ListingDetails";
+import Profile from "@/pages/Profile";
+import EditProfile from "@/pages/EditProfile";
 import AdminDashboard from "@/pages/admin/AdminDashboard";
-import AdminListings from "@/pages/admin/AdminListings";
 import AdminUsers from "@/pages/admin/AdminUsers";
-import AdminRequests from "@/pages/admin/AdminRequests";
-import { Toaster } from "@/components/ui/toaster";
-import { RealtimeProvider } from '@/components/realtime/RealtimeProvider';
-import { RealtimeIndicator } from '@/components/realtime/RealtimeIndicator';
+import AdminListings from "@/pages/admin/AdminListings";
+import AdminFeedback from "@/pages/admin/AdminFeedback";
+import Onboarding from "@/pages/Onboarding";
+import RequireAuth from "@/components/auth/RequireAuth";
+import RequireAdmin from "@/components/auth/RequireAdmin";
+import NotFound from "@/pages/NotFound";
+import Home from "@/pages/Home";
+import Pricing from "@/pages/Pricing";
+import Contact from "@/pages/Contact";
+import Terms from "@/pages/Terms";
+import Privacy from "@/pages/Privacy";
+import ForgotPassword from "@/pages/ForgotPassword";
+import ResetPassword from "@/pages/ResetPassword";
+import EmailVerification from "@/pages/EmailVerification";
+import Connections from "@/pages/Connections";
+import BuyerDashboard from "@/pages/BuyerDashboard";
+import EnhancedAnalyticsDashboard from "@/components/admin/EnhancedAdminDashboard";
+import { useIsMobile } from "@/hooks/use-mobile";
+import MobileOptimizedAdminDashboard from "@/components/admin/MobileOptimizedAdminDashboard";
+import MobileDashboardTabs from "@/components/admin/MobileDashboardTabs";
+import AdminEmail from "@/pages/admin/AdminEmail";
 
-const queryClient = new QueryClient();
-
-function App() {
+function AppContent() {
+  // Use the user session refresh hook
+  useUserSessionRefresh();
+  
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <AnalyticsProvider>
-          <Toaster />
-          <SessionMonitoringProvider>
-            <RealtimeProvider>
-            <Routes>
-              {/* Authentication routes - no protection needed */}
-              <Route path="/login" element={<Login />} />
-              <Route path="/signup" element={<Signup />} />
-              <Route path="/verify-email" element={<VerifyEmail />} />
-              <Route path="/email-verification-required" element={<EmailVerificationRequired />} />
-              <Route path="/verify-email-handler" element={<VerifyEmailHandler />} />
-              <Route path="/pending-approval" element={<PendingApproval />} />
-              <Route path="/verification-success" element={<VerificationSuccess />} />
-              <Route path="/unauthorized" element={<Unauthorized />} />
-              
-              {/* Main app routes with MainLayout - require approval */}
-              <Route path="/" element={<ProtectedRoute requireApproved={true}><MainLayout /></ProtectedRoute>}>
-                <Route index element={<Marketplace />} />
-                <Route path="profile" element={<Profile />} />
-                <Route path="listing/:id" element={<ListingDetail />} />
-                <Route path="my-requests" element={<MyRequests />} />
-                <Route path="saved-listings" element={<SavedListings />} />
-              </Route>
-              
-              {/* Redirect /marketplace to / */}
-              <Route path="/marketplace" element={<Navigate to="/" replace />} />
-              
-              {/* Admin routes with AdminLayout - require admin */}
-              <Route path="/admin" element={<ProtectedRoute requireAdmin={true}><AdminLayout /></ProtectedRoute>}>
-                <Route index element={<AdminDashboard />} />
-                <Route path="listings" element={<AdminListings />} />
-                <Route path="users" element={<AdminUsers />} />
-                <Route path="requests" element={<AdminRequests />} />
-              </Route>
-              
-              {/* Catch-all route for 404 Not Found */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-              <RealtimeIndicator />
-            </RealtimeProvider>
-          </SessionMonitoringProvider>
-        </AnalyticsProvider>
-      </AuthProvider>
-    </QueryClientProvider>
+    <Routes>
+      <Route path="/" element={<Home />} />
+      <Route path="/pricing" element={<Pricing />} />
+      <Route path="/contact" element={<Contact />} />
+      <Route path="/terms" element={<Terms />} />
+      <Route path="/privacy" element={<Privacy />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
+      <Route path="/email-verification" element={<EmailVerification />} />
+
+      <Route path="/marketplace" element={<RequireAuth><Marketplace /></RequireAuth>} />
+      <Route path="/listings/:id" element={<RequireAuth><ListingDetails /></RequireAuth>} />
+      <Route path="/profile/:id" element={<RequireAuth><Profile /></RequireAuth>} />
+      <Route path="/edit-profile" element={<RequireAuth><EditProfile /></RequireAuth>} />
+      <Route path="/connections" element={<RequireAuth><Connections /></RequireAuth>} />
+      <Route path="/buyer-dashboard" element={<RequireAuth><BuyerDashboard /></RequireAuth>} />
+      <Route path="/onboarding" element={<RequireAuth><Onboarding /></RequireAuth>} />
+
+      <Route path="/admin" element={<RequireAdmin><AdminDashboard /></RequireAdmin>} />
+      <Route path="/admin/dashboard" element={<RequireAdmin><AdminDashboard /></RequireAdmin>} />
+      <Route path="/admin/users" element={<RequireAdmin><AdminUsers /></RequireAdmin>} />
+      <Route path="/admin/listings" element={<RequireAdmin><AdminListings /></RequireAdmin>} />
+      <Route path="/admin/feedback" element={<RequireAdmin><AdminFeedback /></RequireAdmin>} />
+      <Route path="/admin/email" element={<RequireAdmin><AdminEmail /></RequireAdmin>} />
+      <Route path="/admin/analytics" element={<RequireAdmin><EnhancedAnalyticsDashboard /></RequireAdmin>} />
+
+      <Route path="*" element={<NotFound />} />
+    </Routes>
   );
 }
 
-function NotFound() {
+function App() {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        staleTime: 30 * 1000, // 30 seconds
+        gcTime: 2 * 60 * 1000, // 2 minutes
+        retry: 1,
+        refetchOnWindowFocus: false,
+      },
+    },
+  });
+
   return (
-    <div className="flex items-center justify-center h-screen bg-gray-100">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold text-gray-800">404 Not Found</h1>
-        <p className="text-gray-600 mt-2">The page you are looking for does not exist.</p>
-        <a href="/" className="text-blue-500 mt-4 inline-block">Go back to homepage</a>
-      </div>
-    </div>
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <AuthProvider>
+            <AnalyticsProvider>
+              <SessionMonitoringProvider>
+                <RealtimeProvider>
+                  <AppContent />
+                </RealtimeProvider>
+              </SessionMonitoringProvider>
+            </AnalyticsProvider>
+          </AuthProvider>
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
   );
 }
 
