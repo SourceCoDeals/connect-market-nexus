@@ -24,8 +24,8 @@ export function useListingsQuery(status?: 'active' | 'inactive' | 'all') {
             is_admin: user?.is_admin
           });
 
-          // Ensure we have proper auth state and admin access
-          if (!authChecked || !user || !user.is_admin) {
+          // Simple admin check
+          if (!user || !user.is_admin) {
             throw new Error('Admin authentication required');
           }
           

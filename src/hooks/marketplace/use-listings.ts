@@ -23,25 +23,16 @@ export const useListings = (filters: FilterOptions = {}) => {
             is_admin: user?.is_admin
           });
 
-          // Ensure we have proper auth state before proceeding
-          if (!authChecked) {
-            console.log('⏳ Auth not yet checked, waiting...');
-            throw new Error('Authentication state not ready');
+          // Simple auth check - must have user with verified email
+          if (!user || !user.email_verified) {
+            console.log('❌ User not authenticated or email not verified');
+            throw new Error('Authentication required');
           }
 
-          if (!user) {
-            console.log('❌ No user found');
-            throw new Error('User not authenticated');
-          }
-
-          if (!user.email_verified) {
-            console.log('❌ User email not verified');
-            throw new Error('Email not verified');
-          }
-
-          if (user.approval_status !== 'approved' && !user.is_admin) {
-            console.log('❌ User not approved and not admin');
-            throw new Error('User not approved');
+          // Allow admin users to always see listings, require approval for regular users
+          if (!user.is_admin && user.approval_status !== 'approved') {
+            console.log('❌ User not approved (and not admin)');
+            throw new Error('User approval required');
           }
           
           // Start building the query
@@ -173,31 +164,17 @@ export const useListings = (filters: FilterOptions = {}) => {
           };
         } catch (error: any) {
           console.error('💥 Error in useListings:', error);
-          
-          // Handle specific auth-related errors
-          if (error.message?.includes('Authentication') || error.message?.includes('not ready')) {
-            console.log('🔄 Auth-related error, will retry when auth state is ready');
-          }
-          
           throw error;
         }
       });
     },
     enabled: !!(authChecked && user && user.email_verified && (user.approval_status === 'approved' || user.is_admin)),
-    staleTime: 0,
-    gcTime: 1000 * 60 * 2,
-    refetchOnWindowFocus: true,
+    staleTime: 1000 * 60 * 2,
+    gcTime: 1000 * 60 * 5,
+    refetchOnWindowFocus: false,
     refetchOnMount: true,
-    refetchInterval: false,
-    retry: (failureCount, error) => {
-      // Only retry auth-related errors and only up to 2 times
-      if (error?.message?.includes('Authentication') || error?.message?.includes('not ready')) {
-        return failureCount < 2;
-      }
-      // Don't retry other errors
-      return false;
-    },
-    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 5000),
+    retry: 1,
+    retryDelay: 1000,
   });
 };
 
@@ -220,9 +197,9 @@ export const useListing = (id: string | undefined) => {
             approval_status: user?.approval_status
           });
 
-          // Ensure we have proper auth state
-          if (!authChecked || !user || !user.email_verified) {
-            throw new Error('Authentication state not ready for single listing');
+          // Simple auth check for single listings
+          if (!user || !user.email_verified) {
+            throw new Error('Authentication required for single listing');
           }
           
           const { data, error } = await supabase
@@ -280,12 +257,7 @@ export const useListing = (id: string | undefined) => {
     enabled: !!(id && authChecked && user && user.email_verified && (user.approval_status === 'approved' || user.is_admin)),
     staleTime: 1000 * 60 * 5,
     refetchOnWindowFocus: false,
-    retry: (failureCount, error) => {
-      if (error?.message?.includes('Authentication') || error?.message?.includes('not ready')) {
-        return failureCount < 2;
-      }
-      return false;
-    },
+    retry: 1,
   });
 };
 
@@ -306,9 +278,9 @@ export const useListingMetadata = () => {
             approval_status: user?.approval_status
           });
 
-          // Ensure we have proper auth state
-          if (!authChecked || !user || !user.email_verified) {
-            throw new Error('Authentication state not ready for metadata');
+          // Simple auth check for metadata
+          if (!user || !user.email_verified) {
+            throw new Error('Authentication required for metadata');
           }
           
           const { data, error } = await supabase
@@ -347,11 +319,6 @@ export const useListingMetadata = () => {
     enabled: !!(authChecked && user && user.email_verified && (user.approval_status === 'approved' || user.is_admin)),
     staleTime: 1000 * 60 * 5,
     refetchOnWindowFocus: false,
-    retry: (failureCount, error) => {
-      if (error?.message?.includes('Authentication') || error?.message?.includes('not ready')) {
-        return failureCount < 2;
-      }
-      return false;
-    },
+    retry: 1,
   });
 };

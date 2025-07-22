@@ -33,14 +33,7 @@ export function useFreshAuthState() {
        });
 
       const userData = createUserObject(profileData);
-      
-      // Only update localStorage if the data has actually changed
-      const currentStoredUser = localStorage.getItem("user");
-      const newUserString = JSON.stringify(userData);
-      
-      if (currentStoredUser !== newUserString) {
-        localStorage.setItem("user", newUserString);
-      }
+      localStorage.setItem("user", JSON.stringify(userData));
       
       return userData;
     } catch (error) {
@@ -64,10 +57,9 @@ export function useFreshAuthState() {
 
     const initializeAuth = async () => {
       try {
-        console.log('🚀 Starting auth initialization...');
-        setIsLoading(true);
+        console.log('🚀 Starting simplified auth initialization...');
 
-        // First, check for existing session
+        // Check for existing session immediately
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         
         if (sessionError) {
@@ -78,19 +70,30 @@ export function useFreshAuthState() {
           return;
         }
 
-        console.log('📋 Initial session check:', {
+        console.log('📋 Session check:', {
           hasSession: !!session,
-          userEmail: session?.user?.email,
-          sessionExpiry: session?.expires_at
+          userEmail: session?.user?.email
         });
 
-        // Set up auth state listener
+        // If we have a session, load user data immediately
+        if (session?.user && isSubscribed) {
+          console.log('🔍 Loading user data for existing session:', session.user.email);
+          
+          const freshUserData = await refreshUserData(session.user.id);
+          if (freshUserData && isSubscribed) {
+            console.log('✅ User data loaded successfully');
+            setUser(freshUserData);
+          }
+        } else if (isSubscribed) {
+          console.log('❌ No session - user not authenticated');
+          setUser(null);
+          localStorage.removeItem("user");
+        }
+
+        // Set up auth state listener for future changes
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
           async (event, session) => {
-            console.log('🔔 Auth state change:', event, {
-              hasSession: !!session,
-              userEmail: session?.user?.email
-            });
+            console.log('🔔 Auth state change:', event);
             
             if (!isSubscribed) return;
 
@@ -98,57 +101,20 @@ export function useFreshAuthState() {
               console.log('👋 User signed out');
               setUser(null);
               localStorage.removeItem("user");
-              setIsLoading(false);
-              setAuthChecked(true);
-              return;
-            }
-
-            if ((event === "SIGNED_IN" || event === "TOKEN_REFRESHED") && session?.user) {
+            } else if ((event === "SIGNED_IN" || event === "TOKEN_REFRESHED") && session?.user) {
               console.log(`🔐 User ${event}:`, session.user.email);
               
-              // Use setTimeout to prevent Supabase deadlocks
-              setTimeout(async () => {
-                if (!isSubscribed) return;
-                
-                const freshUserData = await refreshUserData(session.user.id);
-                if (freshUserData && isSubscribed) {
-                  console.log('🎯 Setting fresh user data:', {
-                    email: freshUserData.email,
-                    email_verified: freshUserData.email_verified,
-                    approval_status: freshUserData.approval_status
-                  });
-                  setUser(freshUserData);
-                }
-                
-                setIsLoading(false);
-                setAuthChecked(true);
-              }, 100);
+              const freshUserData = await refreshUserData(session.user.id);
+              if (freshUserData && isSubscribed) {
+                console.log('✅ Updated user data after auth change');
+                setUser(freshUserData);
+              }
             }
           }
         );
 
         authSubscription = subscription;
 
-        // If we have an initial session, load user data
-        if (session?.user && isSubscribed) {
-          console.log('🔍 Found existing session for:', session.user.email);
-          
-          const freshUserData = await refreshUserData(session.user.id);
-          if (freshUserData && isSubscribed) {
-            console.log('🎯 Setting initial user data:', {
-              email: freshUserData.email,
-              email_verified: freshUserData.email_verified,
-              approval_status: freshUserData.approval_status
-            });
-            setUser(freshUserData);
-          }
-        } else {
-          console.log('❌ No existing session found');
-          if (isSubscribed) {
-            setUser(null);
-            localStorage.removeItem("user");
-          }
-        }
       } catch (error) {
         console.error('❌ Auth initialization error:', error);
         if (isSubscribed) await clearAuthState();

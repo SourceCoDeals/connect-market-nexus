@@ -43,6 +43,7 @@ export interface User {
   revenue_range_min?: number;
   revenue_range_max?: number;
   specific_business_search?: string;
+  onboarding_completed?: boolean;
   
   // Computed properties (aliases for snake_case properties)
   readonly firstName: string;

@@ -81,16 +81,14 @@ const OnboardingPopup = ({ isOpen, onClose, userId }: OnboardingPopupProps) => {
 
       console.log('✅ Onboarding completion successful');
       
-      // Close immediately after successful update
-      onClose();
+      // Show success message
+      toast({
+        title: "Welcome to SourceCo!",
+        description: "Your onboarding is complete. You can now explore all listings.",
+      });
       
-      // Show success message after popup closes
-      setTimeout(() => {
-        toast({
-          title: "Welcome to SourceCo!",
-          description: "Your onboarding is complete. You can now explore all listings.",
-        });
-      }, 100);
+      // Close popup after successful update
+      onClose();
       
     } catch (error) {
       console.error('💥 Exception during onboarding completion:', error);

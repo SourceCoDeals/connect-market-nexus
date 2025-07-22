@@ -14,7 +14,8 @@ export const useOnboarding = () => {
         authChecked,
         user: user?.email,
         email_verified: user?.email_verified,
-        approval_status: user?.approval_status
+        approval_status: user?.approval_status,
+        onboarding_completed: user?.onboarding_completed
       });
 
       // Wait for auth to be fully checked
@@ -37,8 +38,16 @@ export const useOnboarding = () => {
         return;
       }
 
+      // Check if onboarding is already completed in user object
+      if (user.onboarding_completed) {
+        console.log('✅ Onboarding already completed in user object');
+        setIsLoading(false);
+        setShowOnboarding(false);
+        return;
+      }
+
       try {
-        console.log('🔍 Querying onboarding status for user:', user.id);
+        console.log('🔍 Double-checking onboarding status in database for user:', user.id);
         
         const { data, error } = await supabase
           .from('profiles')
@@ -53,7 +62,7 @@ export const useOnboarding = () => {
           return;
         }
 
-        console.log('📊 Onboarding status data:', data);
+        console.log('📊 Onboarding status data from DB:', data);
 
         // Only show onboarding if user hasn't completed it yet
         const shouldShow = !data?.onboarding_completed;
