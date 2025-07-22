@@ -12,6 +12,7 @@ import { UserActions } from "@/components/admin/UserActions";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useRealtimeAdmin } from "@/hooks/use-realtime-admin";
 import { cn } from "@/lib/utils";
 
 const AdminUsers = () => {
@@ -19,6 +20,7 @@ const AdminUsers = () => {
   const { data: usersData = [], isLoading, error, refetch } = users;
   const { toast } = useToast();
   const isMobile = useIsMobile();
+  const { isConnected } = useRealtimeAdmin(); // Enable real-time updates
   
   const [searchQuery, setSearchQuery] = useState("");
   

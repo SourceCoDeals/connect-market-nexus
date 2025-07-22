@@ -73,10 +73,19 @@ export function useAdminUsers() {
         console.log('✅ User approval updated successfully');
         return { userId, status };
       },
-      onSuccess: ({ status }) => {
+      onSuccess: ({ status, userId }) => {
         console.log('🎉 User status update successful:', status);
+        // Optimistically update the user in cache
+        queryClient.setQueryData(['admin-users'], (old: User[] | undefined) => {
+          if (!old) return old;
+          return old.map(user => 
+            user.id === userId 
+              ? { ...user, approval_status: status }
+              : user
+          );
+        });
+        // Also invalidate to ensure fresh data from server
         queryClient.invalidateQueries({ queryKey: ['admin-users'] });
-        queryClient.refetchQueries({ queryKey: ['admin-users'] });
       },
       onError: (error: any) => {
         console.error('💥 Failed to update user approval:', error);
@@ -121,8 +130,17 @@ export function useAdminUsers() {
           title: isAdmin ? 'User promoted to admin' : 'Admin privileges revoked',
           description: message,
         });
+        // Optimistically update the user in cache
+        queryClient.setQueryData(['admin-users'], (old: User[] | undefined) => {
+          if (!old) return old;
+          return old.map(user => 
+            user.id === userId 
+              ? { ...user, is_admin: isAdmin }
+              : user
+          );
+        });
+        // Also invalidate to ensure fresh data from server
         queryClient.invalidateQueries({ queryKey: ['admin-users'] });
-        queryClient.refetchQueries({ queryKey: ['admin-users'] });
       },
       onError: (error: any) => {
         console.error('💥 Failed to update admin status:', error);
@@ -154,13 +172,18 @@ export function useAdminUsers() {
         console.log('✅ User deleted completely');
         return data;
       },
-      onSuccess: () => {
+      onSuccess: (_, userId) => {
         toast({
           title: 'User deleted',
           description: 'User has been completely removed from the system.',
         });
+        // Optimistically remove the user from cache
+        queryClient.setQueryData(['admin-users'], (old: User[] | undefined) => {
+          if (!old) return old;
+          return old.filter(user => user.id !== userId);
+        });
+        // Also invalidate to ensure fresh data from server
         queryClient.invalidateQueries({ queryKey: ['admin-users'] });
-        queryClient.refetchQueries({ queryKey: ['admin-users'] });
       },
       onError: (error: any) => {
         console.error('💥 Failed to delete user:', error);

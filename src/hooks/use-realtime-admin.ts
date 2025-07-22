@@ -67,6 +67,52 @@ export function useRealtimeAdmin() {
           queryClient.invalidateQueries({ queryKey: ['admin-listings'] });
         }
       )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'profiles'
+        },
+        (payload) => {
+          console.log('🔄 User profile updated:', payload.new);
+          // Check if approval status changed
+          if (payload.old?.approval_status !== payload.new?.approval_status) {
+            const status = payload.new.approval_status;
+            const userName = `${payload.new.first_name} ${payload.new.last_name}`;
+            toast({
+              title: `👤 User ${status === 'approved' ? 'Approved' : status === 'rejected' ? 'Rejected' : 'Updated'}`,
+              description: `${userName} status changed to ${status}`,
+            });
+          }
+          // Check if admin status changed
+          if (payload.old?.is_admin !== payload.new?.is_admin) {
+            const userName = `${payload.new.first_name} ${payload.new.last_name}`;
+            toast({
+              title: payload.new.is_admin ? '👑 User Promoted to Admin' : '👤 Admin Privileges Revoked',
+              description: `${userName} ${payload.new.is_admin ? 'is now an admin' : 'is no longer an admin'}`,
+            });
+          }
+          queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'profiles'
+        },
+        (payload) => {
+          console.log('🗑️ User profile deleted:', payload.old);
+          const userName = `${payload.old.first_name} ${payload.old.last_name}`;
+          toast({
+            title: '🗑️ User Deleted',
+            description: `${userName} has been removed from the system`,
+          });
+          queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+        }
+      )
       .subscribe((status) => {
         console.log('📡 Admin notifications realtime status:', status);
         setIsConnected(status === 'SUBSCRIBED');
