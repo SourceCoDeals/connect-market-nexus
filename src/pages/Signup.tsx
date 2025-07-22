@@ -745,96 +745,165 @@ const Signup = () => {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-muted/30 py-8">
-      <div className="w-full max-w-lg mx-4 space-y-6">
-        {/* Brand Header */}
-        <div className="flex flex-col items-center space-y-3">
-          <div className="flex items-center">
-            <img 
-              src="/lovable-uploads/b879fa06-6a99-4263-b973-b9ced4404acb.png" 
-              alt="SourceCo Logo" 
-              className="h-10 w-10 mr-3"
-            />
-            <div className="text-center">
-              <h1 className="text-2xl font-bold">SourceCo</h1>
-              <p className="text-lg text-muted-foreground font-light">Marketplace</p>
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
+      <div className="container mx-auto px-4 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 min-h-screen items-center max-w-7xl mx-auto">
+          
+          {/* Left Column - Signup Form */}
+          <div className="flex flex-col justify-center space-y-8">
+            {/* Brand Header */}
+            <div className="flex items-center space-x-3 mb-2">
+              <img 
+                src="/lovable-uploads/b879fa06-6a99-4263-b973-b9ced4404acb.png" 
+                alt="SourceCo Logo" 
+                className="h-8 w-8"
+              />
+              <div>
+                <h1 className="text-xl font-semibold tracking-tight">SourceCo</h1>
+                <p className="text-sm text-muted-foreground font-light">Marketplace</p>
+              </div>
+            </div>
+
+            <Card className="border-none shadow-lg">
+              <CardHeader className="space-y-2 pb-6">
+                <CardTitle className="text-xl font-semibold">
+                  Create your account
+                </CardTitle>
+                <CardDescription className="text-xs text-muted-foreground">
+                  Step {currentStep + 1} of {steps.length}: {steps[currentStep]}
+                </CardDescription>
+                
+                {/* Progress bar */}
+                <div className="w-full bg-muted h-1 rounded-full mt-3">
+                  <div
+                    className="bg-primary h-1 rounded-full transition-all duration-300"
+                    style={{
+                      width: `${((currentStep + 1) / steps.length) * 100}%`,
+                    }}
+                  />
+                </div>
+              </CardHeader>
+              
+              <CardContent className="space-y-6">
+                {validationErrors.length > 0 && (
+                  <div className="bg-destructive/10 border border-destructive/20 text-destructive p-3 rounded-lg">
+                    <ul className="list-disc pl-4 space-y-1 text-xs">
+                      {validationErrors.map((error, index) => (
+                        <li key={index}>{error}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                
+                <form onSubmit={handleSubmit} className="space-y-5">
+                  {renderStepContent()}
+                </form>
+              </CardContent>
+              
+              <CardFooter className="flex flex-col space-y-4 pt-6">
+                <div className="flex justify-between w-full">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={handlePrevious}
+                    disabled={currentStep === 0 || isLoading || isSubmitting}
+                    className="text-xs"
+                  >
+                    Back
+                  </Button>
+                  
+                  {currentStep === steps.length - 1 ? (
+                    <Button
+                      type="submit"
+                      onClick={handleSubmit}
+                      disabled={isLoading || isSubmitting}
+                      size="sm"
+                      className="text-xs font-medium"
+                    >
+                      {isLoading || isSubmitting ? "Creating account..." : "Create account"}
+                    </Button>
+                  ) : (
+                    <Button
+                      type="button"
+                      onClick={handleNext}
+                      disabled={isLoading || isSubmitting}
+                      size="sm"
+                      className="text-xs font-medium"
+                    >
+                      Continue
+                    </Button>
+                  )}
+                </div>
+                
+                <div className="text-xs text-center text-muted-foreground">
+                  <span>Already have an account? </span>
+                  <Link
+                    to="/login"
+                    className="text-primary font-medium hover:underline transition-colors"
+                  >
+                    Sign in
+                  </Link>
+                </div>
+              </CardFooter>
+            </Card>
+          </div>
+
+          {/* Right Column - Why SourceCo */}
+          <div className="hidden lg:flex flex-col justify-center space-y-8 pl-8">
+            <div className="space-y-6">
+              <div className="space-y-3">
+                <h2 className="text-2xl font-semibold tracking-tight text-foreground">
+                  Why SourceCo?
+                </h2>
+                <p className="text-sm text-muted-foreground leading-relaxed max-w-md">
+                  The premier marketplace connecting serious business buyers with quality, 
+                  pre-vetted acquisition opportunities.
+                </p>
+              </div>
+
+              <Card className="bg-gradient-to-br from-muted/30 to-muted/10 border border-border/50 shadow-sm">
+                <CardContent className="p-6 space-y-4">
+                  <div className="flex items-start space-x-3">
+                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                      <div className="w-5 h-5 rounded-full bg-primary/20" />
+                    </div>
+                    <div className="space-y-2">
+                      <blockquote className="text-sm text-foreground leading-relaxed italic">
+                        "SourceCo saved us months of deal sourcing. Within 60 days, we found 
+                        three qualified targets that perfectly matched our investment thesis."
+                      </blockquote>
+                      <div className="space-y-1">
+                        <div className="text-xs font-medium text-foreground">
+                          Michael Chen
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          Managing Partner, Meridian Capital
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <div className="grid grid-cols-1 gap-4 text-xs text-muted-foreground">
+                <div className="flex items-center space-x-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-primary/40" />
+                  <span>Vetted, quality opportunities</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-primary/40" />
+                  <span>Direct owner connections</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-primary/40" />
+                  <span>Institutional-grade due diligence</span>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
 
-        <Card>
-          <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl font-bold text-center">
-              Create an account
-            </CardTitle>
-            <CardDescription className="text-center">
-              Step {currentStep + 1} of {steps.length}: {steps[currentStep]}
-            </CardDescription>
-            
-            {/* Progress bar */}
-            <div className="w-full bg-secondary h-2 rounded-full mt-4">
-              <div
-                className="bg-primary h-2 rounded-full transition-all"
-                style={{
-                  width: `${((currentStep + 1) / steps.length) * 100}%`,
-                }}
-              ></div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {validationErrors.length > 0 && (
-              <div className="bg-destructive/15 text-destructive p-3 rounded-md mb-4">
-                <ul className="list-disc pl-5">
-                  {validationErrors.map((error, index) => (
-                    <li key={index}>{error}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            
-            <form onSubmit={handleSubmit}>{renderStepContent()}</form>
-          </CardContent>
-          <CardFooter className="flex flex-col space-y-4">
-            <div className="flex justify-between w-full">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handlePrevious}
-                disabled={currentStep === 0 || isLoading || isSubmitting}
-              >
-                Back
-              </Button>
-              
-              {currentStep === steps.length - 1 ? (
-                <Button
-                  type="submit"
-                  onClick={handleSubmit}
-                  disabled={isLoading || isSubmitting}
-                >
-                  {isLoading || isSubmitting ? "Creating account..." : "Create account"}
-                </Button>
-              ) : (
-                <Button
-                  type="button"
-                  onClick={handleNext}
-                  disabled={isLoading || isSubmitting}
-                >
-                  Continue
-                </Button>
-              )}
-            </div>
-            
-            <div className="text-sm text-center text-muted-foreground">
-              <span>Already have an account? </span>
-              <Link
-                to="/login"
-                className="text-primary font-medium hover:underline"
-              >
-                Sign in
-              </Link>
-            </div>
-          </CardFooter>
-        </Card>
+        </div>
       </div>
     </div>
   );
