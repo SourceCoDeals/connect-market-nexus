@@ -883,7 +883,14 @@ const Signup = () => {
                           Mellisa Berry
                         </div>
                         <div className="text-xs text-muted-foreground">
-                          Partner, New Heritage Capital
+                          Partner, <a 
+                            href="https://www.newheritagecapital.com" 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="hover:underline transition-all duration-200"
+                          >
+                            New Heritage Capital
+                          </a>
                         </div>
                       </div>
                     </div>
