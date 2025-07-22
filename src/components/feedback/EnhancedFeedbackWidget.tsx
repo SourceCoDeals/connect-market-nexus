@@ -267,7 +267,7 @@ export function EnhancedFeedbackWidget({ className }: FeedbackWidgetProps) {
               threadId={currentThreadId}
               initialMessages={[]}
               onNewMessage={(message) => {
-                console.log('New message:', message);
+                
               }}
               isAdmin={false}
             />

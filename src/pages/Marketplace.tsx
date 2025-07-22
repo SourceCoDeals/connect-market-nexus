@@ -44,25 +44,6 @@ const Marketplace = () => {
   const listings = listingsData?.listings || [];
   const totalItems = listingsData?.totalCount || 0;
   
-  // Enhanced debug logging for marketplace component
-  useEffect(() => {
-    console.log('🏪 Marketplace component state update:', {
-      authChecked,
-      user: user?.email,
-      email_verified: user?.email_verified,
-      approval_status: user?.approval_status,
-      is_admin: user?.is_admin,
-      onboardingLoading,
-      shouldShowOnboarding,
-      filters,
-      isLoading,
-      isError,
-      error: error?.message,
-      listingsCount: listings.length,
-      totalItems,
-      listingTitles: listings.slice(0, 3).map(l => l.title),
-    });
-  }, [authChecked, user, onboardingLoading, shouldShowOnboarding, filters, isLoading, isError, error, listings.length, totalItems]);
   
   // Update pagination whenever total count or filters change
   useEffect(() => {
@@ -77,12 +58,6 @@ const Marketplace = () => {
         perPage
       });
       
-      console.log('📊 Updated pagination:', {
-        currentPage: filters.page || 1,
-        totalPages,
-        totalItems,
-        perPage
-      });
     }
   }, [listingsData, totalItems, filters.page, filters.perPage]);
   
@@ -100,10 +75,8 @@ const Marketplace = () => {
 
   // Memoize filter change handler to prevent unnecessary re-renders
   const handleFilterChange = useCallback((newFilters: FilterOptions) => {
-    console.log("🔄 Filter change requested:", newFilters);
     setFilters(prev => {
       const updated = { ...newFilters, page: 1 }; // Reset to page 1 when filters change
-      console.log("✅ Applying filters:", updated);
       return updated;
     });
   }, []);

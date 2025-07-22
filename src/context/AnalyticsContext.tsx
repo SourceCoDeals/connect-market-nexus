@@ -73,7 +73,7 @@ const shouldSkipAnalytics = (): boolean => {
   // Check if timeout has passed
   if (Date.now() - analyticsStats.lastFailureTime > CIRCUIT_BREAKER_TIMEOUT) {
     analyticsStats.circuitBreakerOpen = false;
-    console.log('🔄 Analytics circuit breaker reset');
+    
     return false;
   }
   
@@ -87,7 +87,7 @@ const updateAnalyticsStats = (success: boolean, error?: any) => {
   if (success) {
     // Reset failure count on success
     if (analyticsStats.failedInsertions > 0) {
-      console.log('✅ Analytics recovered after failures');
+      
     }
   } else {
     analyticsStats.failedInsertions++;
@@ -116,7 +116,7 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
     if (!currentSessionId) {
       currentSessionId = generateSessionId();
       sessionStartTime = new Date();
-      console.log('📊 Analytics session initialized:', currentSessionId);
+      
     }
 
     // Listen to auth changes without circular dependency
@@ -180,7 +180,7 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
           if (updateError) {
             console.error('❌ Failed to update session:', updateError);
           } else {
-            console.log('✅ Analytics session updated:', currentSessionId, 'for user:', authState.user?.id || 'anonymous');
+            
           }
         } else {
           // Create new session
@@ -195,7 +195,7 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
           if (insertError) {
             console.error('❌ Failed to create session:', insertError);
           } else {
-            console.log('✅ Analytics session created:', currentSessionId, 'for user:', authState.user?.id || 'anonymous');
+            
           }
         }
       } catch (error) {
@@ -224,7 +224,7 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
       return false;
     }
 
-    console.log('📊 Tracking event:', eventType, 'session:', currentSessionId, 'user:', authState.user?.id);
+    
 
     const result = await retryWithBackoff(async () => {
       const { error } = await supabase.from('user_events').insert({
@@ -245,7 +245,7 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
     updateAnalyticsStats(result.success, result.error);
 
     if (result.success) {
-      console.log('✅ Event tracked successfully:', eventType);
+      
     } else {
       console.error('❌ Failed to track event after retries:', result.error);
     }
@@ -264,7 +264,7 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
       return false;
     }
 
-    console.log('📊 Tracking page view:', pagePath, 'session:', currentSessionId, 'user:', authState.user?.id);
+    
 
     const result = await retryWithBackoff(async () => {
       const { error } = await supabase.from('page_views').insert({
@@ -283,7 +283,7 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
     updateAnalyticsStats(result.success, result.error);
 
     if (result.success) {
-      console.log('✅ Page view tracked successfully');
+      
     } else {
       console.error('❌ Failed to track page view after retries:', result.error);
     }
@@ -302,7 +302,7 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
       return false;
     }
 
-    console.log('👀 Tracking listing view:', listingId, 'session:', currentSessionId, 'user:', authState.user?.id);
+    
 
     const result = await retryWithBackoff(async () => {
       const { error } = await supabase.from('listing_analytics').insert({
@@ -321,7 +321,7 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
     updateAnalyticsStats(result.success, result.error);
 
     if (result.success) {
-      console.log('✅ Listing view tracked successfully');
+      
     } else {
       console.error('❌ Failed to track listing view after retries:', result.error);
     }
@@ -340,7 +340,7 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
       return false;
     }
 
-    console.log('💾 Tracking listing save:', listingId, 'session:', currentSessionId, 'user:', authState.user?.id);
+    
 
     const result = await retryWithBackoff(async () => {
       const { error } = await supabase.from('listing_analytics').insert({
@@ -359,7 +359,7 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
     updateAnalyticsStats(result.success, result.error);
 
     if (result.success) {
-      console.log('✅ Listing save tracked successfully');
+      
     } else {
       console.error('❌ Failed to track listing save after retries:', result.error);
     }
@@ -378,7 +378,7 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
       return false;
     }
 
-    console.log('🔗 Tracking connection request:', listingId, 'session:', currentSessionId, 'user:', authState.user?.id);
+    
 
     const result = await retryWithBackoff(async () => {
       const { error } = await supabase.from('listing_analytics').insert({
@@ -397,7 +397,7 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
     updateAnalyticsStats(result.success, result.error);
 
     if (result.success) {
-      console.log('✅ Connection request tracked successfully');
+      
     } else {
       console.error('❌ Failed to track connection request after retries:', result.error);
     }
@@ -416,7 +416,7 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
       return false;
     }
 
-    console.log('🔍 Tracking search:', query, 'session:', currentSessionId, 'user:', authState.user?.id);
+    
 
     const result = await retryWithBackoff(async () => {
       const { error } = await supabase.from('search_analytics').insert({
@@ -436,7 +436,7 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
     updateAnalyticsStats(result.success, result.error);
 
     if (result.success) {
-      console.log('✅ Search tracked successfully');
+      
     } else {
       console.error('❌ Failed to track search after retries:', result.error);
     }

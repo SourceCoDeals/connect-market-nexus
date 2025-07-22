@@ -99,7 +99,7 @@ export function AnalyticsTestPanel() {
           logTestResult('Database - Search Analytics', searchAnalytics && searchAnalytics.length > 0, `${searchAnalytics?.length || 0} search analytics found`);
 
           setIsRunningTests(false);
-          console.log('🧪 Analytics test suite completed!');
+          // Analytics test suite completed
           
         } catch (error) {
           console.error('🧪 Database verification failed:', error);

@@ -33,35 +33,30 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   
   const handleUserApproval = (user: User) => {
-    console.log('🔄 Initiating user approval for:', user.email);
     setSelectedUser(user);
     setActionType("approve");
     setIsDialogOpen(true);
   };
   
   const handleUserRejection = (user: User) => {
-    console.log('🔄 Initiating user rejection for:', user.email);
     setSelectedUser(user);
     setActionType("reject");
     setIsDialogOpen(true);
   };
   
   const handleMakeAdmin = (user: User) => {
-    console.log('🔄 Initiating admin promotion for:', user.email);
     setSelectedUser(user);
     setActionType("makeAdmin");
     setIsDialogOpen(true);
   };
   
   const handleRevokeAdmin = (user: User) => {
-    console.log('🔄 Initiating admin revocation for:', user.email);
     setSelectedUser(user);
     setActionType("revokeAdmin");
     setIsDialogOpen(true);
   };
   
   const handleDeleteUser = (user: User) => {
-    console.log('🔄 Initiating user deletion for:', user.email);
     setSelectedUser(user);
     setActionType("delete");
     setIsDialogOpen(true);
@@ -78,17 +73,15 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
       return;
     }
     
-    console.log('🔄 Confirming action:', actionType, 'for user:', selectedUser.email);
+    
     
     try {
       switch (actionType) {
         case "approve":
-          console.log('🔄 Executing user approval mutation');
           updateUserStatusMutation.mutate(
             { userId: selectedUser.id, status: "approved" },
             {
               onSuccess: async () => {
-                console.log('✅ User approval successful, sending email notification');
                 try {
                   await sendUserApprovalEmail(selectedUser);
                   toast({
@@ -119,12 +112,10 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
           break;
           
         case "reject":
-          console.log('🔄 Executing user rejection mutation');
           updateUserStatusMutation.mutate(
             { userId: selectedUser.id, status: "rejected" },
             {
               onSuccess: async () => {
-                console.log('✅ User rejection successful, sending email notification');
                 try {
                   await sendUserRejectionEmail(selectedUser, reason);
                   toast({
@@ -155,12 +146,10 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
           break;
           
         case "makeAdmin":
-          console.log('🔄 Executing admin promotion mutation');
           updateAdminStatusMutation.mutate(
             { userId: selectedUser.id, isAdmin: true },
             {
               onSuccess: () => {
-                console.log('✅ Successfully promoted user to admin');
                 setIsDialogOpen(false);
                 if (onUserStatusUpdated) onUserStatusUpdated();
               },
@@ -177,12 +166,10 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
           break;
           
         case "revokeAdmin":
-          console.log('🔄 Executing admin revocation mutation');
           updateAdminStatusMutation.mutate(
             { userId: selectedUser.id, isAdmin: false },
             {
               onSuccess: () => {
-                console.log('✅ Successfully revoked admin privileges');
                 setIsDialogOpen(false);
                 if (onUserStatusUpdated) onUserStatusUpdated();
               },
@@ -199,10 +186,8 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
           break;
           
         case "delete":
-          console.log('🔄 Executing user deletion mutation');
           deleteUserMutation.mutate(selectedUser.id, {
             onSuccess: () => {
-              console.log('✅ Successfully deleted user completely');
               toast({
                 title: "User deleted",
                 description: `${selectedUser.first_name} ${selectedUser.last_name} has been completely removed from the system and can no longer log in.`,

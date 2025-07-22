@@ -20,7 +20,7 @@ export function useCreateListing() {
       image?: File | null;
     }) => {
       try {
-        console.log("Creating new listing with image:", image ? "yes" : "no");
+        
         
         // Step 1: Create the listing with the new categories array
         const { data, error } = await supabase
@@ -47,16 +47,16 @@ export function useCreateListing() {
         }
         if (!data) throw new Error('No data returned from insert');
         
-        console.log("Listing created successfully, id:", data.id);
+        
         
         // Step 2: Upload image if provided
         let updatedListing = data;
         
         if (image) {
           try {
-            console.log('Uploading image for listing:', data.id, image.name, image.type, image.size);
+            
             const publicUrl = await uploadListingImage(image, data.id);
-            console.log("Image uploaded successfully, URL:", publicUrl);
+            
             
             // Update listing with image URL
             const { data: updatedData, error: updateError } = await supabase
@@ -79,7 +79,7 @@ export function useCreateListing() {
                 description: 'Listing created but image URL update failed. The image may not display correctly.',
               });
             } else {
-              console.log("Listing updated with image URL");
+              
               updatedListing = updatedData;
             }
           } catch (imageError: any) {
@@ -99,7 +99,7 @@ export function useCreateListing() {
       }
     },
     onSuccess: (data) => {
-      console.log("Listing created successfully, invalidating all cache:", data.title);
+      
       
       // Strategy: Clear all caches completely, then trigger fresh fetches
       const queriesToClear = [

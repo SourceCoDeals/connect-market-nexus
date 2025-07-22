@@ -12,7 +12,7 @@ export function EnhancedAdminDashboard() {
   const queryClient = useQueryClient();
 
   const handleManualRefresh = () => {
-    console.log('🔄 Manual refresh triggered');
+    
     queryClient.invalidateQueries();
   };
 

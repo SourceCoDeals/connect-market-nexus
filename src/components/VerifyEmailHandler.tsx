@@ -37,7 +37,7 @@ export default function VerifyEmailHandler() {
           throw new Error('Invalid verification link');
         }
         
-        console.log("Verification params:", { type, token });
+        
         
         if (type === 'signup' || type === 'recovery' || type === 'invite') {
           // Try Supabase's default verification first
@@ -46,14 +46,14 @@ export default function VerifyEmailHandler() {
             type: type === 'invite' ? 'invite' : type === 'recovery' ? 'recovery' : 'signup',
           });
           
-          console.log("Verification response:", { data, error });
+          
           
           if (error) {
             console.error('Verification error:', error);
             
             // If it's a custom token (user ID), try manual verification
             if (token.length === 36 && token.includes('-')) { // UUID format
-              console.log('Attempting manual verification for custom token');
+              
               
               try {
                 // Update the user's email_verified status directly
@@ -79,7 +79,7 @@ export default function VerifyEmailHandler() {
                   throw profileError;
                 }
                 
-                console.log('Manual verification successful');
+                
                 setVerificationSuccess(true);
                 setEmail(profileData.email);
                 setApprovalStatus(profileData.approval_status as ApprovalStatus);
@@ -89,7 +89,6 @@ export default function VerifyEmailHandler() {
                 try {
                   const userObject = createUserObject(profileData);
                   await sendEmailVerificationConfirmation(userObject);
-                  console.log('Email verification confirmation sent');
                 } catch (emailError) {
                   console.error('Failed to send email verification confirmation:', emailError);
                   // Continue even if email fails
@@ -144,7 +143,7 @@ export default function VerifyEmailHandler() {
               
             if (profileError) throw profileError;
             
-            console.log("Profile data after verification:", profileData);
+            
             
             // Set approval status and admin status from profile
             setApprovalStatus(profileData.approval_status as ApprovalStatus);
@@ -152,7 +151,7 @@ export default function VerifyEmailHandler() {
             
             // Explicitly update profile email_verified field if needed
             if (!profileData.email_verified) {
-              console.log("Email verified flag needs to be updated");
+              
               const { error: updateError } = await supabase
                 .from('profiles')
                 .update({ email_verified: true })
@@ -162,17 +161,17 @@ export default function VerifyEmailHandler() {
                 console.error('Error updating email_verified status:', updateError);
                 // Continue even if this update fails, as the auth token is verified
               } else {
-                console.log('Email verified flag updated successfully');
+                
               }
             } else {
-              console.log("Email was already marked as verified");
+              
             }
             
             // Send email verification confirmation using createUserObject
             try {
               const userObject = createUserObject(profileData);
               await sendEmailVerificationConfirmation(userObject);
-              console.log('Email verification confirmation sent');
+              
             } catch (emailError) {
               console.error('Failed to send email verification confirmation:', emailError);
               // Continue even if email fails

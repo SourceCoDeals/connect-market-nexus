@@ -17,12 +17,10 @@ const OnboardingPopup = ({ isOpen, onClose, userId }: OnboardingPopupProps) => {
   const [isCompleting, setIsCompleting] = useState(false);
 
   const handleClose = async () => {
-    console.log('🎯 Starting onboarding completion for user:', userId);
     setIsCompleting(true);
     
     try {
       // First check if user exists and their current onboarding status
-      console.log('🔍 Checking user profile and onboarding status for:', userId);
       
       const { data: existingProfile, error: checkError } = await supabase
         .from('profiles')
@@ -52,17 +50,13 @@ const OnboardingPopup = ({ isOpen, onClose, userId }: OnboardingPopupProps) => {
         return;
       }
 
-      console.log('✅ Found user profile:', existingProfile);
-
       // If already completed, just close the popup without further action
       if (existingProfile.onboarding_completed) {
-        console.log('✅ Onboarding already completed, closing popup');
         onClose();
         return;
       }
 
       // Update onboarding status
-      console.log('🔄 Updating onboarding status to completed...');
       const { error: updateError } = await supabase
         .from('profiles')
         .update({ onboarding_completed: true })
@@ -79,7 +73,7 @@ const OnboardingPopup = ({ isOpen, onClose, userId }: OnboardingPopupProps) => {
         return;
       }
 
-      console.log('✅ Onboarding completion successful');
+      
       
       // Show success message
       toast({

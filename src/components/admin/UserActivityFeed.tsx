@@ -25,7 +25,7 @@ export function UserActivityFeed() {
 
   // Set up real-time subscriptions for activity updates
   useEffect(() => {
-    console.log('📡 Setting up real-time subscriptions for user activity...');
+    
     
     // Subscribe to listing analytics changes
     const listingAnalyticsChannel = supabase
@@ -35,7 +35,7 @@ export function UserActivityFeed() {
         schema: 'public',
         table: 'listing_analytics'
       }, (payload) => {
-        console.log('📊 New listing analytics event:', payload);
+        
         refetch();
       })
       .subscribe();
@@ -48,7 +48,7 @@ export function UserActivityFeed() {
         schema: 'public',
         table: 'page_views'
       }, (payload) => {
-        console.log('📄 New page view event:', payload);
+        
         refetch();
       })
       .subscribe();
@@ -61,7 +61,7 @@ export function UserActivityFeed() {
         schema: 'public',
         table: 'user_events'
       }, (payload) => {
-        console.log('🔔 New user event:', payload);
+        
         refetch();
       })
       .subscribe();
@@ -74,19 +74,19 @@ export function UserActivityFeed() {
         schema: 'public',
         table: 'connection_requests'
       }, (payload) => {
-        console.log('🤝 New connection request:', payload);
+        
         refetch();
       })
       .subscribe();
 
     // Auto-refresh every 30 seconds as fallback
     const autoRefreshInterval = setInterval(() => {
-      console.log('🔄 Auto-refreshing activity feed...');
+      
       refetch();
     }, 30000);
 
     return () => {
-      console.log('🔌 Cleaning up real-time subscriptions...');
+      
       listingAnalyticsChannel.unsubscribe();
       pageViewsChannel.unsubscribe();
       userEventsChannel.unsubscribe();

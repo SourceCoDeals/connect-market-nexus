@@ -15,7 +15,7 @@ export function useAdminUsers() {
     return useQuery({
       queryKey: ['admin-users'],
       queryFn: async () => {
-        console.log('🔍 Fetching admin users');
+        
         try {
           // First get all profiles including unverified ones
           const { data: profilesData, error: profilesError } = await supabase
@@ -29,7 +29,7 @@ export function useAdminUsers() {
             throw profilesError;
           }
 
-          console.log('✅ Successfully fetched profiles:', profilesData?.length || 0);
+          
           
           return profilesData?.map(profile => {
             try {
@@ -57,7 +57,7 @@ export function useAdminUsers() {
   const useUpdateUserStatus = () => {
     const { execute, state: retryState } = useRetry(
       async ({ userId, status }: { userId: string; status: ApprovalStatus }) => {
-        console.log('🔄 Updating user approval status:', { userId, status });
+        
         
         const { error } = await supabase
           .from('profiles')
@@ -72,7 +72,7 @@ export function useAdminUsers() {
           throw error;
         }
 
-        console.log('✅ User approval updated successfully');
+        
         return { userId, status };
       },
       {
@@ -84,7 +84,7 @@ export function useAdminUsers() {
     return useMutation({
       mutationFn: execute,
       onSuccess: ({ status, userId }) => {
-        console.log('🎉 User status update successful:', status);
+        
         // Optimistically update the user in cache
         queryClient.setQueryData(['admin-users'], (old: User[] | undefined) => {
           if (!old) return old;
