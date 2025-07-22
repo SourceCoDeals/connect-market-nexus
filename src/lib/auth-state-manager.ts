@@ -28,13 +28,22 @@ class AuthStateManager {
   private pendingUserUpdate: User | null = null;
   private pendingLoadingUpdate: boolean | null = null;
 
-  // Tab switching stability
+  // Tab switching stability - more permissive for login flows
   private lastAuthCheckTime: number = 0;
-  private stableAuthGracePeriod: number = 3000; // 3 seconds
+  private stableAuthGracePeriod: number = 2000; // Reduced to 2 seconds for better UX
+  private isActiveAuthFlow: boolean = false; // Track active login/signup flows
 
   constructor() {
     this.initialize();
     this.setupTabVisibilityHandling();
+  }
+
+  /**
+   * Mark that an active auth flow is in progress
+   */
+  setActiveAuthFlow(isActive: boolean) {
+    this.isActiveAuthFlow = isActive;
+    console.log('🔄 AuthStateManager: Active auth flow:', isActive);
   }
 
   /**
@@ -55,17 +64,50 @@ class AuthStateManager {
    * Get current auth state with stability check
    */
   getState() {
-    // During tab switches, use a more stable auth state
+    // During active auth flows, use real-time state
+    if (this.isActiveAuthFlow) {
+      return {
+        user: this.user,
+        isLoading: this.isLoading,
+        authChecked: this.authChecked,
+        isAdmin: this.user?.is_admin === true,
+        isBuyer: this.user?.role === "buyer"
+      };
+    }
+
+    // For cached auth state during tab switches
+    const cachedUser = this.getCachedAuthState();
     const timeSinceLastCheck = Date.now() - this.lastAuthCheckTime;
     const isStableAuthPeriod = timeSinceLastCheck < this.stableAuthGracePeriod;
     
     return {
-      user: this.user,
+      user: cachedUser || this.user,
       isLoading: this.isLoading,
       authChecked: this.authChecked || isStableAuthPeriod,
-      isAdmin: this.user?.is_admin === true,
-      isBuyer: this.user?.role === "buyer"
+      isAdmin: (cachedUser || this.user)?.is_admin === true,
+      isBuyer: (cachedUser || this.user)?.role === "buyer"
     };
+  }
+
+  /**
+   * Get cached auth state from localStorage for stability
+   */
+  private getCachedAuthState(): User | null {
+    try {
+      const cached = localStorage.getItem("user");
+      if (cached) {
+        const userData = JSON.parse(cached);
+        // Only use cached data if it's recent (within 5 minutes)
+        const cacheTime = userData._cacheTime || 0;
+        const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
+        if (cacheTime > fiveMinutesAgo) {
+          return userData;
+        }
+      }
+    } catch (error) {
+      console.error('❌ AuthStateManager: Error reading cached auth state:', error);
+    }
+    return null;
   }
 
   /**
@@ -75,8 +117,9 @@ class AuthStateManager {
     const targetUserId = userId || this.user?.id;
     if (!targetUserId) return null;
 
-    // Don't refresh during tab visibility changes unless necessary
-    if (!tabVisibilityManager.getVisibility() && tabVisibilityManager.isRecentlyVisible(5000)) {
+    // During active auth flows, always refresh
+    // During tab visibility changes, be more selective
+    if (!this.isActiveAuthFlow && !tabVisibilityManager.getVisibility() && tabVisibilityManager.isRecentlyVisible(5000)) {
       console.log('⏸️ AuthStateManager: Skipping refresh during recent tab switch');
       return this.user;
     }
@@ -113,6 +156,7 @@ class AuthStateManager {
    */
   async clearAuthState(): Promise<void> {
     console.log('🧹 AuthStateManager: Clearing auth state');
+    this.isActiveAuthFlow = false; // Reset auth flow state
     
     try {
       await cleanupAuthState();
@@ -173,15 +217,15 @@ class AuthStateManager {
 
   private setupTabVisibilityHandling(): void {
     this.tabVisibilitySubscription = tabVisibilityManager.subscribe((isVisible) => {
-      if (isVisible) {
+      if (isVisible && !this.isActiveAuthFlow) {
         // Only refresh auth if tab was hidden for a significant time and we have a user
         const timeSinceHidden = tabVisibilityManager.getTimeSinceLastVisibilityChange();
         
-        if (this.user && timeSinceHidden > 60000) { // 1 minute
+        if (this.user && timeSinceHidden > 120000) { // Increased to 2 minutes
           console.log('👁️ AuthStateManager: Tab visible after long time, checking auth state');
           setTimeout(() => {
             this.refreshUserData(this.user?.id);
-          }, 500); // Small delay to avoid race conditions
+          }, 1000); // Increased delay to avoid interference with auth flows
         } else {
           console.log('👁️ AuthStateManager: Tab visible, auth state stable');
         }
@@ -198,21 +242,27 @@ class AuthStateManager {
 
         console.log('🔔 AuthStateManager: Auth event:', event);
         
-        // Skip certain auth events during tab switches to prevent instability
-        if (!tabVisibilityManager.getVisibility() && event === 'TOKEN_REFRESHED') {
-          console.log('⏸️ AuthStateManager: Skipping TOKEN_REFRESHED while tab hidden');
-          return;
-        }
-        
-        // Add stability check for frequent auth events
-        const timeSinceLastCheck = Date.now() - this.lastAuthCheckTime;
-        if (timeSinceLastCheck < 1000 && (event === 'TOKEN_REFRESHED' || event === 'SIGNED_IN')) {
-          console.log('⏸️ AuthStateManager: Skipping rapid auth event:', event);
-          return;
+        // During active auth flows, process all events immediately
+        if (this.isActiveAuthFlow) {
+          console.log('🔄 AuthStateManager: Processing auth event during active flow');
+        } else {
+          // Skip certain auth events during tab switches to prevent instability
+          if (!tabVisibilityManager.getVisibility() && event === 'TOKEN_REFRESHED') {
+            console.log('⏸️ AuthStateManager: Skipping TOKEN_REFRESHED while tab hidden');
+            return;
+          }
+          
+          // Add stability check for frequent auth events (but not during active flows)
+          const timeSinceLastCheck = Date.now() - this.lastAuthCheckTime;
+          if (timeSinceLastCheck < 500 && (event === 'TOKEN_REFRESHED')) {
+            console.log('⏸️ AuthStateManager: Skipping rapid auth event:', event);
+            return;
+          }
         }
         
         switch (event) {
           case 'SIGNED_OUT':
+            this.isActiveAuthFlow = false;
             this.updateState(null, false);
             localStorage.removeItem("user");
             this.lastAuthCheckTime = Date.now();
@@ -224,6 +274,11 @@ class AuthStateManager {
               console.log(`🔐 AuthStateManager: ${event} for:`, session.user.email);
               await this.loadUserData(session.user.id);
               this.lastAuthCheckTime = Date.now();
+              
+              // Mark auth flow as complete after successful sign in
+              if (event === 'SIGNED_IN') {
+                this.isActiveAuthFlow = false;
+              }
             }
             break;
         }
@@ -285,13 +340,18 @@ class AuthStateManager {
       }
       
       this.updateStateDebounce = null;
-    }, 50); // Slightly longer debounce for stability
+    }, 25); // Reduced debounce time for better UX during auth flows
   }
 
   private syncToLocalStorage(userData: User | null): void {
     try {
       if (userData) {
-        localStorage.setItem("user", JSON.stringify(userData));
+        // Add cache timestamp for freshness check
+        const cachedData = {
+          ...userData,
+          _cacheTime: Date.now()
+        };
+        localStorage.setItem("user", JSON.stringify(cachedData));
       } else {
         localStorage.removeItem("user");
       }
@@ -305,6 +365,7 @@ class AuthStateManager {
    */
   destroy(): void {
     this.isDestroyed = true;
+    this.isActiveAuthFlow = false;
     this.listeners.clear();
     
     if (this.updateStateDebounce) {
