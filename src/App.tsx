@@ -38,10 +38,10 @@ const queryClient = new QueryClient({
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <SimpleRealtimeProvider>
-          <Router>
+    <Router>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <SimpleRealtimeProvider>
             <div className="min-h-screen bg-background">
               <Routes>
                 {/* Public routes */}
@@ -133,12 +133,12 @@ function App() {
                 <Route path="*" element={<Navigate to="/marketplace" replace />} />
               </Routes>
             </div>
-          </Router>
-          <Toaster />
-          <ReactQueryDevtools initialIsOpen={false} />
-        </SimpleRealtimeProvider>
-      </AuthProvider>
-    </QueryClientProvider>
+            <Toaster />
+            <ReactQueryDevtools initialIsOpen={false} />
+          </SimpleRealtimeProvider>
+        </AuthProvider>
+      </QueryClientProvider>
+    </Router>
   );
 }
 
