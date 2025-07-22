@@ -1,6 +1,6 @@
+
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
-import { Resend } from "npm:resend@2.0.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -23,8 +23,6 @@ const supabase = createClient(
   Deno.env.get("SUPABASE_URL") ?? "",
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
 );
-
-const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
@@ -97,7 +95,7 @@ const handler = async (req: Request): Promise<Response> => {
         </div>
         
         <div style="text-align: center; margin-top: 30px;">
-          <a href="https://vhzipqarkmmfuqadefep.supabase.co/dashboard/project/vhzipqarkmmfuqadefep/editor" 
+          <a href="https://market.sourcecodeals.com/admin" 
              style="background: #1e293b; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 500;">
             View in Admin Dashboard
           </a>
@@ -109,17 +107,63 @@ const handler = async (req: Request): Promise<Response> => {
       </div>
     `;
 
-    // Use simplified email delivery for development
+    // Send email using Brevo API
     try {
-      const { error } = await resend.emails.send({
-        from: "SourcecodeAls Feedback <onboarding@resend.dev>",
-        to: ["ahaile14@gmail.com"], // Send to verified email only in development
-        subject: emailSubject,
-        html: emailHtml,
+      const brevoApiKey = Deno.env.get("BREVO_API_KEY");
+      if (!brevoApiKey) {
+        console.warn("BREVO_API_KEY not configured, using fallback email delivery");
+        // Log feedback for admin review instead of failing
+        console.log("Feedback submission logged for admin review:", {
+          feedbackId,
+          category,
+          priority,
+          message: message.substring(0, 100) + "...",
+          pageUrl,
+          userEmail,
+          userName,
+          adminCount: adminUsers.length
+        });
+        
+        return new Response(
+          JSON.stringify({ 
+            success: true, 
+            message: `Feedback logged for admin review (${adminUsers.length} admin(s))` 
+          }),
+          { 
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 200 
+          }
+        );
+      }
+
+      const emailResponse = await fetch("https://api.brevo.com/v3/smtp/email", {
+        method: "POST",
+        headers: {
+          "api-key": brevoApiKey,
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        body: JSON.stringify({
+          sender: {
+            name: "SourceCo Marketplace Feedback",
+            email: "adam.haile@sourcecodeals.com"
+          },
+          to: adminUsers.map(admin => ({
+            email: admin.email,
+            name: `${admin.first_name} ${admin.last_name}`.trim()
+          })),
+          subject: emailSubject,
+          htmlContent: emailHtml,
+          replyTo: {
+            email: "adam.haile@sourcecodeals.com",
+            name: "SourceCo Support"
+          }
+        })
       });
 
-      if (error) {
-        console.error("Error sending email:", error);
+      if (!emailResponse.ok) {
+        const errorText = await emailResponse.text();
+        console.error("Error sending email via Brevo:", errorText);
         // Log feedback for admin review instead of failing
         console.log("Feedback submission logged for admin review:", {
           feedbackId,
@@ -142,7 +186,7 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: `Feedback notification sent to ${adminUsers.length} admin(s)` 
+        message: `Feedback notification processed for ${adminUsers.length} admin(s)` 
       }),
       { 
         headers: { ...corsHeaders, "Content-Type": "application/json" },
