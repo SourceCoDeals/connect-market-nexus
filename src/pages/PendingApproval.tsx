@@ -1,5 +1,5 @@
 
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,11 +10,48 @@ import { toast } from "@/hooks/use-toast";
 import { cleanupAuthState } from "@/lib/auth-helpers";
 
 const PendingApproval = () => {
-  const { user } = useAuth();
+  const { user, refreshUserProfile } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [canResendEmail, setCanResendEmail] = useState(false);
   const [isResending, setIsResending] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [verificationStatus, setVerificationStatus] = useState<'checking' | 'success' | 'idle'>('idle');
+
+  // Handle verification from email links
+  useEffect(() => {
+    const urlParams = new URLSearchParams(location.search);
+    const accessToken = urlParams.get('access_token');
+    const refreshToken = urlParams.get('refresh_token');
+    
+    if (accessToken && refreshToken) {
+      console.log('🔄 Processing verification tokens from URL...');
+      setVerificationStatus('checking');
+      
+      // Set session with tokens and refresh user data
+      supabase.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken
+      }).then(({ data, error }) => {
+        if (error) {
+          console.error('❌ Token verification failed:', error);
+          setVerificationStatus('idle');
+        } else {
+          console.log('✅ Verification successful, refreshing user data...');
+          // Refresh user data after successful verification
+          if (data.user?.id) {
+            refreshUserProfile().then(() => {
+              setVerificationStatus('success');
+              toast({
+                title: "Email verified successfully!",
+                description: "Your account is now under review.",
+              });
+            });
+          }
+        }
+      });
+    }
+  }, [location, refreshUserProfile]);
 
   useEffect(() => {
     // Allow resending email if user email is not verified
