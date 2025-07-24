@@ -14,6 +14,37 @@ export function useNuclearAuth() {
   useEffect(() => {
     let isMounted = true;
 
+    // Early token detection - check for verification tokens in URL before any redirects
+    const urlParams = new URLSearchParams(window.location.search);
+    const accessToken = urlParams.get('access_token');
+    const refreshToken = urlParams.get('refresh_token');
+    
+    if (accessToken && refreshToken && window.location.pathname === '/pending-approval') {
+      console.log('🔍 Early detection: Verification tokens found in URL');
+      setProcessingVerification(true);
+      
+      // Process tokens immediately to prevent ProtectedRoute flash
+      setTimeout(() => {
+        if (isMounted) {
+          supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken
+          }).then(({ error }) => {
+            if (!error && isMounted) {
+              // Clean up URL params
+              const newUrl = window.location.pathname;
+              window.history.replaceState({}, '', newUrl);
+              
+              // Trigger session refresh
+              checkSession();
+            } else if (isMounted) {
+              setProcessingVerification(false);
+            }
+          });
+        }
+      }, 0);
+    }
+
     // Simple session check - no complex initialization
     const checkSession = async () => {
       try {

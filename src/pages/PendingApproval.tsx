@@ -19,51 +19,16 @@ const PendingApproval = () => {
   const [verificationStatus, setVerificationStatus] = useState<'checking' | 'success' | 'idle'>('idle');
   const [tokensProcessed, setTokensProcessed] = useState(false);
 
-  // Handle verification from email links
+  // Handle verification completion (tokens are processed in useNuclearAuth)
   useEffect(() => {
-    // Only process tokens once per component mount
-    if (tokensProcessed) return;
-    
-    const urlParams = new URLSearchParams(location.search);
-    const accessToken = urlParams.get('access_token');
-    const refreshToken = urlParams.get('refresh_token');
-    
-    if (accessToken && refreshToken) {
-      console.log('🔄 Processing verification tokens from URL...');
-      setVerificationStatus('checking');
-      setTokensProcessed(true);
-      setProcessingVerification(true);
-      
-      // Set session with tokens and refresh user data
-      supabase.auth.setSession({
-        access_token: accessToken,
-        refresh_token: refreshToken
-      }).then(({ data, error }) => {
-        if (error) {
-          console.error('❌ Token verification failed:', error);
-          setVerificationStatus('idle');
-          setProcessingVerification(false);
-        } else {
-          console.log('✅ Verification successful, refreshing user data...');
-          // Refresh user data after successful verification
-          if (data.user?.id) {
-            refreshUserProfile().then(() => {
-              setVerificationStatus('success');
-              setProcessingVerification(false);
-              toast({
-                title: "Email verified successfully!",
-                description: "Your account is now under review.",
-              });
-              
-              // Clean up URL parameters after successful processing
-              const cleanUrl = window.location.pathname;
-              window.history.replaceState({}, document.title, cleanUrl);
-            });
-          }
-        }
+    if (user?.email_verified && verificationStatus === 'idle') {
+      setVerificationStatus('success');
+      toast({
+        title: "Email verified successfully!",
+        description: "Your account is now under review.",
       });
     }
-  }, [location, refreshUserProfile, tokensProcessed]);
+  }, [user?.email_verified, verificationStatus, toast]);
 
   useEffect(() => {
     // Allow resending email if user email is not verified
