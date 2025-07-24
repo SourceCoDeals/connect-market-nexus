@@ -288,8 +288,8 @@ const Signup = () => {
         description: "Please check your email to verify your account.",
       });
       
-      // Navigate to the verify email page after successful signup
-      navigate('/verify-email', { state: { email: formData.email } });
+      // Navigate directly to pending approval - simple flow
+      navigate('/pending-approval');
       
     } catch (error: any) {
       console.error('Signup error:', error);

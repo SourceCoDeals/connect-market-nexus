@@ -92,18 +92,10 @@ const PendingApproval = () => {
     }
   };
 
-  // Determine UI state based on user data and URL params
+  // Determine UI state based PURELY on user data - no URL parameters
   const getUIState = () => {
-    const urlParams = new URLSearchParams(location.search);
-    const error = urlParams.get('error');
-    const errorCode = urlParams.get('error_code');
-    
     if (user?.email_verified) {
       return 'approved_pending'; // Email verified, waiting for admin approval
-    } else if (error === 'access_denied' && errorCode === 'otp_expired') {
-      return 'link_expired'; // User clicked expired link
-    } else if (error) {
-      return 'verification_failed'; // Other verification errors
     } else {
       return 'email_not_verified'; // Default state - email not verified yet
     }
@@ -214,35 +206,6 @@ const PendingApproval = () => {
                     </div>
                   </div>
                 </div>
-
-                {/* Show appropriate error/status message */}
-                {uiState === 'link_expired' && (
-                  <div className="bg-amber-50 border border-amber-200 rounded-md p-4">
-                    <div className="flex gap-3 items-start">
-                      <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
-                      <div>
-                        <p className="text-sm text-amber-800 font-medium">Verification link expired</p>
-                        <p className="text-xs text-amber-700 mt-1">
-                          The verification link you clicked has expired. Please request a new verification email below.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-                
-                {uiState === 'verification_failed' && (
-                  <div className="bg-red-50 border border-red-200 rounded-md p-4">
-                    <div className="flex gap-3 items-start">
-                      <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
-                      <div>
-                        <p className="text-sm text-red-800 font-medium">Verification failed</p>
-                        <p className="text-xs text-red-700 mt-1">
-                          There was an issue verifying your email. Please try requesting a new verification email.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
               </>
             )}
             
