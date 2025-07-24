@@ -28,11 +28,75 @@ export default function VerifyEmailHandler() {
       try {
         setIsVerifying(true);
         
-        // Check for Supabase native hash fragments first
-        const hashParams = new URLSearchParams(location.hash.substring(1)); // Remove # and parse
+        // Check for Brevo error parameters first (common when click tracking corrupts URLs)
         const queryParams = new URLSearchParams(location.search);
+        const hashParams = new URLSearchParams(location.hash.substring(1));
         
-        // Prioritize hash fragments (Supabase native flow)
+        const hasError = queryParams.get('error') === 'access_denied' || hashParams.get('error') === 'access_denied';
+        const errorCode = queryParams.get('error_code') || hashParams.get('error_code');
+        
+        console.log('🔍 URL Analysis:', { 
+          hasError, 
+          errorCode,
+          hash: location.hash,
+          search: location.search 
+        });
+        
+        // CRITICAL FIX: If we see Brevo error parameters, check actual user verification status first
+        if (hasError && errorCode === 'otp_expired') {
+          console.log('⚠️  Brevo error detected - checking actual user verification status');
+          
+          try {
+            // Check if user is already verified by getting current session
+            const { data: sessionData } = await supabase.auth.getSession();
+            
+            if (sessionData?.session?.user) {
+              console.log('✅ User has valid session, checking verification status');
+              
+              // Get profile to check verification status
+              const { data: profileData, error: profileError } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', sessionData.session.user.id)
+                .single();
+                
+              if (!profileError && profileData?.email_verified) {
+                console.log('🎉 User is actually verified! Redirecting based on status...');
+                
+                // User is verified, redirect appropriately
+                setVerificationSuccess(true);
+                setEmail(profileData.email);
+                setApprovalStatus(profileData.approval_status as ApprovalStatus);
+                setIsAdmin(profileData.is_admin === true);
+                
+                // Direct redirect without showing success screen
+                if (profileData.is_admin === true) {
+                  console.log('🔄 Redirecting verified admin to /admin');
+                  navigate('/admin', { replace: true });
+                } else if (profileData.approval_status === 'approved') {
+                  console.log('🔄 Redirecting verified approved user to /marketplace');
+                  navigate('/marketplace', { replace: true });
+                } else {
+                  console.log('🔄 Redirecting verified pending user to /pending-approval');
+                  navigate('/pending-approval', { replace: true });
+                }
+                return;
+              }
+            }
+            
+            console.log('❌ User not verified or no session, showing error');
+          } catch (checkError) {
+            console.error('Error checking verification status:', checkError);
+          }
+          
+          // If we get here, user is genuinely not verified
+          setTokenInvalidOrExpired(true);
+          setError('The verification link has expired or is invalid.');
+          setIsVerifying(false);
+          return;
+        }
+        
+        // Continue with normal verification flow
         const accessToken = hashParams.get('access_token');
         const tokenType = hashParams.get('token_type');
         const type = hashParams.get('type') || queryParams.get('type');
