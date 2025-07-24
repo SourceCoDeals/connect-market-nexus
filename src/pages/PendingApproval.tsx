@@ -10,7 +10,7 @@ import { toast } from "@/hooks/use-toast";
 import { cleanupAuthState } from "@/lib/auth-helpers";
 
 const PendingApproval = () => {
-  const { user, refreshUserProfile } = useAuth();
+  const { user, refreshUserProfile, setProcessingVerification } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [canResendEmail, setCanResendEmail] = useState(false);
@@ -32,6 +32,7 @@ const PendingApproval = () => {
       console.log('🔄 Processing verification tokens from URL...');
       setVerificationStatus('checking');
       setTokensProcessed(true);
+      setProcessingVerification(true);
       
       // Set session with tokens and refresh user data
       supabase.auth.setSession({
@@ -41,12 +42,14 @@ const PendingApproval = () => {
         if (error) {
           console.error('❌ Token verification failed:', error);
           setVerificationStatus('idle');
+          setProcessingVerification(false);
         } else {
           console.log('✅ Verification successful, refreshing user data...');
           // Refresh user data after successful verification
           if (data.user?.id) {
             refreshUserProfile().then(() => {
               setVerificationStatus('success');
+              setProcessingVerification(false);
               toast({
                 title: "Email verified successfully!",
                 description: "Your account is now under review.",

@@ -14,6 +14,8 @@ interface AuthContextType {
   isAdmin: boolean;
   isBuyer: boolean;
   authChecked: boolean;
+  processingVerification: boolean;
+  setProcessingVerification: (processing: boolean) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -42,6 +44,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     isAdmin: auth.isAdmin,
     isBuyer: auth.isBuyer,
     authChecked: auth.authChecked,
+    processingVerification: auth.processingVerification,
+    setProcessingVerification: auth.setProcessingVerification,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

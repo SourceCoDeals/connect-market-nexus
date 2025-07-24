@@ -14,7 +14,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   requireAdmin = false,
   requireApproved = true
 }) => {
-  const { user, isLoading, authChecked } = useAuth();
+  const { user, isLoading, authChecked, processingVerification } = useAuth();
   const location = useLocation();
 
   // Simple loading check
@@ -27,12 +27,23 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     );
   }
 
+  // Show verification processing screen to prevent flash
+  if (processingVerification) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-4 min-h-screen">
+        <Loader2 className="h-16 w-16 text-primary animate-spin" />
+        <p className="text-muted-foreground">Verifying your email...</p>
+        <p className="text-sm text-muted-foreground/80">Please wait while we confirm your email verification</p>
+      </div>
+    );
+  }
+
   // No user - redirect to login
   if (!user) {
     return <Navigate to="/login" state={{ from: location.pathname }} replace />;
   }
 
-  // Check email verification
+  // Check email verification (but skip if we're processing verification)
   if (user.email_verified !== true) {
     return <Navigate to="/verify-email" state={{ email: user.email }} replace />;
   }

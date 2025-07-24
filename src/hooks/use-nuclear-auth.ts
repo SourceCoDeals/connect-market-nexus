@@ -9,6 +9,7 @@ export function useNuclearAuth() {
   const [user, setUser] = useState<AppUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [authChecked, setAuthChecked] = useState(false);
+  const [processingVerification, setProcessingVerification] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -182,6 +183,8 @@ export function useNuclearAuth() {
     user,
     isLoading,
     authChecked,
+    processingVerification,
+    setProcessingVerification,
     isAdmin: user?.is_admin === true,
     isBuyer: user?.role === "buyer",
     login,
@@ -189,6 +192,7 @@ export function useNuclearAuth() {
     signup,
     updateUserProfile,
     refreshUserProfile: async () => {
+      setProcessingVerification(true);
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
         const { data: profile } = await supabase
@@ -202,6 +206,7 @@ export function useNuclearAuth() {
           setUser(updatedUser);
         }
       }
+      setProcessingVerification(false);
     }
   };
 }
