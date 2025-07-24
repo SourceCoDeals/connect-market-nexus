@@ -129,9 +129,9 @@ export function useNuclearAuth() {
     
     if (error) throw error;
 
-    console.log('✅ User signup completed, verification email sent by Supabase');
+    console.log('✅ User signup completed, verification email sent by Supabase only');
     
-    // Send admin notification about new user registration
+    // Send admin notification about new user registration (but don't trigger reminder emails)
     if (data.user && !data.session) {
       try {
         const adminNotificationPayload = {
@@ -146,8 +146,7 @@ export function useNuclearAuth() {
         });
         console.log('✅ Admin notification sent for new user registration');
       } catch (notificationError) {
-        console.warn('Failed to send admin notification, but user creation succeeded:', notificationError);
-        // Don't throw - we don't want to block user registration if admin notification fails
+        console.warn('Admin notification failed but user creation succeeded:', notificationError);
       }
     }
   };

@@ -101,11 +101,9 @@ async function processUserJourneyEvent(event: UserJourneyEvent, correlationId: s
       break;
       
     case 'reminder_due':
-      emailType = 'reminder';
-      emailData = {
-        reminderType: event.metadata?.reminder_type || 'general'
-      };
-      break;
+      // Don't send reminder emails - users can't speed up approval process
+      console.log(`[${correlationId}] Skipping reminder email - users pending approval can't speed up the process`);
+      return;
       
     default:
       console.log(`[${correlationId}] Unknown event type: ${event_type}`);

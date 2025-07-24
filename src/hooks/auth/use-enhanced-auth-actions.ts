@@ -65,7 +65,7 @@ export function useEnhancedAuthActions() {
         return { error };
       }
 
-      console.log('✅ Signup successful for:', email);
+      console.log('✅ Signup successful, verification email sent by Supabase only');
       return { data, error: null };
       
     } catch (error: any) {

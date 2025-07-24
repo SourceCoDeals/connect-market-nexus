@@ -48,23 +48,7 @@ const VerifyEmail = () => {
 
       if (resendError) {
         console.error("Supabase resend failed:", resendError);
-        
-        // Fallback to custom edge function
-        console.log("Trying custom verification email as fallback");
-        const { error: customEmailError } = await supabase.functions.invoke('send-verification-email', {
-          body: { 
-            email: email,
-            token: 'resend-verification',
-            redirectTo: `${window.location.origin}/verify-email-handler`
-          }
-        });
-        
-        if (customEmailError) {
-          console.error("Custom email also failed:", customEmailError);
-          throw customEmailError;
-        }
-        
-        console.log("✅ Custom verification email sent successfully");
+        throw new Error(resendError.message || "Failed to resend verification email");
       } else {
         console.log("✅ Supabase verification email resent successfully");
       }

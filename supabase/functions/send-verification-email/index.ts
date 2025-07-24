@@ -14,13 +14,28 @@ interface VerificationEmailRequest {
 }
 
 const handler = async (req: Request): Promise<Response> => {
-  console.log('📧 Send verification email function called');
+  console.log('⚠️  DEPRECATED: send-verification-email function called but is now disabled');
   
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // FUNCTION DISABLED: Only Supabase native verification is used now
+  return new Response(
+    JSON.stringify({ 
+      success: false,
+      error: "This verification email function is deprecated. Only Supabase native verification is used now.",
+      deprecated: true
+    }),
+    {
+      status: 410, // Gone
+      headers: { "Content-Type": "application/json", ...corsHeaders },
+    }
+  );
+
+  // Legacy code commented out to prevent execution
+  /*
   try {
     const requestBody = await req.text();
     console.log('📧 Request body:', requestBody);
@@ -152,6 +167,7 @@ const handler = async (req: Request): Promise<Response> => {
       }
     );
   }
+  */
 };
 
 serve(handler);
