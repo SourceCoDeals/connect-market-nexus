@@ -11,7 +11,7 @@ import { cleanupAuthState } from '@/lib/auth-helpers';
 const PendingApproval = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, logout } = useAuth();
+  const { user, logout, isLoading } = useAuth();
   const [isResending, setIsResending] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
@@ -23,21 +23,24 @@ const PendingApproval = () => {
     }
   }, [user?.approval_status, navigate]);
 
+  // Show loading while auth is being determined
+  if (isLoading || !user) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-muted/30">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-16 w-16 text-primary animate-spin" />
+          <p className="text-muted-foreground">Loading your account...</p>
+        </div>
+      </div>
+    );
+  }
+
   const handleResendVerification = async () => {
     // Safety check - only allow resend for unverified users
-    if (user?.email_verified) {
+    if (user.email_verified) {
       toast({
         title: "Email already verified",
         description: "Your email is already verified. No need to resend.",
-      });
-      return;
-    }
-
-    if (!user?.email) {
-      toast({
-        variant: "destructive",
-        title: "Email not found",
-        description: "Please try signing up again.",
       });
       return;
     }
@@ -47,7 +50,7 @@ const PendingApproval = () => {
     try {
       console.log("Attempting to resend verification email for:", user.email);
       
-      // Use Supabase's built-in resend functionality
+      // Use Supabase's built-in resend functionality with logged-in user context
       const { error: resendError } = await supabase.auth.resend({
         type: 'signup',
         email: user.email,
@@ -63,7 +66,9 @@ const PendingApproval = () => {
         if (resendError.message?.includes('rate limit')) {
           throw new Error("Please wait a moment before requesting another verification email.");
         } else if (resendError.message?.includes('already verified')) {
-          throw new Error("Your email is already verified. Please refresh the page.");
+          // Refresh user profile to get latest verification status
+          window.location.reload();
+          return;
         } else {
           throw new Error(resendError.message || "Failed to resend verification email");
         }
@@ -214,7 +219,7 @@ const PendingApproval = () => {
                     <Info className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
                     <div>
                       <p className="text-sm">
-                        We've sent a verification email to <strong>{user?.email}</strong>. 
+                        We've sent a verification email to <strong>{user.email}</strong>. 
                         Please check your inbox and click on the verification link to complete your registration.
                       </p>
                       <p className="text-xs text-muted-foreground mt-2">

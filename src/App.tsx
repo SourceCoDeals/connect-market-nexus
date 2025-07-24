@@ -26,6 +26,7 @@ import AdminDashboard from "@/pages/admin/AdminDashboard";
 import AdminListings from "@/pages/admin/AdminListings";
 import AdminUsers from "@/pages/admin/AdminUsers";
 import AdminRequests from "@/pages/admin/AdminRequests";
+import AuthCallback from "@/pages/auth/callback";
 import { Toaster } from "@/components/ui/toaster";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { errorHandler } from "@/lib/error-handler";
@@ -67,6 +68,7 @@ function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
             <Route path="/pending-approval" element={<PendingApproval />} />
+            <Route path="/auth/callback" element={<AuthCallback />} />
             <Route path="/unauthorized" element={<Unauthorized />} />
             
             {/* Main app routes with MainLayout - require approval */}

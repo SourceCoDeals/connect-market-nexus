@@ -132,10 +132,32 @@ export function useNuclearAuth() {
     
     if (error) throw error;
 
-    console.log('✅ User signup completed, verification email sent by Supabase only');
+    console.log('✅ User signup completed, verification email sent by Supabase');
     
-    // Send admin notification about new user registration (but don't trigger reminder emails)
-    if (data.user && !data.session) {
+    // CRITICAL FIX: Immediately log the user in even if email is unverified
+    // This eliminates the "null user" problem on pending-approval page
+    if (data.user) {
+      try {
+        console.log('🔄 Logging user in immediately after signup...');
+        
+        // Sign them in right away - this creates a session
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email: userData.email,
+          password: password,
+        });
+        
+        if (!signInError) {
+          console.log('✅ User automatically logged in after signup');
+        } else {
+          console.warn('⚠️ Auto-login failed, but signup succeeded:', signInError);
+        }
+      } catch (loginError) {
+        console.warn('⚠️ Auto-login failed, but signup succeeded:', loginError);
+      }
+    }
+    
+    // Send admin notification about new user registration
+    if (data.user) {
       try {
         const adminNotificationPayload = {
           first_name: userData.first_name || '',

@@ -13,33 +13,42 @@ export default function AuthCallback() {
   useEffect(() => {
     const handleCallback = async () => {
       try {
-        const queryParams = new URLSearchParams(window.location.search);
-        const type = queryParams.get('type');
+        console.log('📧 Email verification callback - processing...');
         
-        if (type === 'signup' || type === 'recovery' || type === 'invite') {
-          navigate(`/pending-approval${window.location.search}`);
-          return;
+        // Let Supabase handle the verification token
+        const { data, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('Session error:', error);
+          throw error;
         }
-        
-        // Simple session check
-        const { data } = await supabase.auth.getSession();
 
         if (data.session?.user) {
-          // Simple redirect based on admin status
+          console.log('✅ User session found, checking profile...');
+          
+          // Get latest profile data to see if verification was successful
           const { data: profile } = await supabase
             .from('profiles')
             .select('email_verified, approval_status, is_admin')
             .eq('id', data.session.user.id)
             .single();
 
+          console.log('📋 Profile data:', { 
+            email_verified: profile?.email_verified, 
+            approval_status: profile?.approval_status,
+            is_admin: profile?.is_admin 
+          });
+
           if (profile?.email_verified && profile?.approval_status === 'approved') {
-            navigate(profile.is_admin ? '/admin' : '/marketplace');
-          } else if (profile?.email_verified) {
-            navigate('/pending-approval');
+            // Fully approved user - go to app
+            navigate(profile.is_admin ? '/admin' : '/');
           } else {
-            navigate('/verify-email', { state: { email: data.session.user.email } });
+            // Not fully approved yet - always go to pending approval
+            // This handles both: email not verified OR email verified but waiting for admin approval
+            navigate('/pending-approval');
           }
         } else {
+          console.log('⚠️ No session found, redirecting to login');
           navigate('/login');
         }
       } catch (err: any) {
