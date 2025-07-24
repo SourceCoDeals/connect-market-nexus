@@ -5,12 +5,15 @@ import { Button } from "@/components/ui/button";
 import { CheckCircle, Mail, ArrowRight, Clock, Shield } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { CountdownTimer } from "@/components/ui/countdown-timer";
 
 const SignupSuccess = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [isResending, setIsResending] = useState(false);
   const [emailVerified, setEmailVerified] = useState(false);
+  const [rateLimitRemaining, setRateLimitRemaining] = useState(0);
+  const [attemptCount, setAttemptCount] = useState(0);
   const email = searchParams.get('email') || '';
 
   useEffect(() => {
@@ -58,17 +61,33 @@ const SignupSuccess = () => {
     } catch (error: any) {
       console.error('Resend verification error:', error);
       
+      setAttemptCount(prev => prev + 1);
+      
       let errorMessage = "Failed to resend verification email. Please try again.";
+      let waitTime = 60; // Default 60 seconds
+      
       if (error.message?.includes('already verified')) {
         errorMessage = "Your email is already verified! You can now log in.";
         setEmailVerified(true);
-      } else if (error.message?.includes('rate limit')) {
-        errorMessage = "Please wait a moment before requesting another email.";
+      } else if (error.message?.includes('rate limit') || error.message?.includes('too many requests')) {
+        // Parse rate limit time from error message if possible
+        const timeMatch = error.message.match(/(\d+)\s*(second|minute)/i);
+        if (timeMatch) {
+          const time = parseInt(timeMatch[1]);
+          waitTime = timeMatch[2].toLowerCase() === 'minute' ? time * 60 : time;
+        }
+        
+        setRateLimitRemaining(waitTime);
+        errorMessage = `Please wait ${waitTime} seconds before requesting another email.`;
+        
+        if (attemptCount > 0) {
+          errorMessage += ` This is attempt ${attemptCount + 1}.`;
+        }
       }
       
       toast({
         variant: error.message?.includes('already verified') ? "default" : "destructive",
-        title: error.message?.includes('already verified') ? "Already verified" : "Error",
+        title: error.message?.includes('already verified') ? "Already verified" : "Rate Limited",
         description: errorMessage,
       });
     } finally {
@@ -150,24 +169,50 @@ const SignupSuccess = () => {
             {/* Action Buttons */}
             <div className="space-y-3">
               {!emailVerified && (
-                <Button 
-                  onClick={handleResendVerification}
-                  disabled={isResending}
-                  variant="outline"
-                  className="w-full"
-                >
-                  {isResending ? (
-                    <>
-                      <Clock className="h-4 w-4 mr-2 animate-spin" />
-                      Sending...
-                    </>
-                  ) : (
-                    <>
-                      <Mail className="h-4 w-4 mr-2" />
-                      Resend Verification Email
-                    </>
+                <div className="space-y-2">
+                  <Button 
+                    onClick={handleResendVerification}
+                    disabled={isResending || rateLimitRemaining > 0}
+                    variant="outline"
+                    className="w-full"
+                  >
+                    {isResending ? (
+                      <>
+                        <Clock className="h-4 w-4 mr-2 animate-spin" />
+                        Sending...
+                      </>
+                    ) : rateLimitRemaining > 0 ? (
+                      <>
+                        <Clock className="h-4 w-4 mr-2" />
+                        Resend Email <CountdownTimer seconds={rateLimitRemaining} variant="compact" />
+                      </>
+                    ) : (
+                      <>
+                        <Mail className="h-4 w-4 mr-2" />
+                        Resend Verification Email
+                        {attemptCount > 0 && (
+                          <span className="ml-1 text-xs text-muted-foreground">
+                            (Attempt {attemptCount + 1})
+                          </span>
+                        )}
+                      </>
+                    )}
+                  </Button>
+                  
+                  {rateLimitRemaining > 0 && (
+                    <CountdownTimer 
+                      seconds={rateLimitRemaining} 
+                      onComplete={() => setRateLimitRemaining(0)}
+                      className="justify-center text-center p-2 bg-muted/30 rounded-md"
+                    />
                   )}
-                </Button>
+                  
+                  {attemptCount > 1 && (
+                    <div className="text-xs text-muted-foreground text-center p-2 bg-amber-50 dark:bg-amber-950/20 rounded-md">
+                      💡 <strong>Tip:</strong> Check your spam folder or try a different email client if you're not receiving emails.
+                    </div>
+                  )}
+                </div>
               )}
               
               <Link to="/login" className="block">
