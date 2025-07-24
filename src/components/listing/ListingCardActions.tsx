@@ -132,19 +132,19 @@ const ListingCardActions = ({
         <Button
           variant="outline"
           size="sm"
-          className="h-8 px-2.5 border border-slate-200 hover:border-[#D7B65C] hover:bg-[#D7B65C]/5 transition-all duration-200 hover:scale-[1.01] bg-white shadow-sm rounded-md"
+          className="h-8 px-3 py-1.5 border border-slate-200 hover:border-[#D7B65C] hover:bg-[#D7B65C]/5 transition-all duration-200 hover:scale-[1.01] bg-white shadow-sm rounded-md flex-1"
           onClick={handleToggleSave}
           disabled={isSaving}
         >
           <Bookmark
-            className={`h-3.5 w-3.5 transition-colors duration-200 ${
+            className={`h-3.5 w-3.5 mr-1.5 transition-colors duration-200 ${
               isSaved 
                 ? "fill-[#D7B65C] text-[#D7B65C]" 
                 : "text-slate-400 hover:text-[#D7B65C]"
             }`}
           />
-          <span className="sr-only">
-            {isSaved ? "Unsave" : "Save"} listing
+          <span className="text-xs font-medium">
+            {isSaved ? "Saved" : "Save deal"}
           </span>
         </Button>
       </div>
