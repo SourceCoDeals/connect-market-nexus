@@ -11,7 +11,7 @@ import { cleanupAuthState } from '@/lib/auth-helpers';
 const PendingApproval = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, logout, isLoading } = useAuth();
+  const { user, logout, isLoading, freshSignup, clearFreshSignup } = useAuth();
   const [isResending, setIsResending] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
@@ -23,13 +23,69 @@ const PendingApproval = () => {
     }
   }, [user?.approval_status, navigate]);
 
-  // Show loading while auth is being determined
-  if (isLoading || !user) {
+  // Clear fresh signup flag after first render
+  useEffect(() => {
+    if (freshSignup) {
+      clearFreshSignup();
+    }
+  }, [freshSignup, clearFreshSignup]);
+
+  // Show loading while auth is being determined, but skip if fresh signup
+  if ((isLoading || !user) && !freshSignup) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-muted/30">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="h-16 w-16 text-primary animate-spin" />
           <p className="text-muted-foreground">Loading your account...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // If fresh signup and no user yet, show welcome message instead of loading
+  if (freshSignup && !user) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-muted/30">
+        <div className="w-full max-w-md space-y-6">
+          <div className="flex flex-col items-center space-y-3">
+            <div className="flex items-center">
+              <img 
+                src="/lovable-uploads/b879fa06-6a99-4263-b973-b9ced4404acb.png" 
+                alt="SourceCo Logo" 
+                className="h-10 w-10 mr-3"
+              />
+              <div className="text-center">
+                <h1 className="text-2xl font-bold">SourceCo</h1>
+                <p className="text-lg text-muted-foreground font-light">Marketplace</p>
+              </div>
+            </div>
+          </div>
+          <Card>
+            <CardHeader>
+              <div className="flex justify-center mb-4">
+                <div className="p-3 rounded-full bg-green-100">
+                  <CheckCircle className="h-8 w-8 text-green-600" />
+                </div>
+              </div>
+              <CardTitle className="text-2xl font-bold text-center">Account Created!</CardTitle>
+              <CardDescription className="text-center">
+                Please verify your email to continue
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="bg-primary/5 border border-primary/20 rounded-md p-4">
+                <div className="flex gap-3 items-start">
+                  <Mail className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-medium">Check your email</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      We've sent a verification link to your email. Click it to activate your account.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     );
@@ -160,7 +216,7 @@ const PendingApproval = () => {
             <CardDescription className="text-center">
               {uiState === 'approved_pending' 
                 ? 'Your account is pending admin approval'
-                : 'Please verify your email address to continue'
+                : `We've sent a verification email to ${user.email}`
               }
             </CardDescription>
           </CardHeader>
@@ -212,18 +268,55 @@ const PendingApproval = () => {
                 </div>
               </>
             ) : (
-              // Email not verified - show verification instructions
+              // Email not verified - show verification instructions and progress
               <>
+                {/* Progress Timeline */}
+                <div className="space-y-4">
+                  <h4 className="text-sm font-medium text-center">Account Setup Progress</h4>
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-6 h-6 rounded-full bg-green-500 flex items-center justify-center">
+                        <CheckCircle className="w-4 h-4 text-white" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-medium">Account Created</p>
+                        <p className="text-xs text-muted-foreground">Welcome to SourceCo! ✨</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="w-6 h-6 rounded-full bg-amber-500 flex items-center justify-center">
+                        <Mail className="w-4 h-4 text-white" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-medium">Email Verification</p>
+                        <p className="text-xs text-muted-foreground">Check your inbox and click the verification link</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center">
+                        <Clock className="w-4 h-4 text-muted-foreground" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-muted-foreground">Admin Approval</p>
+                        <p className="text-xs text-muted-foreground">Final review by our team</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
                 <div className="bg-primary/5 border border-primary/20 rounded-md p-4">
                   <div className="flex gap-3 items-start">
                     <Info className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
                     <div>
-                      <p className="text-sm">
-                        We've sent a verification email to <strong>{user.email}</strong>. 
-                        Please check your inbox and click on the verification link to complete your registration.
-                      </p>
+                      <p className="text-sm font-medium">What happens next?</p>
+                      <ol className="text-xs text-muted-foreground mt-2 space-y-1 list-decimal list-inside">
+                        <li>Check your email inbox (and spam folder)</li>
+                        <li>Click the verification link in the email</li>
+                        <li>Your account will be reviewed by our team</li>
+                        <li>You'll receive approval notification via email</li>
+                      </ol>
                       <p className="text-xs text-muted-foreground mt-2">
-                        The email should arrive within a few minutes. If you don't see it, check your spam folder.
+                        <strong>Tip:</strong> The verification email usually arrives within 2-3 minutes.
                       </p>
                     </div>
                   </div>
@@ -234,7 +327,7 @@ const PendingApproval = () => {
             <div className="text-sm text-center text-muted-foreground">
               {uiState === 'approved_pending'
                 ? 'You will not be able to access the marketplace until your account has been approved. This process typically takes 1-2 business days.'
-                : 'Once verified, your account will be reviewed by our team for approval.'
+                : 'After verification, our team will review your application. This typically takes 1-2 business days.'
               }
             </div>
           </CardContent>

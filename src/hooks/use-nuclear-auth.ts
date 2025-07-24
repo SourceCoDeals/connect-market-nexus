@@ -9,6 +9,7 @@ export function useNuclearAuth() {
   const [user, setUser] = useState<AppUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [authChecked, setAuthChecked] = useState(false);
+  const [freshSignup, setFreshSignup] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -148,6 +149,8 @@ export function useNuclearAuth() {
         
         if (!signInError) {
           console.log('✅ User automatically logged in after signup');
+          // Mark as fresh signup to bypass loading screen on pending-approval
+          setFreshSignup(true);
         } else {
           console.warn('⚠️ Auto-login failed, but signup succeeded:', signInError);
         }
@@ -207,12 +210,14 @@ export function useNuclearAuth() {
     user,
     isLoading,
     authChecked,
+    freshSignup,
     isAdmin: user?.is_admin === true,
     isBuyer: user?.role === "buyer",
     login,
     logout,
     signup,
     updateUserProfile,
+    clearFreshSignup: () => setFreshSignup(false),
     refreshUserProfile: async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
