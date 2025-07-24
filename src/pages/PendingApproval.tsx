@@ -25,8 +25,24 @@ const PendingApproval = () => {
     const errorCode = urlParams.get('error_code');
     const errorDescription = urlParams.get('error_description');
     
-    if (error) {
-      // Handle verification errors (expired, invalid, etc.)
+    // PRIORITY 1: If user is already verified, always show success regardless of URL params
+    if (user?.email_verified && verificationStatus === 'idle') {
+      setVerificationStatus('success');
+      if (error && errorCode === 'otp_expired') {
+        // User clicked expired link but is already verified
+        toast({
+          title: "Email already verified!",
+          description: "Your account is now under review.",
+        });
+      } else {
+        toast({
+          title: "Email verified successfully!",
+          description: "Your account is now under review.",
+        });
+      }
+    } 
+    // PRIORITY 2: Only show errors if user is NOT verified AND there are error params
+    else if (error && user?.email_verified === false) {
       setVerificationStatus('error');
       console.log('🚨 Email verification error:', { error, errorCode, errorDescription });
       
@@ -43,13 +59,6 @@ const PendingApproval = () => {
           description: errorDescription || "Please try requesting a new verification email.",
         });
       }
-    } else if (user?.email_verified && verificationStatus === 'idle') {
-      // Handle successful verification
-      setVerificationStatus('success');
-      toast({
-        title: "Email verified successfully!",
-        description: "Your account is now under review.",
-      });
     }
   }, [location.search, user?.email_verified, verificationStatus]);
 
