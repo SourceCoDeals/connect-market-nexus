@@ -24,6 +24,15 @@ const PendingApproval = () => {
   }, [user?.approval_status, navigate]);
 
   const handleResendVerification = async () => {
+    // Safety check - only allow resend for unverified users
+    if (user?.email_verified) {
+      toast({
+        title: "Email already verified",
+        description: "Your email is already verified. No need to resend.",
+      });
+      return;
+    }
+
     if (!user?.email) {
       toast({
         variant: "destructive",
@@ -49,21 +58,29 @@ const PendingApproval = () => {
 
       if (resendError) {
         console.error("Supabase resend failed:", resendError);
-        throw new Error(resendError.message || "Failed to resend verification email");
+        
+        // Handle specific error cases
+        if (resendError.message?.includes('rate limit')) {
+          throw new Error("Please wait a moment before requesting another verification email.");
+        } else if (resendError.message?.includes('already verified')) {
+          throw new Error("Your email is already verified. Please refresh the page.");
+        } else {
+          throw new Error(resendError.message || "Failed to resend verification email");
+        }
       } else {
         console.log("✅ Supabase verification email resent successfully");
       }
 
       toast({
         title: "Email sent",
-        description: "We've sent another verification email to your inbox.",
+        description: "We've sent another verification email to your inbox. Please check your spam folder if you don't see it.",
       });
     } catch (error: any) {
       console.error("Failed to resend verification email:", error);
       toast({
         variant: "destructive",
         title: "Failed to resend email", 
-        description: "Please try again later or contact support.",
+        description: error.message || "Please try again later or contact support.",
       });
     } finally {
       setIsResending(false);
