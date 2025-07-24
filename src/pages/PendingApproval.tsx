@@ -16,24 +16,47 @@ const PendingApproval = () => {
   const [canResendEmail, setCanResendEmail] = useState(false);
   const [isResending, setIsResending] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const [verificationStatus, setVerificationStatus] = useState<'checking' | 'success' | 'idle'>('idle');
-  const [tokensProcessed, setTokensProcessed] = useState(false);
+  const [verificationStatus, setVerificationStatus] = useState<'checking' | 'success' | 'error' | 'idle'>('idle');
 
-  // Handle verification completion (tokens are processed in useNuclearAuth)
+  // Handle URL parameters from email verification
   useEffect(() => {
-    if (user?.email_verified && verificationStatus === 'idle') {
+    const urlParams = new URLSearchParams(location.search);
+    const error = urlParams.get('error');
+    const errorCode = urlParams.get('error_code');
+    const errorDescription = urlParams.get('error_description');
+    
+    if (error) {
+      // Handle verification errors (expired, invalid, etc.)
+      setVerificationStatus('error');
+      console.log('🚨 Email verification error:', { error, errorCode, errorDescription });
+      
+      if (errorCode === 'otp_expired') {
+        toast({
+          variant: "destructive",
+          title: "Verification link expired",
+          description: "Please request a new verification email.",
+        });
+      } else {
+        toast({
+          variant: "destructive", 
+          title: "Verification failed",
+          description: errorDescription || "Please try requesting a new verification email.",
+        });
+      }
+    } else if (user?.email_verified && verificationStatus === 'idle') {
+      // Handle successful verification
       setVerificationStatus('success');
       toast({
         title: "Email verified successfully!",
         description: "Your account is now under review.",
       });
     }
-  }, [user?.email_verified, verificationStatus, toast]);
+  }, [location.search, user?.email_verified, verificationStatus]);
 
   useEffect(() => {
-    // Allow resending email if user email is not verified
-    setCanResendEmail(user?.email_verified === false);
-  }, [user]);
+    // Allow resending email if user email is not verified OR if there was an error
+    setCanResendEmail(user?.email_verified === false || verificationStatus === 'error');
+  }, [user, verificationStatus]);
 
   // If user is approved, redirect to marketplace
   useEffect(() => {
@@ -142,7 +165,17 @@ const PendingApproval = () => {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {isEmailVerified ? (
+            {verificationStatus === 'error' ? (
+              <div className="bg-red-50 border border-red-200 rounded-md p-4 flex items-start gap-2">
+                <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium text-red-900 mb-1">Verification Link Issue</p>
+                  <p className="text-sm text-red-800">
+                    The verification link has expired or is invalid. Please request a new verification email below.
+                  </p>
+                </div>
+              </div>
+            ) : isEmailVerified ? (
               <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
                 <div className="flex items-start space-x-3">
                   <CheckCircle className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
@@ -155,11 +188,11 @@ const PendingApproval = () => {
                 </div>
               </div>
             ) : (
-              <div className="bg-red-50 border border-red-200 rounded-md p-4 flex items-start gap-2">
-                <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+              <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4 flex items-start gap-2">
+                <AlertCircle className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
                 <div>
-                  <p className="text-sm font-medium text-red-900 mb-1">Email Verification Required</p>
-                  <p className="text-sm text-red-800">
+                  <p className="text-sm font-medium text-yellow-900 mb-1">Email Verification Required</p>
+                  <p className="text-sm text-yellow-800">
                     You need to verify your email address before your account can be reviewed. 
                     Please check your inbox for the verification email.
                   </p>
