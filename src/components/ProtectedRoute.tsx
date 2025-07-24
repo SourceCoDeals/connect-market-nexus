@@ -14,11 +14,8 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   requireAdmin = false,
   requireApproved = true
 }) => {
-  const { user, isLoading, authChecked, processingVerification } = useAuth();
+  const { user, isLoading, authChecked } = useAuth();
   const location = useLocation();
-
-  // Check if we're coming from an email link (on pending approval page)
-  const isFromEmailLink = location.pathname === '/pending-approval';
 
   // Simple loading check
   if (isLoading || !authChecked) {
@@ -30,28 +27,11 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     );
   }
 
-  // Show verification processing screen to prevent flash
-  if (processingVerification) {
-    return (
-      <div className="flex flex-col items-center justify-center gap-4 min-h-screen">
-        <Loader2 className="h-16 w-16 text-primary animate-spin" />
-        <p className="text-muted-foreground">Verifying your email...</p>
-        <p className="text-sm text-muted-foreground/80">Please wait while we confirm your email verification</p>
-      </div>
-    );
-  }
-
   // No user - redirect to login
   if (!user) {
     return <Navigate to="/login" state={{ from: location.pathname }} replace />;
   }
 
-  // Only check email verification if NOT coming from email link
-  // Email links should go to pending approval even if verification failed
-  if (user.email_verified !== true && !isFromEmailLink) {
-    return <Navigate to="/verify-email" state={{ email: user.email }} replace />;
-  }
-  
   // Check admin requirement
   if (requireAdmin && user.is_admin !== true) {
     return <Navigate to="/unauthorized" replace />;

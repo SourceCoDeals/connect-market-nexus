@@ -10,62 +10,58 @@ import { toast } from "@/hooks/use-toast";
 import { cleanupAuthState } from "@/lib/auth-helpers";
 
 const PendingApproval = () => {
-  const { user, refreshUserProfile, setProcessingVerification } = useAuth();
+  const { user, refreshUserProfile } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [canResendEmail, setCanResendEmail] = useState(false);
   const [isResending, setIsResending] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const [verificationStatus, setVerificationStatus] = useState<'checking' | 'success' | 'error' | 'idle'>('idle');
+  const [verificationStatus, setVerificationStatus] = useState<'checking' | 'success' | 'error' | 'idle' | 'pending'>('idle');
 
-  // Handle URL parameters from email verification
+  // Simplified: Show status based purely on user's current state
   useEffect(() => {
+    if (!user) return;
+    
     const urlParams = new URLSearchParams(location.search);
     const error = urlParams.get('error');
     const errorCode = urlParams.get('error_code');
-    const errorDescription = urlParams.get('error_description');
     
-    // PRIORITY 1: If user is already verified, always show success regardless of URL params
-    if (user?.email_verified && verificationStatus === 'idle') {
+    if (user.email_verified && verificationStatus === 'idle') {
+      // User is verified - show success regardless of URL params
       setVerificationStatus('success');
+      
       if (error && errorCode === 'otp_expired') {
-        // User clicked expired link but is already verified
         toast({
           title: "Email already verified!",
           description: "Your account is now under review.",
         });
-      } else {
+      } else if (verificationStatus === 'idle') {
         toast({
           title: "Email verified successfully!",
           description: "Your account is now under review.",
         });
       }
-    } 
-    // PRIORITY 2: Only show errors if user is NOT verified AND there are error params
-    else if (error && user?.email_verified === false) {
-      setVerificationStatus('error');
-      console.log('🚨 Email verification error:', { error, errorCode, errorDescription });
-      
-      if (errorCode === 'otp_expired') {
-        toast({
-          variant: "destructive",
-          title: "Verification link expired",
-          description: "Please request a new verification email.",
-        });
+    } else if (!user.email_verified && verificationStatus === 'idle') {
+      // User is not verified - set appropriate status
+      if (error) {
+        setVerificationStatus('error');
+        if (errorCode === 'otp_expired') {
+          toast({
+            title: "Verification link expired",
+            description: "Please request a new verification email.",
+            variant: "destructive",
+          });
+        }
       } else {
-        toast({
-          variant: "destructive", 
-          title: "Verification failed",
-          description: errorDescription || "Please try requesting a new verification email.",
-        });
+        setVerificationStatus('pending');
       }
     }
-  }, [location.search, user?.email_verified, verificationStatus]);
+  }, [user?.email_verified, verificationStatus, location.search]);
 
   useEffect(() => {
-    // Allow resending email if user email is not verified OR if there was an error
-    setCanResendEmail(user?.email_verified === false || verificationStatus === 'error');
-  }, [user, verificationStatus]);
+    // Show resend button if user is not verified
+    setCanResendEmail(user?.email_verified === false);
+  }, [user?.email_verified]);
 
   // If user is approved, redirect to marketplace
   useEffect(() => {
