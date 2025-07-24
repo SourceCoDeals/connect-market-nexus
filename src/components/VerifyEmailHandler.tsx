@@ -28,20 +28,115 @@ export default function VerifyEmailHandler() {
       try {
         setIsVerifying(true);
         
-        // Parse URL params
-        const params = new URLSearchParams(location.search);
-        const type = params.get('type');
-        const token = params.get('token_hash') || params.get('token');
+        // Check for Supabase native hash fragments first
+        const hashParams = new URLSearchParams(location.hash.substring(1)); // Remove # and parse
+        const queryParams = new URLSearchParams(location.search);
         
-        console.log('🔍 Verification attempt:', { type, tokenLength: token?.length });
+        // Prioritize hash fragments (Supabase native flow)
+        const accessToken = hashParams.get('access_token');
+        const tokenType = hashParams.get('token_type');
+        const type = hashParams.get('type') || queryParams.get('type');
+        const refreshToken = hashParams.get('refresh_token');
         
-        if (!type || !token) {
+        // Fallback to query params for custom tokens
+        const customToken = queryParams.get('token_hash') || queryParams.get('token');
+        
+        console.log('🔍 Verification attempt:', { 
+          hasAccessToken: !!accessToken, 
+          type, 
+          tokenType,
+          hasRefreshToken: !!refreshToken,
+          customTokenLength: customToken?.length 
+        });
+        
+        // Handle Supabase native flow (hash fragments)
+        if (accessToken && tokenType === 'bearer' && type === 'signup') {
+          console.log('🔄 Processing Supabase native verification');
+          
+          // Set the session from the tokens
+          const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken || '',
+          });
+          
+          if (sessionError) {
+            console.error('Session error:', sessionError);
+            throw sessionError;
+          }
+          
+          if (!sessionData.user) {
+            throw new Error('No user data in session');
+          }
+          
+          console.log('✅ Supabase native verification successful');
+          setVerificationSuccess(true);
+          setEmail(sessionData.user.email);
+          
+          // Get the profile data
+          const { data: profileData, error: profileError } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', sessionData.user.id)
+            .single();
+            
+          if (profileError) throw profileError;
+          
+          console.log('👤 Profile data retrieved:', { 
+            approvalStatus: profileData.approval_status, 
+            isAdmin: profileData.is_admin,
+            emailVerified: profileData.email_verified 
+          });
+          
+          // Set approval status and admin status from profile
+          setApprovalStatus(profileData.approval_status as ApprovalStatus);
+          setIsAdmin(profileData.is_admin === true);
+          
+          // Update profile email_verified field if needed
+          if (!profileData.email_verified) {
+            console.log('📧 Updating email_verified status in profile');
+            const { error: updateError } = await supabase
+              .from('profiles')
+              .update({ email_verified: true })
+              .eq('id', sessionData.user.id);
+              
+            if (updateError) {
+              console.error('Error updating email_verified status:', updateError);
+            } else {
+              console.log('✅ Profile email_verified status updated');
+            }
+          }
+          
+          // Send email verification confirmation
+          try {
+            const userObject = createUserObject(profileData);
+            await sendEmailVerificationConfirmation(userObject);
+            console.log('📧 Email verification confirmation sent');
+          } catch (emailError) {
+            console.error('Failed to send email verification confirmation:', emailError);
+          }
+          
+          // Immediately redirect to appropriate destination
+          if (profileData.is_admin === true) {
+            console.log('🔄 Redirecting admin to /admin');
+            navigate('/admin', { replace: true });
+          } else if (profileData.approval_status === 'approved') {
+            console.log('🔄 Redirecting approved user to /marketplace');
+            navigate('/marketplace', { replace: true });
+          } else {
+            console.log('🔄 Redirecting pending user to /pending-approval');
+            navigate('/pending-approval', { replace: true });
+          }
+          return;
+        }
+        
+        // Handle custom tokens (fallback for legacy flow)
+        if (!type || !customToken) {
           throw new Error('Invalid verification link');
         }
         
         if (type === 'signup' || type === 'recovery' || type === 'invite') {
           // If it's a custom token (user ID), try manual verification first
-          if (token.length === 36 && token.includes('-')) { // UUID format
+          if (customToken.length === 36 && customToken.includes('-')) { // UUID format
             console.log('🔄 Attempting manual verification with UUID token');
             
             try {
@@ -49,7 +144,7 @@ export default function VerifyEmailHandler() {
               const { error: updateError } = await supabase
                 .from('profiles')
                 .update({ email_verified: true })
-                .eq('id', token);
+                .eq('id', customToken);
               
               if (updateError) {
                 console.error('Error updating email_verified status:', updateError);
@@ -60,7 +155,7 @@ export default function VerifyEmailHandler() {
               const { data: profileData, error: profileError } = await supabase
                 .from('profiles')
                 .select('*')
-                .eq('id', token)
+                .eq('id', customToken)
                 .single();
               
               if (profileError) {
@@ -102,7 +197,7 @@ export default function VerifyEmailHandler() {
           
           // Try Supabase's default verification
           const { data, error } = await supabase.auth.verifyOtp({
-            token_hash: token,
+            token_hash: customToken,
             type: type === 'invite' ? 'invite' : type === 'recovery' ? 'recovery' : 'signup',
           });
           
@@ -202,7 +297,7 @@ export default function VerifyEmailHandler() {
     };
     
     handleEmailVerification();
-  }, [location.search, navigate, sendEmailVerificationConfirmation]);
+  }, [location.search, location.hash, navigate, sendEmailVerificationConfirmation]);
   
   const handleContinue = () => {
     if (verificationSuccess) {
