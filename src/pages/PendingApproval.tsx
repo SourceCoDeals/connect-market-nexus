@@ -1,103 +1,69 @@
-
-import { Link, useNavigate, useLocation } from "react-router-dom";
-import { useAuth } from "@/context/AuthContext";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { ClipboardCheck, AlertCircle, Clock, CheckCircle, Users, LogOut, Loader2 } from "lucide-react";
-import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "@/hooks/use-toast";
-import { cleanupAuthState } from "@/lib/auth-helpers";
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Mail, CheckCircle, Clock, LogOut, Loader2, AlertCircle, Info } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/hooks/use-toast';
+import { cleanupAuthState } from '@/lib/auth-helpers';
 
 const PendingApproval = () => {
-  const { user, refreshUserProfile } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const [canResendEmail, setCanResendEmail] = useState(false);
+  const { user, logout } = useAuth();
   const [isResending, setIsResending] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const [verificationStatus, setVerificationStatus] = useState<'checking' | 'success' | 'error' | 'idle' | 'pending'>('idle');
 
-  // Simplified: Show status based purely on user's current state
-  useEffect(() => {
-    if (!user) return;
-    
-    const urlParams = new URLSearchParams(location.search);
-    const error = urlParams.get('error');
-    const errorCode = urlParams.get('error_code');
-    
-    if (user.email_verified && verificationStatus === 'idle') {
-      // User is verified - show success regardless of URL params
-      setVerificationStatus('success');
-      
-      if (error && errorCode === 'otp_expired') {
-        toast({
-          title: "Email already verified!",
-          description: "Your account is now under review.",
-        });
-      } else if (verificationStatus === 'idle') {
-        toast({
-          title: "Email verified successfully!",
-          description: "Your account is now under review.",
-        });
-      }
-    } else if (!user.email_verified && verificationStatus === 'idle') {
-      // User is not verified - set appropriate status
-      if (error) {
-        setVerificationStatus('error');
-        if (errorCode === 'otp_expired') {
-          toast({
-            title: "Verification link expired",
-            description: "Please request a new verification email.",
-            variant: "destructive",
-          });
-        }
-      } else {
-        setVerificationStatus('pending');
-      }
-    }
-  }, [user?.email_verified, verificationStatus, location.search]);
-
-  useEffect(() => {
-    // Show resend button if user is not verified
-    setCanResendEmail(user?.email_verified === false);
-  }, [user?.email_verified]);
-
-  // If user is approved, redirect to marketplace
+  // Handle navigation for approved users
   useEffect(() => {
     if (user?.approval_status === 'approved') {
-      navigate('/marketplace', { replace: true });
+      console.log("User is approved, redirecting to marketplace");
+      navigate('/', { replace: true });
     }
-  }, [user, navigate]);
+  }, [user?.approval_status, navigate]);
 
   const handleResendVerification = async () => {
     if (!user?.email) {
       toast({
         variant: "destructive",
-        title: "Error",
-        description: "Email address not found.",
+        title: "Email not found",
+        description: "Please try signing up again.",
       });
       return;
     }
 
     setIsResending(true);
+    
     try {
-      const { error } = await supabase.auth.resend({
+      console.log("Attempting to resend verification email for:", user.email);
+      
+      // Use Supabase's built-in resend functionality
+      const { error: resendError } = await supabase.auth.resend({
         type: 'signup',
-        email: user.email
+        email: user.email,
+        options: {
+          emailRedirectTo: `https://marketplace.sourcecodeals.com/pending-approval`
+        }
       });
 
-      if (error) throw error;
+      if (resendError) {
+        console.error("Supabase resend failed:", resendError);
+        throw new Error(resendError.message || "Failed to resend verification email");
+      } else {
+        console.log("✅ Supabase verification email resent successfully");
+      }
 
       toast({
-        title: "Verification email sent!",
-        description: "Please check your inbox for the verification email.",
+        title: "Email sent",
+        description: "We've sent another verification email to your inbox.",
       });
     } catch (error: any) {
+      console.error("Failed to resend verification email:", error);
       toast({
         variant: "destructive",
-        title: "Failed to resend verification email",
-        description: error.message || "Please try again later.",
+        title: "Failed to resend email", 
+        description: "Please try again later or contact support.",
       });
     } finally {
       setIsResending(false);
@@ -115,7 +81,7 @@ const PendingApproval = () => {
       // Sign out from Supabase
       await supabase.auth.signOut({ scope: 'global' });
       
-      // Navigate directly to login without page reload to prevent flashing
+      // Navigate directly to login to prevent flashing
       navigate('/login', { replace: true });
     } catch (error) {
       console.error("Error during logout:", error);
@@ -126,9 +92,24 @@ const PendingApproval = () => {
     }
   };
 
-  // Show proper state based on user's email verification status
-  const isEmailVerified = user?.email_verified === true;
-  const isApproved = user?.approval_status === 'approved';
+  // Determine UI state based on user data and URL params
+  const getUIState = () => {
+    const urlParams = new URLSearchParams(location.search);
+    const error = urlParams.get('error');
+    const errorCode = urlParams.get('error_code');
+    
+    if (user?.email_verified) {
+      return 'approved_pending'; // Email verified, waiting for admin approval
+    } else if (error === 'access_denied' && errorCode === 'otp_expired') {
+      return 'link_expired'; // User clicked expired link
+    } else if (error) {
+      return 'verification_failed'; // Other verification errors
+    } else {
+      return 'email_not_verified'; // Default state - email not verified yet
+    }
+  };
+
+  const uiState = getUIState();
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-muted/30">
@@ -151,146 +132,167 @@ const PendingApproval = () => {
         <Card>
           <CardHeader className="space-y-1">
             <div className="flex justify-center mb-4">
-              <div className={`p-3 rounded-full ${isEmailVerified ? 'bg-blue-100' : 'bg-yellow-100'}`}>
-                {isEmailVerified ? (
-                  <ClipboardCheck className="h-8 w-8 text-blue-600" />
+              <div className={`p-3 rounded-full ${uiState === 'approved_pending' ? 'bg-green-100' : 'bg-primary/10'}`}>
+                {uiState === 'approved_pending' ? (
+                  <CheckCircle className="h-8 w-8 text-green-600" />
                 ) : (
-                  <Clock className="h-8 w-8 text-yellow-600" />
+                  <Mail className="h-8 w-8 text-primary" />
                 )}
               </div>
             </div>
             <CardTitle className="text-2xl font-bold text-center">
-              {isEmailVerified ? 'Account Under Review' : 'Email Verification Required'}
+              {uiState === 'approved_pending' ? 'Account Under Review' : 'Email Verification Required'}
             </CardTitle>
             <CardDescription className="text-center">
-              {isEmailVerified ? 
-                'Your verified account is being reviewed by our team' :
-                'Please verify your email to proceed with account review'
+              {uiState === 'approved_pending' 
+                ? 'Your account is pending admin approval'
+                : 'Please verify your email address to continue'
               }
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {verificationStatus === 'error' ? (
-              <div className="bg-red-50 border border-red-200 rounded-md p-4 flex items-start gap-2">
-                <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-sm font-medium text-red-900 mb-1">Verification Link Issue</p>
-                  <p className="text-sm text-red-800">
-                    The verification link has expired or is invalid. Please request a new verification email below.
-                  </p>
-                </div>
-              </div>
-            ) : isEmailVerified ? (
-              <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
-                <div className="flex items-start space-x-3">
-                  <CheckCircle className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
-                  <div>
-                    <p className="text-sm font-medium text-blue-900 mb-1">Email Verified Successfully!</p>
-                    <p className="text-sm text-blue-800">
-                      Your account is now under review by our admin team. You'll receive an email notification once approved.
+            {uiState === 'approved_pending' ? (
+              // Email is verified - show approval status
+              <>
+                <div className="bg-amber-50 border border-amber-200 rounded-md p-4">
+                  <div className="flex gap-3 items-center">
+                    <Clock className="h-5 w-5 text-amber-600 flex-shrink-0" />
+                    <p className="text-amber-800 text-sm">
+                      Your email has been verified successfully. Your account is now waiting for approval from our team. We will notify you by email once your account is approved.
                     </p>
                   </div>
                 </div>
-              </div>
+                
+                {/* Application Progress Timeline */}
+                <div className="space-y-4">
+                  <h4 className="text-sm font-medium text-center">Application Progress</h4>
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-6 h-6 rounded-full bg-green-500 flex items-center justify-center">
+                        <CheckCircle className="w-4 h-4 text-white" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-medium">Account Created</p>
+                        <p className="text-xs text-muted-foreground">Your account has been successfully created</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="w-6 h-6 rounded-full bg-green-500 flex items-center justify-center">
+                        <CheckCircle className="w-4 h-4 text-white" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-medium">Email Verified</p>
+                        <p className="text-xs text-muted-foreground">Your email address has been confirmed</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="w-6 h-6 rounded-full bg-amber-500 flex items-center justify-center">
+                        <Clock className="w-4 h-4 text-white" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-medium">Admin Review</p>
+                        <p className="text-xs text-muted-foreground">Pending approval from our team</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </>
             ) : (
-              <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4 flex items-start gap-2">
-                <AlertCircle className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-sm font-medium text-yellow-900 mb-1">Email Verification Required</p>
-                  <p className="text-sm text-yellow-800">
-                    You need to verify your email address before your account can be reviewed. 
-                    Please check your inbox for the verification email.
-                  </p>
+              // Email not verified - show verification instructions
+              <>
+                <div className="bg-primary/5 border border-primary/20 rounded-md p-4">
+                  <div className="flex gap-3 items-start">
+                    <Info className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm">
+                        We've sent a verification email to <strong>{user?.email}</strong>. 
+                        Please check your inbox and click on the verification link to complete your registration.
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-2">
+                        The email should arrive within a few minutes. If you don't see it, check your spam folder.
+                      </p>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            )}
 
-            {/* Status Timeline */}
-            <div className="bg-muted/50 border rounded-md p-4">
-              <div className="flex items-center space-x-2 mb-3">
-                <Users className="h-4 w-4 text-muted-foreground" />
-                <p className="text-sm font-medium">Application Status</p>
-              </div>
-              <div className="space-y-3">
-                <div className="flex items-center space-x-3">
-                  <div className="w-3 h-3 bg-green-500 rounded-full flex-shrink-0"></div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">Account Created</p>
-                    <p className="text-xs text-muted-foreground">Registration completed successfully</p>
+                {/* Show appropriate error/status message */}
+                {uiState === 'link_expired' && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-md p-4">
+                    <div className="flex gap-3 items-start">
+                      <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-sm text-amber-800 font-medium">Verification link expired</p>
+                        <p className="text-xs text-amber-700 mt-1">
+                          The verification link you clicked has expired. Please request a new verification email below.
+                        </p>
+                      </div>
+                    </div>
                   </div>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <div className={`w-3 h-3 rounded-full flex-shrink-0 ${isEmailVerified ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">Email Verification</p>
-                    <p className="text-xs text-muted-foreground">
-                      {isEmailVerified ? 'Email verified successfully' : 'Waiting for email verification'}
-                    </p>
+                )}
+                
+                {uiState === 'verification_failed' && (
+                  <div className="bg-red-50 border border-red-200 rounded-md p-4">
+                    <div className="flex gap-3 items-start">
+                      <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-sm text-red-800 font-medium">Verification failed</p>
+                        <p className="text-xs text-red-700 mt-1">
+                          There was an issue verifying your email. Please try requesting a new verification email.
+                        </p>
+                      </div>
+                    </div>
                   </div>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <div className={`w-3 h-3 rounded-full flex-shrink-0 ${isEmailVerified ? 'bg-yellow-500' : 'bg-gray-300'}`}></div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">Admin Review</p>
-                    <p className="text-xs text-muted-foreground">
-                      {isEmailVerified ? 'Under admin review (1-2 business days)' : 'Pending email verification'}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <div className="w-3 h-3 bg-gray-300 rounded-full flex-shrink-0"></div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">Access Granted</p>
-                    <p className="text-xs text-muted-foreground">Full marketplace access</p>
-                  </div>
-                </div>
-              </div>
+                )}
+              </>
+            )}
+            
+            <div className="text-sm text-center text-muted-foreground">
+              {uiState === 'approved_pending'
+                ? 'You will not be able to access the marketplace until your account has been approved. This process typically takes 1-2 business days.'
+                : 'Once verified, your account will be reviewed by our team for approval.'
+              }
             </div>
-
-            {isEmailVerified && (
-              <div className="bg-green-50 border border-green-200 rounded-md p-4">
-                <p className="text-sm text-green-800 text-center">
-                  <strong>What's next?</strong> Our team is reviewing your application. 
-                  You'll receive an email notification once your account is approved, typically within 1-3 hours.
-                </p>
-              </div>
-            )}
           </CardContent>
           <CardFooter className="flex flex-col space-y-4">
-            <div className="flex flex-col sm:flex-row gap-3 w-full">
-              {canResendEmail && (
-                <Button
-                  onClick={handleResendVerification}
-                  disabled={isResending}
-                  className="flex-1"
-                >
-                  {isResending ? "Sending..." : "Resend Verification Email"}
-                </Button>
-              )}
+            {uiState !== 'approved_pending' && (
               <Button
-                variant="outline"
-                className={`${canResendEmail ? 'flex-1' : 'w-full'} flex items-center gap-2`}
-                onClick={handleLogout}
-                disabled={isLoggingOut}
+                onClick={handleResendVerification}
+                disabled={isResending}
+                className="w-full"
               >
-                {isLoggingOut ? (
+                {isResending ? (
                   <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Signing out...
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Sending...
                   </>
                 ) : (
-                  <>
-                    <LogOut className="h-4 w-4" />
-                    Sign out
-                  </>
+                  'Resend Verification Email'
                 )}
               </Button>
-            </div>
-            <div className="text-sm text-center text-muted-foreground">
-              <span>Need help? Contact </span>
+            )}
+            <Button
+              variant="outline"
+              className="w-full flex items-center gap-2"
+              onClick={handleLogout}
+              disabled={isLoggingOut}
+            >
+              {isLoggingOut ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Signing out...
+                </>
+              ) : (
+                <>
+                  <LogOut className="h-4 w-4" />
+                  Sign out
+                </>
+              )}
+            </Button>
+            <div className="text-xs text-center text-muted-foreground">
+              Need help? Contact{" "}
               <Link
                 to="mailto:support@sourcecodeals.com"
-                className="text-primary font-medium hover:underline"
+                className="text-primary hover:underline"
               >
                 support@sourcecodeals.com
               </Link>

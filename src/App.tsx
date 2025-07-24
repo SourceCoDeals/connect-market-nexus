@@ -15,11 +15,7 @@ import MainLayout from "@/components/MainLayout";
 import AdminLayout from "@/components/admin/AdminLayout";
 import Login from "@/pages/Login";
 import Signup from "@/pages/Signup";
-import VerifyEmail from "@/pages/VerifyEmail";
-
-import EmailVerificationRequired from "@/pages/EmailVerificationRequired";
 import PendingApproval from "@/pages/PendingApproval";
-import VerificationSuccess from "@/pages/VerificationSuccess";
 import Unauthorized from "@/pages/Unauthorized";
 import Profile from "@/pages/Profile";
 import Marketplace from "@/pages/Marketplace";
@@ -70,11 +66,7 @@ function App() {
             {/* Authentication routes - no protection needed */}
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
-            <Route path="/verify-email" element={<VerifyEmail />} />
-            <Route path="/email-verification-required" element={<EmailVerificationRequired />} />
-            
             <Route path="/pending-approval" element={<PendingApproval />} />
-            <Route path="/verification-success" element={<VerificationSuccess />} />
             <Route path="/unauthorized" element={<Unauthorized />} />
             
             {/* Main app routes with MainLayout - require approval */}
