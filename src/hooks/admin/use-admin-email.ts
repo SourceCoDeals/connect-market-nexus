@@ -163,10 +163,15 @@ export function useAdminEmail() {
     }
     
     try {
+      // Include the original message for context
+      const originalMessage = request.user_message 
+        ? `\n\nYour original message:\n"${request.user_message}"\n`
+        : '';
+      
       const notificationPayload = {
         email: request.user.email,
         subject: "Connection Request Approved!",
-        message: `Great news! Your connection request for "${request.listing.title}" has been approved.\n\nYou can now proceed with your due diligence process. The seller's contact information and additional details will be shared with you shortly.\n\nIf you have any questions about next steps, please contact our support team.`,
+        message: `Great news! Your connection request for "${request.listing.title}" has been approved.${originalMessage}\nYou can now proceed with your due diligence process. The seller's contact information and additional details will be shared with you shortly.\n\nIf you have any questions about next steps, please contact our support team.`,
         type: 'success',
         actionUrl: `https://marketplace.sourcecodeals.com/listing/${request.listing_id}`,
         actionText: 'View Listing'
@@ -206,10 +211,15 @@ export function useAdminEmail() {
     }
     
     try {
+      // Include the original message for context
+      const originalMessage = request.user_message 
+        ? `\nYour original message:\n"${request.user_message}"\n\n`
+        : '\n';
+      
       const notificationPayload = {
         email: request.user.email,
         subject: "Connection Request Update",
-        message: `Thank you for your interest in "${request.listing.title}". After careful consideration, we are unable to approve your connection request at this time.\n\n${request.admin_comment ? `Admin note: ${request.admin_comment}\n\n` : ''}We encourage you to continue exploring other opportunities on our marketplace that might be a better fit for your investment criteria.`,
+        message: `Thank you for your interest in "${request.listing.title}". After careful consideration, we are unable to approve your connection request at this time.${originalMessage}${request.admin_comment ? `Admin note: ${request.admin_comment}\n\n` : ''}We encourage you to continue exploring other opportunities on our marketplace that might be a better fit for your investment criteria.`,
         type: 'warning',
         actionUrl: 'https://marketplace.sourcecodeals.com/marketplace',
         actionText: 'Browse Other Listings'
@@ -276,6 +286,7 @@ export function useAdminEmail() {
           company: request.user.company,
         },
         timestamp: timestamp,
+        message: request.user_message, // Include the user's message
       };
       
       const { data, error } = await supabase.functions.invoke(
