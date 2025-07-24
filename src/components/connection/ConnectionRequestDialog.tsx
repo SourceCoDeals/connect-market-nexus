@@ -42,7 +42,10 @@ const ConnectionRequestDialog = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-md w-[95vw] max-h-[90vh] overflow-y-auto">
+      <DialogContent 
+        className="sm:max-w-md w-[95vw] max-h-[90vh] overflow-y-auto z-[100]"
+        onClick={(e) => e.stopPropagation()}
+      >
         <DialogHeader>
           <DialogTitle className="text-lg font-semibold">Request Connection</DialogTitle>
           <DialogDescription className="text-sm text-muted-foreground">
