@@ -40,7 +40,67 @@ export default function VerifyEmailHandler() {
         }
         
         if (type === 'signup' || type === 'recovery' || type === 'invite') {
-          // Try Supabase's default verification first
+          // If it's a custom token (user ID), try manual verification first
+          if (token.length === 36 && token.includes('-')) { // UUID format
+            console.log('🔄 Attempting manual verification with UUID token');
+            
+            try {
+              // Update the user's email_verified status directly
+              const { error: updateError } = await supabase
+                .from('profiles')
+                .update({ email_verified: true })
+                .eq('id', token);
+              
+              if (updateError) {
+                console.error('Error updating email_verified status:', updateError);
+                throw updateError;
+              }
+              
+              // Get user data
+              const { data: profileData, error: profileError } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', token)
+                .single();
+              
+              if (profileError) {
+                console.error('Error fetching profile:', profileError);
+                throw profileError;
+              }
+              
+              console.log('✅ Manual verification successful');
+              setVerificationSuccess(true);
+              setEmail(profileData.email);
+              setApprovalStatus(profileData.approval_status as ApprovalStatus);
+              setIsAdmin(profileData.is_admin === true);
+              
+              // Send email verification confirmation using createUserObject
+              try {
+                const userObject = createUserObject(profileData);
+                await sendEmailVerificationConfirmation(userObject);
+              } catch (emailError) {
+                console.error('Failed to send email verification confirmation:', emailError);
+                // Continue even if email fails
+              }
+              
+              // Immediately redirect without showing intermediate success screen
+              if (profileData.is_admin === true) {
+                navigate('/admin', { replace: true });
+              } else if (profileData.approval_status === 'approved') {
+                navigate('/marketplace', { replace: true });
+              } else {
+                navigate('/pending-approval', { replace: true });
+              }
+              
+              return;
+            } catch (manualError) {
+              console.error('Manual verification failed:', manualError);
+              setTokenInvalidOrExpired(true);
+              throw manualError;
+            }
+          }
+          
+          // Try Supabase's default verification
           const { data, error } = await supabase.auth.verifyOtp({
             token_hash: token,
             type: type === 'invite' ? 'invite' : type === 'recovery' ? 'recovery' : 'signup',
@@ -48,81 +108,20 @@ export default function VerifyEmailHandler() {
           
           console.log('🔑 Supabase verification result:', { data: !!data, error: error?.message });
           
-            if (error) {
+          if (error) {
             console.error('Verification error:', error);
+            setTokenInvalidOrExpired(true);
             
-            // If it's a custom token (user ID), try manual verification
-            if (token.length === 36 && token.includes('-')) { // UUID format
-              console.log('🔄 Attempting manual verification with UUID token');
-              
-              try {
-                // Update the user's email_verified status directly
-                const { error: updateError } = await supabase
-                  .from('profiles')
-                  .update({ email_verified: true })
-                  .eq('id', token);
-                
-                if (updateError) {
-                  console.error('Error updating email_verified status:', updateError);
-                  throw updateError;
-                }
-                
-                // Get user data
-                const { data: profileData, error: profileError } = await supabase
-                  .from('profiles')
-                  .select('*')
-                  .eq('id', token)
-                  .single();
-                
-                if (profileError) {
-                  console.error('Error fetching profile:', profileError);
-                  throw profileError;
-                }
-                
-                console.log('✅ Manual verification successful');
-                setVerificationSuccess(true);
-                setEmail(profileData.email);
-                setApprovalStatus(profileData.approval_status as ApprovalStatus);
-                setIsAdmin(profileData.is_admin === true);
-                
-                // Send email verification confirmation using createUserObject
-                try {
-                  const userObject = createUserObject(profileData);
-                  await sendEmailVerificationConfirmation(userObject);
-                } catch (emailError) {
-                  console.error('Failed to send email verification confirmation:', emailError);
-                  // Continue even if email fails
-                }
-                
-                // Immediately redirect without showing intermediate success screen
-                if (profileData.is_admin === true) {
-                  navigate('/admin', { replace: true });
-                } else if (profileData.approval_status === 'approved') {
-                  navigate('/marketplace', { replace: true });
-                } else {
-                  navigate('/pending-approval', { replace: true });
-                }
-                
-                return;
-              } catch (manualError) {
-                console.error('Manual verification failed:', manualError);
-                setTokenInvalidOrExpired(true);
-                throw manualError;
+            // Try to extract email from session if available
+            try {
+              const { data } = await supabase.auth.getSession();
+              if (data?.session?.user?.email) {
+                setEmail(data.session.user.email);
               }
-            } else {
-              setTokenInvalidOrExpired(true);
-              
-              // Try to extract email from session if available
-              try {
-                const { data } = await supabase.auth.getSession();
-                if (data?.session?.user?.email) {
-                  setEmail(data.session.user.email);
-                }
-              } catch (e) {
-                console.error('Error getting email from session:', e);
-              }
-              throw error;
+            } catch (e) {
+              console.error('Error getting email from session:', e);
             }
+            throw error;
           }
           
           setVerificationSuccess(true);

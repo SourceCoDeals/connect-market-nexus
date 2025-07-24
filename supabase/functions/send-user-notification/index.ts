@@ -73,7 +73,7 @@ const handler = async (req: Request): Promise<Response> => {
         
         <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e2e8f0; color: #64748b; font-size: 14px;">
           <p>This notification was sent from SourceCo Marketplace.</p>
-          <p>If you have any questions, contact us at <a href="mailto:support@sourcecodeals.com" style="color: #059669;">support@sourcecodeals.com</a></p>
+          <p>If you have any questions, contact us at <a href="mailto:adam.haile@sourcecodeals.com" style="color: #059669;">adam.haile@sourcecodeals.com</a></p>
         </div>
       </div>
     `;
@@ -102,8 +102,8 @@ const handler = async (req: Request): Promise<Response> => {
         subject: subject,
         htmlContent: htmlContent,
         replyTo: {
-          email: "support@sourcecodeals.com",
-          name: "SourceCo Support"
+          email: "adam.haile@sourcecodeals.com",
+          name: "Adam Haile - SourceCo"
         },
         // Disable click tracking to prevent broken links
         params: {

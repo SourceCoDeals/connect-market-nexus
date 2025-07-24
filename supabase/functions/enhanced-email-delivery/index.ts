@@ -277,60 +277,103 @@ function generateEmailContent(type: string, recipientName: string, data?: Record
       
     case 'approval':
       return {
-        subject: '✅ Welcome to the SourceCo Marketplace!',
+        subject: '🎉 Your SourceCo Marketplace Account Has Been Approved!',
         html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-            <h2>Great news, ${firstName}!</h2>
-            <p>Your SourceCo Marketplace account has been approved. You now have access to our curated marketplace of founder-led businesses.</p>
+          <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif; max-width: 600px; margin: 0 auto; padding: 0; background-color: #f8fafc;">
+            <!-- Header -->
+            <div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); color: white; padding: 40px 30px; text-align: center; border-radius: 0;">
+              <div style="font-size: 48px; margin-bottom: 15px;">🎉</div>
+              <h1 style="margin: 0; font-size: 32px; font-weight: 700; letter-spacing: -0.5px;">Welcome to SourceCo</h1>
+              <p style="margin: 12px 0 0 0; opacity: 0.9; font-size: 18px; font-weight: 300;">Your account has been approved</p>
+            </div>
             
-            <div style="background-color: #f0fdf4; border-left: 4px solid #10b981; padding: 20px; margin: 25px 0; border-radius: 0 8px 8px 0;">
-              <h3 style="color: #059669; margin: 0 0 15px 0;">🚀 Getting Started</h3>
-              
-              <div style="margin: 15px 0;">
-                <h4 style="color: #374151; margin: 0 0 8px 0; display: flex; align-items: center;">
-                  <span style="background: #10b981; color: white; border-radius: 50%; width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; margin-right: 10px; font-size: 12px;">1</span>
-                  Explore Data Room
-                </h4>
-                <p style="color: #6b7280; margin: 0 0 15px 34px;">Browse detailed business listings with verified financials and comprehensive documentation.</p>
+            <!-- Main Content -->
+            <div style="background: white; padding: 40px 30px;">
+              <div style="text-align: center; margin-bottom: 35px;">
+                <h2 style="color: #1e293b; margin: 0 0 12px 0; font-size: 24px; font-weight: 600;">Congratulations, ${firstName}!</h2>
+                <p style="color: #64748b; margin: 0; font-size: 16px; line-height: 1.6;">
+                  You now have exclusive access to our curated marketplace of founder-led businesses. Start exploring premium opportunities today.
+                </p>
               </div>
               
-              <div style="margin: 15px 0;">
-                <h4 style="color: #374151; margin: 0 0 8px 0; display: flex; align-items: center;">
-                  <span style="background: #10b981; color: white; border-radius: 50%; width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; margin-right: 10px; font-size: 12px;">2</span>
-                  Request Information
-                </h4>
-                <p style="color: #6b7280; margin: 0 0 15px 34px;">When you find interesting opportunities, request additional information or schedule calls with business owners.</p>
+              <!-- Premium Features -->
+              <div style="background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%); border-radius: 12px; padding: 30px; margin: 30px 0; border: 1px solid #d1fae5;">
+                <h3 style="color: #059669; margin: 0 0 25px 0; font-size: 20px; font-weight: 600; text-align: center;">
+                  ⚡ Your Premium Access Includes
+                </h3>
+                
+                <div style="display: grid; gap: 20px;">
+                  <div style="display: flex; align-items: flex-start; gap: 15px;">
+                    <div style="background: #10b981; color: white; border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 600; flex-shrink: 0;">1</div>
+                    <div>
+                      <h4 style="color: #1e293b; margin: 0 0 6px 0; font-size: 16px; font-weight: 600;">Verified Data Rooms</h4>
+                      <p style="color: #64748b; margin: 0; font-size: 14px; line-height: 1.5;">Access detailed financials, growth metrics, and comprehensive business documentation for every listing.</p>
+                    </div>
+                  </div>
+                  
+                  <div style="display: flex; align-items: flex-start; gap: 15px;">
+                    <div style="background: #10b981; color: white; border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 600; flex-shrink: 0;">2</div>
+                    <div>
+                      <h4 style="color: #1e293b; margin: 0 0 6px 0; font-size: 16px; font-weight: 600;">Direct Seller Connections</h4>
+                      <p style="color: #64748b; margin: 0; font-size: 14px; line-height: 1.5;">Connect directly with business owners when you find opportunities that match your investment criteria.</p>
+                    </div>
+                  </div>
+                  
+                  <div style="display: flex; align-items: flex-start; gap: 15px;">
+                    <div style="background: #10b981; color: white; border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 600; flex-shrink: 0;">3</div>
+                    <div>
+                      <h4 style="color: #1e293b; margin: 0 0 6px 0; font-size: 16px; font-weight: 600;">Personalized Dashboard</h4>
+                      <p style="color: #64748b; margin: 0; font-size: 14px; line-height: 1.5;">Save interested listings, track your connection requests, and manage your acquisition pipeline.</p>
+                    </div>
+                  </div>
+                </div>
               </div>
               
-              <div style="margin: 15px 0;">
-                <h4 style="color: #374151; margin: 0 0 8px 0; display: flex; align-items: center;">
-                  <span style="background: #10b981; color: white; border-radius: 50%; width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; margin-right: 10px; font-size: 12px;">3</span>
-                  Save Your Interests
+              <!-- Exclusive Benefits -->
+              <div style="background: linear-gradient(135deg, #fef3c7 0%, #fef7cd 100%); border-radius: 12px; padding: 25px; margin: 30px 0; border: 1px solid #fde68a;">
+                <h4 style="color: #92400e; margin: 0 0 15px 0; font-size: 16px; font-weight: 600; display: flex; align-items: center; gap: 8px;">
+                  <span style="font-size: 20px;">👑</span> Exclusive Member Benefits
                 </h4>
-                <p style="color: #6b7280; margin: 0 0 0 34px;">Any business you save or take next steps on will be available in your Buyer Dashboard for future reference.</p>
+                <ul style="color: #78350f; margin: 0; padding-left: 20px; font-size: 14px; line-height: 1.6;">
+                  <li style="margin-bottom: 8px;">Success-based pricing - only pay when deals close</li>
+                  <li style="margin-bottom: 8px;">Weekly curated deals from verified sellers</li>
+                  <li style="margin-bottom: 0;">Dedicated support from our team</li>
+                </ul>
+              </div>
+              
+              <!-- Call to Action -->
+              <div style="text-align: center; margin: 40px 0 30px 0;">
+                <a href="${data?.loginUrl || 'https://marketplace.sourcecodeals.com/login'}" 
+                   style="display: inline-block; 
+                          background: linear-gradient(135deg, #1e293b 0%, #334155 100%); 
+                          color: white; 
+                          padding: 18px 36px; 
+                          text-decoration: none; 
+                          border-radius: 12px; 
+                          font-weight: 700; 
+                          font-size: 16px;
+                          box-shadow: 0 8px 25px rgba(30, 41, 59, 0.3);
+                          transition: all 0.3s ease;">
+                  🚀 EXPLORE MARKETPLACE
+                </a>
+                <p style="margin: 15px 0 0 0; color: #64748b; font-size: 13px;">Click above to access your premium dashboard</p>
               </div>
             </div>
             
-            <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; margin: 25px 0; border-radius: 0 8px 8px 0;">
-              <h4 style="color: #92400e; margin: 0 0 10px 0;">💡 Remember</h4>
-              <ul style="color: #78350f; margin: 0; padding-left: 20px;">
-                <li>Every seller must approve buyer outreach - we only introduce aligned buyers</li>
-                <li>Use the feedback widget anytime you need help navigating the platform</li>
-                <li>New founder-led deals are added weekly based on real seller readiness</li>
-              </ul>
+            <!-- Footer -->
+            <div style="background: #f1f5f9; padding: 25px 30px; text-align: center; border-top: 1px solid #e2e8f0;">
+              <p style="margin: 0 0 8px 0; color: #475569; font-size: 14px;">
+                Questions? I'm here to help personally.
+              </p>
+              <p style="margin: 0; color: #64748b; font-size: 13px;">
+                Best regards,<br>
+                <strong style="color: #1e293b;">Adam Haile</strong><br>
+                <a href="mailto:adam.haile@sourcecodeals.com" style="color: #059669; text-decoration: none;">adam.haile@sourcecodeals.com</a>
+              </p>
             </div>
-            
-            <div style="text-align: center; margin: 30px 0;">
-              <a href="${data?.loginUrl || 'https://marketplace.sourcecodeals.com/login'}" 
-                 style="display: inline-block; background-color: #10b981; color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">
-                START YOUR SEARCH
-              </a>
-            </div>
-            
-            <p>Best regards,<br>The SourceCo Team</p>
           </div>
         `,
-        text: `Great news, ${firstName}!\n\nYour SourceCo Marketplace account has been approved. You now have access to our curated marketplace of founder-led businesses.\n\nGetting Started:\n\n1. Explore Data Room\nBrowse detailed business listings with verified financials and comprehensive documentation.\n\n2. Request Information\nWhen you find interesting opportunities, request additional information or schedule calls with business owners.\n\n3. Save Your Interests\nAny business you save or take next steps on will be available in your Buyer Dashboard for future reference.\n\nRemember:\n- Every seller must approve buyer outreach - we only introduce aligned buyers\n- Use the feedback widget anytime you need help navigating the platform\n- New founder-led deals are added weekly based on real seller readiness\n\nAccess the marketplace at: ${data?.loginUrl || 'https://marketplace.sourcecodeals.com/login'}\n\nBest regards,\nThe SourceCo Team`
+        text: `🎉 Congratulations, ${firstName}!\n\nYour SourceCo Marketplace account has been approved! You now have exclusive access to our curated marketplace of founder-led businesses.\n\nYour Premium Access Includes:\n\n1. Verified Data Rooms\nAccess detailed financials, growth metrics, and comprehensive business documentation for every listing.\n\n2. Direct Seller Connections\nConnect directly with business owners when you find opportunities that match your investment criteria.\n\n3. Personalized Dashboard\nSave interested listings, track your connection requests, and manage your acquisition pipeline.\n\nExclusive Member Benefits:\n- Success-based pricing - only pay when deals close\n- Weekly curated deals from verified sellers  \n- Dedicated support from our team\n\nAccess your premium dashboard: ${data?.loginUrl || 'https://marketplace.sourcecodeals.com/login'}\n\nQuestions? I'm here to help personally.\n\nBest regards,\nAdam Haile\nadam.haile@sourcecodeals.com`
       };
       
     case 'email_verified':

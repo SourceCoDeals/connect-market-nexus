@@ -79,7 +79,7 @@ const handler = async (req: Request): Promise<Response> => {
           </p>
           
           <p style="margin: 0;">
-            <strong>Questions?</strong> Contact us at <a href="mailto:support@sourcecodeals.com" style="color: #059669;">support@sourcecodeals.com</a>
+            <strong>Questions?</strong> Contact us at <a href="mailto:adam.haile@sourcecodeals.com" style="color: #059669;">adam.haile@sourcecodeals.com</a>
           </p>
         </div>
       </div>
@@ -105,8 +105,8 @@ const handler = async (req: Request): Promise<Response> => {
         subject: subject,
         htmlContent: htmlContent,
         replyTo: {
-          email: "support@sourcecodeals.com",
-          name: "SourceCo Support"
+          email: "adam.haile@sourcecodeals.com",
+          name: "Adam Haile - SourceCo"
         },
         // CRITICAL: Disable click tracking to prevent broken links
         params: {
