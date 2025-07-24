@@ -67,7 +67,7 @@ export const useRequestConnection = () => {
           // Get listing data - include all required fields
           const { data: listingData, error: listingError } = await supabase
             .from('listings')
-            .select('title, category, location')
+            .select('id, title, category, location')
             .eq('id', listingId)
             .single();
 
@@ -83,23 +83,19 @@ export const useRequestConnection = () => {
             })
           });
 
-          // Also send admin notification with user message
+          // Send admin notification about new connection request
+          const adminNotificationPayload = {
+            recipientEmail: "ahaile14@gmail.com",
+            recipientName: "Admin",
+            requesterName: `${userData.first_name || ''} ${userData.last_name || ''}`.trim(),
+            requesterEmail: userData.email,
+            listingTitle: listingData.title,
+            listingId: listingData.id,
+            message: message || ''
+          };
+          
           await supabase.functions.invoke('send-connection-notification', {
-            body: JSON.stringify({
-              type: 'new_request',
-              listing: {
-                title: listingData.title,
-                category: listingData.category || 'Uncategorized',
-                location: listingData.location || 'Unknown'
-              },
-              buyer: {
-                name: `${userData.first_name || ''} ${userData.last_name || ''}`.trim(),
-                email: userData.email,
-                company: userData.company || '',
-                message: message || ''
-              },
-              timestamp: new Date().toISOString()
-            })
+            body: adminNotificationPayload
           });
         } catch (notificationError) {
           // Log the error but don't fail the whole request

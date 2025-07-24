@@ -20,14 +20,12 @@ export function useAdminEmail() {
     
     try {
       const notificationPayload = {
-        user: {
-          email: user.email,
-          first_name: user.first_name,
-          last_name: user.last_name,
-          company: user.company || 'Not specified',
-          buyer_type: user.buyer_type || 'Not specified'
-        },
-        type: 'approval'
+        email: user.email,
+        subject: "Your SourceCo Marketplace Account Has Been Approved!",
+        message: `Hi ${user.first_name},\n\nGreat news! Your SourceCo Marketplace account has been approved and you now have full access to our platform.\n\nYou can now:\n• Browse all available business listings\n• Request connections with sellers\n• Save listings for later review\n• Access detailed financial information\n\nStart exploring opportunities that match your investment criteria.`,
+        type: 'success',
+        actionUrl: 'https://marketplace.sourcecodeals.com/marketplace',
+        actionText: 'Browse Marketplace'
       };
       
       const { data, error } = await supabase.functions.invoke(
@@ -93,15 +91,12 @@ export function useAdminEmail() {
     
     try {
       const notificationPayload = {
-        user: {
-          email: user.email,
-          first_name: user.first_name,
-          last_name: user.last_name,
-          company: user.company || 'Not specified',
-          buyer_type: user.buyer_type || 'Not specified'
-        },
-        type: 'rejection',
-        reason: reason
+        email: user.email,
+        subject: "SourceCo Marketplace Account Status Update",
+        message: `Hi ${user.first_name},\n\nThank you for your interest in SourceCo Marketplace. After reviewing your application, we are unable to approve your account at this time.\n\n${reason ? `Reason: ${reason}\n\n` : ''}If you believe this decision was made in error or if you have additional information to share, please don't hesitate to contact our support team.\n\nWe appreciate your understanding.`,
+        type: 'error',
+        actionUrl: 'mailto:support@sourcecodeals.com',
+        actionText: 'Contact Support'
       };
       
       const { data, error } = await supabase.functions.invoke(
@@ -169,16 +164,18 @@ export function useAdminEmail() {
     
     try {
       const notificationPayload = {
-        type: 'approved',
-        userEmail: request.user.email,
-        firstName: request.user.first_name,
-        listingName: request.listing.title
+        email: request.user.email,
+        subject: "Connection Request Approved!",
+        message: `Great news! Your connection request for "${request.listing.title}" has been approved.\n\nYou can now proceed with your due diligence process. The seller's contact information and additional details will be shared with you shortly.\n\nIf you have any questions about next steps, please contact our support team.`,
+        type: 'success',
+        actionUrl: `https://marketplace.sourcecodeals.com/listing/${request.listing_id}`,
+        actionText: 'View Listing'
       };
       
       const { data, error } = await supabase.functions.invoke(
-        "send-connection-notification", 
+        "send-user-notification", 
         { 
-          body: JSON.stringify(notificationPayload) 
+          body: notificationPayload
         }
       );
       
@@ -210,16 +207,18 @@ export function useAdminEmail() {
     
     try {
       const notificationPayload = {
-        type: 'rejected',
-        userEmail: request.user.email,
-        firstName: request.user.first_name,
-        listingName: request.listing.title
+        email: request.user.email,
+        subject: "Connection Request Update",
+        message: `Thank you for your interest in "${request.listing.title}". After careful consideration, we are unable to approve your connection request at this time.\n\n${request.admin_comment ? `Admin note: ${request.admin_comment}\n\n` : ''}We encourage you to continue exploring other opportunities on our marketplace that might be a better fit for your investment criteria.`,
+        type: 'warning',
+        actionUrl: 'https://marketplace.sourcecodeals.com/marketplace',
+        actionText: 'Browse Other Listings'
       };
       
       const { data, error } = await supabase.functions.invoke(
-        "send-connection-notification", 
+        "send-user-notification", 
         { 
-          body: JSON.stringify(notificationPayload) 
+          body: notificationPayload
         }
       );
       

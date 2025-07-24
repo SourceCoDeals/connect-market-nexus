@@ -130,6 +130,26 @@ export function useNuclearAuth() {
     if (error) throw error;
 
     console.log('✅ User signup completed, verification email sent by Supabase');
+    
+    // Send admin notification about new user registration
+    if (data.user && !data.session) {
+      try {
+        const adminNotificationPayload = {
+          first_name: userData.first_name || '',
+          last_name: userData.last_name || '',
+          email: userData.email,
+          company: userData.company || ''
+        };
+        
+        await supabase.functions.invoke('admin-notification', {
+          body: adminNotificationPayload
+        });
+        console.log('✅ Admin notification sent for new user registration');
+      } catch (notificationError) {
+        console.warn('Failed to send admin notification, but user creation succeeded:', notificationError);
+        // Don't throw - we don't want to block user registration if admin notification fails
+      }
+    }
   };
 
   const updateUserProfile = async (data: Partial<AppUser>) => {

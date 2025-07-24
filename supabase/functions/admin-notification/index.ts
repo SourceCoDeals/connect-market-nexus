@@ -7,9 +7,9 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-// Updated to only use adam.haile@sourcecodeals.com as admin email
+// Updated to use ahaile14@gmail.com as requested admin email
 const ADMIN_EMAILS = [
-  "adam.haile@sourcecodeals.com"
+  "ahaile14@gmail.com"
 ];
 
 interface AdminNotificationRequest {
@@ -89,6 +89,11 @@ const handler = async (req: Request): Promise<Response> => {
       replyTo: {
         email: "adam.haile@sourcecodeals.com",
         name: "Adam Haile"
+      },
+      // Disable click tracking to prevent broken links
+      params: {
+        trackClicks: false,
+        trackOpens: true
       }
     };
     
