@@ -1,24 +1,41 @@
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Lock, TrendingUp, Calculator, PieChart, BarChart3 } from "lucide-react";
+import ConnectionRequestDialog from "@/components/connection/ConnectionRequestDialog";
 
 interface BlurredFinancialTeaserProps {
-  onRequestConnection: () => void;
+  onRequestConnection: (message?: string) => void;
   isRequesting: boolean;
   hasConnection: boolean;
   connectionStatus: string;
+  listingTitle?: string;
 }
 
 const BlurredFinancialTeaser = ({ 
   onRequestConnection, 
   isRequesting, 
   hasConnection, 
-  connectionStatus 
+  connectionStatus,
+  listingTitle 
 }: BlurredFinancialTeaserProps) => {
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+
   // Don't show if already connected
   if (hasConnection && connectionStatus === "approved") {
     return null;
   }
+
+  const handleDialogSubmit = (message: string) => {
+    onRequestConnection(message);
+    setIsDialogOpen(false);
+  };
+
+  const handleButtonClick = () => {
+    if (!hasConnection || connectionStatus === "rejected") {
+      setIsDialogOpen(true);
+    }
+  };
 
   return (
     <Card className="relative overflow-hidden border-2 border-dashed border-muted-foreground/20 bg-gradient-to-br from-background to-muted/20">
@@ -91,8 +108,8 @@ const BlurredFinancialTeaser = ({
             </div>
             
             <Button
-              onClick={onRequestConnection}
-              disabled={isRequesting || hasConnection}
+              onClick={handleButtonClick}
+              disabled={isRequesting || (hasConnection && connectionStatus !== "rejected")}
               className="group relative bg-gradient-to-r from-[#D7B65C] via-[#E5C76A] to-[#D7B65C] text-slate-900 border-0 hover:shadow-lg hover:shadow-[rgba(215,182,92,0.2)] hover:scale-[1.02] transition-all duration-300 ease-out active:scale-[0.98] px-8 py-2.5 text-sm font-semibold tracking-wide"
             >
               {/* Premium button effects */}
@@ -101,12 +118,20 @@ const BlurredFinancialTeaser = ({
               
               <span className="relative flex items-center gap-2">
                 <Lock className="h-4 w-4" />
-                {isRequesting ? "Sending Request..." : hasConnection ? "Request Sent" : "Request Connection"}
+                {isRequesting ? "Sending Request..." : hasConnection && connectionStatus !== "rejected" ? "Request Sent" : "Request Connection"}
               </span>
             </Button>
           </div>
         </div>
       </CardContent>
+
+      <ConnectionRequestDialog
+        isOpen={isDialogOpen}
+        onClose={() => setIsDialogOpen(false)}
+        onSubmit={handleDialogSubmit}
+        isSubmitting={isRequesting}
+        listingTitle={listingTitle}
+      />
     </Card>
   );
 };

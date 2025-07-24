@@ -60,16 +60,22 @@ const ConnectionRequestDialog = ({
             </label>
             <Textarea
               id="message"
-              placeholder="e.g., I have an existing platform and this looks like it could be a good add-on..."
+              placeholder="e.g., I have an existing platform and this looks like it could be a good add-on, or I'm actively searching for businesses in this sector..."
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               rows={4}
               className="w-full"
               required
+              minLength={20}
             />
-            <p className="text-xs text-muted-foreground mt-1">
-              Providing context helps business owners understand your interest and relevance.
-            </p>
+            <div className="flex justify-between items-center mt-1">
+              <p className="text-xs text-muted-foreground">
+                Providing context helps business owners understand your interest and relevance.
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {message.length}/500 characters (min 20)
+              </p>
+            </div>
           </div>
           
           <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
@@ -90,7 +96,7 @@ const ConnectionRequestDialog = ({
           </Button>
           <Button 
             onClick={handleSubmit} 
-            disabled={isSubmitting || !message.trim()}
+            disabled={isSubmitting || !message.trim() || message.length < 20}
             className="bg-slate-900 text-white hover:bg-slate-800"
           >
             {isSubmitting ? "Submitting..." : "Submit Request"}

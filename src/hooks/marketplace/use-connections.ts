@@ -16,6 +16,11 @@ export const useRequestConnection = () => {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) throw new Error('You must be logged in to request a connection');
         
+        // Enforce message requirement
+        if (!message || message.trim().length < 20) {
+          throw new Error('A detailed message (minimum 20 characters) is required to request a connection');
+        }
+        
         const { data: existing, error: checkError } = await supabase
           .from('connection_requests')
           .select()

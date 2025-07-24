@@ -201,10 +201,11 @@ const ListingDetail = () => {
 
           {/* Blurred Financial Teaser */}
           <BlurredFinancialTeaser 
-            onRequestConnection={() => handleRequestConnection()}
+            onRequestConnection={handleRequestConnection}
             isRequesting={isRequesting}
             hasConnection={connectionExists}
             connectionStatus={connectionStatusValue}
+            listingTitle={listing.title}
           />
 
           {isAdmin && listing.owner_notes && (
