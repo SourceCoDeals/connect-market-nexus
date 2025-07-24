@@ -80,7 +80,7 @@ async function processUserJourneyEvent(event: UserJourneyEvent, correlationId: s
       
     case 'email_verified':
       // Send confirmation that email is verified and account is under review
-      emailType = 'reminder';
+      emailType = 'email_verified';
       emailData = {
         message: 'email_verified'
       };
