@@ -97,7 +97,7 @@ export function useNuclearAuth() {
       password,
       options: {
         // Use production domain consistently - never dynamic URLs
-        emailRedirectTo: `https://marketplace.sourcecodeals.com/verify-email-handler`,
+        emailRedirectTo: `https://marketplace.sourcecodeals.com/pending-approval`,
         data: {
           first_name: userData.first_name || '',
           last_name: userData.last_name || '',

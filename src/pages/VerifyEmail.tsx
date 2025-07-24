@@ -42,7 +42,7 @@ const VerifyEmail = () => {
         type: 'signup',
         email: email,
         options: {
-          emailRedirectTo: `${window.location.origin}/verify-email-handler`
+          emailRedirectTo: `https://marketplace.sourcecodeals.com/pending-approval`
         }
       });
 

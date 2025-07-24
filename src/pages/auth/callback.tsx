@@ -17,7 +17,7 @@ export default function AuthCallback() {
         const type = queryParams.get('type');
         
         if (type === 'signup' || type === 'recovery' || type === 'invite') {
-          navigate(`/verify-email-handler${window.location.search}`);
+          navigate(`/pending-approval${window.location.search}`);
           return;
         }
         
