@@ -11,7 +11,7 @@ import { cleanupAuthState } from '@/lib/auth-helpers';
 const PendingApproval = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, logout, isLoading, freshSignup, clearFreshSignup } = useAuth();
+  const { user, logout, isLoading } = useAuth();
   const [isResending, setIsResending] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
@@ -23,15 +23,8 @@ const PendingApproval = () => {
     }
   }, [user?.approval_status, navigate]);
 
-  // Clear fresh signup flag after first render
-  useEffect(() => {
-    if (freshSignup) {
-      clearFreshSignup();
-    }
-  }, [freshSignup, clearFreshSignup]);
-
-  // Show loading while auth is being determined, but skip if fresh signup
-  if ((isLoading || !user) && !freshSignup) {
+  // Show loading while auth is being determined
+  if (isLoading || !user) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-muted/30">
         <div className="flex flex-col items-center gap-4">
@@ -42,8 +35,8 @@ const PendingApproval = () => {
     );
   }
 
-  // If fresh signup and no user yet, show welcome message instead of loading
-  if (freshSignup && !user) {
+  // This should never execute now since users go to signup-success first
+  if (!user) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-muted/30">
         <div className="w-full max-w-md space-y-6">

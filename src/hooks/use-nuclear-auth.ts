@@ -9,7 +9,6 @@ export function useNuclearAuth() {
   const [user, setUser] = useState<AppUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [authChecked, setAuthChecked] = useState(false);
-  const [freshSignup, setFreshSignup] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -100,8 +99,7 @@ export function useNuclearAuth() {
       email: userData.email,
       password,
       options: {
-        // Use production domain consistently - never dynamic URLs
-        emailRedirectTo: `https://marketplace.sourcecodeals.com/pending-approval`,
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
         data: {
           first_name: userData.first_name || '',
           last_name: userData.last_name || '',
@@ -134,30 +132,6 @@ export function useNuclearAuth() {
     if (error) throw error;
 
     console.log('✅ User signup completed, verification email sent by Supabase');
-    
-    // CRITICAL FIX: Immediately log the user in even if email is unverified
-    // This eliminates the "null user" problem on pending-approval page
-    if (data.user) {
-      try {
-        console.log('🔄 Logging user in immediately after signup...');
-        
-        // Sign them in right away - this creates a session
-        const { error: signInError } = await supabase.auth.signInWithPassword({
-          email: userData.email,
-          password: password,
-        });
-        
-        if (!signInError) {
-          console.log('✅ User automatically logged in after signup');
-          // Mark as fresh signup to bypass loading screen on pending-approval
-          setFreshSignup(true);
-        } else {
-          console.warn('⚠️ Auto-login failed, but signup succeeded:', signInError);
-        }
-      } catch (loginError) {
-        console.warn('⚠️ Auto-login failed, but signup succeeded:', loginError);
-      }
-    }
     
     // Send admin notification about new user registration
     if (data.user) {
@@ -206,31 +180,31 @@ export function useNuclearAuth() {
     }
   };
 
+  const refreshUserProfile = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.user) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', session.user.id)
+        .single();
+      if (profile) {
+        const updatedUser = createUserObject(profile);
+        setUser(updatedUser);
+      }
+    }
+  };
+
   return {
     user,
-    isLoading,
-    authChecked,
-    freshSignup,
-    isAdmin: user?.is_admin === true,
-    isBuyer: user?.role === "buyer",
     login,
     logout,
     signup,
     updateUserProfile,
-    clearFreshSignup: () => setFreshSignup(false),
-    refreshUserProfile: async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', session.user.id)
-          .single();
-        if (profile) {
-          const updatedUser = createUserObject(profile);
-          setUser(updatedUser);
-        }
-      }
-    }
+    refreshUserProfile,
+    isLoading,
+    isAdmin: user?.is_admin === true,
+    isBuyer: user?.role === "buyer",
+    authChecked,
   };
 }

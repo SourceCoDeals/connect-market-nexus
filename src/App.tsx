@@ -15,6 +15,7 @@ import MainLayout from "@/components/MainLayout";
 import AdminLayout from "@/components/admin/AdminLayout";
 import Login from "@/pages/Login";
 import Signup from "@/pages/Signup";
+import SignupSuccess from "@/pages/SignupSuccess";
 import PendingApproval from "@/pages/PendingApproval";
 import Unauthorized from "@/pages/Unauthorized";
 import Profile from "@/pages/Profile";
@@ -67,6 +68,7 @@ function App() {
             {/* Authentication routes - no protection needed */}
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
+            <Route path="/signup-success" element={<SignupSuccess />} />
             <Route path="/pending-approval" element={<PendingApproval />} />
             <Route path="/auth/callback" element={<AuthCallback />} />
             <Route path="/unauthorized" element={<Unauthorized />} />

@@ -288,8 +288,8 @@ const Signup = () => {
         description: "Please check your email to verify your account.",
       });
       
-      // Navigate directly to pending approval - simple flow
-      navigate('/pending-approval');
+      // Navigate to static success page with email parameter
+      navigate(`/signup-success?email=${encodeURIComponent(formData.email)}`);
       
     } catch (error: any) {
       console.error('Signup error:', error);

@@ -14,8 +14,6 @@ interface AuthContextType {
   isAdmin: boolean;
   isBuyer: boolean;
   authChecked: boolean;
-  freshSignup: boolean;
-  clearFreshSignup: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -44,8 +42,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     isAdmin: auth.isAdmin,
     isBuyer: auth.isBuyer,
     authChecked: auth.authChecked,
-    freshSignup: auth.freshSignup,
-    clearFreshSignup: auth.clearFreshSignup,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
