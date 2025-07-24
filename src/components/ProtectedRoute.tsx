@@ -17,6 +17,22 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   const { user, isLoading, authChecked, processingVerification } = useAuth();
   const location = useLocation();
 
+  // FAILSAFE: Check for verification tokens in URL to prevent flash
+  const urlParams = new URLSearchParams(window.location.search);
+  const hasTokens = urlParams.get('access_token') && urlParams.get('refresh_token');
+  const isOnPendingApproval = location.pathname === '/pending-approval';
+  
+  // If we detect tokens on pending approval page, show loading immediately
+  if (hasTokens && isOnPendingApproval) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-4 min-h-screen">
+        <Loader2 className="h-16 w-16 text-primary animate-spin" />
+        <p className="text-muted-foreground">Verifying your email...</p>
+        <p className="text-sm text-muted-foreground/80">Please wait while we confirm your email verification</p>
+      </div>
+    );
+  }
+
   // Simple loading check
   if (isLoading || !authChecked) {
     return (

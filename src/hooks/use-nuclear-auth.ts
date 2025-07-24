@@ -23,26 +23,22 @@ export function useNuclearAuth() {
       console.log('🔍 Early detection: Verification tokens found in URL');
       setProcessingVerification(true);
       
-      // Process tokens immediately to prevent ProtectedRoute flash
-      setTimeout(() => {
-        if (isMounted) {
-          supabase.auth.setSession({
-            access_token: accessToken,
-            refresh_token: refreshToken
-          }).then(({ error }) => {
-            if (!error && isMounted) {
-              // Clean up URL params
-              const newUrl = window.location.pathname;
-              window.history.replaceState({}, '', newUrl);
-              
-              // Trigger session refresh
-              checkSession();
-            } else if (isMounted) {
-              setProcessingVerification(false);
-            }
-          });
+      // Process tokens SYNCHRONOUSLY to prevent ProtectedRoute flash
+      supabase.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken
+      }).then(({ error }) => {
+        if (!error && isMounted) {
+          // Clean up URL params
+          const newUrl = window.location.pathname;
+          window.history.replaceState({}, '', newUrl);
+          
+          // Trigger session refresh
+          checkSession();
+        } else if (isMounted) {
+          setProcessingVerification(false);
         }
-      }, 0);
+      });
     }
 
     // Simple session check - no complex initialization
