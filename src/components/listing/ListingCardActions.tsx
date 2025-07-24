@@ -1,6 +1,8 @@
 
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Bookmark, CheckCircle2, Clock, XCircle, Send, ArrowUpRight, Eye } from "lucide-react";
+import ConnectionRequestDialog from "@/components/connection/ConnectionRequestDialog";
 
 interface ListingCardActionsProps {
   viewType: "grid" | "list";
@@ -9,7 +11,7 @@ interface ListingCardActionsProps {
   isRequesting: boolean;
   isSaved: boolean | undefined;
   isSaving: boolean;
-  handleRequestConnection: (e: React.MouseEvent, message?: string) => void;
+  handleRequestConnection: (message: string) => void;
   handleToggleSave: (e: React.MouseEvent) => void;
   listingTitle?: string;
 }
@@ -25,6 +27,7 @@ const ListingCardActions = ({
   handleToggleSave,
   listingTitle
 }: ListingCardActionsProps) => {
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   const getConnectionButtonContent = () => {
     if (connectionExists) {
@@ -74,6 +77,19 @@ const ListingCardActions = ({
 
   const { icon: ConnectionIcon, text: connectionText, disabled: connectionDisabled, className: connectionClassName } = getConnectionButtonContent();
 
+  const handleConnectionClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!connectionDisabled || connectionStatus === "rejected") {
+      setIsDialogOpen(true);
+    }
+  };
+
+  const handleDialogSubmit = (message: string) => {
+    handleRequestConnection(message);
+    setIsDialogOpen(false);
+  };
+
   return (
     <div className="flex flex-col gap-2.5 w-full mt-auto">
       {/* Primary CTA - Request Connection */}
@@ -84,7 +100,7 @@ const ListingCardActions = ({
               ? connectionClassName
               : "text-slate-900 bg-gradient-to-r from-[#D7B65C] via-[#E5C76A] to-[#D7B65C] hover:shadow-lg hover:shadow-[rgba(215,182,92,0.2)]"
           }`}
-          onClick={handleRequestConnection}
+          onClick={handleConnectionClick}
           disabled={isRequesting || (connectionDisabled && connectionStatus !== "rejected")}
         >
           {/* Hover Effects for Active States Only */}
@@ -132,6 +148,14 @@ const ListingCardActions = ({
           </span>
         </Button>
       </div>
+
+      <ConnectionRequestDialog
+        isOpen={isDialogOpen}
+        onClose={() => setIsDialogOpen(false)}
+        onSubmit={handleDialogSubmit}
+        isSubmitting={isRequesting}
+        listingTitle={listingTitle}
+      />
     </div>
   );
 };

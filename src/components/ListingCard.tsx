@@ -24,8 +24,7 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
   const { data: isSaved } = useSavedStatus(listing.id);
   const { trackListingSave, trackListingView, trackConnectionRequest } = useAnalytics();
 
-  const handleRequestConnection = (e: React.MouseEvent, message?: string) => {
-    e.preventDefault();
+  const handleRequestConnection = (message: string) => {
     trackConnectionRequest(listing.id);
     requestConnection({ listingId: listing.id, message });
   };

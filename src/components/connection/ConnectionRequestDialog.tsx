@@ -42,10 +42,10 @@ const ConnectionRequestDialog = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent>
+      <DialogContent className="sm:max-w-md w-[95vw] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Request Connection</DialogTitle>
-          <DialogDescription>
+          <DialogTitle className="text-lg font-semibold">Request Connection</DialogTitle>
+          <DialogDescription className="text-sm text-muted-foreground">
             {listingTitle && (
               <>Tell us why you're interested in <strong>{listingTitle}</strong>.</>
             )}
@@ -64,7 +64,7 @@ const ConnectionRequestDialog = ({
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               rows={4}
-              className="w-full"
+              className="w-full resize-none"
               required
               minLength={20}
             />
@@ -85,19 +85,19 @@ const ConnectionRequestDialog = ({
           </div>
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="flex-col-reverse sm:flex-row gap-2">
           <Button 
             variant="outline" 
             onClick={handleClose} 
             disabled={isSubmitting}
-            className="bg-slate-900 text-white hover:bg-slate-800 border-slate-900"
+            className="w-full sm:w-auto"
           >
             Cancel
           </Button>
           <Button 
             onClick={handleSubmit} 
             disabled={isSubmitting || !message.trim() || message.length < 20}
-            className="bg-slate-900 text-white hover:bg-slate-800"
+            className="w-full sm:w-auto bg-gradient-to-r from-[#D7B65C] via-[#E5C76A] to-[#D7B65C] text-slate-900 border-0 hover:shadow-lg hover:shadow-[rgba(215,182,92,0.2)] font-semibold"
           >
             {isSubmitting ? "Submitting..." : "Submit Request"}
           </Button>
