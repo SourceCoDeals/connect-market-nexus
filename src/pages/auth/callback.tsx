@@ -4,11 +4,13 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
+import { useVerificationSuccessEmail } from '@/hooks/auth/use-verification-success-email';
 
 export default function AuthCallback() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
+  const { sendVerificationSuccessEmail } = useVerificationSuccessEmail();
 
   useEffect(() => {
     const handleCallback = async () => {
@@ -29,7 +31,7 @@ export default function AuthCallback() {
           // Get latest profile data to see if verification was successful
           const { data: profile } = await supabase
             .from('profiles')
-            .select('email_verified, approval_status, is_admin')
+            .select('email_verified, approval_status, is_admin, first_name, last_name, email')
             .eq('id', data.session.user.id)
             .single();
 
@@ -38,6 +40,24 @@ export default function AuthCallback() {
             approval_status: profile?.approval_status,
             is_admin: profile?.is_admin 
           });
+
+          // Check if this is a fresh email verification (user just verified their email)
+          const userJustVerified = data.session.user.email_confirmed_at && profile?.email_verified;
+          
+          // Send verification success email if user just verified their email
+          if (userJustVerified && profile) {
+            try {
+              await sendVerificationSuccessEmail({
+                email: profile.email,
+                firstName: profile.first_name || '',
+                lastName: profile.last_name || ''
+              });
+              console.log('✅ Verification success email sent');
+            } catch (emailError) {
+              // Don't block the flow if email fails - just log it
+              console.error('Failed to send verification success email:', emailError);
+            }
+          }
 
           if (profile?.email_verified && profile?.approval_status === 'approved') {
             // Fully approved user - go to app
