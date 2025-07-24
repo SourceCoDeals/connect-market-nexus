@@ -78,18 +78,25 @@ export const useRequestConnection = () => {
 
           if (listingError) throw listingError;
 
-          // Send notification email
+          // Send user confirmation email
+          const userConfirmationPayload = {
+            type: 'user_confirmation',
+            recipientEmail: userData.email,
+            recipientName: `${userData.first_name || ''} ${userData.last_name || ''}`.trim(),
+            requesterName: `${userData.first_name || ''} ${userData.last_name || ''}`.trim(),
+            requesterEmail: userData.email,
+            listingTitle: listingData.title,
+            listingId: listingData.id,
+            message: message || ''
+          };
+          
           await supabase.functions.invoke('send-connection-notification', {
-            body: JSON.stringify({
-              type: 'request_received',
-              userEmail: userData.email,
-              firstName: userData.first_name,
-              listingName: listingData.title
-            })
+            body: userConfirmationPayload
           });
 
           // Send admin notification about new connection request
           const adminNotificationPayload = {
+            type: 'admin_notification',
             recipientEmail: "ahaile14@gmail.com",
             recipientName: "Admin",
             requesterName: `${userData.first_name || ''} ${userData.last_name || ''}`.trim(),
