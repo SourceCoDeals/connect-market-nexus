@@ -48,7 +48,7 @@ export default function VerifyEmailHandler() {
           
           console.log('🔑 Supabase verification result:', { data: !!data, error: error?.message });
           
-          if (error) {
+            if (error) {
             console.error('Verification error:', error);
             
             // If it's a custom token (user ID), try manual verification
@@ -94,17 +94,14 @@ export default function VerifyEmailHandler() {
                   // Continue even if email fails
                 }
                 
-                // Set redirect flag and delay redirect
-                setShouldRedirect(true);
-                setTimeout(() => {
-                  if (profileData.is_admin === true) {
-                    navigate('/admin', { replace: true });
-                  } else if (profileData.approval_status === 'approved') {
-                    navigate('/marketplace', { replace: true });
-                  } else {
-                    navigate('/pending-approval', { replace: true });
-                  }
-                }, 2000);
+                // Immediately redirect without showing intermediate success screen
+                if (profileData.is_admin === true) {
+                  navigate('/admin', { replace: true });
+                } else if (profileData.approval_status === 'approved') {
+                  navigate('/marketplace', { replace: true });
+                } else {
+                  navigate('/pending-approval', { replace: true });
+                }
                 
                 return;
               } catch (manualError) {
@@ -181,20 +178,17 @@ export default function VerifyEmailHandler() {
               // Continue even if email fails
             }
             
-            // Set redirect flag and delay redirect to appropriate destination
-            setShouldRedirect(true);
-            setTimeout(() => {
-              if (profileData.is_admin === true) {
-                console.log('🔄 Redirecting admin to /admin');
-                navigate('/admin', { replace: true });
-              } else if (profileData.approval_status === 'approved') {
-                console.log('🔄 Redirecting approved user to /marketplace');
-                navigate('/marketplace', { replace: true });
-              } else {
-                console.log('🔄 Redirecting pending user to /pending-approval');
-                navigate('/pending-approval', { replace: true });
-              }
-            }, 2000);
+            // Immediately redirect to appropriate destination
+            if (profileData.is_admin === true) {
+              console.log('🔄 Redirecting admin to /admin');
+              navigate('/admin', { replace: true });
+            } else if (profileData.approval_status === 'approved') {
+              console.log('🔄 Redirecting approved user to /marketplace');
+              navigate('/marketplace', { replace: true });
+            } else {
+              console.log('🔄 Redirecting pending user to /pending-approval');
+              navigate('/pending-approval', { replace: true });
+            }
           }
         } else {
           throw new Error('Unknown verification type');

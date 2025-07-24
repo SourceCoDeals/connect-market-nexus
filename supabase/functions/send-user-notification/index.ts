@@ -97,7 +97,7 @@ const handler = async (req: Request): Promise<Response> => {
         },
         to: [{
           email: email,
-          name: ""
+          name: email.split('@')[0] // Use email prefix as name fallback
         }],
         subject: subject,
         htmlContent: htmlContent,

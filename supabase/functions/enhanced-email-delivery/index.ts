@@ -183,7 +183,7 @@ async function sendViaProvider(
           name: "SourceCo Marketplace",
           email: "adam.haile@sourcecodeals.com"
         },
-        to: [{ email, name: "" }],
+        to: [{ email, name: email.split('@')[0] }],
         subject: content.subject,
         htmlContent: content.html,
         textContent: content.text
