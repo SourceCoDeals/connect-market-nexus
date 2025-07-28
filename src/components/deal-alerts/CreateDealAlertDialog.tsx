@@ -8,6 +8,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Bell, Search, MapPin, DollarSign, TrendingUp } from 'lucide-react';
 import { useCreateDealAlert, CreateDealAlertRequest } from '@/hooks/use-deal-alerts';
 import { useListingMetadata } from '@/hooks/marketplace/use-listings';
+import { AlertPreview } from './AlertPreview';
+import { AlertSuccessOnboarding } from './AlertSuccessOnboarding';
+import { useAuth } from '@/context/AuthContext';
 
 const REVENUE_RANGES = [
   { label: 'Under $1M', min: 0, max: 1000000 },
@@ -33,14 +36,16 @@ interface CreateDealAlertDialogProps {
 
 export function CreateDealAlertDialog({ trigger }: CreateDealAlertDialogProps) {
   const [open, setOpen] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
   const [formData, setFormData] = useState<CreateDealAlertRequest>({
     name: '',
     criteria: {},
-    frequency: 'daily',
+    frequency: 'instant', // Default to instant
   });
 
   const createAlert = useCreateDealAlert();
   const { data: metadata } = useListingMetadata();
+  const { user } = useAuth();
   
   const categories = metadata?.categories || [];
   const locations = metadata?.locations || [];
@@ -51,15 +56,30 @@ export function CreateDealAlertDialog({ trigger }: CreateDealAlertDialogProps) {
 
     try {
       await createAlert.mutateAsync(formData);
-      setOpen(false);
-      setFormData({
-        name: '',
-        criteria: {},
-        frequency: 'daily',
-      });
+      setShowSuccess(true);
     } catch (error) {
       // Error is handled by the mutation
     }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      name: '',
+      criteria: {},
+      frequency: 'instant',
+    });
+    setShowSuccess(false);
+  };
+
+  const handleClose = () => {
+    setOpen(false);
+    setTimeout(() => {
+      resetForm();
+    }, 300);
+  };
+
+  const handleCreateAnother = () => {
+    resetForm();
   };
 
   const updateCriteria = (key: string, value: any) => {
@@ -100,12 +120,24 @@ export function CreateDealAlertDialog({ trigger }: CreateDealAlertDialogProps) {
       </DialogTrigger>
       
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto z-50">
-        <DialogHeader>
-          <DialogTitle>Get First Access to New Deals</DialogTitle>
-          <p className="text-sm text-muted-foreground">
-            We'll email you immediately when new opportunities match your criteria, giving you the first look at deals before others.
-          </p>
-        </DialogHeader>
+        {showSuccess ? (
+          <>
+            <DialogHeader>
+              <DialogTitle>Success!</DialogTitle>
+            </DialogHeader>
+            <AlertSuccessOnboarding 
+              onClose={handleClose}
+              onCreateAnother={handleCreateAnother}
+            />
+          </>
+        ) : (
+          <>
+            <DialogHeader>
+              <DialogTitle>Get First Access to New Deals</DialogTitle>
+              <p className="text-sm text-muted-foreground">
+                We'll email you immediately when new opportunities match your criteria, giving you the first look at deals before others.
+              </p>
+            </DialogHeader>
         
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-2">
@@ -245,8 +277,18 @@ export function CreateDealAlertDialog({ trigger }: CreateDealAlertDialogProps) {
             </CardContent>
           </Card>
 
+          {/* Alert Preview */}
+          {formData.name && (
+            <AlertPreview
+              alertName={formData.name}
+              criteria={formData.criteria}
+              frequency={formData.frequency}
+              userEmail={user?.email}
+            />
+          )}
+
           <div className="flex gap-3 justify-end">
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+            <Button type="button" variant="outline" onClick={handleClose}>
               Cancel
             </Button>
             <Button type="submit" disabled={!formData.name.trim() || createAlert.isPending}>
@@ -254,6 +296,8 @@ export function CreateDealAlertDialog({ trigger }: CreateDealAlertDialogProps) {
             </Button>
           </div>
         </form>
+        </>
+        )}
       </DialogContent>
     </Dialog>
   );

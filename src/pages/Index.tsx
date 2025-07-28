@@ -2,6 +2,7 @@
 import { Link } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
+import { Bell } from "lucide-react";
 
 const Index = () => {
   const { user, isAdmin } = useAuth();
@@ -23,16 +24,29 @@ const Index = () => {
               </p>
               <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center">
                 {user ? (
-                  <Button asChild size="lg" className="px-8">
-                    <Link to="/marketplace">
-                      Browse Marketplace
-                    </Link>
-                  </Button>
+                  <div className="flex flex-col sm:flex-row gap-4">
+                    <Button asChild size="lg" className="px-8">
+                      <Link to="/marketplace">
+                        Browse Marketplace
+                      </Link>
+                    </Button>
+                    <Button 
+                      asChild 
+                      variant="outline" 
+                      size="lg" 
+                      className="border-primary text-primary hover:bg-primary hover:text-primary-foreground"
+                    >
+                      <Link to="/profile">
+                        <Bell className="mr-2 h-4 w-4" />
+                        Set Up Deal Alerts
+                      </Link>
+                    </Button>
+                  </div>
                 ) : (
                   <>
                     <Button asChild size="lg" className="px-8">
                       <Link to="/signup">
-                        Create Account
+                        Join & Get Deal Alerts
                       </Link>
                     </Button>
                     <Button asChild variant="outline" size="lg">
