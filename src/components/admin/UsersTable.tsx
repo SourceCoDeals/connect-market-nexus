@@ -154,51 +154,79 @@ const UserDetails = ({ user }: { user: User }) => (
       </div>
     )}
 
-    {/* Complete Historical Data - ALL FIELDS SHOWN */}
+    {/* Buyer-Type Specific Profile Data */}
     <div className="mt-4 col-span-1 md:col-span-2 lg:col-span-3">
-      <div className="text-sm font-semibold mb-2">Complete Historical Signup Data</div>
+      <div className="text-sm font-semibold mb-2">Buyer-Specific Profile Data</div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         
-        {/* Financial Information - ALL BUYER TYPES */}
-        <div className="space-y-2">
-          <h5 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Financial Details</h5>
-          <div className="text-sm">
-            <strong>Estimated Revenue:</strong> {user.estimated_revenue || "—"}
+        {/* Corporate Buyer Fields */}
+        {user.buyer_type === 'corporate' && (
+          <div className="space-y-2">
+            <h5 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Corporate Details</h5>
+            <div className="text-sm">
+              <strong>Estimated Revenue:</strong> {user.estimated_revenue || "—"}
+            </div>
           </div>
-          <div className="text-sm">
-            <strong>Fund Size:</strong> {user.fund_size || "—"}
-          </div>
-          <div className="text-sm">
-            <strong>Investment Size:</strong> {user.investment_size || "—"}
-          </div>
-          <div className="text-sm">
-            <strong>AUM:</strong> {user.aum || "—"}
-          </div>
-          <div className="text-sm">
-            <strong>Target Company Size:</strong> {user.target_company_size || "—"}
-          </div>
-        </div>
+        )}
 
-        {/* Funding Information - ALL BUYER TYPES */}
-        <div className="space-y-2">
-          <h5 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Funding & Financing</h5>
-          <div className="text-sm">
-            <strong>Funding Source:</strong> {user.funding_source || "—"}
+        {/* Private Equity Fields */}
+        {user.buyer_type === 'privateEquity' && (
+          <div className="space-y-2">
+            <h5 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Private Equity Details</h5>
+            <div className="text-sm">
+              <strong>Fund Size:</strong> {user.fund_size || "—"}
+            </div>
+            <div className="text-sm">
+              <strong>Investment Size:</strong> {user.investment_size || "—"}
+            </div>
           </div>
-          <div className="text-sm">
-            <strong>Is Funded:</strong> {user.is_funded || "—"}
-          </div>
-          <div className="text-sm">
-            <strong>Funded By:</strong> {user.funded_by || "—"}
-          </div>
-          <div className="text-sm">
-            <strong>Needs Loan:</strong> {user.needs_loan || "—"}
-          </div>
-        </div>
+        )}
 
-        {/* Additional Profile Data - ALL FIELDS */}
+        {/* Family Office Fields */}
+        {user.buyer_type === 'familyOffice' && (
+          <div className="space-y-2">
+            <h5 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Family Office Details</h5>
+            <div className="text-sm">
+              <strong>AUM:</strong> {user.aum || "—"}
+            </div>
+            <div className="text-sm">
+              <strong>Fund Size:</strong> {user.fund_size || "—"}
+            </div>
+          </div>
+        )}
+
+        {/* Search Fund Fields */}
+        {user.buyer_type === 'searchFund' && (
+          <div className="space-y-2">
+            <h5 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Search Fund Details</h5>
+            <div className="text-sm">
+              <strong>Is Funded:</strong> {user.is_funded || "—"}
+            </div>
+            <div className="text-sm">
+              <strong>Funded By:</strong> {user.funded_by || "—"}
+            </div>
+            <div className="text-sm">
+              <strong>Target Company Size:</strong> {user.target_company_size || "—"}
+            </div>
+          </div>
+        )}
+
+        {/* Individual Buyer Fields */}
+        {user.buyer_type === 'individual' && (
+          <div className="space-y-2">
+            <h5 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Individual Buyer Details</h5>
+            <div className="text-sm">
+              <strong>Funding Source:</strong> {user.funding_source || "—"}
+            </div>
+            <div className="text-sm">
+              <strong>Needs Loan:</strong> {user.needs_loan || "—"}
+            </div>
+          </div>
+        )}
+
+        {/* Common Profile Fields */}
         <div className="space-y-2">
-          <h5 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Profile & Business</h5>
+          <h5 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Additional Profile</h5>
           <div className="text-sm">
             <strong>Ideal Target:</strong> {user.ideal_target || "—"}
           </div>
