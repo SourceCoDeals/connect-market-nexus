@@ -153,76 +153,82 @@ const UserDetails = ({ user }: { user: User }) => (
       </div>
     )}
 
-    {/* Additional buyer information - Complete Historical Data */}
+    {/* Complete Historical Data - ALL FIELDS SHOWN */}
     <div className="mt-4 col-span-1 md:col-span-2 lg:col-span-3">
-      <div className="text-sm font-semibold mb-2">Complete Signup Data</div>
+      <div className="text-sm font-semibold mb-2">Complete Historical Signup Data</div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {/* Financial Information */}
+        
+        {/* Financial Information - ALL BUYER TYPES */}
         <div className="space-y-2">
           <h5 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Financial Details</h5>
-          {user.estimated_revenue && (
-            <div className="text-sm">
-              <strong>Estimated Revenue:</strong> {user.estimated_revenue}
-            </div>
-          )}
-          {user.fund_size && (
-            <div className="text-sm">
-              <strong>Fund Size:</strong> {user.fund_size}
-            </div>
-          )}
-          {user.investment_size && (
-            <div className="text-sm">
-              <strong>Investment Size:</strong> {user.investment_size}
-            </div>
-          )}
-          {user.aum && (
-            <div className="text-sm">
-              <strong>AUM:</strong> {user.aum}
-            </div>
-          )}
-          {user.target_company_size && (
-            <div className="text-sm">
-              <strong>Target Company Size:</strong> {user.target_company_size}
-            </div>
-          )}
+          <div className="text-sm">
+            <strong>Estimated Revenue:</strong> {user.estimated_revenue || "—"}
+          </div>
+          <div className="text-sm">
+            <strong>Fund Size:</strong> {user.fund_size || "—"}
+          </div>
+          <div className="text-sm">
+            <strong>Investment Size:</strong> {user.investment_size || "—"}
+          </div>
+          <div className="text-sm">
+            <strong>AUM:</strong> {user.aum || "—"}
+          </div>
+          <div className="text-sm">
+            <strong>Target Company Size:</strong> {user.target_company_size || "—"}
+          </div>
         </div>
 
-        {/* Funding Information */}
+        {/* Funding Information - ALL BUYER TYPES */}
         <div className="space-y-2">
-          <h5 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Funding Status</h5>
-          {user.funding_source && (
-            <div className="text-sm">
-              <strong>Funding Source:</strong> {user.funding_source}
-            </div>
-          )}
-          {user.is_funded && (
-            <div className="text-sm">
-              <strong>Funded:</strong> {user.is_funded}
-              {user.funded_by && <span> by {user.funded_by}</span>}
-            </div>
-          )}
-          {user.needs_loan && (
-            <div className="text-sm">
-              <strong>Needs Loan:</strong> {user.needs_loan}
-            </div>
-          )}
+          <h5 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Funding & Financing</h5>
+          <div className="text-sm">
+            <strong>Funding Source:</strong> {user.funding_source || "—"}
+          </div>
+          <div className="text-sm">
+            <strong>Is Funded:</strong> {user.is_funded || "—"}
+          </div>
+          <div className="text-sm">
+            <strong>Funded By:</strong> {user.funded_by || "—"}
+          </div>
+          <div className="text-sm">
+            <strong>Needs Loan:</strong> {user.needs_loan || "—"}
+          </div>
         </div>
 
-        {/* Additional Profile Data */}
+        {/* Additional Profile Data - ALL FIELDS */}
         <div className="space-y-2">
-          <h5 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Profile Details</h5>
-          {user.ideal_target && (
-            <div className="text-sm">
-              <strong>Ideal Target:</strong> {user.ideal_target}
-            </div>
-          )}
-          {user.bio && (
-            <div className="text-sm">
-              <strong>Bio:</strong> {user.bio}
-            </div>
-          )}
+          <h5 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Profile & Business</h5>
+          <div className="text-sm">
+            <strong>Ideal Target:</strong> {user.ideal_target || "—"}
+          </div>
+          <div className="text-sm">
+            <strong>Company Name:</strong> {user.company_name || "—"}
+          </div>
+          <div className="text-sm">
+            <strong>Bio:</strong> {user.bio ? (user.bio.length > 50 ? `${user.bio.substring(0, 50)}...` : user.bio) : "—"}
+          </div>
           <div className="text-sm">
             <strong>Onboarding Complete:</strong> {user.onboarding_completed ? 'Yes' : 'No'}
+          </div>
+        </div>
+      </div>
+      
+      {/* Additional Data Section */}
+      <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <h5 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Revenue Ranges</h5>
+          <div className="text-sm">
+            <strong>Revenue Min:</strong> {user.revenue_range_min ? `$${user.revenue_range_min.toLocaleString()}` : "—"}
+          </div>
+          <div className="text-sm">
+            <strong>Revenue Max:</strong> {user.revenue_range_max ? `$${user.revenue_range_max.toLocaleString()}` : "—"}
+          </div>
+        </div>
+        
+        <div className="space-y-2">
+          <h5 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Search Preferences</h5>
+          <div className="text-sm">
+            <strong>Specific Business Search:</strong> {user.specific_business_search ? (user.specific_business_search.length > 40 ? `${user.specific_business_search.substring(0, 40)}...` : user.specific_business_search) : "—"}
           </div>
         </div>
       </div>

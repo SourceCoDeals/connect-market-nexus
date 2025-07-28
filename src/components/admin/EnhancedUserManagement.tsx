@@ -134,26 +134,72 @@ export function EnhancedUserManagement({
 
   const exportData = () => {
     const csvData = filteredUsers.map(user => ({
+      // Basic Information
       'Name': `${user.first_name} ${user.last_name}`,
       'Email': user.email,
-      'Company': user.company,
-      'Buyer Type': user.buyer_type,
-      'Status': user.approval_status,
+      'Phone': user.phone_number || '',
+      'Company': user.company || '',
+      'Website': user.website || '',
+      'LinkedIn': user.linkedin_profile || '',
+      
+      // Account Status
+      'Buyer Type': user.buyer_type || '',
+      'Approval Status': user.approval_status,
+      'Email Verified': user.email_verified ? 'Yes' : 'No',
+      'Is Admin': user.is_admin ? 'Yes' : 'No',
+      'Onboarding Complete': user.onboarding_completed ? 'Yes' : 'No',
+      
+      // Financial Details - ALL FIELDS
+      'Estimated Revenue': user.estimated_revenue || '',
+      'Fund Size': user.fund_size || '',
+      'Investment Size': user.investment_size || '',
+      'AUM': user.aum || '',
+      'Target Company Size': user.target_company_size || '',
+      
+      // Funding & Financing - ALL FIELDS  
+      'Funding Source': user.funding_source || '',
+      'Is Funded': user.is_funded || '',
+      'Funded By': user.funded_by || '',
+      'Needs Loan': user.needs_loan || '',
+      
+      // Business Profile
+      'Company Name': user.company_name || '',
+      'Ideal Target': user.ideal_target || '',
+      'Ideal Target Description': user.ideal_target_description || '',
+      'Bio': user.bio || '',
+      
+      // Search Preferences
+      'Business Categories': Array.isArray(user.business_categories) ? user.business_categories.join(';') : '',
+      'Target Locations': user.target_locations || '',
+      'Revenue Range Min': user.revenue_range_min || '',
+      'Revenue Range Max': user.revenue_range_max || '',
+      'Specific Business Search': user.specific_business_search || '',
+      
+      // Metadata
       'Profile Completion': `${calculateProfileCompletion(user)}%`,
-      'Created': new Date(user.created_at).toLocaleDateString(),
-      'Email Verified': user.email_verified ? 'Yes' : 'No'
+      'Created Date': new Date(user.created_at).toLocaleDateString(),
+      'Created Time': new Date(user.created_at).toLocaleTimeString(),
+      'Last Updated': new Date(user.updated_at).toLocaleDateString()
     }));
+
+    // Escape CSV values properly
+    const escapeCSV = (value: string) => {
+      if (value.includes(',') || value.includes('"') || value.includes('\n')) {
+        return `"${value.replace(/"/g, '""')}"`;
+      }
+      return value;
+    };
 
     const csv = [
       Object.keys(csvData[0]).join(','),
-      ...csvData.map(row => Object.values(row).join(','))
+      ...csvData.map(row => Object.values(row).map(v => escapeCSV(String(v))).join(','))
     ].join('\n');
 
-    const blob = new Blob([csv], { type: 'text/csv' });
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `users-export-${new Date().toISOString().split('T')[0]}.csv`;
+    a.download = `complete-users-export-${new Date().toISOString().split('T')[0]}.csv`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -306,14 +352,17 @@ export function EnhancedUserManagement({
             </div>
           )}
 
-          {/* Export */}
+          {/* Export and Data Status */}
           <div className="flex justify-between items-center">
             <div className="text-sm text-muted-foreground">
               Showing {filteredUsers.length} of {users.length} users
+              <div className="mt-1 text-xs">
+                Historical data captured: AUM for {users.filter(u => u.aum && u.aum !== '').length} users
+              </div>
             </div>
             <Button onClick={exportData} variant="outline" size="sm">
               <Download className="h-4 w-4 mr-2" />
-              Export CSV
+              Export Complete Data (CSV)
             </Button>
           </div>
         </CardContent>
