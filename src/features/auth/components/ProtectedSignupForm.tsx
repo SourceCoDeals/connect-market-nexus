@@ -143,24 +143,18 @@ export const ProtectedSignupForm: React.FC = () => {
             )}
           </div>
 
-          <div className="border rounded-lg p-4 bg-muted/50">
-            <div className="flex items-start space-x-3">
-              <input
-                type="checkbox"
-                id="dealAlerts"
-                className="mt-1"
-                defaultChecked={true}
-              />
-              <div className="space-y-1">
-                <Label htmlFor="dealAlerts" className="text-sm font-medium">
-                  📧 Get notified about new deals (Recommended)
-                </Label>
-                <p className="text-xs text-muted-foreground">
-                  Be the first to know when new business opportunities match your interests. You can set up specific criteria after signup.
-                </p>
-              </div>
-            </div>
+          <div>
+            <Label htmlFor="phone_number">Phone Number (Optional)</Label>
+            <Input
+              id="phone_number"
+              {...register('phone_number')}
+              disabled={isSigningUp}
+            />
+            {errors.phone_number && (
+              <p className="text-sm text-destructive mt-1">{errors.phone_number.message}</p>
+            )}
           </div>
+
 
           <Button 
             type="submit" 
@@ -173,7 +167,7 @@ export const ProtectedSignupForm: React.FC = () => {
                 Creating Account...
               </>
             ) : (
-              'Create Account & Get Deal Alerts'
+              'Create Account'
             )}
           </Button>
         </form>

@@ -32,7 +32,7 @@ export const signupFormSchema = z.object({
   company: z.string().min(1, 'Company is required'),
   buyerType: z.enum(['corporate', 'privateEquity', 'familyOffice', 'searchFund', 'individual']),
   website: z.string().url('Please enter a valid website URL').optional().or(z.literal('')),
-  phoneNumber: z.string().optional(),
+  phone_number: z.string().optional(),
   linkedinProfile: z.string().url('Please enter a valid LinkedIn URL').optional().or(z.literal('')),
   idealTargetDescription: z.string().optional(),
   businessCategories: z.array(z.string()).optional(),
