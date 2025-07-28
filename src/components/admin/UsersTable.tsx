@@ -4,11 +4,12 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { User } from "@/types";
-import { CheckCircle, XCircle, MoreHorizontal, UserCheck, UserX, UserPlus, UserMinus, Trash2, ChevronDown, ChevronRight } from "lucide-react";
+import { CheckCircle, XCircle, MoreHorizontal, UserCheck, UserX, UserPlus, UserMinus, Trash2, ChevronDown, ChevronRight, ExternalLink, Mail, Building, UserIcon, Linkedin } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
 import { UserSavedListings } from "./UserSavedListings";
 import { UserDataCompleteness } from "./UserDataCompleteness";
+import { getFieldCategories, FIELD_LABELS } from '@/lib/buyer-type-fields';
 
 interface UsersTableProps {
   users: User[];
@@ -20,256 +21,145 @@ interface UsersTableProps {
   isLoading: boolean;
 }
 
-// Component for user detail view
-const UserDetails = ({ user }: { user: User }) => (
-  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-    <div>
-      <div className="text-sm font-semibold mb-2">Contact Information</div>
-      <div className="text-sm space-y-1">
-        <div><strong>Email:</strong> {user.email}</div>
-        <div><strong>Phone:</strong> {user.phone_number || "—"}</div>
-        <div><strong>Website:</strong> {user.website ? (
-          <a href={user.website} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
-            {user.website}
-          </a>
-        ) : "—"}</div>
-        <div><strong>LinkedIn:</strong> {user.linkedin_profile ? (
-          <a href={user.linkedin_profile} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
-            View Profile
-          </a>
-        ) : "—"}</div>
-      </div>
-    </div>
-    
-    <div>
-      <div className="text-sm font-semibold">Business Information</div>
-      <div className="text-sm mt-1">
-        <div><strong>Company:</strong> {user.company || "—"}</div>
-        <div><strong>Buyer Type:</strong> {user.buyer_type || "—"}</div>
-        {user.buyer_type === "corporate" && (
-          <div><strong>Est. Revenue:</strong> {user.estimated_revenue || "—"}</div>
-        )}
-        {(user.buyer_type === "privateEquity" || user.buyer_type === "familyOffice") && (
-          <>
-            <div><strong>Fund Size:</strong> {user.fund_size || "—"}</div>
-            <div><strong>Investment Size:</strong> {user.investment_size || "—"}</div>
-          </>
-        )}
-        {user.buyer_type === "familyOffice" && (
-          <div><strong>AUM:</strong> {user.aum || "—"}</div>
-        )}
-        {user.buyer_type === "searchFund" && (
-          <>
-            <div><strong>Funded:</strong> {user.is_funded || "—"}</div>
-            {user.funded_by && <div><strong>Funded By:</strong> {user.funded_by}</div>}
-            <div><strong>Target Company Size:</strong> {user.target_company_size || "—"}</div>
-          </>
-        )}
-        {user.buyer_type === "individual" && (
-          <>
-            <div><strong>Funding Source:</strong> {user.funding_source || "—"}</div>
-            <div><strong>Needs Loan:</strong> {user.needs_loan || "—"}</div>
-          </>
-        )}
-      </div>
-    </div>
-    
-    <div>
-      <div className="text-sm font-semibold">Account Information</div>
-      <div className="text-sm mt-1">
-        <div><strong>Created:</strong> {new Date(user.created_at).toLocaleString()}</div>
-        <div>
-          <strong>Email Verified:</strong> 
-          {user.email_verified ? " Yes" : " No"}
-        </div>
-        <div>
-          <strong>Account Status:</strong> 
-          <span className={`capitalize ml-1 ${
-            user.approval_status === "approved" ? "text-green-600" : 
-            user.approval_status === "rejected" ? "text-red-600" : 
-            "text-yellow-600"
-          }`}>
-            {user.approval_status}
-          </span>
-        </div>
-        <div>
-          <strong>Admin:</strong> {user.is_admin ? " Yes" : " No"}
-        </div>
-      </div>
-    </div>
+// Helper function to render user detail with proper field filtering
+const UserDetails = ({ user }: { user: User }) => {
+  // Get buyer-type specific field categories
+  const fieldCategories = getFieldCategories(user.buyer_type || 'corporate');
 
-    {/* Buyer Profile Section */}
-    {(user.ideal_target_description || user.business_categories || user.target_locations || user.revenue_range_min || user.revenue_range_max || user.specific_business_search) && (
-      <div className="col-span-1 md:col-span-2 lg:col-span-3 mt-4">
-        <div className="text-sm font-semibold mb-3">Buyer Profile</div>
-        <div className="space-y-4">
-          {user.ideal_target_description && (
-            <div className="p-3 bg-muted/30 rounded-md">
-              <div className="text-sm font-medium mb-1">Ideal Target Description</div>
-              <div className="text-sm text-muted-foreground">{user.ideal_target_description}</div>
-            </div>
-          )}
-          
-          {user.business_categories && user.business_categories.length > 0 && (
-            <div>
-              <div className="text-sm font-medium mb-2">Business Categories of Interest</div>
-              <div className="flex flex-wrap gap-2">
-                {user.business_categories.map((category, index) => (
-                  <span key={index} className="px-2 py-1 bg-primary/10 text-primary text-xs rounded-md">
-                    {category.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {user.target_locations && (
-              <div className="text-sm">
-                <strong>Target Locations:</strong> {user.target_locations}
-              </div>
-            )}
-            
-            {(user.revenue_range_min || user.revenue_range_max) && (
-              <div className="text-sm">
-                <strong>Revenue Range:</strong> 
-                {user.revenue_range_min && user.revenue_range_max 
-                  ? ` $${user.revenue_range_min.toLocaleString()} - $${user.revenue_range_max.toLocaleString()}`
-                  : user.revenue_range_min 
-                  ? ` $${user.revenue_range_min.toLocaleString()}+`
-                  : user.revenue_range_max
-                  ? ` Up to $${user.revenue_range_max.toLocaleString()}`
-                  : "—"}
-              </div>
-            )}
+  return (
+    <div className="space-y-6 p-4 bg-muted/20 rounded-lg">
+      {/* Account Information Section */}
+      <div className="space-y-3">
+        <h4 className="font-medium text-foreground flex items-center gap-2">
+          <UserIcon className="h-4 w-4" />
+          Account Information
+        </h4>
+        <div className="pl-6 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+          <div><span className="text-muted-foreground">Created:</span> {new Date(user.created_at).toLocaleString()}</div>
+          <div>
+            <span className="text-muted-foreground">Email Verified:</span> 
+            {user.email_verified ? " Yes" : " No"}
           </div>
-
-          {user.specific_business_search && (
-            <div className="p-3 bg-muted/30 rounded-md">
-              <div className="text-sm font-medium mb-1">Specific Business Search</div>
-              <div className="text-sm text-muted-foreground">{user.specific_business_search}</div>
-            </div>
-          )}
+          <div>
+            <span className="text-muted-foreground">Status:</span> 
+            <span className={`capitalize ml-1 ${
+              user.approval_status === "approved" ? "text-green-600" : 
+              user.approval_status === "rejected" ? "text-red-600" : 
+              "text-yellow-600"
+            }`}>
+              {user.approval_status}
+            </span>
+          </div>
+          <div>
+            <span className="text-muted-foreground">Admin:</span> {user.is_admin ? " Yes" : " No"}
+          </div>
         </div>
       </div>
-    )}
 
-    {/* Buyer-Type Specific Profile Data */}
-    <div className="mt-4 col-span-1 md:col-span-2 lg:col-span-3">
-      <div className="text-sm font-semibold mb-2">Buyer-Specific Profile Data</div>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {/* Render each field category dynamically */}
+      {Object.entries(fieldCategories).map(([categoryName, fields]) => {
+        if (fields.length === 0) return null;
         
-        {/* Corporate Buyer Fields */}
-        {user.buyer_type === 'corporate' && (
-          <div className="space-y-2">
-            <h5 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Corporate Details</h5>
-            <div className="text-sm">
-              <strong>Estimated Revenue:</strong> {user.estimated_revenue || "—"}
+        return (
+          <div key={categoryName} className="space-y-3">
+            <h4 className="font-medium text-foreground flex items-center gap-2">
+              {categoryName === 'Contact Information' && <Mail className="h-4 w-4" />}
+              {categoryName === 'Business Profile' && <Building className="h-4 w-4" />}
+              {categoryName === 'Financial Information' && <UserIcon className="h-4 w-4" />}
+              {categoryName}
+              {categoryName === 'Financial Information' && ` (${user.buyer_type})`}
+            </h4>
+            <div className="pl-6 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+              {fields.map((fieldKey) => {
+                const fieldLabel = FIELD_LABELS[fieldKey as keyof typeof FIELD_LABELS] || fieldKey;
+                const fieldValue = user[fieldKey as keyof User];
+                
+                // Handle special field rendering
+                if (fieldKey === 'website' && fieldValue) {
+                  return (
+                    <div key={fieldKey} className="flex items-center gap-2">
+                      <span className="text-muted-foreground">{fieldLabel}:</span>
+                      <a href={fieldValue as string} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline flex items-center gap-1">
+                        {fieldValue as string} <ExternalLink className="h-3 w-3" />
+                      </a>
+                    </div>
+                  );
+                }
+                
+                if (fieldKey === 'linkedin_profile' && fieldValue) {
+                  return (
+                    <div key={fieldKey} className="flex items-center gap-2">
+                      <span className="text-muted-foreground">{fieldLabel}:</span>
+                      <a href={fieldValue as string} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline flex items-center gap-1">
+                        <Linkedin className="h-3 w-3" />
+                        Profile
+                      </a>
+                    </div>
+                  );
+                }
+                
+                if (fieldKey === 'business_categories') {
+                  return (
+                    <div key={fieldKey} className="col-span-2">
+                      <span className="text-muted-foreground">{fieldLabel}:</span>
+                      <div className="mt-1">
+                        {fieldValue && Array.isArray(fieldValue) && fieldValue.length > 0 ? (
+                          <div className="flex flex-wrap gap-1">
+                            {fieldValue.map((cat, index) => (
+                              <span key={index} className="text-xs bg-muted px-2 py-1 rounded">
+                                {cat}
+                              </span>
+                            ))}
+                          </div>
+                        ) : '—'}
+                      </div>
+                    </div>
+                  );
+                }
+                
+                if (fieldKey === 'ideal_target_description' || fieldKey === 'specific_business_search') {
+                  return (
+                    <div key={fieldKey} className="col-span-2">
+                      <span className="text-muted-foreground">{fieldLabel}:</span>
+                      <p className="mt-1 text-xs leading-relaxed">{fieldValue as string || '—'}</p>
+                    </div>
+                  );
+                }
+                
+                if (fieldKey === 'revenue_range_min' || fieldKey === 'revenue_range_max') {
+                  const numValue = fieldValue as number;
+                  return (
+                    <div key={fieldKey}>
+                      <span className="text-muted-foreground">{fieldLabel}:</span> 
+                      {numValue ? `$${numValue.toLocaleString()}` : '—'}
+                    </div>
+                  );
+                }
+                
+                // Skip funded_by if user is not funded
+                if (fieldKey === 'funded_by' && user.is_funded !== 'yes') {
+                  return null;
+                }
+                
+                // Default field rendering
+                return (
+                  <div key={fieldKey}>
+                    <span className="text-muted-foreground">{fieldLabel}:</span> {fieldValue as string || '—'}
+                  </div>
+                );
+              })}
             </div>
           </div>
-        )}
+        );
+      })}
 
-        {/* Private Equity Fields */}
-        {user.buyer_type === 'privateEquity' && (
-          <div className="space-y-2">
-            <h5 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Private Equity Details</h5>
-            <div className="text-sm">
-              <strong>Fund Size:</strong> {user.fund_size || "—"}
-            </div>
-            <div className="text-sm">
-              <strong>Investment Size:</strong> {user.investment_size || "—"}
-            </div>
-          </div>
-        )}
-
-        {/* Family Office Fields */}
-        {user.buyer_type === 'familyOffice' && (
-          <div className="space-y-2">
-            <h5 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Family Office Details</h5>
-            <div className="text-sm">
-              <strong>AUM:</strong> {user.aum || "—"}
-            </div>
-            <div className="text-sm">
-              <strong>Fund Size:</strong> {user.fund_size || "—"}
-            </div>
-          </div>
-        )}
-
-        {/* Search Fund Fields */}
-        {user.buyer_type === 'searchFund' && (
-          <div className="space-y-2">
-            <h5 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Search Fund Details</h5>
-            <div className="text-sm">
-              <strong>Is Funded:</strong> {user.is_funded || "—"}
-            </div>
-            <div className="text-sm">
-              <strong>Funded By:</strong> {user.funded_by || "—"}
-            </div>
-            <div className="text-sm">
-              <strong>Target Company Size:</strong> {user.target_company_size || "—"}
-            </div>
-          </div>
-        )}
-
-        {/* Individual Buyer Fields */}
-        {user.buyer_type === 'individual' && (
-          <div className="space-y-2">
-            <h5 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Individual Buyer Details</h5>
-            <div className="text-sm">
-              <strong>Funding Source:</strong> {user.funding_source || "—"}
-            </div>
-            <div className="text-sm">
-              <strong>Needs Loan:</strong> {user.needs_loan || "—"}
-            </div>
-          </div>
-        )}
-
-        {/* Common Profile Fields */}
-        <div className="space-y-2">
-          <h5 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Additional Profile</h5>
-          <div className="text-sm">
-            <strong>Ideal Target:</strong> {user.ideal_target || "—"}
-          </div>
-          <div className="text-sm">
-            <strong>Company Name:</strong> {user.company_name || "—"}
-          </div>
-          <div className="text-sm">
-            <strong>Bio:</strong> {user.bio ? (user.bio.length > 50 ? `${user.bio.substring(0, 50)}...` : user.bio) : "—"}
-          </div>
-          <div className="text-sm">
-            <strong>Onboarding Complete:</strong> {user.onboarding_completed ? 'Yes' : 'No'}
-          </div>
-        </div>
-      </div>
-      
-      {/* Additional Data Section */}
-      <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <h5 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Revenue Ranges</h5>
-          <div className="text-sm">
-            <strong>Revenue Min:</strong> {user.revenue_range_min ? `$${user.revenue_range_min.toLocaleString()}` : "—"}
-          </div>
-          <div className="text-sm">
-            <strong>Revenue Max:</strong> {user.revenue_range_max ? `$${user.revenue_range_max.toLocaleString()}` : "—"}
-          </div>
-        </div>
-        
-        <div className="space-y-2">
-          <h5 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Search Preferences</h5>
-          <div className="text-sm break-words">
-            <strong>Specific Business Search:</strong> 
-            <span className="whitespace-normal ml-1">{user.specific_business_search || "—"}</span>
-          </div>
-        </div>
+      {/* Saved Listings Section */}
+      <div className="space-y-3">
+        <UserSavedListings userId={user.id} />
       </div>
     </div>
-
-    {/* Saved Listings Section */}
-    <div className="mt-4 col-span-1 md:col-span-2 lg:col-span-3">
-      <UserSavedListings userId={user.id} />
-    </div>
-  </div>
-);
+  );
+};
 
 // Component for user action buttons
 function UserActionButtons({ 

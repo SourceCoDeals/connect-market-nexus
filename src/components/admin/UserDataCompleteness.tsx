@@ -4,6 +4,7 @@ import { Progress } from '@/components/ui/progress';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { User } from '@/types';
 import { CheckCircle2, AlertCircle, Info } from 'lucide-react';
+import { getRelevantFieldsForBuyerType, FIELD_LABELS } from '@/lib/buyer-type-fields';
 
 interface UserDataCompletenessProps {
   user: User;
@@ -12,41 +13,25 @@ interface UserDataCompletenessProps {
 }
 
 export function UserDataCompleteness({ user, showProgress = false, size = 'md' }: UserDataCompletenessProps) {
-  // All possible profile fields
-  const allProfileFields = [
-    // Basic Information
-    { key: 'first_name', label: 'First Name', category: 'basic' },
-    { key: 'last_name', label: 'Last Name', category: 'basic' },
-    { key: 'email', label: 'Email', category: 'basic' },
-    { key: 'phone_number', label: 'Phone', category: 'contact' },
-    { key: 'company', label: 'Company', category: 'business' },
-    { key: 'website', label: 'Website', category: 'contact' },
-    { key: 'linkedin_profile', label: 'LinkedIn', category: 'contact' },
-    
-    // Business Profile
-    { key: 'ideal_target_description', label: 'Target Description', category: 'profile' },
-    { key: 'business_categories', label: 'Business Categories', category: 'profile' },
-    { key: 'target_locations', label: 'Target Locations', category: 'profile' },
-    { key: 'specific_business_search', label: 'Specific Search', category: 'profile' },
-    { key: 'revenue_range_min', label: 'Min Revenue', category: 'profile' },
-    { key: 'revenue_range_max', label: 'Max Revenue', category: 'profile' },
-    
-    // Buyer-specific fields (all possible)
-    { key: 'estimated_revenue', label: 'Est. Revenue', category: 'financial', buyerTypes: ['corporate'] },
-    { key: 'fund_size', label: 'Fund Size', category: 'financial', buyerTypes: ['privateEquity', 'familyOffice'] },
-    { key: 'investment_size', label: 'Investment Size', category: 'financial', buyerTypes: ['privateEquity'] },
-    { key: 'aum', label: 'AUM', category: 'financial', buyerTypes: ['familyOffice'] },
-    { key: 'is_funded', label: 'Funding Status', category: 'financial', buyerTypes: ['searchFund'] },
-    { key: 'funded_by', label: 'Funded By', category: 'financial', buyerTypes: ['searchFund'] },
-    { key: 'target_company_size', label: 'Target Size', category: 'financial', buyerTypes: ['searchFund'] },
-    { key: 'funding_source', label: 'Funding Source', category: 'financial', buyerTypes: ['individual'] },
-    { key: 'needs_loan', label: 'Needs Loan', category: 'financial', buyerTypes: ['individual'] },
-  ];
+  // Get relevant fields for this user's buyer type using the central mapping
+  const relevantFieldKeys = getRelevantFieldsForBuyerType(user.buyer_type || 'corporate');
+  
+  // Create field objects with labels and categories for completion calculation
+  const applicableFields = relevantFieldKeys.map(key => ({
+    key,
+    label: FIELD_LABELS[key as keyof typeof FIELD_LABELS] || key,
+    category: getCategoryForField(key),
+  }));
 
-  // Get applicable fields for this user's buyer type
-  const applicableFields = allProfileFields.filter(field => 
-    !field.buyerTypes || field.buyerTypes.includes(user.buyer_type || 'corporate')
-  );
+  function getCategoryForField(fieldKey: string): string {
+    if (['first_name', 'last_name', 'email', 'phone_number', 'company', 'website', 'linkedin_profile'].includes(fieldKey)) {
+      return 'contact';
+    }
+    if (['ideal_target_description', 'business_categories', 'target_locations', 'specific_business_search', 'revenue_range_min', 'revenue_range_max'].includes(fieldKey)) {
+      return 'profile';
+    }
+    return 'financial';
+  }
 
   // Calculate completion
   const completedFields = applicableFields.filter(field => {
