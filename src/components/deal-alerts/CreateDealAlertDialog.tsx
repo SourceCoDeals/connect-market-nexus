@@ -109,7 +109,7 @@ export function CreateDealAlertDialog({ trigger }: CreateDealAlertDialogProps) {
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={setOpen} modal={true}>
       <DialogTrigger asChild>
         {trigger || (
           <Button className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70">
@@ -119,7 +119,7 @@ export function CreateDealAlertDialog({ trigger }: CreateDealAlertDialogProps) {
         )}
       </DialogTrigger>
       
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto z-50">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         {showSuccess ? (
           <>
             <DialogHeader>
@@ -181,7 +181,7 @@ export function CreateDealAlertDialog({ trigger }: CreateDealAlertDialogProps) {
                     <SelectTrigger>
                       <SelectValue placeholder="Any category" />
                     </SelectTrigger>
-                    <SelectContent className="z-50">
+                    <SelectContent className="z-[200]">
                       <SelectItem value="all">Any category</SelectItem>
                       {categories.map(category => (
                         <SelectItem key={category} value={category}>
@@ -204,7 +204,7 @@ export function CreateDealAlertDialog({ trigger }: CreateDealAlertDialogProps) {
                     <SelectTrigger>
                       <SelectValue placeholder="Any location" />
                     </SelectTrigger>
-                    <SelectContent className="z-50">
+                    <SelectContent className="z-[200]">
                       <SelectItem value="all">Any location</SelectItem>
                       {locations.map(location => (
                         <SelectItem key={location} value={location}>
@@ -226,7 +226,7 @@ export function CreateDealAlertDialog({ trigger }: CreateDealAlertDialogProps) {
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="z-50">
+                    <SelectContent className="z-[200]">
                       <SelectItem value="instant">Only when deals match my criteria (recommended)</SelectItem>
                       <SelectItem value="daily">Daily digest</SelectItem>
                       <SelectItem value="weekly">Weekly digest</SelectItem>
@@ -243,7 +243,7 @@ export function CreateDealAlertDialog({ trigger }: CreateDealAlertDialogProps) {
                     <SelectTrigger>
                       <SelectValue placeholder="Any revenue" />
                     </SelectTrigger>
-                    <SelectContent className="z-50">
+                    <SelectContent className="z-[200]">
                       <SelectItem value="all">Any revenue</SelectItem>
                       {REVENUE_RANGES.map(range => (
                         <SelectItem key={range.label} value={range.label}>
@@ -263,7 +263,7 @@ export function CreateDealAlertDialog({ trigger }: CreateDealAlertDialogProps) {
                     <SelectTrigger>
                       <SelectValue placeholder="Any EBITDA" />
                     </SelectTrigger>
-                    <SelectContent className="z-50">
+                    <SelectContent className="z-[200]">
                       <SelectItem value="all">Any EBITDA</SelectItem>
                       {EBITDA_RANGES.map(range => (
                         <SelectItem key={range.label} value={range.label}>

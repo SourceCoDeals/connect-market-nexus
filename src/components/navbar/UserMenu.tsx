@@ -32,9 +32,10 @@ const UserMenu = ({ user, isAdmin, isMobile, handleLogout, onNavigateToAdmin }: 
 
   const handleSimpleLogout = async () => {
     try {
+      console.log('🚪 User clicked logout button');
       await logout();
     } catch (error) {
-      console.error('Logout error:', error);
+      console.error('Logout error in UserMenu:', error);
       // Force navigation on error
       window.location.href = '/login';
     }

@@ -87,9 +87,35 @@ export function useNuclearAuth() {
   };
 
   const logout = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) throw error;
-    setUser(null);
+    try {
+      console.log('🔄 Starting logout process...');
+      
+      // Clean up auth state first
+      const { cleanupAuthState } = await import('@/lib/auth-cleanup');
+      cleanupAuthState();
+      
+      // Sign out from Supabase with global scope
+      const { error } = await supabase.auth.signOut({ scope: 'global' });
+      if (error) {
+        console.error('Supabase logout error:', error);
+        // Don't throw error, continue with cleanup
+      }
+      
+      // Clear user state
+      setUser(null);
+      
+      console.log('✅ Logout completed successfully');
+      
+      // Force page reload to ensure clean state
+      setTimeout(() => {
+        window.location.href = '/login';
+      }, 100);
+      
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Force navigation even on error
+      window.location.href = '/login';
+    }
   };
 
   const signup = async (userData: Partial<AppUser>, password: string) => {
