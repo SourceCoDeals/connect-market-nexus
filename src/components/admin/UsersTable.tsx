@@ -49,10 +49,26 @@ const UserDetails = ({ user }: { user: User }) => (
           <div><strong>Est. Revenue:</strong> {user.estimated_revenue || "—"}</div>
         )}
         {(user.buyer_type === "privateEquity" || user.buyer_type === "familyOffice") && (
-          <div><strong>Fund Size:</strong> {user.fund_size || "—"}</div>
+          <>
+            <div><strong>Fund Size:</strong> {user.fund_size || "—"}</div>
+            <div><strong>Investment Size:</strong> {user.investment_size || "—"}</div>
+          </>
         )}
         {user.buyer_type === "familyOffice" && (
           <div><strong>AUM:</strong> {user.aum || "—"}</div>
+        )}
+        {user.buyer_type === "searchFund" && (
+          <>
+            <div><strong>Funded:</strong> {user.is_funded || "—"}</div>
+            {user.funded_by && <div><strong>Funded By:</strong> {user.funded_by}</div>}
+            <div><strong>Target Company Size:</strong> {user.target_company_size || "—"}</div>
+          </>
+        )}
+        {user.buyer_type === "individual" && (
+          <>
+            <div><strong>Funding Source:</strong> {user.funding_source || "—"}</div>
+            <div><strong>Needs Loan:</strong> {user.needs_loan || "—"}</div>
+          </>
         )}
       </div>
     </div>

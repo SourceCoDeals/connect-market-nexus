@@ -14,6 +14,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useRealtimeAdmin } from "@/hooks/use-realtime-admin";
 import { cn } from "@/lib/utils";
+import { EnhancedUserManagement } from "@/components/admin/EnhancedUserManagement";
+import { UserProfileCompletion } from "@/components/admin/UserProfileCompletion";
 
 const AdminUsers = () => {
   const { users } = useAdmin();
@@ -118,68 +120,23 @@ const AdminUsers = () => {
     <div className="space-y-4 md:space-y-6">
       <div className="flex flex-col gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold">User Management</h1>
+          <h1 className="text-2xl md:text-3xl font-bold">Enhanced User Management</h1>
           <p className="text-sm md:text-base text-muted-foreground">
-            Manage user accounts and permissions
+            Comprehensive user management with analytics and profile completion tracking
           </p>
-        </div>
-        
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-            <Input
-              placeholder="Search users by email, name, company..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-          
-          <Button
-            onClick={handleRetry}
-            variant="outline"
-            disabled={isLoading}
-            className="w-full sm:w-auto"
-          >
-            <RefreshCw className={cn("h-4 w-4 mr-2", isLoading && "animate-spin")} />
-            Refresh
-          </Button>
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 md:gap-4">
-        <StatsCard 
-          title="Total" 
-          value={stats.total} 
-          className="bg-blue-50 text-blue-900"
-        />
-        <StatsCard 
-          title="Pending" 
-          value={stats.pending} 
-          className="bg-yellow-50 text-yellow-900"
-        />
-        <StatsCard 
-          title="Approved" 
-          value={stats.approved} 
-          className="bg-green-50 text-green-900"
-        />
-        <StatsCard 
-          title="Rejected" 
-          value={stats.rejected} 
-          className="bg-red-50 text-red-900"
-        />
-        <StatsCard 
-          title="Admins" 
-          value={stats.admins} 
-          className="bg-purple-50 text-purple-900"
-        />
-        <StatsCard 
-          title="Verified" 
-          value={stats.emailVerified} 
-          className="bg-indigo-50 text-indigo-900"
-        />
-      </div>
+      {/* Enhanced User Management with Analytics */}
+      <EnhancedUserManagement
+        users={usersData}
+        onApprove={approveUser}
+        onReject={rejectUser}
+        onMakeAdmin={makeAdmin}
+        onRevokeAdmin={revokeAdmin}
+        onDelete={deleteUser}
+        isLoading={isLoading}
+      />
 
       {/* Priority Alert */}
       {stats.pending > 0 && (

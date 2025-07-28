@@ -68,9 +68,20 @@ const Signup = () => {
     company: string;
     website: string;
     linkedinProfile: string;
-    phone: string;
+    phoneNumber: string;
     buyerType: BuyerType | "";
-    additionalInfo: Record<string, any>;
+    // Buyer type specific fields - flattened for proper mapping
+    estimatedRevenue: string;
+    fundSize: string;
+    investmentSize: string;
+    aum: string;
+    isFunded: string;
+    fundedBy: string;
+    targetCompanySize: string;
+    fundingSource: string;
+    needsLoan: string;
+    idealTarget: string;
+    // Profile fields
     idealTargetDescription: string;
     businessCategories: string[];
     targetLocations: string;
@@ -86,9 +97,20 @@ const Signup = () => {
     company: "",
     website: "",
     linkedinProfile: "",
-    phone: "",
+    phoneNumber: "",
     buyerType: "",
-    additionalInfo: {},
+    // Buyer type specific fields
+    estimatedRevenue: "",
+    fundSize: "",
+    investmentSize: "",
+    aum: "",
+    isFunded: "",
+    fundedBy: "",
+    targetCompanySize: "",
+    fundingSource: "",
+    needsLoan: "",
+    idealTarget: "",
+    // Profile fields
     idealTargetDescription: "",
     businessCategories: [],
     targetLocations: "",
@@ -102,19 +124,26 @@ const Signup = () => {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleAdditionalInfoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleBuyerSpecificChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      additionalInfo: { ...prev.additionalInfo, [name]: value },
-    }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleBuyerTypeChange = (value: string) => {
     setFormData((prev) => ({
       ...prev,
       buyerType: value as BuyerType,
-      additionalInfo: {}, // Reset additional info when type changes
+      // Reset buyer-specific fields when type changes
+      estimatedRevenue: "",
+      fundSize: "",
+      investmentSize: "",
+      aum: "",
+      isFunded: "",
+      fundedBy: "",
+      targetCompanySize: "",
+      fundingSource: "",
+      needsLoan: "",
+      idealTarget: "",
     }));
   };
 
@@ -165,7 +194,7 @@ const Signup = () => {
           errors.push("Company name is required");
         }
         // Phone validation
-        if (!formData.phone) {
+        if (!formData.phoneNumber) {
           errors.push("Phone number is required");
         }
         break;
@@ -179,23 +208,23 @@ const Signup = () => {
         // Specific validations based on buyer type
         switch (formData.buyerType) {
           case "corporate":
-            if (!formData.additionalInfo.estimatedRevenue) {
+            if (!formData.estimatedRevenue) {
               errors.push("Estimated revenue is required");
             }
             break;
           case "privateEquity":
           case "familyOffice":
-            if (!formData.additionalInfo.fundSize) {
+            if (!formData.fundSize) {
               errors.push("Fund size is required");
             }
             break;
           case "searchFund":
-            if (formData.additionalInfo.isFunded === undefined) {
+            if (!formData.isFunded) {
               errors.push("Please specify if you're funded");
             }
             break;
           case "individual":
-            if (!formData.additionalInfo.fundingSource) {
+            if (!formData.fundingSource) {
               errors.push("Funding source is required");
             }
             break;
@@ -251,9 +280,18 @@ const Signup = () => {
         company, 
         website, 
         linkedinProfile, 
-        phone, 
-        buyerType, 
-        additionalInfo,
+        phoneNumber, 
+        buyerType,
+        estimatedRevenue,
+        fundSize,
+        investmentSize,
+        aum,
+        isFunded,
+        fundedBy,
+        targetCompanySize,
+        fundingSource,
+        needsLoan,
+        idealTarget,
         idealTargetDescription,
         businessCategories,
         targetLocations,
@@ -269,7 +307,7 @@ const Signup = () => {
         company: company,
         website: website,
         linkedin_profile: linkedinProfile,
-        phone_number: phone,
+        phone_number: phoneNumber,
         buyer_type: buyerType as BuyerType,
         ideal_target_description: idealTargetDescription,
         business_categories: businessCategories,
@@ -277,7 +315,17 @@ const Signup = () => {
         revenue_range_min: revenueRangeMin ? parseFloat(revenueRangeMin.replace(/[^0-9.]/g, "")) : undefined,
         revenue_range_max: revenueRangeMax ? parseFloat(revenueRangeMax.replace(/[^0-9.]/g, "")) : undefined,
         specific_business_search: specificBusinessSearch,
-        ...additionalInfo, // Include all additional info
+        // Buyer-specific fields
+        estimated_revenue: estimatedRevenue,
+        fund_size: fundSize,
+        investment_size: investmentSize,
+        aum: aum,
+        is_funded: isFunded,
+        funded_by: fundedBy,
+        target_company_size: targetCompanySize,
+        funding_source: fundingSource,
+        needs_loan: needsLoan,
+        ideal_target: idealTarget,
       };
       
       await signup(signupData, formData.password);
@@ -399,12 +447,12 @@ const Signup = () => {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="phone">Phone</Label>
+              <Label htmlFor="phoneNumber">Phone</Label>
               <Input
-                id="phone"
-                name="phone"
+                id="phoneNumber"
+                name="phoneNumber"
                 placeholder="(123) 456-7890"
-                value={formData.phone}
+                value={formData.phoneNumber}
                 onChange={handleInputChange}
                 required
               />
@@ -470,8 +518,8 @@ const Signup = () => {
                   id="estimatedRevenue"
                   name="estimatedRevenue"
                   placeholder="$1M-$5M"
-                  value={formData.additionalInfo.estimatedRevenue || ""}
-                  onChange={handleAdditionalInfoChange}
+                  value={formData.estimatedRevenue}
+                  onChange={handleBuyerSpecificChange}
                   required
                 />
               </div>
@@ -485,19 +533,19 @@ const Signup = () => {
                     id="fundSize"
                     name="fundSize"
                     placeholder="$10M-$50M"
-                    value={formData.additionalInfo.fundSize || ""}
-                    onChange={handleAdditionalInfoChange}
+                    value={formData.fundSize}
+                    onChange={handleBuyerSpecificChange}
                     required
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="platformSize">Platform Size</Label>
+                  <Label htmlFor="investmentSize">Investment Size</Label>
                   <Input
-                    id="platformSize"
-                    name="platformSize"
-                    placeholder="1-100M"
-                    value={formData.additionalInfo.platformSize || ""}
-                    onChange={handleAdditionalInfoChange}
+                    id="investmentSize"
+                    name="investmentSize"
+                    placeholder="$1M-$10M"
+                    value={formData.investmentSize}
+                    onChange={handleBuyerSpecificChange}
                   />
                 </div>
                 <div className="space-y-2">
@@ -506,8 +554,8 @@ const Signup = () => {
                     id="aum"
                     name="aum"
                     placeholder="$100M"
-                    value={formData.additionalInfo.aum || ""}
-                    onChange={handleAdditionalInfoChange}
+                    value={formData.aum}
+                    onChange={handleBuyerSpecificChange}
                   />
                 </div>
               </div>
@@ -521,19 +569,10 @@ const Signup = () => {
                     onValueChange={(value) =>
                       setFormData((prev) => ({
                         ...prev,
-                        additionalInfo: {
-                          ...prev.additionalInfo,
-                          isFunded: value === "yes",
-                        },
+                        isFunded: value,
                       }))
                     }
-                    value={
-                      formData.additionalInfo.isFunded === undefined
-                        ? ""
-                        : formData.additionalInfo.isFunded
-                        ? "yes"
-                        : "no"
-                    }
+                    value={formData.isFunded}
                   >
                     <SelectTrigger className="w-full">
                       <SelectValue placeholder="Select option" />
@@ -545,27 +584,27 @@ const Signup = () => {
                   </Select>
                 </div>
                 
-                {formData.additionalInfo.isFunded && (
+                {formData.isFunded === "yes" && (
                   <div className="space-y-2">
-                    <Label htmlFor="funder">Who is your funder?</Label>
+                    <Label htmlFor="fundedBy">Who is your funder?</Label>
                     <Input
-                      id="funder"
-                      name="funder"
+                      id="fundedBy"
+                      name="fundedBy"
                       placeholder="Investor name"
-                      value={formData.additionalInfo.funder || ""}
-                      onChange={handleAdditionalInfoChange}
+                      value={formData.fundedBy}
+                      onChange={handleBuyerSpecificChange}
                     />
                   </div>
                 )}
                 
                 <div className="space-y-2">
-                  <Label htmlFor="targetSize">Target size</Label>
+                  <Label htmlFor="targetCompanySize">Target Company Size</Label>
                   <Input
-                    id="targetSize"
-                    name="targetSize"
+                    id="targetCompanySize"
+                    name="targetCompanySize"
                     placeholder="$5M-$20M"
-                    value={formData.additionalInfo.targetSize || ""}
-                    onChange={handleAdditionalInfoChange}
+                    value={formData.targetCompanySize}
+                    onChange={handleBuyerSpecificChange}
                   />
                 </div>
               </div>
@@ -579,30 +618,21 @@ const Signup = () => {
                     id="fundingSource"
                     name="fundingSource"
                     placeholder="Personal funds, investors, etc."
-                    value={formData.additionalInfo.fundingSource || ""}
-                    onChange={handleAdditionalInfoChange}
+                    value={formData.fundingSource}
+                    onChange={handleBuyerSpecificChange}
                     required
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="sbaLoan">SBA/Bank loan?</Label>
+                  <Label htmlFor="needsLoan">SBA/Bank loan?</Label>
                   <Select
                     onValueChange={(value) =>
                       setFormData((prev) => ({
                         ...prev,
-                        additionalInfo: {
-                          ...prev.additionalInfo,
-                          sbaLoan: value === "yes",
-                        },
+                        needsLoan: value,
                       }))
                     }
-                    value={
-                      formData.additionalInfo.sbaLoan === undefined
-                        ? ""
-                        : formData.additionalInfo.sbaLoan
-                        ? "yes"
-                        : "no"
-                    }
+                    value={formData.needsLoan}
                   >
                     <SelectTrigger className="w-full">
                       <SelectValue placeholder="Select option" />
@@ -619,8 +649,8 @@ const Signup = () => {
                     id="idealTarget"
                     name="idealTarget"
                     placeholder="Description of ideal acquisition"
-                    value={formData.additionalInfo.idealTarget || ""}
-                    onChange={handleAdditionalInfoChange}
+                    value={formData.idealTarget}
+                    onChange={handleBuyerSpecificChange}
                   />
                 </div>
               </div>
