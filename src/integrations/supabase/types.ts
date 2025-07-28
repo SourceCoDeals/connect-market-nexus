@@ -55,6 +55,54 @@ export type Database = {
           },
         ]
       }
+      alert_delivery_logs: {
+        Row: {
+          alert_id: string
+          created_at: string
+          delivery_status: string
+          error_message: string | null
+          id: string
+          listing_id: string
+          sent_at: string | null
+          user_id: string
+        }
+        Insert: {
+          alert_id: string
+          created_at?: string
+          delivery_status?: string
+          error_message?: string | null
+          id?: string
+          listing_id: string
+          sent_at?: string | null
+          user_id: string
+        }
+        Update: {
+          alert_id?: string
+          created_at?: string
+          delivery_status?: string
+          error_message?: string | null
+          id?: string
+          listing_id?: string
+          sent_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "alert_delivery_logs_alert_id_fkey"
+            columns: ["alert_id"]
+            isOneToOne: false
+            referencedRelation: "deal_alerts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "alert_delivery_logs_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "listings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       audit_logs: {
         Row: {
           admin_id: string | null
@@ -225,6 +273,42 @@ export type Database = {
           total_users?: number | null
           unique_page_views?: number | null
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      deal_alerts: {
+        Row: {
+          created_at: string
+          criteria: Json
+          frequency: string
+          id: string
+          is_active: boolean
+          last_sent_at: string | null
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          criteria?: Json
+          frequency?: string
+          id?: string
+          is_active?: boolean
+          last_sent_at?: string | null
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          criteria?: Json
+          frequency?: string
+          id?: string
+          is_active?: boolean
+          last_sent_at?: string | null
+          name?: string
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -1034,6 +1118,16 @@ export type Database = {
       is_admin: {
         Args: { user_id: string }
         Returns: boolean
+      }
+      match_deal_alerts_with_listing: {
+        Args: { listing_data: Json }
+        Returns: {
+          alert_id: string
+          user_id: string
+          user_email: string
+          alert_name: string
+          alert_frequency: string
+        }[]
       }
       promote_user_to_admin: {
         Args: { target_user_id: string }
