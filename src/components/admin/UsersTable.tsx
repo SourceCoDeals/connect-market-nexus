@@ -153,46 +153,78 @@ const UserDetails = ({ user }: { user: User }) => (
       </div>
     )}
 
-    {/* Additional buyer information */}
+    {/* Additional buyer information - Complete Historical Data */}
     <div className="mt-4 col-span-1 md:col-span-2 lg:col-span-3">
-      <div className="text-sm font-semibold mb-2">Additional Information</div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {user.target_company_size && (
+      <div className="text-sm font-semibold mb-2">Complete Signup Data</div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {/* Financial Information */}
+        <div className="space-y-2">
+          <h5 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Financial Details</h5>
+          {user.estimated_revenue && (
+            <div className="text-sm">
+              <strong>Estimated Revenue:</strong> {user.estimated_revenue}
+            </div>
+          )}
+          {user.fund_size && (
+            <div className="text-sm">
+              <strong>Fund Size:</strong> {user.fund_size}
+            </div>
+          )}
+          {user.investment_size && (
+            <div className="text-sm">
+              <strong>Investment Size:</strong> {user.investment_size}
+            </div>
+          )}
+          {user.aum && (
+            <div className="text-sm">
+              <strong>AUM:</strong> {user.aum}
+            </div>
+          )}
+          {user.target_company_size && (
+            <div className="text-sm">
+              <strong>Target Company Size:</strong> {user.target_company_size}
+            </div>
+          )}
+        </div>
+
+        {/* Funding Information */}
+        <div className="space-y-2">
+          <h5 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Funding Status</h5>
+          {user.funding_source && (
+            <div className="text-sm">
+              <strong>Funding Source:</strong> {user.funding_source}
+            </div>
+          )}
+          {user.is_funded && (
+            <div className="text-sm">
+              <strong>Funded:</strong> {user.is_funded}
+              {user.funded_by && <span> by {user.funded_by}</span>}
+            </div>
+          )}
+          {user.needs_loan && (
+            <div className="text-sm">
+              <strong>Needs Loan:</strong> {user.needs_loan}
+            </div>
+          )}
+        </div>
+
+        {/* Additional Profile Data */}
+        <div className="space-y-2">
+          <h5 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Profile Details</h5>
+          {user.ideal_target && (
+            <div className="text-sm">
+              <strong>Ideal Target:</strong> {user.ideal_target}
+            </div>
+          )}
+          {user.bio && (
+            <div className="text-sm">
+              <strong>Bio:</strong> {user.bio}
+            </div>
+          )}
           <div className="text-sm">
-            <strong>Target Company Size:</strong> {user.target_company_size}
+            <strong>Onboarding Complete:</strong> {user.onboarding_completed ? 'Yes' : 'No'}
           </div>
-        )}
-        {user.funding_source && (
-          <div className="text-sm">
-            <strong>Funding Source:</strong> {user.funding_source}
-          </div>
-        )}
-        {user.investment_size && (
-          <div className="text-sm">
-            <strong>Investment Size:</strong> {user.investment_size}
-          </div>
-        )}
-        {user.is_funded && (
-          <div className="text-sm">
-            <strong>Funded:</strong> {user.is_funded}
-            {user.funded_by && <span> by {user.funded_by}</span>}
-          </div>
-        )}
-        {user.needs_loan && (
-          <div className="text-sm">
-            <strong>Needs Loan:</strong> {user.needs_loan}
-          </div>
-        )}
-        {user.ideal_target && (
-          <div className="text-sm">
-            <strong>Ideal Target:</strong> {user.ideal_target}
-          </div>
-        )}
-        {user.bio && (
-          <div className="text-sm col-span-2">
-            <strong>Bio:</strong> {user.bio}
-          </div>
-        )}
+        </div>
       </div>
     </div>
 
