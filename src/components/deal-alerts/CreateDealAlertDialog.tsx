@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Plus, Search, MapPin, DollarSign, TrendingUp } from 'lucide-react';
+import { Bell, Search, MapPin, DollarSign, TrendingUp } from 'lucide-react';
 import { useCreateDealAlert, CreateDealAlertRequest } from '@/hooks/use-deal-alerts';
 import { useListingMetadata } from '@/hooks/marketplace/use-listings';
 
@@ -92,28 +92,34 @@ export function CreateDealAlertDialog({ trigger }: CreateDealAlertDialogProps) {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         {trigger || (
-          <Button>
-            <Plus className="h-4 w-4 mr-2" />
-            Create Deal Alert
+          <Button className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70">
+            <Bell className="h-4 w-4 mr-2" />
+            Get Deal Alerts
           </Button>
         )}
       </DialogTrigger>
       
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto z-50">
         <DialogHeader>
-          <DialogTitle>Create Deal Alert</DialogTitle>
+          <DialogTitle>Get First Access to New Deals</DialogTitle>
+          <p className="text-sm text-muted-foreground">
+            We'll email you immediately when new opportunities match your criteria, giving you the first look at deals before others.
+          </p>
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-2">
-            <Label htmlFor="name">Alert Name</Label>
+            <Label htmlFor="name">What deals are you looking for?</Label>
             <Input
               id="name"
-              placeholder="e.g., Tech Companies in California"
+              placeholder="e.g., SaaS companies in California under $5M revenue"
               value={formData.name}
               onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
               required
             />
+            <p className="text-xs text-muted-foreground">
+              This helps you identify your alerts and will be included in your email notifications.
+            </p>
           </div>
 
           <Card>
@@ -143,7 +149,7 @@ export function CreateDealAlertDialog({ trigger }: CreateDealAlertDialogProps) {
                     <SelectTrigger>
                       <SelectValue placeholder="Any category" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="z-50">
                       <SelectItem value="all">Any category</SelectItem>
                       {categories.map(category => (
                         <SelectItem key={category} value={category}>
@@ -166,7 +172,7 @@ export function CreateDealAlertDialog({ trigger }: CreateDealAlertDialogProps) {
                     <SelectTrigger>
                       <SelectValue placeholder="Any location" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="z-50">
                       <SelectItem value="all">Any location</SelectItem>
                       {locations.map(location => (
                         <SelectItem key={location} value={location}>
@@ -188,8 +194,8 @@ export function CreateDealAlertDialog({ trigger }: CreateDealAlertDialogProps) {
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="instant">Instant (immediate notification)</SelectItem>
+                    <SelectContent className="z-50">
+                      <SelectItem value="instant">Only when deals match my criteria (recommended)</SelectItem>
                       <SelectItem value="daily">Daily digest</SelectItem>
                       <SelectItem value="weekly">Weekly digest</SelectItem>
                     </SelectContent>
@@ -205,7 +211,7 @@ export function CreateDealAlertDialog({ trigger }: CreateDealAlertDialogProps) {
                     <SelectTrigger>
                       <SelectValue placeholder="Any revenue" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="z-50">
                       <SelectItem value="all">Any revenue</SelectItem>
                       {REVENUE_RANGES.map(range => (
                         <SelectItem key={range.label} value={range.label}>
@@ -225,7 +231,7 @@ export function CreateDealAlertDialog({ trigger }: CreateDealAlertDialogProps) {
                     <SelectTrigger>
                       <SelectValue placeholder="Any EBITDA" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="z-50">
                       <SelectItem value="all">Any EBITDA</SelectItem>
                       {EBITDA_RANGES.map(range => (
                         <SelectItem key={range.label} value={range.label}>

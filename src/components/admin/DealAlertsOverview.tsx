@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Bell, Users, Zap, Clock, TrendingUp } from 'lucide-react';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
+import { AdminAlertManagement } from './AdminAlertManagement';
 
 interface DealAlertStats {
   total_alerts: number;
@@ -205,6 +206,9 @@ export function DealAlertsOverview() {
           </CardContent>
         </Card>
       )}
+      
+      {/* Individual Alert Management */}
+      <AdminAlertManagement />
     </div>
   );
 }
