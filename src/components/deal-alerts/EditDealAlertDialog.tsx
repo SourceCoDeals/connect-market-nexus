@@ -1,12 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Plus, Search, MapPin, DollarSign, TrendingUp } from 'lucide-react';
-import { useCreateDealAlert, CreateDealAlertRequest } from '@/hooks/use-deal-alerts';
+import { Search, MapPin, DollarSign, TrendingUp } from 'lucide-react';
+import { useUpdateDealAlert, DealAlert, UpdateDealAlertRequest } from '@/hooks/use-deal-alerts';
 import { useListingMetadata } from '@/hooks/marketplace/use-listings';
 
 const REVENUE_RANGES = [
@@ -26,37 +26,45 @@ const EBITDA_RANGES = [
   { label: 'Over $10M', min: 10000000, max: undefined },
 ];
 
-
-interface CreateDealAlertDialogProps {
-  trigger?: React.ReactNode;
+interface EditDealAlertDialogProps {
+  alert: DealAlert | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }
 
-export function CreateDealAlertDialog({ trigger }: CreateDealAlertDialogProps) {
-  const [open, setOpen] = useState(false);
-  const [formData, setFormData] = useState<CreateDealAlertRequest>({
+export function EditDealAlertDialog({ alert, open, onOpenChange }: EditDealAlertDialogProps) {
+  const [formData, setFormData] = useState<UpdateDealAlertRequest>({
     name: '',
     criteria: {},
     frequency: 'daily',
   });
 
-  const createAlert = useCreateDealAlert();
+  const updateAlert = useUpdateDealAlert();
   const { data: metadata } = useListingMetadata();
   
   const categories = metadata?.categories || [];
   const locations = metadata?.locations || [];
 
+  useEffect(() => {
+    if (alert) {
+      setFormData({
+        name: alert.name,
+        criteria: alert.criteria,
+        frequency: alert.frequency,
+      });
+    }
+  }, [alert]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name.trim()) return;
+    if (!formData.name.trim() || !alert) return;
 
     try {
-      await createAlert.mutateAsync(formData);
-      setOpen(false);
-      setFormData({
-        name: '',
-        criteria: {},
-        frequency: 'daily',
+      await updateAlert.mutateAsync({
+        id: alert.id,
+        updates: formData,
       });
+      onOpenChange(false);
     } catch (error) {
       // Error is handled by the mutation
     }
@@ -73,6 +81,11 @@ export function CreateDealAlertDialog({ trigger }: CreateDealAlertDialogProps) {
   };
 
   const handleRevenueRangeChange = (value: string) => {
+    if (value === 'all') {
+      updateCriteria('revenueMin', undefined);
+      updateCriteria('revenueMax', undefined);
+      return;
+    }
     const range = REVENUE_RANGES.find(r => r.label === value);
     if (range) {
       updateCriteria('revenueMin', range.min);
@@ -81,6 +94,11 @@ export function CreateDealAlertDialog({ trigger }: CreateDealAlertDialogProps) {
   };
 
   const handleEbitdaRangeChange = (value: string) => {
+    if (value === 'all') {
+      updateCriteria('ebitdaMin', undefined);
+      updateCriteria('ebitdaMax', undefined);
+      return;
+    }
     const range = EBITDA_RANGES.find(r => r.label === value);
     if (range) {
       updateCriteria('ebitdaMin', range.min);
@@ -88,20 +106,29 @@ export function CreateDealAlertDialog({ trigger }: CreateDealAlertDialogProps) {
     }
   };
 
+  const getCurrentRevenueRange = () => {
+    const criteria = formData.criteria;
+    if (!criteria.revenueMin && !criteria.revenueMax) return 'all';
+    const range = REVENUE_RANGES.find(r => 
+      r.min === criteria.revenueMin && r.max === criteria.revenueMax
+    );
+    return range?.label || 'all';
+  };
+
+  const getCurrentEbitdaRange = () => {
+    const criteria = formData.criteria;
+    if (!criteria.ebitdaMin && !criteria.ebitdaMax) return 'all';
+    const range = EBITDA_RANGES.find(r => 
+      r.min === criteria.ebitdaMin && r.max === criteria.ebitdaMax
+    );
+    return range?.label || 'all';
+  };
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        {trigger || (
-          <Button>
-            <Plus className="h-4 w-4 mr-2" />
-            Create Deal Alert
-          </Button>
-        )}
-      </DialogTrigger>
-      
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Create Deal Alert</DialogTitle>
+          <DialogTitle>Edit Deal Alert</DialogTitle>
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -201,7 +228,10 @@ export function CreateDealAlertDialog({ trigger }: CreateDealAlertDialogProps) {
                     <DollarSign className="h-4 w-4" />
                     Revenue Range
                   </Label>
-                  <Select onValueChange={handleRevenueRangeChange}>
+                  <Select 
+                    value={getCurrentRevenueRange()}
+                    onValueChange={handleRevenueRangeChange}
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="Any revenue" />
                     </SelectTrigger>
@@ -221,7 +251,10 @@ export function CreateDealAlertDialog({ trigger }: CreateDealAlertDialogProps) {
                     <TrendingUp className="h-4 w-4" />
                     EBITDA Range
                   </Label>
-                  <Select onValueChange={handleEbitdaRangeChange}>
+                  <Select 
+                    value={getCurrentEbitdaRange()}
+                    onValueChange={handleEbitdaRangeChange}
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="Any EBITDA" />
                     </SelectTrigger>
@@ -240,11 +273,11 @@ export function CreateDealAlertDialog({ trigger }: CreateDealAlertDialogProps) {
           </Card>
 
           <div className="flex gap-3 justify-end">
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={!formData.name.trim() || createAlert.isPending}>
-              {createAlert.isPending ? 'Creating...' : 'Create Alert'}
+            <Button type="submit" disabled={!formData.name.trim() || updateAlert.isPending}>
+              {updateAlert.isPending ? 'Updating...' : 'Update Alert'}
             </Button>
           </div>
         </form>

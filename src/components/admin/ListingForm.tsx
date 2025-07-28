@@ -11,7 +11,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { MultiSelect } from "@/components/ui/multi-select";
 import { ImageUpload } from "@/components/ui/image-upload";
-import { Loader2 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Loader2, Bell } from "lucide-react";
 import {
   Form,
   FormControl,
@@ -44,6 +45,7 @@ const listingFormSchema = z.object({
   description: z.string().min(20, "Description must be at least 20 characters"),
   owner_notes: z.string().optional(),
   status: z.enum(["active", "inactive"]).default("active"),
+  sendDealAlerts: z.boolean().default(true),
 });
 
 // Form-specific type that matches the Zod schema (before transformation)
@@ -56,13 +58,14 @@ type ListingFormInput = {
   description: string;
   owner_notes?: string;
   status: "active" | "inactive";
+  sendDealAlerts: boolean;
 };
 
 // Type after Zod transformation
 type ListingFormValues = z.infer<typeof listingFormSchema>;
 
 interface ListingFormProps {
-  onSubmit: (data: ListingFormValues, image?: File | null) => Promise<void>;
+  onSubmit: (data: ListingFormValues, image?: File | null, sendDealAlerts?: boolean) => Promise<void>;
   listing?: AdminListing;
   isLoading?: boolean;
 }
@@ -78,6 +81,7 @@ const convertListingToFormInput = (listing?: AdminListing): ListingFormInput => 
     description: listing?.description || "",
     owner_notes: listing?.owner_notes || "",
     status: listing?.status || "active",
+    sendDealAlerts: true, // Default to true for new listings
   };
 };
 
@@ -154,10 +158,11 @@ export function ListingForm({
         description: formData.description,
         owner_notes: formData.owner_notes,
         status: formData.status,
+        sendDealAlerts: formData.sendDealAlerts,
       };
       
       // Only pass the image if it's been changed
-      await onSubmit(transformedData, isImageChanged ? selectedImage : undefined);
+      await onSubmit(transformedData, isImageChanged ? selectedImage : undefined, formData.sendDealAlerts);
       
       if (!listing) {
         // Reset form after successful submission for new listings
@@ -339,6 +344,35 @@ export function ListingForm({
                   {...field}
                 />
               </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="sendDealAlerts"
+          render={({ field }) => (
+            <FormItem>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="sendDealAlerts"
+                  checked={field.value}
+                  onCheckedChange={field.onChange}
+                />
+                <div className="grid gap-1.5 leading-none">
+                  <label
+                    htmlFor="sendDealAlerts"
+                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex items-center gap-2"
+                  >
+                    <Bell className="h-4 w-4" />
+                    Send Deal Alert Notifications
+                  </label>
+                  <p className="text-xs text-muted-foreground">
+                    Notify users who have set up deal alerts matching this listing's criteria
+                  </p>
+                </div>
+              </div>
               <FormMessage />
             </FormItem>
           )}

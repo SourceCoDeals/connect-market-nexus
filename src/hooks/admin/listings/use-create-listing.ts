@@ -15,9 +15,11 @@ export function useCreateListing() {
     mutationFn: async ({
       listing,
       image,
+      sendDealAlerts,
     }: {
       listing: Omit<AdminListing, 'id' | 'created_at' | 'updated_at'>;
       image?: File | null;
+      sendDealAlerts?: boolean;
     }) => {
       try {
         

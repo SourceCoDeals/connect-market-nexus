@@ -77,11 +77,11 @@ const AdminListings = () => {
     }).format(value);
   };
 
-  const handleFormSubmit = async (data: any, image?: File | null) => {
+  const handleFormSubmit = async (data: any, image?: File | null, sendDealAlerts?: boolean) => {
     if (editingListing) {
       updateListing({ id: editingListing.id, listing: data, image });
     } else {
-      createListing({ listing: data, image });
+      createListing({ listing: data, image, sendDealAlerts });
     }
   };
 

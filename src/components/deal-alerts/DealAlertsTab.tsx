@@ -5,11 +5,13 @@ import { AlertCircle, Bell, Plus } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { CreateDealAlertDialog } from './CreateDealAlertDialog';
+import { EditDealAlertDialog } from './EditDealAlertDialog';
 import { DealAlertCard } from './DealAlertCard';
 import { useDealAlerts, useDeleteDealAlert, useToggleDealAlert, DealAlert } from '@/hooks/use-deal-alerts';
 
 export function DealAlertsTab() {
   const [selectedAlert, setSelectedAlert] = useState<DealAlert | null>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
   
   const { data: alerts, isLoading, error } = useDealAlerts();
   const deleteAlert = useDeleteDealAlert();
@@ -17,7 +19,7 @@ export function DealAlertsTab() {
 
   const handleEdit = (alert: DealAlert) => {
     setSelectedAlert(alert);
-    // TODO: Open edit dialog
+    setEditDialogOpen(true);
   };
 
   const handleDelete = async (id: string) => {
@@ -114,6 +116,15 @@ export function DealAlertsTab() {
           )}
         </CardContent>
       </Card>
+
+      <EditDealAlertDialog
+        alert={selectedAlert}
+        open={editDialogOpen}
+        onOpenChange={(open) => {
+          setEditDialogOpen(open);
+          if (!open) setSelectedAlert(null);
+        }}
+      />
     </div>
   );
 }
