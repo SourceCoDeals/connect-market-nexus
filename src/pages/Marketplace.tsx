@@ -20,6 +20,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useRealtime } from "@/components/realtime/RealtimeProvider";
 import { useAuth } from "@/context/AuthContext";
 import { Wifi } from "lucide-react";
+import { CreateDealAlertDialog } from "@/components/deal-alerts/CreateDealAlertDialog";
 
 const Marketplace = () => {
   const { user, authChecked } = useAuth();
@@ -283,17 +284,28 @@ const Marketplace = () => {
                   <h3 className="text-lg font-medium mb-2">No listings found</h3>
                   <p className="text-muted-foreground mb-4">
                     {Object.keys(filters).some(key => key !== 'page' && key !== 'perPage' && filters[key as keyof FilterOptions])
-                      ? "Try adjusting your filters to see more results" 
+                      ? "Try adjusting your filters to see more results, or set up a deal alert to be notified when matching opportunities become available." 
                       : "There are currently no listings available"}
                   </p>
-                  {Object.keys(filters).some(key => key !== 'page' && key !== 'perPage' && filters[key as keyof FilterOptions]) && (
-                    <Button
-                      variant="outline"
-                      onClick={() => handleFilterChange({ page: 1, perPage: filters.perPage })}
-                    >
-                      Clear all filters
-                    </Button>
-                  )}
+                  <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                    {Object.keys(filters).some(key => key !== 'page' && key !== 'perPage' && filters[key as keyof FilterOptions]) && (
+                      <Button
+                        variant="outline"
+                        onClick={() => handleFilterChange({ page: 1, perPage: filters.perPage })}
+                      >
+                        Clear all filters
+                      </Button>
+                    )}
+                    {user && (
+                      <CreateDealAlertDialog 
+                        trigger={
+                          <Button variant="default">
+                            Get Deal Alerts
+                          </Button>
+                        }
+                      />
+                    )}
+                  </div>
                 </div>
               ) : (
                 <>

@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
+import { DealAlertsTab } from "@/components/deal-alerts/DealAlertsTab";
 import { useToast } from "@/hooks/use-toast";
 import { Textarea } from "@/components/ui/textarea";
 import { MultiSelect } from "@/components/ui/multi-select";
@@ -145,6 +146,7 @@ const Profile = () => {
       <Tabs defaultValue="profile" className="w-full">
         <TabsList className="mb-6">
           <TabsTrigger value="profile">Profile Information</TabsTrigger>
+          <TabsTrigger value="deal-alerts">Deal Alerts</TabsTrigger>
           <TabsTrigger value="security">Security</TabsTrigger>
         </TabsList>
         
@@ -406,6 +408,10 @@ const Profile = () => {
               </form>
             </CardContent>
           </Card>
+        </TabsContent>
+        
+        <TabsContent value="deal-alerts">
+          <DealAlertsTab />
         </TabsContent>
         
         <TabsContent value="security">

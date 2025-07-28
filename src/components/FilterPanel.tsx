@@ -7,8 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
-import { Filter, DollarSign } from "lucide-react";
+import { Filter, DollarSign, Bell } from "lucide-react";
 import { useAnalyticsTracking } from "@/hooks/use-analytics-tracking";
+import { CreateDealAlertDialog } from "./deal-alerts/CreateDealAlertDialog";
 
 // Filter panel props
 export interface FilterPanelProps {
@@ -216,11 +217,21 @@ const FilterPanel = ({
           </Select>
         </div>
         
-        {/* Results summary and reset button */}
+        {/* Results summary and actions */}
         <div className="pt-4 space-y-4 border-t">
           <div className="text-sm">
             <p>Showing {filteredCount} of {totalListings} listings</p>
           </div>
+          
+          <CreateDealAlertDialog 
+            trigger={
+              <Button variant="default" className="w-full">
+                <Bell className="h-4 w-4 mr-2" />
+                Get Deal Alerts
+              </Button>
+            }
+          />
+          
           <Button variant="outline" onClick={handleResetFilters} className="w-full">
             Reset all filters
           </Button>
