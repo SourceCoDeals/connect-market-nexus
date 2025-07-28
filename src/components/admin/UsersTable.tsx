@@ -4,12 +4,13 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { User } from "@/types";
-import { CheckCircle, XCircle, MoreHorizontal, UserCheck, UserX, UserPlus, UserMinus, Trash2, ChevronDown, ChevronRight, ExternalLink, Mail, Building, UserIcon, Linkedin } from "lucide-react";
+import { CheckCircle, XCircle, MoreHorizontal, UserCheck, UserX, UserPlus, UserMinus, Trash2, ChevronDown, ChevronRight, ExternalLink, Mail, Building, UserIcon, Linkedin, Download } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
 import { UserSavedListings } from "./UserSavedListings";
 import { UserDataCompleteness } from "./UserDataCompleteness";
 import { getFieldCategories, FIELD_LABELS } from '@/lib/buyer-type-fields';
+import { useEnhancedUserExport } from '@/hooks/admin/use-enhanced-user-export';
 
 interface UsersTableProps {
   users: User[];
@@ -286,6 +287,7 @@ export function UsersTable({
   isLoading 
 }: UsersTableProps) {
   const [expandedUserId, setExpandedUserId] = useState<string | null>(null);
+  const { exportUsersToCSV } = useEnhancedUserExport();
   
   const toggleExpand = (userId: string) => {
     setExpandedUserId(expandedUserId === userId ? null : userId);
@@ -304,7 +306,21 @@ export function UsersTable({
   }
 
   return (
-    <div className="rounded-md border">
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
+        <h3 className="text-lg font-semibold">Users ({users.length})</h3>
+        <Button
+          onClick={() => exportUsersToCSV(users)}
+          variant="outline"
+          size="sm"
+          disabled={users.length === 0}
+        >
+          <Download className="h-4 w-4 mr-2" />
+          Export CSV
+        </Button>
+      </div>
+      
+      <div className="rounded-md border">
       <Table>
         <TableHeader>
           <TableRow>
@@ -395,5 +411,8 @@ export function UsersTable({
         </TableBody>
       </Table>
     </div>
+    </div>
   );
 }
+
+export default UsersTable;

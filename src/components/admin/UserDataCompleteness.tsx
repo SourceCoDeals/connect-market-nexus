@@ -13,8 +13,11 @@ interface UserDataCompletenessProps {
 }
 
 export function UserDataCompleteness({ user, showProgress = false, size = 'md' }: UserDataCompletenessProps) {
+  // Handle admin users and users without buyer_type
+  const effectiveBuyerType = user.is_admin ? 'admin' : (user.buyer_type || 'corporate');
+  
   // Get relevant fields for this user's buyer type using the central mapping
-  const relevantFieldKeys = getRelevantFieldsForBuyerType(user.buyer_type || 'corporate');
+  const relevantFieldKeys = getRelevantFieldsForBuyerType(effectiveBuyerType as any);
   
   // Create field objects with labels and categories for completion calculation
   const applicableFields = relevantFieldKeys.map(key => ({

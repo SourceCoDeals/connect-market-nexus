@@ -46,28 +46,37 @@ export const BUYER_TYPE_FIELD_MAPPINGS = {
     'needs_loan',
     'ideal_target',
   ],
+  admin: [
+    // Admin users have no specific buyer fields
+  ],
 } as const;
 
 // Get all relevant fields for a specific buyer type
-export const getRelevantFieldsForBuyerType = (buyerType: BuyerType): string[] => {
-  const buyerSpecificFields = BUYER_TYPE_FIELD_MAPPINGS[buyerType] || [];
+export const getRelevantFieldsForBuyerType = (buyerType: BuyerType | 'admin'): string[] => {
+  // Admin users only need basic fields
+  if (buyerType === 'admin') {
+    return [...BUYER_TYPE_FIELD_MAPPINGS.basic];
+  }
+  
+  const buyerSpecificFields = BUYER_TYPE_FIELD_MAPPINGS[buyerType as BuyerType] || [];
   
   return [
     ...BUYER_TYPE_FIELD_MAPPINGS.basic,
     ...BUYER_TYPE_FIELD_MAPPINGS.profile,
-    // Add revenue ranges for all except privateEquity
+    // Add revenue ranges for all except privateEquity and admin
     ...(buyerType !== 'privateEquity' ? BUYER_TYPE_FIELD_MAPPINGS.revenue : []),
     ...buyerSpecificFields,
   ];
 };
 
 // Get buyer-specific financial fields only
-export const getBuyerSpecificFields = (buyerType: BuyerType): string[] => {
-  return [...(BUYER_TYPE_FIELD_MAPPINGS[buyerType] || [])];
+export const getBuyerSpecificFields = (buyerType: BuyerType | 'admin'): string[] => {
+  if (buyerType === 'admin') return [];
+  return [...(BUYER_TYPE_FIELD_MAPPINGS[buyerType as BuyerType] || [])];
 };
 
 // Check if a field is relevant for a buyer type
-export const isFieldRelevantForBuyerType = (fieldKey: string, buyerType: BuyerType): boolean => {
+export const isFieldRelevantForBuyerType = (fieldKey: string, buyerType: BuyerType | 'admin'): boolean => {
   const relevantFields = getRelevantFieldsForBuyerType(buyerType);
   return relevantFields.includes(fieldKey);
 };
@@ -100,7 +109,16 @@ export const FIELD_LABELS = {
 } as const;
 
 // Get field categories for organization
-export const getFieldCategories = (buyerType: BuyerType) => {
+export const getFieldCategories = (buyerType: BuyerType | 'admin') => {
+  // Admin users only show contact information
+  if (buyerType === 'admin') {
+    return {
+      'Contact Information': BUYER_TYPE_FIELD_MAPPINGS.basic.filter(field => 
+        ['first_name', 'last_name', 'email', 'phone_number', 'company', 'website', 'linkedin_profile'].includes(field)
+      ),
+    };
+  }
+  
   return {
     'Contact Information': BUYER_TYPE_FIELD_MAPPINGS.basic.filter(field => 
       ['first_name', 'last_name', 'email', 'phone_number', 'company', 'website', 'linkedin_profile'].includes(field)
