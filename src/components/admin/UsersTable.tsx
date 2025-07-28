@@ -8,6 +8,7 @@ import { CheckCircle, XCircle, MoreHorizontal, UserCheck, UserX, UserPlus, UserM
 import { formatDistanceToNow } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
 import { UserSavedListings } from "./UserSavedListings";
+import { UserDataCompleteness } from "./UserDataCompleteness";
 
 interface UsersTableProps {
   users: User[];
@@ -391,6 +392,7 @@ export function UsersTable({
             <TableHead className="w-[200px]">User</TableHead>
             <TableHead className="hidden sm:table-cell">Company</TableHead>
             <TableHead className="hidden md:table-cell">Buyer Type</TableHead>
+            <TableHead className="text-center">Profile</TableHead>
             <TableHead className="text-center">Status</TableHead>
             <TableHead className="hidden lg:table-cell">Joined</TableHead>
             <TableHead className="text-right">Actions</TableHead>
@@ -399,7 +401,7 @@ export function UsersTable({
         <TableBody>
           {users.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={6} className="h-24 text-center text-sm">
+              <TableCell colSpan={7} className="h-24 text-center text-sm">
                 No users found.
               </TableCell>
             </TableRow>
@@ -427,6 +429,9 @@ export function UsersTable({
                     <Badge variant="outline" className="capitalize text-xs">
                       {user.buyer_type || "—"}
                     </Badge>
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <UserDataCompleteness user={user} size="sm" />
                   </TableCell>
                   <TableCell className="text-center">
                     {user.approval_status === "approved" && (
@@ -460,7 +465,7 @@ export function UsersTable({
                 </TableRow>
                 {expandedUserId === user.id && (
                   <TableRow>
-                    <TableCell colSpan={6} className="py-2 px-4 bg-muted/30 border-t">
+                    <TableCell colSpan={7} className="py-2 px-4 bg-muted/30 border-t">
                       <UserDetails user={user} />
                     </TableCell>
                   </TableRow>

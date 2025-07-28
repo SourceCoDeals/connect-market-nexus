@@ -356,22 +356,37 @@ export function EnhancedUserManagement({
           <div className="flex justify-between items-center">
             <div className="text-sm text-muted-foreground">
               Showing {filteredUsers.length} of {users.length} users
-              <div className="mt-1 text-xs">
-                Historical data captured: AUM for {users.filter(u => u.aum && u.aum !== '').length} users
-              </div>
+              {analytics.incompleteProfiles > 0 && (
+                <div className="mt-1 text-xs text-amber-600">
+                  {analytics.incompleteProfiles} users with incomplete profiles (&lt;80% complete)
+                </div>
+              )}
             </div>
             <Button onClick={exportData} variant="outline" size="sm">
               <Download className="h-4 w-4 mr-2" />
-              Export Complete Data (CSV)
+              Export All Fields (CSV)
             </Button>
           </div>
         </CardContent>
       </Card>
 
-      {/* Results will be rendered by parent component */}
-      <div className="text-sm text-muted-foreground">
-        Enhanced filtering and analytics ready. User table will be rendered below this component.
-      </div>
+      {/* Data Quality Insights */}
+      {analytics.incompleteProfiles > 0 && (
+        <Card className="border-amber-200 bg-amber-50">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-amber-600" />
+              <div>
+                <p className="font-medium text-amber-900">Profile Completion Opportunity</p>
+                <p className="text-sm text-amber-700">
+                  {analytics.incompleteProfiles} users have profiles under 80% complete. 
+                  Consider sending completion reminders to improve data quality.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
