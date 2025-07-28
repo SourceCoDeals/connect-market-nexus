@@ -228,8 +228,9 @@ const UserDetails = ({ user }: { user: User }) => (
         
         <div className="space-y-2">
           <h5 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Search Preferences</h5>
-          <div className="text-sm">
-            <strong>Specific Business Search:</strong> {user.specific_business_search ? (user.specific_business_search.length > 40 ? `${user.specific_business_search.substring(0, 40)}...` : user.specific_business_search) : "—"}
+          <div className="text-sm break-words">
+            <strong>Specific Business Search:</strong> 
+            <span className="whitespace-normal ml-1">{user.specific_business_search || "—"}</span>
           </div>
         </div>
       </div>

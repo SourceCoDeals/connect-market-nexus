@@ -63,8 +63,8 @@ export function UserDataCompleteness({ user, showProgress = false, size = 'md' }
   // Get styling based on completion
   const getCompletionBadge = (percentage: number) => {
     if (percentage >= 90) return { variant: 'default' as const, color: 'text-green-700', icon: CheckCircle2 };
-    if (percentage >= 70) return { variant: 'secondary' as const, color: 'text-yellow-700', icon: Info };
-    return { variant: 'destructive' as const, color: 'text-red-700', icon: AlertCircle };
+    if (percentage >= 70) return { variant: 'secondary' as const, color: 'text-blue-700', icon: Info };
+    return { variant: 'secondary' as const, color: 'text-blue-700', icon: AlertCircle };
   };
 
   const { variant, color, icon: Icon } = getCompletionBadge(completionPercentage);

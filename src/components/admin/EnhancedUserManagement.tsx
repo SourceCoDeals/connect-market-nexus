@@ -96,8 +96,6 @@ export function EnhancedUserManagement({
     const avgCompletion = users.reduce((acc, user) => 
       acc + calculateProfileCompletion(user), 0) / total;
     
-    const incompleteProfiles = users.filter(u => 
-      calculateProfileCompletion(u) < 80).length;
     
     const buyerTypeBreakdown = users.reduce((acc, user) => {
       acc[user.buyer_type || 'unknown'] = (acc[user.buyer_type || 'unknown'] || 0) + 1;
@@ -110,7 +108,6 @@ export function EnhancedUserManagement({
       approved,
       rejected,
       avgCompletion: Math.round(avgCompletion),
-      incompleteProfiles,
       buyerTypeBreakdown
     };
   }, [users]);
@@ -356,11 +353,6 @@ export function EnhancedUserManagement({
           <div className="flex justify-between items-center">
             <div className="text-sm text-muted-foreground">
               Showing {filteredUsers.length} of {users.length} users
-              {analytics.incompleteProfiles > 0 && (
-                <div className="mt-1 text-xs text-amber-600">
-                  {analytics.incompleteProfiles} users with incomplete profiles (&lt;80% complete)
-                </div>
-              )}
             </div>
             <Button onClick={exportData} variant="outline" size="sm">
               <Download className="h-4 w-4 mr-2" />
@@ -370,23 +362,6 @@ export function EnhancedUserManagement({
         </CardContent>
       </Card>
 
-      {/* Data Quality Insights */}
-      {analytics.incompleteProfiles > 0 && (
-        <Card className="border-amber-200 bg-amber-50">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2">
-              <AlertCircle className="h-5 w-5 text-amber-600" />
-              <div>
-                <p className="font-medium text-amber-900">Profile Completion Opportunity</p>
-                <p className="text-sm text-amber-700">
-                  {analytics.incompleteProfiles} users have profiles under 80% complete. 
-                  Consider sending completion reminders to improve data quality.
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }
