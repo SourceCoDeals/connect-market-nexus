@@ -23,7 +23,7 @@ export const ALLOWED_SIGNUP_TRANSITIONS: Record<SignupFlowState, SignupFlowState
   [SIGNUP_FLOW_STATES.ERROR]: [SIGNUP_FLOW_STATES.IDLE, SIGNUP_FLOW_STATES.SIGNING_UP]
 };
 
-// Signup form validation schema
+// Signup form validation schema with conditional validation
 export const signupFormSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
   password: z.string().min(8, 'Password must be at least 8 characters'),
@@ -39,7 +39,36 @@ export const signupFormSchema = z.object({
   targetLocations: z.string().optional(),
   revenueRangeMin: z.number().optional(),
   revenueRangeMax: z.number().optional(),
-  specificBusinessSearch: z.string().optional()
+  specificBusinessSearch: z.string().optional(),
+  // Corporate fields
+  estimatedRevenue: z.string().optional(),
+  // Private Equity / Family Office fields
+  fundSize: z.string().optional(),
+  investmentSize: z.string().optional(),
+  aum: z.string().optional(),
+  // Search Fund fields
+  isFunded: z.string().optional(),
+  fundedBy: z.string().optional(),
+  targetCompanySize: z.string().optional(),
+  // Individual fields
+  fundingSource: z.string().optional(),
+  needsLoan: z.string().optional(),
+  idealTarget: z.string().optional()
+}).refine((data) => {
+  // Conditional validation for Search Fund
+  if (data.buyerType === 'searchFund') {
+    if (!data.isFunded) return false;
+    if (data.isFunded === 'yes' && !data.fundedBy) return false;
+    if (!data.targetCompanySize) return false;
+  }
+  // Conditional validation for Individual
+  if (data.buyerType === 'individual') {
+    if (!data.fundingSource || !data.needsLoan || !data.idealTarget) return false;
+  }
+  return true;
+}, {
+  message: "Please complete all required fields for your buyer type",
+  path: ["buyerType"]
 });
 
 export type SignupFormData = z.infer<typeof signupFormSchema>;
