@@ -14,6 +14,7 @@ import { AdminFeedbackTab } from "@/components/admin/AdminFeedbackTab";
 import { MobileOptimizedAdminDashboard } from "@/components/admin/MobileOptimizedAdminDashboard";
 import { EnhancedAnalyticsHealthDashboard } from "@/components/admin/EnhancedAnalyticsHealthDashboard";
 import { DealAlertsOverview } from "@/components/admin/DealAlertsOverview";
+import { DataQualityDashboard } from "@/components/admin/DataQualityDashboard";
 
 const AdminDashboard = () => {
   const { useStats, useRecentActivities } = useAdmin();
@@ -44,8 +45,9 @@ const AdminDashboard = () => {
       </div>
 
       <Tabs defaultValue="overview" className="space-y-4 md:space-y-6">
-        <TabsList className="grid w-full grid-cols-5 mb-6">
+        <TabsList className="grid w-full grid-cols-6 mb-6">
           <TabsTrigger value="overview" className="text-xs md:text-sm">Overview</TabsTrigger>
+          <TabsTrigger value="quality" className="text-xs md:text-sm">Data Quality</TabsTrigger>
           <TabsTrigger value="analytics" className="text-xs md:text-sm">Analytics</TabsTrigger>
           <TabsTrigger value="health" className="text-xs md:text-sm">Health</TabsTrigger>
           <TabsTrigger value="feedback" className="text-xs md:text-sm">Feedback</TabsTrigger>
@@ -159,6 +161,10 @@ const AdminDashboard = () => {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="quality" className="space-y-4 md:space-y-6">
+          <DataQualityDashboard />
         </TabsContent>
 
         <TabsContent value="analytics">

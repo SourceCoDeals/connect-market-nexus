@@ -3,9 +3,12 @@ import { Link } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Bell } from "lucide-react";
+import { useOnboarding } from "@/hooks/use-onboarding";
+import EnhancedOnboardingPopup from "@/components/onboarding/EnhancedOnboardingPopup";
 
 const Index = () => {
   const { user, isAdmin } = useAuth();
+  const { shouldShowOnboarding, completeOnboarding } = useOnboarding();
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -150,6 +153,15 @@ const Index = () => {
           </div>
         </section>
       </div>
+      
+      {/* Enhanced Onboarding */}
+      {shouldShowOnboarding && user && (
+        <EnhancedOnboardingPopup
+          isOpen={shouldShowOnboarding}
+          onClose={completeOnboarding}
+          userId={user.id}
+        />
+      )}
       
       {/* Footer */}
       <footer className="bg-muted/30 border-t border-border">
