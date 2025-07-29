@@ -7,7 +7,9 @@ import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { User } from '@/types';
-import { Search, Filter, Download, Users, UserCheck, UserX, AlertCircle } from 'lucide-react';
+import { Search, Filter, Download, Users, UserCheck, UserX, AlertCircle, Database, Activity } from 'lucide-react';
+import { DataRecoveryDashboard } from './DataRecoveryDashboard';
+import { FormValidationMonitor } from './FormValidationMonitor';
 
 interface EnhancedUserManagementProps {
   users: User[];
@@ -204,164 +206,268 @@ export function EnhancedUserManagement({
   };
 
   return (
-    <div className="space-y-6">
-      {/* Analytics Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Total Users</p>
-                <p className="text-2xl font-bold">{analytics.total}</p>
+    <Tabs defaultValue="overview" className="space-y-6">
+      <TabsList className="grid w-full grid-cols-4">
+        <TabsTrigger value="overview">User Overview</TabsTrigger>
+        <TabsTrigger value="recovery">Data Recovery</TabsTrigger>
+        <TabsTrigger value="monitoring">Form Monitoring</TabsTrigger>
+        <TabsTrigger value="analytics">Analytics</TabsTrigger>
+      </TabsList>
+
+      <TabsContent value="overview" className="space-y-6">
+        {/* Analytics Overview */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Total Users</p>
+                  <p className="text-2xl font-bold">{analytics.total}</p>
+                </div>
+                <Users className="h-8 w-8 text-muted-foreground" />
               </div>
-              <Users className="h-8 w-8 text-muted-foreground" />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Pending Approval</p>
+                  <p className="text-2xl font-bold text-yellow-600">{analytics.pending}</p>
+                </div>
+                <AlertCircle className="h-8 w-8 text-yellow-600" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Approved</p>
+                  <p className="text-2xl font-bold text-green-600">{analytics.approved}</p>
+                </div>
+                <UserCheck className="h-8 w-8 text-green-600" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Avg Profile Completion</p>
+                  <p className="text-2xl font-bold">{analytics.avgCompletion}%</p>
+                </div>
+                <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                  <span className="text-xs font-medium">{analytics.avgCompletion}%</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Filters and Actions */}
+        <Card>
+          <CardHeader>
+            <CardTitle>User Management</CardTitle>
+            <CardDescription>
+              Manage user registrations, approvals, and profile completion
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Search and Filters */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+              <div className="lg:col-span-2">
+                <Label htmlFor="search">Search Users</Label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="search"
+                    placeholder="Search by name, email, or company..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <Label>Status</Label>
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="approved">Approved</SelectItem>
+                    <SelectItem value="rejected">Rejected</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label>Buyer Type</Label>
+                <Select value={buyerTypeFilter} onValueChange={setBuyerTypeFilter}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Types</SelectItem>
+                    <SelectItem value="corporate">Corporate</SelectItem>
+                    <SelectItem value="privateEquity">Private Equity</SelectItem>
+                    <SelectItem value="familyOffice">Family Office</SelectItem>
+                    <SelectItem value="searchFund">Search Fund</SelectItem>
+                    <SelectItem value="individual">Individual</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label>Profile Completion</Label>
+                <Select value={profileCompletionFilter} onValueChange={setProfileCompletionFilter}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Profiles</SelectItem>
+                    <SelectItem value="complete">Complete (80%+)</SelectItem>
+                    <SelectItem value="incomplete">Incomplete (&lt;80%)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Bulk Actions */}
+            {selectedUsers.length > 0 && (
+              <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg">
+                <span className="text-sm font-medium">
+                  {selectedUsers.length} user{selectedUsers.length === 1 ? '' : 's'} selected
+                </span>
+                <div className="flex gap-2 ml-auto">
+                  <Button size="sm" onClick={handleBulkApprove} variant="outline">
+                    <UserCheck className="h-4 w-4 mr-2" />
+                    Bulk Approve
+                  </Button>
+                  <Button size="sm" onClick={handleBulkReject} variant="outline">
+                    <UserX className="h-4 w-4 mr-2" />
+                    Bulk Reject
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Export and Data Status */}
+            <div className="flex justify-between items-center">
+              <div className="text-sm text-muted-foreground">
+                Showing {filteredUsers.length} of {users.length} users
+              </div>
+              <Button onClick={exportData} variant="outline" size="sm">
+                <Download className="h-4 w-4 mr-2" />
+                Export All Fields (CSV)
+              </Button>
             </div>
           </CardContent>
         </Card>
+      </TabsContent>
 
+      <TabsContent value="recovery">
+        <DataRecoveryDashboard users={users} />
+      </TabsContent>
+
+      <TabsContent value="monitoring">
+        <FormValidationMonitor />
+      </TabsContent>
+
+      <TabsContent value="analytics" className="space-y-6">
         <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Pending Approval</p>
-                <p className="text-2xl font-bold text-yellow-600">{analytics.pending}</p>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Activity className="h-5 w-5" />
+              Advanced Analytics
+            </CardTitle>
+            <CardDescription>
+              Comprehensive user behavior and form performance analytics
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {/* Profile Completion Distribution */}
+              <div className="space-y-3">
+                <h4 className="font-medium">Profile Completion Distribution</h4>
+                <div className="space-y-2 text-sm">
+                  {Object.entries(analytics.buyerTypeBreakdown).map(([type, count]) => (
+                    <div key={type} className="flex justify-between">
+                      <span className="capitalize">{type.replace(/([A-Z])/g, ' $1')}</span>
+                      <span>{count} users</span>
+                    </div>
+                  ))}
+                </div>
               </div>
-              <AlertCircle className="h-8 w-8 text-yellow-600" />
+
+              {/* Data Quality Metrics */}
+              <div className="space-y-3">
+                <h4 className="font-medium">Data Quality Metrics</h4>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span>Complete Profiles (90%+)</span>
+                    <span className="text-green-600 font-medium">
+                      {users.filter(u => calculateProfileCompletion(u) >= 90).length}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Incomplete Profiles (&lt;50%)</span>
+                    <span className="text-red-600 font-medium">
+                      {users.filter(u => calculateProfileCompletion(u) < 50).length}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Missing Critical Data</span>
+                    <span className="text-orange-600 font-medium">
+                      {users.filter(u => !u.buyer_type || !u.phone_number).length}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Signup Trends */}
+              <div className="space-y-3">
+                <h4 className="font-medium">Recent Signup Trends</h4>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span>This Week</span>
+                    <span className="font-medium">
+                      {users.filter(u => {
+                        const weekAgo = new Date();
+                        weekAgo.setDate(weekAgo.getDate() - 7);
+                        return new Date(u.created_at) > weekAgo;
+                      }).length}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>This Month</span>
+                    <span className="font-medium">
+                      {users.filter(u => {
+                        const monthAgo = new Date();
+                        monthAgo.setMonth(monthAgo.getMonth() - 1);
+                        return new Date(u.created_at) > monthAgo;
+                      }).length}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Email Verified</span>
+                    <span className="text-green-600 font-medium">
+                      {users.filter(u => u.email_verified).length}
+                    </span>
+                  </div>
+                </div>
+              </div>
             </div>
           </CardContent>
         </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Approved</p>
-                <p className="text-2xl font-bold text-green-600">{analytics.approved}</p>
-              </div>
-              <UserCheck className="h-8 w-8 text-green-600" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Avg Profile Completion</p>
-                <p className="text-2xl font-bold">{analytics.avgCompletion}%</p>
-              </div>
-              <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-                <span className="text-xs font-medium">{analytics.avgCompletion}%</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Filters and Actions */}
-      <Card>
-        <CardHeader>
-          <CardTitle>User Management</CardTitle>
-          <CardDescription>
-            Manage user registrations, approvals, and profile completion
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Search and Filters */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-            <div className="lg:col-span-2">
-              <Label htmlFor="search">Search Users</Label>
-              <div className="relative">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="search"
-                  placeholder="Search by name, email, or company..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-            </div>
-
-            <div>
-              <Label>Status</Label>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="approved">Approved</SelectItem>
-                  <SelectItem value="rejected">Rejected</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <Label>Buyer Type</Label>
-              <Select value={buyerTypeFilter} onValueChange={setBuyerTypeFilter}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Types</SelectItem>
-                  <SelectItem value="corporate">Corporate</SelectItem>
-                  <SelectItem value="privateEquity">Private Equity</SelectItem>
-                  <SelectItem value="familyOffice">Family Office</SelectItem>
-                  <SelectItem value="searchFund">Search Fund</SelectItem>
-                  <SelectItem value="individual">Individual</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <Label>Profile Completion</Label>
-              <Select value={profileCompletionFilter} onValueChange={setProfileCompletionFilter}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Profiles</SelectItem>
-                  <SelectItem value="complete">Complete (80%+)</SelectItem>
-                  <SelectItem value="incomplete">Incomplete (&lt;80%)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          {/* Bulk Actions */}
-          {selectedUsers.length > 0 && (
-            <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg">
-              <span className="text-sm font-medium">
-                {selectedUsers.length} user{selectedUsers.length === 1 ? '' : 's'} selected
-              </span>
-              <div className="flex gap-2 ml-auto">
-                <Button size="sm" onClick={handleBulkApprove} variant="outline">
-                  <UserCheck className="h-4 w-4 mr-2" />
-                  Bulk Approve
-                </Button>
-                <Button size="sm" onClick={handleBulkReject} variant="outline">
-                  <UserX className="h-4 w-4 mr-2" />
-                  Bulk Reject
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {/* Export and Data Status */}
-          <div className="flex justify-between items-center">
-            <div className="text-sm text-muted-foreground">
-              Showing {filteredUsers.length} of {users.length} users
-            </div>
-            <Button onClick={exportData} variant="outline" size="sm">
-              <Download className="h-4 w-4 mr-2" />
-              Export All Fields (CSV)
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-    </div>
+      </TabsContent>
+    </Tabs>
   );
 }
