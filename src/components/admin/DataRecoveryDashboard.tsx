@@ -21,6 +21,7 @@ import {
   MessageSquare
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 interface DataRecoveryDashboardProps {
   users: User[];
@@ -167,14 +168,30 @@ The Marketplace Team`);
       return;
     }
 
-    // Here you would implement the actual email sending logic
-    // For now, we'll simulate it
-    toast({
-      title: 'Recovery emails queued',
-      description: `Recovery emails have been queued for ${selectedUsers.length} users. They will be sent shortly.`
-    });
+    try {
+      const { data, error } = await supabase.functions.invoke('send-data-recovery-email', {
+        body: {
+          userIds: selectedUsers,
+          template: emailTemplate
+        }
+      });
 
-    setSelectedUsers([]);
+      if (error) throw error;
+
+      toast({
+        title: 'Recovery emails sent',
+        description: `Successfully sent ${data.successCount} emails. ${data.failedCount > 0 ? `${data.failedCount} failed.` : ''}`
+      });
+
+      setSelectedUsers([]);
+    } catch (error) {
+      console.error('Error sending recovery emails:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Failed to send emails',
+        description: 'There was an error sending the recovery emails. Please try again.'
+      });
+    }
   };
 
   const formatFieldName = (field: string): string => {
