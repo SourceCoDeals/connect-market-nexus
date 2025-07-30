@@ -47,6 +47,19 @@ const Marketplace = () => {
   const categories = metadata?.categories || [];
   const locations = metadata?.locations || [];
   
+  // Enhanced loading state that includes transitions
+  const isPageTransitioning = pagination.state.isTransitioning || isLoading;
+  
+  console.log('🏪 [MARKETPLACE] Render state:', {
+    page: pagination.state.page,
+    perPage: pagination.state.perPage,
+    isLoading,
+    isTransitioning: pagination.state.isTransitioning,
+    isPageTransitioning,
+    listingsCount: listings.length,
+    totalItems
+  });
+  
   const totalPages = Math.ceil(totalItems / pagination.state.perPage);
   const [viewType, setViewType] = useState<'grid' | 'list'>('grid');
   
@@ -194,7 +207,7 @@ const Marketplace = () => {
             </div>
             
             {/* Listings */}
-            <div className="col-span-1 lg:col-span-3 flex flex-col gap-4">
+            <div className="col-span-1 lg:col-span-3 flex flex-col gap-4 relative">
               {/* View type and sorting */}
               <div className="flex flex-wrap justify-between items-center gap-4">
                 <div className="text-sm text-muted-foreground">
@@ -208,6 +221,8 @@ const Marketplace = () => {
                       variant="outline"
                       size="sm"
                       onClick={() => setViewType(viewType === 'grid' ? 'list' : 'grid')}
+                      disabled={isPageTransitioning}
+                      className={cn(isPageTransitioning && "opacity-50 cursor-not-allowed")}
                     >
                       {viewType === 'grid' ? <LayoutList className="h-4 w-4" /> : <LayoutGrid className="h-4 w-4" />}
                       {viewType === 'grid' ? 'List' : 'Grid'}
@@ -216,8 +231,12 @@ const Marketplace = () => {
                   
                   <div className="flex items-center gap-2">
                     <span className="text-sm">Results per page:</span>
-                    <Select value={pagination.state.perPage.toString()} onValueChange={(value) => pagination.setPerPage(parseInt(value))}>
-                      <SelectTrigger className="w-20">
+                    <Select 
+                      value={pagination.state.perPage.toString()} 
+                      onValueChange={(value) => pagination.setPerPage(parseInt(value))}
+                      disabled={isPageTransitioning}
+                    >
+                      <SelectTrigger className={cn("w-20", isPageTransitioning && "opacity-50 cursor-not-allowed")}>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -230,12 +249,19 @@ const Marketplace = () => {
                 </div>
               </div>
               
-          {/* Loading State with Spinner */}
-          {isLoading && (
-            <div className="flex justify-center items-center py-8">
-              <LoadingSpinner />
-            </div>
-          )}
+              {/* Transition Overlay */}
+              {isPageTransitioning && (
+                <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-10 flex items-center justify-center">
+                  <LoadingSpinner size="lg" message="Loading page..." showMessage />
+                </div>
+              )}
+              
+              {/* Loading State with Spinner */}
+              {isLoading && !isPageTransitioning && (
+                <div className="flex justify-center items-center py-8">
+                  <LoadingSpinner />
+                </div>
+              )}
               
               {/* Listings grid/list */}
               {!isLoading && error ? (
@@ -304,12 +330,18 @@ const Marketplace = () => {
                         href="#"
                         onClick={(e) => {
                           e.preventDefault();
-                          if (currentPage > 1 && !isLoading) {
-                            console.log('⬅️ Previous button clicked:', currentPage - 1);
+                          console.log('🔄 [PAGINATION] Previous clicked - current:', currentPage, 'transitioning:', isPageTransitioning);
+                          if (currentPage > 1 && !isPageTransitioning) {
+                            console.log('✅ [PAGINATION] Executing previous page:', currentPage - 1);
                             pagination.setPage(currentPage - 1);
+                          } else {
+                            console.log('❌ [PAGINATION] Previous blocked - first page or transitioning');
                           }
                         }}
-                        className={currentPage === 1 || isLoading ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                        className={cn(
+                          "transition-all duration-200",
+                          currentPage <= 1 || isPageTransitioning ? "pointer-events-none opacity-50" : "cursor-pointer hover:bg-accent"
+                        )}
                       />
                     </PaginationItem>
                     {getPageNumbers().map((pageNum, idx) =>
@@ -319,18 +351,23 @@ const Marketplace = () => {
                         </PaginationItem>
                       ) : (
                         <PaginationItem key={`page-${pageNum}`}>
-                        <PaginationLink
+                          <PaginationLink
                             href="#"
                             onClick={(e) => {
                               e.preventDefault();
-                              if (pageNum !== currentPage && !isLoading) {
-                                console.log('🔢 Page number clicked:', pageNum);
+                              console.log('🔄 [PAGINATION] Page clicked:', pageNum, 'current:', currentPage, 'transitioning:', isPageTransitioning);
+                              if (pageNum !== currentPage && !isPageTransitioning) {
+                                console.log('✅ [PAGINATION] Executing page change to:', pageNum);
                                 pagination.setPage(pageNum as number);
+                              } else {
+                                console.log('❌ [PAGINATION] Page change blocked - same page or transitioning');
                               }
                             }}
                             isActive={pageNum === currentPage}
                             className={cn(
-                              isLoading || pageNum === currentPage ? "pointer-events-none opacity-50" : "cursor-pointer hover:bg-accent"
+                              "transition-all duration-200",
+                              isPageTransitioning ? "pointer-events-none opacity-50" : "cursor-pointer hover:bg-accent hover:scale-105",
+                              pageNum === currentPage && "bg-primary text-primary-foreground"
                             )}
                           >
                             {pageNum}
@@ -343,12 +380,18 @@ const Marketplace = () => {
                         href="#"
                         onClick={(e) => {
                           e.preventDefault();
-                          if (currentPage < totalPages && !isLoading) {
-                            console.log('➡️ Next button clicked:', currentPage + 1);
+                          console.log('🔄 [PAGINATION] Next clicked - current:', currentPage, 'total:', totalPages, 'transitioning:', isPageTransitioning);
+                          if (currentPage < totalPages && !isPageTransitioning) {
+                            console.log('✅ [PAGINATION] Executing next page:', currentPage + 1);
                             pagination.setPage(currentPage + 1);
+                          } else {
+                            console.log('❌ [PAGINATION] Next blocked - last page or transitioning');
                           }
                         }}
-                        className={currentPage === totalPages || isLoading ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                        className={cn(
+                          "transition-all duration-200",
+                          currentPage >= totalPages || isPageTransitioning ? "pointer-events-none opacity-50" : "cursor-pointer hover:bg-accent"
+                        )}
                       />
                     </PaginationItem>
                   </PaginationContent>

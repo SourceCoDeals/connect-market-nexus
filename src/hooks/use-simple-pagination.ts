@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { flushSync } from 'react-dom';
 
 export interface PaginationState {
   page: number;
@@ -10,6 +11,7 @@ export interface PaginationState {
   revenueMax?: number;
   ebitdaMin?: number;
   ebitdaMax?: number;
+  isTransitioning?: boolean;
 }
 
 const initialState: PaginationState = {
@@ -24,28 +26,70 @@ export function useSimplePagination() {
   const [state, setState] = useState<PaginationState>(initialState);
 
   const setPage = useCallback((page: number) => {
-    console.log('🔄 Setting page:', page);
-    setState(prev => {
-      console.log('📄 Page change:', prev.page, '->', page);
-      return { ...prev, page };
+    console.log('🔄 [PAGINATION] Setting page:', page, 'from:', state.page);
+    console.time('pagination-state-update');
+    
+    // Use flushSync for immediate state update
+    flushSync(() => {
+      setState(prev => {
+        console.log('📄 [PAGINATION] State update - prev:', prev.page, 'new:', page);
+        return { ...prev, page, isTransitioning: true };
+      });
     });
     
-    // Smooth scroll to top after page change
+    console.timeEnd('pagination-state-update');
+    
+    // Immediate scroll to top
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    
+    // Clear transition state
     setTimeout(() => {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }, 100);
-  }, []);
+      setState(prev => ({ ...prev, isTransitioning: false }));
+    }, 50);
+  }, [state.page]);
 
   const setPerPage = useCallback((perPage: number) => {
-    setState(prev => ({ ...prev, page: 1, perPage }));
+    console.log('📊 [PAGINATION] Setting perPage:', perPage);
+    flushSync(() => {
+      setState(prev => ({ ...prev, page: 1, perPage, isTransitioning: true }));
+    });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    setTimeout(() => {
+      setState(prev => ({ ...prev, isTransitioning: false }));
+    }, 50);
   }, []);
 
   const setFilters = useCallback((filters: Partial<PaginationState>) => {
-    setState(prev => ({ ...prev, page: 1, ...filters }));
+    console.log('🔍 [PAGINATION] Setting filters:', filters);
+    flushSync(() => {
+      setState(prev => ({ ...prev, page: 1, ...filters, isTransitioning: true }));
+    });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    setTimeout(() => {
+      setState(prev => ({ ...prev, isTransitioning: false }));
+    }, 50);
   }, []);
 
   const resetFilters = useCallback(() => {
-    setState(prev => ({ ...prev, page: 1, search: '', category: '', location: '', revenueMin: undefined, revenueMax: undefined, ebitdaMin: undefined, ebitdaMax: undefined }));
+    console.log('🧹 [PAGINATION] Resetting filters');
+    flushSync(() => {
+      setState(prev => ({ 
+        ...prev, 
+        page: 1, 
+        search: '', 
+        category: '', 
+        location: '', 
+        revenueMin: undefined, 
+        revenueMax: undefined, 
+        ebitdaMin: undefined, 
+        ebitdaMax: undefined,
+        isTransitioning: true 
+      }));
+    });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    setTimeout(() => {
+      setState(prev => ({ ...prev, isTransitioning: false }));
+    }, 50);
   }, []);
 
   return {

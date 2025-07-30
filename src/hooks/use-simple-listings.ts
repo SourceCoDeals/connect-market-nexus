@@ -1,7 +1,8 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { PaginationState } from './use-simple-pagination';
 import { Listing, ListingStatus } from '@/types';
+import { useEffect } from 'react';
 
 async function fetchListings(state: PaginationState) {
   console.log('🔍 Fetching listings for state:', state);
@@ -94,13 +95,35 @@ async function fetchMetadata() {
 }
 
 export function useSimpleListings(state: PaginationState) {
+  const queryClient = useQueryClient();
+  
+  // Create a simple string-based query key for better cache control
+  const queryKey = `simple-listings-${state.page}-${state.perPage}-${state.search}-${state.category}-${state.location}-${state.revenueMin || ''}-${state.revenueMax || ''}-${state.ebitdaMin || ''}-${state.ebitdaMax || ''}`;
+  
+  console.log('🎯 [LISTINGS] Query key:', queryKey);
+  console.log('🎯 [LISTINGS] State:', state);
+  
+  // Invalidate query cache on page change for immediate fresh data
+  useEffect(() => {
+    console.log('🔄 [LISTINGS] State changed, invalidating queries');
+    queryClient.invalidateQueries({ queryKey: [queryKey] });
+  }, [state.page, state.perPage, queryClient, queryKey]);
+
   return useQuery({
-    queryKey: ['simple-listings', state.page, state.perPage, state.search, state.category, state.location, state.revenueMin, state.revenueMax, state.ebitdaMin, state.ebitdaMax],
-    queryFn: () => fetchListings(state),
+    queryKey: [queryKey],
+    queryFn: () => {
+      console.log('📡 [LISTINGS] Fetching data for state:', state);
+      console.time('listings-fetch');
+      return fetchListings(state).finally(() => {
+        console.timeEnd('listings-fetch');
+      });
+    },
+    enabled: !state.isTransitioning, // Prevent queries during transitions
     staleTime: 0, // Always fetch fresh data
-    gcTime: 1000, // Quick garbage collection
+    gcTime: 500, // Quick garbage collection
     refetchOnWindowFocus: false,
-    placeholderData: undefined, // Disable placeholder data to prevent showing wrong listings
+    placeholderData: undefined, // Disable placeholder data
+    retry: 1, // Quick retry for failures
   });
 }
 
