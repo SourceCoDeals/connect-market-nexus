@@ -24,7 +24,16 @@ export function useSimplePagination() {
   const [state, setState] = useState<PaginationState>(initialState);
 
   const setPage = useCallback((page: number) => {
-    setState(prev => ({ ...prev, page }));
+    console.log('🔄 Setting page:', page);
+    setState(prev => {
+      console.log('📄 Page change:', prev.page, '->', page);
+      return { ...prev, page };
+    });
+    
+    // Smooth scroll to top after page change
+    setTimeout(() => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }, 100);
   }, []);
 
   const setPerPage = useCallback((perPage: number) => {

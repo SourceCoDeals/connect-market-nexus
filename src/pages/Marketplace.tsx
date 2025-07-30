@@ -49,6 +49,18 @@ const Marketplace = () => {
   
   const totalPages = Math.ceil(totalItems / pagination.state.perPage);
   const [viewType, setViewType] = useState<'grid' | 'list'>('grid');
+  
+  // Log pagination state changes for debugging
+  useEffect(() => {
+    console.log('🎯 Marketplace state:', {
+      currentPage: pagination.state.page,
+      perPage: pagination.state.perPage,
+      totalItems,
+      totalPages,
+      listingsCount: listings.length,
+      isLoading
+    });
+  }, [pagination.state.page, pagination.state.perPage, totalItems, totalPages, listings.length, isLoading]);
    
   // Error handling with toast notification
   useEffect(() => {
@@ -292,9 +304,12 @@ const Marketplace = () => {
                         href="#"
                         onClick={(e) => {
                           e.preventDefault();
-                          pagination.setPage(currentPage - 1);
+                          if (currentPage > 1 && !isLoading) {
+                            console.log('⬅️ Previous button clicked:', currentPage - 1);
+                            pagination.setPage(currentPage - 1);
+                          }
                         }}
-                        className={currentPage === 1 || isLoading ? "pointer-events-none opacity-50" : ""}
+                        className={currentPage === 1 || isLoading ? "pointer-events-none opacity-50" : "cursor-pointer"}
                       />
                     </PaginationItem>
                     {getPageNumbers().map((pageNum, idx) =>
@@ -308,10 +323,13 @@ const Marketplace = () => {
                             href="#"
                             onClick={(e) => {
                               e.preventDefault();
-                              pagination.setPage(pageNum as number);
+                              if (pageNum !== currentPage && !isLoading) {
+                                console.log('🔢 Page number clicked:', pageNum);
+                                pagination.setPage(pageNum as number);
+                              }
                             }}
                             isActive={pageNum === currentPage}
-                            className={isLoading ? "pointer-events-none opacity-50" : ""}
+                            className={isLoading ? "pointer-events-none opacity-50" : "cursor-pointer"}
                           >
                             {pageNum}
                           </PaginationLink>
@@ -323,9 +341,12 @@ const Marketplace = () => {
                         href="#"
                         onClick={(e) => {
                           e.preventDefault();
-                          pagination.setPage(currentPage + 1);
+                          if (currentPage < totalPages && !isLoading) {
+                            console.log('➡️ Next button clicked:', currentPage + 1);
+                            pagination.setPage(currentPage + 1);
+                          }
                         }}
-                        className={currentPage === totalPages || isLoading ? "pointer-events-none opacity-50" : ""}
+                        className={currentPage === totalPages || isLoading ? "pointer-events-none opacity-50" : "cursor-pointer"}
                       />
                     </PaginationItem>
                   </PaginationContent>

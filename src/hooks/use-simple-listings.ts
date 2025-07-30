@@ -4,6 +4,7 @@ import { PaginationState } from './use-simple-pagination';
 import { Listing, ListingStatus } from '@/types';
 
 async function fetchListings(state: PaginationState) {
+  console.log('🔍 Fetching listings for state:', state);
   let query = supabase
     .from('listings')
     .select('*', { count: 'exact' })
@@ -41,6 +42,7 @@ async function fetchListings(state: PaginationState) {
 
   // Apply pagination
   const offset = (state.page - 1) * state.perPage;
+  console.log('📊 Pagination:', { page: state.page, perPage: state.perPage, offset });
   query = query.range(offset, offset + state.perPage - 1);
 
   // Order by creation date
@@ -65,6 +67,8 @@ async function fetchListings(state: PaginationState) {
       value: listing.ebitda > 0 ? (listing.revenue / listing.ebitda).toFixed(1) : 'N/A',
     },
   }));
+
+  console.log('✅ Fetched listings:', { count: listings.length, totalItems: count });
 
   return {
     listings,
@@ -93,7 +97,9 @@ export function useSimpleListings(state: PaginationState) {
   return useQuery({
     queryKey: ['simple-listings', state],
     queryFn: () => fetchListings(state),
-    staleTime: 30000,
+    staleTime: 5000, // Reduce stale time for more responsive pagination
+    gcTime: 10000, // Garbage collect after 10 seconds
+    refetchOnWindowFocus: false,
   });
 }
 
