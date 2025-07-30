@@ -47,7 +47,7 @@ export function useDeleteListing() {
     },
     onSuccess: (id) => {
       queryClient.invalidateQueries({ queryKey: ['admin-listings'] });
-      queryClient.invalidateQueries({ queryKey: ['marketplace-listings'] });
+      queryClient.invalidateQueries({ queryKey: ['listings'] });
       queryClient.invalidateQueries({ queryKey: ['listing', id] });
       
       toast({

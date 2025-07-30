@@ -49,7 +49,7 @@ export function useToggleListingStatus() {
       // Clear all cache completely to force fresh data
       const queriesToClear = [
         ['admin-listings'],
-        ['marketplace-listings'],
+        ['listings'],
         ['listing-metadata'],
         ['listing', data.id]
       ];
@@ -61,7 +61,7 @@ export function useToggleListingStatus() {
       // Force immediate refetch of marketplace listings to show/hide the listing
       setTimeout(() => {
         queryClient.invalidateQueries({ 
-          queryKey: ['marketplace-listings'],
+          queryKey: ['listings'],
           exact: false,
           refetchType: 'all'
         });

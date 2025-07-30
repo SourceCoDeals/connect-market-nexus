@@ -10,7 +10,7 @@ export const useListings = (filters: FilterOptions = {}) => {
   const { user, authChecked } = useAuth();
   
   return useQuery({
-    queryKey: ['marketplace-listings', filters],
+    queryKey: ['listings', filters],
     queryFn: async () => {
       return withPerformanceMonitoring('marketplace-listings-query', async () => {
         try {

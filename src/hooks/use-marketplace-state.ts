@@ -80,10 +80,10 @@ export function useMarketplaceState() {
     dispatch({ type: 'SET_FILTERS', payload: updatedFilters });
     
     // Invalidate cache when filters change significantly
-    queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.listings] });
+    queryClient.invalidateQueries({ queryKey: ['listings'] });
   }, [state.filters.perPage, queryClient]);
 
-  // Handle page changes with atomic state update
+  // Handle page changes with atomic state update and immediate cache invalidation
   const handlePageChange = useCallback((newPage: number, maxPage: number) => {
     if (newPage < 1 || newPage > maxPage) return;
     
@@ -91,7 +91,15 @@ export function useMarketplaceState() {
     
     // Atomic state update to prevent race conditions
     dispatch({ type: 'UPDATE_FILTERS', payload: { page: newPage } });
-  }, [state.filters.page]);
+    
+    // Immediately invalidate queries with the updated filters to force fresh fetch
+    const updatedFilters = { ...state.filters, page: newPage };
+    queryClient.invalidateQueries({ 
+      queryKey: ['listings', updatedFilters],
+      exact: false,
+      refetchType: 'all'
+    });
+  }, [state.filters, queryClient]);
 
   // Handle page size changes
   const handlePerPageChange = useCallback(async (newPerPage: number) => {

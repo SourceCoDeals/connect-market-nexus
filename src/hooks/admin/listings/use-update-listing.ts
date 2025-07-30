@@ -106,7 +106,7 @@ export function useUpdateListing() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-listings'] });
-      queryClient.invalidateQueries({ queryKey: ['marketplace-listings'] });
+      queryClient.invalidateQueries({ queryKey: ['listings'] });
       queryClient.invalidateQueries({ queryKey: ['listing'] }); // Invalidate single listing queries too
       toast({
         title: 'Listing Updated',

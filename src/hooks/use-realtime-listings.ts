@@ -23,7 +23,7 @@ export function useRealtimeListings() {
         (payload) => {
           console.log('🆕 New listing inserted:', payload.new);
           // Invalidate listings query to refetch data
-          queryClient.invalidateQueries({ queryKey: ['marketplace-listings'] });
+          queryClient.invalidateQueries({ queryKey: ['listings'] });
         }
       )
       .on(
@@ -36,7 +36,7 @@ export function useRealtimeListings() {
         (payload) => {
           console.log('📝 Listing updated:', payload.new);
           // Invalidate both marketplace and single listing queries
-          queryClient.invalidateQueries({ queryKey: ['marketplace-listings'] });
+          queryClient.invalidateQueries({ queryKey: ['listings'] });
           queryClient.invalidateQueries({ queryKey: ['listing', payload.new.id] });
         }
       )
@@ -49,7 +49,7 @@ export function useRealtimeListings() {
         },
         (payload) => {
           console.log('🗑️ Listing deleted:', payload.old);
-          queryClient.invalidateQueries({ queryKey: ['marketplace-listings'] });
+          queryClient.invalidateQueries({ queryKey: ['listings'] });
         }
       )
       .subscribe((status) => {

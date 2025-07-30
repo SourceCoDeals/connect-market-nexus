@@ -106,7 +106,7 @@ export function useCreateListing() {
       // Strategy: Clear all caches completely, then trigger fresh fetches
       const queriesToClear = [
         ['admin-listings'],
-        ['marketplace-listings'],
+        ['listings'],
         ['listing-metadata'],
         ['listing']
       ];
@@ -119,7 +119,7 @@ export function useCreateListing() {
       // Immediately trigger fresh fetches with no stale data
       setTimeout(() => {
         queryClient.invalidateQueries({ 
-          queryKey: ['marketplace-listings'],
+          queryKey: ['listings'],
           exact: false,
           refetchType: 'all'
         });
