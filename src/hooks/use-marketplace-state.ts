@@ -83,27 +83,21 @@ export function useMarketplaceState() {
     queryClient.invalidateQueries({ queryKey: ['listings'] });
   }, [state.filters.perPage, queryClient]);
 
-  // Handle page changes with atomic state update and immediate cache invalidation
+  // Handle page changes - let React Query handle refetch automatically
   const handlePageChange = useCallback((newPage: number, maxPage: number) => {
     if (newPage < 1 || newPage > maxPage) return;
     
     console.log(`🔄 Page change request: ${newPage} (current: ${state.filters.page}, max: ${maxPage})`);
     
-    // Atomic state update to prevent race conditions
+    // Simple state update - React Query will automatically refetch when the queryKey changes
     dispatch({ type: 'UPDATE_FILTERS', payload: { page: newPage } });
-    
-    // Immediately invalidate queries with the updated filters to force fresh fetch
-    const updatedFilters = { ...state.filters, page: newPage };
-    queryClient.invalidateQueries({ 
-      queryKey: ['listings', updatedFilters],
-      exact: false,
-      refetchType: 'all'
-    });
-  }, [state.filters, queryClient]);
+  }, [state.filters.page]);
 
   // Handle page size changes
-  const handlePerPageChange = useCallback(async (newPerPage: number) => {
+  const handlePerPageChange = useCallback((newPerPage: number) => {
     if (newPerPage === state.filters.perPage) return;
+    
+    console.log(`📄 Page size change: ${newPerPage} (current: ${state.filters.perPage})`);
     
     dispatch({ type: 'SET_CHANGING_PAGE_SIZE', payload: true });
     
@@ -113,10 +107,10 @@ export function useMarketplaceState() {
       payload: { perPage: newPerPage, page: 1 } 
     });
     
-    // Reset loading state
+    // Reset loading state after a brief delay
     setTimeout(() => {
       dispatch({ type: 'SET_CHANGING_PAGE_SIZE', payload: false });
-    }, 500);
+    }, 300);
   }, [state.filters.perPage]);
 
   // Handle view type changes
@@ -126,8 +120,10 @@ export function useMarketplaceState() {
 
   // Reset all filters
   const resetFilters = useCallback(() => {
+    console.log('🔄 Resetting all filters');
     dispatch({ type: 'RESET_FILTERS', payload: { perPage: state.filters.perPage } });
-    queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.listings] });
+    // Broad invalidation for reset
+    queryClient.invalidateQueries({ queryKey: ['listings'], exact: false });
   }, [state.filters.perPage, queryClient]);
 
   // Compute pagination state
