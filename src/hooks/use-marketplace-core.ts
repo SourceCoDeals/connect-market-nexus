@@ -180,16 +180,13 @@ export function useMarketplaceCore() {
   // Create stable query key
   const queryKey = useMemo(() => createQueryKey(state), [state]);
   
-  // Main listings query with optimized settings
+  // Main listings query - ultra-simple approach
   const listingsQuery = useQuery({
     queryKey,
     queryFn: () => fetchListings(state, user),
     enabled: authChecked && !!user,
-    placeholderData: (previousData) => previousData, // Smooth pagination
-    staleTime: 30000, // 30 seconds
-    gcTime: 300000, // 5 minutes
     refetchOnWindowFocus: false,
-    retry: 2,
+    retry: 1,
   });
   
   // Metadata query
@@ -202,40 +199,25 @@ export function useMarketplaceCore() {
     refetchOnWindowFocus: false,
   });
   
-  // Computed values
-  const computedData = useMemo(() => {
-    const listings = listingsQuery.data?.listings || [];
-    const totalItems = listingsQuery.data?.totalCount || 0;
-    const totalPages = Math.ceil(totalItems / state.perPage);
-    
-    const pagination: PaginationState = {
-      currentPage: state.page,
-      totalPages,
-      totalItems,
-      perPage: state.perPage,
-    };
-    
-    return {
-      listings,
-      totalItems,
-      pagination,
-      categories: metadataQuery.data?.categories || [],
-      locations: metadataQuery.data?.locations || [],
-      isLoading: listingsQuery.isLoading,
-      isFetching: listingsQuery.isFetching,
-      isPageTransition: listingsQuery.isFetching && !listingsQuery.isLoading,
-      error: listingsQuery.error,
-    };
-  }, [listingsQuery.data, listingsQuery.isLoading, listingsQuery.isFetching, listingsQuery.error, metadataQuery.data, state.page, state.perPage]);
+  // Direct data access - no complex memoization
+  const listings = listingsQuery.data?.listings || [];
+  const totalItems = listingsQuery.data?.totalCount || 0;
+  const totalPages = Math.ceil(totalItems / state.perPage);
   
-  // Action handlers - direct state updates
+  const pagination: PaginationState = {
+    currentPage: state.page,
+    totalPages,
+    totalItems,
+    perPage: state.perPage,
+  };
+  
+  // Action handlers - ultra-simple
   const handlePageChange = useCallback((newPage: number) => {
-    const maxPage = Math.ceil((listingsQuery.data?.totalCount || 0) / state.perPage);
-    if (newPage < 1 || newPage > maxPage) return;
+    if (newPage < 1 || newPage > totalPages) return;
     
-    console.log(`🔄 Page change: ${newPage} (current: ${state.page}, max: ${maxPage})`);
+    console.log(`🔄 Page change: ${newPage} (current: ${state.page}, max: ${totalPages})`);
     setState(prev => ({ ...prev, page: newPage }));
-  }, [listingsQuery.data?.totalCount, state.perPage, state.page]);
+  }, [totalPages, state.page]);
   
   const handlePerPageChange = useCallback((value: string) => {
     const newPerPage = Number(value);
@@ -250,7 +232,7 @@ export function useMarketplaceCore() {
     
     // Track search analytics
     if (filters.search?.trim()) {
-      trackSearch(filters.search, filters, computedData.listings.length, computedData.listings.length === 0);
+      trackSearch(filters.search, filters, listings.length, listings.length === 0);
     }
     
     setState(prev => ({
@@ -264,7 +246,7 @@ export function useMarketplaceCore() {
       ebitdaMin: filters.ebitdaMin,
       ebitdaMax: filters.ebitdaMax,
     }));
-  }, [trackSearch, computedData.listings.length]);
+  }, [trackSearch, listings.length]);
   
   const handleViewTypeChange = useCallback((newViewType: 'grid' | 'list') => {
     setState(prev => ({ ...prev, viewType: newViewType }));
@@ -293,11 +275,17 @@ export function useMarketplaceCore() {
   }), [state]);
   
   return {
-    // Data
-    ...computedData,
+    // Data - direct access
+    listings,
+    totalItems,
+    pagination,
+    categories: metadataQuery.data?.categories || [],
+    locations: metadataQuery.data?.locations || [],
+    isLoading: listingsQuery.isLoading,
+    isFetching: listingsQuery.isFetching,
+    error: listingsQuery.error,
     filters,
     viewType: state.viewType,
-    isChangingPageSize: false, // Simplified - no special loading state needed
     
     // Actions
     onPageChange: handlePageChange,

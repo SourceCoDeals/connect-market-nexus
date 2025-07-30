@@ -8,6 +8,7 @@ import OnboardingPopup from "@/components/onboarding/OnboardingPopup";
 import { Button } from "@/components/ui/button";
 import { LayoutGrid, LayoutList, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { LoadingSpinner } from "@/components/LoadingSpinner";
 
 import {
   Select,
@@ -39,7 +40,6 @@ const Marketplace = () => {
     locations,
     filters,
     viewType,
-    isChangingPageSize,
     onPageChange,
     onPerPageChange,
     onFilterChange,
@@ -192,14 +192,10 @@ const Marketplace = () => {
                     <Select 
                       value={String(filters.perPage || 20)} 
                       onValueChange={onPerPageChange}
-                      disabled={isLoading || isChangingPageSize || isFetching}
+                      disabled={isLoading || isFetching}
                     >
                       <SelectTrigger className="w-[80px]">
-                        {isChangingPageSize ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <SelectValue placeholder="20" />
-                        )}
+                        <SelectValue placeholder="20" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="10">10</SelectItem>
@@ -236,7 +232,7 @@ const Marketplace = () => {
               </div>
               
               {/* Listings grid/list */}
-              {(isLoading || isChangingPageSize) ? (
+              {isLoading ? (
                 <div className={viewType === "grid" ? "grid grid-cols-1 md:grid-cols-2 gap-4" : "flex flex-col gap-4"}>
                   {renderSkeletons()}
                 </div>
@@ -287,8 +283,15 @@ const Marketplace = () => {
                 </div>
               ) : (
                 <>
+                  {/* Page transition loading */}
+                  {isFetching && !isLoading && (
+                    <div className="absolute inset-0 bg-background/80 flex items-center justify-center z-10">
+                      <LoadingSpinner variant="inline" size="md" message="Loading page..." showMessage />
+                    </div>
+                  )}
+                  
                   <div className={cn(
-                    "transition-all duration-500 ease-in-out",
+                    "transition-all duration-500 ease-in-out relative",
                     viewType === "grid" 
                       ? "grid grid-cols-1 md:grid-cols-2 gap-4" 
                       : "flex flex-col gap-3"
@@ -326,7 +329,7 @@ const Marketplace = () => {
                           variant="outline"
                           size="sm"
                           onClick={() => onPageChange(pagination.currentPage - 1)}
-                          disabled={pagination.currentPage === 1 || isLoading}
+                          disabled={pagination.currentPage === 1 || isFetching}
                         >
                           <ChevronLeft className="h-4 w-4 mr-1" />
                           Previous
@@ -340,12 +343,12 @@ const Marketplace = () => {
                               key={`page-${pageNum}`}
                               variant={pagination.currentPage === pageNum ? "default" : "outline"}
                               size="sm"
-                              onClick={() => {
-                                if (pagination.currentPage !== pageNum && !isLoading) {
-                                  onPageChange(pageNum as number);
-                                }
-                              }}
-                              disabled={isLoading || pagination.currentPage === pageNum}
+                               onClick={() => {
+                                 if (pagination.currentPage !== pageNum && !isFetching) {
+                                   onPageChange(pageNum as number);
+                                 }
+                               }}
+                               disabled={isFetching || pagination.currentPage === pageNum}
                               className={pagination.currentPage === pageNum ? "opacity-100" : ""}
                             >
                               {pageNum}
@@ -357,7 +360,7 @@ const Marketplace = () => {
                           variant="outline"
                           size="sm"
                           onClick={() => onPageChange(pagination.currentPage + 1)}
-                          disabled={pagination.currentPage === pagination.totalPages || isLoading}
+                          disabled={pagination.currentPage === pagination.totalPages || isFetching}
                         >
                           Next
                           <ChevronRight className="h-4 w-4 ml-1" />
