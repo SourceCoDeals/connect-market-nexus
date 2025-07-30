@@ -223,19 +223,19 @@ export function useMarketplaceCore() {
       locations: metadataQuery.data?.locations || [],
       isLoading: listingsQuery.isLoading,
       isFetching: listingsQuery.isFetching,
+      isPageTransition: listingsQuery.isFetching && !listingsQuery.isLoading,
       error: listingsQuery.error,
     };
   }, [listingsQuery.data, listingsQuery.isLoading, listingsQuery.isFetching, listingsQuery.error, metadataQuery.data, state.page, state.perPage]);
   
   // Action handlers - direct state updates
   const handlePageChange = useCallback((newPage: number) => {
-    const maxPage = computedData.pagination.totalPages;
+    const maxPage = Math.ceil((listingsQuery.data?.totalCount || 0) / state.perPage);
     if (newPage < 1 || newPage > maxPage) return;
     
     console.log(`🔄 Page change: ${newPage} (current: ${state.page}, max: ${maxPage})`);
-    console.log(`📊 Query state: isLoading=${computedData.isLoading}, isFetching=${computedData.isFetching}`);
     setState(prev => ({ ...prev, page: newPage }));
-  }, [computedData.pagination.totalPages, state.page, computedData.isLoading, computedData.isFetching]);
+  }, [listingsQuery.data?.totalCount, state.perPage, state.page]);
   
   const handlePerPageChange = useCallback((value: string) => {
     const newPerPage = Number(value);

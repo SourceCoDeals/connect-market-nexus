@@ -322,11 +322,11 @@ const Marketplace = () => {
                   {pagination.totalPages > 1 && (
                     <div className="flex items-center justify-center mt-8">
                       <div className="flex items-center space-x-2">
-                        <Button
+                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() => onPageChange(pagination.currentPage - 1)}
-                          disabled={pagination.currentPage === 1 || isLoading || isFetching}
+                          disabled={pagination.currentPage === 1 || isLoading}
                         >
                           <ChevronLeft className="h-4 w-4 mr-1" />
                           Previous
@@ -336,23 +336,19 @@ const Marketplace = () => {
                           pageNum === '...' ? (
                             <span key={`ellipsis-${idx}`} className="px-2 text-muted-foreground">...</span>
                           ) : (
-                            <Button
+                             <Button
                               key={`page-${pageNum}`}
                               variant={pagination.currentPage === pageNum ? "default" : "outline"}
                               size="sm"
                               onClick={() => {
-                                if (pagination.currentPage !== pageNum && !isLoading && !isFetching) {
+                                if (pagination.currentPage !== pageNum && !isLoading) {
                                   onPageChange(pageNum as number);
                                 }
                               }}
-                              disabled={isLoading || isFetching || pagination.currentPage === pageNum}
+                              disabled={isLoading || pagination.currentPage === pageNum}
                               className={pagination.currentPage === pageNum ? "opacity-100" : ""}
                             >
-                              {(isLoading || isFetching) && pagination.currentPage === pageNum ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                              ) : (
-                                pageNum
-                              )}
+                              {pageNum}
                             </Button>
                           )
                         ))}
@@ -361,7 +357,7 @@ const Marketplace = () => {
                           variant="outline"
                           size="sm"
                           onClick={() => onPageChange(pagination.currentPage + 1)}
-                          disabled={pagination.currentPage === pagination.totalPages || isLoading || isFetching}
+                          disabled={pagination.currentPage === pagination.totalPages || isLoading}
                         >
                           Next
                           <ChevronRight className="h-4 w-4 ml-1" />
