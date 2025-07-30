@@ -1,5 +1,5 @@
 import { useEffect, useCallback, useMemo } from "react";
-import { useOptimizedMarketplace } from "@/hooks/use-optimized-marketplace";
+import { useMarketplaceCore } from "@/hooks/use-marketplace-core";
 import { useOnboarding } from "@/hooks/use-onboarding";
 import { FilterOptions } from "@/types";
 import ListingCard from "@/components/ListingCard";
@@ -27,7 +27,7 @@ const Marketplace = () => {
   const { shouldShowOnboarding, completeOnboarding } = useOnboarding();
   const { listingsConnected } = useRealtime();
   
-  // Use optimized marketplace state and data management
+  // Use simplified marketplace core hook
   const {
     listings,
     totalItems,
@@ -45,7 +45,7 @@ const Marketplace = () => {
     onFilterChange,
     onViewTypeChange,
     onResetFilters,
-  } = useOptimizedMarketplace();
+  } = useMarketplaceCore();
   
   
   // Error handling with toast notification
