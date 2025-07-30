@@ -1,6 +1,5 @@
 import { useEffect, useCallback, useMemo } from "react";
-import { useMarketplace } from "@/hooks/use-marketplace";
-import { useMarketplaceState } from "@/hooks/use-marketplace-state";
+import { useOptimizedMarketplace } from "@/hooks/use-optimized-marketplace";
 import { useOnboarding } from "@/hooks/use-onboarding";
 import { FilterOptions } from "@/types";
 import ListingCard from "@/components/ListingCard";
@@ -8,6 +7,7 @@ import FilterPanel from "@/components/FilterPanel";
 import OnboardingPopup from "@/components/onboarding/OnboardingPopup";
 import { Button } from "@/components/ui/button";
 import { LayoutGrid, LayoutList, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 import {
   Select,
@@ -25,28 +25,27 @@ import { CreateDealAlertDialog } from "@/components/deal-alerts/CreateDealAlertD
 const Marketplace = () => {
   const { user, authChecked } = useAuth();
   const { shouldShowOnboarding, completeOnboarding } = useOnboarding();
+  const { listingsConnected } = useRealtime();
   
-  // Use consolidated state management
+  // Use optimized marketplace state and data management
   const {
+    listings,
+    totalItems,
+    pagination,
+    isLoading,
+    isFetching,
+    error,
+    categories,
+    locations,
     filters,
     viewType,
     isChangingPageSize,
-    handleFilterChange,
-    handlePageChange,
-    handlePerPageChange,
-    handleViewTypeChange,
-    resetFilters,
-    computePagination,
-  } = useMarketplaceState();
-  
-  const { useListings, useListingMetadata } = useMarketplace();
-  const { data: listingsData, isLoading, error, isFetching } = useListings(filters);
-  const { data: metadata } = useListingMetadata();
-  const { listingsConnected } = useRealtime();
-  
-  const listings = listingsData?.listings || [];
-  const totalItems = listingsData?.totalCount || 0;
-  const pagination = useMemo(() => computePagination(totalItems), [computePagination, totalItems]);
+    onPageChange,
+    onPerPageChange,
+    onFilterChange,
+    onViewTypeChange,
+    onResetFilters,
+  } = useOptimizedMarketplace();
   
   
   // Error handling with toast notification
@@ -61,19 +60,10 @@ const Marketplace = () => {
     }
   }, [error]);
 
-  // Enhanced page change handler with validation
-  const onPageChange = useCallback((newPage: number) => {
-    if (isLoading || isFetching) return;
-    handlePageChange(newPage, pagination.totalPages);
-  }, [handlePageChange, pagination.totalPages, isLoading, isFetching]);
-
-  // Enhanced per page change handler
-  const onPerPageChange = useCallback((value: string) => {
-    const perPage = Number(value);
-    if (!isLoading && !isFetching) {
-      handlePerPageChange(perPage);
-    }
-  }, [handlePerPageChange, isLoading, isFetching]);
+  // Enhanced error recovery
+  const handleRetry = useCallback(() => {
+    window.location.reload();
+  }, []);
   
   // Enhanced pagination with smooth page number generation
   const getPageNumbers = useCallback(() => {
@@ -180,11 +170,11 @@ const Marketplace = () => {
             {/* Filter sidebar */}
             <div className="col-span-1">
               <FilterPanel
-                onFilterChange={handleFilterChange}
+                onFilterChange={onFilterChange}
                 totalListings={totalItems}
                 filteredCount={listings.length}
-                categories={metadata?.categories || []}
-                locations={metadata?.locations || []}
+                categories={categories}
+                locations={locations}
               />
             </div>
             
@@ -222,7 +212,7 @@ const Marketplace = () => {
                   
                   <div className="flex items-center gap-2">
                     <span className="text-sm">View:</span>
-                    <Select value={viewType} onValueChange={handleViewTypeChange} disabled={isLoading || isFetching}>
+                    <Select value={viewType} onValueChange={onViewTypeChange} disabled={isLoading || isFetching}>
                       <SelectTrigger className="w-[120px]">
                         <SelectValue placeholder="Grid" />
                       </SelectTrigger>
@@ -261,7 +251,7 @@ const Marketplace = () => {
                   </p>
                   <Button
                     variant="outline"
-                    onClick={() => window.location.reload()}
+                    onClick={handleRetry}
                   >
                     Refresh Page
                   </Button>
@@ -278,8 +268,8 @@ const Marketplace = () => {
                     {Object.keys(filters).some(key => key !== 'page' && key !== 'perPage' && filters[key as keyof FilterOptions]) && (
                       <Button
                         variant="outline"
-                        onClick={resetFilters}
-                        disabled={isLoading || isChangingPageSize}
+                        onClick={onResetFilters}
+                        disabled={isLoading}
                       >
                         Clear all filters
                       </Button>
@@ -297,9 +287,12 @@ const Marketplace = () => {
                 </div>
               ) : (
                 <>
-                  <div className={viewType === "grid" 
-                    ? "grid grid-cols-1 md:grid-cols-2 gap-4" 
-                    : "flex flex-col gap-4"}>
+                  <div className={cn(
+                    "transition-all duration-500 ease-in-out",
+                    viewType === "grid" 
+                      ? "grid grid-cols-1 md:grid-cols-2 gap-4" 
+                      : "flex flex-col gap-3"
+                  )}>
                     {listings.map((listing) => {
                       console.log('🎯 Rendering listing card:', {
                         id: listing.id,
@@ -309,11 +302,18 @@ const Marketplace = () => {
                         ebitda: listing.ebitda
                       });
                       return (
-                        <ListingCard
+                        <div 
                           key={listing.id}
-                          listing={listing}
-                          viewType={viewType}
-                        />
+                          className={cn(
+                            "transition-all duration-300 ease-in-out",
+                            viewType === "list" && "animate-in slide-in-from-left-2"
+                          )}
+                        >
+                          <ListingCard
+                            listing={listing}
+                            viewType={viewType}
+                          />
+                        </div>
                       );
                     })}
                   </div>
@@ -332,7 +332,7 @@ const Marketplace = () => {
                           Previous
                         </Button>
                         
-                        {getPageNumbers().map((pageNum, idx) => (
+                         {getPageNumbers().map((pageNum, idx) => (
                           pageNum === '...' ? (
                             <span key={`ellipsis-${idx}`} className="px-2 text-muted-foreground">...</span>
                           ) : (
@@ -340,9 +340,13 @@ const Marketplace = () => {
                               key={`page-${pageNum}`}
                               variant={pagination.currentPage === pageNum ? "default" : "outline"}
                               size="sm"
-                              onClick={() => onPageChange(pageNum as number)}
-                              disabled={isLoading || isFetching}
-                              className={pagination.currentPage === pageNum ? "pointer-events-none" : ""}
+                              onClick={() => {
+                                if (pagination.currentPage !== pageNum && !isLoading && !isFetching) {
+                                  onPageChange(pageNum as number);
+                                }
+                              }}
+                              disabled={isLoading || isFetching || pagination.currentPage === pageNum}
+                              className={pagination.currentPage === pageNum ? "opacity-100" : ""}
                             >
                               {(isLoading || isFetching) && pagination.currentPage === pageNum ? (
                                 <Loader2 className="h-4 w-4 animate-spin" />

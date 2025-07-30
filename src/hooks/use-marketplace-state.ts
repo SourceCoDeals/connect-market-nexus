@@ -83,12 +83,13 @@ export function useMarketplaceState() {
     queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.listings] });
   }, [state.filters.perPage, queryClient]);
 
-  // Handle page changes
+  // Handle page changes with atomic state update
   const handlePageChange = useCallback((newPage: number, maxPage: number) => {
-    if (newPage < 1 || newPage > maxPage) return;
+    if (newPage < 1 || newPage > maxPage || newPage === state.filters.page) return;
     
+    // Atomic state update to prevent race conditions
     dispatch({ type: 'UPDATE_FILTERS', payload: { page: newPage } });
-  }, []);
+  }, [state.filters.page]);
 
   // Handle page size changes
   const handlePerPageChange = useCallback(async (newPerPage: number) => {
