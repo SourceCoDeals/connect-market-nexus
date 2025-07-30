@@ -7,7 +7,7 @@ import FilterPanel from "@/components/FilterPanel";
 import OnboardingPopup from "@/components/onboarding/OnboardingPopup";
 import { Button } from "@/components/ui/button";
 import { LayoutGrid, LayoutList, ChevronLeft, ChevronRight } from "lucide-react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
 import {
   Select,
   SelectContent,
@@ -93,12 +93,14 @@ const Marketplace = () => {
   
   const handlePerPageChange = useCallback((value: string) => {
     const perPage = Number(value);
-    setFilters(prev => ({
-      ...prev,
-      perPage,
-      page: 1 // Reset to first page when changing items per page
-    }));
-  }, []);
+    if (perPage !== filters.perPage) {
+      setFilters(prev => ({
+        ...prev,
+        perPage,
+        page: 1 // Reset to first page when changing items per page
+      }));
+    }
+  }, [filters.perPage]);
   
   // Generate page numbers for pagination
   const getPageNumbers = () => {
@@ -230,6 +232,7 @@ const Marketplace = () => {
                     <Select 
                       value={String(filters.perPage || 20)} 
                       onValueChange={handlePerPageChange}
+                      disabled={isLoading}
                     >
                       <SelectTrigger className="w-[80px]">
                         <SelectValue placeholder="20" />
@@ -244,16 +247,25 @@ const Marketplace = () => {
                   
                   <div className="flex items-center gap-2">
                     <span className="text-sm">View:</span>
-                    <Tabs value={viewType} onValueChange={(v) => setViewType(v as "grid" | "list")}>
-                      <TabsList>
-                        <TabsTrigger value="grid">
-                          <LayoutGrid className="h-4 w-4" />
-                        </TabsTrigger>
-                        <TabsTrigger value="list">
-                          <LayoutList className="h-4 w-4" />
-                        </TabsTrigger>
-                      </TabsList>
-                    </Tabs>
+                    <Select value={viewType} onValueChange={(v) => setViewType(v as "grid" | "list")}>
+                      <SelectTrigger className="w-[120px]">
+                        <SelectValue placeholder="Select view" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="grid">
+                          <div className="flex items-center gap-2">
+                            <LayoutGrid className="h-4 w-4" />
+                            <span>Grid</span>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="list">
+                          <div className="flex items-center gap-2">
+                            <LayoutList className="h-4 w-4" />
+                            <span>List</span>
+                          </div>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
               </div>
@@ -291,7 +303,10 @@ const Marketplace = () => {
                     {Object.keys(filters).some(key => key !== 'page' && key !== 'perPage' && filters[key as keyof FilterOptions]) && (
                       <Button
                         variant="outline"
-                        onClick={() => handleFilterChange({ page: 1, perPage: filters.perPage })}
+                        onClick={() => {
+                          setFilters({ page: 1, perPage: filters.perPage || 20 });
+                        }}
+                        disabled={isLoading}
                       >
                         Clear all filters
                       </Button>
@@ -334,40 +349,41 @@ const Marketplace = () => {
                   {pagination.totalPages > 1 && (
                     <div className="flex items-center justify-center mt-8">
                       <div className="flex items-center space-x-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handlePageChange(pagination.currentPage - 1)}
+                      disabled={pagination.currentPage === 1 || isLoading}
+                    >
+                      <ChevronLeft className="h-4 w-4 mr-1" />
+                      Previous
+                    </Button>
+                    
+                    {getPageNumbers().map((pageNum, idx) => (
+                      pageNum === '...' ? (
+                        <span key={`ellipsis-${idx}`} className="px-2 text-muted-foreground">...</span>
+                      ) : (
                         <Button
-                          variant="outline"
+                          key={`page-${pageNum}`}
+                          variant={pagination.currentPage === pageNum ? "default" : "outline"}
                           size="sm"
-                          onClick={() => handlePageChange(pagination.currentPage - 1)}
-                          disabled={pagination.currentPage === 1}
+                          onClick={() => handlePageChange(pageNum as number)}
+                          disabled={isLoading}
                         >
-                          <ChevronLeft className="h-4 w-4 mr-1" />
-                          Previous
+                          {pageNum}
                         </Button>
-                        
-                        {getPageNumbers().map((pageNum, idx) => (
-                          pageNum === '...' ? (
-                            <span key={`ellipsis-${idx}`} className="px-2">...</span>
-                          ) : (
-                            <Button
-                              key={`page-${pageNum}`}
-                              variant={pagination.currentPage === pageNum ? "default" : "outline"}
-                              size="sm"
-                              onClick={() => handlePageChange(pageNum as number)}
-                            >
-                              {pageNum}
-                            </Button>
-                          )
-                        ))}
-                        
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handlePageChange(pagination.currentPage + 1)}
-                          disabled={pagination.currentPage === pagination.totalPages}
-                        >
-                          Next
-                          <ChevronRight className="h-4 w-4 ml-1" />
-                        </Button>
+                      )
+                    ))}
+                    
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handlePageChange(pagination.currentPage + 1)}
+                      disabled={pagination.currentPage === pagination.totalPages || isLoading}
+                    >
+                      Next
+                      <ChevronRight className="h-4 w-4 ml-1" />
+                    </Button>
                       </div>
                     </div>
                   )}
