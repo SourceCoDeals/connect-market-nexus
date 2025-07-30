@@ -109,13 +109,14 @@ const FilterPanel = ({
       }
     }
     
+    console.log('🔍 [FILTER] Filter change triggered:', filters);
     onFilterChange(filters);
     
     // Track search analytics when search term is used
     if (searchTerm.trim()) {
       trackSearch(searchTerm, filters, filteredCount, filteredCount === 0);
     }
-  }, [searchTerm, category, location, revenueRange, ebitdaRange, onFilterChange, filteredCount, trackSearch]);
+  }, [searchTerm, category, location, revenueRange, ebitdaRange, filteredCount, trackSearch]); // Removed onFilterChange from deps
 
   const handleResetFilters = () => {
     setSearchTerm("");
