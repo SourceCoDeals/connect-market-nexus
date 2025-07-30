@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,6 +7,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { User } from '@/types';
 import { MoreHorizontal, UserCheck, UserX, UserPlus, UserMinus, Trash2, Mail, Building, Phone, Globe } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { FeeAgreementToggle } from "./FeeAgreementToggle";
+import { FeeAgreementEmailDialog } from "./FeeAgreementEmailDialog";
 
 interface MobileUsersTableProps {
   users: User[];
@@ -38,7 +40,8 @@ const MobileUserCard = ({
   onMakeAdmin,
   onRevokeAdmin,
   onDelete,
-  isLoading 
+  isLoading,
+  onSendFeeAgreement
 }: { 
   user: User;
   onApprove: (user: User) => void;
@@ -47,6 +50,7 @@ const MobileUserCard = ({
   onRevokeAdmin: (user: User) => void;
   onDelete: (user: User) => void;
   isLoading: boolean;
+  onSendFeeAgreement: (user: User) => void;
 }) => (
   <Card className="w-full">
     <CardHeader className="pb-3">
@@ -153,6 +157,15 @@ const MobileUserCard = ({
     </CardHeader>
     
     <CardContent className="pt-0 space-y-3">
+      {/* Fee Agreement Section */}
+      <div className="border-b pb-3">
+        <FeeAgreementToggle 
+          user={user}
+          onSendEmail={onSendFeeAgreement}
+          size="default"
+        />
+      </div>
+      
       {/* Contact Information */}
       <div className="space-y-2">
         <div className="flex items-center gap-2 text-sm">
@@ -292,6 +305,7 @@ export const MobileUsersTable = ({
   onDelete,
   isLoading 
 }: MobileUsersTableProps) => {
+  const [emailDialogUser, setEmailDialogUser] = useState<User | null>(null);
   if (isLoading) {
     return (
       <div className="space-y-4">
@@ -330,8 +344,15 @@ export const MobileUsersTable = ({
           onRevokeAdmin={onRevokeAdmin}
           onDelete={onDelete}
           isLoading={isLoading}
+          onSendFeeAgreement={setEmailDialogUser}
         />
       ))}
+      
+      <FeeAgreementEmailDialog
+        user={emailDialogUser}
+        isOpen={!!emailDialogUser}
+        onClose={() => setEmailDialogUser(null)}
+      />
     </div>
   );
 };

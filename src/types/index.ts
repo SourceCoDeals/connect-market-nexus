@@ -45,6 +45,10 @@ export interface User {
   specific_business_search?: string;
   onboarding_completed?: boolean;
   
+  // Fee agreement tracking
+  fee_agreement_signed?: boolean;
+  fee_agreement_signed_at?: string;
+  
   // Computed properties (aliases for snake_case properties)
   readonly firstName: string;
   readonly lastName: string;

@@ -9,6 +9,8 @@ import { formatDistanceToNow } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
 import { UserSavedListings } from "./UserSavedListings";
 import { UserDataCompleteness } from "./UserDataCompleteness";
+import { FeeAgreementToggle } from "./FeeAgreementToggle";
+import { FeeAgreementEmailDialog } from "./FeeAgreementEmailDialog";
 import { getFieldCategories, FIELD_LABELS } from '@/lib/buyer-type-fields';
 import { useEnhancedUserExport } from '@/hooks/admin/use-enhanced-user-export';
 
@@ -287,6 +289,7 @@ export function UsersTable({
   isLoading 
 }: UsersTableProps) {
   const [expandedUserId, setExpandedUserId] = useState<string | null>(null);
+  const [emailDialogUser, setEmailDialogUser] = useState<User | null>(null);
   const { exportUsersToCSV } = useEnhancedUserExport();
   
   const toggleExpand = (userId: string) => {
@@ -328,6 +331,7 @@ export function UsersTable({
             <TableHead className="hidden sm:table-cell">Company</TableHead>
             <TableHead className="hidden md:table-cell">Buyer Type</TableHead>
             <TableHead className="text-center">Profile</TableHead>
+            <TableHead className="text-center">Fee Agreement</TableHead>
             <TableHead className="text-center">Status</TableHead>
             <TableHead className="hidden lg:table-cell">Joined</TableHead>
             <TableHead className="text-right">Actions</TableHead>
@@ -336,7 +340,7 @@ export function UsersTable({
         <TableBody>
           {users.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={7} className="h-24 text-center text-sm">
+              <TableCell colSpan={8} className="h-24 text-center text-sm">
                 No users found.
               </TableCell>
             </TableRow>
@@ -367,6 +371,13 @@ export function UsersTable({
                   </TableCell>
                   <TableCell className="text-center">
                     <UserDataCompleteness user={user} size="sm" />
+                  </TableCell>
+                  <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
+                    <FeeAgreementToggle 
+                      user={user}
+                      onSendEmail={setEmailDialogUser}
+                      size="sm"
+                    />
                   </TableCell>
                   <TableCell className="text-center">
                     {user.approval_status === "approved" && (
@@ -400,7 +411,7 @@ export function UsersTable({
                 </TableRow>
                 {expandedUserId === user.id && (
                   <TableRow>
-                    <TableCell colSpan={7} className="py-2 px-4 bg-muted/30 border-t">
+                    <TableCell colSpan={8} className="py-2 px-4 bg-muted/30 border-t">
                       <UserDetails user={user} />
                     </TableCell>
                   </TableRow>
@@ -411,6 +422,12 @@ export function UsersTable({
         </TableBody>
       </Table>
     </div>
+    
+    <FeeAgreementEmailDialog
+      user={emailDialogUser}
+      isOpen={!!emailDialogUser}
+      onClose={() => setEmailDialogUser(null)}
+    />
     </div>
   );
 }
