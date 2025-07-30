@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useMarketplace } from "@/hooks/use-marketplace";
 import { useOnboarding } from "@/hooks/use-onboarding";
 import { FilterOptions, PaginationState } from "@/types";
@@ -6,7 +6,7 @@ import ListingCard from "@/components/ListingCard";
 import FilterPanel from "@/components/FilterPanel";
 import OnboardingPopup from "@/components/onboarding/OnboardingPopup";
 import { Button } from "@/components/ui/button";
-import { LayoutGrid, LayoutList, ChevronLeft, ChevronRight } from "lucide-react";
+import { LayoutGrid, LayoutList, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 
 import {
   Select,
@@ -30,37 +30,30 @@ const Marketplace = () => {
     perPage: 20
   });
   const [viewType, setViewType] = useState<"grid" | "list">("grid");
-  const [pagination, setPagination] = useState<PaginationState>({
-    currentPage: 1,
-    totalPages: 1,
-    totalItems: 0,
-    perPage: 20
-  });
+  const [isChangingPageSize, setIsChangingPageSize] = useState(false);
   
   const { useListings, useListingMetadata } = useMarketplace();
-  const { data: listingsData, isLoading, error, isError } = useListings(filters);
+  const { data: listingsData, isLoading, error, isError, isFetching } = useListings(filters);
   const { data: metadata, isLoading: isMetadataLoading } = useListingMetadata();
   const { listingsConnected } = useRealtime();
   
   const listings = listingsData?.listings || [];
   const totalItems = listingsData?.totalCount || 0;
   
+  // Compute pagination state from filters and data
+  const pagination = useMemo((): PaginationState => {
+    const perPage = filters.perPage || 20;
+    const currentPage = filters.page || 1;
+    const totalPages = Math.ceil(totalItems / perPage);
+    
+    return {
+      currentPage,
+      totalPages,
+      totalItems,
+      perPage
+    };
+  }, [filters.page, filters.perPage, totalItems]);
   
-  // Update pagination whenever total count or filters change
-  useEffect(() => {
-    if (listingsData) {
-      const perPage = filters.perPage || 20;
-      const totalPages = Math.ceil(totalItems / perPage);
-      
-      setPagination({
-        currentPage: filters.page || 1,
-        totalPages,
-        totalItems,
-        perPage
-      });
-      
-    }
-  }, [listingsData, totalItems, filters.page, filters.perPage]);
   
   // Error handling
   useEffect(() => {
@@ -76,69 +69,82 @@ const Marketplace = () => {
 
   // Memoize filter change handler to prevent unnecessary re-renders
   const handleFilterChange = useCallback((newFilters: FilterOptions) => {
+    console.log('🔧 Filter change:', { from: filters, to: newFilters });
     setFilters(prev => {
-      const updated = { ...newFilters, page: 1 }; // Reset to page 1 when filters change
+      const updated = { 
+        ...prev, 
+        ...newFilters, 
+        page: 1,  // Always reset to page 1 when filters change
+        perPage: prev.perPage || 20  // Preserve perPage
+      };
+      console.log('🔧 Updated filters:', updated);
       return updated;
     });
-  }, []);
+  }, [filters]);
   
   const handlePageChange = useCallback((newPage: number) => {
-    if (newPage < 1 || newPage > pagination.totalPages) return;
+    if (newPage < 1 || newPage > pagination.totalPages || isLoading) return;
     
+    console.log('📄 Page change:', { from: pagination.currentPage, to: newPage });
     setFilters(prev => ({
       ...prev,
       page: newPage
     }));
-  }, [pagination.totalPages]);
+  }, [pagination.totalPages, pagination.currentPage, isLoading]);
   
-  const handlePerPageChange = useCallback((value: string) => {
+  const handlePerPageChange = useCallback(async (value: string) => {
     const perPage = Number(value);
-    if (perPage !== filters.perPage) {
+    if (perPage !== filters.perPage && !isLoading) {
+      console.log('📊 Per page change:', { from: filters.perPage, to: perPage });
+      setIsChangingPageSize(true);
+      
       setFilters(prev => ({
         ...prev,
         perPage,
         page: 1 // Reset to first page when changing items per page
       }));
+      
+      // Reset loading state after a brief delay
+      setTimeout(() => setIsChangingPageSize(false), 500);
     }
-  }, [filters.perPage]);
+  }, [filters.perPage, isLoading]);
   
   // Generate page numbers for pagination
-  const getPageNumbers = () => {
+  const getPageNumbers = useCallback(() => {
     const { currentPage, totalPages } = pagination;
-    const delta = 1; // Number of pages to show before and after current page
-    
-    const range = [];
-    const rangeWithDots = [];
+    const delta = 2; // Number of pages to show before and after current page
     
     if (totalPages <= 1) return [];
     
-    // Always include first page
-    range.push(1);
+    const range = new Set<number>();
     
-    // Calculate the range of pages to show
-    for (let i = Math.max(2, currentPage - delta); i <= Math.min(totalPages - 1, currentPage + delta); i++) {
-      range.push(i);
+    // Always include first and last pages
+    range.add(1);
+    if (totalPages > 1) range.add(totalPages);
+    
+    // Add pages around current page
+    for (let i = Math.max(1, currentPage - delta); i <= Math.min(totalPages, currentPage + delta); i++) {
+      range.add(i);
     }
     
-    // Always include last page if more than 1 page
-    if (totalPages > 1) {
-      range.push(totalPages);
-    }
+    // Convert to sorted array and add ellipsis
+    const pages = Array.from(range).sort((a, b) => a - b);
+    const result: (number | string)[] = [];
     
-    // Add dots where needed
-    let prev = 0;
-    for (const i of range) {
-      if (prev && i - prev === 2) {
-        rangeWithDots.push(prev + 1);
-      } else if (i - prev > 2) {
-        rangeWithDots.push('...');
+    for (let i = 0; i < pages.length; i++) {
+      const current = pages[i];
+      const next = pages[i + 1];
+      
+      result.push(current);
+      
+      // Add ellipsis if there's a gap
+      if (next && next - current > 1) {
+        result.push('...');
       }
-      rangeWithDots.push(i);
-      prev = i;
     }
     
-    return rangeWithDots;
-  };
+    return result;
+  }, [pagination]);
 
   const renderSkeletons = () => {
     return Array(filters.perPage || 8)
@@ -232,24 +238,29 @@ const Marketplace = () => {
                     <Select 
                       value={String(filters.perPage || 20)} 
                       onValueChange={handlePerPageChange}
-                      disabled={isLoading}
+                      disabled={isLoading || isChangingPageSize}
                     >
                       <SelectTrigger className="w-[80px]">
-                        <SelectValue placeholder="20" />
+                        {isChangingPageSize ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <SelectValue placeholder="20" />
+                        )}
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="10">10</SelectItem>
                         <SelectItem value="20">20</SelectItem>
                         <SelectItem value="50">50</SelectItem>
+                        <SelectItem value="100">100</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                   
                   <div className="flex items-center gap-2">
                     <span className="text-sm">View:</span>
-                    <Select value={viewType} onValueChange={(v) => setViewType(v as "grid" | "list")}>
+                    <Select value={viewType} onValueChange={(v) => setViewType(v as "grid" | "list")} disabled={isLoading}>
                       <SelectTrigger className="w-[120px]">
-                        <SelectValue placeholder="Select view" />
+                        <SelectValue placeholder="Grid" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="grid">
@@ -271,7 +282,7 @@ const Marketplace = () => {
               </div>
               
               {/* Listings grid/list */}
-              {isLoading ? (
+              {(isLoading || isChangingPageSize) ? (
                 <div className={viewType === "grid" ? "grid grid-cols-1 md:grid-cols-2 gap-4" : "flex flex-col gap-4"}>
                   {renderSkeletons()}
                 </div>
@@ -304,9 +315,10 @@ const Marketplace = () => {
                       <Button
                         variant="outline"
                         onClick={() => {
+                          console.log('🧹 Clearing all filters');
                           setFilters({ page: 1, perPage: filters.perPage || 20 });
                         }}
-                        disabled={isLoading}
+                        disabled={isLoading || isChangingPageSize}
                       >
                         Clear all filters
                       </Button>
@@ -349,41 +361,46 @@ const Marketplace = () => {
                   {pagination.totalPages > 1 && (
                     <div className="flex items-center justify-center mt-8">
                       <div className="flex items-center space-x-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handlePageChange(pagination.currentPage - 1)}
-                      disabled={pagination.currentPage === 1 || isLoading}
-                    >
-                      <ChevronLeft className="h-4 w-4 mr-1" />
-                      Previous
-                    </Button>
-                    
-                    {getPageNumbers().map((pageNum, idx) => (
-                      pageNum === '...' ? (
-                        <span key={`ellipsis-${idx}`} className="px-2 text-muted-foreground">...</span>
-                      ) : (
                         <Button
-                          key={`page-${pageNum}`}
-                          variant={pagination.currentPage === pageNum ? "default" : "outline"}
+                          variant="outline"
                           size="sm"
-                          onClick={() => handlePageChange(pageNum as number)}
-                          disabled={isLoading}
+                          onClick={() => handlePageChange(pagination.currentPage - 1)}
+                          disabled={pagination.currentPage === 1 || isLoading || isFetching}
                         >
-                          {pageNum}
+                          <ChevronLeft className="h-4 w-4 mr-1" />
+                          Previous
                         </Button>
-                      )
-                    ))}
-                    
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handlePageChange(pagination.currentPage + 1)}
-                      disabled={pagination.currentPage === pagination.totalPages || isLoading}
-                    >
-                      Next
-                      <ChevronRight className="h-4 w-4 ml-1" />
-                    </Button>
+                        
+                        {getPageNumbers().map((pageNum, idx) => (
+                          pageNum === '...' ? (
+                            <span key={`ellipsis-${idx}`} className="px-2 text-muted-foreground">...</span>
+                          ) : (
+                            <Button
+                              key={`page-${pageNum}`}
+                              variant={pagination.currentPage === pageNum ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => handlePageChange(pageNum as number)}
+                              disabled={isLoading || isFetching}
+                              className={pagination.currentPage === pageNum ? "pointer-events-none" : ""}
+                            >
+                              {isLoading && pagination.currentPage === pageNum ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                pageNum
+                              )}
+                            </Button>
+                          )
+                        ))}
+                        
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handlePageChange(pagination.currentPage + 1)}
+                          disabled={pagination.currentPage === pagination.totalPages || isLoading || isFetching}
+                        >
+                          Next
+                          <ChevronRight className="h-4 w-4 ml-1" />
+                        </Button>
                       </div>
                     </div>
                   )}
