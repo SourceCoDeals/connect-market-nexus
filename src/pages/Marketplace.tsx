@@ -1,12 +1,13 @@
-import { useEffect, useCallback, useMemo } from "react";
-import { useMarketplaceCore } from "@/hooks/use-marketplace-core";
+import { useEffect, useCallback, useState } from "react";
+import { useSimplePagination } from '@/hooks/use-simple-pagination';
+import { useSimpleListings, useListingMetadata } from '@/hooks/use-simple-listings';
 import { useOnboarding } from "@/hooks/use-onboarding";
 import { FilterOptions } from "@/types";
 import ListingCard from "@/components/ListingCard";
 import FilterPanel from "@/components/FilterPanel";
 import OnboardingPopup from "@/components/onboarding/OnboardingPopup";
 import { Button } from "@/components/ui/button";
-import { LayoutGrid, LayoutList, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import { LayoutGrid, LayoutList, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 
@@ -17,6 +18,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+  PaginationEllipsis,
+} from "@/components/ui/pagination";
 import { toast } from "@/hooks/use-toast";
 import { useRealtime } from "@/components/realtime/RealtimeProvider";
 import { useAuth } from "@/context/AuthContext";
@@ -28,26 +38,18 @@ const Marketplace = () => {
   const { shouldShowOnboarding, completeOnboarding } = useOnboarding();
   const { listingsConnected } = useRealtime();
   
-  // Use simplified marketplace core hook
-  const {
-    listings,
-    totalItems,
-    pagination,
-    isLoading,
-    isFetching,
-    error,
-    categories,
-    locations,
-    filters,
-    viewType,
-    onPageChange,
-    onPerPageChange,
-    onFilterChange,
-    onViewTypeChange,
-    onResetFilters,
-  } = useMarketplaceCore();
+  const pagination = useSimplePagination();
+  const { data: listingsData, isLoading, error } = useSimpleListings(pagination.state);
+  const { data: metadata } = useListingMetadata();
   
+  const listings = listingsData?.listings || [];
+  const totalItems = listingsData?.totalItems || 0;
+  const categories = metadata?.categories || [];
+  const locations = metadata?.locations || [];
   
+  const totalPages = Math.ceil(totalItems / pagination.state.perPage);
+  const [viewType, setViewType] = useState<'grid' | 'list'>('grid');
+   
   // Error handling with toast notification
   useEffect(() => {
     if (error) {
@@ -66,8 +68,9 @@ const Marketplace = () => {
   }, []);
   
   // Enhanced pagination with smooth page number generation
+  const currentPage = pagination.state.page;
+  
   const getPageNumbers = useCallback(() => {
-    const { currentPage, totalPages } = pagination;
     const delta = 2;
     
     if (totalPages <= 1) return [];
@@ -98,10 +101,10 @@ const Marketplace = () => {
     }
     
     return result;
-  }, [pagination]);
+  }, [currentPage, totalPages]);
 
   const renderSkeletons = () => {
-    return Array(filters.perPage || 8)
+    return Array(pagination.state.perPage || 8)
       .fill(0)
       .map((_, index) => (
         <div
@@ -170,9 +173,9 @@ const Marketplace = () => {
             {/* Filter sidebar */}
             <div className="col-span-1">
               <FilterPanel
-                onFilterChange={onFilterChange}
+                onFilterChange={pagination.setFilters}
                 totalListings={totalItems}
-                filteredCount={listings.length}
+                filteredCount={totalItems}
                 categories={categories}
                 locations={locations}
               />
@@ -183,60 +186,47 @@ const Marketplace = () => {
               {/* View type and sorting */}
               <div className="flex flex-wrap justify-between items-center gap-4">
                 <div className="text-sm text-muted-foreground">
-                  {isLoading ? "Loading listings..." : `${totalItems} listings found, showing ${listings.length}`}
+                  {isLoading ? "Loading listings..." : `${totalItems} listings found`}
                 </div>
                 
                 <div className="flex flex-wrap items-center gap-4">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm">Results per page:</span>
-                    <Select 
-                      value={String(filters.perPage || 20)} 
-                      onValueChange={onPerPageChange}
-                      disabled={isLoading || isFetching}
+                    <span className="text-sm">View:</span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setViewType(viewType === 'grid' ? 'list' : 'grid')}
                     >
-                      <SelectTrigger className="w-[80px]">
-                        <SelectValue placeholder="20" />
+                      {viewType === 'grid' ? <LayoutList className="h-4 w-4" /> : <LayoutGrid className="h-4 w-4" />}
+                      {viewType === 'grid' ? 'List' : 'Grid'}
+                    </Button>
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm">Results per page:</span>
+                    <Select value={pagination.state.perPage.toString()} onValueChange={(value) => pagination.setPerPage(parseInt(value))}>
+                      <SelectTrigger className="w-20">
+                        <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="10">10</SelectItem>
                         <SelectItem value="20">20</SelectItem>
                         <SelectItem value="50">50</SelectItem>
-                        <SelectItem value="100">100</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm">View:</span>
-                    <Select value={viewType} onValueChange={onViewTypeChange} disabled={isLoading || isFetching}>
-                      <SelectTrigger className="w-[120px]">
-                        <SelectValue placeholder="Grid" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="grid">
-                          <div className="flex items-center gap-2">
-                            <LayoutGrid className="h-4 w-4" />
-                            <span>Grid</span>
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="list">
-                          <div className="flex items-center gap-2">
-                            <LayoutList className="h-4 w-4" />
-                            <span>List</span>
-                          </div>
-                        </SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                 </div>
               </div>
               
+          {/* Loading State with Spinner */}
+          {isLoading && (
+            <div className="flex justify-center items-center py-8">
+              <LoadingSpinner />
+            </div>
+          )}
+              
               {/* Listings grid/list */}
-              {isLoading ? (
-                <div className={viewType === "grid" ? "grid grid-cols-1 md:grid-cols-2 gap-4" : "flex flex-col gap-4"}>
-                  {renderSkeletons()}
-                </div>
-              ) : error ? (
+              {!isLoading && error ? (
                 <div className="bg-muted/30 border border-border rounded-lg p-8 text-center">
                   <h3 className="text-lg font-medium mb-2">Failed to load listings</h3>
                   <p className="text-muted-foreground mb-4">
@@ -252,24 +242,20 @@ const Marketplace = () => {
                     Refresh Page
                   </Button>
                 </div>
-              ) : listings.length === 0 ? (
+              ) : !isLoading && listings.length === 0 ? (
                 <div className="bg-muted/30 border border-border rounded-lg p-8 text-center">
                   <h3 className="text-lg font-medium mb-2">No listings found</h3>
                   <p className="text-muted-foreground mb-4">
-                    {Object.keys(filters).some(key => key !== 'page' && key !== 'perPage' && filters[key as keyof FilterOptions])
-                      ? "Try adjusting your filters to see more results, or set up a deal alert to be notified when matching opportunities become available." 
-                      : "There are currently no listings available"}
+                    Try adjusting your filters to see more results, or set up a deal alert to be notified when matching opportunities become available.
                   </p>
                   <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                    {Object.keys(filters).some(key => key !== 'page' && key !== 'perPage' && filters[key as keyof FilterOptions]) && (
-                      <Button
-                        variant="outline"
-                        onClick={onResetFilters}
-                        disabled={isLoading}
-                      >
-                        Clear all filters
-                      </Button>
-                    )}
+                    <Button
+                      variant="outline"
+                      onClick={pagination.resetFilters}
+                      disabled={isLoading}
+                    >
+                      Clear all filters
+                    </Button>
                     {user && (
                       <CreateDealAlertDialog 
                         trigger={
@@ -281,94 +267,69 @@ const Marketplace = () => {
                     )}
                   </div>
                 </div>
-              ) : (
-                <>
-                  {/* Page transition loading */}
-                  {isFetching && !isLoading && (
-                    <div className="absolute inset-0 bg-background/80 flex items-center justify-center z-10">
-                      <LoadingSpinner variant="inline" size="md" message="Loading page..." showMessage />
-                    </div>
-                  )}
-                  
-                  <div className={cn(
-                    "transition-all duration-500 ease-in-out relative",
-                    viewType === "grid" 
-                      ? "grid grid-cols-1 md:grid-cols-2 gap-4" 
-                      : "flex flex-col gap-3"
-                  )}>
-                    {listings.map((listing) => {
-                      console.log('🎯 Rendering listing card:', {
-                        id: listing.id,
-                        title: listing.title,
-                        status: listing.status,
-                        revenue: listing.revenue,
-                        ebitda: listing.ebitda
-                      });
-                      return (
-                        <div 
-                          key={listing.id}
-                          className={cn(
-                            "transition-all duration-300 ease-in-out",
-                            viewType === "list" && "animate-in slide-in-from-left-2"
-                          )}
-                        >
-                          <ListingCard
-                            listing={listing}
-                            viewType={viewType}
-                          />
-                        </div>
-                      );
-                    })}
-                  </div>
-                  
-                  {/* Pagination controls */}
-                  {pagination.totalPages > 1 && (
-                    <div className="flex items-center justify-center mt-8">
-                      <div className="flex items-center space-x-2">
-                         <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => onPageChange(pagination.currentPage - 1)}
-                          disabled={pagination.currentPage === 1 || isFetching}
-                        >
-                          <ChevronLeft className="h-4 w-4 mr-1" />
-                          Previous
-                        </Button>
-                        
-                         {getPageNumbers().map((pageNum, idx) => (
-                          pageNum === '...' ? (
-                            <span key={`ellipsis-${idx}`} className="px-2 text-muted-foreground">...</span>
-                          ) : (
-                             <Button
-                              key={`page-${pageNum}`}
-                              variant={pagination.currentPage === pageNum ? "default" : "outline"}
-                              size="sm"
-                               onClick={() => {
-                                 if (pagination.currentPage !== pageNum && !isFetching) {
-                                   onPageChange(pageNum as number);
-                                 }
-                               }}
-                               disabled={isFetching || pagination.currentPage === pageNum}
-                              className={pagination.currentPage === pageNum ? "opacity-100" : ""}
-                            >
-                              {pageNum}
-                            </Button>
-                          )
-                        ))}
-                        
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => onPageChange(pagination.currentPage + 1)}
-                          disabled={pagination.currentPage === pagination.totalPages || isFetching}
-                        >
-                          Next
-                          <ChevronRight className="h-4 w-4 ml-1" />
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </>
+              ) : !isLoading && (
+                <div className={cn(
+                  viewType === "grid" 
+                    ? "grid grid-cols-1 md:grid-cols-2 gap-4" 
+                    : "flex flex-col gap-3"
+                )}>
+                  {listings.map((listing) => (
+                    <ListingCard
+                      key={listing.id}
+                      listing={listing}
+                      viewType={viewType}
+                    />
+                  ))}
+                </div>
+              )}
+              
+              {/* Pagination */}
+              {totalPages > 1 && !isLoading && (
+                <Pagination className="mt-8">
+                  <PaginationContent>
+                    <PaginationItem>
+                      <PaginationPrevious
+                        href="#"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          pagination.setPage(currentPage - 1);
+                        }}
+                        className={currentPage === 1 || isLoading ? "pointer-events-none opacity-50" : ""}
+                      />
+                    </PaginationItem>
+                    {getPageNumbers().map((pageNum, idx) =>
+                      pageNum === '...' ? (
+                        <PaginationItem key={`ellipsis-${idx}`}>
+                          <PaginationEllipsis />
+                        </PaginationItem>
+                      ) : (
+                        <PaginationItem key={`page-${pageNum}`}>
+                          <PaginationLink
+                            href="#"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              pagination.setPage(pageNum as number);
+                            }}
+                            isActive={pageNum === currentPage}
+                            className={isLoading ? "pointer-events-none opacity-50" : ""}
+                          >
+                            {pageNum}
+                          </PaginationLink>
+                        </PaginationItem>
+                      )
+                    )}
+                    <PaginationItem>
+                      <PaginationNext
+                        href="#"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          pagination.setPage(currentPage + 1);
+                        }}
+                        className={currentPage === totalPages || isLoading ? "pointer-events-none opacity-50" : ""}
+                      />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
               )}
             </div>
           </div>
