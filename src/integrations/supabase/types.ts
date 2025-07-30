@@ -431,6 +431,42 @@ export type Database = {
           },
         ]
       }
+      fee_agreement_logs: {
+        Row: {
+          action_type: string
+          admin_id: string | null
+          created_at: string
+          email_sent_to: string | null
+          id: string
+          metadata: Json | null
+          notes: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          action_type: string
+          admin_id?: string | null
+          created_at?: string
+          email_sent_to?: string | null
+          id?: string
+          metadata?: Json | null
+          notes?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          action_type?: string
+          admin_id?: string | null
+          created_at?: string
+          email_sent_to?: string | null
+          id?: string
+          metadata?: Json | null
+          notes?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       feedback_messages: {
         Row: {
           admin_id: string | null
@@ -690,6 +726,8 @@ export type Database = {
           email: string
           email_verified: boolean
           estimated_revenue: string | null
+          fee_agreement_signed: boolean | null
+          fee_agreement_signed_at: string | null
           first_name: string
           fund_size: string | null
           funded_by: string | null
@@ -726,6 +764,8 @@ export type Database = {
           email: string
           email_verified?: boolean
           estimated_revenue?: string | null
+          fee_agreement_signed?: boolean | null
+          fee_agreement_signed_at?: string | null
           first_name: string
           fund_size?: string | null
           funded_by?: string | null
@@ -762,6 +802,8 @@ export type Database = {
           email?: string
           email_verified?: boolean
           estimated_revenue?: string | null
+          fee_agreement_signed?: boolean | null
+          fee_agreement_signed_at?: string | null
           first_name?: string
           fund_size?: string | null
           funded_by?: string | null
@@ -1119,6 +1161,14 @@ export type Database = {
         Args: { user_id: string }
         Returns: boolean
       }
+      log_fee_agreement_email: {
+        Args: {
+          target_user_id: string
+          recipient_email: string
+          admin_notes?: string
+        }
+        Returns: boolean
+      }
       match_deal_alerts_with_listing: {
         Args: { listing_data: Json }
         Returns: {
@@ -1152,6 +1202,14 @@ export type Database = {
       update_engagement_scores: {
         Args: Record<PropertyKey, never>
         Returns: undefined
+      }
+      update_fee_agreement_status: {
+        Args: {
+          target_user_id: string
+          is_signed: boolean
+          admin_notes?: string
+        }
+        Returns: boolean
       }
       validate_reset_token: {
         Args: { token_value: string }
