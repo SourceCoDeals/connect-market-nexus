@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useEffect, useCallback, useMemo } from "react";
 import { useMarketplace } from "@/hooks/use-marketplace";
+import { useMarketplaceState } from "@/hooks/use-marketplace-state";
 import { useOnboarding } from "@/hooks/use-onboarding";
-import { FilterOptions, PaginationState } from "@/types";
+import { FilterOptions } from "@/types";
 import ListingCard from "@/components/ListingCard";
 import FilterPanel from "@/components/FilterPanel";
 import OnboardingPopup from "@/components/onboarding/OnboardingPopup";
@@ -16,7 +17,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
-import { Skeleton } from "@/components/ui/skeleton";
 import { useRealtime } from "@/components/realtime/RealtimeProvider";
 import { useAuth } from "@/context/AuthContext";
 import { Wifi } from "lucide-react";
@@ -24,38 +24,32 @@ import { CreateDealAlertDialog } from "@/components/deal-alerts/CreateDealAlertD
 
 const Marketplace = () => {
   const { user, authChecked } = useAuth();
-  const { showOnboarding, completeOnboarding, shouldShowOnboarding, isLoading: onboardingLoading } = useOnboarding();
-  const [filters, setFilters] = useState<FilterOptions>({
-    page: 1,
-    perPage: 20
-  });
-  const [viewType, setViewType] = useState<"grid" | "list">("grid");
-  const [isChangingPageSize, setIsChangingPageSize] = useState(false);
+  const { shouldShowOnboarding, completeOnboarding } = useOnboarding();
+  
+  // Use consolidated state management
+  const {
+    filters,
+    viewType,
+    isChangingPageSize,
+    handleFilterChange,
+    handlePageChange,
+    handlePerPageChange,
+    handleViewTypeChange,
+    resetFilters,
+    computePagination,
+  } = useMarketplaceState();
   
   const { useListings, useListingMetadata } = useMarketplace();
-  const { data: listingsData, isLoading, error, isError, isFetching } = useListings(filters);
-  const { data: metadata, isLoading: isMetadataLoading } = useListingMetadata();
+  const { data: listingsData, isLoading, error, isFetching } = useListings(filters);
+  const { data: metadata } = useListingMetadata();
   const { listingsConnected } = useRealtime();
   
   const listings = listingsData?.listings || [];
   const totalItems = listingsData?.totalCount || 0;
-  
-  // Compute pagination state from filters and data
-  const pagination = useMemo((): PaginationState => {
-    const perPage = filters.perPage || 20;
-    const currentPage = filters.page || 1;
-    const totalPages = Math.ceil(totalItems / perPage);
-    
-    return {
-      currentPage,
-      totalPages,
-      totalItems,
-      perPage
-    };
-  }, [filters.page, filters.perPage, totalItems]);
+  const pagination = useMemo(() => computePagination(totalItems), [computePagination, totalItems]);
   
   
-  // Error handling
+  // Error handling with toast notification
   useEffect(() => {
     if (error) {
       console.error("❌ Error loading marketplace listings:", error);
@@ -67,52 +61,24 @@ const Marketplace = () => {
     }
   }, [error]);
 
-  // Memoize filter change handler to prevent unnecessary re-renders
-  const handleFilterChange = useCallback((newFilters: FilterOptions) => {
-    console.log('🔧 Filter change:', { from: filters, to: newFilters });
-    setFilters(prev => {
-      const updated = { 
-        ...prev, 
-        ...newFilters, 
-        page: 1,  // Always reset to page 1 when filters change
-        perPage: prev.perPage || 20  // Preserve perPage
-      };
-      console.log('🔧 Updated filters:', updated);
-      return updated;
-    });
-  }, [filters]);
-  
-  const handlePageChange = useCallback((newPage: number) => {
-    if (newPage < 1 || newPage > pagination.totalPages || isLoading) return;
-    
-    console.log('📄 Page change:', { from: pagination.currentPage, to: newPage });
-    setFilters(prev => ({
-      ...prev,
-      page: newPage
-    }));
-  }, [pagination.totalPages, pagination.currentPage, isLoading]);
-  
-  const handlePerPageChange = useCallback(async (value: string) => {
+  // Enhanced page change handler with validation
+  const onPageChange = useCallback((newPage: number) => {
+    if (isLoading || isFetching) return;
+    handlePageChange(newPage, pagination.totalPages);
+  }, [handlePageChange, pagination.totalPages, isLoading, isFetching]);
+
+  // Enhanced per page change handler
+  const onPerPageChange = useCallback((value: string) => {
     const perPage = Number(value);
-    if (perPage !== filters.perPage && !isLoading) {
-      console.log('📊 Per page change:', { from: filters.perPage, to: perPage });
-      setIsChangingPageSize(true);
-      
-      setFilters(prev => ({
-        ...prev,
-        perPage,
-        page: 1 // Reset to first page when changing items per page
-      }));
-      
-      // Reset loading state after a brief delay
-      setTimeout(() => setIsChangingPageSize(false), 500);
+    if (!isLoading && !isFetching) {
+      handlePerPageChange(perPage);
     }
-  }, [filters.perPage, isLoading]);
+  }, [handlePerPageChange, isLoading, isFetching]);
   
-  // Generate page numbers for pagination
+  // Enhanced pagination with smooth page number generation
   const getPageNumbers = useCallback(() => {
     const { currentPage, totalPages } = pagination;
-    const delta = 2; // Number of pages to show before and after current page
+    const delta = 2;
     
     if (totalPages <= 1) return [];
     
@@ -127,7 +93,6 @@ const Marketplace = () => {
       range.add(i);
     }
     
-    // Convert to sorted array and add ellipsis
     const pages = Array.from(range).sort((a, b) => a - b);
     const result: (number | string)[] = [];
     
@@ -137,7 +102,6 @@ const Marketplace = () => {
       
       result.push(current);
       
-      // Add ellipsis if there's a gap
       if (next && next - current > 1) {
         result.push('...');
       }
@@ -237,8 +201,8 @@ const Marketplace = () => {
                     <span className="text-sm">Results per page:</span>
                     <Select 
                       value={String(filters.perPage || 20)} 
-                      onValueChange={handlePerPageChange}
-                      disabled={isLoading || isChangingPageSize}
+                      onValueChange={onPerPageChange}
+                      disabled={isLoading || isChangingPageSize || isFetching}
                     >
                       <SelectTrigger className="w-[80px]">
                         {isChangingPageSize ? (
@@ -258,7 +222,7 @@ const Marketplace = () => {
                   
                   <div className="flex items-center gap-2">
                     <span className="text-sm">View:</span>
-                    <Select value={viewType} onValueChange={(v) => setViewType(v as "grid" | "list")} disabled={isLoading}>
+                    <Select value={viewType} onValueChange={handleViewTypeChange} disabled={isLoading || isFetching}>
                       <SelectTrigger className="w-[120px]">
                         <SelectValue placeholder="Grid" />
                       </SelectTrigger>
@@ -314,10 +278,7 @@ const Marketplace = () => {
                     {Object.keys(filters).some(key => key !== 'page' && key !== 'perPage' && filters[key as keyof FilterOptions]) && (
                       <Button
                         variant="outline"
-                        onClick={() => {
-                          console.log('🧹 Clearing all filters');
-                          setFilters({ page: 1, perPage: filters.perPage || 20 });
-                        }}
+                        onClick={resetFilters}
                         disabled={isLoading || isChangingPageSize}
                       >
                         Clear all filters
@@ -364,7 +325,7 @@ const Marketplace = () => {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => handlePageChange(pagination.currentPage - 1)}
+                          onClick={() => onPageChange(pagination.currentPage - 1)}
                           disabled={pagination.currentPage === 1 || isLoading || isFetching}
                         >
                           <ChevronLeft className="h-4 w-4 mr-1" />
@@ -379,11 +340,11 @@ const Marketplace = () => {
                               key={`page-${pageNum}`}
                               variant={pagination.currentPage === pageNum ? "default" : "outline"}
                               size="sm"
-                              onClick={() => handlePageChange(pageNum as number)}
+                              onClick={() => onPageChange(pageNum as number)}
                               disabled={isLoading || isFetching}
                               className={pagination.currentPage === pageNum ? "pointer-events-none" : ""}
                             >
-                              {isLoading && pagination.currentPage === pageNum ? (
+                              {(isLoading || isFetching) && pagination.currentPage === pageNum ? (
                                 <Loader2 className="h-4 w-4 animate-spin" />
                               ) : (
                                 pageNum
@@ -395,7 +356,7 @@ const Marketplace = () => {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => handlePageChange(pagination.currentPage + 1)}
+                          onClick={() => onPageChange(pagination.currentPage + 1)}
                           disabled={pagination.currentPage === pagination.totalPages || isLoading || isFetching}
                         >
                           Next
