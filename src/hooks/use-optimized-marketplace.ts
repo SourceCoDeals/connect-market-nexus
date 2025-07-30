@@ -44,10 +44,7 @@ export function useOptimizedMarketplace() {
   // Enhanced handlers with analytics and validation
   const enhancedHandlers = useMemo(() => ({
     onPageChange: (newPage: number) => {
-      if (computedData.isLoading || computedData.isFetching || newPage === computedData.pagination.currentPage) {
-        return;
-      }
-      console.log(`🔄 Page change: ${computedData.pagination.currentPage} → ${newPage}`);
+      console.log(`📱 UI Page change request: ${newPage} (current: ${computedData.pagination.currentPage})`);
       marketplaceState.handlePageChange(newPage, computedData.pagination.totalPages);
     },
     

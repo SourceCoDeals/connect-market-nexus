@@ -85,7 +85,9 @@ export function useMarketplaceState() {
 
   // Handle page changes with atomic state update
   const handlePageChange = useCallback((newPage: number, maxPage: number) => {
-    if (newPage < 1 || newPage > maxPage || newPage === state.filters.page) return;
+    if (newPage < 1 || newPage > maxPage) return;
+    
+    console.log(`🔄 Page change request: ${newPage} (current: ${state.filters.page}, max: ${maxPage})`);
     
     // Atomic state update to prevent race conditions
     dispatch({ type: 'UPDATE_FILTERS', payload: { page: newPage } });
