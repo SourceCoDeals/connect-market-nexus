@@ -95,11 +95,12 @@ async function fetchMetadata() {
 
 export function useSimpleListings(state: PaginationState) {
   return useQuery({
-    queryKey: ['simple-listings', state],
+    queryKey: ['simple-listings', state.page, state.perPage, state.search, state.category, state.location, state.revenueMin, state.revenueMax, state.ebitdaMin, state.ebitdaMax],
     queryFn: () => fetchListings(state),
-    staleTime: 5000, // Reduce stale time for more responsive pagination
-    gcTime: 10000, // Garbage collect after 10 seconds
+    staleTime: 0, // Always fetch fresh data
+    gcTime: 1000, // Quick garbage collection
     refetchOnWindowFocus: false,
+    placeholderData: undefined, // Disable placeholder data to prevent showing wrong listings
   });
 }
 

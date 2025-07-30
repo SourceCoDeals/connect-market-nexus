@@ -319,7 +319,7 @@ const Marketplace = () => {
                         </PaginationItem>
                       ) : (
                         <PaginationItem key={`page-${pageNum}`}>
-                          <PaginationLink
+                        <PaginationLink
                             href="#"
                             onClick={(e) => {
                               e.preventDefault();
@@ -329,7 +329,9 @@ const Marketplace = () => {
                               }
                             }}
                             isActive={pageNum === currentPage}
-                            className={isLoading ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                            className={cn(
+                              isLoading || pageNum === currentPage ? "pointer-events-none opacity-50" : "cursor-pointer hover:bg-accent"
+                            )}
                           >
                             {pageNum}
                           </PaginationLink>
