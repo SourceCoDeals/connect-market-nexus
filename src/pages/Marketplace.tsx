@@ -1,182 +1,133 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
-import { useMarketplace } from "@/hooks/use-marketplace";
-import { useOnboarding } from "@/hooks/use-onboarding";
-import { FilterOptions, PaginationState } from "@/types";
-import ListingCard from "@/components/ListingCard";
-import FilterPanel from "@/components/FilterPanel";
-import OnboardingPopup from "@/components/onboarding/OnboardingPopup";
-import { Button } from "@/components/ui/button";
-import { LayoutGrid, LayoutList, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import React, { useCallback, useMemo, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { Grid, List, ChevronLeft, ChevronRight, MoreHorizontal, RefreshCw } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import FilterPanel from '@/components/FilterPanel';
+import ListingCard from '@/components/ListingCard';
+import OnboardingPopup from '@/components/onboarding/OnboardingPopup';
+import { RealtimeIndicator } from '@/components/realtime/RealtimeIndicator';
+import { useMarketplace } from '@/hooks/use-marketplace';
+import { useMarketplaceState } from '@/hooks/use-marketplace-state';
+import { useAnalyticsTracking } from '@/hooks/use-analytics-tracking';
+import { useAuth } from '@/context/AuthContext';
+import { useOnboarding } from '@/hooks/use-onboarding';
+import { formatCurrency } from '@/lib/currency-utils';
+import type { Filters } from '@/types';
 
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { toast } from "@/hooks/use-toast";
-import { Skeleton } from "@/components/ui/skeleton";
-import { useRealtime } from "@/components/realtime/RealtimeProvider";
-import { useAuth } from "@/context/AuthContext";
-import { Wifi } from "lucide-react";
-import { CreateDealAlertDialog } from "@/components/deal-alerts/CreateDealAlertDialog";
+export default function Marketplace() {
+  const { user } = useAuth();
+  const { trackEvent } = useAnalyticsTracking();
+  const { shouldShowOnboarding } = useOnboarding();
+  
+  // Consolidated state management
+  const { state, pagination, actions } = useMarketplaceState();
 
-const Marketplace = () => {
-  const { user, authChecked } = useAuth();
-  const { showOnboarding, completeOnboarding, shouldShowOnboarding, isLoading: onboardingLoading } = useOnboarding();
-  const [filters, setFilters] = useState<FilterOptions>({
-    page: 1,
-    perPage: 20
-  });
-  const [viewType, setViewType] = useState<"grid" | "list">("grid");
-  const [isChangingPageSize, setIsChangingPageSize] = useState(false);
+  // Marketplace hooks
+  const marketplace = useMarketplace();
+  const { data: listings, isLoading, error, refetch } = marketplace.useListings(state.filters);
   
-  const { useListings, useListingMetadata } = useMarketplace();
-  const { data: listingsData, isLoading, error, isError, isFetching } = useListings(filters);
-  const { data: metadata, isLoading: isMetadataLoading } = useListingMetadata();
-  const { listingsConnected } = useRealtime();
-  
-  const listings = listingsData?.listings || [];
-  const totalItems = listingsData?.totalCount || 0;
-  
-  // Compute pagination state from filters and data
-  const pagination = useMemo((): PaginationState => {
-    const perPage = filters.perPage || 20;
-    const currentPage = filters.page || 1;
-    const totalPages = Math.ceil(totalItems / perPage);
-    
-    return {
-      currentPage,
-      totalPages,
-      totalItems,
-      perPage
-    };
-  }, [filters.page, filters.perPage, totalItems]);
-  
-  
+  const { data: metadata } = marketplace.useListingMetadata();
+
+  const totalPages = useMemo(() => {
+    if (!listings?.totalCount) return 1;
+    return Math.ceil(listings.totalCount / state.pageSize);
+  }, [listings?.totalCount, state.pageSize]);
+
   // Error handling
   useEffect(() => {
     if (error) {
-      console.error("❌ Error loading marketplace listings:", error);
-      toast({
-        variant: "destructive",
-        title: "Error loading listings",
-        description: "There was a problem loading the marketplace listings. Please try again later.",
-      });
+      console.error('Marketplace error:', error);
     }
   }, [error]);
 
-  // Memoize filter change handler to prevent unnecessary re-renders
-  const handleFilterChange = useCallback((newFilters: FilterOptions) => {
-    console.log('🔧 Filter change:', { from: filters, to: newFilters });
-    setFilters(prev => {
-      const updated = { 
-        ...prev, 
-        ...newFilters, 
-        page: 1,  // Always reset to page 1 when filters change
-        perPage: prev.perPage || 20  // Preserve perPage
-      };
-      console.log('🔧 Updated filters:', updated);
-      return updated;
+  // Event handlers
+  const handleFilterChange = useCallback((newFilters: Partial<Filters>) => {
+    console.log('Filter change:', newFilters);
+    actions.setFilters(newFilters);
+    
+    trackEvent({
+      eventType: 'marketplace_filter_applied',
+      eventCategory: 'marketplace',
+      eventAction: 'filter_changed',
+      metadata: newFilters
     });
-  }, [filters]);
-  
-  const handlePageChange = useCallback((newPage: number) => {
-    if (newPage < 1 || newPage > pagination.totalPages || isLoading) return;
+  }, [actions, trackEvent]);
+
+  const handlePageChange = useCallback((page: number) => {
+    console.log('Page change:', page);
+    actions.setPage(page);
+    trackEvent({
+      eventType: 'marketplace_page_changed',
+      eventCategory: 'marketplace',
+      eventAction: 'page_changed',
+      metadata: { page, pageSize: state.pageSize }
+    });
+  }, [actions, trackEvent, state.pageSize]);
+
+  const handlePerPageChange = useCallback((newPageSize: string) => {
+    const size = parseInt(newPageSize);
+    console.log('Page size change:', size);
     
-    console.log('📄 Page change:', { from: pagination.currentPage, to: newPage });
-    setFilters(prev => ({
-      ...prev,
-      page: newPage
-    }));
-  }, [pagination.totalPages, pagination.currentPage, isLoading]);
-  
-  const handlePerPageChange = useCallback(async (value: string) => {
-    const perPage = Number(value);
-    if (perPage !== filters.perPage && !isLoading) {
-      console.log('📊 Per page change:', { from: filters.perPage, to: perPage });
-      setIsChangingPageSize(true);
-      
-      setFilters(prev => ({
-        ...prev,
-        perPage,
-        page: 1 // Reset to first page when changing items per page
-      }));
-      
-      // Reset loading state after a brief delay
-      setTimeout(() => setIsChangingPageSize(false), 500);
-    }
-  }, [filters.perPage, isLoading]);
-  
-  // Generate page numbers for pagination
-  const getPageNumbers = useCallback(() => {
-    const { currentPage, totalPages } = pagination;
-    const delta = 2; // Number of pages to show before and after current page
+    actions.setPageSize(size);
+    trackEvent({
+      eventType: 'marketplace_page_size_changed',
+      eventCategory: 'marketplace',
+      eventAction: 'page_size_changed',
+      metadata: { oldSize: state.pageSize, newSize: size }
+    });
+  }, [actions, trackEvent, state.pageSize]);
+
+  // Helper function to generate page numbers with ellipsis
+  const getPageNumbers = useCallback((current: number, total: number) => {
+    if (total <= 1) return [1];
     
-    if (totalPages <= 1) return [];
+    const pages: (number | string)[] = [];
+    const showEllipsis = total > 7;
     
-    const range = new Set<number>();
-    
-    // Always include first and last pages
-    range.add(1);
-    if (totalPages > 1) range.add(totalPages);
-    
-    // Add pages around current page
-    for (let i = Math.max(1, currentPage - delta); i <= Math.min(totalPages, currentPage + delta); i++) {
-      range.add(i);
-    }
-    
-    // Convert to sorted array and add ellipsis
-    const pages = Array.from(range).sort((a, b) => a - b);
-    const result: (number | string)[] = [];
-    
-    for (let i = 0; i < pages.length; i++) {
-      const current = pages[i];
-      const next = pages[i + 1];
-      
-      result.push(current);
+    if (!showEllipsis) {
+      // Show all pages if 7 or fewer
+      for (let i = 1; i <= total; i++) {
+        pages.push(i);
+      }
+    } else {
+      // Always show first page
+      pages.push(1);
       
       // Add ellipsis if there's a gap
-      if (next && next - current > 1) {
-        result.push('...');
+      if (current > 4) {
+        pages.push('ellipsis-start');
+      }
+      
+      // Show pages around current
+      const start = Math.max(2, current - 1);
+      const end = Math.min(total - 1, current + 1);
+      
+      for (let i = start; i <= end; i++) {
+        if (i !== 1 && i !== total && !pages.includes(i)) {
+          pages.push(i);
+        }
+      }
+      
+      // Add ellipsis if there's a gap
+      if (current < total - 3) {
+        pages.push('ellipsis-end');
+      }
+      
+      // Always show last page if it's not already included
+      if (total > 1 && !pages.includes(total)) {
+        pages.push(total);
       }
     }
     
-    return result;
-  }, [pagination]);
+    return pages;
+  }, []);
 
-  const renderSkeletons = () => {
-    return Array(filters.perPage || 8)
-      .fill(0)
-      .map((_, index) => (
-        <div
-          key={`skeleton-${index}`}
-          className="bg-white rounded-lg border border-border overflow-hidden h-full flex flex-col"
-        >
-          <div className="p-6">
-            <div className="flex space-x-2 mb-2">
-              <div className="h-6 w-16 bg-muted rounded skeleton"></div>
-              <div className="h-6 w-20 bg-muted rounded skeleton"></div>
-            </div>
-            <div className="h-7 w-4/5 bg-muted rounded mb-4 skeleton"></div>
-            <div className="grid grid-cols-2 gap-2 mb-4">
-              <div className="h-16 bg-muted rounded skeleton"></div>
-              <div className="h-16 bg-muted rounded skeleton"></div>
-            </div>
-            <div className="space-y-2 mb-6">
-              <div className="h-4 w-full bg-muted rounded skeleton"></div>
-              <div className="h-4 w-11/12 bg-muted rounded skeleton"></div>
-              <div className="h-4 w-4/5 bg-muted rounded skeleton"></div>
-            </div>
-            <div className="h-10 w-full bg-muted rounded skeleton"></div>
-          </div>
-        </div>
-      ));
-  };
-
-  // Only show loading while auth is being checked - don't let onboarding block the UI
-  if (!authChecked) {
+  // Early auth check
+  if (!user) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
@@ -187,65 +138,104 @@ const Marketplace = () => {
     );
   }
 
+  // Show loading skeleton while data is loading or when changing page size
+  if (isLoading || state.isPageSizeChanging) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className={`grid gap-6 ${state.viewType === 'grid' ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3' : 'grid-cols-1'}`}>
+          {Array.from({ length: state.pageSize }).map((_, i) => (
+            <Skeleton key={i} className="h-48 w-full" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <Card className="p-8 text-center">
+          <h3 className="text-lg font-medium mb-2">Failed to load listings</h3>
+          <p className="text-muted-foreground mb-4">
+            There was a problem loading the marketplace listings.
+          </p>
+          <Button onClick={() => refetch()}>
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Try Again
+          </Button>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background">
-      {/* Onboarding Popup */}
-      {shouldShowOnboarding && user && (
-        <OnboardingPopup
-          isOpen={shouldShowOnboarding}
-          onClose={completeOnboarding}
-          userId={user.id}
-        />
-      )}
-      
       <div className="container mx-auto px-4 py-8">
         <div className="flex flex-col gap-6">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div className="flex items-center gap-3">
-              <h1 className="text-3xl font-bold">Marketplace Listings</h1>
-              {listingsConnected && (
-                <div className="flex items-center gap-1 text-green-600 text-sm">
-                  <Wifi className="h-4 w-4" />
-                  <span>Live</span>
-                </div>
-              )}
+              <h1 className="text-3xl font-bold">Marketplace</h1>
+              <RealtimeIndicator />
             </div>
           </div>
-          
+
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
             {/* Filter sidebar */}
-            <div className="col-span-1">
+            <div className="lg:col-span-1">
               <FilterPanel
                 onFilterChange={handleFilterChange}
-                totalListings={totalItems}
-                filteredCount={listings.length}
+                totalListings={listings?.totalCount || 0}
+                filteredCount={listings?.listings?.length || 0}
                 categories={metadata?.categories || []}
                 locations={metadata?.locations || []}
               />
             </div>
-            
-            {/* Listings */}
-            <div className="col-span-1 lg:col-span-3 flex flex-col gap-4">
-              {/* View type and sorting */}
-              <div className="flex flex-wrap justify-between items-center gap-4">
+
+            {/* Main content */}
+            <div className="lg:col-span-3">
+              {/* Controls */}
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
                 <div className="text-sm text-muted-foreground">
-                  {isLoading ? "Loading listings..." : `${totalItems} listings found, showing ${listings.length}`}
+                  {listings?.totalCount ? `${listings.totalCount} listings found` : 'No listings found'}
                 </div>
-                
+
+                {/* No listings state */}
+                {(!listings?.listings || listings.listings.length === 0) && (
+                  <div className="w-full">
+                    <Card className="p-8 text-center">
+                      <h3 className="text-lg font-medium mb-2">No listings found</h3>
+                      <p className="text-muted-foreground mb-4">
+                        Try adjusting your filters or check back later for new listings.
+                      </p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          actions.resetFilters();
+                          trackEvent({
+                            eventType: 'marketplace_filters_cleared',
+                            eventCategory: 'marketplace',
+                            eventAction: 'filters_cleared'
+                          });
+                        }}
+                      >
+                        Clear Filters
+                      </Button>
+                    </Card>
+                  </div>
+                )}
+
                 <div className="flex flex-wrap items-center gap-4">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm">Results per page:</span>
+                    <span className="text-sm">Show:</span>
                     <Select 
-                      value={String(filters.perPage || 20)} 
+                      value={state.pageSize.toString()} 
                       onValueChange={handlePerPageChange}
-                      disabled={isLoading || isChangingPageSize}
+                      disabled={state.isPageSizeChanging}
                     >
-                      <SelectTrigger className="w-[80px]">
-                        {isChangingPageSize ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <SelectValue placeholder="20" />
-                        )}
+                      <SelectTrigger className="w-20">
+                        <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="10">10</SelectItem>
@@ -255,163 +245,121 @@ const Marketplace = () => {
                       </SelectContent>
                     </Select>
                   </div>
-                  
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm">View:</span>
-                    <Select value={viewType} onValueChange={(v) => setViewType(v as "grid" | "list")} disabled={isLoading}>
-                      <SelectTrigger className="w-[120px]">
-                        <SelectValue placeholder="Grid" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="grid">
-                          <div className="flex items-center gap-2">
-                            <LayoutGrid className="h-4 w-4" />
-                            <span>Grid</span>
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="list">
-                          <div className="flex items-center gap-2">
-                            <LayoutList className="h-4 w-4" />
-                            <span>List</span>
-                          </div>
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
+
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant={state.viewType === 'grid' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => {
+                        actions.setViewType('grid');
+                        trackEvent({
+                          eventType: 'marketplace_view_changed',
+                          eventCategory: 'marketplace',
+                          eventAction: 'view_changed',
+                          metadata: { viewType: 'grid' }
+                        });
+                      }}
+                    >
+                      <Grid className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant={state.viewType === 'list' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => {
+                        actions.setViewType('list');
+                        trackEvent({
+                          eventType: 'marketplace_view_changed',
+                          eventCategory: 'marketplace',
+                          eventAction: 'view_changed',
+                          metadata: { viewType: 'list' }
+                        });
+                      }}
+                    >
+                      <List className="w-4 h-4" />
+                    </Button>
                   </div>
                 </div>
               </div>
-              
-              {/* Listings grid/list */}
-              {(isLoading || isChangingPageSize) ? (
-                <div className={viewType === "grid" ? "grid grid-cols-1 md:grid-cols-2 gap-4" : "flex flex-col gap-4"}>
-                  {renderSkeletons()}
+
+              {/* Listings grid */}
+              {listings?.listings && listings.listings.length > 0 && (
+                <div className={`grid gap-6 ${state.viewType === 'grid' ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3' : 'grid-cols-1'}`}>
+                  {listings.listings.map((listing) => (
+                    <ListingCard
+                      key={listing.id}
+                      listing={listing}
+                      viewType={state.viewType}
+                    />
+                  ))}
                 </div>
-              ) : error ? (
-                <div className="bg-muted/30 border border-border rounded-lg p-8 text-center">
-                  <h3 className="text-lg font-medium mb-2">Failed to load listings</h3>
-                  <p className="text-muted-foreground mb-4">
-                    There was a problem loading the marketplace listings. Please try again later.
-                  </p>
-                  <p className="text-sm text-red-600 mb-4">
-                    Error: {error?.message || 'Unknown error'}
-                  </p>
-                  <Button
-                    variant="outline"
-                    onClick={() => window.location.reload()}
-                  >
-                    Refresh Page
-                  </Button>
-                </div>
-              ) : listings.length === 0 ? (
-                <div className="bg-muted/30 border border-border rounded-lg p-8 text-center">
-                  <h3 className="text-lg font-medium mb-2">No listings found</h3>
-                  <p className="text-muted-foreground mb-4">
-                    {Object.keys(filters).some(key => key !== 'page' && key !== 'perPage' && filters[key as keyof FilterOptions])
-                      ? "Try adjusting your filters to see more results, or set up a deal alert to be notified when matching opportunities become available." 
-                      : "There are currently no listings available"}
-                  </p>
-                  <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                    {Object.keys(filters).some(key => key !== 'page' && key !== 'perPage' && filters[key as keyof FilterOptions]) && (
-                      <Button
-                        variant="outline"
-                        onClick={() => {
-                          console.log('🧹 Clearing all filters');
-                          setFilters({ page: 1, perPage: filters.perPage || 20 });
-                        }}
-                        disabled={isLoading || isChangingPageSize}
-                      >
-                        Clear all filters
-                      </Button>
-                    )}
-                    {user && (
-                      <CreateDealAlertDialog 
-                        trigger={
-                          <Button variant="default">
-                            Get Deal Alerts
-                          </Button>
-                        }
-                      />
-                    )}
-                  </div>
-                </div>
-              ) : (
-                <>
-                  <div className={viewType === "grid" 
-                    ? "grid grid-cols-1 md:grid-cols-2 gap-4" 
-                    : "flex flex-col gap-4"}>
-                    {listings.map((listing) => {
-                      console.log('🎯 Rendering listing card:', {
-                        id: listing.id,
-                        title: listing.title,
-                        status: listing.status,
-                        revenue: listing.revenue,
-                        ebitda: listing.ebitda
-                      });
-                      return (
-                        <ListingCard
-                          key={listing.id}
-                          listing={listing}
-                          viewType={viewType}
-                        />
-                      );
-                    })}
+              )}
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between mt-8">
+                  <div className="text-sm text-muted-foreground">
+                    Showing {((state.currentPage - 1) * state.pageSize) + 1} to{' '}
+                    {Math.min(state.currentPage * state.pageSize, listings?.totalCount || 0)} of{' '}
+                    {listings?.totalCount || 0} results
                   </div>
                   
-                  {/* Pagination controls */}
-                  {pagination.totalPages > 1 && (
-                    <div className="flex items-center justify-center mt-8">
-                      <div className="flex items-center space-x-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handlePageChange(pagination.currentPage - 1)}
-                          disabled={pagination.currentPage === 1 || isLoading || isFetching}
-                        >
-                          <ChevronLeft className="h-4 w-4 mr-1" />
-                          Previous
-                        </Button>
-                        
-                        {getPageNumbers().map((pageNum, idx) => (
-                          pageNum === '...' ? (
-                            <span key={`ellipsis-${idx}`} className="px-2 text-muted-foreground">...</span>
+                  <div className="flex items-center space-x-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handlePageChange(state.currentPage - 1)}
+                      disabled={state.currentPage <= 1}
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                      Previous
+                    </Button>
+                    
+                    <div className="flex items-center space-x-1">
+                      {getPageNumbers(state.currentPage, totalPages).map((pageNum, index) => (
+                        <React.Fragment key={index}>
+                          {typeof pageNum === 'string' ? (
+                            <span className="px-2 py-1 text-muted-foreground">
+                              <MoreHorizontal className="w-4 h-4" />
+                            </span>
                           ) : (
                             <Button
-                              key={`page-${pageNum}`}
-                              variant={pagination.currentPage === pageNum ? "default" : "outline"}
+                              variant={pageNum === state.currentPage ? 'default' : 'outline'}
                               size="sm"
-                              onClick={() => handlePageChange(pageNum as number)}
-                              disabled={isLoading || isFetching}
-                              className={pagination.currentPage === pageNum ? "pointer-events-none" : ""}
+                              onClick={() => handlePageChange(pageNum)}
+                              className="w-8 h-8 p-0"
                             >
-                              {isLoading && pagination.currentPage === pageNum ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                              ) : (
-                                pageNum
-                              )}
+                              {pageNum}
                             </Button>
-                          )
-                        ))}
-                        
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handlePageChange(pagination.currentPage + 1)}
-                          disabled={pagination.currentPage === pagination.totalPages || isLoading || isFetching}
-                        >
-                          Next
-                          <ChevronRight className="h-4 w-4 ml-1" />
-                        </Button>
-                      </div>
+                          )}
+                        </React.Fragment>
+                      ))}
                     </div>
-                  )}
-                </>
+                    
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handlePageChange(state.currentPage + 1)}
+                      disabled={state.currentPage >= totalPages}
+                    >
+                      Next
+                      <ChevronRight className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
               )}
             </div>
           </div>
         </div>
       </div>
+
+      {/* Onboarding popup */}
+      {shouldShowOnboarding && user && (
+        <OnboardingPopup 
+          isOpen={shouldShowOnboarding}
+          onClose={() => {}}
+          userId={user.id}
+        />
+      )}
     </div>
   );
-};
-
-export default Marketplace;
+}

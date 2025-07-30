@@ -111,6 +111,18 @@ export interface FilterOptions {
   perPage?: number;
 }
 
+export interface Filters {
+  category: string;
+  location: string;
+  search: string;
+  minRevenue: string;
+  maxRevenue: string;
+  minEbitda: string;
+  maxEbitda: string;
+  sortBy: string;
+  sortOrder: string;
+}
+
 export interface PaginationState {
   currentPage: number;
   totalPages: number;
