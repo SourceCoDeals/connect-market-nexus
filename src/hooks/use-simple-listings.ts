@@ -95,22 +95,10 @@ async function fetchMetadata() {
 }
 
 export function useSimpleListings(state: PaginationState) {
-  const queryClient = useQueryClient();
+  console.log('🎯 [LISTINGS] Hook called with state:', state);
   
-  // Create a simple string-based query key for better cache control
-  const queryKey = `simple-listings-${state.page}-${state.perPage}-${state.search}-${state.category}-${state.location}-${state.revenueMin || ''}-${state.revenueMax || ''}-${state.ebitdaMin || ''}-${state.ebitdaMax || ''}`;
-  
-  console.log('🎯 [LISTINGS] Query key:', queryKey);
-  console.log('🎯 [LISTINGS] State:', state);
-  
-  // Invalidate query cache on page change for immediate fresh data
-  useEffect(() => {
-    console.log('🔄 [LISTINGS] State changed, invalidating queries');
-    queryClient.invalidateQueries({ queryKey: [queryKey] });
-  }, [state.page, state.perPage, queryClient, queryKey]);
-
   return useQuery({
-    queryKey: [queryKey],
+    queryKey: ['simple-listings', state.page, state.perPage, state.search, state.category, state.location, state.revenueMin, state.revenueMax, state.ebitdaMin, state.ebitdaMax],
     queryFn: () => {
       console.log('📡 [LISTINGS] Fetching data for state:', state);
       console.time('listings-fetch');
@@ -118,12 +106,9 @@ export function useSimpleListings(state: PaginationState) {
         console.timeEnd('listings-fetch');
       });
     },
-    enabled: !state.isTransitioning, // Prevent queries during transitions
-    staleTime: 0, // Always fetch fresh data
-    gcTime: 500, // Quick garbage collection
+    staleTime: 0,
     refetchOnWindowFocus: false,
-    placeholderData: undefined, // Disable placeholder data
-    retry: 1, // Quick retry for failures
+    retry: 1,
   });
 }
 

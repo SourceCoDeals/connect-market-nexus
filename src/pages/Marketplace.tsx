@@ -48,13 +48,13 @@ const Marketplace = () => {
   const locations = metadata?.locations || [];
   
   // Enhanced loading state that includes transitions
-  const isPageTransitioning = pagination.state.isTransitioning || isLoading;
+  const isPageTransitioning = isLoading;
   
   console.log('🏪 [MARKETPLACE] Render state:', {
     page: pagination.state.page,
     perPage: pagination.state.perPage,
     isLoading,
-    isTransitioning: pagination.state.isTransitioning,
+    isTransitioning: false,
     isPageTransitioning,
     listingsCount: listings.length,
     totalItems
