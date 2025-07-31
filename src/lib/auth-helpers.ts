@@ -42,6 +42,14 @@ export function createUserObject(profile: any): User {
       revenue_range_min: profile.revenue_range_min || null,
       revenue_range_max: profile.revenue_range_max || null,
       specific_business_search: profile.specific_business_search || '',
+      onboarding_completed: Boolean(profile.onboarding_completed),
+      
+      // Fee agreement tracking fields
+      fee_agreement_signed: Boolean(profile.fee_agreement_signed),
+      fee_agreement_signed_at: profile.fee_agreement_signed_at || null,
+      fee_agreement_email_sent: Boolean(profile.fee_agreement_email_sent),
+      fee_agreement_email_sent_at: profile.fee_agreement_email_sent_at || null,
+      
       get firstName() { return this.first_name; },
       get lastName() { return this.last_name; },
       get phoneNumber() { return this.phone_number; },

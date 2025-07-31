@@ -365,7 +365,7 @@ export function UsersTable({
             </TableRow>
           ) : (
             users.map((user) => (
-              <div key={user.id}>
+              <React.Fragment key={user.id}>
                 <TableRow 
                   className="cursor-pointer hover:bg-muted/50"
                   onClick={() => toggleExpand(user.id)}
@@ -435,7 +435,7 @@ export function UsersTable({
                     </TableCell>
                   </TableRow>
                 )}
-              </div>
+              </React.Fragment>
             ))
           )}
         </TableBody>

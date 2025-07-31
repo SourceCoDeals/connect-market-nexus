@@ -61,9 +61,9 @@ export function DualFeeAgreementToggle({ user, onSendEmail, size = "default" }: 
     }
   };
 
-  const isSigned = user.fee_agreement_signed;
+  const isSigned = user.fee_agreement_signed || false;
   const signedAt = user.fee_agreement_signed_at;
-  const emailSent = user.fee_agreement_email_sent;
+  const emailSent = user.fee_agreement_email_sent || false;
   const emailSentAt = user.fee_agreement_email_sent_at;
 
   console.log('🎛️ DualFeeAgreementToggle Render:', { 
