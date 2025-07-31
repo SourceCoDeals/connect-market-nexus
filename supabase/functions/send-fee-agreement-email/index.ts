@@ -41,7 +41,9 @@ const handler = async (req: Request): Promise<Response> => {
       attachments 
     }: FeeAgreementEmailRequest = await req.json();
 
-    console.log(`📧 Sending fee agreement email to: ${userEmail} for user: ${userId}`, { 
+    console.log(`📧 Starting fee agreement email process`, { 
+      userEmail, 
+      userId, 
       useTemplate, 
       subject, 
       adminEmail, 
@@ -49,11 +51,23 @@ const handler = async (req: Request): Promise<Response> => {
       attachmentCount: attachments?.length || 0 
     });
 
+    // Validate required parameters
+    if (!userId || !userEmail) {
+      throw new Error("Missing required parameters: userId and userEmail are required");
+    }
+
+    if (!adminEmail || !adminName) {
+      throw new Error("Admin information is required: adminEmail and adminName must be provided");
+    }
+
     // Get Brevo API key
     const brevoApiKey = Deno.env.get("BREVO_API_KEY");
     if (!brevoApiKey) {
-      throw new Error("BREVO_API_KEY environment variable is not set");
+      console.error("❌ BREVO_API_KEY environment variable is not set");
+      throw new Error("Email service configuration error. Please contact support.");
     }
+
+    console.log("✅ Brevo API key found, proceeding with email setup");
 
     // Use custom content if provided, otherwise use default template
     const emailSubject = subject || "SourceCo - Deal Fee Agreement";
@@ -110,32 +124,65 @@ const handler = async (req: Request): Promise<Response> => {
     // Prepare Brevo email payload
     const brevoPayload: any = {
       sender: {
-        name: adminName ? `${adminName} - SourceCo` : "SourceCo",
-        email: adminEmail || "noreply@sourcecodeals.com"
+        name: `${adminName} - SourceCo`,
+        email: "noreply@sourcecodeals.com"
       },
       to: [
         {
           email: userEmail,
-          name: userEmail
+          name: userEmail.split('@')[0] // Use email username as display name
         }
       ],
       subject: emailSubject,
-      htmlContent: emailContent
+      htmlContent: emailContent,
+      replyTo: {
+        email: adminEmail,
+        name: adminName
+      }
     };
 
     // Add attachments if provided
     if (attachments && attachments.length > 0) {
-      brevoPayload.attachment = attachments.map(att => ({
-        name: att.name,
-        content: att.content
-      }));
+      console.log(`📎 Processing ${attachments.length} attachment(s)`);
+      
+      // Validate and process attachments
+      const processedAttachments = [];
+      for (const att of attachments) {
+        if (!att.name || !att.content) {
+          console.warn("⚠️ Skipping invalid attachment:", att.name || "unnamed");
+          continue;
+        }
+        
+        // Ensure content is properly base64 encoded
+        let content = att.content;
+        if (!content.match(/^[A-Za-z0-9+/]*={0,2}$/)) {
+          console.warn("⚠️ Attachment content doesn't appear to be base64, skipping:", att.name);
+          continue;
+        }
+        
+        processedAttachments.push({
+          name: att.name,
+          content: content
+        });
+        
+        console.log(`✅ Processed attachment: ${att.name} (${Math.round(content.length * 0.75)} bytes)`);
+      }
+      
+      if (processedAttachments.length > 0) {
+        brevoPayload.attachment = processedAttachments;
+        console.log(`📎 Added ${processedAttachments.length} valid attachment(s) to email`);
+      } else {
+        console.warn("⚠️ No valid attachments to include");
+      }
     }
 
     console.log('📬 Sending fee agreement email via Brevo...', {
       to: userEmail,
       from: brevoPayload.sender,
+      replyTo: brevoPayload.replyTo,
       subject: emailSubject,
-      attachmentCount: attachments?.length || 0
+      attachmentCount: brevoPayload.attachment?.length || 0,
+      payloadSize: JSON.stringify(brevoPayload).length
     });
 
     // Send email using Brevo API
@@ -148,11 +195,24 @@ const handler = async (req: Request): Promise<Response> => {
       body: JSON.stringify(brevoPayload)
     });
 
+    console.log(`📡 Brevo API response status: ${emailResponse.status}`);
+
     if (!emailResponse.ok) {
       const errorData = await emailResponse.text();
       console.error("❌ Brevo API error response:", errorData);
       console.error("❌ Brevo API status:", emailResponse.status, emailResponse.statusText);
-      throw new Error(`Failed to send email via Brevo: ${emailResponse.statusText} - ${errorData}`);
+      console.error("❌ Request payload size:", JSON.stringify(brevoPayload).length, "bytes");
+      
+      // Provide more specific error messages
+      if (emailResponse.status === 400) {
+        throw new Error(`Email validation error: ${errorData}`);
+      } else if (emailResponse.status === 401) {
+        throw new Error("Email service authentication failed. Please contact support.");
+      } else if (emailResponse.status === 402) {
+        throw new Error("Email service quota exceeded. Please contact support.");
+      } else {
+        throw new Error(`Email service error (${emailResponse.status}): ${errorData}`);
+      }
     }
 
     const result = await emailResponse.json();

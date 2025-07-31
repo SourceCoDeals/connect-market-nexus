@@ -305,47 +305,88 @@ export function UsersTable({
   }) => {
     console.log('📧 Sending fee agreement email:', emailData);
     try {
-      // Convert attachments to base64 for Brevo API
-      const processedAttachments = await Promise.all(
-        (emailData.attachments || []).map(async (file) => {
-          const buffer = await file.arrayBuffer();
-          const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
-          return {
-            name: file.name,
-            content: base64,
-            type: file.type
-          };
-        })
-      );
+      // Get current admin user info first
+      const { data: { user: currentUser }, error: authError } = await supabase.auth.getUser();
+      if (authError || !currentUser) {
+        throw new Error('Authentication required. Please refresh and try again.');
+      }
 
-      // Get current admin user info
-      const { data: { user: currentUser } } = await supabase.auth.getUser();
-      const { data: adminProfile } = await supabase
+      const { data: adminProfile, error: profileError } = await supabase
         .from('profiles')
         .select('email, first_name, last_name')
-        .eq('id', currentUser?.id)
+        .eq('id', currentUser.id)
         .single();
 
-      const adminName = adminProfile && adminProfile.first_name && adminProfile.last_name
-        ? `${adminProfile.first_name} ${adminProfile.last_name}`
-        : adminProfile?.email || currentUser?.email;
+      if (profileError || !adminProfile) {
+        throw new Error('Admin profile not found. Please contact support.');
+      }
 
-      // First send the actual email via edge function
-      const { error: emailError } = await supabase.functions.invoke('send-fee-agreement-email', {
-        body: {
-          userId: emailData.userId,
-          userEmail: emailData.userEmail,
-          subject: emailData.subject,
-          content: emailData.content,
-          useTemplate: emailData.useTemplate,
-          adminId: currentUser?.id,
-          adminEmail: adminProfile?.email || currentUser?.email,
-          adminName: adminName,
-          attachments: processedAttachments
+      if (!adminProfile.first_name || !adminProfile.last_name || !adminProfile.email) {
+        throw new Error('Incomplete admin profile. Please complete your profile first.');
+      }
+
+      const adminName = `${adminProfile.first_name} ${adminProfile.last_name}`;
+
+      // Process attachments with validation
+      const processedAttachments = [];
+      if (emailData.attachments && emailData.attachments.length > 0) {
+        console.log(`Processing ${emailData.attachments.length} attachments...`);
+        
+        for (const file of emailData.attachments) {
+          // Validate file size (5MB limit)
+          if (file.size > 5 * 1024 * 1024) {
+            console.warn(`File ${file.name} is too large (${file.size} bytes), skipping`);
+            continue;
+          }
+
+          try {
+            const buffer = await file.arrayBuffer();
+            const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
+            processedAttachments.push({
+              name: file.name,
+              content: base64,
+              type: file.type
+            });
+            console.log(`Processed attachment: ${file.name} (${file.size} bytes)`);
+          } catch (attachError) {
+            console.error(`Error processing attachment ${file.name}:`, attachError);
+          }
         }
+      }
+
+      const requestPayload = {
+        userId: emailData.userId,
+        userEmail: emailData.userEmail,
+        subject: emailData.subject,
+        content: emailData.content,
+        useTemplate: emailData.useTemplate,
+        adminId: currentUser.id,
+        adminEmail: adminProfile.email,
+        adminName: adminName,
+        attachments: processedAttachments
+      };
+
+      console.log('Sending email request:', {
+        ...requestPayload,
+        attachments: processedAttachments.map(a => ({ name: a.name, size: a.content.length }))
       });
 
-      if (emailError) throw emailError;
+      // Send the email via edge function
+      const { data: emailResult, error: emailError } = await supabase.functions.invoke('send-fee-agreement-email', {
+        body: requestPayload
+      });
+
+      if (emailError) {
+        console.error('Edge function error:', emailError);
+        throw new Error(emailError.message || 'Failed to send email');
+      }
+
+      if (!emailResult?.success) {
+        console.error('Email sending failed:', emailResult);
+        throw new Error(emailResult?.error || 'Email sending failed');
+      }
+
+      console.log('Email sent successfully:', emailResult);
 
       // Then log the email in the database
       await logEmailMutation.mutateAsync({
