@@ -452,15 +452,17 @@ export function UsersTable({
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <h3 className="text-lg font-semibold">Users ({users.length})</h3>
-        <Button
-          onClick={() => exportUsersToCSV(users)}
-          variant="outline"
-          size="sm"
-          disabled={users.length === 0}
-        >
-          <Download className="h-4 w-4 mr-2" />
-          Export CSV
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            onClick={() => exportUsersToCSV(users)}
+            variant="outline"
+            size="sm"
+            disabled={users.length === 0}
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Export CSV
+          </Button>
+        </div>
       </div>
       
       <div className="rounded-md border">
