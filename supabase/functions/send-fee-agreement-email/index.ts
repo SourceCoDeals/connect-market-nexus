@@ -73,7 +73,7 @@ const handler = async (req: Request): Promise<Response> => {
     const emailSubject = subject || "SourceCo Advisory Services - Fee Agreement";
     
     // Generate premium SourceCo email signature with black/gold branding
-    const logoUrl = "https://vhzipqarkmmfuqadefep.supabase.co/storage/v1/object/public/listing-images/sourceco-logo-premium.png?t=" + Date.now();
+    const logoUrl = "https://vhzipqarkmmfuqadefep.supabase.co/storage/v1/object/public/listing-images/660e3240-2a08-42a0-8723-65b152b941a5.png";
     
     const adminSignature = `
       <div style="margin-top: 40px; padding: 0; font-family: 'Georgia', 'Times New Roman', serif;">

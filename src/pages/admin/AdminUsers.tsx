@@ -16,6 +16,7 @@ import { useRealtimeAdmin } from "@/hooks/use-realtime-admin";
 import { cn } from "@/lib/utils";
 import { EnhancedUserManagement } from "@/components/admin/EnhancedUserManagement";
 import { UserProfileCompletion } from "@/components/admin/UserProfileCompletion";
+import { LogoUploadButton } from "@/components/admin/LogoUploadButton";
 
 
 const AdminUsers = () => {
@@ -128,6 +129,16 @@ const AdminUsers = () => {
         </div>
       </div>
 
+      {/* Logo Upload Button - Temporary */}
+      <div className="mb-6 p-4 bg-muted/50 rounded-lg border border-border">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-sm font-medium">Email Logo Setup</h3>
+            <p className="text-xs text-muted-foreground">Upload the SourceCo logo to Supabase storage for email signatures</p>
+          </div>
+          <LogoUploadButton />
+        </div>
+      </div>
 
       {/* Enhanced User Management with Analytics */}
       <EnhancedUserManagement
