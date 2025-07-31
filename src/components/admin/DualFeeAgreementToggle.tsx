@@ -22,7 +22,20 @@ export function DualFeeAgreementToggle({ user, onSendEmail, size = "default" }: 
   const updateEmailSent = useUpdateFeeAgreementEmailSent();
 
   const handleSignedToggleChange = async (checked: boolean) => {
-    console.log('🔄 Fee Agreement Signed Toggle:', { userId: user.id, currentValue: user.fee_agreement_signed, newValue: checked });
+    console.log('🔄 Fee Agreement Signed Toggle:', { 
+      userId: user.id, 
+      userEmail: user.email,
+      currentValue: user.fee_agreement_signed, 
+      newValue: checked,
+      isUpdating: isUpdatingSigned,
+      isPending: updateFeeAgreement.isPending
+    });
+    
+    if (isUpdatingSigned || updateFeeAgreement.isPending) {
+      console.log('⏳ Signed toggle update already in progress, skipping...');
+      return;
+    }
+    
     setIsUpdatingSigned(true);
     try {
       await updateFeeAgreement.mutateAsync({
@@ -39,7 +52,20 @@ export function DualFeeAgreementToggle({ user, onSendEmail, size = "default" }: 
   };
 
   const handleEmailSentToggleChange = async (checked: boolean) => {
-    console.log('📧 Fee Agreement Email Toggle:', { userId: user.id, currentValue: user.fee_agreement_email_sent, newValue: checked });
+    console.log('📧 Fee Agreement Email Toggle:', { 
+      userId: user.id, 
+      userEmail: user.email,
+      currentValue: user.fee_agreement_email_sent, 
+      newValue: checked,
+      isUpdating: isUpdatingEmailSent,
+      isPending: updateEmailSent.isPending
+    });
+    
+    if (isUpdatingEmailSent || updateEmailSent.isPending) {
+      console.log('⏳ Email toggle update already in progress, skipping...');
+      return;
+    }
+    
     setIsUpdatingEmailSent(true);
     try {
       await updateEmailSent.mutateAsync({
