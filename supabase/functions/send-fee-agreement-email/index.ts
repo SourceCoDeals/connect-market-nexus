@@ -70,77 +70,78 @@ const handler = async (req: Request): Promise<Response> => {
     console.log("✅ Brevo API key found, proceeding with email setup");
 
     // Use custom content if provided, otherwise use default template
-    const emailSubject = subject || "SourceCo - Deal Fee Agreement";
+    const emailSubject = subject || "SourceCo Advisory Services - Fee Agreement";
     
-    // Generate professional email signature with company branding and logo
-    const logoUrl = "https://vhzipqarkmmfuqadefep.supabase.co/storage/v1/object/public/listing-images/sourceco-logo.png";
+    // Generate premium SourceCo email signature with black/gold branding
+    const logoUrl = "https://vhzipqarkmmfuqadefep.supabase.co/storage/v1/object/public/listing-images/sourceco-logo-premium.png";
     
     const adminSignature = `
-      <div style="margin-top: 30px; padding-top: 20px; border-top: 2px solid #1e40af; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f8fafc; padding: 20px; border-radius: 8px;">
-        <table cellpadding="0" cellspacing="0" style="width: 100%;">
+      <div style="margin-top: 40px; padding: 0; font-family: 'Georgia', 'Times New Roman', serif;">
+        <table cellpadding="0" cellspacing="0" style="width: 100%; border-top: 3px solid #d4af37; padding-top: 25px;">
           <tr>
-            <td style="vertical-align: top; width: 120px; padding-right: 20px;">
-              <img src="${logoUrl}" alt="SourceCo Logo" style="max-width: 100px; height: auto; border-radius: 4px;" />
+            <td style="vertical-align: top; width: 100px; padding-right: 25px;">
+              <img src="${logoUrl}" alt="SourceCo" style="max-width: 80px; height: auto;" />
             </td>
-            <td style="vertical-align: top;">
-              <div style="line-height: 1.4;">
-                <p style="margin: 0; font-size: 16px; font-weight: bold; color: #1e40af; margin-bottom: 4px;">${adminName}</p>
-                <p style="margin: 0; font-size: 13px; color: #64748b; margin-bottom: 2px;">Business Development Manager</p>
-                <p style="margin: 0; font-size: 14px; font-weight: 600; color: #334155; margin-bottom: 8px;">SourceCo</p>
-                <p style="margin: 0; font-size: 12px; color: #64748b; margin-bottom: 2px;">
-                  <span style="color: #1e40af;">✉</span> ${adminEmail}
+            <td style="vertical-align: top; border-left: 1px solid #e5e5e5; padding-left: 25px;">
+              <div style="line-height: 1.3;">
+                <p style="margin: 0; font-size: 18px; font-weight: 600; color: #000000; margin-bottom: 6px; letter-spacing: 0.5px;">${adminName}</p>
+                <p style="margin: 0; font-size: 13px; color: #666666; margin-bottom: 3px; font-style: italic;">Managing Director</p>
+                <p style="margin: 0; font-size: 15px; font-weight: 700; color: #d4af37; margin-bottom: 12px; letter-spacing: 1px;">SOURCECO</p>
+                <p style="margin: 0; font-size: 12px; color: #444444; margin-bottom: 3px; line-height: 1.4;">
+                  <span style="color: #d4af37; font-weight: 600;">E</span> ${adminEmail}
                 </p>
-                <p style="margin: 0; font-size: 12px; color: #64748b;">
-                  <span style="color: #1e40af;">🌐</span> sourcecodeals.com
+                <p style="margin: 0; font-size: 12px; color: #444444; line-height: 1.4;">
+                  <span style="color: #d4af37; font-weight: 600;">W</span> sourcecodeals.com
                 </p>
               </div>
             </td>
           </tr>
         </table>
-        <div style="margin-top: 15px; padding-top: 10px; border-top: 1px solid #e2e8f0; font-size: 10px; color: #94a3b8; text-align: center;">
-          <p style="margin: 0;">This email contains confidential and privileged information intended for institutional investors.</p>
+        <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #e5e5e5; font-size: 9px; color: #888888; text-align: center; font-family: 'Arial', sans-serif;">
+          <p style="margin: 0; line-height: 1.3;">CONFIDENTIAL & PRIVILEGED | This communication is intended solely for institutional investors and qualified purchasers.</p>
         </div>
       </div>`;
 
-    // Generate professional email content with enhanced styling
+    // Generate premium SourceCo email content with black/gold styling
     const emailContent = useTemplate
-      ? `<div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #334155; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
-          <div style="padding: 30px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff;">
-            <div style="text-align: center; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 1px solid #f1f5f9;">
-              <h1 style="color: #1e40af; font-size: 24px; margin: 0; font-weight: 600;">Fee Agreement Review</h1>
-              <p style="color: #64748b; margin: 8px 0 0 0; font-size: 14px;">SourceCo Business Development</p>
+      ? `<div style="font-family: 'Georgia', 'Times New Roman', serif; line-height: 1.7; color: #333333; max-width: 650px; margin: 0 auto; background-color: #ffffff;">
+          <div style="padding: 50px 40px; background-color: #ffffff; border: 2px solid #f5f5f5;">
+            <div style="text-align: center; margin-bottom: 40px; padding-bottom: 25px; border-bottom: 2px solid #d4af37;">
+              <h1 style="color: #000000; font-size: 28px; margin: 0; font-weight: 600; letter-spacing: 1px;">FEE AGREEMENT</h1>
+              <p style="color: #666666; margin: 10px 0 0 0; font-size: 14px; letter-spacing: 2px; text-transform: uppercase;">SourceCo Advisory Services</p>
             </div>
             
-            <p style="margin-bottom: 20px; font-size: 16px;">Dear <strong>${userEmail.split('@')[0]}</strong>,</p>
+            <p style="margin-bottom: 25px; font-size: 16px; color: #333333;">Dear <strong style="color: #000000;">${userEmail.split('@')[0]}</strong>,</p>
             
-            <p style="margin-bottom: 20px;">I hope this email finds you well. As part of our engagement process, I'm sending you our Fee Agreement for your review and signature.</p>
+            <p style="margin-bottom: 25px; font-size: 15px;">We are pleased to present our Fee Agreement for your review and execution. This document formalizes our engagement and outlines the terms of our professional advisory services.</p>
             
-            <div style="background-color: #f8fafc; padding: 20px; border-radius: 8px; margin: 25px 0; border-left: 4px solid #1e40af;">
-              <p style="margin: 0 0 15px 0; font-weight: 600; color: #1e40af;">This agreement outlines:</p>
-              <ul style="margin: 0; padding-left: 20px; color: #475569;">
-                <li style="margin-bottom: 8px;">Service fees and payment terms</li>
-                <li style="margin-bottom: 8px;">Scope of work and deliverables</li>
-                <li style="margin-bottom: 8px;">Confidentiality provisions</li>
-                <li style="margin-bottom: 8px;">Engagement timeline and milestones</li>
+            <div style="background: linear-gradient(135deg, #fafafa 0%, #f5f5f5 100%); padding: 30px; margin: 35px 0; border-left: 5px solid #d4af37; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+              <p style="margin: 0 0 20px 0; font-weight: 600; color: #000000; font-size: 16px;">Agreement Scope & Terms:</p>
+              <ul style="margin: 0; padding-left: 25px; color: #444444; font-size: 14px; line-height: 1.6;">
+                <li style="margin-bottom: 12px;">Professional advisory fees and payment structure</li>
+                <li style="margin-bottom: 12px;">Comprehensive scope of services and deliverables</li>
+                <li style="margin-bottom: 12px;">Strict confidentiality and non-disclosure provisions</li>
+                <li style="margin-bottom: 12px;">Project timeline, milestones, and success metrics</li>
+                <li style="margin-bottom: 12px;">Exclusive representation and fiduciary obligations</li>
               </ul>
             </div>
             
-            <p style="margin-bottom: 20px;">Please review the attached agreement carefully. If you have any questions or concerns, please don't hesitate to reach out to me directly.</p>
+            <p style="margin-bottom: 25px; font-size: 15px;">We encourage you to carefully review all terms and conditions. Our team remains available to address any questions or discuss specific provisions that may require clarification.</p>
             
-            <div style="background-color: #dbeafe; padding: 15px; border-radius: 6px; margin: 20px 0; text-align: center;">
-              <p style="margin: 0; color: #1e40af; font-weight: 600;">📋 Next Steps</p>
-              <p style="margin: 8px 0 0 0; color: #475569; font-size: 14px;">Once you're comfortable with the terms, please sign and return the agreement at your earliest convenience.</p>
+            <div style="background-color: #000000; color: #ffffff; padding: 25px; margin: 30px 0; text-align: center; border-radius: 0;">
+              <p style="margin: 0; color: #d4af37; font-weight: 600; font-size: 14px; letter-spacing: 1px;">NEXT STEPS</p>
+              <p style="margin: 12px 0 0 0; color: #ffffff; font-size: 13px; line-height: 1.5;">Upon your acceptance of these terms, please execute and return the agreement to formalize our engagement.</p>
             </div>
             
-            <p style="margin-bottom: 30px;">Thank you for your trust in our services. I look forward to working with you.</p>
+            <p style="margin-bottom: 35px; font-size: 15px;">We appreciate the opportunity to serve as your trusted advisor and look forward to a successful collaboration.</p>
             
-            <p style="margin-bottom: 20px; font-weight: 500;">Best regards,</p>
+            <p style="margin-bottom: 25px; font-weight: 500; font-size: 15px;">Respectfully yours,</p>
             
             ${adminSignature}
           </div>
         </div>`
-      : `<div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #334155; max-width: 600px; margin: 0 auto;">
-          <div style="padding: 30px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff;">
+      : `<div style="font-family: 'Georgia', 'Times New Roman', serif; line-height: 1.7; color: #333333; max-width: 650px; margin: 0 auto;">
+          <div style="padding: 50px 40px; background-color: #ffffff; border: 2px solid #f5f5f5;">
             ${content ? content.replace(/\n/g, '<br>') : ''}
             ${adminSignature}
           </div>

@@ -333,23 +333,54 @@ export function UsersTable({
         console.log(`Processing ${emailData.attachments.length} attachments...`);
         
         for (const file of emailData.attachments) {
-          // Validate file size (5MB limit)
-          if (file.size > 5 * 1024 * 1024) {
-            console.warn(`File ${file.name} is too large (${file.size} bytes), skipping`);
+          // Enhanced validation - stricter size limit and type checking
+          if (file.size > 10 * 1024 * 1024) { // 10MB limit for safety
+            console.warn(`📎 File ${file.name} exceeds 10MB limit (${Math.round(file.size / 1024 / 1024)}MB), skipping`);
+            alert(`File "${file.name}" is too large. Please use files under 10MB.`);
+            continue;
+          }
+
+          // Validate file type - only allow PDFs
+          if (!file.type.includes('pdf') && !file.name.toLowerCase().endsWith('.pdf')) {
+            console.warn(`📎 File ${file.name} is not a PDF (${file.type}), skipping`);
+            alert(`File "${file.name}" must be a PDF document.`);
             continue;
           }
 
           try {
+            console.log(`📎 Processing ${file.name}: ${file.type}, ${Math.round(file.size / 1024)}KB`);
             const buffer = await file.arrayBuffer();
-            const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
+            
+            // Validate buffer size
+            if (buffer.byteLength === 0) {
+              console.warn(`📎 File ${file.name} is empty, skipping`);
+              continue;
+            }
+            
+            // Convert to base64 with proper encoding
+            const uint8Array = new Uint8Array(buffer);
+            let binaryString = '';
+            for (let i = 0; i < uint8Array.length; i++) {
+              binaryString += String.fromCharCode(uint8Array[i]);
+            }
+            const base64 = btoa(binaryString);
+            
+            // Validate base64 encoding worked
+            if (!base64 || base64.length === 0) {
+              console.error(`📎 Failed to encode ${file.name} to base64`);
+              continue;
+            }
+            
             processedAttachments.push({
               name: file.name,
               content: base64,
-              type: file.type
+              type: file.type || 'application/pdf'
             });
-            console.log(`Processed attachment: ${file.name} (${file.size} bytes)`);
+            
+            console.log(`✅ Successfully processed ${file.name}: ${Math.round(buffer.byteLength / 1024)}KB → ${Math.round(base64.length * 0.75 / 1024)}KB base64`);
           } catch (attachError) {
-            console.error(`Error processing attachment ${file.name}:`, attachError);
+            console.error(`❌ Error processing attachment ${file.name}:`, attachError);
+            alert(`Failed to process "${file.name}". Please try again or use a different file.`);
           }
         }
       }
