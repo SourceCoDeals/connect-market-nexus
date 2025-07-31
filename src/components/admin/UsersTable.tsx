@@ -15,6 +15,7 @@ import { getFieldCategories, FIELD_LABELS } from '@/lib/buyer-type-fields';
 import { useEnhancedUserExport } from '@/hooks/admin/use-enhanced-user-export';
 import { useLogFeeAgreementEmail } from '@/hooks/admin/use-fee-agreement';
 import { supabase } from '@/integrations/supabase/client';
+import { useToast } from "@/hooks/use-toast";
 
 interface UsersTableProps {
   users: User[];
@@ -294,6 +295,7 @@ export function UsersTable({
   const [selectedUserForEmail, setSelectedUserForEmail] = useState<User | null>(null);
   const { exportUsersToCSV } = useEnhancedUserExport();
   const logEmailMutation = useLogFeeAgreementEmail();
+  const { toast } = useToast();
   
   const handleSendEmail = async (emailData: {
     userId: string;
@@ -409,15 +411,31 @@ export function UsersTable({
 
       if (emailError) {
         console.error('Edge function error:', emailError);
-        throw new Error(emailError.message || 'Failed to send email');
+        const errorMessage = emailError.message || 'Failed to send email';
+        toast({
+          title: "Email Failed",
+          description: errorMessage,
+          variant: "destructive",
+        });
+        throw new Error(errorMessage);
       }
 
       if (!emailResult?.success) {
         console.error('Email sending failed:', emailResult);
-        throw new Error(emailResult?.error || 'Email sending failed');
+        const errorMessage = emailResult?.error || 'Email sending failed';
+        toast({
+          title: "Email Failed", 
+          description: errorMessage,
+          variant: "destructive",
+        });
+        throw new Error(errorMessage);
       }
 
       console.log('Email sent successfully:', emailResult);
+      toast({
+        title: "Email Sent",
+        description: `Fee agreement email sent successfully to ${emailData.userEmail}`,
+      });
 
       // Then log the email in the database
       await logEmailMutation.mutateAsync({

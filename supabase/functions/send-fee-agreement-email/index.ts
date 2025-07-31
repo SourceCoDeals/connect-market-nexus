@@ -210,15 +210,9 @@ const handler = async (req: Request): Promise<Response> => {
       }
     };
 
-    // Add logo attachment if we're using cid fallback or initialize attachments array
-    if (!brevoPayload.attachment) {
-      brevoPayload.attachment = [];
-    }
-    
-    if (logoAttachment && !logoBase64) {
-      brevoPayload.attachment.push(logoAttachment);
-      console.log('📎 Added logo as attachment for cid fallback');
-    }
+    // Only add logo attachment if we're using cid fallback AND don't have base64
+    const needsLogoAttachment = logoAttachment && !logoBase64;
+    const hasUserAttachments = attachments && attachments.length > 0;
 
     // Enhanced attachment processing with detailed logging
     if (attachments && attachments.length > 0) {
@@ -301,6 +295,11 @@ const handler = async (req: Request): Promise<Response> => {
       }
       
       if (processedAttachments.length > 0) {
+        // Add logo attachment if needed
+        if (needsLogoAttachment) {
+          processedAttachments.push(logoAttachment);
+          console.log('📎 Added logo as attachment for cid fallback');
+        }
         brevoPayload.attachment = processedAttachments;
         console.log(`📎 Successfully added ${processedAttachments.length} attachment(s) to Brevo payload`);
         console.log(`📎 Final attachment summary:`, processedAttachments.map(a => ({
@@ -310,6 +309,16 @@ const handler = async (req: Request): Promise<Response> => {
       } else {
         console.error(`❌ No valid attachments processed from ${attachments.length} input attachment(s)`);
       }
+    } else if (needsLogoAttachment) {
+      // Only logo attachment needed
+      brevoPayload.attachment = [logoAttachment];
+      console.log('📎 Added only logo as attachment for cid fallback');
+    }
+    
+    // Only set attachment property if we actually have attachments
+    if (!brevoPayload.attachment || brevoPayload.attachment.length === 0) {
+      delete brevoPayload.attachment;
+      console.log('📎 No attachments needed - removed attachment property from payload');
     }
 
     console.log('📬 Sending fee agreement email via Brevo...', {
