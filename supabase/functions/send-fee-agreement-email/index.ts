@@ -13,6 +13,9 @@ interface FeeAgreementEmailRequest {
   userId: string;
   userEmail: string;
   adminNotes?: string;
+  subject?: string;
+  content?: string;
+  useTemplate?: boolean;
 }
 
 const handler = async (req: Request): Promise<Response> => {

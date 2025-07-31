@@ -48,6 +48,8 @@ export interface User {
   // Fee agreement tracking
   fee_agreement_signed?: boolean;
   fee_agreement_signed_at?: string;
+  fee_agreement_email_sent?: boolean;
+  fee_agreement_email_sent_at?: string;
   
   // Computed properties (aliases for snake_case properties)
   readonly firstName: string;

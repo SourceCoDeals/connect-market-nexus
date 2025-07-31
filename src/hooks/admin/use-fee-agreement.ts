@@ -15,6 +15,12 @@ interface SendFeeAgreementEmailParams {
   notes?: string;
 }
 
+interface UpdateEmailSentParams {
+  userId: string;
+  isSent: boolean;
+  notes?: string;
+}
+
 export function useUpdateFeeAgreement() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -33,6 +39,33 @@ export function useUpdateFeeAgreement() {
     mutationFn: async ({ userId, isSigned, notes }: UpdateFeeAgreementParams) => {
       return execute({ userId, isSigned, notes });
     },
+    onMutate: async ({ userId, isSigned }) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['admin-users'] });
+
+      // Snapshot the previous value
+      const previousUsers = queryClient.getQueryData(['admin-users']);
+
+      // Optimistically update the cache
+      queryClient.setQueryData(['admin-users'], (old: any) => {
+        if (!old?.data) return old;
+        
+        return {
+          ...old,
+          data: old.data.map((user: any) => 
+            user.id === userId 
+              ? { 
+                  ...user, 
+                  fee_agreement_signed: isSigned,
+                  fee_agreement_signed_at: isSigned ? new Date().toISOString() : null
+                } 
+              : user
+          )
+        };
+      });
+
+      return { previousUsers };
+    },
     onSuccess: (_, variables) => {
       toast({
         title: 'Fee Agreement Updated',
@@ -42,12 +75,89 @@ export function useUpdateFeeAgreement() {
       // Invalidate and refetch user data
       queryClient.invalidateQueries({ queryKey: ['admin-users'] });
     },
-    onError: (error: any) => {
+    onError: (error: any, _, context) => {
       console.error('❌ Fee agreement update error:', error);
+      
+      // Rollback optimistic update
+      if (context?.previousUsers) {
+        queryClient.setQueryData(['admin-users'], context.previousUsers);
+      }
+      
       toast({
         variant: 'destructive',
         title: 'Update Failed',
         description: error.message || 'Failed to update fee agreement status.',
+      });
+    }
+  });
+}
+
+export function useUpdateFeeAgreementEmailSent() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const { execute } = useRetry(async (params: UpdateEmailSentParams) => {
+    const { data, error } = await supabase.rpc('update_fee_agreement_email_status', {
+      target_user_id: params.userId,
+      is_sent: params.isSent,
+      admin_notes: params.notes || null
+    });
+
+    if (error) throw error;
+    return data;
+  });
+
+  return useMutation({
+    mutationFn: async ({ userId, isSent, notes }: UpdateEmailSentParams) => {
+      return execute({ userId, isSent, notes });
+    },
+    onMutate: async ({ userId, isSent }) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['admin-users'] });
+
+      // Snapshot the previous value
+      const previousUsers = queryClient.getQueryData(['admin-users']);
+
+      // Optimistically update the cache
+      queryClient.setQueryData(['admin-users'], (old: any) => {
+        if (!old?.data) return old;
+        
+        return {
+          ...old,
+          data: old.data.map((user: any) => 
+            user.id === userId 
+              ? { 
+                  ...user, 
+                  fee_agreement_email_sent: isSent,
+                  fee_agreement_email_sent_at: isSent ? new Date().toISOString() : null
+                } 
+              : user
+          )
+        };
+      });
+
+      return { previousUsers };
+    },
+    onSuccess: (_, variables) => {
+      toast({
+        title: 'Email Status Updated',
+        description: `Fee agreement email ${variables.isSent ? 'marked as sent' : 'marked as not sent'} successfully.`,
+      });
+      
+      // Invalidate and refetch user data
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+    },
+    onError: (error: any, _, context) => {
+      console.error('❌ Fee agreement email status update error:', error);
+      
+      // Rollback optimistic update
+      if (context?.previousUsers) {
+        queryClient.setQueryData(['admin-users'], context.previousUsers);
+      }
+      
+      toast({
+        variant: 'destructive',
+        title: 'Update Failed',
+        description: error.message || 'Failed to update email sent status.',
       });
     }
   });
@@ -84,6 +194,33 @@ export function useLogFeeAgreementEmail() {
     mutationFn: async ({ userId, userEmail, notes }: SendFeeAgreementEmailParams) => {
       return execute({ userId, userEmail, notes });
     },
+    onMutate: async ({ userId }) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['admin-users'] });
+
+      // Snapshot the previous value
+      const previousUsers = queryClient.getQueryData(['admin-users']);
+
+      // Optimistically update the cache to mark email as sent
+      queryClient.setQueryData(['admin-users'], (old: any) => {
+        if (!old?.data) return old;
+        
+        return {
+          ...old,
+          data: old.data.map((user: any) => 
+            user.id === userId 
+              ? { 
+                  ...user, 
+                  fee_agreement_email_sent: true,
+                  fee_agreement_email_sent_at: new Date().toISOString()
+                } 
+              : user
+          )
+        };
+      });
+
+      return { previousUsers };
+    },
     onSuccess: () => {
       toast({
         title: 'Fee Agreement Email Sent',
@@ -93,8 +230,14 @@ export function useLogFeeAgreementEmail() {
       // Invalidate and refetch user data
       queryClient.invalidateQueries({ queryKey: ['admin-users'] });
     },
-    onError: (error: any) => {
+    onError: (error: any, _, context) => {
       console.error('❌ Fee agreement email error:', error);
+      
+      // Rollback optimistic update
+      if (context?.previousUsers) {
+        queryClient.setQueryData(['admin-users'], context.previousUsers);
+      }
+      
       toast({
         variant: 'destructive',
         title: 'Email Failed',

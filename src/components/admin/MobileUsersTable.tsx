@@ -7,8 +7,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { User } from '@/types';
 import { MoreHorizontal, UserCheck, UserX, UserPlus, UserMinus, Trash2, Mail, Building, Phone, Globe } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
-import { FeeAgreementToggle } from "./FeeAgreementToggle";
-import { FeeAgreementEmailDialog } from "./FeeAgreementEmailDialog";
+import { DualFeeAgreementToggle } from "./DualFeeAgreementToggle";
+import { EnhancedFeeAgreementEmailDialog } from "./EnhancedFeeAgreementEmailDialog";
 
 interface MobileUsersTableProps {
   users: User[];
@@ -159,7 +159,7 @@ const MobileUserCard = ({
     <CardContent className="pt-0 space-y-3">
       {/* Fee Agreement Section */}
       <div className="border-b pb-3">
-        <FeeAgreementToggle 
+        <DualFeeAgreementToggle 
           user={user}
           onSendEmail={onSendFeeAgreement}
           size="default"
@@ -305,7 +305,26 @@ export const MobileUsersTable = ({
   onDelete,
   isLoading 
 }: MobileUsersTableProps) => {
-  const [emailDialogUser, setEmailDialogUser] = useState<User | null>(null);
+  const [selectedUserForEmail, setSelectedUserForEmail] = useState<User | null>(null);
+  
+  const handleSendEmail = async (emailData: {
+    userId: string;
+    userEmail: string;
+    subject: string;
+    content: string;
+    attachments?: File[];
+    useTemplate: boolean;
+  }) => {
+    // For now, we'll send the basic email - file upload will be implemented later
+    const { useLogFeeAgreementEmail } = await import("@/hooks/admin/use-fee-agreement");
+    const logEmailMutation = useLogFeeAgreementEmail();
+    
+    await logEmailMutation.mutateAsync({
+      userId: emailData.userId,
+      userEmail: emailData.userEmail,
+      notes: `Custom email sent: ${emailData.subject}`
+    });
+  };
   if (isLoading) {
     return (
       <div className="space-y-4">
@@ -344,14 +363,15 @@ export const MobileUsersTable = ({
           onRevokeAdmin={onRevokeAdmin}
           onDelete={onDelete}
           isLoading={isLoading}
-          onSendFeeAgreement={setEmailDialogUser}
+          onSendFeeAgreement={setSelectedUserForEmail}
         />
       ))}
       
-      <FeeAgreementEmailDialog
-        user={emailDialogUser}
-        isOpen={!!emailDialogUser}
-        onClose={() => setEmailDialogUser(null)}
+      <EnhancedFeeAgreementEmailDialog
+        user={selectedUserForEmail}
+        isOpen={!!selectedUserForEmail}
+        onClose={() => setSelectedUserForEmail(null)}
+        onSend={handleSendEmail}
       />
     </div>
   );

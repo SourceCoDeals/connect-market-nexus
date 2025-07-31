@@ -434,7 +434,9 @@ export type Database = {
       fee_agreement_logs: {
         Row: {
           action_type: string
+          admin_email: string | null
           admin_id: string | null
+          admin_name: string | null
           created_at: string
           email_sent_to: string | null
           id: string
@@ -445,7 +447,9 @@ export type Database = {
         }
         Insert: {
           action_type: string
+          admin_email?: string | null
           admin_id?: string | null
+          admin_name?: string | null
           created_at?: string
           email_sent_to?: string | null
           id?: string
@@ -456,7 +460,9 @@ export type Database = {
         }
         Update: {
           action_type?: string
+          admin_email?: string | null
           admin_id?: string | null
+          admin_name?: string | null
           created_at?: string
           email_sent_to?: string | null
           id?: string
@@ -726,6 +732,8 @@ export type Database = {
           email: string
           email_verified: boolean
           estimated_revenue: string | null
+          fee_agreement_email_sent: boolean | null
+          fee_agreement_email_sent_at: string | null
           fee_agreement_signed: boolean | null
           fee_agreement_signed_at: string | null
           first_name: string
@@ -764,6 +772,8 @@ export type Database = {
           email: string
           email_verified?: boolean
           estimated_revenue?: string | null
+          fee_agreement_email_sent?: boolean | null
+          fee_agreement_email_sent_at?: string | null
           fee_agreement_signed?: boolean | null
           fee_agreement_signed_at?: string | null
           first_name: string
@@ -802,6 +812,8 @@ export type Database = {
           email?: string
           email_verified?: boolean
           estimated_revenue?: string | null
+          fee_agreement_email_sent?: boolean | null
+          fee_agreement_email_sent_at?: string | null
           fee_agreement_signed?: boolean | null
           fee_agreement_signed_at?: string | null
           first_name?: string
@@ -1202,6 +1214,10 @@ export type Database = {
       update_engagement_scores: {
         Args: Record<PropertyKey, never>
         Returns: undefined
+      }
+      update_fee_agreement_email_status: {
+        Args: { target_user_id: string; is_sent: boolean; admin_notes?: string }
+        Returns: boolean
       }
       update_fee_agreement_status: {
         Args: {

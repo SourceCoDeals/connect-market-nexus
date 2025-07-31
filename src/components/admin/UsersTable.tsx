@@ -9,8 +9,8 @@ import { formatDistanceToNow } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
 import { UserSavedListings } from "./UserSavedListings";
 import { UserDataCompleteness } from "./UserDataCompleteness";
-import { FeeAgreementToggle } from "./FeeAgreementToggle";
-import { FeeAgreementEmailDialog } from "./FeeAgreementEmailDialog";
+import { DualFeeAgreementToggle } from "./DualFeeAgreementToggle";
+import { EnhancedFeeAgreementEmailDialog } from "./EnhancedFeeAgreementEmailDialog";
 import { getFieldCategories, FIELD_LABELS } from '@/lib/buyer-type-fields';
 import { useEnhancedUserExport } from '@/hooks/admin/use-enhanced-user-export';
 
@@ -289,8 +289,27 @@ export function UsersTable({
   isLoading 
 }: UsersTableProps) {
   const [expandedUserId, setExpandedUserId] = useState<string | null>(null);
-  const [emailDialogUser, setEmailDialogUser] = useState<User | null>(null);
+  const [selectedUserForEmail, setSelectedUserForEmail] = useState<User | null>(null);
   const { exportUsersToCSV } = useEnhancedUserExport();
+  
+  const handleSendEmail = async (emailData: {
+    userId: string;
+    userEmail: string;
+    subject: string;
+    content: string;
+    attachments?: File[];
+    useTemplate: boolean;
+  }) => {
+    // For now, we'll send the basic email - file upload will be implemented later
+    const { useLogFeeAgreementEmail } = await import("@/hooks/admin/use-fee-agreement");
+    const logEmailMutation = useLogFeeAgreementEmail();
+    
+    await logEmailMutation.mutateAsync({
+      userId: emailData.userId,
+      userEmail: emailData.userEmail,
+      notes: `Custom email sent: ${emailData.subject}`
+    });
+  };
   
   const toggleExpand = (userId: string) => {
     setExpandedUserId(expandedUserId === userId ? null : userId);
@@ -373,9 +392,9 @@ export function UsersTable({
                     <UserDataCompleteness user={user} size="sm" />
                   </TableCell>
                   <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
-                    <FeeAgreementToggle 
+                    <DualFeeAgreementToggle 
                       user={user}
-                      onSendEmail={setEmailDialogUser}
+                      onSendEmail={setSelectedUserForEmail}
                       size="sm"
                     />
                   </TableCell>
@@ -423,10 +442,11 @@ export function UsersTable({
       </Table>
     </div>
     
-    <FeeAgreementEmailDialog
-      user={emailDialogUser}
-      isOpen={!!emailDialogUser}
-      onClose={() => setEmailDialogUser(null)}
+    <EnhancedFeeAgreementEmailDialog
+      user={selectedUserForEmail}
+      isOpen={!!selectedUserForEmail}
+      onClose={() => setSelectedUserForEmail(null)}
+      onSend={handleSendEmail}
     />
     </div>
   );
