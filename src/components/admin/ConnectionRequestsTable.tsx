@@ -58,6 +58,11 @@ const RequestDetails = ({ request, onApprove, onReject }: {
           <p><span className="font-medium">Company:</span> {request.user?.company || "-"}</p>
           <p><span className="font-medium">Phone:</span> {request.user?.phone_number || "-"}</p>
           <p><span className="font-medium">Buyer Type:</span> {request.user?.buyer_type || "-"}</p>
+          <p><span className="font-medium">Fee Agreement:</span> 
+            <Badge variant={request.user?.fee_agreement_signed ? "success" : "secondary"} className="ml-2">
+              {request.user?.fee_agreement_signed ? "Signed" : "Not Signed"}
+            </Badge>
+          </p>
         </div>
       </div>
       
