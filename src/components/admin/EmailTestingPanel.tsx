@@ -2,35 +2,11 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { uploadPremiumLogo } from '@/lib/upload-logo';
+
 import { Upload, TestTube, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
 
 export const EmailTestingPanel = () => {
-  const [isUploading, setIsUploading] = useState(false);
-  const [uploadStatus, setUploadStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const { toast } = useToast();
-
-  const handleUploadLogo = async () => {
-    setIsUploading(true);
-    try {
-      await uploadPremiumLogo();
-      setUploadStatus('success');
-      toast({
-        title: "✅ Logo Uploaded",
-        description: "Premium SourceCo logo uploaded successfully to storage",
-      });
-    } catch (error) {
-      console.error('Upload failed:', error);
-      setUploadStatus('error');
-      toast({
-        title: "❌ Upload Failed",
-        description: "Failed to upload premium logo. Check console for details.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsUploading(false);
-    }
-  };
 
   const testAttachments = () => {
     // Create a test PDF blob
@@ -123,13 +99,6 @@ startxref
     });
   };
 
-  const StatusIcon = () => {
-    switch (uploadStatus) {
-      case 'success': return <CheckCircle className="h-4 w-4 text-green-600" />;
-      case 'error': return <XCircle className="h-4 w-4 text-red-600" />;
-      default: return <AlertCircle className="h-4 w-4 text-yellow-600" />;
-    }
-  };
 
   return (
     <Card className="w-full max-w-2xl mx-auto">
@@ -145,32 +114,15 @@ startxref
       <CardContent className="space-y-4">
         <div className="flex items-center justify-between p-4 border rounded-lg">
           <div className="flex items-center gap-3">
-            <StatusIcon />
+            <CheckCircle className="h-4 w-4 text-green-600" />
             <div>
-              <h4 className="font-medium">Premium Logo Upload</h4>
+              <h4 className="font-medium">Logo Embedding</h4>
               <p className="text-sm text-muted-foreground">
-                Upload SourceCo premium black/gold logo to storage
+                Logo automatically embedded as base64 in emails
               </p>
             </div>
           </div>
-          <Button
-            onClick={handleUploadLogo}
-            disabled={isUploading}
-            variant={uploadStatus === 'success' ? 'outline' : 'default'}
-            size="sm"
-          >
-            {isUploading ? (
-              <>
-                <Upload className="h-4 w-4 mr-2 animate-spin" />
-                Uploading...
-              </>
-            ) : (
-              <>
-                <Upload className="h-4 w-4 mr-2" />
-                {uploadStatus === 'success' ? 'Re-upload' : 'Upload Logo'}
-              </>
-            )}
-          </Button>
+          <span className="text-sm text-green-600 font-medium">Active</span>
         </div>
 
         <div className="flex items-center justify-between p-4 border rounded-lg">
@@ -201,8 +153,8 @@ startxref
               Black/gold email template design
             </li>
             <li className="flex items-center gap-2">
-              <span className="w-2 h-2 bg-yellow-500 rounded-full"></span>
-              Logo upload: {uploadStatus === 'success' ? 'Complete' : 'Pending'}
+              <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+              Logo embedding: Active (base64 + fallback attachment)
             </li>
             <li className="flex items-center gap-2">
               <span className="w-2 h-2 bg-yellow-500 rounded-full"></span>

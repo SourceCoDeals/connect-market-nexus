@@ -72,15 +72,46 @@ const handler = async (req: Request): Promise<Response> => {
     // Use custom content if provided, otherwise use default template
     const emailSubject = subject || "SourceCo Advisory Services - Fee Agreement";
     
-    // Generate premium SourceCo email signature with black/gold branding
-    const logoUrl = "https://vhzipqarkmmfuqadefep.supabase.co/storage/v1/object/public/listing-images/660e3240-2a08-42a0-8723-65b152b941a5.png";
+    // Fetch and convert logo to base64 for email embedding
+    let logoBase64 = '';
+    let logoAttachment = null;
+    
+    try {
+      console.log('🔄 Fetching logo from Supabase storage...');
+      const logoResponse = await fetch(
+        'https://vhzipqarkmmfuqadefep.supabase.co/storage/v1/object/public/listing-images/660e3240-2a08-42a0-8723-65b152b941a5.png'
+      );
+      
+      if (logoResponse.ok) {
+        const logoBuffer = await logoResponse.arrayBuffer();
+        const logoBytes = new Uint8Array(logoBuffer);
+        logoBase64 = btoa(String.fromCharCode.apply(null, Array.from(logoBytes)));
+        
+        // Create attachment for fallback
+        logoAttachment = {
+          name: "sourceco-logo.png",
+          content: logoBase64
+        };
+        
+        console.log('✅ Logo converted to base64 successfully');
+      } else {
+        console.warn('⚠️ Could not fetch logo from storage, status:', logoResponse.status);
+      }
+    } catch (error) {
+      console.warn('⚠️ Error fetching logo:', error);
+    }
+    
+    // Generate premium SourceCo email signature with embedded base64 logo
+    const logoSrc = logoBase64 
+      ? `data:image/png;base64,${logoBase64}`
+      : 'cid:sourceco_logo'; // Fallback to attachment
     
     const adminSignature = `
       <div style="margin-top: 40px; padding: 0; font-family: 'Georgia', 'Times New Roman', serif;">
         <table cellpadding="0" cellspacing="0" style="width: 100%; border-top: 3px solid #d4af37; padding-top: 25px;">
           <tr>
             <td style="vertical-align: top; width: 100px; padding-right: 25px;">
-              <img src="${logoUrl}" alt="SourceCo Advisory Services" style="max-width: 80px; height: auto; display: block;" />
+              <img src="${logoSrc}" alt="SourceCo Advisory Services" style="max-width: 80px; height: auto; display: block;" />
             </td>
             <td style="vertical-align: top; border-left: 1px solid #e5e5e5; padding-left: 25px;">
               <div style="line-height: 1.3;">
@@ -178,6 +209,16 @@ const handler = async (req: Request): Promise<Response> => {
         name: adminName
       }
     };
+
+    // Add logo attachment if we're using cid fallback or initialize attachments array
+    if (!brevoPayload.attachment) {
+      brevoPayload.attachment = [];
+    }
+    
+    if (logoAttachment && !logoBase64) {
+      brevoPayload.attachment.push(logoAttachment);
+      console.log('📎 Added logo as attachment for cid fallback');
+    }
 
     // Enhanced attachment processing with detailed logging
     if (attachments && attachments.length > 0) {
