@@ -313,7 +313,7 @@ export function UsersTable({
           subject: emailData.subject,
           content: emailData.content,
           useTemplate: emailData.useTemplate,
-          adminNotes: `Email sent via admin panel`
+          
         }
       });
 

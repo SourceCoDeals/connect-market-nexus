@@ -66,11 +66,6 @@ const handler = async (req: Request): Promise<Response> => {
             Please reply to this email with your signed agreement or any questions you may have.
           </p>
           
-          ${adminNotes ? `
-          <div style="background-color: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 5px; margin-top: 20px;">
-            <strong>Admin Note:</strong> ${adminNotes}
-          </div>
-          ` : ''}
         </div>`;
 
     const emailResponse = await resend.emails.send({
@@ -80,11 +75,6 @@ const handler = async (req: Request): Promise<Response> => {
       html: content ? `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
           ${content.replace(/\n/g, '<br>')}
-          ${adminNotes ? `
-          <div style="background-color: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 5px; margin-top: 20px;">
-            <strong>Admin Note:</strong> ${adminNotes}
-          </div>
-          ` : ''}
         </div>
       ` : `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">

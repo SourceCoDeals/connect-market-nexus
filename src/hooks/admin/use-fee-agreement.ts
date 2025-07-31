@@ -167,7 +167,7 @@ export function useLogFeeAgreementEmail() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { execute } = useRetry(async (params: SendFeeAgreementEmailParams) => {
-    // First log the email
+    // Only log the email - actual sending happens in the component
     const { data, error } = await supabase.rpc('log_fee_agreement_email', {
       target_user_id: params.userId,
       recipient_email: params.userEmail,
@@ -175,17 +175,6 @@ export function useLogFeeAgreementEmail() {
     });
 
     if (error) throw error;
-
-    // Then send the actual email via edge function
-    const { error: emailError } = await supabase.functions.invoke('send-fee-agreement-email', {
-      body: {
-        userId: params.userId,
-        userEmail: params.userEmail,
-        adminNotes: params.notes
-      }
-    });
-
-    if (emailError) throw emailError;
     
     return data;
   });
@@ -223,8 +212,8 @@ export function useLogFeeAgreementEmail() {
     },
     onSuccess: () => {
       toast({
-        title: 'Fee Agreement Email Sent',
-        description: 'Fee agreement email sent successfully.',
+        title: 'Fee Agreement Logged',
+        description: 'Fee agreement email logged successfully.',
       });
       
       // Invalidate and refetch user data
@@ -240,8 +229,8 @@ export function useLogFeeAgreementEmail() {
       
       toast({
         variant: 'destructive',
-        title: 'Email Failed',
-        description: error.message || 'Failed to send fee agreement email.',
+        title: 'Logging Failed',
+        description: error.message || 'Failed to log fee agreement email.',
       });
     }
   });
