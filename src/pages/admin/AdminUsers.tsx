@@ -16,7 +16,7 @@ import { useRealtimeAdmin } from "@/hooks/use-realtime-admin";
 import { cn } from "@/lib/utils";
 import { EnhancedUserManagement } from "@/components/admin/EnhancedUserManagement";
 import { UserProfileCompletion } from "@/components/admin/UserProfileCompletion";
-import { EmailTestingPanel } from "@/components/admin/EmailTestingPanel";
+
 
 const AdminUsers = () => {
   const { users } = useAdmin();
@@ -128,8 +128,6 @@ const AdminUsers = () => {
         </div>
       </div>
 
-      {/* Email System Testing Panel */}
-      <EmailTestingPanel />
 
       {/* Enhanced User Management with Analytics */}
       <EnhancedUserManagement
