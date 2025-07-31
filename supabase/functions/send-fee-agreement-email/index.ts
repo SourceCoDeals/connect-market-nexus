@@ -121,11 +121,23 @@ const handler = async (req: Request): Promise<Response> => {
          </div>`
       : defaultTemplate;
 
+    // Determine the best sender email based on admin domain
+    let senderEmail = "noreply@sourcecodeals.com";
+    let senderName = `${adminName} - SourceCo`;
+    
+    // Use admin's domain if it's a verified SourceCo domain
+    if (adminEmail.includes("@sourcecodeals.com")) {
+      senderEmail = adminEmail;
+      senderName = adminName;
+    }
+    
+    console.log(`📧 Using sender: ${senderName} <${senderEmail}>, reply-to: ${adminName} <${adminEmail}>`);
+
     // Prepare Brevo email payload
     const brevoPayload: any = {
       sender: {
-        name: `${adminName} - SourceCo`,
-        email: "noreply@sourcecodeals.com"
+        name: senderName,
+        email: senderEmail
       },
       to: [
         {
@@ -153,10 +165,23 @@ const handler = async (req: Request): Promise<Response> => {
           continue;
         }
         
-        // Ensure content is properly base64 encoded
+        // Clean and validate base64 content
         let content = att.content;
-        if (!content.match(/^[A-Za-z0-9+/]*={0,2}$/)) {
-          console.warn("⚠️ Attachment content doesn't appear to be base64, skipping:", att.name);
+        
+        // Remove data URL prefix if present (e.g., "data:application/pdf;base64,")
+        if (content.includes(',')) {
+          content = content.split(',')[1];
+        }
+        
+        // Remove any whitespace or newlines
+        content = content.replace(/\s/g, '');
+        
+        // More flexible base64 validation - ensure it's valid base64
+        try {
+          atob(content); // This will throw if not valid base64
+          console.log(`✅ Valid base64 content for: ${att.name} (${content.length} chars)`);
+        } catch (e) {
+          console.warn("⚠️ Invalid base64 content, skipping:", att.name);
           continue;
         }
         
@@ -202,16 +227,33 @@ const handler = async (req: Request): Promise<Response> => {
       console.error("❌ Brevo API error response:", errorData);
       console.error("❌ Brevo API status:", emailResponse.status, emailResponse.statusText);
       console.error("❌ Request payload size:", JSON.stringify(brevoPayload).length, "bytes");
+      console.error("❌ Sender config:", brevoPayload.sender);
+      console.error("❌ Attachment info:", {
+        count: brevoPayload.attachment?.length || 0,
+        names: brevoPayload.attachment?.map((a: any) => a.name) || [],
+        sizes: brevoPayload.attachment?.map((a: any) => a.content?.length || 0) || []
+      });
+      
+      // Try to parse error response for better error messages
+      let errorMessage = "Unknown email service error";
+      try {
+        const errorJson = JSON.parse(errorData);
+        errorMessage = errorJson.message || errorJson.error || errorData;
+      } catch {
+        errorMessage = errorData;
+      }
       
       // Provide more specific error messages
       if (emailResponse.status === 400) {
-        throw new Error(`Email validation error: ${errorData}`);
+        throw new Error(`Email validation error: ${errorMessage}`);
       } else if (emailResponse.status === 401) {
-        throw new Error("Email service authentication failed. Please contact support.");
+        throw new Error("Email service authentication failed. Check BREVO_API_KEY configuration.");
       } else if (emailResponse.status === 402) {
         throw new Error("Email service quota exceeded. Please contact support.");
+      } else if (emailResponse.status === 403) {
+        throw new Error(`Email service forbidden: ${errorMessage}. Check sender domain configuration.`);
       } else {
-        throw new Error(`Email service error (${emailResponse.status}): ${errorData}`);
+        throw new Error(`Email service error (${emailResponse.status}): ${errorMessage}`);
       }
     }
 
