@@ -320,6 +320,31 @@ export const MobileUsersTable = ({
   }) => {
     console.log('📧 Sending fee agreement email (mobile):', emailData);
     try {
+      // Convert attachments to base64 for Brevo API
+      const processedAttachments = await Promise.all(
+        (emailData.attachments || []).map(async (file) => {
+          const buffer = await file.arrayBuffer();
+          const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
+          return {
+            name: file.name,
+            content: base64,
+            type: file.type
+          };
+        })
+      );
+
+      // Get current admin user info
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      const { data: adminProfile } = await supabase
+        .from('profiles')
+        .select('email, first_name, last_name')
+        .eq('id', currentUser?.id)
+        .single();
+
+      const adminName = adminProfile && adminProfile.first_name && adminProfile.last_name
+        ? `${adminProfile.first_name} ${adminProfile.last_name}`
+        : adminProfile?.email || currentUser?.email;
+
       // First send the actual email via edge function
       const { error: emailError } = await supabase.functions.invoke('send-fee-agreement-email', {
         body: {
@@ -328,7 +353,10 @@ export const MobileUsersTable = ({
           subject: emailData.subject,
           content: emailData.content,
           useTemplate: emailData.useTemplate,
-          
+          adminId: currentUser?.id,
+          adminEmail: adminProfile?.email || currentUser?.email,
+          adminName: adminName,
+          attachments: processedAttachments
         }
       });
 
