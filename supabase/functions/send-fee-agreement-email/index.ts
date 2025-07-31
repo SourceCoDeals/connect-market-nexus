@@ -73,14 +73,14 @@ const handler = async (req: Request): Promise<Response> => {
     const emailSubject = subject || "SourceCo Advisory Services - Fee Agreement";
     
     // Generate premium SourceCo email signature with black/gold branding
-    const logoUrl = "https://vhzipqarkmmfuqadefep.supabase.co/storage/v1/object/public/listing-images/sourceco-logo-premium.png";
+    const logoUrl = "https://vhzipqarkmmfuqadefep.supabase.co/storage/v1/object/public/listing-images/sourceco-logo-premium.png?t=" + Date.now();
     
     const adminSignature = `
       <div style="margin-top: 40px; padding: 0; font-family: 'Georgia', 'Times New Roman', serif;">
         <table cellpadding="0" cellspacing="0" style="width: 100%; border-top: 3px solid #d4af37; padding-top: 25px;">
           <tr>
             <td style="vertical-align: top; width: 100px; padding-right: 25px;">
-              <img src="${logoUrl}" alt="SourceCo" style="max-width: 80px; height: auto;" />
+              <img src="${logoUrl}" alt="SourceCo Advisory Services" style="max-width: 80px; height: auto; display: block;" />
             </td>
             <td style="vertical-align: top; border-left: 1px solid #e5e5e5; padding-left: 25px;">
               <div style="line-height: 1.3;">
@@ -98,7 +98,7 @@ const handler = async (req: Request): Promise<Response> => {
           </tr>
         </table>
         <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #e5e5e5; font-size: 9px; color: #888888; text-align: center; font-family: 'Arial', sans-serif;">
-          <p style="margin: 0; line-height: 1.3;">CONFIDENTIAL & PRIVILEGED | This communication is intended solely for institutional investors and qualified purchasers.</p>
+          <p style="margin: 0; line-height: 1.3;">CONFIDENTIAL | This communication contains proprietary information for qualified business acquisition professionals.</p>
         </div>
       </div>`;
 
