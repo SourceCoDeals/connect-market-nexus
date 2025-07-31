@@ -385,79 +385,78 @@ export function UsersTable({
               </TableCell>
             </TableRow>
           ) : (
-            users.map((user) => (
-              <React.Fragment key={user.id}>
-                <TableRow 
-                  className="cursor-pointer hover:bg-muted/50"
-                  onClick={() => toggleExpand(user.id)}
-                >
-                  <TableCell className="font-medium">
-                    <div className="flex items-center gap-2">
-                      {expandedUserId === user.id ? 
-                        <ChevronDown className="h-4 w-4 text-muted-foreground" /> :
-                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                      }
-                      <div className="flex flex-col">
-                        <span className="text-sm sm:text-base">{user.first_name} {user.last_name}</span>
-                        <span className="text-xs sm:text-sm text-muted-foreground">{user.email}</span>
-                      </div>
+            users.map((user) => [
+              <TableRow 
+                key={user.id}
+                className="cursor-pointer hover:bg-muted/50"
+                onClick={() => toggleExpand(user.id)}
+              >
+                <TableCell className="font-medium">
+                  <div className="flex items-center gap-2">
+                    {expandedUserId === user.id ? 
+                      <ChevronDown className="h-4 w-4 text-muted-foreground" /> :
+                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                    }
+                    <div className="flex flex-col">
+                      <span className="text-sm sm:text-base">{user.first_name} {user.last_name}</span>
+                      <span className="text-xs sm:text-sm text-muted-foreground">{user.email}</span>
                     </div>
-                  </TableCell>
-                  <TableCell className="hidden sm:table-cell">{user.company || "—"}</TableCell>
-                  <TableCell className="hidden md:table-cell">
-                    <Badge variant="outline" className="capitalize text-xs">
-                      {user.buyer_type || "—"}
+                  </div>
+                </TableCell>
+                <TableCell className="hidden sm:table-cell">{user.company || "—"}</TableCell>
+                <TableCell className="hidden md:table-cell">
+                  <Badge variant="outline" className="capitalize text-xs">
+                    {user.buyer_type || "—"}
+                  </Badge>
+                </TableCell>
+                <TableCell className="text-center">
+                  <UserDataCompleteness user={user} size="sm" />
+                </TableCell>
+                <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
+                  <DualFeeAgreementToggle 
+                    user={user}
+                    onSendEmail={setSelectedUserForEmail}
+                    size="sm"
+                  />
+                </TableCell>
+                <TableCell className="text-center">
+                  {user.approval_status === "approved" && (
+                    <Badge className="bg-green-100 text-green-800 hover:bg-green-100 text-xs">
+                      Approved
                     </Badge>
-                  </TableCell>
-                  <TableCell className="text-center">
-                    <UserDataCompleteness user={user} size="sm" />
-                  </TableCell>
-                  <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
-                    <DualFeeAgreementToggle 
-                      user={user}
-                      onSendEmail={setSelectedUserForEmail}
-                      size="sm"
-                    />
-                  </TableCell>
-                  <TableCell className="text-center">
-                    {user.approval_status === "approved" && (
-                      <Badge className="bg-green-100 text-green-800 hover:bg-green-100 text-xs">
-                        Approved
-                      </Badge>
-                    )}
-                    {user.approval_status === "pending" && (
-                      <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100 text-xs">
-                        Pending
-                      </Badge>
-                    )}
-                    {user.approval_status === "rejected" && (
-                      <Badge className="bg-red-100 text-red-800 hover:bg-red-100 text-xs">
-                        Rejected
-                      </Badge>
-                    )}
-                  </TableCell>
-                  <TableCell className="hidden lg:table-cell text-xs">{formatDate(user.created_at)}</TableCell>
-                  <TableCell className="text-right">
-                    <UserActionButtons 
-                      user={user}
-                      onApprove={onApprove}
-                      onReject={onReject}
-                      onMakeAdmin={onMakeAdmin}
-                      onRevokeAdmin={onRevokeAdmin}
-                      onDelete={onDelete}
-                      isLoading={isLoading}
-                    />
+                  )}
+                  {user.approval_status === "pending" && (
+                    <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100 text-xs">
+                      Pending
+                    </Badge>
+                  )}
+                  {user.approval_status === "rejected" && (
+                    <Badge className="bg-red-100 text-red-800 hover:bg-red-100 text-xs">
+                      Rejected
+                    </Badge>
+                  )}
+                </TableCell>
+                <TableCell className="hidden lg:table-cell text-xs">{formatDate(user.created_at)}</TableCell>
+                <TableCell className="text-right">
+                  <UserActionButtons 
+                    user={user}
+                    onApprove={onApprove}
+                    onReject={onReject}
+                    onMakeAdmin={onMakeAdmin}
+                    onRevokeAdmin={onRevokeAdmin}
+                    onDelete={onDelete}
+                    isLoading={isLoading}
+                  />
+                </TableCell>
+              </TableRow>,
+              ...(expandedUserId === user.id ? [
+                <TableRow key={`${user.id}-details`}>
+                  <TableCell colSpan={8} className="py-2 px-4 bg-muted/30 border-t">
+                    <UserDetails user={user} />
                   </TableCell>
                 </TableRow>
-                {expandedUserId === user.id && (
-                  <TableRow>
-                    <TableCell colSpan={8} className="py-2 px-4 bg-muted/30 border-t">
-                      <UserDetails user={user} />
-                    </TableCell>
-                  </TableRow>
-                )}
-              </React.Fragment>
-            ))
+              ] : [])
+            ]).flat()
           )}
         </TableBody>
       </Table>
