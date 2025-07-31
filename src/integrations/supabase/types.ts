@@ -1136,15 +1136,6 @@ export type Database = {
         Args: { user_email: string }
         Returns: string
       }
-      debug_fee_agreement_update: {
-        Args: { target_user_id: string; is_sent: boolean }
-        Returns: {
-          auth_uid: string
-          admin_check: boolean
-          target_user_exists: boolean
-          can_proceed: boolean
-        }[]
-      }
       delete_user_completely: {
         Args: { target_user_id: string }
         Returns: boolean
@@ -1215,15 +1206,6 @@ export type Database = {
       soft_delete_profile: {
         Args: { profile_id: string }
         Returns: boolean
-      }
-      test_admin_status: {
-        Args: Record<PropertyKey, never>
-        Returns: {
-          current_uid: string
-          profile_exists: boolean
-          is_admin_value: boolean
-          is_admin_function_result: boolean
-        }[]
       }
       update_daily_metrics: {
         Args: { target_date?: string }
