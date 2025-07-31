@@ -18,7 +18,7 @@ interface FeeAgreementEmailRequest {
   attachments?: Array<{
     name: string;
     content: string; // base64 encoded
-    type: string;
+    type?: string;
   }>;
 }
 
@@ -72,54 +72,79 @@ const handler = async (req: Request): Promise<Response> => {
     // Use custom content if provided, otherwise use default template
     const emailSubject = subject || "SourceCo - Deal Fee Agreement";
     
-    // Create admin-specific signature
-    const adminSignature = adminName && adminEmail 
-      ? `Best regards,<br><strong>${adminName}</strong><br>SourceCo<br>${adminEmail}`
-      : "Best regards,<br><strong>SourceCo Team</strong>";
-
-    const defaultTemplate = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-        <h1 style="color: #333; border-bottom: 2px solid #007bff; padding-bottom: 10px;">
-          Deal Fee Agreement
-        </h1>
-        
-        <p>Dear Valued Client,</p>
-        
-        <p>Thank you for your interest in our business listings platform. To proceed with connecting you to listing owners, we require a signed fee agreement.</p>
-        
-        <p>Please review and sign the attached fee agreement at your earliest convenience. This agreement outlines our commission structure and terms of service for facilitating business acquisitions.</p>
-        
-        <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
-          <h3 style="color: #333; margin-top: 0;">Key Points:</h3>
-          <ul style="margin: 0; padding-left: 20px;">
-            <li>Our commission is only paid upon successful transaction completion</li>
-            <li>No upfront fees or costs</li>
-            <li>Professional representation throughout the process</li>
-            <li>Access to vetted, quality business opportunities</li>
-          </ul>
+    // Generate professional email signature with company branding and logo
+    const logoUrl = "https://vhzipqarkmmfuqadefep.supabase.co/storage/v1/object/public/listing-images/sourceco-logo.png";
+    
+    const adminSignature = `
+      <div style="margin-top: 30px; padding-top: 20px; border-top: 2px solid #1e40af; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f8fafc; padding: 20px; border-radius: 8px;">
+        <table cellpadding="0" cellspacing="0" style="width: 100%;">
+          <tr>
+            <td style="vertical-align: top; width: 120px; padding-right: 20px;">
+              <img src="${logoUrl}" alt="SourceCo Logo" style="max-width: 100px; height: auto; border-radius: 4px;" />
+            </td>
+            <td style="vertical-align: top;">
+              <div style="line-height: 1.4;">
+                <p style="margin: 0; font-size: 16px; font-weight: bold; color: #1e40af; margin-bottom: 4px;">${adminName}</p>
+                <p style="margin: 0; font-size: 13px; color: #64748b; margin-bottom: 2px;">Business Development Manager</p>
+                <p style="margin: 0; font-size: 14px; font-weight: 600; color: #334155; margin-bottom: 8px;">SourceCo</p>
+                <p style="margin: 0; font-size: 12px; color: #64748b; margin-bottom: 2px;">
+                  <span style="color: #1e40af;">✉</span> ${adminEmail}
+                </p>
+                <p style="margin: 0; font-size: 12px; color: #64748b;">
+                  <span style="color: #1e40af;">🌐</span> sourcecodeals.com
+                </p>
+              </div>
+            </td>
+          </tr>
+        </table>
+        <div style="margin-top: 15px; padding-top: 10px; border-top: 1px solid #e2e8f0; font-size: 10px; color: #94a3b8; text-align: center;">
+          <p style="margin: 0;">This email contains confidential and privileged information intended for institutional investors.</p>
         </div>
-        
-        <p>Once signed, you'll have immediate access to connect with business owners and begin your acquisition journey.</p>
-        
-        <p>If you have any questions about the agreement or our services, please don't hesitate to reach out.</p>
-        
-        <p>${adminSignature}</p>
-        
-        <hr style="border: none; border-top: 1px solid #ddd; margin: 30px 0;">
-        
-        <p style="font-size: 12px; color: #666;">
-          Please reply to this email with your signed agreement or any questions you may have.
-        </p>
       </div>`;
 
-    // Format email content
-    const emailContent = content 
-      ? `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-           ${content.replace(/\n/g, '<br>')}
-           <br><br>
-           <p>${adminSignature}</p>
-         </div>`
-      : defaultTemplate;
+    // Generate professional email content with enhanced styling
+    const emailContent = useTemplate
+      ? `<div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #334155; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+          <div style="padding: 30px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff;">
+            <div style="text-align: center; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 1px solid #f1f5f9;">
+              <h1 style="color: #1e40af; font-size: 24px; margin: 0; font-weight: 600;">Fee Agreement Review</h1>
+              <p style="color: #64748b; margin: 8px 0 0 0; font-size: 14px;">SourceCo Business Development</p>
+            </div>
+            
+            <p style="margin-bottom: 20px; font-size: 16px;">Dear <strong>${userEmail.split('@')[0]}</strong>,</p>
+            
+            <p style="margin-bottom: 20px;">I hope this email finds you well. As part of our engagement process, I'm sending you our Fee Agreement for your review and signature.</p>
+            
+            <div style="background-color: #f8fafc; padding: 20px; border-radius: 8px; margin: 25px 0; border-left: 4px solid #1e40af;">
+              <p style="margin: 0 0 15px 0; font-weight: 600; color: #1e40af;">This agreement outlines:</p>
+              <ul style="margin: 0; padding-left: 20px; color: #475569;">
+                <li style="margin-bottom: 8px;">Service fees and payment terms</li>
+                <li style="margin-bottom: 8px;">Scope of work and deliverables</li>
+                <li style="margin-bottom: 8px;">Confidentiality provisions</li>
+                <li style="margin-bottom: 8px;">Engagement timeline and milestones</li>
+              </ul>
+            </div>
+            
+            <p style="margin-bottom: 20px;">Please review the attached agreement carefully. If you have any questions or concerns, please don't hesitate to reach out to me directly.</p>
+            
+            <div style="background-color: #dbeafe; padding: 15px; border-radius: 6px; margin: 20px 0; text-align: center;">
+              <p style="margin: 0; color: #1e40af; font-weight: 600;">📋 Next Steps</p>
+              <p style="margin: 8px 0 0 0; color: #475569; font-size: 14px;">Once you're comfortable with the terms, please sign and return the agreement at your earliest convenience.</p>
+            </div>
+            
+            <p style="margin-bottom: 30px;">Thank you for your trust in our services. I look forward to working with you.</p>
+            
+            <p style="margin-bottom: 20px; font-weight: 500;">Best regards,</p>
+            
+            ${adminSignature}
+          </div>
+        </div>`
+      : `<div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #334155; max-width: 600px; margin: 0 auto;">
+          <div style="padding: 30px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff;">
+            ${content ? content.replace(/\n/g, '<br>') : ''}
+            ${adminSignature}
+          </div>
+        </div>`;
 
     // Determine the best sender email based on admin domain
     let senderEmail = "noreply@sourcecodeals.com";
@@ -153,51 +178,95 @@ const handler = async (req: Request): Promise<Response> => {
       }
     };
 
-    // Add attachments if provided
+    // Enhanced attachment processing with detailed logging
     if (attachments && attachments.length > 0) {
-      console.log(`📎 Processing ${attachments.length} attachment(s)`);
+      console.log(`📎 Starting attachment processing for ${attachments.length} attachment(s)`);
+      console.log(`📎 Raw attachments data:`, attachments.map(a => ({ 
+        name: a.name, 
+        hasContent: !!a.content, 
+        contentLength: a.content?.length || 0,
+        contentPreview: a.content?.substring(0, 50) + '...'
+      })));
       
       // Validate and process attachments
       const processedAttachments = [];
-      for (const att of attachments) {
+      for (let i = 0; i < attachments.length; i++) {
+        const att = attachments[i];
+        console.log(`📎 Processing attachment ${i + 1}/${attachments.length}: ${att.name}`);
+        
         if (!att.name || !att.content) {
-          console.warn("⚠️ Skipping invalid attachment:", att.name || "unnamed");
+          console.warn(`⚠️ Skipping invalid attachment ${i + 1}: missing name or content`, {
+            hasName: !!att.name,
+            hasContent: !!att.content,
+            name: att.name
+          });
           continue;
         }
         
         // Clean and validate base64 content
         let content = att.content;
+        console.log(`📎 Original content length for ${att.name}: ${content.length} chars`);
         
         // Remove data URL prefix if present (e.g., "data:application/pdf;base64,")
         if (content.includes(',')) {
-          content = content.split(',')[1];
+          const parts = content.split(',');
+          content = parts[1];
+          console.log(`📎 Removed data URL prefix for ${att.name}, new length: ${content.length} chars`);
         }
         
         // Remove any whitespace or newlines
+        const originalLength = content.length;
         content = content.replace(/\s/g, '');
+        if (originalLength !== content.length) {
+          console.log(`📎 Cleaned whitespace from ${att.name}: ${originalLength} → ${content.length} chars`);
+        }
         
-        // More flexible base64 validation - ensure it's valid base64
-        try {
-          atob(content); // This will throw if not valid base64
-          console.log(`✅ Valid base64 content for: ${att.name} (${content.length} chars)`);
-        } catch (e) {
-          console.warn("⚠️ Invalid base64 content, skipping:", att.name);
+        // Enhanced base64 validation
+        if (!content || content.length === 0) {
+          console.warn(`⚠️ Empty content after cleaning for ${att.name}`);
           continue;
         }
         
-        processedAttachments.push({
-          name: att.name,
-          content: content
-        });
-        
-        console.log(`✅ Processed attachment: ${att.name} (${Math.round(content.length * 0.75)} bytes)`);
+        try {
+          // Test base64 decoding
+          const decoded = atob(content);
+          const decodedSize = decoded.length;
+          console.log(`✅ Successfully decoded base64 for ${att.name}: ${content.length} chars → ${decodedSize} bytes`);
+          
+          // Additional PDF header validation for PDFs
+          if (att.name.toLowerCase().endsWith('.pdf')) {
+            const pdfHeader = decoded.substring(0, 5);
+            if (!pdfHeader.startsWith('%PDF')) {
+              console.warn(`⚠️ ${att.name} doesn't appear to be a valid PDF (missing %PDF header)`);
+              // Continue anyway - some PDFs might have variations
+            } else {
+              console.log(`✅ PDF header validation passed for ${att.name}`);
+            }
+          }
+          
+          processedAttachments.push({
+            name: att.name,
+            content: content
+          });
+          
+          console.log(`✅ Successfully processed attachment: ${att.name} (${decodedSize} bytes)`);
+          
+        } catch (e) {
+          console.error(`❌ Base64 validation failed for ${att.name}:`, e);
+          console.error(`❌ Content sample:`, content.substring(0, 100));
+          continue;
+        }
       }
       
       if (processedAttachments.length > 0) {
         brevoPayload.attachment = processedAttachments;
-        console.log(`📎 Added ${processedAttachments.length} valid attachment(s) to email`);
+        console.log(`📎 Successfully added ${processedAttachments.length} attachment(s) to Brevo payload`);
+        console.log(`📎 Final attachment summary:`, processedAttachments.map(a => ({
+          name: a.name,
+          size: Math.round(a.content.length * 0.75) + ' bytes'
+        })));
       } else {
-        console.warn("⚠️ No valid attachments to include");
+        console.error(`❌ No valid attachments processed from ${attachments.length} input attachment(s)`);
       }
     }
 
