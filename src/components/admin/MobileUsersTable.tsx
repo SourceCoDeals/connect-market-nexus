@@ -9,6 +9,8 @@ import { MoreHorizontal, UserCheck, UserX, UserPlus, UserMinus, Trash2, Mail, Bu
 import { formatDistanceToNow } from 'date-fns';
 import { DualFeeAgreementToggle } from "./DualFeeAgreementToggle";
 import { EnhancedFeeAgreementEmailDialog } from "./EnhancedFeeAgreementEmailDialog";
+import { useLogFeeAgreementEmail } from '@/hooks/admin/use-fee-agreement';
+import { supabase } from '@/integrations/supabase/client';
 
 interface MobileUsersTableProps {
   users: User[];
@@ -306,6 +308,7 @@ export const MobileUsersTable = ({
   isLoading 
 }: MobileUsersTableProps) => {
   const [selectedUserForEmail, setSelectedUserForEmail] = useState<User | null>(null);
+  const logEmailMutation = useLogFeeAgreementEmail();
   
   const handleSendEmail = async (emailData: {
     userId: string;
@@ -315,15 +318,33 @@ export const MobileUsersTable = ({
     attachments?: File[];
     useTemplate: boolean;
   }) => {
-    // For now, we'll send the basic email - file upload will be implemented later
-    const { useLogFeeAgreementEmail } = await import("@/hooks/admin/use-fee-agreement");
-    const logEmailMutation = useLogFeeAgreementEmail();
-    
-    await logEmailMutation.mutateAsync({
-      userId: emailData.userId,
-      userEmail: emailData.userEmail,
-      notes: `Custom email sent: ${emailData.subject}`
-    });
+    console.log('📧 Sending fee agreement email (mobile):', emailData);
+    try {
+      // First send the actual email via edge function
+      const { error: emailError } = await supabase.functions.invoke('send-fee-agreement-email', {
+        body: {
+          userId: emailData.userId,
+          userEmail: emailData.userEmail,
+          subject: emailData.subject,
+          content: emailData.content,
+          useTemplate: emailData.useTemplate,
+          adminNotes: `Email sent via admin panel (mobile)`
+        }
+      });
+
+      if (emailError) throw emailError;
+
+      // Then log the email in the database
+      await logEmailMutation.mutateAsync({
+        userId: emailData.userId,
+        userEmail: emailData.userEmail,
+        notes: `Email sent: ${emailData.subject}`
+      });
+      console.log('✅ Fee agreement email sent successfully (mobile)');
+    } catch (error) {
+      console.error('❌ Fee agreement email error (mobile):', error);
+      throw error;
+    }
   };
   if (isLoading) {
     return (

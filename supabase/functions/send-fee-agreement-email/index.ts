@@ -25,15 +25,13 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    const { userId, userEmail, adminNotes }: FeeAgreementEmailRequest = await req.json();
+    const { userId, userEmail, adminNotes, subject, content, useTemplate }: FeeAgreementEmailRequest = await req.json();
 
-    console.log(`📧 Sending fee agreement email to: ${userEmail} for user: ${userId}`);
+    console.log(`📧 Sending fee agreement email to: ${userEmail} for user: ${userId}`, { useTemplate, subject });
 
-    const emailResponse = await resend.emails.send({
-      from: "Business Marketplace <noreply@resend.dev>",
-      to: [userEmail],
-      subject: "Fee Agreement Required - Business Marketplace",
-      html: `
+    // Use custom content if provided, otherwise use default template
+    const emailSubject = subject || "Fee Agreement Required - Business Marketplace";
+    const emailContent = content || `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
           <h1 style="color: #333; border-bottom: 2px solid #007bff; padding-bottom: 10px;">
             Fee Agreement Required
@@ -73,6 +71,24 @@ const handler = async (req: Request): Promise<Response> => {
             <strong>Admin Note:</strong> ${adminNotes}
           </div>
           ` : ''}
+        </div>`;
+
+    const emailResponse = await resend.emails.send({
+      from: "Business Marketplace <noreply@resend.dev>",
+      to: [userEmail],
+      subject: emailSubject,
+      html: content ? `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          ${content.replace(/\n/g, '<br>')}
+          ${adminNotes ? `
+          <div style="background-color: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 5px; margin-top: 20px;">
+            <strong>Admin Note:</strong> ${adminNotes}
+          </div>
+          ` : ''}
+        </div>
+      ` : `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          ${emailContent}
         </div>
       `,
     });
