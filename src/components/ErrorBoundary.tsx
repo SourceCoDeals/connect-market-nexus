@@ -87,7 +87,7 @@ export class ErrorBoundary extends Component<Props, State> {
       return;
     }
 
-    console.log(`🔄 Retrying error recovery (attempt ${retryCount + 1}/${maxRetries}) in ${backoffDelay}ms`);
+    // Development only: Retry error recovery attempt logging
 
     const timeout = setTimeout(() => {
       this.setState({

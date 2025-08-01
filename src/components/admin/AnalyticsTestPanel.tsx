@@ -26,31 +26,31 @@ export function AnalyticsTestPanel() {
     setIsRunningTests(true);
     setTestResults([]);
 
-    console.log('🧪 Starting comprehensive analytics test suite...');
+    // Starting comprehensive analytics test suite
 
     try {
       // Test 1: Track a custom event
-      console.log('🧪 Test 1: Custom Event Tracking');
+      // Test 1: Custom Event Tracking
       await trackEvent('test_event', { test: true, timestamp: Date.now() });
       logTestResult('Custom Event', true, 'test_event tracked');
 
       // Test 2: Track a page view
-      console.log('🧪 Test 2: Page View Tracking');
+      // Test 2: Page View Tracking
       await trackPageView('/admin/test-page');
       logTestResult('Page View', true, '/admin/test-page tracked');
 
       // Test 3: Track a listing view
-      console.log('🧪 Test 3: Listing View Tracking');
+      // Test 3: Listing View Tracking
       await trackListingView('test-listing-123');
       logTestResult('Listing View', true, 'test-listing-123 tracked');
 
       // Test 4: Track a listing save
-      console.log('🧪 Test 4: Listing Save Tracking');
+      // Test 4: Listing Save Tracking
       await trackListingSave('test-listing-123');
       logTestResult('Listing Save', true, 'test-listing-123 saved');
 
       // Test 5: Track a connection request
-      console.log('🧪 Test 5: Connection Request Tracking');
+      // Test 5: Connection Request Tracking
       await trackConnectionRequest('test-listing-123');
       logTestResult('Connection Request', true, 'test-listing-123 connection requested');
 

@@ -109,7 +109,7 @@ const FilterPanel = ({
       }
     }
     
-    console.log('🔍 [FILTER] Filter change triggered:', filters);
+    // Filter change triggered
     onFilterChange(filters);
     
     // Track search analytics when search term is used

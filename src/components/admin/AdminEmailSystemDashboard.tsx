@@ -6,13 +6,7 @@ import { CheckCircle, AlertTriangle, Mail, FileText, Palette } from 'lucide-reac
 
 export const AdminEmailSystemDashboard = () => {
   useEffect(() => {
-    console.log('🚀 Admin Email System Dashboard loaded');
-    console.log('📧 SourceCo Email System Status:');
-    console.log('  ✅ Premium black/gold branding implemented');
-    console.log('  ✅ Enhanced PDF attachment processing');
-    console.log('  ✅ Professional signature design');
-    console.log('  ✅ Institutional-grade styling');
-    console.log('  ✅ Comprehensive error handling and logging');
+    // Admin Email System Dashboard loaded with premium features
   }, []);
 
   const systemChecks = [
