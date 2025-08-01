@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAdmin } from "@/hooks/use-admin";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -13,8 +14,10 @@ import { toast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { MobileConnectionRequests } from "@/components/admin/MobileConnectionRequests";
 import { AdminRequestsWrapper } from "@/components/admin/AdminRequestsWrapper";
+import { invalidateConnectionRequests } from "@/lib/query-client-helpers";
 
 const AdminRequests = () => {
+  const queryClient = useQueryClient();
   const { useConnectionRequests, useConnectionRequestsMutation, sendConnectionApprovalEmail, sendConnectionRejectionEmail, sendCustomApprovalEmail } = useAdmin();
   
   const { data: requests = [], isLoading, error, refetch } = useConnectionRequests();
@@ -217,8 +220,8 @@ const AdminRequests = () => {
               await sendCustomApprovalEmail(user, options);
               setIsApprovalEmailDialogOpen(false);
               setSelectedUserForApprovalEmail(null);
-              // Refresh the data to show updated approval status
-              refetch();
+              // Efficient cache invalidation for faster UI updates
+              await invalidateConnectionRequests(queryClient);
             } catch (error) {
               console.error('Error sending approval email:', error);
             }

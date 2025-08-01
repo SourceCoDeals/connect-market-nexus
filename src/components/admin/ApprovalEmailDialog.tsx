@@ -27,21 +27,23 @@ interface ApprovalEmailDialogProps {
 }
 
 const DEFAULT_APPROVAL_EMAIL = {
-  subject: "Welcome to SourceCo | Account Approved",
+  subject: "SourceCo Account Approved - Access Granted",
   message: `Dear {{userName}},
 
-Congratulations! Your SourceCo marketplace account has been approved and you now have full access to our exclusive business marketplace.
+Your SourceCo account is now approved.
 
-What You Can Do Now:
-• Browse our curated portfolio of investment opportunities
-• Submit connection requests to sellers
-• Access detailed financial data and due diligence materials
-• Save listings to your personal portfolio
-• Connect directly with our advisory team
+Access granted to:
+• Exclusive business acquisition opportunities
+• Verified financial documentation
+• Direct seller connections
+• Advanced market intelligence tools
 
-Your journey to finding the perfect acquisition opportunity starts here. We look forward to helping you discover exceptional businesses that match your investment criteria.
+Next steps:
+• Explore the marketplace: https://marketplace.sourcecodeals.com
+• Set up deal alerts for automated notifications of new opportunities matching your criteria
+• Complete your profile for enhanced matching
 
-Best regards,`
+Questions? Reply to this email.`
 };
 
 export function ApprovalEmailDialog({ 
@@ -91,57 +93,57 @@ export function ApprovalEmailDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto p-4 sm:p-6">
-        <DialogHeader className="space-y-3">
-          <DialogTitle className="flex items-center gap-2 text-lg sm:text-xl">
-            <CheckCircle className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto p-3 sm:p-6">
+        <DialogHeader className="space-y-2 sm:space-y-3">
+          <DialogTitle className="flex items-center gap-2 text-base sm:text-lg md:text-xl">
+            <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 md:h-6 md:w-6 text-primary" />
             Approve User & Send Welcome Email
           </DialogTitle>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-xs sm:text-sm text-muted-foreground">
             This will approve the user's account and send them a professional welcome email.
           </p>
         </DialogHeader>
 
-        <div className="space-y-4 sm:space-y-6">
+        <div className="space-y-3 sm:space-y-4 md:space-y-6">
           {/* User Information */}
-          <div className="bg-gradient-to-r from-primary/5 to-primary/10 p-3 sm:p-4 rounded-lg border border-primary/20">
-            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
-              <User className="h-4 w-4 text-primary" />
+          <div className="bg-gradient-to-r from-primary/5 to-primary/10 p-2 sm:p-3 md:p-4 rounded-lg border border-primary/20">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 md:gap-3">
+              <User className="h-3 w-3 sm:h-4 sm:w-4 text-primary" />
               <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
-                <span className="font-medium text-foreground">{userName}</span>
+                <span className="font-medium text-foreground text-sm sm:text-base">{userName}</span>
                 <Badge variant="outline" className="w-fit text-xs">{user.email}</Badge>
               </div>
             </div>
-            <div className="text-sm text-muted-foreground mt-2">
+            <div className="text-xs sm:text-sm text-muted-foreground mt-1 sm:mt-2">
               Current status: <span className="capitalize">{user.approval_status}</span>
             </div>
           </div>
 
           {/* Email Customization */}
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="subject" className="text-sm font-medium">Email Subject</Label>
+          <div className="space-y-3 sm:space-y-4">
+            <div className="space-y-1 sm:space-y-2">
+              <Label htmlFor="subject" className="text-xs sm:text-sm font-medium">Email Subject</Label>
               <Input
                 id="subject"
                 placeholder={defaultSubject}
                 value={customSubject}
                 onChange={(e) => setCustomSubject(e.target.value)}
-                className="text-sm"
+                className="text-xs sm:text-sm h-8 sm:h-9 md:h-10"
               />
               <p className="text-xs text-muted-foreground">
                 Leave empty to use default: "{defaultSubject}"
               </p>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="message" className="text-sm font-medium">Welcome Message</Label>
+            <div className="space-y-1 sm:space-y-2">
+              <Label htmlFor="message" className="text-xs sm:text-sm font-medium">Welcome Message</Label>
               <Textarea
                 id="message"
                 placeholder={defaultMessage}
                 value={customMessage}
                 onChange={(e) => setCustomMessage(e.target.value)}
-                rows={8}
-                className="resize-none text-sm"
+                rows={6}
+                className="resize-none text-xs sm:text-sm min-h-[120px] sm:min-h-[160px]"
               />
               <p className="text-xs text-muted-foreground">
                 Customize the welcome message or leave empty to use the professional default template
@@ -149,8 +151,8 @@ export function ApprovalEmailDialog({
             </div>
 
             {/* Email Signature */}
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">Email Signature</Label>
+            <div className="space-y-1 sm:space-y-2">
+              <Label className="text-xs sm:text-sm font-medium">Email Signature</Label>
               <EditableSignature 
                 showInline
                 onSignatureChange={(html, text) => {
@@ -162,11 +164,11 @@ export function ApprovalEmailDialog({
           </div>
         </div>
 
-        <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0 pt-4">
+        <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0 pt-3 sm:pt-4">
           <Button 
             variant="outline" 
             onClick={() => onOpenChange(false)}
-            className="w-full sm:w-auto"
+            className="w-full sm:w-auto h-9 sm:h-10 text-sm min-h-[44px] sm:min-h-[40px]"
             disabled={isLoading}
           >
             Cancel
@@ -174,16 +176,16 @@ export function ApprovalEmailDialog({
           <Button 
             onClick={handleSend} 
             disabled={isLoading}
-            className="w-full sm:w-auto bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary"
+            className="w-full sm:w-auto bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary h-9 sm:h-10 text-sm min-h-[44px] sm:min-h-[40px]"
           >
             {isLoading ? (
               <>
-                <Mail className="h-4 w-4 mr-2 animate-spin" />
+                <Mail className="h-3 w-3 sm:h-4 sm:w-4 mr-2 animate-spin" />
                 Approving & Sending...
               </>
             ) : (
               <>
-                <CheckCircle className="h-4 w-4 mr-2" />
+                <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
                 Approve User & Send Email
               </>
             )}
