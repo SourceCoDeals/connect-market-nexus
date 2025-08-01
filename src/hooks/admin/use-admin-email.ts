@@ -346,25 +346,30 @@ export function useAdminEmail() {
         ? `${adminProfile.first_name} ${adminProfile.last_name}`
         : adminProfile.email;
 
-      // 1. IMMEDIATELY update the database for instant UI response
-      const { error: approvalError } = await supabase
+      // 1. Show immediate success feedback first
+      toast({
+        title: "User approved",
+        description: `${user.first_name} ${user.last_name} has been approved instantly`,
+      });
+
+      // 2. Update database asynchronously in background
+      supabase
         .from('profiles')
         .update({ 
           approval_status: 'approved',
           updated_at: new Date().toISOString()
         })
-        .eq('id', user.id);
-
-      if (approvalError) {
-        console.error('❌ Error approving user:', approvalError);
-        throw new Error('Failed to approve user: ' + approvalError.message);
-      }
-
-      // 2. Show immediate success feedback
-      toast({
-        title: "User approved",
-        description: `${user.first_name} ${user.last_name} has been approved instantly`,
-      });
+        .eq('id', user.id)
+        .then(({ error: approvalError }) => {
+          if (approvalError) {
+            console.error('❌ Error approving user:', approvalError);
+            toast({
+              variant: "destructive",
+              title: "Database update failed",
+              description: "User approval failed. Please try again.",
+            });
+          }
+        });
 
       // 3. Send email asynchronously in background (don't await)
       const requestPayload = {

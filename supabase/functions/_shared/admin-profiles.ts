@@ -19,7 +19,7 @@ export const ADMIN_PROFILES: Record<string, AdminProfile> = {
     name: 'Adam Haile',
     title: 'Founder & CEO',
     phone: '(614) 555-0100',
-    calendlyUrl: 'https://calendly.com/adam-haile-sourceco/30min'
+    calendlyUrl: ''
   }
 };
 
