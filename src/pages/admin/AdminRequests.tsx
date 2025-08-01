@@ -146,18 +146,18 @@ const AdminRequests = () => {
         </div>
       </div>
 
-      <div className="flex gap-2 flex-wrap">
-        <Badge variant="outline" className="text-xs">
-          Total: {requests.length}
+      <div className="flex gap-3 flex-wrap">
+        <Badge variant="secondary" className="text-xs font-medium px-3 py-1.5">
+          Total: <span className="font-semibold ml-1">{requests.length}</span>
         </Badge>
-        <Badge variant="outline" className="text-xs">
-          Pending: {requests.filter((r) => r.status === "pending").length}
+        <Badge variant="outline" className="text-xs font-medium px-3 py-1.5 bg-amber-500/10 text-amber-700 border-amber-500/20">
+          Pending: <span className="font-semibold ml-1">{requests.filter((r) => r.status === "pending").length}</span>
         </Badge>
-        <Badge variant="outline" className="text-xs">
-          Approved: {requests.filter((r) => r.status === "approved").length}
+        <Badge variant="outline" className="text-xs font-medium px-3 py-1.5 bg-green-500/10 text-green-700 border-green-500/20">
+          Approved: <span className="font-semibold ml-1">{requests.filter((r) => r.status === "approved").length}</span>
         </Badge>
-        <Badge variant="outline" className="text-xs">
-          Rejected: {requests.filter((r) => r.status === "rejected").length}
+        <Badge variant="outline" className="text-xs font-medium px-3 py-1.5 bg-red-500/10 text-red-700 border-red-500/20">
+          Rejected: <span className="font-semibold ml-1">{requests.filter((r) => r.status === "rejected").length}</span>
         </Badge>
       </div>
 
@@ -167,24 +167,22 @@ const AdminRequests = () => {
         </div>
       )}
 
-      <div className="bg-card rounded-lg border overflow-hidden">
-        <div className="overflow-x-auto">
-          <ConnectionRequestsTable 
-            requests={filteredRequests}
-            onApprove={(request) => {
-              setSelectedRequest(request);
-              setActionType("approve");
-              setIsDialogOpen(true);
-            }}
-            onReject={(request) => {
-              setSelectedRequest(request);
-              setActionType("reject");
-              setIsDialogOpen(true);
-            }}
-            isLoading={isLoading}
-            onRefresh={() => refetch()}
-          />
-        </div>
+      <div className="bg-card/30 backdrop-blur-sm rounded-xl border border-border/50 overflow-hidden shadow-sm">
+        <ConnectionRequestsTable 
+          requests={filteredRequests}
+          onApprove={(request) => {
+            setSelectedRequest(request);
+            setActionType("approve");
+            setIsDialogOpen(true);
+          }}
+          onReject={(request) => {
+            setSelectedRequest(request);
+            setActionType("reject");
+            setIsDialogOpen(true);
+          }}
+          isLoading={isLoading}
+          onRefresh={() => refetch()}
+        />
       </div>
 
       <ConnectionRequestDialog

@@ -1,13 +1,15 @@
 import { useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ChevronDown, ChevronRight, User, Building, MessageSquare, Calendar, RefreshCw, FileText, Shield } from "lucide-react";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { ChevronDown, User, Building, MessageSquare, Calendar, RefreshCw, FileText, Shield, Mail, MapPin, Target, Building2 } from "lucide-react";
 import { AdminConnectionRequest } from "@/types/admin";
 import { ConnectionRequestActions } from "@/components/admin/ConnectionRequestActions";
 import { SmartWorkflowSuggestions } from "@/components/admin/SmartWorkflowSuggestions";
+import { StatusIndicatorRow } from "./StatusIndicatorRow";
 
 interface ConnectionRequestsTableProps {
   requests: AdminConnectionRequest[];
@@ -49,15 +51,24 @@ const ConnectionRequestsTableEmpty = () => (
 );
 
 const StatusBadge = ({ status }: { status: string }) => {
-  switch (status) {
-    case "approved":
-      return <Badge variant="default" className="bg-green-500 hover:bg-green-600 text-white">Approved</Badge>;
-    case "rejected":
-      return <Badge variant="destructive">Rejected</Badge>;
-    case "pending":
-    default:
-      return <Badge variant="secondary" className="bg-amber-100 text-amber-800 border-amber-200 hover:bg-amber-200">Pending</Badge>;
-  }
+  const variants = {
+    approved: "bg-green-500/10 text-green-700 border-green-500/20 dark:bg-green-500/20 dark:text-green-400 dark:border-green-500/30",
+    rejected: "bg-red-500/10 text-red-700 border-red-500/20 dark:bg-red-500/20 dark:text-red-400 dark:border-red-500/30", 
+    pending: "bg-amber-500/10 text-amber-700 border-amber-500/20 dark:bg-amber-500/20 dark:text-amber-400 dark:border-amber-500/30"
+  };
+  
+  const icons = {
+    approved: "✓",
+    rejected: "✕",
+    pending: "⏳"
+  };
+  
+  return (
+    <Badge variant="outline" className={`text-xs font-medium px-2.5 py-1 ${variants[status as keyof typeof variants]}`}>
+      <span className="mr-1">{icons[status as keyof typeof icons]}</span>
+      {status.charAt(0).toUpperCase() + status.slice(1)}
+    </Badge>
+  );
 };
 
 const RequestDetails = ({ 
@@ -268,84 +279,84 @@ export const ConnectionRequestsTable = ({
         )}
       </div>
       
-      <div className="space-y-4">
+      <div className="space-y-3">
         {requests.map((request) => (
-          <Card key={request.id} className="overflow-hidden shadow-sm hover:shadow-md transition-shadow">
-            <Collapsible>
+          <Card key={request.id} className="group border border-border/30 hover:border-border/60 hover:shadow-sm transition-all duration-200 bg-card/50 hover:bg-card">
+            <Collapsible 
+              open={expandedRequestId === request.id}
+              onOpenChange={() => toggleExpand(request.id)}
+            >
               <CollapsibleTrigger asChild>
-                <CardContent className="p-6 cursor-pointer hover:bg-muted/30 transition-colors">
-                  <div className="flex items-center justify-between" onClick={() => toggleExpand(request.id)}>
-                    <div className="flex items-center gap-4">
-                      <div className="flex items-center gap-3">
-                        {expandedRequestId === request.id ? (
-                          <ChevronDown className="h-5 w-5 text-muted-foreground" />
-                        ) : (
-                          <ChevronRight className="h-5 w-5 text-muted-foreground" />
-                        )}
-                        <div className="h-12 w-12 bg-primary/10 rounded-full flex items-center justify-center">
-                          <User className="h-6 w-6 text-primary" />
+                <CardHeader className="cursor-pointer p-6 hover:bg-accent/5 transition-colors">
+                  <div className="space-y-4">
+                    {/* Header Row */}
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-4 flex-1">
+                        <Avatar className="h-12 w-12 border-2 border-border/20">
+                          <AvatarFallback className="text-sm font-semibold bg-primary/10 text-primary">
+                            {request.user?.first_name?.[0]}{request.user?.last_name?.[0]}
+                          </AvatarFallback>
+                        </Avatar>
+                        
+                        <div className="space-y-2 flex-1 min-w-0">
+                          <div className="flex items-center gap-3 flex-wrap">
+                            <h3 className="font-semibold text-base text-foreground">
+                              {request.user?.first_name} {request.user?.last_name}
+                            </h3>
+                            <StatusBadge status={request.status} />
+                          </div>
+                          
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground flex-wrap">
+                            <Building2 className="h-4 w-4 flex-shrink-0" />
+                            <span className="truncate">{request.user?.company}</span>
+                            <span className="text-border">•</span>
+                            <Mail className="h-4 w-4 flex-shrink-0" />
+                            <span className="truncate">{request.user?.email}</span>
+                          </div>
+                          
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground flex-wrap">
+                            <Target className="h-4 w-4 flex-shrink-0 text-primary/60" />
+                            <span className="truncate font-medium">{request.listing?.title}</span>
+                            {request.listing?.location && (
+                              <>
+                                <span className="text-border">•</span>
+                                <MapPin className="h-4 w-4 flex-shrink-0" />
+                                <span>{request.listing.location}</span>
+                              </>
+                            )}
+                          </div>
                         </div>
                       </div>
-                      <div className="space-y-1">
-                        <div className="font-semibold text-lg">
-                          {request.user?.first_name} {request.user?.last_name}
-                        </div>
-                        <div className="text-sm text-muted-foreground flex items-center gap-4">
-                          <span>{request.user?.email}</span>
-                          <span>•</span>
-                          <span>{request.user?.company || 'No company'}</span>
-                          <span>•</span>
-                          <span className="font-medium">{request.listing?.title}</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex flex-col items-end gap-3">
-                      <div className="text-sm text-muted-foreground flex items-center gap-2">
-                        <Calendar className="h-4 w-4" />
-                        {new Date(request.created_at).toLocaleDateString()}
-                      </div>
-                      <StatusBadge status={request.status} />
                       
-                      {/* Quick Status Indicators */}
-                      <div className="flex flex-wrap items-center gap-2 text-xs">
-                        <div className="flex items-center gap-1" title="NDA Status">
-                          <Shield className="h-3 w-3" />
-                          <span className={`whitespace-nowrap ${request.user?.nda_signed ? 'text-green-600 font-medium' : request.user?.nda_email_sent ? 'text-blue-600' : 'text-amber-600'}`}>
-                            {request.user?.nda_signed ? '✅ Signed' : request.user?.nda_email_sent ? '📧 Sent' : '❌ Pending'}
-                          </span>
+                      <div className="flex items-center gap-3">
+                        <div className="text-xs text-muted-foreground flex items-center gap-1">
+                          <Calendar className="h-3 w-3" />
+                          {new Date(request.created_at).toLocaleDateString()}
                         </div>
-                        
-                        <span className="text-muted-foreground hidden sm:inline">•</span>
-                        
-                        <div className="flex items-center gap-1" title="Fee Agreement Status">
-                          <FileText className="h-3 w-3" />
-                          <span className={`whitespace-nowrap ${request.user?.fee_agreement_signed ? 'text-green-600 font-medium' : request.user?.fee_agreement_email_sent ? 'text-blue-600' : 'text-amber-600'}`}>
-                            {request.user?.fee_agreement_signed ? '✅ Signed' : request.user?.fee_agreement_email_sent ? '📧 Sent' : '❌ Pending'}
-                          </span>
-                        </div>
-                        
-                        <span className="text-muted-foreground hidden sm:inline">•</span>
-                        
-                        <div className="flex items-center gap-1" title="Follow-up Status">
-                          <MessageSquare className="h-3 w-3" />
-                          <span className={`whitespace-nowrap ${request.followed_up ? 'text-green-600 font-medium' : 'text-amber-600'}`}>
-                            {request.followed_up ? '✅ Done' : '❌ Pending'}
-                          </span>
-                        </div>
+                        <ChevronDown className="h-5 w-5 flex-shrink-0 text-muted-foreground group-hover:text-foreground transition-all duration-200 data-[state=open]:rotate-180" />
                       </div>
                     </div>
+                    
+                    {/* Status Indicators Row */}
+                    {request.user && (
+                      <div className="border-t border-border/30 pt-4">
+                        <StatusIndicatorRow user={request.user} followedUp={request.followed_up || false} />
+                      </div>
+                    )}
                   </div>
-                </CardContent>
+                </CardHeader>
               </CollapsibleTrigger>
               
               <CollapsibleContent>
-                <CardContent className="px-6 pb-6">
-                  <RequestDetails
-                    request={request}
-                    onApprove={onApprove}
-                    onReject={onReject}
-                    onRefresh={onRefresh}
-                  />
+                <CardContent className="pt-0 px-6 pb-6">
+                  <div className="border-t border-border/30 pt-6">
+                    <RequestDetails
+                      request={request}
+                      onApprove={onApprove}
+                      onReject={onReject}
+                      onRefresh={onRefresh}
+                    />
+                  </div>
                 </CardContent>
               </CollapsibleContent>
             </Collapsible>
