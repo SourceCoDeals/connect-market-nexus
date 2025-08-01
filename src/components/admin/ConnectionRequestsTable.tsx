@@ -75,37 +75,16 @@ const StatusBadge = ({ status }: { status: string }) => {
 const RequestDetails = ({ 
   request, 
   onApprove, 
-  onReject,
-  onRefresh 
+  onReject
 }: { 
   request: AdminConnectionRequest;
   onApprove: (request: AdminConnectionRequest) => void;
   onReject: (request: AdminConnectionRequest) => void;
-  onRefresh?: () => void;
 }) => {
-  const [localUser, setLocalUser] = useState(request.user);
-  const [localFollowedUp, setLocalFollowedUp] = useState(request.followed_up || false);
-
-  // Sync with request changes
-  useEffect(() => {
-    setLocalUser(request.user);
-    setLocalFollowedUp(request.followed_up || false);
-  }, [request.user, request.followed_up]);
-
-  // Handle state updates from ConnectionRequestActions
-  const handleEmailSent = () => {
-    onRefresh?.();
-  };
-
-  const handleLocalStateUpdate = (updatedUser: any, updatedFollowedUp?: boolean) => {
-    setLocalUser(updatedUser);
-    if (updatedFollowedUp !== undefined) {
-      setLocalFollowedUp(updatedFollowedUp);
-    }
-  };
+  const localUser = request.user; // Use the user from the request directly
 
   return (
-    <div className="space-y-6 pt-6 border-t border-border">
+    <div className="space-y-6">
       {/* User & Listing Information Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="space-y-4">
@@ -191,20 +170,6 @@ const RequestDetails = ({
         </div>
       )}
 
-      {/* Connection Request Actions */}
-      {localUser && (
-        <div className="border-t border-border pt-6">
-          <ConnectionRequestActions
-            user={localUser}
-            listing={request.listing}
-            requestId={request.id}
-            followedUp={localFollowedUp}
-            onEmailSent={handleEmailSent}
-            onLocalStateUpdate={handleLocalStateUpdate}
-          />
-        </div>
-      )}
-
       {/* Action Buttons */}
       <div className="flex justify-end gap-3 pt-4 border-t border-border">
         {request.status === "pending" ? (
@@ -266,16 +231,30 @@ const ReactiveRequestCard = ({
   expandedRequestId: string | null;
   onToggleExpand: (id: string) => void;
 }) => {
+  // Single source of truth for reactive state
   const [localUser, setLocalUser] = useState(request.user);
   const [localFollowedUp, setLocalFollowedUp] = useState(request.followed_up || false);
 
-  // Sync with request changes from parent
+  console.log(`🔄 ReactiveRequestCard ${request.user?.email}: localUser NDA signed=${localUser?.nda_signed}, localFollowedUp=${localFollowedUp}`);
+
+  // Sync with request changes from parent (only when actual data changes)
   useEffect(() => {
+    console.log(`📥 Request data changed for ${request.user?.email}:`, {
+      original_nda: request.user?.nda_signed,
+      original_fee: request.user?.fee_agreement_signed,
+      original_followup: request.followed_up
+    });
     setLocalUser(request.user);
     setLocalFollowedUp(request.followed_up || false);
-  }, [request.user, request.followed_up]);
+  }, [request.user?.nda_signed, request.user?.fee_agreement_signed, request.user?.nda_email_sent, request.user?.fee_agreement_email_sent, request.followed_up]);
 
+  // Critical: This function updates the local state immediately
   const handleLocalStateUpdate = (updatedUser: any, updatedFollowedUp?: boolean) => {
+    console.log(`🔄 State update for ${request.user?.email}:`, {
+      updatedUser_nda: updatedUser?.nda_signed,
+      updatedUser_fee: updatedUser?.fee_agreement_signed,
+      updatedFollowedUp
+    });
     setLocalUser(updatedUser);
     if (updatedFollowedUp !== undefined) {
       setLocalFollowedUp(updatedFollowedUp);
@@ -354,12 +333,19 @@ const ReactiveRequestCard = ({
         
         <CollapsibleContent>
           <CardContent className="pt-0 px-6 pb-6">
+            <RequestDetails
+              request={{...request, user: localUser}}
+              onApprove={onApprove}
+              onReject={onReject}
+            />
             <div className="border-t border-border/30 pt-6">
-              <RequestDetails
-                request={{...request, user: localUser}}
-                onApprove={onApprove}
-                onReject={onReject}
-                onRefresh={onRefresh}
+              <ConnectionRequestActions
+                user={localUser || request.user}
+                listing={request.listing}
+                requestId={request.id}
+                followedUp={localFollowedUp}
+                onEmailSent={() => onRefresh?.()}
+                onLocalStateUpdate={handleLocalStateUpdate}
               />
             </div>
           </CardContent>
