@@ -86,29 +86,53 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
           break;
           
         case "reject":
+          // 1. INSTANT UI UPDATE - Same pattern as approval
+          queryClient.setQueryData(['admin-users'], (old: any[] | undefined) => {
+            if (!old) return old;
+            console.log('🚀 OPTIMISTIC UPDATE: Rejecting user', selectedUser.id);
+            const updated = old.map(u => 
+              u.id === selectedUser.id 
+                ? { ...u, approval_status: "rejected" }
+                : u
+            );
+            console.log('✅ Cache updated successfully');
+            return updated;
+          });
+
+          // 2. INSTANT SUCCESS FEEDBACK
+          toast({
+            title: "User rejected",
+            description: `${selectedUser.first_name} ${selectedUser.last_name} has been rejected instantly`,
+          });
+
+          // 3. DATABASE UPDATE IN BACKGROUND
           updateUserStatusMutation.mutate(
             { userId: selectedUser.id, status: "rejected" },
             {
               onSuccess: async () => {
                 try {
                   await sendUserRejectionEmail(selectedUser, reason);
-                  toast({
-                    title: "User rejected",
-                    description: `${selectedUser.first_name} ${selectedUser.last_name} has been rejected and will receive an email notification.`,
-                  });
+                  console.log('✅ Rejection email sent successfully');
                 } catch (error) {
                   console.error("❌ Error sending rejection email:", error);
                   toast({
-                    title: "User rejected",
-                    description: `${selectedUser.first_name} ${selectedUser.last_name} has been rejected. Email notification may be delayed.`,
+                    title: "Email notification delayed",
+                    description: "User was rejected but email notification may be delayed.",
                     variant: "default",
                   });
                 }
-                setIsDialogOpen(false);
-                if (onUserStatusUpdated) onUserStatusUpdated();
               },
               onError: (error) => {
-                console.error('❌ Error rejecting user:', error);
+                console.error('❌ Error rejecting user in database:', error);
+                // ROLLBACK: Revert the optimistic update
+                queryClient.setQueryData(['admin-users'], (old: any[] | undefined) => {
+                  if (!old) return old;
+                  return old.map(u => 
+                    u.id === selectedUser.id 
+                      ? { ...u, approval_status: "pending" } // Revert to original status
+                      : u
+                  );
+                });
                 toast({
                   variant: 'destructive',
                   title: 'Rejection failed',
@@ -117,6 +141,8 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
               }
             }
           );
+          
+          setIsDialogOpen(false);
           break;
           
         case "makeAdmin":
@@ -229,11 +255,20 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
         { userId: user.id, status: "approved" },
         {
           onError: (error) => {
-            console.error('❌ Error updating database:', error);
+            console.error('❌ Error approving user in database:', error);
+            // ROLLBACK: Revert the optimistic update
+            queryClient.setQueryData(['admin-users'], (old: any[] | undefined) => {
+              if (!old) return old;
+              return old.map(u => 
+                u.id === user.id 
+                  ? { ...u, approval_status: "pending" } // Revert to original status
+                  : u
+              );
+            });
             toast({
               variant: 'destructive',
-              title: 'Database update failed',
-              description: 'User approval may not have been saved. Please check status.',
+              title: 'Approval failed',
+              description: error.message || 'Failed to approve user. Please try again.',
             });
           }
         }
