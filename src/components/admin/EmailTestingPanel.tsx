@@ -67,12 +67,7 @@ startxref
     const blob = new Blob([testPdfContent], { type: 'application/pdf' });
     const file = new File([blob], 'test-fee-agreement.pdf', { type: 'application/pdf' });
     
-    console.log('🧪 Created test PDF file:', {
-      name: file.name,
-      size: file.size,
-      type: file.type,
-      lastModified: file.lastModified
-    });
+    // Test PDF file created
 
     // Test base64 encoding
     const reader = new FileReader();

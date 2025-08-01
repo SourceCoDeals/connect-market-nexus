@@ -336,7 +336,7 @@ export const MobileUsersTable = ({
     attachments?: File[];
     useTemplate: boolean;
   }) => {
-    console.log('📧 Mobile: Sending fee agreement email:', emailData);
+    // Sending fee agreement email
     try {
       // Get current admin user info first
       const { data: { user: currentUser }, error: authError } = await supabase.auth.getUser();
@@ -363,7 +363,7 @@ export const MobileUsersTable = ({
       // Process attachments with validation
       const processedAttachments = [];
       if (emailData.attachments && emailData.attachments.length > 0) {
-        console.log(`Mobile: Processing ${emailData.attachments.length} attachments...`);
+        // Processing attachments
         
         for (const file of emailData.attachments) {
           // Validate file size (5MB limit)
@@ -380,7 +380,7 @@ export const MobileUsersTable = ({
               content: base64,
               type: file.type
             });
-            console.log(`Mobile: Processed attachment: ${file.name} (${file.size} bytes)`);
+            // Attachment processed
           } catch (attachError) {
             console.error(`Mobile: Error processing attachment ${file.name}:`, attachError);
           }
@@ -399,10 +399,7 @@ export const MobileUsersTable = ({
         attachments: processedAttachments
       };
 
-      console.log('Mobile: Sending email request:', {
-        ...requestPayload,
-        attachments: processedAttachments.map(a => ({ name: a.name, size: a.content.length }))
-      });
+      // Sending email request
 
       // Send the email via edge function
       const { data: emailResult, error: emailError } = await supabase.functions.invoke('send-fee-agreement-email', {
@@ -419,7 +416,7 @@ export const MobileUsersTable = ({
         throw new Error(emailResult?.error || 'Email sending failed');
       }
 
-      console.log('Mobile: Email sent successfully:', emailResult);
+      // Email sent successfully
 
       // Then log the email in the database
       await logEmailMutation.mutateAsync({
@@ -427,7 +424,7 @@ export const MobileUsersTable = ({
         userEmail: emailData.userEmail,
         notes: `Email sent: ${emailData.subject}`
       });
-      console.log('✅ Fee agreement email sent successfully (mobile)');
+      // Fee agreement email sent successfully
     } catch (error) {
       console.error('❌ Fee agreement email error (mobile):', error);
       throw error;

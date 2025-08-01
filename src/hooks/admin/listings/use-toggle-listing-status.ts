@@ -19,7 +19,7 @@ export function useToggleListingStatus() {
       status: 'active' | 'inactive' 
     }) => {
       try {
-        console.log(`Toggling listing ${id} status to ${status}`);
+        // Toggling listing status
         
         const { data, error } = await supabase
           .from('listings')
@@ -36,7 +36,7 @@ export function useToggleListingStatus() {
           throw error;
         }
         
-        console.log(`Listing ${id} status updated to ${status}`);
+        // Listing status updated
         return data as AdminListing;
       } catch (error: any) {
         console.error('Error updating listing status:', error);
@@ -44,7 +44,7 @@ export function useToggleListingStatus() {
       }
     },
     onSuccess: (data) => {
-      console.log(`Listing ${data.title} status changed to ${data.status}, invalidating cache`);
+      // Listing status changed, invalidating cache
       
       // Clear all cache completely to force fresh data
       const queriesToClear = [

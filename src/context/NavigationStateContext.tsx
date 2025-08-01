@@ -95,7 +95,7 @@ export const NavigationStateProvider: React.FC<{ children: ReactNode }> = ({ chi
       });
     }, QUERY_CHECK_INTERVAL);
     
-    console.log('🚀 NavigationStateManager initialized');
+    // NavigationStateManager initialized
   }, [loadingListeners]);
 
   const getState = useCallback(() => ({ ...navigationState }), [navigationState]);
@@ -118,7 +118,7 @@ export const NavigationStateProvider: React.FC<{ children: ReactNode }> = ({ chi
       return true;
     }
 
-    console.log('⏳ Waiting for queries to settle before navigation...');
+    // Waiting for queries to settle before navigation
     return await waitForQueriesSettled();
   }, [navigationState.hasActiveQueries]);
 
@@ -137,13 +137,13 @@ export const NavigationStateProvider: React.FC<{ children: ReactNode }> = ({ chi
         const hasActiveQueries = isFetching || isMutating;
         
         if (!hasActiveQueries) {
-          console.log('✅ All queries settled');
+          // All queries settled
           resolve(true);
           return;
         }
 
         if (Date.now() - startTime > timeout) {
-          console.log(`⏰ Query settle timeout reached (${timeout}ms)`);
+          // Query settle timeout reached
           resolve(false);
           return;
         }
@@ -182,7 +182,7 @@ export const NavigationStateProvider: React.FC<{ children: ReactNode }> = ({ chi
       });
     }
 
-    console.log(`📦 Loading states preserved: ${shouldPreserve}`);
+    // Loading states preserved
   }, []);
 
   const shouldPreserveLoadingState = useCallback((fromRoute: string, toRoute: string): boolean => {
@@ -203,19 +203,19 @@ export const NavigationStateProvider: React.FC<{ children: ReactNode }> = ({ chi
     
     if (oldRoute === newRoute) return true;
 
-    console.log(`🧭 Navigation attempt: ${oldRoute} → ${newRoute}`);
+    // Navigation attempt
 
     // Check navigation guards
     const canNavigate = await checkNavigationGuards(newRoute, oldRoute);
     if (!canNavigate) {
-      console.log(`🚫 Navigation blocked by guard: ${oldRoute} → ${newRoute}`);
+      // Navigation blocked by guard
       return false;
     }
 
     // Wait for active queries if needed
     const queriesSettled = await waitForQueries();
     if (!queriesSettled) {
-      console.log(`⏳ Navigation delayed due to active queries: ${oldRoute} → ${newRoute}`);
+      // Navigation delayed due to active queries
       return false;
     }
 
@@ -229,7 +229,7 @@ export const NavigationStateProvider: React.FC<{ children: ReactNode }> = ({ chi
     // Preserve loading states across navigation
     preserveLoadingStates(oldRoute, newRoute);
 
-    console.log(`✅ Navigation completed: ${oldRoute} → ${newRoute}`);
+    // Navigation completed
     setNavigationState(prev => ({ ...prev, isNavigating: false }));
 
     return true;
@@ -352,7 +352,7 @@ export const NavigationStateProvider: React.FC<{ children: ReactNode }> = ({ chi
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      console.log('🧹 Destroying NavigationStateManager');
+      // Destroying NavigationStateManager
       
       if (queryCheckIntervalRef.current) {
         clearInterval(queryCheckIntervalRef.current);

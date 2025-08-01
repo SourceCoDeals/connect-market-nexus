@@ -60,7 +60,7 @@ export function useListingsQuery(status?: 'active' | 'inactive' | 'all') {
             throw error;
           }
           
-          console.log(`✅ Retrieved ${data?.length} non-deleted listings with status: ${status || 'all'}`);
+          // Retrieved listings with status filter
           
           const mappedData = data?.map(listing => ({
             ...listing,

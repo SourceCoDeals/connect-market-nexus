@@ -313,7 +313,7 @@ export function UsersTable({
     attachments?: File[];
     useTemplate: boolean;
   }) => {
-    console.log('📧 Sending fee agreement email:', emailData);
+    // Sending fee agreement email
     try {
       // Get current admin user info first
       const { data: { user: currentUser }, error: authError } = await supabase.auth.getUser();
@@ -340,7 +340,7 @@ export function UsersTable({
       // Process attachments with validation
       const processedAttachments = [];
       if (emailData.attachments && emailData.attachments.length > 0) {
-        console.log(`Processing ${emailData.attachments.length} attachments...`);
+        // Processing attachments
         
         for (const file of emailData.attachments) {
           // Enhanced validation - stricter size limit and type checking
@@ -358,7 +358,7 @@ export function UsersTable({
           }
 
           try {
-            console.log(`📎 Processing ${file.name}: ${file.type}, ${Math.round(file.size / 1024)}KB`);
+            // Processing attachment
             const buffer = await file.arrayBuffer();
             
             // Validate buffer size
@@ -407,10 +407,7 @@ export function UsersTable({
         attachments: processedAttachments
       };
 
-      console.log('Sending email request:', {
-        ...requestPayload,
-        attachments: processedAttachments.map(a => ({ name: a.name, size: a.content.length }))
-      });
+      // Sending email request
 
       // Send the email via edge function
       const { data: emailResult, error: emailError } = await supabase.functions.invoke('send-fee-agreement-email', {
@@ -439,7 +436,7 @@ export function UsersTable({
         throw new Error(errorMessage);
       }
 
-      console.log('Email sent successfully:', emailResult);
+      // Email sent successfully
       toast({
         title: "Email Sent",
         description: `Fee agreement email sent successfully to ${emailData.userEmail}`,
@@ -451,7 +448,7 @@ export function UsersTable({
         userEmail: emailData.userEmail,
         notes: `Email sent: ${emailData.subject}`
       });
-      console.log('✅ Fee agreement email sent successfully');
+      // Fee agreement email sent successfully
     } catch (error) {
       console.error('❌ Fee agreement email error:', error);
       throw error;

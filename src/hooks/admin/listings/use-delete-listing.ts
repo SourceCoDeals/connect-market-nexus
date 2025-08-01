@@ -13,7 +13,7 @@ export function useDeleteListing() {
   return useMutation({
     mutationFn: async (id: string) => {
       try {
-        console.log(`Soft deleting listing with ID: ${id}`);
+        // Soft deleting listing
         
         // Use the soft delete function that was created in the migration
         // Type assertion to work around the types not being updated yet
@@ -33,7 +33,7 @@ export function useDeleteListing() {
         // Optionally clean up images in storage (since it's soft delete, we might want to keep them)
         try {
           await deleteListingImages(id);
-          console.log('Listing images cleaned up successfully');
+          // Listing images cleaned up successfully
         } catch (imageError) {
           console.warn('Failed to clean up listing images:', imageError);
           // Don't fail the whole operation for image cleanup issues

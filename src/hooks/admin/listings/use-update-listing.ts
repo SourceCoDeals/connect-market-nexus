@@ -22,7 +22,7 @@ export function useUpdateListing() {
       image?: File | null;
     }) => {
       try {
-        console.log(`Updating listing ${id} with image:`, image ? "yes" : "no");
+        // Updating listing
         
         // Ensure bucket exists before attempting upload
         if (image) {
@@ -54,7 +54,7 @@ export function useUpdateListing() {
         }
         if (!data) throw new Error('No data returned from update');
         
-        console.log("Listing updated successfully");
+        // Listing updated successfully
         
         // Step 2: Upload new image if provided
         let updatedListing = data;
