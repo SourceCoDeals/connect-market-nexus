@@ -228,53 +228,28 @@ export const useLogNDAEmail = () => {
         throw error;
       }
 
-      // The edge function handles database logging, so we don't need a separate RPC call
       console.log('✅ NDA email sent successfully:', data);
       return data;
     },
     onMutate: async ({ userId }) => {
+      // Don't do optimistic updates since edge function handles database changes
+      // Just store previous data for rollback purposes
       await queryClient.cancelQueries({ queryKey: ['admin-users'] });
       await queryClient.cancelQueries({ queryKey: ['connection-requests'] });
 
       const previousUsers = queryClient.getQueryData(['admin-users']);
       const previousRequests = queryClient.getQueryData(['connection-requests']);
 
-      // Optimistically update NDA email sent status
-      queryClient.setQueryData(['admin-users'], (old: any) => {
-        if (!old) return old;
-        return old.map((user: any) => 
-          user.id === userId 
-            ? { 
-                ...user, 
-                nda_email_sent: true,
-                nda_email_sent_at: new Date().toISOString() 
-              }
-            : user
-        );
-      });
-
-      queryClient.setQueryData(['connection-requests'], (old: any) => {
-        if (!old) return old;
-        return old.map((request: any) => 
-          request.user?.id === userId 
-            ? { 
-                ...request, 
-                user: {
-                  ...request.user,
-                  nda_email_sent: true,
-                  nda_email_sent_at: new Date().toISOString()
-                }
-              }
-            : request
-        );
-      });
-
       return { previousUsers, previousRequests };
     },
     onSuccess: () => {
-      // Immediately invalidate queries since edge function handles the update
-      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
-      queryClient.invalidateQueries({ queryKey: ['connection-requests'] });
+      console.log('🔄 NDA email hook success - waiting before invalidating queries...');
+      // Add a delay to ensure edge function database updates have completed
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+        queryClient.invalidateQueries({ queryKey: ['connection-requests'] });
+        console.log('✅ Queries invalidated after NDA email success');
+      }, 1000);
       
       toast({
         title: "NDA email sent successfully",

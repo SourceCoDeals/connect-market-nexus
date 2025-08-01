@@ -21,6 +21,7 @@ import { useLogNDAEmail } from '@/hooks/admin/use-nda';
 
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/context/AuthContext";
 
 interface UsersTableProps {
   users: User[];
@@ -303,6 +304,7 @@ export function UsersTable({
   const logEmailMutation = useLogFeeAgreementEmail();
   const logNDAEmail = useLogNDAEmail();
   const { toast } = useToast();
+  const { user: currentAuthUser } = useAuth();
   
   const handleSendEmail = async (emailData: {
     userId: string;
@@ -605,9 +607,31 @@ export function UsersTable({
       onOpenChange={(open) => !open && setSelectedUserForNDA(null)}
       user={selectedUserForNDA}
       onSendEmail={async (user, options) => {
+        if (!currentAuthUser) {
+          throw new Error('Authentication required');
+        }
+
+        const { data: adminProfile, error: profileError } = await supabase
+          .from('profiles')
+          .select('email, first_name, last_name')
+          .eq('id', currentAuthUser.id)
+          .single();
+
+        if (profileError || !adminProfile) {
+          throw new Error('Admin profile not found');
+        }
+
+        const adminName = `${adminProfile.first_name} ${adminProfile.last_name}`;
+
         await logNDAEmail.mutateAsync({
           userId: user.id,
           userEmail: user.email,
+          customSubject: options?.subject,
+          customMessage: options?.message,
+          customSignatureText: options?.customSignatureText,
+          adminId: currentAuthUser.id,
+          adminEmail: adminProfile.email,
+          adminName: adminName,
           notes: options?.subject ? `Custom NDA email: ${options.subject}` : 'Standard NDA email sent'
         });
       }}
