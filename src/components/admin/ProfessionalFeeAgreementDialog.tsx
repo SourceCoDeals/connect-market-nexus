@@ -181,12 +181,8 @@ export function ProfessionalFeeAgreementDialog({
         throw new Error(error.message || 'Failed to send email');
       }
 
-      // Log the email action
-      await supabase.rpc('log_fee_agreement_email', {
-        target_user_id: user.id,
-        recipient_email: user.email,
-        admin_notes: `Email sent using ${selectedTemplate} template with subject: "${subject}"`
-      });
+      // Note: Edge function handles database logging automatically
+      // No need for separate RPC call
 
       toast.success("Fee agreement email sent successfully!");
       handleClose();

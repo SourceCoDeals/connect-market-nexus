@@ -380,6 +380,26 @@ ${signatureText}` : signatureText;
     const result = await emailResponse.json();
     console.log("✅ Fee agreement email sent successfully via Brevo:", result);
 
+    // Now log to database after successful email send
+    console.log('📝 Logging fee agreement email to database...');
+    try {
+      const { data: logData, error: logError } = await supabase.rpc('log_fee_agreement_email', {
+        target_user_id: userId,
+        recipient_email: userEmail,
+        admin_notes: `Fee agreement email sent via admin interface${listingTitle ? ` for listing: ${listingTitle}` : ''}`
+      });
+
+      if (logError) {
+        console.error('⚠️ Database logging failed but email was sent:', logError);
+        // Don't throw error since email was successfully sent
+      } else {
+        console.log('✅ Fee agreement email logged to database successfully');
+      }
+    } catch (dbError) {
+      console.error('⚠️ Database logging error:', dbError);
+      // Don't throw error since email was successfully sent
+    }
+
     return new Response(JSON.stringify({ 
       success: true, 
       messageId: result.messageId 
