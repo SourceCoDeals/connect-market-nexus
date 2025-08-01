@@ -1,4 +1,4 @@
-import { Shield, FileText, MessageSquare, CheckCircle, Clock } from "lucide-react";
+import { Shield, FileText, MessageSquare, CheckCircle, Clock, Send, CheckCheck } from "lucide-react";
 import { User } from "@/types";
 
 interface StatusIndicatorRowProps {
@@ -7,7 +7,11 @@ interface StatusIndicatorRowProps {
 }
 
 export const StatusIndicatorRow = ({ user, followedUp }: StatusIndicatorRowProps) => {
-  const getStatusDisplay = (status: boolean, type: 'nda' | 'fee' | 'follow') => {
+  const getStatusDisplay = (
+    isSigned: boolean, 
+    emailSent: boolean, 
+    type: 'nda' | 'fee' | 'follow'
+  ) => {
     const icons = {
       nda: Shield,
       fee: FileText,
@@ -22,30 +26,51 @@ export const StatusIndicatorRow = ({ user, followedUp }: StatusIndicatorRowProps
     
     const Icon = icons[type];
     
-    if (status) {
+    // Signed/completed state (green)
+    if (isSigned) {
       return (
-        <div className="flex items-center gap-2 px-3 py-1.5 bg-green-500/10 border border-green-500/20 rounded-md">
-          <Icon className="h-4 w-4 text-green-600 dark:text-green-400" />
-          <span className="text-xs font-medium text-green-700 dark:text-green-300">{labels[type]}</span>
-          <CheckCircle className="h-3 w-3 text-green-600 dark:text-green-400" />
-        </div>
-      );
-    } else {
-      return (
-        <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-500/10 border border-amber-500/20 rounded-md">
-          <Icon className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-          <span className="text-xs font-medium text-amber-700 dark:text-amber-300">{labels[type]}</span>
-          <Clock className="h-3 w-3 text-amber-600 dark:text-amber-400" />
+        <div className="flex items-center gap-2 px-3 py-1.5 bg-success/10 border border-success/20 rounded-lg transition-all hover:bg-success/15">
+          <Icon className="h-4 w-4 text-success" />
+          <span className="text-xs font-medium text-success">{labels[type]}</span>
+          <CheckCheck className="h-3 w-3 text-success" />
         </div>
       );
     }
+    
+    // Email sent state (blue)
+    if (emailSent && type !== 'follow') {
+      return (
+        <div className="flex items-center gap-2 px-3 py-1.5 bg-info/10 border border-info/20 rounded-lg transition-all hover:bg-info/15">
+          <Icon className="h-4 w-4 text-info" />
+          <span className="text-xs font-medium text-info">{labels[type]}</span>
+          <Send className="h-3 w-3 text-info" />
+        </div>
+      );
+    }
+    
+    // Required/pending state (amber)
+    return (
+      <div className="flex items-center gap-2 px-3 py-1.5 bg-warning/10 border border-warning/20 rounded-lg transition-all hover:bg-warning/15">
+        <Icon className="h-4 w-4 text-warning" />
+        <span className="text-xs font-medium text-warning">{labels[type]}</span>
+        <Clock className="h-3 w-3 text-warning" />
+      </div>
+    );
   };
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      {getStatusDisplay(user.nda_signed, 'nda')}
-      {getStatusDisplay(user.fee_agreement_signed, 'fee')}
-      {getStatusDisplay(followedUp, 'follow')}
+      {getStatusDisplay(
+        user.nda_signed || false, 
+        user.nda_email_sent || false, 
+        'nda'
+      )}
+      {getStatusDisplay(
+        user.fee_agreement_signed || false, 
+        user.fee_agreement_email_sent || false, 
+        'fee'
+      )}
+      {getStatusDisplay(followedUp, false, 'follow')}
     </div>
   );
 };

@@ -10,6 +10,7 @@ import { AdminConnectionRequest } from "@/types/admin";
 import { ConnectionRequestActions } from "@/components/admin/ConnectionRequestActions";
 import { SmartWorkflowSuggestions } from "@/components/admin/SmartWorkflowSuggestions";
 import { StatusIndicatorRow } from "./StatusIndicatorRow";
+import { WorkflowProgressIndicator } from "./WorkflowProgressIndicator";
 
 interface ConnectionRequestsTableProps {
   requests: AdminConnectionRequest[];
@@ -340,7 +341,10 @@ export const ConnectionRequestsTable = ({
                     {/* Status Indicators Row */}
                     {request.user && (
                       <div className="border-t border-border/30 pt-4">
-                        <StatusIndicatorRow user={request.user} followedUp={request.followed_up || false} />
+              <div className="space-y-2">
+                <StatusIndicatorRow user={request.user} followedUp={request.followed_up || false} />
+                <WorkflowProgressIndicator user={request.user} followedUp={request.followed_up || false} />
+              </div>
                       </div>
                     )}
                   </div>

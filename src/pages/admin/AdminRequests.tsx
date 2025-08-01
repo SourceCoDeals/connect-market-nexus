@@ -8,6 +8,7 @@ import { ConnectionRequestsTable } from "@/components/admin/ConnectionRequestsTa
 import { MobileConnectionRequestsTable } from "@/components/admin/MobileConnectionRequestsTable";
 import { ConnectionRequestDialog } from "@/components/admin/ConnectionRequestDialog";
 import { ApprovalEmailDialog } from "@/components/admin/ApprovalEmailDialog";
+import { QuickActionsBar } from "@/components/admin/QuickActionsBar";
 import { toast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { MobileConnectionRequests } from "@/components/admin/MobileConnectionRequests";
@@ -127,13 +128,22 @@ const AdminRequests = () => {
   // Desktop Layout
   return (
     <div className="space-y-4 md:space-y-6">
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-6">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold">Connection Requests</h1>
           <p className="text-sm md:text-base text-muted-foreground">
-            Manage buyer connection requests
+            Manage buyer connection requests and workflow
           </p>
         </div>
+        
+        {/* Quick Actions Bar */}
+        <QuickActionsBar 
+          requests={requests} 
+          onBulkAction={(action, requestIds) => {
+            console.log('Bulk action:', action, requestIds);
+            // TODO: Implement bulk actions
+          }} 
+        />
         
         <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
