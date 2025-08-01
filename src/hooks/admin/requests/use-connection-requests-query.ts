@@ -32,7 +32,7 @@ export function useConnectionRequestsQuery() {
     createQueryKey.adminConnectionRequests(),
     async () => {
       try {
-        console.log('🔍 Admin fetching connection requests');
+        // Fetching connection requests
         
         if (!isAdminUser) {
           throw new Error('Admin authentication required');
@@ -76,7 +76,7 @@ export function useConnectionRequestsQuery() {
           return result;
         }));
 
-        console.log("✅ Connection requests fetched successfully");
+        // Connection requests fetched successfully
         return enhancedRequests;
       } catch (error: any) {
         console.error("❌ Error fetching connection requests:", error);

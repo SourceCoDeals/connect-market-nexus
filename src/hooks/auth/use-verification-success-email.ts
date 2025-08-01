@@ -14,7 +14,7 @@ export const useVerificationSuccessEmail = () => {
     lastName = ''
   }: SendVerificationSuccessEmailParams) => {
     try {
-      console.log('Sending verification success email to:', email);
+      // Sending verification success email
       
       const { data, error } = await supabase.functions.invoke('send-verification-success-email', {
         body: {
@@ -29,7 +29,7 @@ export const useVerificationSuccessEmail = () => {
         throw error;
       }
 
-      console.log('Verification success email sent successfully:', data);
+      // Verification success email sent successfully
       return data;
     } catch (error: any) {
       console.error('Failed to send verification success email:', error);

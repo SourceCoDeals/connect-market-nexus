@@ -15,7 +15,7 @@ export function useAdminEmail() {
    * Send an email notification to a user when their account is approved
    */
   const sendUserApprovalEmail = async (user: User) => {
-    console.log(`🔔 Sending approval email to ${user.email} for user ${user.first_name} ${user.last_name}`);
+    // Sending approval email
     const correlationId = `approval-${user.id}-${Date.now()}`;
     
     try {
@@ -53,7 +53,7 @@ export function useAdminEmail() {
         throw new Error(data.message || 'Failed to send approval email');
       }
       
-      console.log("✅ User approval email sent successfully");
+      // User approval email sent successfully
       trackEmailDelivery(correlationId, {
         success: true,
         messageId: data?.messageId,
@@ -86,7 +86,7 @@ export function useAdminEmail() {
    * Send an email notification to a user when their account is rejected
    */
   const sendUserRejectionEmail = async (user: User, reason?: string) => {
-    console.log(`🔔 Sending rejection email to ${user.email} for user ${user.first_name} ${user.last_name}. Reason: ${reason || 'No reason provided'}`);
+    // Sending rejection email
     const correlationId = `rejection-${user.id}-${Date.now()}`;
     
     try {
@@ -124,7 +124,7 @@ export function useAdminEmail() {
         throw new Error(data.message || 'Failed to send rejection email');
       }
       
-      console.log("✅ User rejection email sent successfully");
+      // User rejection email sent successfully
       trackEmailDelivery(correlationId, {
         success: true,
         messageId: data?.messageId,
@@ -322,7 +322,7 @@ export function useAdminEmail() {
     customSignatureHtml?: string;
     customSignatureText?: string;
   }) => {
-    console.log(`🔔 Sending custom approval email to ${user.email} for user ${user.first_name} ${user.last_name}`);
+    // Sending custom approval email
     const correlationId = `custom-approval-${user.id}-${Date.now()}`;
     
     try {
@@ -380,7 +380,7 @@ export function useAdminEmail() {
         throw new Error(data.message || 'Failed to send custom approval email');
       }
       
-      console.log("✅ Custom approval email sent successfully");
+      // Custom approval email sent successfully
       trackEmailDelivery(correlationId, {
         success: true,
         messageId: data?.messageId,

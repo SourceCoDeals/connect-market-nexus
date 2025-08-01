@@ -61,9 +61,8 @@ export function useUpdateListing() {
         
         if (image) {
           try {
-            console.log('Uploading new image for listing:', id, image.name, image.type, image.size);
+            // Upload new image for listing
             const publicUrl = await uploadListingImage(image, id);
-            console.log("Image uploaded successfully, URL:", publicUrl);
             
             // Update listing with new image URL
             const { data: updatedData, error: updateError } = await supabase
@@ -85,7 +84,7 @@ export function useUpdateListing() {
                 description: 'Listing updated but image URL update failed. The image may not display correctly.',
               });
             } else {
-              console.log("Listing updated with new image URL");
+              // Listing updated with new image URL
               updatedListing = updatedData;
             }
           } catch (imageError: any) {

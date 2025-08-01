@@ -27,7 +27,7 @@ export function useConnectionRequestsMutation() {
       adminComment?: string;
     }) => {
       try {
-        console.log(`Updating request ${requestId} to status ${status}`);
+        // Updating request status
         
         // Update the request status
         const { data, error } = await supabase
@@ -47,7 +47,7 @@ export function useConnectionRequestsMutation() {
           throw new Error('Update successful but no data returned');
         }
         
-        console.log("Update successful:", data);
+        // Update successful
         
         // Get complete request data for email notification
         const { data: requestData, error: requestError } = await supabase
@@ -116,14 +116,14 @@ export function useConnectionRequestsMutation() {
         if (status === 'approved') {
           try {
             await sendConnectionApprovalEmail(fullRequestData);
-            console.log("Approval email sent successfully");
+            // Approval email sent
           } catch (emailError) {
             console.error("Error sending approval email:", emailError);
           }
         } else if (status === 'rejected') {
           try {
             await sendConnectionRejectionEmail(fullRequestData);
-            console.log("Rejection email sent successfully");
+            // Rejection email sent
           } catch (emailError) {
             console.error("Error sending rejection email:", emailError);
           }

@@ -115,11 +115,11 @@ export function useAdminUsers() {
   const useUpdateAdminStatus = () => {
     const { execute, state: retryState } = useRetry(
       async ({ userId, isAdmin }: { userId: string; isAdmin: boolean }) => {
-        console.log('🔄 Updating admin status:', { userId, isAdmin });
+        // Updating admin status
         
         try {
           const rpcFunction = isAdmin ? 'promote_user_to_admin' : 'demote_admin_user';
-          console.log('🔄 Calling RPC function:', rpcFunction);
+          // Calling RPC function
           
           const { data, error } = await supabase.rpc(rpcFunction, {
             target_user_id: userId
@@ -130,7 +130,7 @@ export function useAdminUsers() {
             throw error;
           }
 
-          console.log('✅ Admin status updated successfully:', data);
+          // Admin status updated successfully
           return { userId, isAdmin, result: data };
         } catch (error) {
           console.error('💥 Fatal error updating admin status:', error);
@@ -146,7 +146,7 @@ export function useAdminUsers() {
     return useMutation({
       mutationFn: execute,
       onSuccess: ({ isAdmin, userId }) => {
-        console.log('🎉 Admin status update successful:', { userId, isAdmin });
+        // Admin status update successful
         const message = isAdmin ? 'User has been granted admin privileges.' : 'User no longer has admin privileges.';
         toast({
           title: isAdmin ? 'User promoted to admin' : 'Admin privileges revoked',
@@ -183,7 +183,7 @@ export function useAdminUsers() {
   const useDeleteUser = () => {
     const { execute, state: retryState } = useRetry(
       async (userId: string) => {
-        console.log('🔄 Permanently deleting user:', userId);
+        // Permanently deleting user
         
         // Use the new RPC function for complete user deletion
         const { data, error } = await supabase.rpc('delete_user_completely', {
@@ -195,7 +195,7 @@ export function useAdminUsers() {
           throw error;
         }
 
-        console.log('✅ User deleted completely');
+        // User deleted completely
         return data;
       },
       {
@@ -238,7 +238,7 @@ export function useAdminUsers() {
   const usePromoteToAdmin = () => {
     return useMutation({
       mutationFn: async (userId: string) => {
-        console.log('🔄 Promoting user to admin (legacy):', userId);
+        // Promoting user to admin (legacy)
         
         const { data, error } = await supabase.rpc('promote_user_to_admin', {
           target_user_id: userId
@@ -249,11 +249,11 @@ export function useAdminUsers() {
           throw error;
         }
 
-        console.log('✅ User promoted to admin successfully:', data);
+        // User promoted to admin successfully
         return { userId, isAdmin: true, result: data };
       },
       onSuccess: ({ userId }) => {
-        console.log('🎉 User promotion successful:', userId);
+        // User promotion successful
         toast({
           title: 'User promoted to admin',
           description: 'User has been granted admin privileges.',
@@ -276,7 +276,7 @@ export function useAdminUsers() {
   const useDemoteAdmin = () => {
     return useMutation({
       mutationFn: async (userId: string) => {
-        console.log('🔄 Demoting admin user (legacy):', userId);
+        // Demoting admin user (legacy)
         
         const { data, error } = await supabase.rpc('demote_admin_user', {
           target_user_id: userId
@@ -287,11 +287,11 @@ export function useAdminUsers() {
           throw error;
         }
 
-        console.log('✅ Admin user demoted successfully:', data);
+        // Admin user demoted successfully
         return { userId, isAdmin: false, result: data };
       },
       onSuccess: ({ userId }) => {
-        console.log('🎉 Admin demotion successful:', userId);
+        // Admin demotion successful
         toast({
           title: 'Admin privileges revoked',
           description: 'User no longer has admin privileges.',

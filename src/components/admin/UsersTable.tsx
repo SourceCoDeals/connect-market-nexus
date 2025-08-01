@@ -387,7 +387,7 @@ export function UsersTable({
               type: file.type || 'application/pdf'
             });
             
-            console.log(`✅ Successfully processed ${file.name}: ${Math.round(buffer.byteLength / 1024)}KB → ${Math.round(base64.length * 0.75 / 1024)}KB base64`);
+            // File processed successfully
           } catch (attachError) {
             console.error(`❌ Error processing attachment ${file.name}:`, attachError);
             alert(`Failed to process "${file.name}". Please try again or use a different file.`);

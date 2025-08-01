@@ -19,7 +19,7 @@ export function useAuthState() {
       if (cachedUser) {
         const parsedUser = JSON.parse(cachedUser);
         setUser(parsedUser);
-        console.log("Loaded cached user:", parsedUser.email);
+        // Loaded cached user
       }
     } catch (err) {
       console.error("Error parsing cached user:", err);
@@ -30,13 +30,13 @@ export function useAuthState() {
     const setupAuthListener = () => {
       const { data: { subscription } } = supabase.auth.onAuthStateChange(
         async (event, session) => {
-          console.log("Auth state change:", event, session?.user?.email);
+          // Auth state change
           
           if (!isSubscribed) return;
           
           // Update state synchronously to prevent race conditions
           if (event === "SIGNED_OUT") {
-            console.log("User signed out, clearing state");
+            // User signed out, clearing state
             setUser(null);
             localStorage.removeItem("user");
             setIsLoading(false);
@@ -45,7 +45,7 @@ export function useAuthState() {
           }
           
           if ((event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "USER_UPDATED") && session) {
-            console.log(`User ${event}:`, session.user.id);
+            // User auth event occurred
             // Use setTimeout to avoid Supabase auth deadlocks and fix memory leaks
             setTimeout(async () => {
               if (!isSubscribed) return;
@@ -102,7 +102,7 @@ export function useAuthState() {
                   localStorage.setItem("user", JSON.stringify(minimalUser));
                 } else if (profile && isSubscribed) {
                   const userData = createUserObject(profile);
-                  console.log(`Setting user data after ${event}:`, userData.email, 'Email verified:', userData.email_verified);
+                  // Setting user data after auth event
                   setUser(userData);
                   localStorage.setItem("user", JSON.stringify(userData));
                 }
@@ -155,7 +155,7 @@ export function useAuthState() {
         }
         
         if (session?.user && isSubscribed) {
-          console.log("Found existing session:", session.user.id);
+          // Found existing session
           // Fetch user profile data
           const { data: profileData, error: profileError } = await supabase
             .from('profiles')
@@ -207,13 +207,13 @@ export function useAuthState() {
             setUser(minimalUser);
             localStorage.setItem("user", JSON.stringify(minimalUser));
           } else if (profileData && isSubscribed) {
-            console.log("Loaded profile data:", profileData.email, 'Email verified:', profileData.email_verified);
+            // Loaded profile data
             const userData = createUserObject(profileData);
             setUser(userData);
             localStorage.setItem("user", JSON.stringify(userData));
           }
         } else {
-          console.log("No session found");
+          // No session found
           if (isSubscribed) {
             setUser(null);
             localStorage.removeItem("user");

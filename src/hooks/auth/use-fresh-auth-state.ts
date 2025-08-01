@@ -12,7 +12,7 @@ export function useFreshAuthState() {
   // Force refresh user data from database
   const refreshUserData = useCallback(async (userId: string) => {
     try {
-      console.log('🔄 Refreshing user data for:', userId);
+      // Refreshing user data
       
       const { data: profileData, error } = await supabase
         .from('profiles')
@@ -25,12 +25,7 @@ export function useFreshAuthState() {
         return null;
       }
 
-      console.log('✅ Fresh profile data fetched:', {
-        email: profileData.email,
-        email_verified: profileData.email_verified,
-        approval_status: profileData.approval_status,
-        is_admin: profileData.is_admin
-       });
+      // Fresh profile data fetched
 
       const userData = createUserObject(profileData);
       localStorage.setItem("user", JSON.stringify(userData));
@@ -44,7 +39,7 @@ export function useFreshAuthState() {
 
   // Clear all auth state and force fresh login
   const clearAuthState = useCallback(async () => {
-    console.log('🧹 Clearing all auth state');
+    // Clearing all auth state
     await cleanupAuthState();
     setUser(null);
     setIsLoading(false);
@@ -58,7 +53,7 @@ export function useFreshAuthState() {
     // Define functions inside useEffect to avoid circular dependencies
     const internalRefreshUserData = async (userId: string) => {
       try {
-        console.log('🔄 Refreshing user data for:', userId);
+        // Refreshing user data
         
         const { data: profileData, error } = await supabase
           .from('profiles')
@@ -71,12 +66,7 @@ export function useFreshAuthState() {
           return null;
         }
 
-        console.log('✅ Fresh profile data fetched:', {
-          email: profileData.email,
-          email_verified: profileData.email_verified,
-          approval_status: profileData.approval_status,
-          is_admin: profileData.is_admin
-        });
+        // Fresh profile data fetched
 
         const userData = createUserObject(profileData);
         localStorage.setItem("user", JSON.stringify(userData));
@@ -89,7 +79,7 @@ export function useFreshAuthState() {
     };
 
     const internalClearAuthState = async () => {
-      console.log('🧹 Clearing auth state');
+      // Clearing auth state
       await cleanupAuthState();
       if (isSubscribed) {
         setUser(null);
@@ -100,7 +90,7 @@ export function useFreshAuthState() {
 
     const initializeAuth = async () => {
       try {
-        console.log('🚀 Starting auth initialization...');
+        // Starting auth initialization
 
         // Check for existing session immediately
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
@@ -113,22 +103,19 @@ export function useFreshAuthState() {
           return;
         }
 
-        console.log('📋 Session check:', {
-          hasSession: !!session,
-          userEmail: session?.user?.email
-        });
+        // Session check
 
         // If we have a session, load user data immediately
         if (session?.user && isSubscribed) {
-          console.log('🔍 Loading user data for existing session:', session.user.email);
+          // Loading user data for existing session
           
           const freshUserData = await internalRefreshUserData(session.user.id);
           if (freshUserData && isSubscribed) {
-            console.log('✅ User data loaded successfully');
+            // User data loaded successfully
             setUser(freshUserData);
           }
         } else if (isSubscribed) {
-          console.log('❌ No session - user not authenticated');
+          // No session - user not authenticated
           setUser(null);
           localStorage.removeItem("user");
         }
@@ -136,20 +123,20 @@ export function useFreshAuthState() {
         // Set up auth state listener for future changes
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
           async (event, session) => {
-            console.log('🔔 Auth state change:', event);
+            // Auth state change
             
             if (!isSubscribed) return;
 
             if (event === "SIGNED_OUT") {
-              console.log('👋 User signed out');
+              // User signed out
               setUser(null);
               localStorage.removeItem("user");
             } else if ((event === "SIGNED_IN" || event === "TOKEN_REFRESHED") && session?.user) {
-              console.log(`🔐 User ${event}:`, session.user.email);
+              // User auth event
               
               const freshUserData = await internalRefreshUserData(session.user.id);
               if (freshUserData && isSubscribed) {
-                console.log('✅ Updated user data after auth change');
+                // Updated user data after auth change
                 setUser(freshUserData);
               }
             }

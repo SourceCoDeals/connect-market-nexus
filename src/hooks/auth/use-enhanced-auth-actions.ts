@@ -12,18 +12,14 @@ export function useEnhancedAuthActions() {
     setIsLoading(true);
     
     try {
-      console.log('📝 Starting signup process for:', email);
+      // Starting signup process
       
       // Sanitize data before sending to database - ensure arrays are properly stringified
       const sanitizedBusinessCategories = Array.isArray(userData.business_categories) 
         ? JSON.stringify(userData.business_categories)
         : '[]';
 
-      console.log('🔧 Sanitized signup data:', {
-        email,
-        business_categories: sanitizedBusinessCategories,
-        buyer_type: userData.buyer_type
-      });
+      // Sanitized signup data prepared
       
       const { data, error } = await supabase.auth.signUp({
         email,
@@ -65,7 +61,7 @@ export function useEnhancedAuthActions() {
         return { error };
       }
 
-      console.log('✅ Signup successful, verification email sent by Supabase only');
+      // Signup successful, verification email sent
       return { data, error: null };
       
     } catch (error: any) {
@@ -80,7 +76,7 @@ export function useEnhancedAuthActions() {
     setIsLoading(true);
     
     try {
-      console.log('🔐 Starting signin process for:', email);
+      // Starting signin process
       
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -92,7 +88,7 @@ export function useEnhancedAuthActions() {
         return { error };
       }
 
-      console.log('✅ Signin successful for:', email);
+      // Signin successful
       return { data, error: null };
       
     } catch (error: any) {
@@ -107,7 +103,7 @@ export function useEnhancedAuthActions() {
     setIsLoading(true);
     
     try {
-      console.log('👋 Starting signout process');
+      // Starting signout process
       
       // Do signOut and cleanup in parallel for speed
       const [signOutResult] = await Promise.allSettled([
@@ -125,7 +121,7 @@ export function useEnhancedAuthActions() {
         return { error: signOutResult.value.error };
       }
 
-      console.log('✅ Signout successful');
+      // Signout successful
       return { error: null };
       
     } catch (error: any) {

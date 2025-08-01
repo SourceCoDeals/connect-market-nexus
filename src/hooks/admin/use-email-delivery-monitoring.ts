@@ -26,7 +26,7 @@ export function useEmailDeliveryMonitoring() {
         description: result.error || 'Failed to send email notification',
       });
     } else {
-      console.log('📧 Email delivered successfully:', result.messageId);
+      // Email delivered successfully
     }
   }, [toast]);
 

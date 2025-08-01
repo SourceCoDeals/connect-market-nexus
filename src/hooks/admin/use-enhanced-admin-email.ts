@@ -14,13 +14,13 @@ export function useEnhancedAdminEmail() {
    * Send an email notification to a user when their account is approved
    */
   const sendUserApprovalEmail = async (user: User) => {
-    console.log(`Sending approval email to ${user.email} for user ${user.first_name} ${user.last_name}`);
+    // Sending approval email
     
     try {
       const success = await triggerUserJourneyEvent('profile_approved', user);
       
       if (success) {
-        console.log(`Approval email sent successfully to ${user.email}`);
+        // Approval email sent successfully
       } else {
         console.error(`Failed to send approval email to ${user.email}`);
       }
@@ -36,13 +36,13 @@ export function useEnhancedAdminEmail() {
    * Send an email notification to a user when their account is rejected
    */
   const sendUserRejectionEmail = async (user: User, reason?: string) => {
-    console.log(`Sending rejection email to ${user.email} for user ${user.first_name} ${user.last_name}. Reason: ${reason || 'No reason provided'}`);
+    // Sending rejection email
     
     try {
       const success = await triggerUserJourneyEvent('profile_rejected', user, { rejection_reason: reason });
       
       if (success) {
-        console.log(`Rejection email sent successfully to ${user.email}`);
+        // Rejection email sent successfully
       } else {
         console.error(`Failed to send rejection email to ${user.email}`);
       }

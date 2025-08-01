@@ -31,13 +31,7 @@ export function useListingsQuery(status?: 'active' | 'inactive' | 'all') {
     async () => {
       return withPerformanceMonitoring('admin-listings-query', async () => {
         try {
-          console.log(`🔍 Admin fetching listings with status filter: ${status || 'all'}`);
-          console.log('🔐 Admin auth state:', {
-            authChecked,
-            user: user?.email,
-            is_admin: user?.is_admin,
-            cached_admin: cachedAuthState?.is_admin
-          });
+          // Fetching listings with admin permissions
 
           // Simple admin check using either current or cached state
           if (!isAdminUser) {
