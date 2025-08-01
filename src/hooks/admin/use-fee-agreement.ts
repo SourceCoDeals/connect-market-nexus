@@ -76,7 +76,9 @@ export const useUpdateFeeAgreement = () => {
       return { previousUsers, previousRequests };
     },
     onSuccess: () => {
-      // DON'T INVALIDATE - Preserve optimistic updates as final state
+      // Invalidate queries to get fresh data from backend
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+      queryClient.invalidateQueries({ queryKey: ['connection-requests'] });
       toast({
         title: "Fee agreement status updated",
         description: "The fee agreement status has been successfully updated.",
@@ -150,7 +152,9 @@ export const useUpdateFeeAgreementEmailSent = () => {
       return { previousUsers, previousRequests };
     },
     onSuccess: () => {
-      // DON'T INVALIDATE - Preserve optimistic updates as final state
+      // Invalidate queries to get fresh data from backend
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+      queryClient.invalidateQueries({ queryKey: ['connection-requests'] });
       toast({
         title: "Fee agreement email status updated",
         description: "The fee agreement email status has been successfully updated.",
@@ -174,14 +178,28 @@ export const useLogFeeAgreementEmail = () => {
 
   return useMutation({
     mutationFn: async ({ userId, userEmail, notes }: LogFeeAgreementEmailParams) => {
-      const { data, error } = await supabase.rpc('log_fee_agreement_email', {
+      // Send actual email via edge function
+      const { data, error } = await supabase.functions.invoke('send-fee-agreement-email', {
+        body: {
+          userId,
+          userEmail,
+          useTemplate: true,
+          adminEmail: 'adam.haile@sourcecodeals.com',
+          adminName: 'Adam Haile'
+        }
+      });
+
+      if (error) throw error;
+      
+      // Also log to database
+      const { data: logData, error: logError } = await supabase.rpc('log_fee_agreement_email', {
         target_user_id: userId,
         recipient_email: userEmail,
         admin_notes: notes
       });
 
-      if (error) throw error;
-      return data;
+      if (logError) throw logError;
+      return logData;
     },
     onMutate: async ({ userId }) => {
       await queryClient.cancelQueries({ queryKey: ['admin-users'] });
@@ -223,10 +241,12 @@ export const useLogFeeAgreementEmail = () => {
       return { previousUsers, previousRequests };
     },
     onSuccess: () => {
-      // Don't invalidate immediately to preserve optimistic updates
+      // Invalidate queries to get fresh data from backend
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+      queryClient.invalidateQueries({ queryKey: ['connection-requests'] });
       toast({
-        title: "Fee agreement email logged",
-        description: "The fee agreement email has been successfully logged.",
+        title: "Fee agreement email sent successfully",
+        description: "The fee agreement email has been sent and logged.",
       });
     },
     onError: (err, variables, context) => {

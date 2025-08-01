@@ -77,7 +77,9 @@ export const useUpdateNDA = () => {
       return { previousUsers, previousRequests };
     },
     onSuccess: () => {
-      // DON'T INVALIDATE - Preserve optimistic updates as final state
+      // Invalidate queries to get fresh data from backend
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+      queryClient.invalidateQueries({ queryKey: ['connection-requests'] });
       toast({
         title: "NDA status updated",
         description: "The NDA status has been successfully updated.",
@@ -151,7 +153,9 @@ export const useUpdateNDAEmailSent = () => {
       return { previousUsers, previousRequests };
     },
     onSuccess: () => {
-      // DON'T INVALIDATE - Preserve optimistic updates as final state
+      // Invalidate queries to get fresh data from backend
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+      queryClient.invalidateQueries({ queryKey: ['connection-requests'] });
       toast({
         title: "NDA email status updated",
         description: "The NDA email status has been successfully updated.",
@@ -175,14 +179,27 @@ export const useLogNDAEmail = () => {
 
   return useMutation({
     mutationFn: async ({ userId, userEmail, adminNotes }: LogNDAEmailParams) => {
-      const { data, error } = await supabase.rpc('log_nda_email', {
+      // Send actual email via edge function
+      const { data, error } = await supabase.functions.invoke('send-nda-email', {
+        body: {
+          userId,
+          userEmail,
+          adminEmail: 'adam.haile@sourcecodeals.com',
+          adminName: 'Adam Haile'
+        }
+      });
+
+      if (error) throw error;
+      
+      // Also log to database
+      const { data: logData, error: logError } = await supabase.rpc('log_nda_email', {
         target_user_id: userId,
         recipient_email: userEmail,
         admin_notes: adminNotes
       });
 
-      if (error) throw error;
-      return data;
+      if (logError) throw logError;
+      return logData;
     },
     onMutate: async ({ userId }) => {
       await queryClient.cancelQueries({ queryKey: ['admin-users'] });
@@ -224,10 +241,12 @@ export const useLogNDAEmail = () => {
       return { previousUsers, previousRequests };
     },
     onSuccess: () => {
-      // Don't invalidate immediately to preserve optimistic updates
+      // Invalidate queries to get fresh data from backend
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+      queryClient.invalidateQueries({ queryKey: ['connection-requests'] });
       toast({
-        title: "NDA email logged",
-        description: "The NDA email has been successfully logged.",
+        title: "NDA email sent successfully",
+        description: "The NDA email has been sent and logged.",
       });
     },
     onError: (err, variables, context) => {

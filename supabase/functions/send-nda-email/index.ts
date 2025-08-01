@@ -251,6 +251,7 @@ ${finalTextSignature}` : finalTextSignature;
       replyTo: { email: senderEmail, name: effectiveAdminName },
       subject: subject,
       textContent: textContent,
+      htmlContent: customMessage ? `<p>${customMessage.replace(/\n/g, '<br>')}</p><br><div>${finalHtmlSignature || textContent.replace(/\n/g, '<br>')}</div>` : finalHtmlSignature || textContent.replace(/\n/g, '<br>'),
       attachment: processedAttachments
     };
 

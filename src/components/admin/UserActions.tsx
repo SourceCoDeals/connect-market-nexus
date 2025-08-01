@@ -8,7 +8,7 @@ import { UserRejectionDialog } from "./UserRejectionDialog";
 import { UserConfirmationDialog } from "./UserConfirmationDialog";
 import { User } from "@/types";
 import { ApprovalEmailOptions } from "@/types/admin-users";
-import { CentralizedCacheManager } from "@/lib/centralized-cache-manager";
+
 
 interface UserActionsProps {
   onUserStatusUpdated?: () => void;
@@ -25,7 +25,6 @@ interface DialogState {
 export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const cacheManager = new CentralizedCacheManager(queryClient);
   
   const {
     useUpdateUserStatus,
@@ -95,55 +94,39 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
   const confirmUserRejection = async () => {
     if (!selectedUser) return;
     
-    try {
-      // 1. INSTANT UI UPDATE USING CENTRALIZED CACHE MANAGER
-      const previousData = cacheManager.updateUserData(selectedUser.id, {
-        approval_status: "rejected" as const
-      });
-
-      // 2. INSTANT SUCCESS FEEDBACK
-      toast({
-        title: "User rejected",
-        description: `${selectedUser.firstName} ${selectedUser.lastName} has been rejected`,
-      });
-
-      // 3. CLOSE DIALOG IMMEDIATELY
-      closeAllDialogs();
-
-      // 4. DATABASE UPDATE IN BACKGROUND
-      updateUserStatusMutation.mutate(
-        { userId: selectedUser.id, status: "rejected" },
-        {
-          onSuccess: async () => {
-            try {
-              await sendUserRejectionEmail(selectedUser, rejectionReason);
-            } catch (error) {
-              toast({
-                title: "Email notification delayed",
-                description: "User was rejected but email notification may be delayed.",
-                variant: "default",
-              });
-            }
-          },
-          onError: (error) => {
-            // ROLLBACK: Revert all optimistic updates
-            cacheManager.rollbackUserData(previousData);
+    // Close dialog immediately 
+    closeAllDialogs();
+    
+    updateUserStatusMutation.mutate(
+      { userId: selectedUser.id, status: "rejected" },
+      {
+        onSuccess: async () => {
+          toast({
+            title: "User rejected",
+            description: `${selectedUser.firstName} ${selectedUser.lastName} has been rejected`,
+          });
+          
+          try {
+            await sendUserRejectionEmail(selectedUser, rejectionReason);
+          } catch (error) {
             toast({
-              variant: 'destructive',
-              title: 'Rejection failed',
-              description: error.message || 'Failed to reject user. Please try again.',
+              title: "Email notification delayed",
+              description: "User was rejected but email notification may be delayed.",
+              variant: "default",
             });
           }
+          
+          if (onUserStatusUpdated) onUserStatusUpdated();
+        },
+        onError: (error) => {
+          toast({
+            variant: 'destructive',
+            title: 'Rejection failed',
+            description: error.message || 'Failed to reject user. Please try again.',
+          });
         }
-      );
-      
-    } catch (error) {
-      toast({
-        variant: 'destructive',
-        title: 'Action failed',
-        description: 'An unexpected error occurred. Please try again.',
-      });
-    }
+      }
+    );
   };
 
   const confirmMakeAdmin = async () => {
@@ -219,60 +202,43 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
   };
 
   const handleCustomApprovalEmail = async (user: User, options: ApprovalEmailOptions) => {
-    try {
-      // 1. INSTANT UI UPDATE USING CENTRALIZED CACHE MANAGER
-      const previousData = cacheManager.updateUserData(user.id, {
-        approval_status: "approved" as const
-      });
-
-      // 2. INSTANT SUCCESS FEEDBACK
-      toast({
-        title: "User approved",
-        description: `${user.firstName} ${user.lastName} has been approved and can now access the marketplace`,
-      });
-
-      // 3. CLOSE DIALOG IMMEDIATELY
-      closeAllDialogs();
-
-      // 4. DATABASE UPDATE IN BACKGROUND
-      updateUserStatusMutation.mutate(
-        { userId: user.id, status: "approved" },
-        {
-          onSuccess: async () => {
-            // 5. EMAIL SENDING AFTER DATABASE SUCCESS
-            try {
-              await sendCustomApprovalEmail(user, options);
-              toast({
-                title: "Email sent successfully",
-                description: `Welcome email delivered to ${user.email}`,
-              });
-            } catch (emailError) {
-              toast({
-                variant: 'default',
-                title: 'Email sending failed',
-                description: 'User was approved but email may not have been sent.',
-              });
-            }
-          },
-          onError: (error) => {
-            // ROLLBACK: Revert all optimistic updates
-            cacheManager.rollbackUserData(previousData);
+    // Close dialog immediately 
+    closeAllDialogs();
+    
+    updateUserStatusMutation.mutate(
+      { userId: user.id, status: "approved" },
+      {
+        onSuccess: async () => {
+          toast({
+            title: "User approved",
+            description: `${user.firstName} ${user.lastName} has been approved and can now access the marketplace`,
+          });
+          
+          try {
+            await sendCustomApprovalEmail(user, options);
             toast({
-              variant: 'destructive',
-              title: 'Approval failed',
-              description: error.message || 'Failed to approve user. Please try again.',
+              title: "Email sent successfully",
+              description: `Welcome email delivered to ${user.email}`,
+            });
+          } catch (emailError) {
+            toast({
+              variant: 'default',
+              title: 'Email sending failed',
+              description: 'User was approved but email may not have been sent.',
             });
           }
+          
+          if (onUserStatusUpdated) onUserStatusUpdated();
+        },
+        onError: (error) => {
+          toast({
+            variant: 'destructive',
+            title: 'Approval failed',
+            description: error.message || 'Failed to approve user. Please try again.',
+          });
         }
-      );
-      
-    } catch (error) {
-      toast({
-        variant: 'destructive',
-        title: 'Approval failed',
-        description: 'An unexpected error occurred during approval.',
-      });
-    }
+      }
+    );
   };
 
   return {
