@@ -215,11 +215,9 @@ export const useLogFeeAgreementEmail = () => {
       return { previousUsers, previousRequests };
     },
     onSuccess: () => {
-      // Add a delay to ensure edge function database updates have completed
-      setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: ['admin-users'] });
-        queryClient.invalidateQueries({ queryKey: ['connection-requests'] });
-      }, 1000);
+      // Invalidate queries immediately since edge function handles database updates
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+      queryClient.invalidateQueries({ queryKey: ['connection-requests'] });
       
       toast({
         title: "Fee agreement email sent successfully",

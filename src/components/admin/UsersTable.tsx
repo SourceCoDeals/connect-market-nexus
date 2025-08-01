@@ -443,12 +443,7 @@ export function UsersTable({
         description: `Fee agreement email sent successfully to ${emailData.userEmail}`,
       });
 
-      // Then log the email in the database
-      await logEmailMutation.mutateAsync({
-        userId: emailData.userId,
-        userEmail: emailData.userEmail,
-        notes: `Email sent: ${emailData.subject}`
-      });
+      // Edge function handles all logging - no additional logging needed
       // Fee agreement email sent successfully
     } catch (error) {
       console.error('❌ Fee agreement email error:', error);
