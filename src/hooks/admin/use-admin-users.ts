@@ -20,13 +20,7 @@ export function useAdminUsers() {
           // First get all profiles including unverified ones - explicitly select fee agreement fields
           const { data: profilesData, error: profilesError } = await supabase
             .from('profiles')
-            .select(`
-              *,
-              fee_agreement_signed,
-              fee_agreement_signed_at,
-              fee_agreement_email_sent,
-              fee_agreement_email_sent_at
-            `)
+            .select('*')
             .is('deleted_at', null)
             .order('created_at', { ascending: false });
 

@@ -105,64 +105,8 @@ const handler = async (req: Request): Promise<Response> => {
     // Use custom content if provided, otherwise use default template
     const emailSubject = subject || "SourceCo - Fee Agreement";
     
-    // Fetch and embed SourceCo logo with fallback
-    console.log('🔄 Fetching SourceCo logo...');
-    let logoBase64 = '';
-    let logoAttachment = null;
-    
-    // Use the correct circular gold logo from listing-images bucket
-    const logoSources = [
-      'https://vhzipqarkmmfuqadefep.supabase.co/storage/v1/object/public/listing-images/sourceco-logo-circular-gold.png',
-      'https://lovable.dev/lovable-uploads/e5ab65c7-a61e-4c6a-8c11-fa6cfd2cfb7b.png' // Known working fallback
-    ];
-    
-    for (const logoUrl of logoSources) {
-      try {
-        console.log(`🔄 Attempting to fetch SourceCo logo from: ${logoUrl}`);
-        const logoResponse = await fetch(logoUrl);
-        
-        if (logoResponse.ok) {
-          const logoBuffer = await logoResponse.arrayBuffer();
-          const logoBytes = new Uint8Array(logoBuffer);
-          logoBase64 = btoa(String.fromCharCode(...logoBytes));
-          
-          // Create attachment for CID fallback
-          logoAttachment = {
-            name: "sourceco-logo.png",
-            content: logoBase64
-          };
-          
-          console.log('✅ SourceCo logo converted to base64 successfully from:', logoUrl);
-          console.log(`✅ Logo size: ${logoBytes.length} bytes, base64 length: ${logoBase64.length} chars`);
-          break; // Success, stop trying other sources
-        } else {
-          console.warn(`⚠️ Could not fetch logo from ${logoUrl}, status:`, logoResponse.status);
-        }
-      } catch (error) {
-        console.warn(`⚠️ Error fetching logo from ${logoUrl}:`, error);
-      }
-    }
-    
-    if (!logoBase64) {
-      console.warn('⚠️ Could not fetch any SourceCo logo - will proceed without logo embedding');
-    } else {
-      console.log('🎯 Successfully loaded SourceCo logo for email signature');
-    }
-    
-    // ENHANCED: Create CID attachment for logo reliability + fallback base64
-    let logoSrc = 'cid:sourceco_logo'; // Primary: CID attachment
-    let logoAttachmentCID = null;
-    
-    if (logoBase64) {
-      // Create logo attachment with Content-ID for reliable email client display
-      logoAttachmentCID = {
-        name: "sourceco-logo.png",
-        content: logoBase64,
-        cid: "sourceco_logo"
-      };
-      // Keep base64 as fallback for clients that don't support CID
-      logoSrc = `data:image/png;base64,${logoBase64}`;
-    }
+    // Skip logo entirely for fast, reliable emails
+    console.log('📧 Using text-only signature without logo for immediate delivery');
     
     // Create professional signature without logo for now
     const adminSignature = `
@@ -336,8 +280,7 @@ const handler = async (req: Request): Promise<Response> => {
       }
     };
 
-    // ENHANCED: Always include logo as CID attachment for reliable display
-    const needsLogoAttachment = logoAttachmentCID !== null;
+    // Simple attachment processing without logo
     const hasUserAttachments = attachments && attachments.length > 0;
 
     // Enhanced attachment processing with detailed logging
@@ -421,11 +364,6 @@ const handler = async (req: Request): Promise<Response> => {
       }
       
       if (processedAttachments.length > 0) {
-        // Add logo attachment if needed
-        if (needsLogoAttachment) {
-          processedAttachments.push(logoAttachmentCID);
-          console.log('📎 Added logo as CID attachment for reliable email display');
-        }
         brevoPayload.attachment = processedAttachments;
         console.log(`📎 Successfully added ${processedAttachments.length} attachment(s) to Brevo payload`);
         console.log(`📎 Final attachment summary:`, processedAttachments.map(a => ({
@@ -436,10 +374,6 @@ const handler = async (req: Request): Promise<Response> => {
       } else {
         console.error(`❌ No valid attachments processed from ${attachments.length} input attachment(s)`);
       }
-    } else if (needsLogoAttachment) {
-      // Only logo attachment needed
-      brevoPayload.attachment = [logoAttachmentCID];
-      console.log('📎 Added only logo as CID attachment for reliable email display');
     }
     
     // Only set attachment property if we actually have attachments
