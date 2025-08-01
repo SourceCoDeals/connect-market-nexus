@@ -284,6 +284,26 @@ ${finalTextSignature}` : finalTextSignature;
     const brevoResult = await brevoResponse.json();
     console.log('✅ NDA email sent successfully via Brevo:', brevoResult);
 
+    // Log the email to database after successful send
+    try {
+      console.log('📝 Logging NDA email to database...');
+      const { error: logError } = await supabaseAdmin.rpc('log_nda_email', {
+        target_user_id: userId,
+        recipient_email: userEmail,
+        admin_notes: 'NDA email sent via send-nda-email function'
+      });
+
+      if (logError) {
+        console.error('❌ Failed to log NDA email to database:', logError);
+        // Don't fail the whole operation, but log the error
+      } else {
+        console.log('✅ NDA email logged to database successfully');
+      }
+    } catch (logError) {
+      console.error('❌ Error logging NDA email to database:', logError);
+      // Don't fail the whole operation
+    }
+
     return new Response(
       JSON.stringify({ 
         success: true, 
