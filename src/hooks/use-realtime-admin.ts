@@ -17,7 +17,7 @@ export function useRealtimeAdmin() {
       return;
     }
 
-    console.log('🔴 Setting up consolidated realtime admin notifications');
+    // Setting up consolidated realtime admin notifications
     
     const channel = supabase
       .channel('admin-notifications-realtime')

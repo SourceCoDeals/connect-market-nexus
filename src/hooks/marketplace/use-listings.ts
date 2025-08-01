@@ -14,14 +14,7 @@ export const useListings = (filters: FilterOptions = {}) => {
     queryFn: async () => {
       return withPerformanceMonitoring('marketplace-listings-query', async () => {
         try {
-          console.log('🔍 Fetching marketplace listings with filters:', filters);
-          console.log('🔐 Auth state:', {
-            authChecked,
-            user: user?.email,
-            email_verified: user?.email_verified,
-            approval_status: user?.approval_status,
-            is_admin: user?.is_admin
-          });
+          // Fetching marketplace listings with filters
 
           // Simple auth check - must have user with verified email
           if (!user || !user.email_verified) {

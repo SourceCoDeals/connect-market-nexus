@@ -55,7 +55,7 @@ export function useNuclearAuth() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (!isMounted) return;
       
-      console.log('🔔 Nuclear Auth: Auth event:', event);
+      // Nuclear Auth: Auth event
       
       if (event === 'SIGNED_OUT') {
         setUser(null);
@@ -88,7 +88,7 @@ export function useNuclearAuth() {
 
   const logout = async () => {
     try {
-      console.log('🔄 Starting logout process...');
+      // Starting logout process
       
       // Step 1: Clear user state immediately to prevent UI confusion
       setUser(null);
@@ -108,7 +108,7 @@ export function useNuclearAuth() {
         console.warn('Supabase signOut failed, continuing with cleanup:', signOutError);
       }
       
-      console.log('✅ Logout completed successfully');
+      // Logout completed successfully
       
       // Step 4: Navigate immediately without delay
       window.location.href = '/login';
@@ -160,7 +160,7 @@ export function useNuclearAuth() {
     
     if (error) throw error;
 
-    console.log('✅ User signup completed, verification email sent by Supabase');
+    // User signup completed, verification email sent by Supabase
     
     // Send admin notification about new user registration
     if (data.user) {
@@ -175,7 +175,7 @@ export function useNuclearAuth() {
         await supabase.functions.invoke('admin-notification', {
           body: adminNotificationPayload
         });
-        console.log('✅ Admin notification sent for new user registration');
+        // Admin notification sent for new user registration
       } catch (notificationError) {
         console.warn('Admin notification failed but user creation succeeded:', notificationError);
       }
