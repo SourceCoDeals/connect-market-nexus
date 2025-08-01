@@ -204,51 +204,22 @@ export const useLogFeeAgreementEmail = () => {
       return data;
     },
     onMutate: async ({ userId }) => {
-      // Do optimistic updates for immediate UI feedback
+      // Don't do optimistic updates since edge function handles database changes
+      // Just store previous data for rollback purposes
       await queryClient.cancelQueries({ queryKey: ['admin-users'] });
       await queryClient.cancelQueries({ queryKey: ['connection-requests'] });
 
       const previousUsers = queryClient.getQueryData(['admin-users']);
       const previousRequests = queryClient.getQueryData(['connection-requests']);
 
-      // Optimistically update fee agreement email sent status
-      queryClient.setQueryData(['admin-users'], (old: any) => {
-        if (!old) return old;
-        return old.map((user: any) => 
-          user.id === userId 
-            ? { 
-                ...user, 
-                fee_agreement_email_sent: true,
-                fee_agreement_email_sent_at: new Date().toISOString()
-              }
-            : user
-        );
-      });
-
-      queryClient.setQueryData(['connection-requests'], (old: any) => {
-        if (!old) return old;
-        return old.map((request: any) => 
-          request.user?.id === userId 
-            ? { 
-                ...request, 
-                user: {
-                  ...request.user,
-                  fee_agreement_email_sent: true,
-                  fee_agreement_email_sent_at: new Date().toISOString()
-                }
-              }
-            : request
-        );
-      });
-
       return { previousUsers, previousRequests };
     },
     onSuccess: () => {
-      // Add delay before refetching to allow edge function database updates to complete
+      // Add delay before invalidating to allow edge function database updates to complete
       setTimeout(() => {
-        queryClient.refetchQueries({ queryKey: ['admin-users'] });
-        queryClient.refetchQueries({ queryKey: ['connection-requests'] });
-      }, 2000);
+        queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+        queryClient.invalidateQueries({ queryKey: ['connection-requests'] });
+      }, 1000);
       
       toast({
         title: "Fee agreement email sent successfully",
