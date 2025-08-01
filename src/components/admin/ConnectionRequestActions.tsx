@@ -150,7 +150,7 @@ SourceCo Team`}`;
     
     updateNDAEmailSent.mutate({
       userId: user.id,
-      isEmailSent: checked
+      isSent: checked
     });
   };
 
@@ -182,7 +182,7 @@ SourceCo Team`}`;
     
     updateFeeAgreementEmailSent.mutate({
       userId: user.id,
-      isEmailSent: checked
+      isSent: checked
     });
   };
 
