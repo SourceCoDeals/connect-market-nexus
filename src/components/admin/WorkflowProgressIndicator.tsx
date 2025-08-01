@@ -45,6 +45,16 @@ export function WorkflowProgressIndicator({ user, followedUp = false }: Workflow
     }
   ];
 
+  // Auto-complete "sent" step when "signed" is true
+  steps.forEach(step => {
+    if (step.id === 'nda-sent' && user?.nda_signed) {
+      step.completed = true;
+    }
+    if (step.id === 'fee-sent' && user?.fee_agreement_signed) {
+      step.completed = true;
+    }
+  });
+
   const getStepColor = (step: typeof steps[0], index: number) => {
     if (step.completed || step.signed) {
       return 'text-success bg-success/10 border-success/20';

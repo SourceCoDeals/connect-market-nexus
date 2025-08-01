@@ -150,7 +150,7 @@ SourceCo Team`}`;
     
     updateNDAEmailSent.mutate({
       userId: user.id,
-      isSent: checked
+      isEmailSent: checked
     });
   };
 
@@ -182,28 +182,19 @@ SourceCo Team`}`;
     
     updateFeeAgreementEmailSent.mutate({
       userId: user.id,
-      isSent: checked
+      isEmailSent: checked
     });
   };
 
   const handleFollowUpToggle = (checked: boolean) => {
-    if (!requestId) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Request ID is required to update follow-up status"
-      });
-      return;
-    }
-
     // Immediate UI update
     setLocalFollowedUp(checked);
     onLocalStateUpdate?.(localUser, checked);
-
+    
     updateFollowup.mutate({
       requestId,
       isFollowedUp: checked,
-      notes: checked ? "Follow-up marked via admin interface" : "Follow-up status removed"
+      notes: checked ? `Follow-up initiated by admin on ${new Date().toLocaleDateString()}` : undefined
     });
   };
 
