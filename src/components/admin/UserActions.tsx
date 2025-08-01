@@ -1,12 +1,11 @@
-
 import { useState } from "react";
-import { User } from "@/types";
+import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { useAdminUsers } from "@/hooks/admin/use-admin-users";
 import { useAdminEmail } from "@/hooks/admin/use-admin-email";
-import { adminErrorHandler } from "@/lib/error-handler";
 import { ApprovalEmailDialog } from "./ApprovalEmailDialog";
-import { useQueryClient } from "@tanstack/react-query";
+import { User } from "@/types";
+import { ApprovalEmailOptions } from "@/types/admin-users";
 
 interface UserActionsProps {
   onUserStatusUpdated?: () => void;
@@ -22,7 +21,6 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
   } = useAdminUsers();
   
   const {
-    sendUserApprovalEmail,
     sendUserRejectionEmail,
     sendCustomApprovalEmail
   } = useAdminEmail();
@@ -35,11 +33,10 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [actionType, setActionType] = useState<"approve" | "reject" | "makeAdmin" | "revokeAdmin" | "delete" | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isApprovalEmailDialogOpen, setIsApprovalEmailDialogOpen] = useState(false);
   
   const handleUserApproval = (user: User) => {
     setSelectedUser(user);
-    setIsApprovalEmailDialogOpen(true);
+    setIsDialogOpen(true);
   };
   
   const handleUserRejection = (user: User) => {
@@ -68,7 +65,6 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
   
   const confirmAction = async (reason?: string) => {
     if (!selectedUser) {
-      console.error('❌ No user selected for action');
       toast({
         variant: 'destructive',
         title: 'Error',
@@ -77,8 +73,6 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
       return;
     }
     
-    
-    
     try {
       switch (actionType) {
         case "approve":
@@ -86,23 +80,20 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
           break;
           
         case "reject":
-          // 1. INSTANT UI UPDATE - Same pattern as approval
-          queryClient.setQueryData(['admin-users'], (old: any[] | undefined) => {
+          // 1. INSTANT UI UPDATE
+          queryClient.setQueryData(['admin-users'], (old: User[] | undefined) => {
             if (!old) return old;
-            console.log('🚀 OPTIMISTIC UPDATE: Rejecting user', selectedUser.id);
-            const updated = old.map(u => 
+            return old.map(u => 
               u.id === selectedUser.id 
-                ? { ...u, approval_status: "rejected" }
+                ? { ...u, approval_status: "rejected" as const }
                 : u
             );
-            console.log('✅ Cache updated successfully');
-            return updated;
           });
 
           // 2. INSTANT SUCCESS FEEDBACK
           toast({
             title: "User rejected",
-            description: `${selectedUser.first_name} ${selectedUser.last_name} has been rejected instantly`,
+            description: `${selectedUser.firstName} ${selectedUser.lastName} has been rejected instantly`,
           });
 
           // 3. DATABASE UPDATE IN BACKGROUND
@@ -112,9 +103,7 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
               onSuccess: async () => {
                 try {
                   await sendUserRejectionEmail(selectedUser, reason);
-                  console.log('✅ Rejection email sent successfully');
                 } catch (error) {
-                  console.error("❌ Error sending rejection email:", error);
                   toast({
                     title: "Email notification delayed",
                     description: "User was rejected but email notification may be delayed.",
@@ -123,13 +112,12 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
                 }
               },
               onError: (error) => {
-                console.error('❌ Error rejecting user in database:', error);
                 // ROLLBACK: Revert the optimistic update
-                queryClient.setQueryData(['admin-users'], (old: any[] | undefined) => {
+                queryClient.setQueryData(['admin-users'], (old: User[] | undefined) => {
                   if (!old) return old;
                   return old.map(u => 
                     u.id === selectedUser.id 
-                      ? { ...u, approval_status: "pending" } // Revert to original status
+                      ? { ...u, approval_status: "pending" as const }
                       : u
                   );
                 });
@@ -150,11 +138,14 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
             { userId: selectedUser.id, isAdmin: true },
             {
               onSuccess: () => {
+                toast({
+                  title: "Admin privileges granted",
+                  description: `${selectedUser.firstName} ${selectedUser.lastName} is now an admin.`,
+                });
                 setIsDialogOpen(false);
                 if (onUserStatusUpdated) onUserStatusUpdated();
               },
               onError: (error) => {
-                console.error('❌ Error promoting user to admin:', error);
                 toast({
                   variant: 'destructive',
                   title: 'Admin promotion failed',
@@ -170,11 +161,14 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
             { userId: selectedUser.id, isAdmin: false },
             {
               onSuccess: () => {
+                toast({
+                  title: "Admin privileges revoked",
+                  description: `${selectedUser.firstName} ${selectedUser.lastName} is no longer an admin.`,
+                });
                 setIsDialogOpen(false);
                 if (onUserStatusUpdated) onUserStatusUpdated();
               },
               onError: (error) => {
-                console.error('❌ Error revoking admin privileges:', error);
                 toast({
                   variant: 'destructive',
                   title: 'Admin revocation failed',
@@ -190,13 +184,12 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
             onSuccess: () => {
               toast({
                 title: "User deleted",
-                description: `${selectedUser.first_name} ${selectedUser.last_name} has been completely removed from the system and can no longer log in.`,
+                description: `${selectedUser.firstName} ${selectedUser.lastName} has been permanently deleted.`,
               });
               setIsDialogOpen(false);
               if (onUserStatusUpdated) onUserStatusUpdated();
             },
             onError: (error) => {
-              console.error('❌ Error deleting user:', error);
               toast({
                 variant: 'destructive',
                 title: 'Deletion failed',
@@ -207,7 +200,6 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
           break;
           
         default:
-          console.error('❌ Unknown action type:', actionType);
           toast({
             variant: 'destructive',
             title: 'Invalid action',
@@ -215,7 +207,6 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
           });
       }
     } catch (error) {
-      console.error("💥 Error during user action:", error);
       toast({
         variant: 'destructive',
         title: 'Action failed',
@@ -224,44 +215,35 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
     }
   };
 
-  const handleCustomApprovalEmail = async (user: User, options: {
-    subject: string;
-    message: string;
-    customSignatureHtml?: string;
-    customSignatureText?: string;
-  }) => {
+  const handleCustomApprovalEmail = async (user: User, options: ApprovalEmailOptions) => {
     try {
-      // 1. INSTANT UI UPDATE - Force immediate cache update with proper typing
-      queryClient.setQueryData(['admin-users'], (old: any[] | undefined) => {
+      // 1. INSTANT UI UPDATE
+      queryClient.setQueryData(['admin-users'], (old: User[] | undefined) => {
         if (!old) return old;
-        console.log('🚀 OPTIMISTIC UPDATE: Updating user', user.id, 'to approved');
-        const updated = old.map(u => 
+        return old.map(u => 
           u.id === user.id 
-            ? { ...u, approval_status: "approved" }
+            ? { ...u, approval_status: "approved" as const }
             : u
         );
-        console.log('✅ Cache updated successfully');
-        return updated;
       });
 
       // 2. INSTANT SUCCESS FEEDBACK
       toast({
-        title: "✅ User approved instantly",
-        description: `${user.first_name} ${user.last_name} has been approved and can now access the marketplace`,
+        title: "User approved instantly",
+        description: `${user.firstName} ${user.lastName} has been approved and can now access the marketplace`,
       });
 
-      // 3. DATABASE UPDATE IN BACKGROUND - Don't await, let it run async
+      // 3. DATABASE UPDATE IN BACKGROUND
       updateUserStatusMutation.mutate(
         { userId: user.id, status: "approved" },
         {
           onError: (error) => {
-            console.error('❌ Error approving user in database:', error);
             // ROLLBACK: Revert the optimistic update
-            queryClient.setQueryData(['admin-users'], (old: any[] | undefined) => {
+            queryClient.setQueryData(['admin-users'], (old: User[] | undefined) => {
               if (!old) return old;
               return old.map(u => 
                 u.id === user.id 
-                  ? { ...u, approval_status: "pending" } // Revert to original status
+                  ? { ...u, approval_status: "pending" as const }
                   : u
               );
             });
@@ -274,9 +256,8 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
         }
       );
 
-      // 4. EMAIL SENDING IN BACKGROUND - Don't await, let it run async
-      sendCustomApprovalEmail(user, options).catch((error) => {
-        console.error('❌ Error sending approval email:', error);
+      // 4. EMAIL SENDING IN BACKGROUND
+      sendCustomApprovalEmail(user, options).catch(() => {
         toast({
           variant: 'destructive',
           title: 'Email sending failed',
@@ -285,11 +266,10 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
       });
       
     } catch (error) {
-      console.error('❌ Error in approval process:', error);
       toast({
         variant: 'destructive',
         title: 'Approval failed',
-        description: error instanceof Error ? error.message : 'Failed to approve user.',
+        description: 'An unexpected error occurred during approval.',
       });
     }
   };
@@ -300,28 +280,20 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
     handleMakeAdmin,
     handleRevokeAdmin,
     handleDeleteUser,
+    handleCustomApprovalEmail,
     confirmAction,
     isDialogOpen,
     setIsDialogOpen,
     selectedUser,
     actionType,
     isLoading: updateUserStatusMutation.isPending || updateAdminStatusMutation.isPending || deleteUserMutation.isPending,
-    retryStates: {
-      updateStatus: (updateUserStatusMutation as any).meta?.retryState,
-      updateAdmin: (updateAdminStatusMutation as any).meta?.retryState,
-      deleteUser: (deleteUserMutation as any).meta?.retryState,
-    },
-    // Approval email dialog props
-    isApprovalEmailDialogOpen,
-    setIsApprovalEmailDialogOpen,
-    handleCustomApprovalEmail,
     ApprovalEmailDialog: () => (
       <ApprovalEmailDialog
-        open={isApprovalEmailDialogOpen}
-        onOpenChange={setIsApprovalEmailDialogOpen}
+        open={isDialogOpen}
+        onOpenChange={setIsDialogOpen}
         user={selectedUser}
         onSendApprovalEmail={handleCustomApprovalEmail}
       />
-    )
+    ),
   };
 }
