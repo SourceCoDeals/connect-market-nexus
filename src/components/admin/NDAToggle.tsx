@@ -30,10 +30,12 @@ export const NDAToggle = ({ user, onSendEmail, size = "default" }: NDAToggleProp
   };
 
   const handleSendEmail = async () => {
+    if (logNDAEmail.isPending) return; // Prevent double-clicks
+    
     if (onSendEmail) {
       onSendEmail(user);
     } else {
-      // Default behavior - log the email sending (optimistic update happens in hook)
+      // Default behavior - send actual email via edge function
       logNDAEmail.mutate({
         userId: user.id,
         userEmail: user.email,
@@ -62,6 +64,7 @@ export const NDAToggle = ({ user, onSendEmail, size = "default" }: NDAToggleProp
             size="sm"
             variant="outline"
             onClick={handleSendEmail}
+            disabled={logNDAEmail.isPending}
             className="h-6 px-2"
           >
             <Mail className="h-3 w-3" />
@@ -114,10 +117,11 @@ export const NDAToggle = ({ user, onSendEmail, size = "default" }: NDAToggleProp
           size="sm"
           variant="outline"
           onClick={handleSendEmail}
+          disabled={logNDAEmail.isPending}
           className="w-full"
         >
           <Mail className="h-4 w-4 mr-2" />
-          Send NDA Email
+          {logNDAEmail.isPending ? "Sending..." : "Send NDA Email"}
         </Button>
       )}
     </div>

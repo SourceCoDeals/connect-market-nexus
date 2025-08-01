@@ -31,10 +31,12 @@ export function FeeAgreementToggle({ user, onSendEmail, size = "default" }: FeeA
   };
 
   const handleSendEmail = async () => {
+    if (logEmailMutation.isPending) return; // Prevent double-clicks
+    
     if (onSendEmail) {
       onSendEmail(user);
     } else {
-      // Default email sending logic (optimistic update happens in hook)
+      // Default behavior - send actual email via edge function  
       logEmailMutation.mutate({
         userId: user.id,
         userEmail: user.email,
@@ -115,7 +117,7 @@ export function FeeAgreementToggle({ user, onSendEmail, size = "default" }: FeeA
           className="w-full"
         >
           <Mail className="h-4 w-4 mr-2" />
-          Send Fee Agreement
+          {logEmailMutation.isPending ? "Sending..." : "Send Fee Agreement"}
         </Button>
       )}
     </div>
