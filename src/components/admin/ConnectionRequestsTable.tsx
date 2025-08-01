@@ -63,6 +63,16 @@ const RequestDetails = ({ request, onApprove, onReject }: {
               {request.user?.fee_agreement_signed ? "Signed" : "Not Signed"}
             </Badge>
           </p>
+          <p><span className="font-medium">NDA:</span> 
+            <Badge variant={request.user?.nda_signed ? "success" : "secondary"} className="ml-2">
+              {request.user?.nda_signed ? "Signed" : "Not Signed"}
+            </Badge>
+            {request.user?.nda_email_sent && (
+              <Badge variant="outline" className="ml-1">
+                Email Sent
+              </Badge>
+            )}
+          </p>
         </div>
       </div>
       

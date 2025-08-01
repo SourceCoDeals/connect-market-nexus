@@ -65,9 +65,9 @@ export const DualNDAToggle = ({ user, onSendEmail, size = "default" }: DualNDATo
     }
   };
 
-  const isSigned = user.nda_signed || false;
+  const isSigned = Boolean(user.nda_signed);
   const signedAt = user.nda_signed_at;
-  const emailSent = user.nda_email_sent || false;
+  const emailSent = Boolean(user.nda_email_sent);
   const emailSentAt = user.nda_email_sent_at;
 
   if (size === "sm") {
@@ -80,8 +80,8 @@ export const DualNDAToggle = ({ user, onSendEmail, size = "default" }: DualNDATo
               <TooltipTrigger asChild>
                 <div className="flex items-center gap-1">
                   <Mail className="h-3 w-3 text-muted-foreground" />
-                  <Switch
-                    checked={emailSent || false}
+                   <Switch
+                    checked={emailSent}
                     onCheckedChange={handleEmailSentToggleChange}
                     disabled={isUpdatingEmailSent || updateNDAEmailSent.isPending}
                     className="data-[state=checked]:bg-purple-600 scale-75"
@@ -102,8 +102,8 @@ export const DualNDAToggle = ({ user, onSendEmail, size = "default" }: DualNDATo
               <TooltipTrigger asChild>
                 <div className="flex items-center gap-1">
                   <ShieldCheck className="h-3 w-3 text-muted-foreground" />
-                  <Switch
-                    checked={isSigned || false}
+                   <Switch
+                    checked={isSigned}
                     onCheckedChange={handleSignedToggleChange}
                     disabled={isUpdatingSigned || updateNDA.isPending}
                     className="data-[state=checked]:bg-emerald-600 scale-75"
@@ -151,8 +151,8 @@ export const DualNDAToggle = ({ user, onSendEmail, size = "default" }: DualNDATo
             <span className="text-sm font-medium">NDA Email Sent</span>
           </div>
           <div className="flex items-center gap-2">
-            <Switch
-              checked={emailSent || false}
+           <Switch
+              checked={emailSent}
               onCheckedChange={handleEmailSentToggleChange}
               disabled={isUpdatingEmailSent || updateNDAEmailSent.isPending}
               className="data-[state=checked]:bg-purple-600"
@@ -179,8 +179,8 @@ export const DualNDAToggle = ({ user, onSendEmail, size = "default" }: DualNDATo
             <span className="text-sm font-medium">NDA Signed</span>
           </div>
           <div className="flex items-center gap-2">
-            <Switch
-              checked={isSigned || false}
+           <Switch
+              checked={isSigned}
               onCheckedChange={handleSignedToggleChange}
               disabled={isUpdatingSigned || updateNDA.isPending}
               className="data-[state=checked]:bg-emerald-600"
