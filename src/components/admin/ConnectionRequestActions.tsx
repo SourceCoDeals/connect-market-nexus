@@ -31,14 +31,16 @@ interface ConnectionRequestActionsProps {
   requestId?: string;
   followedUp?: boolean;
   onEmailSent?: () => void;
+  onLocalStateUpdate?: (updatedUser: UserType, updatedFollowedUp?: boolean) => void;
 }
 
 export function ConnectionRequestActions({ 
   user, 
-  listing,
-  requestId,
-  followedUp = false,
-  onEmailSent 
+  listing, 
+  requestId, 
+  followedUp = false, 
+  onEmailSent,
+  onLocalStateUpdate 
 }: ConnectionRequestActionsProps) {
   const { toast } = useToast();
   const { signature } = useAdminSignature();
@@ -121,12 +123,14 @@ SourceCo Team`}`;
   };
 
   const handleNDASignedToggle = (checked: boolean) => {
-    // Immediate UI update
-    setLocalUser(prev => ({ 
-      ...prev, 
+    const updatedUser = { 
+      ...localUser, 
       nda_signed: checked,
       nda_signed_at: checked ? new Date().toISOString() : null 
-    }));
+    };
+    // Immediate UI update
+    setLocalUser(updatedUser);
+    onLocalStateUpdate?.(updatedUser);
     
     updateNDA.mutate({
       userId: user.id,
@@ -135,12 +139,14 @@ SourceCo Team`}`;
   };
 
   const handleNDAEmailSentToggle = (checked: boolean) => {
-    // Immediate UI update
-    setLocalUser(prev => ({ 
-      ...prev, 
+    const updatedUser = { 
+      ...localUser, 
       nda_email_sent: checked,
       nda_email_sent_at: checked ? new Date().toISOString() : null 
-    }));
+    };
+    // Immediate UI update
+    setLocalUser(updatedUser);
+    onLocalStateUpdate?.(updatedUser);
     
     updateNDAEmailSent.mutate({
       userId: user.id,
@@ -149,12 +155,14 @@ SourceCo Team`}`;
   };
 
   const handleFeeAgreementSignedToggle = (checked: boolean) => {
-    // Immediate UI update
-    setLocalUser(prev => ({ 
-      ...prev, 
+    const updatedUser = { 
+      ...localUser, 
       fee_agreement_signed: checked,
       fee_agreement_signed_at: checked ? new Date().toISOString() : null 
-    }));
+    };
+    // Immediate UI update
+    setLocalUser(updatedUser);
+    onLocalStateUpdate?.(updatedUser);
     
     updateFeeAgreement.mutate({
       userId: user.id,
@@ -163,12 +171,14 @@ SourceCo Team`}`;
   };
 
   const handleFeeAgreementEmailSentToggle = (checked: boolean) => {
-    // Immediate UI update
-    setLocalUser(prev => ({ 
-      ...prev, 
+    const updatedUser = { 
+      ...localUser, 
       fee_agreement_email_sent: checked,
       fee_agreement_email_sent_at: checked ? new Date().toISOString() : null 
-    }));
+    };
+    // Immediate UI update
+    setLocalUser(updatedUser);
+    onLocalStateUpdate?.(updatedUser);
     
     updateFeeAgreementEmailSent.mutate({
       userId: user.id,
@@ -188,6 +198,7 @@ SourceCo Team`}`;
 
     // Immediate UI update
     setLocalFollowedUp(checked);
+    onLocalStateUpdate?.(localUser, checked);
 
     updateFollowup.mutate({
       requestId,
