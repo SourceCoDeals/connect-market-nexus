@@ -40,13 +40,9 @@ export function useUpdateFeeAgreement() {
       return execute({ userId, isSigned, notes });
     },
     onMutate: async ({ userId, isSigned }) => {
-      // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: ['admin-users'] });
-
-      // Snapshot the previous value
       const previousUsers = queryClient.getQueryData(['admin-users']);
 
-      // Optimistically update the cache
       queryClient.setQueryData(['admin-users'], (old: any) => {
         if (!old?.data) return old;
         
@@ -111,13 +107,9 @@ export function useUpdateFeeAgreementEmailSent() {
       return execute({ userId, isSent, notes });
     },
     onMutate: async ({ userId, isSent }) => {
-      // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: ['admin-users'] });
-
-      // Snapshot the previous value
       const previousUsers = queryClient.getQueryData(['admin-users']);
 
-      // Optimistically update the cache
       queryClient.setQueryData(['admin-users'], (old: any) => {
         if (!old?.data) return old;
         
@@ -184,13 +176,9 @@ export function useLogFeeAgreementEmail() {
       return execute({ userId, userEmail, notes });
     },
     onMutate: async ({ userId }) => {
-      // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: ['admin-users'] });
-
-      // Snapshot the previous value
       const previousUsers = queryClient.getQueryData(['admin-users']);
 
-      // Optimistically update the cache to mark email as sent
       queryClient.setQueryData(['admin-users'], (old: any) => {
         if (!old?.data) return old;
         

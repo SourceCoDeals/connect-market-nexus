@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from "sonner";
+import { useToast } from '@/hooks/use-toast';
+import { useRetry } from '@/hooks/use-retry';
 import { User } from '@/types';
 
 interface UpdateNDAParams {
@@ -22,94 +23,184 @@ interface LogNDAEmailParams {
 }
 
 export const useUpdateNDA = () => {
+  const { toast } = useToast();
   const queryClient = useQueryClient();
-  
+  const { execute } = useRetry(async (params: UpdateNDAParams) => {
+    const { data, error } = await supabase.rpc('update_nda_status' as any, {
+      target_user_id: params.userId,
+      is_signed: params.isSigned,
+      admin_notes: params.adminNotes
+    });
+
+    if (error) throw error;
+    return data;
+  });
+
   return useMutation({
     mutationFn: async ({ userId, isSigned, adminNotes }: UpdateNDAParams) => {
-      console.log('Updating NDA status:', { userId, isSigned, adminNotes });
-      
-      const { data, error } = await supabase.rpc('update_nda_status' as any, {
-        target_user_id: userId,
-        is_signed: isSigned,
-        admin_notes: adminNotes
+      return execute({ userId, isSigned, adminNotes });
+    },
+    onMutate: async ({ userId, isSigned }) => {
+      await queryClient.cancelQueries({ queryKey: ['admin-users'] });
+      const previousUsers = queryClient.getQueryData(['admin-users']);
+
+      queryClient.setQueryData(['admin-users'], (old: any) => {
+        if (!old?.data) return old;
+        
+        return {
+          ...old,
+          data: old.data.map((user: any) => 
+            user.id === userId 
+              ? { 
+                  ...user, 
+                  nda_signed: isSigned,
+                  nda_signed_at: isSigned ? new Date().toISOString() : null
+                } 
+              : user
+          )
+        };
       });
-      
-      if (error) {
-        console.error('Error updating NDA status:', error);
-        throw error;
-      }
-      
-      return data;
+
+      return { previousUsers };
     },
     onSuccess: (_, { isSigned }) => {
+      toast({
+        title: 'NDA Status Updated',
+        description: `NDA ${isSigned ? 'marked as signed' : 'signature revoked'} successfully.`,
+      });
       queryClient.invalidateQueries({ queryKey: ['admin-users'] });
-      toast.success(`NDA ${isSigned ? 'marked as signed' : 'signature revoked'}`);
     },
-    onError: (error: any) => {
-      console.error('Failed to update NDA status:', error);
-      toast.error(`Failed to update NDA status: ${error.message}`);
+    onError: (error: any, _, context) => {
+      if (context?.previousUsers) {
+        queryClient.setQueryData(['admin-users'], context.previousUsers);
+      }
+      toast({
+        variant: 'destructive',
+        title: 'Update Failed',
+        description: error.message || 'Failed to update NDA status.',
+      });
     }
   });
 };
 
 export const useUpdateNDAEmailSent = () => {
+  const { toast } = useToast();
   const queryClient = useQueryClient();
-  
+  const { execute } = useRetry(async (params: UpdateNDAEmailParams) => {
+    const { data, error } = await supabase.rpc('update_nda_email_status' as any, {
+      target_user_id: params.userId,
+      is_sent: params.isSent,
+      admin_notes: params.adminNotes
+    });
+
+    if (error) throw error;
+    return data;
+  });
+
   return useMutation({
     mutationFn: async ({ userId, isSent, adminNotes }: UpdateNDAEmailParams) => {
-      console.log('Updating NDA email status:', { userId, isSent, adminNotes });
-      
-      const { data, error } = await supabase.rpc('update_nda_email_status' as any, {
-        target_user_id: userId,
-        is_sent: isSent,
-        admin_notes: adminNotes
+      return execute({ userId, isSent, adminNotes });
+    },
+    onMutate: async ({ userId, isSent }) => {
+      await queryClient.cancelQueries({ queryKey: ['admin-users'] });
+      const previousUsers = queryClient.getQueryData(['admin-users']);
+
+      queryClient.setQueryData(['admin-users'], (old: any) => {
+        if (!old?.data) return old;
+        
+        return {
+          ...old,
+          data: old.data.map((user: any) => 
+            user.id === userId 
+              ? { 
+                  ...user, 
+                  nda_email_sent: isSent,
+                  nda_email_sent_at: isSent ? new Date().toISOString() : null
+                } 
+              : user
+          )
+        };
       });
-      
-      if (error) {
-        console.error('Error updating NDA email status:', error);
-        throw error;
-      }
-      
-      return data;
+
+      return { previousUsers };
     },
     onSuccess: (_, { isSent }) => {
+      toast({
+        title: 'Email Status Updated',
+        description: `NDA email ${isSent ? 'marked as sent' : 'marked as not sent'} successfully.`,
+      });
       queryClient.invalidateQueries({ queryKey: ['admin-users'] });
-      toast.success(`NDA email ${isSent ? 'marked as sent' : 'status revoked'}`);
     },
-    onError: (error: any) => {
-      console.error('Failed to update NDA email status:', error);
-      toast.error(`Failed to update NDA email status: ${error.message}`);
+    onError: (error: any, _, context) => {
+      if (context?.previousUsers) {
+        queryClient.setQueryData(['admin-users'], context.previousUsers);
+      }
+      toast({
+        variant: 'destructive',
+        title: 'Update Failed',
+        description: error.message || 'Failed to update email status.',
+      });
     }
   });
 };
 
 export const useLogNDAEmail = () => {
+  const { toast } = useToast();
   const queryClient = useQueryClient();
-  
+  const { execute } = useRetry(async (params: LogNDAEmailParams) => {
+    const { data, error } = await supabase.rpc('log_nda_email' as any, {
+      target_user_id: params.userId,
+      recipient_email: params.recipientEmail,
+      admin_notes: params.adminNotes
+    });
+
+    if (error) throw error;
+    return data;
+  });
+
   return useMutation({
     mutationFn: async ({ userId, recipientEmail, adminNotes }: LogNDAEmailParams) => {
-      console.log('Logging NDA email:', { userId, recipientEmail, adminNotes });
-      
-      const { data, error } = await supabase.rpc('log_nda_email' as any, {
-        target_user_id: userId,
-        recipient_email: recipientEmail,
-        admin_notes: adminNotes
+      return execute({ userId, recipientEmail, adminNotes });
+    },
+    onMutate: async ({ userId }) => {
+      await queryClient.cancelQueries({ queryKey: ['admin-users'] });
+      const previousUsers = queryClient.getQueryData(['admin-users']);
+
+      queryClient.setQueryData(['admin-users'], (old: any) => {
+        if (!old?.data) return old;
+        
+        return {
+          ...old,
+          data: old.data.map((user: any) => 
+            user.id === userId 
+              ? { 
+                  ...user, 
+                  nda_email_sent: true,
+                  nda_email_sent_at: new Date().toISOString()
+                } 
+              : user
+          )
+        };
       });
-      
-      if (error) {
-        console.error('Error logging NDA email:', error);
-        throw error;
-      }
-      
-      return data;
+
+      return { previousUsers };
     },
     onSuccess: () => {
+      toast({
+        title: 'NDA Email Logged',
+        description: 'NDA email logged successfully.',
+      });
       queryClient.invalidateQueries({ queryKey: ['admin-users'] });
-      toast.success('NDA email logged successfully');
     },
-    onError: (error: any) => {
-      console.error('Failed to log NDA email:', error);
-      toast.error(`Failed to log NDA email: ${error.message}`);
+    onError: (error: any, _, context) => {
+      if (context?.previousUsers) {
+        queryClient.setQueryData(['admin-users'], context.previousUsers);
+      }
+      toast({
+        variant: 'destructive',
+        title: 'Logging Failed',
+        description: error.message || 'Failed to log NDA email.',
+      });
     }
   });
 };

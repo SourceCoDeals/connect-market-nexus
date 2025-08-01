@@ -42,13 +42,19 @@ export const SimpleNDADialog = ({ open, onOpenChange, user, onSendEmail }: Simpl
   const defaultSubject = "Non-Disclosure Agreement | SourceCo";
   const defaultMessage = `Dear ${user.first_name || user.email},
 
-I hope this message finds you well. As we move forward with our discussions regarding potential business opportunities, I'm sending you our Non-Disclosure Agreement (NDA) for your review and signature.
+We are pleased to present our Non-Disclosure Agreement for your review and execution. This document establishes the confidentiality framework necessary for our business discussions.
 
-This NDA will ensure that any confidential information shared between us remains protected and allows us to have more detailed conversations about available opportunities.
+Key Provisions:
+• Strict confidentiality of all shared information
+• Protection of proprietary business data
+• Professional obligations and legal safeguards
+• Mutual respect for sensitive commercial details
 
-Please review the attached document and let me know if you have any questions. Once signed, we'll be able to share more specific details about businesses that match your investment criteria.
+This agreement enables us to provide detailed business intelligence, financial data, and investment opportunities that match your acquisition criteria.
 
-Thank you for your time and I look forward to our continued collaboration.
+Upon execution, you will gain immediate access to our comprehensive deal flow and proprietary market insights.
+
+Please review, execute, and return at your earliest convenience.
 
 Best regards,`;
 
