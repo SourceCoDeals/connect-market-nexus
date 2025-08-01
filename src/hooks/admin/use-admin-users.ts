@@ -41,7 +41,7 @@ export function useAdminUsers() {
       enabled: authChecked && user && isAdmin,
       retry: 3,
       retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
-      staleTime: 30 * 1000,
+      staleTime: 1 * 1000,
       gcTime: 2 * 60 * 1000,
       refetchOnWindowFocus: true,
       refetchOnMount: true,
