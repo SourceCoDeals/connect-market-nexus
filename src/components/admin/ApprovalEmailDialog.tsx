@@ -27,21 +27,19 @@ interface ApprovalEmailDialogProps {
 }
 
 const DEFAULT_APPROVAL_EMAIL = {
-  subject: "SourceCo Account Approved - Access Granted",
-  message: `Dear {{userName}},
-
-Your SourceCo account is now approved.
+  subject: "Your SourceCo account is now approved",
+  message: `Your SourceCo account is now approved.
 
 Access granted to:
-• Exclusive business acquisition opportunities
-• Verified financial documentation
-• Direct seller connections
-• Advanced market intelligence tools
+
+• Off-market business acquisition opportunities
+• Ability to request connections directly to the owners
+• Request full access to listings that match your criteria
 
 Next steps:
 • Explore the marketplace: https://marketplace.sourcecodeals.com
-• Set up deal alerts for automated notifications of new opportunities matching your criteria
-• Complete your profile for enhanced matching
+• Set up deal alerts for automated notifications of new opportunities matching your criteria (new deals added every week)
+• Fully complete your profile for enhanced matching (let us know exactly what targets you are looking for)
 
 Questions? Reply to this email.`
 };

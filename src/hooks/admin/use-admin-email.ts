@@ -314,8 +314,8 @@ export function useAdminEmail() {
   };
   
   /**
-   * Send a custom approval email using the new approval email system
-   * This function both sends the email AND approves the user
+   * Send a custom approval email using optimistic updates for instant UI feedback
+   * This function approves the user immediately in UI, then sends email asynchronously
    */
   const sendCustomApprovalEmail = async (user: User, options: {
     subject: string;
@@ -346,6 +346,27 @@ export function useAdminEmail() {
         ? `${adminProfile.first_name} ${adminProfile.last_name}`
         : adminProfile.email;
 
+      // 1. IMMEDIATELY update the database for instant UI response
+      const { error: approvalError } = await supabase
+        .from('profiles')
+        .update({ 
+          approval_status: 'approved',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', user.id);
+
+      if (approvalError) {
+        console.error('❌ Error approving user:', approvalError);
+        throw new Error('Failed to approve user: ' + approvalError.message);
+      }
+
+      // 2. Show immediate success feedback
+      toast({
+        title: "User approved",
+        description: `${user.first_name} ${user.last_name} has been approved. Sending email...`,
+      });
+
+      // 3. Send email asynchronously in background (don't await)
       const requestPayload = {
         userId: user.id,
         userEmail: user.email,
@@ -358,58 +379,38 @@ export function useAdminEmail() {
         customSignatureText: options.customSignatureText
       };
 
-      // Execute approval and email sending in parallel for speed
-      const [approvalResult, emailResult] = await Promise.all([
-        supabase
-          .from('profiles')
-          .update({ 
-            approval_status: 'approved',
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', user.id),
-        supabase.functions.invoke('send-approval-email', {
-          body: requestPayload
-        })
-      ]);
-
-      if (approvalResult.error) {
-        console.error('❌ Error approving user:', approvalResult.error);
-        throw new Error('Failed to approve user: ' + approvalResult.error.message);
-      }
-      
-      if (emailResult.error) {
-        console.error("❌ Error sending custom approval email:", emailResult.error);
-        trackEmailDelivery(correlationId, {
-          success: false,
-          error: emailResult.error.message || 'Failed to send custom approval email'
-        });
-        throw emailResult.error;
-      }
-      
-      if (emailResult.data && !emailResult.data.success) {
-        console.error("❌ Failed to send custom approval email:", emailResult.data.message);
-        trackEmailDelivery(correlationId, {
-          success: false,
-          error: emailResult.data.message || 'Failed to send custom approval email'
-        });
-        throw new Error(emailResult.data.message || 'Failed to send custom approval email');
-      }
-      
-      // Custom approval email sent successfully and user approved
-      trackEmailDelivery(correlationId, {
-        success: true,
-        messageId: emailResult.data?.messageId,
-        emailProvider: emailResult.data?.emailProvider
-      });
-      
-      toast({
-        title: "User approved and email sent",
-        description: `${user.first_name} ${user.last_name} has been approved and notified via email`,
+      // Send email in background without blocking UI
+      supabase.functions.invoke('send-approval-email', {
+        body: requestPayload
+      }).then((emailResult) => {
+        if (emailResult.error || (emailResult.data && !emailResult.data.success)) {
+          console.error("❌ Error sending approval email:", emailResult.error || emailResult.data?.message);
+          trackEmailDelivery(correlationId, {
+            success: false,
+            error: emailResult.error?.message || emailResult.data?.message || 'Failed to send email'
+          });
+          toast({
+            variant: "destructive",
+            title: "Email delivery failed",
+            description: "User was approved but email couldn't be sent. Please contact them manually.",
+          });
+        } else {
+          console.log("✅ Approval email sent successfully");
+          trackEmailDelivery(correlationId, {
+            success: true,
+            messageId: emailResult.data?.messageId,
+            emailProvider: emailResult.data?.emailProvider
+          });
+          toast({
+            title: "Email sent successfully",
+            description: `Welcome email delivered to ${user.email}`,
+          });
+        }
       });
       
       return true;
     } catch (error) {
-      console.error("💥 Failed to send custom approval email:", error);
+      console.error("💥 Failed to approve user:", error);
       trackEmailDelivery(correlationId, {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error'
@@ -418,7 +419,7 @@ export function useAdminEmail() {
       toast({
         variant: "destructive",
         title: "Approval failed",
-        description: "Failed to approve user and send email. Please try again.",
+        description: "Failed to approve user. Please try again.",
       });
       throw error;
     }
