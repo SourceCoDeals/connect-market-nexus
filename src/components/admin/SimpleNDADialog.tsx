@@ -39,19 +39,28 @@ export const SimpleNDADialog = ({ open, onOpenChange, user, listing, onSendEmail
         customSignatureText: customSignatureText
       });
 
-      // Then log the email in the database
-      await logNDAEmail.mutateAsync({
-        userId: user.id,
-        userEmail: user.email,
-        adminNotes: 'NDA email sent from connection requests'
-      });
-
+      // Close dialog immediately after successful email send
       onOpenChange(false);
       setCustomSubject("");
       setCustomMessage("");
       setCustomSignatureText("");
+
+      // Try to log the email in the database, but don't fail the whole operation if this fails
+      try {
+        await logNDAEmail.mutateAsync({
+          userId: user.id,
+          userEmail: user.email,
+          adminNotes: 'NDA email sent from connection requests'
+        });
+      } catch (logError) {
+        console.warn('Email sent successfully but failed to log to database:', logError);
+        // Don't throw this error - the email was sent successfully
+      }
+      
     } catch (error) {
       console.error('Error sending NDA email:', error);
+      // Only throw if the actual email sending failed
+      throw error;
     }
   };
 
