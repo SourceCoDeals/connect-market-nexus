@@ -11,7 +11,7 @@ import { UserSavedListings } from "./UserSavedListings";
 import { UserDataCompleteness } from "./UserDataCompleteness";
 import { DualFeeAgreementToggle } from "./DualFeeAgreementToggle";
 import { SimpleFeeAgreementDialog } from "./SimpleFeeAgreementDialog";
-import { NDAToggle } from "./NDAToggle";
+import { DualNDAToggle } from "./DualNDAToggle";
 import { SimpleNDADialog } from "./SimpleNDADialog";
 import { getFieldCategories, FIELD_LABELS } from '@/lib/buyer-type-fields';
 import { useEnhancedUserExport } from '@/hooks/admin/use-enhanced-user-export';
@@ -544,7 +544,7 @@ export function UsersTable({
                   />
                 </TableCell>
                 <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
-                  <NDAToggle 
+                  <DualNDAToggle 
                     user={user}
                     onSendEmail={setSelectedUserForNDA}
                     size="sm"

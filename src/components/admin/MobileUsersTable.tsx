@@ -9,7 +9,7 @@ import { MoreHorizontal, UserCheck, UserX, UserPlus, UserMinus, Trash2, Mail, Bu
 import { formatDistanceToNow } from 'date-fns';
 import { DualFeeAgreementToggle } from "./DualFeeAgreementToggle";
 import { SimpleFeeAgreementDialog } from "./SimpleFeeAgreementDialog";
-import { NDAToggle } from "./NDAToggle";
+import { DualNDAToggle } from "./DualNDAToggle";
 import { SimpleNDADialog } from "./SimpleNDADialog";
 import { useLogFeeAgreementEmail } from '@/hooks/admin/use-fee-agreement';
 import { supabase } from '@/integrations/supabase/client';
@@ -176,7 +176,7 @@ const MobileUserCard = ({
       
       {/* NDA Section */}
       <div className="border-b pb-3">
-        <NDAToggle 
+        <DualNDAToggle 
           user={user}
           onSendEmail={onSendNDAEmail}
           size="default"
