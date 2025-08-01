@@ -77,8 +77,7 @@ export const useUpdateNDA = () => {
       return { previousUsers, previousRequests };
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
-      queryClient.invalidateQueries({ queryKey: ['connection-requests'] });
+      // Don't invalidate immediately to preserve optimistic updates
       toast({
         title: "NDA status updated",
         description: "The NDA status has been successfully updated.",
@@ -152,8 +151,7 @@ export const useUpdateNDAEmailSent = () => {
       return { previousUsers, previousRequests };
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
-      queryClient.invalidateQueries({ queryKey: ['connection-requests'] });
+      // Don't invalidate immediately to preserve optimistic updates
       toast({
         title: "NDA email status updated",
         description: "The NDA email status has been successfully updated.",
@@ -226,8 +224,7 @@ export const useLogNDAEmail = () => {
       return { previousUsers, previousRequests };
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
-      queryClient.invalidateQueries({ queryKey: ['connection-requests'] });
+      // Don't invalidate immediately to preserve optimistic updates
       toast({
         title: "NDA email logged",
         description: "The NDA email has been successfully logged.",

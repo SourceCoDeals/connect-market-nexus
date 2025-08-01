@@ -45,7 +45,7 @@ export const useUpdateFollowup = () => {
       return { previousRequests };
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['connection-requests'] });
+      // Don't invalidate immediately to preserve optimistic updates
       toast({
         title: "Follow-up status updated",
         description: "The follow-up status has been successfully updated.",

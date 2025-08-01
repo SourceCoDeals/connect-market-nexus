@@ -76,8 +76,7 @@ export const useUpdateFeeAgreement = () => {
       return { previousUsers, previousRequests };
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
-      queryClient.invalidateQueries({ queryKey: ['connection-requests'] });
+      // Don't invalidate immediately to preserve optimistic updates
       toast({
         title: "Fee agreement status updated",
         description: "The fee agreement status has been successfully updated.",
@@ -151,8 +150,7 @@ export const useUpdateFeeAgreementEmailSent = () => {
       return { previousUsers, previousRequests };
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
-      queryClient.invalidateQueries({ queryKey: ['connection-requests'] });
+      // Don't invalidate immediately to preserve optimistic updates
       toast({
         title: "Fee agreement email status updated",
         description: "The fee agreement email status has been successfully updated.",
@@ -225,8 +223,7 @@ export const useLogFeeAgreementEmail = () => {
       return { previousUsers, previousRequests };
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
-      queryClient.invalidateQueries({ queryKey: ['connection-requests'] });
+      // Don't invalidate immediately to preserve optimistic updates
       toast({
         title: "Fee agreement email logged",
         description: "The fee agreement email has been successfully logged.",

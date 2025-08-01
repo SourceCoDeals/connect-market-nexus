@@ -153,32 +153,31 @@ SourceCo Team`}`;
   return (
     <div className="space-y-6">
       {/* Email Actions Section */}
-      <div className="space-y-3">
-        <h5 className="text-sm font-medium text-muted-foreground">Email Actions</h5>
+      <div className="bg-card border rounded-lg p-4">
+        <h5 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+          <Mail className="h-4 w-4" />
+          Email Actions
+        </h5>
         <div className="flex flex-wrap gap-2">
-          {!user.fee_agreement_signed && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowFeeDialog(true)}
-              className="text-xs"
-            >
-              <FileText className="h-3 w-3 mr-1" />
-              Send Fee Agreement
-            </Button>
-          )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowFeeDialog(true)}
+            className="text-xs"
+          >
+            <FileText className="h-3 w-3 mr-1" />
+            {user.fee_agreement_signed ? "Resend Fee Agreement" : "Send Fee Agreement"}
+          </Button>
           
-          {!user.nda_signed && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowNDADialog(true)}
-              className="text-xs"
-            >
-              <Shield className="h-3 w-3 mr-1" />
-              Send NDA
-            </Button>
-          )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowNDADialog(true)}
+            className="text-xs"
+          >
+            <Shield className="h-3 w-3 mr-1" />
+            {user.nda_signed ? "Resend NDA" : "Send NDA"}
+          </Button>
 
           <Button
             variant="outline"
@@ -194,106 +193,111 @@ SourceCo Team`}`;
       </div>
 
       {/* Agreement Status Section */}
-      <div className="space-y-4">
-        <h5 className="text-sm font-medium text-muted-foreground">Agreement Status</h5>
+      <div className="bg-card border rounded-lg p-4">
+        <h5 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
+          <FileText className="h-4 w-4" />
+          Agreement Status
+        </h5>
         
-        {/* Fee Agreement */}
-        <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/30">
-          <div className="flex items-center gap-2">
-            <FileText className="h-4 w-4" />
-            <span className="text-sm font-medium">Fee Agreement</span>
-          </div>
-          <div className="flex items-center gap-3">
-            {getStatusBadge(
-              user.fee_agreement_email_sent || false, 
-              user.fee_agreement_signed || false, 
-              user.fee_agreement_email_sent_at, 
-              user.fee_agreement_signed_at
-            )}
-            <div className="flex items-center gap-4">
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id={`fee-sent-${user.id}`}
-                  checked={user.fee_agreement_email_sent || false}
-                  onCheckedChange={handleFeeAgreementEmailSentToggle}
-                  disabled={updateFeeAgreementEmailSent.isPending}
-                />
-                <Label htmlFor={`fee-sent-${user.id}`} className="text-xs">Sent</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id={`fee-signed-${user.id}`}
-                  checked={user.fee_agreement_signed || false}
-                  onCheckedChange={handleFeeAgreementSignedToggle}
-                  disabled={updateFeeAgreement.isPending}
-                />
-                <Label htmlFor={`fee-signed-${user.id}`} className="text-xs">Signed</Label>
+        <div className="space-y-3">
+          {/* Fee Agreement */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 border rounded-lg bg-muted/20 gap-3">
+            <div className="flex items-center gap-2">
+              <FileText className="h-4 w-4 text-blue-600" />
+              <span className="text-sm font-medium">Fee Agreement</span>
+            </div>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+              {getStatusBadge(
+                user.fee_agreement_email_sent || false, 
+                user.fee_agreement_signed || false, 
+                user.fee_agreement_email_sent_at, 
+                user.fee_agreement_signed_at
+              )}
+              <div className="flex items-center gap-4">
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id={`fee-sent-${user.id}`}
+                    checked={user.fee_agreement_email_sent || false}
+                    onCheckedChange={handleFeeAgreementEmailSentToggle}
+                    disabled={updateFeeAgreementEmailSent.isPending}
+                  />
+                  <Label htmlFor={`fee-sent-${user.id}`} className="text-xs">Sent</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id={`fee-signed-${user.id}`}
+                    checked={user.fee_agreement_signed || false}
+                    onCheckedChange={handleFeeAgreementSignedToggle}
+                    disabled={updateFeeAgreement.isPending}
+                  />
+                  <Label htmlFor={`fee-signed-${user.id}`} className="text-xs">Signed</Label>
+                </div>
               </div>
             </div>
           </div>
-        </div>
 
-        {/* NDA */}
-        <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/30">
-          <div className="flex items-center gap-2">
-            <Shield className="h-4 w-4" />
-            <span className="text-sm font-medium">NDA</span>
-          </div>
-          <div className="flex items-center gap-3">
-            {getStatusBadge(
-              user.nda_email_sent || false, 
-              user.nda_signed || false, 
-              user.nda_email_sent_at, 
-              user.nda_signed_at
-            )}
-            <div className="flex items-center gap-4">
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id={`nda-sent-${user.id}`}
-                  checked={user.nda_email_sent || false}
-                  onCheckedChange={handleNDAEmailSentToggle}
-                  disabled={updateNDAEmailSent.isPending}
-                />
-                <Label htmlFor={`nda-sent-${user.id}`} className="text-xs">Sent</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id={`nda-signed-${user.id}`}
-                  checked={user.nda_signed || false}
-                  onCheckedChange={handleNDASignedToggle}
-                  disabled={updateNDA.isPending}
-                />
-                <Label htmlFor={`nda-signed-${user.id}`} className="text-xs">Signed</Label>
+          {/* NDA */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 border rounded-lg bg-muted/20 gap-3">
+            <div className="flex items-center gap-2">
+              <Shield className="h-4 w-4 text-green-600" />
+              <span className="text-sm font-medium">NDA</span>
+            </div>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+              {getStatusBadge(
+                user.nda_email_sent || false, 
+                user.nda_signed || false, 
+                user.nda_email_sent_at, 
+                user.nda_signed_at
+              )}
+              <div className="flex items-center gap-4">
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id={`nda-sent-${user.id}`}
+                    checked={user.nda_email_sent || false}
+                    onCheckedChange={handleNDAEmailSentToggle}
+                    disabled={updateNDAEmailSent.isPending}
+                  />
+                  <Label htmlFor={`nda-sent-${user.id}`} className="text-xs">Sent</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id={`nda-signed-${user.id}`}
+                    checked={user.nda_signed || false}
+                    onCheckedChange={handleNDASignedToggle}
+                    disabled={updateNDA.isPending}
+                  />
+                  <Label htmlFor={`nda-signed-${user.id}`} className="text-xs">Signed</Label>
+                </div>
               </div>
             </div>
           </div>
-        </div>
 
-        {/* Follow-Up Status */}
-        <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/30">
-          <div className="flex items-center gap-2">
-            <MessageSquare className="h-4 w-4" />
-            <span className="text-sm font-medium">Follow-Up</span>
-          </div>
-          <div className="flex items-center gap-3">
-            <Badge 
-              variant={followedUp ? "default" : "secondary"}
-              className={followedUp 
-                ? "text-xs bg-green-100 text-green-800 border-green-200 hover:bg-green-200" 
-                : "text-xs bg-amber-100 text-amber-800 border-amber-200 hover:bg-amber-200"
-              }
-            >
-              <CheckCircle className="h-3 w-3 mr-1" />
-              {followedUp ? "Completed" : "Pending"}
-            </Badge>
-            <div className="flex items-center space-x-2">
-              <Switch
-                id={`followup-${user.id}`}
-                checked={followedUp}
-                onCheckedChange={handleFollowUpToggle}
-                disabled={updateFollowup.isPending || !requestId}
-              />
-              <Label htmlFor={`followup-${user.id}`} className="text-xs">Followed Up</Label>
+          {/* Follow-Up Status */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 border rounded-lg bg-muted/20 gap-3">
+            <div className="flex items-center gap-2">
+              <MessageSquare className="h-4 w-4 text-purple-600" />
+              <span className="text-sm font-medium">Follow-Up</span>
+            </div>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+              <Badge 
+                variant={followedUp ? "default" : "secondary"}
+                className={followedUp 
+                  ? "text-xs bg-green-100 text-green-800 border-green-200 hover:bg-green-200 w-fit" 
+                  : "text-xs bg-amber-100 text-amber-800 border-amber-200 hover:bg-amber-200 w-fit"
+                }
+              >
+                <CheckCircle className="h-3 w-3 mr-1" />
+                {followedUp ? "Completed" : "Pending"}
+              </Badge>
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id={`followup-${user.id}`}
+                  checked={followedUp}
+                  onCheckedChange={handleFollowUpToggle}
+                  disabled={updateFollowup.isPending || !requestId}
+                />
+                <Label htmlFor={`followup-${user.id}`} className="text-xs">Followed Up</Label>
+              </div>
             </div>
           </div>
         </div>

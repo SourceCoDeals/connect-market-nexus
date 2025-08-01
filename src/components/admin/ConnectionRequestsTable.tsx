@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ChevronDown, ChevronRight, User, Building, MessageSquare, Calendar, RefreshCw, FileText } from "lucide-react";
+import { ChevronDown, ChevronRight, User, Building, MessageSquare, Calendar, RefreshCw, FileText, Shield } from "lucide-react";
 import { AdminConnectionRequest } from "@/types/admin";
 import { ConnectionRequestActions } from "@/components/admin/ConnectionRequestActions";
 import { SmartWorkflowSuggestions } from "@/components/admin/SmartWorkflowSuggestions";
@@ -79,7 +79,7 @@ const RequestDetails = ({
           <User className="h-5 w-5 text-primary" />
           <h4 className="font-semibold text-base">Buyer Information</h4>
         </div>
-        <div className="bg-muted/50 rounded-lg p-4 space-y-3">
+        <div className="bg-card border rounded-lg p-4 space-y-3">
           <div className="grid grid-cols-2 gap-3 text-sm">
             <div>
               <span className="font-medium text-muted-foreground">Name:</span>
@@ -106,7 +106,7 @@ const RequestDetails = ({
           <Building className="h-5 w-5 text-primary" />
           <h4 className="font-semibold text-base">Listing Information</h4>
         </div>
-        <div className="bg-muted/50 rounded-lg p-4 space-y-3">
+        <div className="bg-card border rounded-lg p-4 space-y-3">
           <div className="grid grid-cols-1 gap-3 text-sm">
             <div>
               <span className="font-medium text-muted-foreground">Title:</span>
@@ -127,26 +127,31 @@ const RequestDetails = ({
       </div>
     </div>
 
-    {/* User Message */}
-    {request.user_message && (
-      <div className="space-y-3">
-        <div className="flex items-center gap-2">
+    {/* Messages Section */}
+    {(request.user_message || request.admin_comment) && (
+      <div className="space-y-4">
+        <h4 className="font-semibold text-base flex items-center gap-2">
           <MessageSquare className="h-5 w-5 text-primary" />
-          <h4 className="font-semibold text-base">User Message</h4>
-        </div>
-        <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-          <p className="text-sm leading-relaxed">{request.user_message}</p>
-        </div>
-      </div>
-    )}
+          Messages
+        </h4>
+        
+        {request.user_message && (
+          <div className="space-y-2">
+            <span className="text-sm font-medium text-muted-foreground">User Message:</span>
+            <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+              <p className="text-sm leading-relaxed">{request.user_message}</p>
+            </div>
+          </div>
+        )}
 
-    {/* Admin Comment */}
-    {request.admin_comment && (
-      <div className="space-y-3">
-        <h4 className="font-semibold text-base">Admin Comment</h4>
-        <div className="bg-purple-50 dark:bg-purple-950/20 border border-purple-200 dark:border-purple-800 rounded-lg p-4">
-          <p className="text-sm leading-relaxed">{request.admin_comment}</p>
-        </div>
+        {request.admin_comment && (
+          <div className="space-y-2">
+            <span className="text-sm font-medium text-muted-foreground">Admin Comment:</span>
+            <div className="bg-purple-50 dark:bg-purple-950/20 border border-purple-200 dark:border-purple-800 rounded-lg p-4">
+              <p className="text-sm leading-relaxed">{request.admin_comment}</p>
+            </div>
+          </div>
+        )}
       </div>
     )}
 
@@ -294,12 +299,40 @@ export const ConnectionRequestsTable = ({
                         </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-4">
+                    <div className="flex flex-col items-end gap-3">
                       <div className="text-sm text-muted-foreground flex items-center gap-2">
                         <Calendar className="h-4 w-4" />
                         {new Date(request.created_at).toLocaleDateString()}
                       </div>
                       <StatusBadge status={request.status} />
+                      
+                      {/* Quick Status Indicators */}
+                      <div className="flex flex-wrap items-center gap-2 text-xs">
+                        <div className="flex items-center gap-1" title="NDA Status">
+                          <Shield className="h-3 w-3" />
+                          <span className={`whitespace-nowrap ${request.user?.nda_signed ? 'text-green-600 font-medium' : request.user?.nda_email_sent ? 'text-blue-600' : 'text-amber-600'}`}>
+                            {request.user?.nda_signed ? '✅ Signed' : request.user?.nda_email_sent ? '📧 Sent' : '❌ Pending'}
+                          </span>
+                        </div>
+                        
+                        <span className="text-muted-foreground hidden sm:inline">•</span>
+                        
+                        <div className="flex items-center gap-1" title="Fee Agreement Status">
+                          <FileText className="h-3 w-3" />
+                          <span className={`whitespace-nowrap ${request.user?.fee_agreement_signed ? 'text-green-600 font-medium' : request.user?.fee_agreement_email_sent ? 'text-blue-600' : 'text-amber-600'}`}>
+                            {request.user?.fee_agreement_signed ? '✅ Signed' : request.user?.fee_agreement_email_sent ? '📧 Sent' : '❌ Pending'}
+                          </span>
+                        </div>
+                        
+                        <span className="text-muted-foreground hidden sm:inline">•</span>
+                        
+                        <div className="flex items-center gap-1" title="Follow-up Status">
+                          <MessageSquare className="h-3 w-3" />
+                          <span className={`whitespace-nowrap ${request.followed_up ? 'text-green-600 font-medium' : 'text-amber-600'}`}>
+                            {request.followed_up ? '✅ Done' : '❌ Pending'}
+                          </span>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </CardContent>
