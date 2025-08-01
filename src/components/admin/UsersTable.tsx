@@ -17,6 +17,7 @@ import { SimpleNDADialog } from "./SimpleNDADialog";
 import { getFieldCategories, FIELD_LABELS } from '@/lib/buyer-type-fields';
 import { useEnhancedUserExport } from '@/hooks/admin/use-enhanced-user-export';
 import { useLogFeeAgreementEmail } from '@/hooks/admin/use-fee-agreement';
+import { useLogNDAEmail } from '@/hooks/admin/use-nda';
 
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from "@/hooks/use-toast";
@@ -300,6 +301,7 @@ export function UsersTable({
   const [selectedUserForNDA, setSelectedUserForNDA] = useState<User | null>(null);
   const { exportUsersToCSV } = useEnhancedUserExport();
   const logEmailMutation = useLogFeeAgreementEmail();
+  const logNDAEmail = useLogNDAEmail();
   const { toast } = useToast();
   
   const handleSendEmail = async (emailData: {
@@ -603,45 +605,11 @@ export function UsersTable({
       onOpenChange={(open) => !open && setSelectedUserForNDA(null)}
       user={selectedUserForNDA}
       onSendEmail={async (user, options) => {
-        try {
-          const { data: { user: currentUser } } = await supabase.auth.getUser();
-          if (!currentUser) throw new Error('Not authenticated');
-
-          const { data: adminProfile } = await supabase
-            .from('profiles')
-            .select('email, first_name, last_name')
-            .eq('id', currentUser.id)
-            .single();
-
-          if (!adminProfile) throw new Error('Admin profile not found');
-
-          const { data, error } = await supabase.functions.invoke('send-nda-email', {
-            body: {
-              userEmail: user.email,
-              userId: user.id,
-              customSubject: options?.subject,
-              customMessage: options?.message,
-              customSignatureHtml: options?.customSignatureHtml,
-              customSignatureText: options?.customSignatureText,
-              adminEmail: adminProfile.email,
-              adminName: `${adminProfile.first_name} ${adminProfile.last_name}`
-            }
-          });
-
-          if (error) throw error;
-          
-          toast({
-            title: "NDA Email Sent",
-            description: `NDA sent successfully to ${user.email}`,
-          });
-        } catch (error: any) {
-          toast({
-            title: "Failed to send NDA",
-            description: error.message,
-            variant: "destructive",
-          });
-          throw error;
-        }
+        await logNDAEmail.mutateAsync({
+          userId: user.id,
+          userEmail: user.email,
+          adminNotes: options?.subject ? `Custom NDA email: ${options.subject}` : 'Standard NDA email sent'
+        });
       }}
     />
 
