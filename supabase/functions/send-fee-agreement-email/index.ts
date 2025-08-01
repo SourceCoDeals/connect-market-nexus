@@ -187,14 +187,14 @@ ${signatureText}` : signatureText;
 
     // Skip complex templates - textContent is all we need for simple, working emails
 
-    // Determine the best sender email based on admin domain
-    let senderEmail = "noreply@sourcecodeals.com";
-    let senderName = `${adminName} - SourceCo`;
+    // Determine the sender email - use current admin info
+    let senderEmail = adminEmail;
+    let senderName = adminName;
     
-    // Use admin's domain if it's a verified SourceCo domain
-    if (adminEmail.includes("@sourcecodeals.com")) {
-      senderEmail = adminEmail;
-      senderName = adminName;
+    // Only use noreply if admin email is not from our domain
+    if (!adminEmail.includes("@sourcecodeals.com")) {
+      senderEmail = "noreply@sourcecodeals.com";
+      senderName = `${adminName} - SourceCo`;
     }
     
     console.log(`📧 Using sender: ${senderName} <${senderEmail}>, reply-to: ${adminName} <${adminEmail}>`);

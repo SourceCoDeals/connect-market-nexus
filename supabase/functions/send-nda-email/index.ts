@@ -144,25 +144,28 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
-    // Determine sender information
-    let senderEmail = 'adam.haile@sourcecodeals.com';
-    let senderName = 'Adam Haile';
-    let adminTitle = 'Founder & CEO';
-    let adminPhone = '(614) 555-0100';
-    let adminCalendly = 'https://calendly.com/adam-haile-sourceco/30min';
+    // Determine sender information - use current admin, not hard-coded defaults
+    let senderEmail = 'noreply@sourcecodeals.com';
+    let senderName = 'SourceCo Admin';
+    let adminTitle = '';
+    let adminPhone = '';
+    let adminCalendly = '';
 
-    if (providedAdminEmail) {
+    // First priority: use provided admin info (current logged-in admin)
+    if (providedAdminEmail && providedAdminName) {
+      senderEmail = providedAdminEmail;
+      senderName = providedAdminName;
+      
+      // Try to get additional profile info if available
       const adminProfile = getAdminProfile(providedAdminEmail);
       if (adminProfile) {
-        senderEmail = adminProfile.email;
-        senderName = adminProfile.name;
         adminTitle = adminProfile.title;
         adminPhone = adminProfile.phone;
         adminCalendly = adminProfile.calendlyUrl;
       }
     }
 
-    const effectiveAdminName = providedAdminName || senderName;
+    const effectiveAdminName = senderName;
 
     console.log('📧 Using sender:', `${effectiveAdminName} <${senderEmail}>`, 'reply-to:', `${effectiveAdminName} <${senderEmail}>`);
 

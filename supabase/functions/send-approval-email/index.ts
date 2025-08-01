@@ -53,13 +53,13 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log('Sending approval email to:', userEmail);
 
-    // Get admin profile for signature
+    // Get admin profile for signature - use dynamic admin info
     let senderInfo = {
-      email: adminEmail || 'admin@sourceco.com',
-      name: adminName || 'SourceCo Admin'
+      email: 'noreply@sourcecodeals.com',
+      name: 'SourceCo Admin'
     };
 
-    // If admin ID provided, try to get enhanced profile info
+    // If admin ID provided, get profile from database (preferred)
     if (adminId) {
       const { data: adminProfile } = await supabase
         .from('profiles')
@@ -67,14 +67,19 @@ const handler = async (req: Request): Promise<Response> => {
         .eq('id', adminId)
         .single();
 
-      if (adminProfile) {
+      if (adminProfile && adminProfile.email && adminProfile.first_name && adminProfile.last_name) {
         senderInfo = {
-          email: adminProfile.email || senderInfo.email,
-          name: adminProfile.first_name && adminProfile.last_name 
-            ? `${adminProfile.first_name} ${adminProfile.last_name}`
-            : senderInfo.name
+          email: adminProfile.email,
+          name: `${adminProfile.first_name} ${adminProfile.last_name}`
         };
       }
+    } 
+    // Fallback to provided admin info if available
+    else if (adminEmail && adminName) {
+      senderInfo = {
+        email: adminEmail,
+        name: adminName
+      };
     }
 
     // Create simple plain text email with proper spacing and signature - FIXED LINE BREAKS
