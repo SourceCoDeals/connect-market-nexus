@@ -1,23 +1,14 @@
-
-import React, { useState } from 'react';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { formatDistanceToNow } from 'date-fns';
-import { AdminConnectionRequest } from '@/types/admin';
-import { ChevronDown, ChevronRight, MessageSquare } from 'lucide-react';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Link } from 'react-router-dom';
-import { ConnectionRequestEmailActions } from './ConnectionRequestEmailActions';
-import { SmartWorkflowSuggestions } from './SmartWorkflowSuggestions';
-import { NDAFeeToggleActions } from './NDAFeeToggleActions';
+import { useState } from "react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ChevronDown, ChevronRight, User, Building, MessageSquare, Calendar, RefreshCw } from "lucide-react";
+import { AdminConnectionRequest } from "@/types/admin";
+import { ConnectionRequestEmailActions } from "@/components/admin/ConnectionRequestEmailActions";
+import { NDAFeeToggleActions } from "@/components/admin/NDAFeeToggleActions";
+import { SmartWorkflowSuggestions } from "@/components/admin/SmartWorkflowSuggestions";
 
 interface ConnectionRequestsTableProps {
   requests: AdminConnectionRequest[];
@@ -27,179 +18,221 @@ interface ConnectionRequestsTableProps {
   onRefresh?: () => void;
 }
 
-// Smaller component for table loading state
 const ConnectionRequestsTableSkeleton = () => (
-  <div className="border rounded-md">
-    <div className="h-12 bg-muted/50 rounded-t-md animate-pulse"></div>
-    {Array(5)
-      .fill(0)
-      .map((_, i) => (
-        <div key={i} className="h-16 border-t bg-background animate-pulse"></div>
-      ))}
+  <div className="space-y-4">
+    {[...Array(3)].map((_, i) => (
+      <Card key={i}>
+        <CardContent className="p-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <Skeleton className="h-12 w-12 rounded-full" />
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-[250px]" />
+                <Skeleton className="h-3 w-[200px]" />
+              </div>
+            </div>
+            <Skeleton className="h-6 w-[80px]" />
+          </div>
+        </CardContent>
+      </Card>
+    ))}
   </div>
 );
 
-// Smaller component for empty state
 const ConnectionRequestsTableEmpty = () => (
-  <div className="border rounded-md p-8 text-center text-muted-foreground">
-    No connection requests found
-  </div>
+  <Card>
+    <CardContent className="flex flex-col items-center justify-center py-16">
+      <MessageSquare className="h-16 w-16 text-muted-foreground mb-4" />
+      <h3 className="text-xl font-semibold text-muted-foreground mb-2">No connection requests found</h3>
+      <p className="text-sm text-muted-foreground">Connection requests will appear here when users submit them.</p>
+    </CardContent>
+  </Card>
 );
 
-// Smaller component for request details
-const RequestDetails = ({ request, onApprove, onReject, onRefresh }: { 
+const StatusBadge = ({ status }: { status: string }) => {
+  switch (status) {
+    case "approved":
+      return <Badge variant="default" className="bg-green-500 hover:bg-green-600 text-white">Approved</Badge>;
+    case "rejected":
+      return <Badge variant="destructive">Rejected</Badge>;
+    case "pending":
+    default:
+      return <Badge variant="secondary" className="bg-yellow-500 hover:bg-yellow-600 text-white">Pending</Badge>;
+  }
+};
+
+const RequestDetails = ({ 
+  request, 
+  onApprove, 
+  onReject,
+  onRefresh 
+}: { 
   request: AdminConnectionRequest;
   onApprove: (request: AdminConnectionRequest) => void;
   onReject: (request: AdminConnectionRequest) => void;
   onRefresh?: () => void;
 }) => (
-  <div className="mt-4 flex flex-col space-y-4">
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      <div>
-        <h4 className="font-semibold text-sm mb-2">Buyer Details</h4>
-        <div className="space-y-1 text-sm">
-          <p><span className="font-medium">Name:</span> {request.user ? `${request.user.first_name} ${request.user.last_name}` : "Unknown User"}</p>
-          <p><span className="font-medium">Email:</span> {request.user?.email || "-"}</p>
-          <p><span className="font-medium">Company:</span> {request.user?.company || "-"}</p>
-          <p><span className="font-medium">Phone:</span> {request.user?.phone_number || "-"}</p>
-          <p><span className="font-medium">Buyer Type:</span> {request.user?.buyer_type || "-"}</p>
-          <div className="flex items-center justify-between">
-            <span className="font-medium">Agreements:</span>
-            {request.user && (
-              <NDAFeeToggleActions 
-                user={request.user} 
-                compact={true}
-                showLabels={false}
-              />
-            )}
+  <div className="space-y-6 pt-6 border-t border-border">
+    {/* User & Listing Information Grid */}
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="space-y-4">
+        <div className="flex items-center gap-2 mb-3">
+          <User className="h-5 w-5 text-primary" />
+          <h4 className="font-semibold text-base">Buyer Information</h4>
+        </div>
+        <div className="bg-muted/50 rounded-lg p-4 space-y-3">
+          <div className="grid grid-cols-2 gap-3 text-sm">
+            <div>
+              <span className="font-medium text-muted-foreground">Name:</span>
+              <p className="font-medium">{request.user?.first_name} {request.user?.last_name}</p>
+            </div>
+            <div>
+              <span className="font-medium text-muted-foreground">Type:</span>
+              <p className="capitalize">{request.user?.buyer_type || 'Not specified'}</p>
+            </div>
+            <div>
+              <span className="font-medium text-muted-foreground">Email:</span>
+              <p className="break-all">{request.user?.email}</p>
+            </div>
+            <div>
+              <span className="font-medium text-muted-foreground">Company:</span>
+              <p>{request.user?.company || 'Not provided'}</p>
+            </div>
           </div>
         </div>
       </div>
       
-      <div>
-        <h4 className="font-semibold text-sm mb-2">Listing Details</h4>
-        <div className="space-y-1 text-sm">
-          <p>
-            <span className="font-medium">Title:</span>{" "}
-            {request.listing?.id ? (
-              <Link to={`/listing/${request.listing.id}`} className="text-primary hover:underline">
-                {request.listing.title || "Unknown"}
-              </Link>
-            ) : (
-              request.listing?.title || "Unknown"
-            )}
-          </p>
-          <p><span className="font-medium">Category:</span> {request.listing?.category || "-"}</p>
-          <p><span className="font-medium">Location:</span> {request.listing?.location || "-"}</p>
-          <p><span className="font-medium">Revenue:</span> {request.listing?.revenue ? `$${(request.listing.revenue).toLocaleString()}` : "-"}</p>
-          <p><span className="font-medium">EBITDA:</span> {request.listing?.ebitda ? `$${(request.listing.ebitda).toLocaleString()}` : "-"}</p>
+      <div className="space-y-4">
+        <div className="flex items-center gap-2 mb-3">
+          <Building className="h-5 w-5 text-primary" />
+          <h4 className="font-semibold text-base">Listing Information</h4>
+        </div>
+        <div className="bg-muted/50 rounded-lg p-4 space-y-3">
+          <div className="grid grid-cols-1 gap-3 text-sm">
+            <div>
+              <span className="font-medium text-muted-foreground">Title:</span>
+              <p className="font-medium">{request.listing?.title}</p>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <span className="font-medium text-muted-foreground">Category:</span>
+                <p>{request.listing?.category}</p>
+              </div>
+              <div>
+                <span className="font-medium text-muted-foreground">Location:</span>
+                <p>{request.listing?.location}</p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
-    
+
+    {/* User Message */}
     {request.user_message && (
-      <div className="mt-4">
-        <h4 className="font-semibold text-sm mb-2">Buyer's Message</h4>
-        <div className="bg-muted p-3 rounded-md text-sm">
-          {request.user_message}
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <MessageSquare className="h-5 w-5 text-primary" />
+          <h4 className="font-semibold text-base">User Message</h4>
+        </div>
+        <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+          <p className="text-sm leading-relaxed">{request.user_message}</p>
         </div>
       </div>
     )}
-    
+
+    {/* Admin Comment */}
     {request.admin_comment && (
-      <div className="mt-4">
-        <h4 className="font-semibold text-sm mb-2">Admin Comment</h4>
-        <div className="bg-muted p-3 rounded-md text-sm">
-          {request.admin_comment}
+      <div className="space-y-3">
+        <h4 className="font-semibold text-base">Admin Comment</h4>
+        <div className="bg-purple-50 dark:bg-purple-950/20 border border-purple-200 dark:border-purple-800 rounded-lg p-4">
+          <p className="text-sm leading-relaxed">{request.admin_comment}</p>
         </div>
       </div>
     )}
-    
-    <div className="mt-4 space-y-4">
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div>
-          {request.user && (
-            <div className="space-y-3">
-              <h4 className="font-semibold text-sm">Quick Actions</h4>
-              <ConnectionRequestEmailActions 
-                user={request.user} 
-                onEmailSent={onRefresh}
-              />
-            </div>
-          )}
-        </div>
-        
-        <div>
-          {request.user && (
-            <SmartWorkflowSuggestions 
-              user={request.user}
-              onSuggestedAction={(action, user) => {
-                if (action === 'approve_user') {
-                  onApprove(request);
-                }
-                // Other suggested actions can be handled here
-              }}
+
+    {/* Agreement Management - Single Section */}
+    {request.user && (
+      <div className="space-y-4">
+        <h4 className="font-semibold text-base">Agreement Management</h4>
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+          {/* Email Actions */}
+          <div className="space-y-3">
+            <h5 className="text-sm font-medium text-muted-foreground">Email Actions</h5>
+            <ConnectionRequestEmailActions 
+              user={request.user} 
+              onEmailSent={() => onRefresh?.()} 
             />
-          )}
+          </div>
+          
+          {/* Agreement Status & Toggles */}
+          <div className="space-y-3">
+            <h5 className="text-sm font-medium text-muted-foreground">Agreement Status</h5>
+            <NDAFeeToggleActions user={request.user} compact={true} showLabels={false} />
+          </div>
         </div>
       </div>
-      
-      <div className="flex justify-end gap-2">
-        {request.status === "pending" ? (
-          <>
-            <Button
-              variant="outline"
-              size="sm"
-              className="border-green-500 hover:bg-green-500 hover:text-white"
-              onClick={() => onApprove(request)}
-            >
-              Approve
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="border-red-500 hover:bg-red-500 hover:text-white"
-              onClick={() => onReject(request)}
-            >
-              Reject
-            </Button>
-          </>
-        ) : request.status === "rejected" ? (
+    )}
+
+    {/* Smart Workflow Suggestions */}
+    {request.user && (
+      <div className="space-y-3">
+        <h4 className="font-semibold text-base">Smart Suggestions</h4>
+        <SmartWorkflowSuggestions
+          user={request.user}
+          onSuggestedAction={(action, user) => {
+            console.log('Executing suggestion:', action, user);
+            if (action === 'approve_user') {
+              onApprove(request);
+            }
+          }}
+        />
+      </div>
+    )}
+
+    {/* Action Buttons */}
+    <div className="flex justify-end gap-3 pt-4 border-t border-border">
+      {request.status === "pending" ? (
+        <>
           <Button
             variant="outline"
-            size="sm"
-            className="border-green-500 hover:bg-green-500 hover:text-white"
+            size="default"
+            className="border-green-500 text-green-700 hover:bg-green-500 hover:text-white"
             onClick={() => onApprove(request)}
           >
-            Approve
+            Approve Request
           </Button>
-        ) : (
           <Button
             variant="outline"
-            size="sm"
-            className="border-red-500 hover:bg-red-500 hover:text-white"
+            size="default"
+            className="border-red-500 text-red-700 hover:bg-red-500 hover:text-white"
             onClick={() => onReject(request)}
           >
-            Revoke
+            Reject Request
           </Button>
-        )}
-      </div>
+        </>
+      ) : request.status === "rejected" ? (
+        <Button
+          variant="outline"
+          size="default"
+          className="border-green-500 text-green-700 hover:bg-green-500 hover:text-white"
+          onClick={() => onApprove(request)}
+        >
+          Approve Request
+        </Button>
+      ) : (
+        <Button
+          variant="outline"
+          size="default"
+          className="border-red-500 text-red-700 hover:bg-red-500 hover:text-white"
+          onClick={() => onReject(request)}
+        >
+          Revoke Approval
+        </Button>
+      )}
     </div>
   </div>
 );
-
-// Status badge component
-const StatusBadge = ({ status }: { status: string }) => {
-  switch (status) {
-    case "approved":
-      return <Badge className="bg-green-500">Approved</Badge>;
-    case "rejected":
-      return <Badge className="bg-red-500">Rejected</Badge>;
-    case "pending":
-    default:
-      return <Badge className="bg-yellow-500">Pending</Badge>;
-  }
-};
 
 export const ConnectionRequestsTable = ({
   requests,
@@ -223,134 +256,75 @@ export const ConnectionRequestsTable = ({
   }
 
   return (
-    <div className="border rounded-md overflow-hidden">
-      <div className="overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead></TableHead>
-              <TableHead>Buyer</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Company</TableHead>
-              <TableHead>Listing</TableHead>
-              <TableHead>Message</TableHead>
-              <TableHead>Requested</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {requests.map((request) => (
-              <React.Fragment key={request.id}>
-                <TableRow className="cursor-pointer hover:bg-muted/50" onClick={() => toggleExpand(request.id)}>
-                  <TableCell className="w-8">
-                    {expandedRequestId === request.id ? 
-                      <ChevronDown className="h-4 w-4 text-muted-foreground" /> :
-                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                    }
-                  </TableCell>
-                  <TableCell className="font-medium">
-                    {request.user ? `${request.user.first_name} ${request.user.last_name}` : "Unknown User"}
-                  </TableCell>
-                  <TableCell>{request.user?.email || "-"}</TableCell>
-                  <TableCell>{request.user?.company || "-"}</TableCell>
-                  <TableCell className="max-w-[180px] truncate">
-                    {request.listing?.id ? (
-                      <Link 
-                        to={`/listing/${request.listing.id}`} 
-                        className="text-primary hover:underline"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        {request.listing?.title || "Unknown Listing"}
-                      </Link>
-                    ) : (
-                      request.listing?.title || "Unknown Listing"
-                    )}
-                  </TableCell>
-                  <TableCell className="max-w-[150px]">
-                    {request.user_message ? (
-                      <div className="flex items-center gap-1">
-                        <MessageSquare className="h-3 w-3 text-muted-foreground" />
-                        <span className="truncate text-xs" title={request.user_message}>
-                          {request.user_message}
-                        </span>
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <h3 className="text-xl font-semibold">Connection Requests</h3>
+          <p className="text-sm text-muted-foreground mt-1">Manage buyer connection requests and agreements</p>
+        </div>
+        {onRefresh && (
+          <Button variant="outline" size="sm" onClick={onRefresh}>
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Refresh
+          </Button>
+        )}
+      </div>
+      
+      <div className="space-y-4">
+        {requests.map((request) => (
+          <Card key={request.id} className="overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+            <Collapsible>
+              <CollapsibleTrigger asChild>
+                <CardContent className="p-6 cursor-pointer hover:bg-muted/30 transition-colors">
+                  <div className="flex items-center justify-between" onClick={() => toggleExpand(request.id)}>
+                    <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-3">
+                        {expandedRequestId === request.id ? (
+                          <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                        ) : (
+                          <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                        )}
+                        <div className="h-12 w-12 bg-primary/10 rounded-full flex items-center justify-center">
+                          <User className="h-6 w-6 text-primary" />
+                        </div>
                       </div>
-                    ) : (
-                      <span className="text-muted-foreground text-xs">No message</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {formatDistanceToNow(new Date(request.created_at), {
-                      addSuffix: true,
-                    })}
-                  </TableCell>
-                  <TableCell>
-                    <StatusBadge status={request.status} />
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {request.status === "pending" ? (
-                      <div className="flex justify-end gap-2" onClick={(e) => e.stopPropagation()}>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="border-green-500 hover:bg-green-500 hover:text-white"
-                          onClick={() => onApprove(request)}
-                        >
-                          Approve
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="border-red-500 hover:bg-red-500 hover:text-white"
-                          onClick={() => onReject(request)}
-                        >
-                          Reject
-                        </Button>
+                      <div className="space-y-1">
+                        <div className="font-semibold text-lg">
+                          {request.user?.first_name} {request.user?.last_name}
+                        </div>
+                        <div className="text-sm text-muted-foreground flex items-center gap-4">
+                          <span>{request.user?.email}</span>
+                          <span>•</span>
+                          <span>{request.user?.company || 'No company'}</span>
+                          <span>•</span>
+                          <span className="font-medium">{request.listing?.title}</span>
+                        </div>
                       </div>
-                    ) : request.status === "rejected" ? (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="border-green-500 hover:bg-green-500 hover:text-white"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onApprove(request);
-                        }}
-                      >
-                        Approve
-                      </Button>
-                    ) : (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="border-red-500 hover:bg-red-500 hover:text-white"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onReject(request);
-                        }}
-                      >
-                        Revoke
-                      </Button>
-                    )}
-                  </TableCell>
-                </TableRow>
-                
-                {expandedRequestId === request.id && (
-                  <TableRow>
-                    <TableCell colSpan={9} className="py-4 px-6 bg-muted/30 border-t">
-                      <RequestDetails 
-                        request={request} 
-                        onApprove={onApprove} 
-                        onReject={onReject}
-                        onRefresh={onRefresh}
-                      />
-                    </TableCell>
-                  </TableRow>
-                )}
-              </React.Fragment>
-            ))}
-          </TableBody>
-        </Table>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <div className="text-sm text-muted-foreground flex items-center gap-2">
+                        <Calendar className="h-4 w-4" />
+                        {new Date(request.created_at).toLocaleDateString()}
+                      </div>
+                      <StatusBadge status={request.status} />
+                    </div>
+                  </div>
+                </CardContent>
+              </CollapsibleTrigger>
+              
+              <CollapsibleContent>
+                <CardContent className="px-6 pb-6">
+                  <RequestDetails
+                    request={request}
+                    onApprove={onApprove}
+                    onReject={onReject}
+                    onRefresh={onRefresh}
+                  />
+                </CardContent>
+              </CollapsibleContent>
+            </Collapsible>
+          </Card>
+        ))}
       </div>
     </div>
   );

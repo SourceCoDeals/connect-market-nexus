@@ -40,8 +40,8 @@ export const NDAToggle = ({ user, onSendEmail, size = "default" }: NDAToggleProp
       // Default behavior - log the email sending
       try {
         await logNDAEmail.mutateAsync({
-          userId: user.id,
-          recipientEmail: user.email,
+        userId: user.id,
+        userEmail: user.email,
           adminNotes: 'NDA email sent via toggle'
         });
       } catch (error) {

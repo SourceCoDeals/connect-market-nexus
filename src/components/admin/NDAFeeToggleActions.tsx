@@ -12,8 +12,8 @@ import {
   RotateCcw
 } from "lucide-react";
 import { User as UserType } from "@/types";
-import { useUpdateNDA, useUpdateNDAEmailSent } from "@/hooks/admin/use-enhanced-nda";
-import { useUpdateFeeAgreement, useUpdateFeeAgreementEmailSent } from "@/hooks/admin/use-enhanced-fee-agreement";
+import { useUpdateNDA, useUpdateNDAEmailSent } from "@/hooks/admin/use-nda";
+import { useUpdateFeeAgreement, useUpdateFeeAgreementEmailSent } from "@/hooks/admin/use-fee-agreement";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from 'date-fns';
 

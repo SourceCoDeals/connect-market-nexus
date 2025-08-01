@@ -1,7 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { useRetry } from '@/hooks/use-retry';
+import { supabase } from '@/integrations/supabase/client';
 
 interface UpdateFeeAgreementParams {
   userId: string;
@@ -9,217 +8,248 @@ interface UpdateFeeAgreementParams {
   notes?: string;
 }
 
-interface SendFeeAgreementEmailParams {
-  userId: string;
-  userEmail: string;
-  notes?: string;
-}
-
-interface UpdateEmailSentParams {
+interface UpdateFeeAgreementEmailParams {
   userId: string;
   isSent: boolean;
   notes?: string;
 }
 
-export function useUpdateFeeAgreement() {
+interface LogFeeAgreementEmailParams {
+  userId: string;
+  userEmail: string;
+  notes?: string;
+}
+
+export const useUpdateFeeAgreement = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { execute } = useRetry(async (params: UpdateFeeAgreementParams) => {
-    const { data, error } = await supabase.rpc('update_fee_agreement_status', {
-      target_user_id: params.userId,
-      is_signed: params.isSigned,
-      admin_notes: params.notes || null
-    });
-
-    if (error) throw error;
-    return data;
-  });
 
   return useMutation({
     mutationFn: async ({ userId, isSigned, notes }: UpdateFeeAgreementParams) => {
-      return execute({ userId, isSigned, notes });
+      const { data, error } = await supabase
+        .from('profiles')
+        .update({
+          fee_agreement_signed: isSigned,
+          fee_agreement_signed_at: isSigned ? new Date().toISOString() : null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', userId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
     },
     onMutate: async ({ userId, isSigned }) => {
       await queryClient.cancelQueries({ queryKey: ['admin-users'] });
+      await queryClient.cancelQueries({ queryKey: ['connection-requests'] });
+
       const previousUsers = queryClient.getQueryData(['admin-users']);
+      const previousRequests = queryClient.getQueryData(['connection-requests']);
 
+      // Update admin users
       queryClient.setQueryData(['admin-users'], (old: any) => {
-        if (!old?.data) return old;
-        
-        return {
-          ...old,
-          data: old.data.map((user: any) => 
-            user.id === userId 
-              ? { 
-                  ...user, 
+        if (!old) return old;
+        return old.map((user: any) => 
+          user.id === userId 
+            ? { 
+                ...user, 
+                fee_agreement_signed: isSigned,
+                fee_agreement_signed_at: isSigned ? new Date().toISOString() : null 
+              }
+            : user
+        );
+      });
+
+      // Update connection requests
+      queryClient.setQueryData(['connection-requests'], (old: any) => {
+        if (!old) return old;
+        return old.map((request: any) => 
+          request.user?.id === userId 
+            ? { 
+                ...request, 
+                user: {
+                  ...request.user,
                   fee_agreement_signed: isSigned,
-                  fee_agreement_signed_at: isSigned ? new Date().toISOString() : null
-                } 
-              : user
-          )
-        };
+                  fee_agreement_signed_at: isSigned ? new Date().toISOString() : null 
+                }
+              }
+            : request
+        );
       });
 
-      return { previousUsers };
+      return { previousUsers, previousRequests };
     },
-    onSuccess: (_, variables) => {
-      toast({
-        title: 'Fee Agreement Updated',
-        description: `Fee agreement ${variables.isSigned ? 'marked as signed' : 'revoked'} successfully.`,
-      });
-      
-      // Invalidate and refetch user data
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-users'] });
-    },
-    onError: (error: any, _, context) => {
-      console.error('❌ Fee agreement update error:', error);
-      
-      // Rollback optimistic update
-      if (context?.previousUsers) {
-        queryClient.setQueryData(['admin-users'], context.previousUsers);
-      }
-      
+      queryClient.invalidateQueries({ queryKey: ['connection-requests'] });
       toast({
-        variant: 'destructive',
-        title: 'Update Failed',
-        description: error.message || 'Failed to update fee agreement status.',
+        title: "Fee agreement status updated",
+        description: "The fee agreement status has been successfully updated.",
       });
-    }
+    },
+    onError: (err, variables, context) => {
+      queryClient.setQueryData(['admin-users'], context?.previousUsers);
+      queryClient.setQueryData(['connection-requests'], context?.previousRequests);
+      toast({
+        variant: "destructive",
+        title: "Update failed",
+        description: "Could not update fee agreement status",
+      });
+    },
   });
-}
+};
 
-export function useUpdateFeeAgreementEmailSent() {
+export const useUpdateFeeAgreementEmailSent = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { execute } = useRetry(async (params: UpdateEmailSentParams) => {
-    const { data, error } = await supabase.rpc('update_fee_agreement_email_status', {
-      target_user_id: params.userId,
-      is_sent: params.isSent,
-      admin_notes: params.notes || null
-    });
-
-    if (error) throw error;
-    return data;
-  });
 
   return useMutation({
-    mutationFn: async ({ userId, isSent, notes }: UpdateEmailSentParams) => {
-      return execute({ userId, isSent, notes });
+    mutationFn: async ({ userId, isSent, notes }: UpdateFeeAgreementEmailParams) => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .update({
+          fee_agreement_email_sent: isSent,
+          fee_agreement_email_sent_at: isSent ? new Date().toISOString() : null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', userId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
     },
     onMutate: async ({ userId, isSent }) => {
       await queryClient.cancelQueries({ queryKey: ['admin-users'] });
+      await queryClient.cancelQueries({ queryKey: ['connection-requests'] });
+
       const previousUsers = queryClient.getQueryData(['admin-users']);
+      const previousRequests = queryClient.getQueryData(['connection-requests']);
 
+      // Update admin users
       queryClient.setQueryData(['admin-users'], (old: any) => {
-        if (!old?.data) return old;
-        
-        return {
-          ...old,
-          data: old.data.map((user: any) => 
-            user.id === userId 
-              ? { 
-                  ...user, 
+        if (!old) return old;
+        return old.map((user: any) => 
+          user.id === userId 
+            ? { 
+                ...user, 
+                fee_agreement_email_sent: isSent,
+                fee_agreement_email_sent_at: isSent ? new Date().toISOString() : null 
+              }
+            : user
+        );
+      });
+
+      // Update connection requests
+      queryClient.setQueryData(['connection-requests'], (old: any) => {
+        if (!old) return old;
+        return old.map((request: any) => 
+          request.user?.id === userId 
+            ? { 
+                ...request, 
+                user: {
+                  ...request.user,
                   fee_agreement_email_sent: isSent,
-                  fee_agreement_email_sent_at: isSent ? new Date().toISOString() : null
-                } 
-              : user
-          )
-        };
+                  fee_agreement_email_sent_at: isSent ? new Date().toISOString() : null 
+                }
+              }
+            : request
+        );
       });
 
-      return { previousUsers };
+      return { previousUsers, previousRequests };
     },
-    onSuccess: (_, variables) => {
-      toast({
-        title: 'Email Status Updated',
-        description: `Fee agreement email ${variables.isSent ? 'marked as sent' : 'marked as not sent'} successfully.`,
-      });
-      
-      // Invalidate and refetch user data
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-users'] });
-    },
-    onError: (error: any, _, context) => {
-      console.error('❌ Fee agreement email status update error:', error);
-      
-      // Rollback optimistic update
-      if (context?.previousUsers) {
-        queryClient.setQueryData(['admin-users'], context.previousUsers);
-      }
-      
+      queryClient.invalidateQueries({ queryKey: ['connection-requests'] });
       toast({
-        variant: 'destructive',
-        title: 'Update Failed',
-        description: error.message || 'Failed to update email sent status.',
+        title: "Fee agreement email status updated",
+        description: "The fee agreement email status has been successfully updated.",
       });
-    }
+    },
+    onError: (err, variables, context) => {
+      queryClient.setQueryData(['admin-users'], context?.previousUsers);
+      queryClient.setQueryData(['connection-requests'], context?.previousRequests);
+      toast({
+        variant: "destructive",
+        title: "Update failed",
+        description: "Could not update fee agreement email status",
+      });
+    },
   });
-}
+};
 
-export function useLogFeeAgreementEmail() {
+export const useLogFeeAgreementEmail = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { execute } = useRetry(async (params: SendFeeAgreementEmailParams) => {
-    // Only log the email - actual sending happens in the component
-    const { data, error } = await supabase.rpc('log_fee_agreement_email', {
-      target_user_id: params.userId,
-      recipient_email: params.userEmail,
-      admin_notes: params.notes || null
-    });
-
-    if (error) throw error;
-    
-    return data;
-  });
 
   return useMutation({
-    mutationFn: async ({ userId, userEmail, notes }: SendFeeAgreementEmailParams) => {
-      return execute({ userId, userEmail, notes });
+    mutationFn: async ({ userId, userEmail, notes }: LogFeeAgreementEmailParams) => {
+      const { data, error } = await supabase.rpc('log_fee_agreement_email', {
+        target_user_id: userId,
+        recipient_email: userEmail,
+        admin_notes: notes
+      });
+
+      if (error) throw error;
+      return data;
     },
     onMutate: async ({ userId }) => {
       await queryClient.cancelQueries({ queryKey: ['admin-users'] });
-      const previousUsers = queryClient.getQueryData(['admin-users']);
+      await queryClient.cancelQueries({ queryKey: ['connection-requests'] });
 
+      const previousUsers = queryClient.getQueryData(['admin-users']);
+      const previousRequests = queryClient.getQueryData(['connection-requests']);
+
+      // Optimistically update fee agreement email sent status
       queryClient.setQueryData(['admin-users'], (old: any) => {
-        if (!old?.data) return old;
-        
-        return {
-          ...old,
-          data: old.data.map((user: any) => 
-            user.id === userId 
-              ? { 
-                  ...user, 
+        if (!old) return old;
+        return old.map((user: any) => 
+          user.id === userId 
+            ? { 
+                ...user, 
+                fee_agreement_email_sent: true,
+                fee_agreement_email_sent_at: new Date().toISOString() 
+              }
+            : user
+        );
+      });
+
+      queryClient.setQueryData(['connection-requests'], (old: any) => {
+        if (!old) return old;
+        return old.map((request: any) => 
+          request.user?.id === userId 
+            ? { 
+                ...request, 
+                user: {
+                  ...request.user,
                   fee_agreement_email_sent: true,
                   fee_agreement_email_sent_at: new Date().toISOString()
-                } 
-              : user
-          )
-        };
+                }
+              }
+            : request
+        );
       });
 
-      return { previousUsers };
+      return { previousUsers, previousRequests };
     },
     onSuccess: () => {
-      toast({
-        title: 'Fee Agreement Logged',
-        description: 'Fee agreement email logged successfully.',
-      });
-      
-      // Invalidate and refetch user data
       queryClient.invalidateQueries({ queryKey: ['admin-users'] });
-    },
-    onError: (error: any, _, context) => {
-      console.error('❌ Fee agreement email error:', error);
-      
-      // Rollback optimistic update
-      if (context?.previousUsers) {
-        queryClient.setQueryData(['admin-users'], context.previousUsers);
-      }
-      
+      queryClient.invalidateQueries({ queryKey: ['connection-requests'] });
       toast({
-        variant: 'destructive',
-        title: 'Logging Failed',
-        description: error.message || 'Failed to log fee agreement email.',
+        title: "Fee agreement email logged",
+        description: "The fee agreement email has been successfully logged.",
       });
-    }
+    },
+    onError: (err, variables, context) => {
+      queryClient.setQueryData(['admin-users'], context?.previousUsers);
+      queryClient.setQueryData(['connection-requests'], context?.previousRequests);
+      toast({
+        variant: "destructive",
+        title: "Email logging failed",
+        description: "Could not log the fee agreement email",
+      });
+    },
   });
-}
+};
