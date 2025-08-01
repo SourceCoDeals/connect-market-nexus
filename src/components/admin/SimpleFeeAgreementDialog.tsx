@@ -27,6 +27,7 @@ interface SimpleFeeAgreementDialogProps {
   listing?: Listing;
   isOpen: boolean;
   onClose: () => void;
+  onSendEmail: (user: UserType, options?: { subject?: string; content?: string; attachments?: Array<{name: string, content: string}>; customSignatureText?: string }) => Promise<void>;
 }
 
 const QUICK_TEMPLATE = {
@@ -43,7 +44,8 @@ export function SimpleFeeAgreementDialog({
   user,
   listing,
   isOpen,
-  onClose
+  onClose,
+  onSendEmail
 }: SimpleFeeAgreementDialogProps) {
   const [subject, setSubject] = useState("");
   const [content, setContent] = useState("");
@@ -128,7 +130,7 @@ export function SimpleFeeAgreementDialog({
   };
 
   const handleSend = async () => {
-    if (!user || !adminUser) return;
+    if (!user) return;
     
     if (!subject.trim()) {
       toast.error("Subject is required");
@@ -145,30 +147,13 @@ export function SimpleFeeAgreementDialog({
       // Convert attachments to base64
       const convertedAttachments = await convertFilesToBase64(attachments);
       
-      // Send email via Supabase edge function
-      const { data, error } = await supabase.functions.invoke('send-fee-agreement-email', {
-        body: {
-          userId: user.id,
-          userEmail: user.email,
-          subject: subject,
-          content: content,
-          useTemplate: false,
-          adminId: adminUser.id,
-          adminEmail: adminUser.email,
-          adminName: adminName,
-          attachments: convertedAttachments
-        }
+      // Use the onSendEmail prop which calls the hook
+      await onSendEmail(user, {
+        subject: subject,
+        content: content,
+        attachments: convertedAttachments,
+        customSignatureText: customSignatureText
       });
-
-      if (error) {
-        throw new Error(error.message || 'Failed to send email');
-      }
-
-      if (!data?.success) {
-        throw new Error(data?.error || 'Email sending failed');
-      }
-
-      // Email sending and logging is handled entirely by the edge function
 
       toast.success("Fee agreement email sent!");
       handleClose();

@@ -81,6 +81,10 @@ export function ConnectionRequestEmailActions({
           setShowFeeDialog(false);
           onEmailSent?.();
         }}
+        onSendEmail={async () => {
+          // Placeholder - implement if needed for this component
+          console.log('Fee agreement email sent');
+        }}
       />
 
       <SimpleNDADialog

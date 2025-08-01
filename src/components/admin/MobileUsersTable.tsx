@@ -477,6 +477,16 @@ export const MobileUsersTable = ({
         user={selectedUserForEmail}
         isOpen={!!selectedUserForEmail}
         onClose={() => setSelectedUserForEmail(null)}
+        onSendEmail={async (user, options) => {
+          await handleSendEmail({
+            userId: user.id,
+            userEmail: user.email,
+            subject: options?.subject || 'Fee Agreement | SourceCo',
+            content: options?.content || 'Please review and sign the attached fee agreement.',
+            attachments: options?.attachments?.map(att => ({ ...att, type: 'application/pdf' } as any)) || [],
+            useTemplate: false
+          });
+        }}
       />
       
       <SimpleNDADialog

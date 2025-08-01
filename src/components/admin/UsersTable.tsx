@@ -595,6 +595,29 @@ export function UsersTable({
       user={selectedUserForEmail}
       isOpen={!!selectedUserForEmail}
       onClose={() => setSelectedUserForEmail(null)}
+      onSendEmail={async (user, options) => {
+        if (!currentAuthUser) {
+          throw new Error('Authentication required');
+        }
+
+        const { data: adminProfile, error: profileError } = await supabase
+          .from('profiles')
+          .select('email, first_name, last_name')
+          .eq('id', currentAuthUser.id)
+          .single();
+
+        if (profileError || !adminProfile) {
+          throw new Error('Admin profile not found');
+        }
+
+        const adminName = `${adminProfile.first_name} ${adminProfile.last_name}`;
+
+        await logEmailMutation.mutateAsync({
+          userId: user.id,
+          userEmail: user.email,
+          notes: options?.subject ? `Custom fee agreement email: ${options.subject}` : 'Standard fee agreement email sent'
+        });
+      }}
     />
     
     <SimpleNDADialog
