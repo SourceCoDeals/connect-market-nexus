@@ -204,14 +204,14 @@ export const useLogFeeAgreementEmail = () => {
       return data;
     },
     onMutate: async ({ userId }) => {
-      // Do optimistic updates for immediate UI feedback
+      // Optimistic updates for immediate UI feedback (like NDA)
       await queryClient.cancelQueries({ queryKey: ['admin-users'] });
       await queryClient.cancelQueries({ queryKey: ['connection-requests'] });
 
       const previousUsers = queryClient.getQueryData(['admin-users']);
       const previousRequests = queryClient.getQueryData(['connection-requests']);
 
-      // Optimistically update fee agreement email sent status
+      // Optimistically update BOTH email sent AND signed status immediately
       queryClient.setQueryData(['admin-users'], (old: any) => {
         if (!old) return old;
         return old.map((user: any) => 
@@ -219,7 +219,9 @@ export const useLogFeeAgreementEmail = () => {
             ? { 
                 ...user, 
                 fee_agreement_email_sent: true,
-                fee_agreement_email_sent_at: new Date().toISOString()
+                fee_agreement_email_sent_at: new Date().toISOString(),
+                fee_agreement_signed: true,
+                fee_agreement_signed_at: new Date().toISOString()
               }
             : user
         );
@@ -234,7 +236,9 @@ export const useLogFeeAgreementEmail = () => {
                 user: {
                   ...request.user,
                   fee_agreement_email_sent: true,
-                  fee_agreement_email_sent_at: new Date().toISOString()
+                  fee_agreement_email_sent_at: new Date().toISOString(),
+                  fee_agreement_signed: true,
+                  fee_agreement_signed_at: new Date().toISOString()
                 }
               }
             : request
