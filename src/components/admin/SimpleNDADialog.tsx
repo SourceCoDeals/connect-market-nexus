@@ -9,6 +9,7 @@ import { Loader2, FileText, Mail, User, Calendar } from "lucide-react";
 import { User as UserType } from "@/types";
 import { formatDistanceToNow } from "date-fns";
 import { EditableSignature } from "@/components/admin/EditableSignature";
+import { supabase } from "@/integrations/supabase/client";
 
 interface SimpleNDADialogProps {
   open: boolean;
@@ -29,17 +30,35 @@ export const SimpleNDADialog = ({ open, onOpenChange, user, onSendEmail }: Simpl
     
     setIsLoading(true);
     try {
-      await onSendEmail(user, {
-        subject: customSubject || undefined,
-        message: customMessage || undefined,
-        customSignatureHtml: customSignatureHtml || undefined,
-        customSignatureText: customSignatureText || undefined
+      // Send NDA email via edge function
+      const { data, error } = await supabase.functions.invoke('send-nda-email', {
+        body: {
+          userEmail: user.email,
+          userId: user.id,
+          customSubject: customSubject || undefined,
+          customMessage: customMessage || undefined,
+          customSignatureHtml: customSignatureHtml || undefined,
+          customSignatureText: customSignatureText || undefined
+        }
       });
+
+      if (error) throw error;
+
+      // Log the email
+      await supabase.rpc('log_nda_email', {
+        target_user_id: user.id,
+        recipient_email: user.email,
+        admin_notes: 'NDA email sent from connection requests'
+      });
+
       onOpenChange(false);
       setCustomSubject("");
       setCustomMessage("");
       setCustomSignatureHtml("");
       setCustomSignatureText("");
+      
+      // Call the callback for any additional processing
+      await onSendEmail(user);
     } catch (error) {
       console.error('Error sending NDA email:', error);
     } finally {
@@ -155,30 +174,39 @@ Best regards,`
               <div className="grid grid-cols-3 gap-2">
                 <Button
                   type="button"
-                  variant={selectedTemplate === 'quick' ? 'default' : 'outline'}
+                  variant="outline"
                   size="sm"
-                  onClick={() => setSelectedTemplate('quick')}
+                  onClick={() => {
+                    setCustomSubject(templates.quick.subject);
+                    setCustomMessage(templates.quick.message);
+                  }}
                   className="text-xs"
                 >
-                  Quick
+                  Load Quick
                 </Button>
                 <Button
                   type="button"
-                  variant={selectedTemplate === 'standard' ? 'default' : 'outline'}
+                  variant="outline"
                   size="sm"
-                  onClick={() => setSelectedTemplate('standard')}
+                  onClick={() => {
+                    setCustomSubject(templates.standard.subject);
+                    setCustomMessage(templates.standard.message);
+                  }}
                   className="text-xs"
                 >
-                  Standard
+                  Load Standard
                 </Button>
                 <Button
                   type="button"
-                  variant={selectedTemplate === 'executive' ? 'default' : 'outline'}
+                  variant="outline"
                   size="sm"
-                  onClick={() => setSelectedTemplate('executive')}
+                  onClick={() => {
+                    setCustomSubject(templates.executive.subject);
+                    setCustomMessage(templates.executive.message);
+                  }}
                   className="text-xs"
                 >
-                  Executive
+                  Load Executive
                 </Button>
               </div>
             </div>

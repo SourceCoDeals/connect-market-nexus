@@ -272,7 +272,7 @@ export function SimpleFeeAgreementDialog({
                   size="sm"
                   onClick={() => loadTemplate(key as keyof typeof TEMPLATES)}
                 >
-                  {template.name}
+                  Load {template.name}
                 </Button>
               ))}
             </div>

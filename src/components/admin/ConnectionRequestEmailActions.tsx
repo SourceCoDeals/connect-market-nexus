@@ -12,6 +12,7 @@ import {
 import { User as UserType } from "@/types";
 import { SimpleFeeAgreementDialog } from "./SimpleFeeAgreementDialog";
 import { SimpleNDADialog } from "./SimpleNDADialog";
+import { NDAFeeToggleActions } from "./NDAFeeToggleActions";
 
 interface ConnectionRequestEmailActionsProps {
   user: UserType;
@@ -39,7 +40,7 @@ export function ConnectionRequestEmailActions({
   const shouldShowNDAButton = !user.nda_signed;
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-3">
       <div className="flex items-center gap-2 flex-wrap">
         {shouldShowFeeButton && (
           <Button
@@ -66,19 +67,12 @@ export function ConnectionRequestEmailActions({
         )}
       </div>
 
-      <div className="flex items-center gap-2 flex-wrap">
-        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-          <FileText className="h-3 w-3" />
-          Fee:
-        </div>
-        {getStatusBadge(user.fee_agreement_email_sent || false, user.fee_agreement_signed || false, 'fee')}
-        
-        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-          <Shield className="h-3 w-3" />
-          NDA:
-        </div>
-        {getStatusBadge(user.nda_email_sent || false, user.nda_signed || false, 'nda')}
-      </div>
+      {/* Status Toggles */}
+      <NDAFeeToggleActions 
+        user={user} 
+        compact={true}
+        showLabels={false}
+      />
 
       <SimpleFeeAgreementDialog
         user={user}
@@ -97,7 +91,7 @@ export function ConnectionRequestEmailActions({
         }}
         user={user}
         onSendEmail={async () => {
-          // This will be handled by the SimpleNDADialog component
+          onEmailSent?.();
         }}
       />
     </div>

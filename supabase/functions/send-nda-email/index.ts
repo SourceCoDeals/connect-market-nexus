@@ -14,6 +14,8 @@ interface SendNDAEmailRequest {
   customMessage?: string;
   adminEmail?: string;
   adminName?: string;
+  customSignatureHtml?: string;
+  customSignatureText?: string;
   attachments?: Array<{
     name: string;
     content: string; // base64 encoded content
@@ -46,6 +48,8 @@ const handler = async (req: Request): Promise<Response> => {
       customMessage,
       adminEmail: providedAdminEmail,
       adminName: providedAdminName,
+      customSignatureHtml,
+      customSignatureText,
       attachments = []
     }: SendNDAEmailRequest = await req.json();
 
@@ -65,7 +69,7 @@ const handler = async (req: Request): Promise<Response> => {
     // Initialize Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
     // Get default NDA document if no attachments provided
     let finalAttachments = [...attachments];
@@ -79,7 +83,7 @@ const handler = async (req: Request): Promise<Response> => {
         
         console.log('📎 Trying to fetch default NDA:', defaultFileName);
         
-        const { data: fileData, error: downloadError } = await supabase.storage
+        const { data: fileData, error: downloadError } = await supabaseAdmin.storage
           .from('nda-documents')
           .download(defaultFileName);
 
@@ -98,7 +102,7 @@ const handler = async (req: Request): Promise<Response> => {
           console.log('⚠️ Could not fetch specific NDA file, trying to list all files...');
           
           // Fallback: list all files and take the first one
-          const { data: files, error: listError } = await supabase.storage
+          const { data: files, error: listError } = await supabaseAdmin.storage
             .from('nda-documents')
             .list('', { limit: 10 });
 
@@ -108,7 +112,7 @@ const handler = async (req: Request): Promise<Response> => {
             const defaultFile = files[0];
             console.log('📎 Using first available file:', defaultFile.name);
             
-            const { data: fallbackFileData, error: fallbackError } = await supabase.storage
+            const { data: fallbackFileData, error: fallbackError } = await supabaseAdmin.storage
               .from('nda-documents')
               .download(defaultFile.name);
 
@@ -157,8 +161,29 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log('📧 Using sender:', `${effectiveAdminName} <${senderEmail}>`, 'reply-to:', `${effectiveAdminName} <${senderEmail}>`);
 
-    // Skip logo entirely for fast, reliable emails
-    console.log('📧 Using text-only signature without logo for immediate delivery');
+    // Fetch custom admin signature if available
+    let finalHtmlSignature = customSignatureHtml;
+    let finalTextSignature = customSignatureText;
+
+    if (!finalHtmlSignature || !finalTextSignature) {
+      console.log('📝 Fetching admin signature preferences...');
+      try {
+        const { data: signatureData } = await supabaseAdmin
+          .from('admin_signature_preferences')
+          .select('signature_html, signature_text')
+          .single();
+
+        if (signatureData) {
+          finalHtmlSignature = signatureData.signature_html || customSignatureHtml;
+          finalTextSignature = signatureData.signature_text || customSignatureText;
+          console.log('✅ Using admin custom signature');
+        }
+      } catch (error) {
+        console.log('⚠️ No custom signature found, using default');
+      }
+    }
+
+    console.log('📧 Using signature with admin preferences integration');
 
     // Process attachments
     console.log('📎 Starting attachment processing for', finalAttachments.length, 'attachment(s)');
@@ -204,8 +229,8 @@ const handler = async (req: Request): Promise<Response> => {
     let htmlContent;
     
     if (useTemplate) {
-      // Create minimal premium signature - investment grade design
-      const adminSignature = `
+      // Use admin signature or create default
+      const adminSignature = finalHtmlSignature || `
         <div style="margin-top: 40px; padding-top: 24px; border-top: 1px solid #E5E5E5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
           <div style="color: #000000; line-height: 1.4;">
             <div style="font-size: 16px; font-weight: 600; margin-bottom: 4px;">${effectiveAdminName}</div>
@@ -251,11 +276,26 @@ const handler = async (req: Request): Promise<Response> => {
         </div>
       `;
     } else {
-      // Use custom message
+      // Use custom message with signature
+      const customSignature = finalHtmlSignature || `
+        <div style="margin-top: 40px; padding-top: 24px; border-top: 1px solid #E5E5E5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+          <div style="color: #000000; line-height: 1.4;">
+            <div style="font-size: 16px; font-weight: 600; margin-bottom: 4px;">${effectiveAdminName}</div>
+            ${adminTitle ? `<div style="font-size: 14px; color: #666666; margin-bottom: 12px;">${adminTitle}</div>` : ''}
+            
+            <div style="font-size: 14px; color: #333333; margin-bottom: 2px;">
+              <a href="mailto:${senderEmail}" style="color: #000000; text-decoration: none;">${senderEmail}</a>
+            </div>
+            ${adminPhone ? `<div style="font-size: 14px; color: #666666; margin-bottom: 2px;">${adminPhone}</div>` : ''}
+          </div>
+        </div>
+      `;
+
       htmlContent = `
         <div style="font-family: 'Arial', sans-serif; max-width: 600px; margin: 0 auto; color: #333333;">
           <div style="padding: 40px 20px;">
             ${customMessage.split('\n').map(line => `<p style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.6;">${line}</p>`).join('')}
+            ${customSignature}
           </div>
         </div>
       `;
