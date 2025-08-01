@@ -2,7 +2,7 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Mail, FileText, Clock } from "lucide-react";
+import { Mail, FileText, Clock, Loader2 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { User } from "@/types";
 import { useUpdateFeeAgreement, useLogFeeAgreementEmail } from "@/hooks/admin/use-fee-agreement";
@@ -51,12 +51,17 @@ export function FeeAgreementToggle({ user, onSendEmail, size = "default" }: FeeA
   if (size === "sm") {
     return (
       <div className="flex items-center gap-2">
-        <Switch
-          checked={isSigned || false}
-          onCheckedChange={handleToggleChange}
-          disabled={updateFeeAgreement.isPending}
-          className="data-[state=checked]:bg-green-600"
-        />
+        <div className="flex items-center gap-2">
+          <Switch
+            checked={isSigned || false}
+            onCheckedChange={handleToggleChange}
+            disabled={updateFeeAgreement.isPending}
+            className="data-[state=checked]:bg-green-600"
+          />
+          {updateFeeAgreement.isPending && (
+            <Loader2 className="h-3 w-3 animate-spin" />
+          )}
+        </div>
         {!isSigned && (
           <TooltipProvider>
             <Tooltip>
@@ -89,12 +94,17 @@ export function FeeAgreementToggle({ user, onSendEmail, size = "default" }: FeeA
           <span className="text-sm font-medium">Fee Agreement</span>
         </div>
         <div className="flex items-center gap-2">
-          <Switch
-            checked={isSigned || false}
-            onCheckedChange={handleToggleChange}
-            disabled={updateFeeAgreement.isPending}
-            className="data-[state=checked]:bg-green-600"
-          />
+          <div className="flex items-center gap-2">
+            <Switch
+              checked={isSigned || false}
+              onCheckedChange={handleToggleChange}
+              disabled={updateFeeAgreement.isPending}
+              className="data-[state=checked]:bg-green-600"
+            />
+            {updateFeeAgreement.isPending && (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            )}
+          </div>
           <Badge variant={isSigned ? "success" : "secondary"}>
             {isSigned ? "Signed" : "Not Signed"}
           </Badge>
@@ -109,16 +119,25 @@ export function FeeAgreementToggle({ user, onSendEmail, size = "default" }: FeeA
       )}
       
       {!isSigned && (
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleSendEmail}
-          disabled={logEmailMutation.isPending}
-          className="w-full"
-        >
-          <Mail className="h-4 w-4 mr-2" />
-          {logEmailMutation.isPending ? "Sending..." : "Send Fee Agreement"}
-        </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleSendEmail}
+            disabled={logEmailMutation.isPending}
+            className="w-full"
+          >
+            {logEmailMutation.isPending ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Sending...
+              </>
+            ) : (
+              <>
+                <Mail className="h-4 w-4 mr-2" />
+                Send Fee Agreement
+              </>
+            )}
+          </Button>
       )}
     </div>
   );

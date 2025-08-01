@@ -2,7 +2,7 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Mail, FileText, Clock, Check, X } from "lucide-react";
+import { Mail, FileText, Clock, Check, X, Loader2 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { User } from "@/types";
 import { useUpdateFeeAgreement, useUpdateFeeAgreementEmailSent } from "@/hooks/admin/use-fee-agreement";
@@ -94,6 +94,9 @@ export function DualFeeAgreementToggle({ user, onSendEmail, size = "default" }: 
                     disabled={isUpdatingEmailSent || updateEmailSent.isPending}
                     className="data-[state=checked]:bg-blue-600 scale-75"
                   />
+                  {(isUpdatingEmailSent || updateEmailSent.isPending) && (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  )}
                 </div>
               </TooltipTrigger>
               <TooltipContent>
@@ -116,6 +119,9 @@ export function DualFeeAgreementToggle({ user, onSendEmail, size = "default" }: 
                     disabled={isUpdatingSigned || updateFeeAgreement.isPending}
                     className="data-[state=checked]:bg-green-600 scale-75"
                   />
+                  {(isUpdatingSigned || updateFeeAgreement.isPending) && (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  )}
                 </div>
               </TooltipTrigger>
               <TooltipContent>
@@ -159,12 +165,17 @@ export function DualFeeAgreementToggle({ user, onSendEmail, size = "default" }: 
             <span className="text-sm font-medium">Email Sent</span>
           </div>
           <div className="flex items-center gap-2">
-            <Switch
-              checked={emailSent || false}
-              onCheckedChange={handleEmailSentToggleChange}
-              disabled={isUpdatingEmailSent || updateEmailSent.isPending}
-              className="data-[state=checked]:bg-blue-600"
-            />
+            <div className="flex items-center gap-2">
+              <Switch
+                checked={emailSent || false}
+                onCheckedChange={handleEmailSentToggleChange}
+                disabled={isUpdatingEmailSent || updateEmailSent.isPending}
+                className="data-[state=checked]:bg-blue-600"
+              />
+              {(isUpdatingEmailSent || updateEmailSent.isPending) && (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              )}
+            </div>
             <Badge variant={emailSent ? "default" : "secondary"}>
               {emailSent ? "Sent" : "Not Sent"}
             </Badge>
@@ -187,12 +198,17 @@ export function DualFeeAgreementToggle({ user, onSendEmail, size = "default" }: 
             <span className="text-sm font-medium">Fee Agreement</span>
           </div>
           <div className="flex items-center gap-2">
-            <Switch
-              checked={isSigned || false}
-              onCheckedChange={handleSignedToggleChange}
-              disabled={isUpdatingSigned || updateFeeAgreement.isPending}
-              className="data-[state=checked]:bg-green-600"
-            />
+            <div className="flex items-center gap-2">
+              <Switch
+                checked={isSigned || false}
+                onCheckedChange={handleSignedToggleChange}
+                disabled={isUpdatingSigned || updateFeeAgreement.isPending}
+                className="data-[state=checked]:bg-green-600"
+              />
+              {(isUpdatingSigned || updateFeeAgreement.isPending) && (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              )}
+            </div>
             <Badge variant={isSigned ? "success" : "secondary"}>
               {isSigned ? "Signed" : "Not Signed"}
             </Badge>

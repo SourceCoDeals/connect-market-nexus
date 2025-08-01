@@ -25,12 +25,14 @@ export const SimpleNDADialog = ({ open, onOpenChange, user, listing, onSendEmail
   const [customMessage, setCustomMessage] = useState("");
   const [customSignatureText, setCustomSignatureText] = useState("");
   const [selectedTemplate, setSelectedTemplate] = useState<'quick' | 'standard' | 'executive'>('standard');
+  const [isSending, setIsSending] = useState(false);
   
   const { user: currentUser } = useAuth();
 
   const handleSend = async () => {
     if (!user) return;
     
+    setIsSending(true);
     try {
       // Use the onSendEmail prop which calls the edge function directly
       await onSendEmail(user, {
@@ -47,6 +49,8 @@ export const SimpleNDADialog = ({ open, onOpenChange, user, listing, onSendEmail
       
     } catch (error) {
       console.error('Error sending NDA email:', error);
+    } finally {
+      setIsSending(false);
     }
   };
 
@@ -184,9 +188,18 @@ Best regards,`
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button onClick={handleSend}>
-              <Mail className="h-4 w-4 mr-2" />
-              Send NDA Email
+            <Button onClick={handleSend} disabled={isSending}>
+              {isSending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Sending...
+                </>
+              ) : (
+                <>
+                  <Mail className="h-4 w-4 mr-2" />
+                  Send NDA Email
+                </>
+              )}
             </Button>
           </div>
         </div>

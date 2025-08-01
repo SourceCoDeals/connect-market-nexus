@@ -49,6 +49,7 @@ export function SimpleFeeAgreementDialog({
   const [content, setContent] = useState("");
   const [attachments, setAttachments] = useState<File[]>([]);
   const [customSignatureText, setCustomSignatureText] = useState("");
+  const [isSending, setIsSending] = useState(false);
   
   const { user: adminUser } = useAuth();
 
@@ -139,6 +140,7 @@ export function SimpleFeeAgreementDialog({
       return;
     }
 
+    setIsSending(true);
     try {
       // Convert attachments to base64
       const convertedAttachments = await convertFilesToBase64(attachments);
@@ -173,6 +175,8 @@ export function SimpleFeeAgreementDialog({
     } catch (error: any) {
       console.error("Error sending email:", error);
       toast.error(error.message || "Failed to send email");
+    } finally {
+      setIsSending(false);
     }
   };
 
@@ -320,10 +324,19 @@ export function SimpleFeeAgreementDialog({
             </Button>
             <Button 
               onClick={handleSend} 
-              disabled={!subject.trim() || !content.trim()}
+              disabled={!subject.trim() || !content.trim() || isSending}
             >
-              <Send className="h-4 w-4 mr-2" />
-              Send Email
+              {isSending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Sending...
+                </>
+              ) : (
+                <>
+                  <Send className="h-4 w-4 mr-2" />
+                  Send Email
+                </>
+              )}
             </Button>
           </div>
         </div>

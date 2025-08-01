@@ -244,9 +244,11 @@ export const useLogFeeAgreementEmail = () => {
       return { previousUsers, previousRequests };
     },
     onSuccess: () => {
-      // Force immediate refetch to bypass stale time and show updated data immediately
-      queryClient.refetchQueries({ queryKey: ['admin-users'] });
-      queryClient.refetchQueries({ queryKey: ['connection-requests'] });
+      // Add delay before refetching to allow edge function database updates to complete
+      setTimeout(() => {
+        queryClient.refetchQueries({ queryKey: ['admin-users'] });
+        queryClient.refetchQueries({ queryKey: ['connection-requests'] });
+      }, 2000);
       
       toast({
         title: "Fee agreement email sent successfully",
