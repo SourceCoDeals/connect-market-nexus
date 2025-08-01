@@ -32,7 +32,14 @@ export const SimpleNDADialog = ({ open, onOpenChange, user, listing, onSendEmail
     if (!user) return;
     
     try {
-      // Use the unified hook to send email + update state
+      // Send email via the provided callback (which handles the actual email sending)
+      await onSendEmail(user, {
+        subject: customSubject || quickTemplate.subject,
+        message: customMessage || quickTemplate.message,
+        customSignatureText: customSignatureText
+      });
+
+      // Then log the email in the database
       await logNDAEmail.mutateAsync({
         userId: user.id,
         userEmail: user.email,
@@ -43,9 +50,6 @@ export const SimpleNDADialog = ({ open, onOpenChange, user, listing, onSendEmail
       setCustomSubject("");
       setCustomMessage("");
       setCustomSignatureText("");
-      
-      // Call the callback for any additional processing
-      await onSendEmail(user);
     } catch (error) {
       console.error('Error sending NDA email:', error);
     }

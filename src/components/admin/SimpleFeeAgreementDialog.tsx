@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { User as UserType, Listing } from "@/types";
 import { useAuth } from "@/context/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { EditableSignature } from "@/components/admin/EditableSignature";
 import { useLogFeeAgreementEmail } from "@/hooks/admin/use-fee-agreement";
@@ -141,11 +142,37 @@ export function SimpleFeeAgreementDialog({
     }
 
     try {
-      // Use the unified hook to send email + update state
+      // Convert attachments to base64
+      const convertedAttachments = await convertFilesToBase64(attachments);
+      
+      // Send email via Supabase edge function
+      const { data, error } = await supabase.functions.invoke('send-fee-agreement-email', {
+        body: {
+          userId: user.id,
+          userEmail: user.email,
+          subject: subject,
+          content: content,
+          useTemplate: false,
+          adminId: adminUser.id,
+          adminEmail: adminUser.email,
+          adminName: adminName,
+          attachments: convertedAttachments
+        }
+      });
+
+      if (error) {
+        throw new Error(error.message || 'Failed to send email');
+      }
+
+      if (!data?.success) {
+        throw new Error(data?.error || 'Email sending failed');
+      }
+
+      // Then log the email in the database
       await logFeeAgreementEmail.mutateAsync({
         userId: user.id,
         userEmail: user.email,
-        notes: `Email sent with subject: "${subject}"`
+        notes: `Email sent with ${attachments.length} attachment(s): "${subject}"`
       });
 
       toast.success("Fee agreement email sent!");
