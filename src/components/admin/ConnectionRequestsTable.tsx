@@ -235,26 +235,14 @@ const ReactiveRequestCard = ({
   const [localUser, setLocalUser] = useState(request.user);
   const [localFollowedUp, setLocalFollowedUp] = useState(request.followed_up || false);
 
-  console.log(`🔄 ReactiveRequestCard ${request.user?.email}: localUser NDA signed=${localUser?.nda_signed}, localFollowedUp=${localFollowedUp}`);
-
   // Sync with request changes from parent (only when actual data changes)
   useEffect(() => {
-    console.log(`📥 Request data changed for ${request.user?.email}:`, {
-      original_nda: request.user?.nda_signed,
-      original_fee: request.user?.fee_agreement_signed,
-      original_followup: request.followed_up
-    });
     setLocalUser(request.user);
     setLocalFollowedUp(request.followed_up || false);
   }, [request.user?.nda_signed, request.user?.fee_agreement_signed, request.user?.nda_email_sent, request.user?.fee_agreement_email_sent, request.followed_up]);
 
   // Critical: This function updates the local state immediately
   const handleLocalStateUpdate = (updatedUser: any, updatedFollowedUp?: boolean) => {
-    console.log(`🔄 State update for ${request.user?.email}:`, {
-      updatedUser_nda: updatedUser?.nda_signed,
-      updatedUser_fee: updatedUser?.fee_agreement_signed,
-      updatedFollowedUp
-    });
     setLocalUser(updatedUser);
     if (updatedFollowedUp !== undefined) {
       setLocalFollowedUp(updatedFollowedUp);
