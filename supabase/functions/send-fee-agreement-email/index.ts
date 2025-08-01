@@ -72,33 +72,49 @@ const handler = async (req: Request): Promise<Response> => {
     // Use custom content if provided, otherwise use default template
     const emailSubject = subject || "SourceCo Advisory Services - Fee Agreement";
     
-    // Fetch and convert logo to base64 for email embedding
+    // Fetch and embed SourceCo logo with fallback
+    console.log('🔄 Fetching SourceCo logo...');
     let logoBase64 = '';
     let logoAttachment = null;
     
-    try {
-      console.log('🔄 Fetching logo from Supabase storage...');
-      const logoResponse = await fetch(
-        'https://vhzipqarkmmfuqadefep.supabase.co/storage/v1/object/public/listing-images/660e3240-2a08-42a0-8723-65b152b941a5.png'
-      );
-      
-      if (logoResponse.ok) {
-        const logoBuffer = await logoResponse.arrayBuffer();
-        const logoBytes = new Uint8Array(logoBuffer);
-        logoBase64 = btoa(String.fromCharCode.apply(null, Array.from(logoBytes)));
+    // Primary logo sources - your uploaded SourceCo logos
+    const logoSources = [
+      'https://vhzipqarkmmfuqadefep.supabase.co/storage/v1/object/public/listing-images/660e3240-2a08-42a0-8723-65b152b941a5.png',
+      'https://vhzipqarkmmfuqadefep.supabase.co/storage/v1/object/public/listing-images/b879fa06-6a99-4263-b973-b9ced4404acb.png',
+      'https://vhzipqarkmmfuqadefep.supabase.co/storage/v1/object/public/listings/sourceco-logo-gold.png'
+    ];
+    
+    for (const logoUrl of logoSources) {
+      try {
+        console.log(`🔄 Attempting to fetch SourceCo logo from: ${logoUrl}`);
+        const logoResponse = await fetch(logoUrl);
         
-        // Create attachment for fallback
-        logoAttachment = {
-          name: "sourceco-logo.png",
-          content: logoBase64
-        };
-        
-        console.log('✅ Logo converted to base64 successfully');
-      } else {
-        console.warn('⚠️ Could not fetch logo from storage, status:', logoResponse.status);
+        if (logoResponse.ok) {
+          const logoBuffer = await logoResponse.arrayBuffer();
+          const logoBytes = new Uint8Array(logoBuffer);
+          logoBase64 = btoa(String.fromCharCode(...logoBytes));
+          
+          // Create attachment for CID fallback
+          logoAttachment = {
+            name: "sourceco-logo.png",
+            content: logoBase64
+          };
+          
+          console.log('✅ SourceCo logo converted to base64 successfully from:', logoUrl);
+          console.log(`✅ Logo size: ${logoBytes.length} bytes, base64 length: ${logoBase64.length} chars`);
+          break; // Success, stop trying other sources
+        } else {
+          console.warn(`⚠️ Could not fetch logo from ${logoUrl}, status:`, logoResponse.status);
+        }
+      } catch (error) {
+        console.warn(`⚠️ Error fetching logo from ${logoUrl}:`, error);
       }
-    } catch (error) {
-      console.warn('⚠️ Error fetching logo:', error);
+    }
+    
+    if (!logoBase64) {
+      console.warn('⚠️ Could not fetch any SourceCo logo - will proceed without logo embedding');
+    } else {
+      console.log('🎯 Successfully loaded SourceCo logo for email signature');
     }
     
     // Generate premium SourceCo email signature with embedded base64 logo
