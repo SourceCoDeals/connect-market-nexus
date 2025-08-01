@@ -111,7 +111,7 @@ export const DualNDAToggle = ({ user, onSendEmail, size = "default" }: DualNDATo
         </div>
 
         {/* Send Email Button */}
-        {!emailSent && (
+        {!emailSent && onSendEmail && (
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -193,7 +193,7 @@ export const DualNDAToggle = ({ user, onSendEmail, size = "default" }: DualNDATo
       </div>
       
       {/* Send Email Button */}
-      {!emailSent && (
+      {!emailSent && onSendEmail && (
         <Button
           variant="outline"
           size="sm"

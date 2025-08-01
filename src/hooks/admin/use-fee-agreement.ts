@@ -244,11 +244,11 @@ export const useLogFeeAgreementEmail = () => {
     },
     onSuccess: () => {
       // Don't invalidate immediately - let the optimistic update persist
-      // The database update should have completed by now, so invalidate after a short delay
+      // Increased delay to ensure database updates have completed before invalidating cache
       setTimeout(() => {
         queryClient.invalidateQueries({ queryKey: ['admin-users'] });
         queryClient.invalidateQueries({ queryKey: ['connection-requests'] });
-      }, 1000);
+      }, 2000);
       
       toast({
         title: "Fee agreement email sent successfully",

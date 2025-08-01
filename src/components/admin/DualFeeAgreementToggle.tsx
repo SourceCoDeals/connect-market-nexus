@@ -126,7 +126,7 @@ export function DualFeeAgreementToggle({ user, onSendEmail, size = "default" }: 
         </div>
 
         {/* Send Email Button */}
-        {!emailSent && (
+        {!emailSent && onSendEmail && (
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
