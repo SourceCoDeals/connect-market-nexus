@@ -243,9 +243,13 @@ export const useLogFeeAgreementEmail = () => {
       return { previousUsers, previousRequests };
     },
     onSuccess: () => {
-      // Invalidate queries to get fresh data from backend
-      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
-      queryClient.invalidateQueries({ queryKey: ['connection-requests'] });
+      // Don't invalidate immediately - let the optimistic update persist
+      // The database update should have completed by now, so invalidate after a short delay
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+        queryClient.invalidateQueries({ queryKey: ['connection-requests'] });
+      }, 1000);
+      
       toast({
         title: "Fee agreement email sent successfully",
         description: "The fee agreement email has been sent and logged.",
