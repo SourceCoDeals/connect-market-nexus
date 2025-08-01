@@ -12,7 +12,7 @@ export function WorkflowProgressIndicator({ user, followedUp = false }: Workflow
       id: 'nda-sent',
       label: 'NDA Sent',
       icon: Send,
-      completed: user.nda_email_sent || false,
+      completed: user.nda_email_sent || user.nda_signed || false,
       signed: user.nda_signed || false
     },
     {
@@ -26,7 +26,7 @@ export function WorkflowProgressIndicator({ user, followedUp = false }: Workflow
       id: 'fee-sent',
       label: 'Fee Sent',
       icon: Send,
-      completed: user.fee_agreement_email_sent || false,
+      completed: user.fee_agreement_email_sent || user.fee_agreement_signed || false,
       signed: user.fee_agreement_signed || false
     },
     {

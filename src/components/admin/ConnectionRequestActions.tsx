@@ -355,7 +355,7 @@ SourceCo Team`}`;
                   checked={localFollowedUp}
                   onCheckedChange={handleFollowUpToggle}
                   disabled={updateFollowup.isPending || !requestId}
-                  className="data-[state=checked]:bg-secondary"
+                  className="data-[state=checked]:bg-success"
                 />
                 <Label htmlFor={`followup-${user.id}`} className="text-xs font-medium">Followed Up</Label>
               </div>
