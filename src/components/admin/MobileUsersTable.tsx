@@ -22,6 +22,8 @@ interface MobileUsersTableProps {
   onRevokeAdmin: (user: User) => void;
   onDelete: (user: User) => void;
   isLoading: boolean;
+  onSendFeeAgreement: (user: User) => void;
+  onSendNDAEmail: (user: User) => void;
 }
 
 const StatusBadge = ({ status }: { status: string }) => {
@@ -45,7 +47,8 @@ const MobileUserCard = ({
   onRevokeAdmin,
   onDelete,
   isLoading,
-  onSendFeeAgreement
+  onSendFeeAgreement,
+  onSendNDAEmail
 }: { 
   user: User;
   onApprove: (user: User) => void;
@@ -55,6 +58,7 @@ const MobileUserCard = ({
   onDelete: (user: User) => void;
   isLoading: boolean;
   onSendFeeAgreement: (user: User) => void;
+  onSendNDAEmail: (user: User) => void;
 }) => (
   <Card className="w-full">
     <CardHeader className="pb-3">
@@ -316,7 +320,9 @@ export const MobileUsersTable = ({
   onMakeAdmin,
   onRevokeAdmin,
   onDelete,
-  isLoading 
+  isLoading,
+  onSendFeeAgreement,
+  onSendNDAEmail
 }: MobileUsersTableProps) => {
   const [selectedUserForEmail, setSelectedUserForEmail] = useState<User | null>(null);
   const [selectedUserForNDA, setSelectedUserForNDA] = useState<User | null>(null);

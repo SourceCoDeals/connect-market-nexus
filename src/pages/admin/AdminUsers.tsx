@@ -171,6 +171,8 @@ const AdminUsers = () => {
               onRevokeAdmin={revokeAdmin}
               onDelete={deleteUser}
               isLoading={isLoading}
+              onSendFeeAgreement={() => {}}
+              onSendNDAEmail={() => {}}
             />
           </div>
         ) : (
