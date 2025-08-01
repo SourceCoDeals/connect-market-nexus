@@ -17,8 +17,9 @@ export const ensureSourceCoLogoInStorage = async (): Promise<string | null> => {
       return `https://vhzipqarkmmfuqadefep.supabase.co/storage/v1/object/public/listings/${SOURCECO_LOGO_PATH}`;
     }
 
-    // Try to fetch the logo from the correct SourceCo uploaded location
-    const sourceUrl = '/lovable-uploads/329afbf5-cedf-4fcf-b6c0-1922a2b0624d.png';
+    // Try to fetch the logo from the correct SourceCo uploaded location with cache busting
+    const timestamp = Date.now();
+    const sourceUrl = `https://lovable.dev/lovable-uploads/e5ab65c7-a61e-4c6a-8c11-fa6cfd2cfb7b.png?t=${timestamp}`;
     const response = await fetch(sourceUrl);
     
     if (!response.ok) {

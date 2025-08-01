@@ -77,11 +77,12 @@ const handler = async (req: Request): Promise<Response> => {
     let logoBase64 = '';
     let logoAttachment = null;
     
-    // Primary logo sources - your actual uploaded SourceCo gold circular logos
+    // Primary logo sources - FIXED: Use absolute URLs with cache busting
+    const timestamp = Date.now();
     const logoSources = [
-      '/lovable-uploads/329afbf5-cedf-4fcf-b6c0-1922a2b0624d.png', // Latest SourceCo upload
-      '/lovable-uploads/e5ab65c7-a61e-4c6a-8c11-fa6cfd2cfb7b.png', // SourceCo gold circular logo
-      '/lovable-uploads/9ef0d48e-7024-4923-9a18-93f58502978d.png', // Alternative SourceCo logo
+      `https://lovable.dev/lovable-uploads/e5ab65c7-a61e-4c6a-8c11-fa6cfd2cfb7b.png?t=${timestamp}`, // SourceCo gold circular logo  
+      `https://lovable.dev/lovable-uploads/9ef0d48e-7024-4923-9a18-93f58502978d.png?t=${timestamp}`, // Alternative SourceCo logo
+      `https://lovable.dev/lovable-uploads/329afbf5-cedf-4fcf-b6c0-1922a2b0624d.png?t=${timestamp}`, // Latest SourceCo upload
       'https://vhzipqarkmmfuqadefep.supabase.co/storage/v1/object/public/listings/sourceco-logo-gold.png' // Backup in storage
     ];
     
@@ -118,76 +119,149 @@ const handler = async (req: Request): Promise<Response> => {
       console.log('🎯 Successfully loaded SourceCo logo for email signature');
     }
     
-    // Generate premium SourceCo email signature with embedded base64 logo
-    const logoSrc = logoBase64 
-      ? `data:image/png;base64,${logoBase64}`
-      : 'cid:sourceco_logo'; // Fallback to attachment
+    // ENHANCED: Create CID attachment for logo reliability + fallback base64
+    let logoSrc = 'cid:sourceco_logo'; // Primary: CID attachment
+    let logoAttachmentCID = null;
+    
+    if (logoBase64) {
+      // Create logo attachment with Content-ID for reliable email client display
+      logoAttachmentCID = {
+        name: "sourceco-logo.png",
+        content: logoBase64,
+        cid: "sourceco_logo"
+      };
+      // Keep base64 as fallback for clients that don't support CID
+      logoSrc = `data:image/png;base64,${logoBase64}`;
+    }
     
     const adminSignature = `
       <div style="margin-top: 40px; padding: 0; font-family: 'Georgia', 'Times New Roman', serif;">
-        <table cellpadding="0" cellspacing="0" style="width: 100%; border-top: 3px solid #d4af37; padding-top: 25px;">
+        <table cellpadding="0" cellspacing="0" style="width: 100%; border-top: 3px solid #D4AF37; padding-top: 25px;">
           <tr>
             <td style="vertical-align: top; width: 100px; padding-right: 25px;">
-              <img src="${logoSrc}" alt="SourceCo Advisory Services" style="max-width: 80px; height: auto; display: block;" />
+              <img src="${logoSrc}" alt="SourceCo Advisory Services" style="max-width: 80px; height: auto; display: block; border: none;" />
             </td>
-            <td style="vertical-align: top; border-left: 1px solid #e5e5e5; padding-left: 25px;">
-              <div style="line-height: 1.3;">
-                <p style="margin: 0; font-size: 18px; font-weight: 600; color: #000000; margin-bottom: 6px; letter-spacing: 0.5px;">${adminName}</p>
-                <p style="margin: 0; font-size: 13px; color: #666666; margin-bottom: 3px; font-style: italic;">Managing Director</p>
-                <p style="margin: 0; font-size: 15px; font-weight: 700; color: #d4af37; margin-bottom: 12px; letter-spacing: 1px;">SOURCECO</p>
-                <p style="margin: 0; font-size: 12px; color: #444444; margin-bottom: 3px; line-height: 1.4;">
-                  <span style="color: #d4af37; font-weight: 600;">E</span> ${adminEmail}
+            <td style="vertical-align: top; border-left: 1px solid #E5E5E5; padding-left: 25px;">
+              <div style="line-height: 1.4;">
+                <p style="margin: 0; font-size: 18px; font-weight: 700; color: #000000; margin-bottom: 6px; letter-spacing: 0.8px;">${adminName}</p>
+                <p style="margin: 0; font-size: 13px; color: #666666; margin-bottom: 4px; font-style: italic;">Managing Director</p>
+                <p style="margin: 0; font-size: 16px; font-weight: 700; color: #D4AF37; margin-bottom: 15px; letter-spacing: 2px;">SOURCECO ADVISORY</p>
+                <p style="margin: 0; font-size: 12px; color: #444444; margin-bottom: 4px; line-height: 1.5;">
+                  <span style="color: #D4AF37; font-weight: 700; margin-right: 8px;">EMAIL</span> ${adminEmail}
                 </p>
-                <p style="margin: 0; font-size: 12px; color: #444444; line-height: 1.4;">
-                  <span style="color: #d4af37; font-weight: 600;">W</span> sourcecodeals.com
+                <p style="margin: 0; font-size: 12px; color: #444444; line-height: 1.5;">
+                  <span style="color: #D4AF37; font-weight: 700; margin-right: 8px;">WEB</span> sourcecodeals.com
                 </p>
               </div>
             </td>
           </tr>
         </table>
-        <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #e5e5e5; font-size: 9px; color: #888888; text-align: center; font-family: 'Arial', sans-serif;">
-          <p style="margin: 0; line-height: 1.3;">CONFIDENTIAL | This communication contains proprietary information for qualified business acquisition professionals.</p>
+        <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #E5E5E5; font-size: 10px; color: #888888; text-align: center; font-family: 'Arial', sans-serif;">
+          <p style="margin: 0; line-height: 1.4; font-weight: 500;">CONFIDENTIAL | This communication contains proprietary information for qualified business acquisition professionals.</p>
         </div>
       </div>`;
 
-    // Generate premium SourceCo email content with black/gold styling
-    const emailContent = useTemplate
-      ? `<div style="font-family: 'Georgia', 'Times New Roman', serif; line-height: 1.7; color: #333333; max-width: 650px; margin: 0 auto; background-color: #ffffff;">
-          <div style="padding: 50px 40px; background-color: #ffffff; border: 2px solid #f5f5f5;">
-            <div style="text-align: center; margin-bottom: 40px; padding-bottom: 25px; border-bottom: 2px solid #d4af37;">
-              <h1 style="color: #000000; font-size: 28px; margin: 0; font-weight: 600; letter-spacing: 1px;">FEE AGREEMENT</h1>
-              <p style="color: #666666; margin: 10px 0 0 0; font-size: 14px; letter-spacing: 2px; text-transform: uppercase;">SourceCo Advisory Services</p>
+    // ENHANCED: Generate multiple premium email templates
+    const templateVariants = {
+      standard: `<div style="font-family: 'Georgia', 'Times New Roman', serif; line-height: 1.7; color: #333333; max-width: 700px; margin: 0 auto; background-color: #ffffff;">
+          <div style="padding: 50px 40px; background: linear-gradient(135deg, #ffffff 0%, #fafafa 100%); border: 1px solid #E5E5E5;">
+            <div style="text-align: center; margin-bottom: 50px; padding-bottom: 30px; border-bottom: 3px solid #D4AF37;">
+              <h1 style="color: #000000; font-size: 32px; margin: 0; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;">Fee Agreement</h1>
+              <p style="color: #666666; margin: 15px 0 0 0; font-size: 16px; letter-spacing: 3px; text-transform: uppercase;">SourceCo Advisory Services</p>
             </div>
             
-            <p style="margin-bottom: 25px; font-size: 16px; color: #333333;">Dear <strong style="color: #000000;">${userEmail.split('@')[0]}</strong>,</p>
-            
-            <p style="margin-bottom: 25px; font-size: 15px;">We are pleased to present our Fee Agreement for your review and execution. This document formalizes our engagement and outlines the terms of our professional advisory services.</p>
-            
-            <div style="background: linear-gradient(135deg, #fafafa 0%, #f5f5f5 100%); padding: 30px; margin: 35px 0; border-left: 5px solid #d4af37; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
-              <p style="margin: 0 0 20px 0; font-weight: 600; color: #000000; font-size: 16px;">Agreement Scope & Terms:</p>
-              <ul style="margin: 0; padding-left: 25px; color: #444444; font-size: 14px; line-height: 1.6;">
-                <li style="margin-bottom: 12px;">Professional advisory fees and payment structure</li>
-                <li style="margin-bottom: 12px;">Comprehensive scope of services and deliverables</li>
-                <li style="margin-bottom: 12px;">Strict confidentiality and non-disclosure provisions</li>
-                <li style="margin-bottom: 12px;">Project timeline, milestones, and success metrics</li>
-                <li style="margin-bottom: 12px;">Exclusive representation and fiduciary obligations</li>
-              </ul>
+            <div style="margin-bottom: 40px;">
+              <p style="margin-bottom: 30px; font-size: 18px; color: #333333;">Dear <strong style="color: #D4AF37; font-weight: 700;">${userEmail.split('@')[0]}</strong>,</p>
+              
+              <p style="margin-bottom: 30px; font-size: 16px; line-height: 1.8;">We are pleased to present our comprehensive Fee Agreement for your review and execution. This document establishes the framework for our professional advisory relationship and outlines the terms that will govern our collaboration.</p>
+              
+              <div style="background: linear-gradient(135deg, #F8F8F8 0%, #F0F0F0 100%); padding: 35px; margin: 40px 0; border-left: 6px solid #D4AF37; box-shadow: 0 4px 12px rgba(0,0,0,0.08); border-radius: 0 8px 8px 0;">
+                <p style="margin: 0 0 25px 0; font-weight: 700; color: #000000; font-size: 18px; letter-spacing: 0.5px;">Key Agreement Elements:</p>
+                <ul style="margin: 0; padding-left: 0; list-style: none; color: #444444; font-size: 15px; line-height: 1.8;">
+                  <li style="margin-bottom: 15px; padding-left: 25px; position: relative;">
+                    <span style="position: absolute; left: 0; color: #D4AF37; font-weight: 700;">✓</span>
+                    Professional advisory fees and transparent payment structure
+                  </li>
+                  <li style="margin-bottom: 15px; padding-left: 25px; position: relative;">
+                    <span style="position: absolute; left: 0; color: #D4AF37; font-weight: 700;">✓</span>
+                    Comprehensive scope of services and specific deliverables
+                  </li>
+                  <li style="margin-bottom: 15px; padding-left: 25px; position: relative;">
+                    <span style="position: absolute; left: 0; color: #D4AF37; font-weight: 700;">✓</span>
+                    Strict confidentiality and non-disclosure provisions
+                  </li>
+                  <li style="margin-bottom: 15px; padding-left: 25px; position: relative;">
+                    <span style="position: absolute; left: 0; color: #D4AF37; font-weight: 700;">✓</span>
+                    Project timeline, milestones, and success metrics
+                  </li>
+                  <li style="margin-bottom: 0; padding-left: 25px; position: relative;">
+                    <span style="position: absolute; left: 0; color: #D4AF37; font-weight: 700;">✓</span>
+                    Exclusive representation and fiduciary obligations
+                  </li>
+                </ul>
+              </div>
+              
+              <p style="margin-bottom: 30px; font-size: 16px; line-height: 1.8;">We encourage you to carefully review all terms and conditions. Our team remains readily available to address any questions or discuss specific provisions that may require clarification or modification.</p>
+              
+              <div style="background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%); color: #ffffff; padding: 35px; margin: 40px 0; text-align: center; border-radius: 8px; box-shadow: 0 6px 20px rgba(0,0,0,0.15);">
+                <p style="margin: 0; color: #D4AF37; font-weight: 700; font-size: 16px; letter-spacing: 2px; text-transform: uppercase;">Next Steps</p>
+                <p style="margin: 20px 0 0 0; color: #ffffff; font-size: 15px; line-height: 1.6;">Upon your acceptance of these terms, please execute and return the agreement to formalize our engagement and begin the collaboration process.</p>
+              </div>
+              
+              <p style="margin-bottom: 40px; font-size: 16px; line-height: 1.8;">We genuinely appreciate the opportunity to serve as your trusted advisor and look forward to a successful and mutually beneficial collaboration.</p>
+              
+              <p style="margin-bottom: 30px; font-weight: 600; font-size: 16px;">Respectfully yours,</p>
             </div>
             
-            <p style="margin-bottom: 25px; font-size: 15px;">We encourage you to carefully review all terms and conditions. Our team remains available to address any questions or discuss specific provisions that may require clarification.</p>
-            
-            <div style="background-color: #000000; color: #ffffff; padding: 25px; margin: 30px 0; text-align: center; border-radius: 0;">
-              <p style="margin: 0; color: #d4af37; font-weight: 600; font-size: 14px; letter-spacing: 1px;">NEXT STEPS</p>
-              <p style="margin: 12px 0 0 0; color: #ffffff; font-size: 13px; line-height: 1.5;">Upon your acceptance of these terms, please execute and return the agreement to formalize our engagement.</p>
+            ${adminSignature}
+          </div>
+        </div>`,
+      
+      executive: `<div style="font-family: 'Georgia', 'Times New Roman', serif; line-height: 1.8; color: #333333; max-width: 750px; margin: 0 auto; background-color: #ffffff;">
+          <div style="padding: 60px 50px; background: linear-gradient(135deg, #ffffff 0%, #f8f8f8 100%); border: 2px solid #D4AF37; box-shadow: 0 8px 30px rgba(0,0,0,0.1);">
+            <div style="text-align: center; margin-bottom: 60px; padding-bottom: 40px; border-bottom: 4px solid #D4AF37;">
+              <h1 style="color: #000000; font-size: 36px; margin: 0; font-weight: 800; letter-spacing: 2px; text-transform: uppercase;">Executive Fee Agreement</h1>
+              <p style="color: #666666; margin: 20px 0 0 0; font-size: 18px; letter-spacing: 4px; text-transform: uppercase; font-weight: 500;">SourceCo Advisory Services</p>
             </div>
             
-            <p style="margin-bottom: 35px; font-size: 15px;">We appreciate the opportunity to serve as your trusted advisor and look forward to a successful collaboration.</p>
-            
-            <p style="margin-bottom: 25px; font-weight: 500; font-size: 15px;">Respectfully yours,</p>
+            <div style="margin-bottom: 50px;">
+              <p style="margin-bottom: 35px; font-size: 20px; color: #333333;">Dear <strong style="color: #D4AF37; font-weight: 800;">${userEmail.split('@')[0]}</strong>,</p>
+              
+              <p style="margin-bottom: 35px; font-size: 17px; line-height: 1.9;">We are honored to present our Executive Fee Agreement, meticulously crafted for high-value strategic engagements. This comprehensive document establishes the premium framework for our exclusive advisory partnership.</p>
+              
+              <div style="background: linear-gradient(135deg, #F5F5F5 0%, #EEEEEE 100%); padding: 45px; margin: 50px 0; border: 2px solid #D4AF37; border-radius: 12px; box-shadow: 0 8px 25px rgba(0,0,0,0.12);">
+                <p style="margin: 0 0 30px 0; font-weight: 800; color: #000000; font-size: 20px; letter-spacing: 1px; text-align: center;">Premium Service Framework</p>
+                <div style="display: flex; flex-wrap: wrap; gap: 20px;">
+                  <div style="flex: 1; min-width: 250px; background: #ffffff; padding: 25px; border-left: 4px solid #D4AF37; margin-bottom: 15px;">
+                    <h4 style="margin: 0 0 15px 0; color: #D4AF37; font-size: 16px; font-weight: 700;">Strategic Advisory</h4>
+                    <p style="margin: 0; color: #444444; font-size: 14px; line-height: 1.6;">Comprehensive strategic planning and execution guidance</p>
+                  </div>
+                  <div style="flex: 1; min-width: 250px; background: #ffffff; padding: 25px; border-left: 4px solid #D4AF37; margin-bottom: 15px;">
+                    <h4 style="margin: 0 0 15px 0; color: #D4AF37; font-size: 16px; font-weight: 700;">Exclusive Access</h4>
+                    <p style="margin: 0; color: #444444; font-size: 14px; line-height: 1.6;">Priority access to premium deal flow and opportunities</p>
+                  </div>
+                </div>
+              </div>
+              
+              <p style="margin-bottom: 35px; font-size: 17px; line-height: 1.9;">This agreement reflects our commitment to delivering exceptional value through personalized service, strategic insight, and unwavering dedication to your success.</p>
+              
+              <div style="background: linear-gradient(135deg, #D4AF37 0%, #B8941F 100%); color: #000000; padding: 40px; margin: 50px 0; text-align: center; border-radius: 12px; box-shadow: 0 8px 25px rgba(212,175,55,0.3);">
+                <p style="margin: 0; color: #000000; font-weight: 800; font-size: 18px; letter-spacing: 2px; text-transform: uppercase;">Executive Priority Processing</p>
+                <p style="margin: 25px 0 0 0; color: #000000; font-size: 16px; line-height: 1.7; font-weight: 500;">Your agreement will receive expedited review and processing within 24 hours of execution.</p>
+              </div>
+              
+              <p style="margin-bottom: 45px; font-size: 17px; line-height: 1.9;">We are privileged to partner with you and remain committed to exceeding your expectations at every stage of our collaboration.</p>
+              
+              <p style="margin-bottom: 35px; font-weight: 700; font-size: 17px;">With distinguished regards,</p>
+            </div>
             
             ${adminSignature}
           </div>
         </div>`
+    };
+
+    const emailContent = useTemplate
+      ? templateVariants.standard
       : `<div style="font-family: 'Georgia', 'Times New Roman', serif; line-height: 1.7; color: #333333; max-width: 650px; margin: 0 auto;">
           <div style="padding: 50px 40px; background-color: #ffffff; border: 2px solid #f5f5f5;">
             ${content ? content.replace(/\n/g, '<br>') : ''}
@@ -227,8 +301,8 @@ const handler = async (req: Request): Promise<Response> => {
       }
     };
 
-    // Only add logo attachment if we're using cid fallback AND don't have base64
-    const needsLogoAttachment = logoAttachment && !logoBase64;
+    // ENHANCED: Always include logo as CID attachment for reliable display
+    const needsLogoAttachment = logoAttachmentCID !== null;
     const hasUserAttachments = attachments && attachments.length > 0;
 
     // Enhanced attachment processing with detailed logging
@@ -314,22 +388,23 @@ const handler = async (req: Request): Promise<Response> => {
       if (processedAttachments.length > 0) {
         // Add logo attachment if needed
         if (needsLogoAttachment) {
-          processedAttachments.push(logoAttachment);
-          console.log('📎 Added logo as attachment for cid fallback');
+          processedAttachments.push(logoAttachmentCID);
+          console.log('📎 Added logo as CID attachment for reliable email display');
         }
         brevoPayload.attachment = processedAttachments;
         console.log(`📎 Successfully added ${processedAttachments.length} attachment(s) to Brevo payload`);
         console.log(`📎 Final attachment summary:`, processedAttachments.map(a => ({
           name: a.name,
-          size: Math.round(a.content.length * 0.75) + ' bytes'
+          size: Math.round(a.content.length * 0.75) + ' bytes',
+          hasCID: !!a.cid
         })));
       } else {
         console.error(`❌ No valid attachments processed from ${attachments.length} input attachment(s)`);
       }
     } else if (needsLogoAttachment) {
       // Only logo attachment needed
-      brevoPayload.attachment = [logoAttachment];
-      console.log('📎 Added only logo as attachment for cid fallback');
+      brevoPayload.attachment = [logoAttachmentCID];
+      console.log('📎 Added only logo as CID attachment for reliable email display');
     }
     
     // Only set attachment property if we actually have attachments
