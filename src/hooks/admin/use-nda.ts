@@ -44,21 +44,18 @@ export const useUpdateNDA = () => {
       await queryClient.cancelQueries({ queryKey: ['admin-users'] });
       const previousUsers = queryClient.getQueryData(['admin-users']);
 
-      queryClient.setQueryData(['admin-users'], (old: any) => {
-        if (!old?.data) return old;
+      queryClient.setQueryData(['admin-users'], (old: User[] | undefined) => {
+        if (!old) return old;
         
-        return {
-          ...old,
-          data: old.data.map((user: any) => 
-            user.id === userId 
-              ? { 
-                  ...user, 
-                  nda_signed: isSigned,
-                  nda_signed_at: isSigned ? new Date().toISOString() : null
-                } 
-              : user
-          )
-        };
+        return old.map((user: any) => 
+          user.id === userId 
+            ? { 
+                ...user, 
+                nda_signed: isSigned,
+                nda_signed_at: isSigned ? new Date().toISOString() : null
+              } 
+            : user
+        );
       });
 
       return { previousUsers };
@@ -105,21 +102,18 @@ export const useUpdateNDAEmailSent = () => {
       await queryClient.cancelQueries({ queryKey: ['admin-users'] });
       const previousUsers = queryClient.getQueryData(['admin-users']);
 
-      queryClient.setQueryData(['admin-users'], (old: any) => {
-        if (!old?.data) return old;
+      queryClient.setQueryData(['admin-users'], (old: User[] | undefined) => {
+        if (!old) return old;
         
-        return {
-          ...old,
-          data: old.data.map((user: any) => 
-            user.id === userId 
-              ? { 
-                  ...user, 
-                  nda_email_sent: isSent,
-                  nda_email_sent_at: isSent ? new Date().toISOString() : null
-                } 
-              : user
-          )
-        };
+        return old.map((user: any) => 
+          user.id === userId 
+            ? { 
+                ...user, 
+                nda_email_sent: isSent,
+                nda_email_sent_at: isSent ? new Date().toISOString() : null
+              } 
+            : user
+        );
       });
 
       return { previousUsers };
@@ -166,21 +160,18 @@ export const useLogNDAEmail = () => {
       await queryClient.cancelQueries({ queryKey: ['admin-users'] });
       const previousUsers = queryClient.getQueryData(['admin-users']);
 
-      queryClient.setQueryData(['admin-users'], (old: any) => {
-        if (!old?.data) return old;
+      queryClient.setQueryData(['admin-users'], (old: User[] | undefined) => {
+        if (!old) return old;
         
-        return {
-          ...old,
-          data: old.data.map((user: any) => 
-            user.id === userId 
-              ? { 
-                  ...user, 
-                  nda_email_sent: true,
-                  nda_email_sent_at: new Date().toISOString()
-                } 
-              : user
-          )
-        };
+        return old.map((user: any) => 
+          user.id === userId 
+            ? { 
+                ...user, 
+                nda_email_sent: true,
+                nda_email_sent_at: new Date().toISOString()
+              } 
+            : user
+        );
       });
 
       return { previousUsers };

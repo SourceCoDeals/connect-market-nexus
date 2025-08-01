@@ -164,15 +164,12 @@ const handler = async (req: Request): Promise<Response> => {
       logoSrc = `data:image/png;base64,${logoBase64}`;
     }
     
-    // Create professional signature matching Bill Martin's layout
+    // Create professional signature without logo for now
     const adminSignature = `
       <div style="margin-top: 40px; padding: 0; font-family: 'Arial', sans-serif;">
         <table cellpadding="0" cellspacing="0" style="width: 100%; border-top: 2px solid #d7b65c; padding-top: 20px;">
            <tr>
-             <td style="vertical-align: top; width: 90px; padding-right: 20px;">
-               <img src="${logoSrc}" alt="SourceCo" style="width: 80px; height: 80px; display: block; border: none;" />
-             </td>
-             <td style="vertical-align: top; padding-left: 20px;">
+             <td style="vertical-align: top; padding: 20px 0;">
                <div style="line-height: 1.3;">
                  <p style="margin: 0; font-size: 16px; font-weight: 700; color: #000000; margin-bottom: 2px;">${effectiveAdminName}</p>
                  ${adminTitle ? `<p style="margin: 0; font-size: 14px; color: #666666; margin-bottom: 12px;">${adminTitle}</p>` : ''}
