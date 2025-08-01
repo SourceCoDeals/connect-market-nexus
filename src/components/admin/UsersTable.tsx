@@ -13,11 +13,11 @@ import { DualFeeAgreementToggle } from "./DualFeeAgreementToggle";
 import { SimpleFeeAgreementDialog } from "./SimpleFeeAgreementDialog";
 import { DualNDAToggle } from "./DualNDAToggle";
 import { SimpleNDADialog } from "./SimpleNDADialog";
-import { ApprovalEmailDialog } from "./ApprovalEmailDialog";
+
 import { getFieldCategories, FIELD_LABELS } from '@/lib/buyer-type-fields';
 import { useEnhancedUserExport } from '@/hooks/admin/use-enhanced-user-export';
 import { useLogFeeAgreementEmail } from '@/hooks/admin/use-fee-agreement';
-import { useAdminEmail } from '@/hooks/admin/use-admin-email';
+
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from "@/hooks/use-toast";
 
@@ -298,11 +298,8 @@ export function UsersTable({
   const [expandedUserId, setExpandedUserId] = useState<string | null>(null);
   const [selectedUserForEmail, setSelectedUserForEmail] = useState<User | null>(null);
   const [selectedUserForNDA, setSelectedUserForNDA] = useState<User | null>(null);
-  const [selectedUserForApproval, setSelectedUserForApproval] = useState<User | null>(null);
-  const [isApprovalEmailDialogOpen, setIsApprovalEmailDialogOpen] = useState(false);
   const { exportUsersToCSV } = useEnhancedUserExport();
   const logEmailMutation = useLogFeeAgreementEmail();
-  const { sendCustomApprovalEmail } = useAdminEmail();
   const { toast } = useToast();
   
   const handleSendEmail = async (emailData: {
@@ -571,18 +568,15 @@ export function UsersTable({
                 </TableCell>
                 <TableCell className="hidden lg:table-cell text-xs">{formatDate(user.created_at)}</TableCell>
                 <TableCell className="text-right">
-                <UserActionButtons
-                  user={user}
-                  onApprove={(user) => {
-                    setSelectedUserForApproval(user);
-                    setIsApprovalEmailDialogOpen(true);
-                  }}
-                  onReject={onReject}
-                  onMakeAdmin={onMakeAdmin}
-                  onRevokeAdmin={onRevokeAdmin}
-                  onDelete={onDelete}
-                  isLoading={isLoading}
-                />
+                 <UserActionButtons
+                   user={user}
+                   onApprove={onApprove}
+                   onReject={onReject}
+                   onMakeAdmin={onMakeAdmin}
+                   onRevokeAdmin={onRevokeAdmin}
+                   onDelete={onDelete}
+                   isLoading={isLoading}
+                 />
                 </TableCell>
               </TableRow>,
               ...(expandedUserId === user.id ? [
@@ -651,23 +645,6 @@ export function UsersTable({
       }}
     />
 
-    <ApprovalEmailDialog
-      open={isApprovalEmailDialogOpen}
-      onOpenChange={setIsApprovalEmailDialogOpen}
-      user={selectedUserForApproval}
-      onSendApprovalEmail={async (user, options) => {
-        try {
-          // First update user status to approved
-          onApprove(user);
-          // Then send custom email
-          await sendCustomApprovalEmail(user, options);
-          setIsApprovalEmailDialogOpen(false);
-          setSelectedUserForApproval(null);
-        } catch (error) {
-          console.error('Error sending approval email:', error);
-        }
-      }}
-    />
     </div>
   );
 }
