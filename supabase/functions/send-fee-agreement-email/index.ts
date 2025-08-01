@@ -77,12 +77,10 @@ const handler = async (req: Request): Promise<Response> => {
     let logoBase64 = '';
     let logoAttachment = null;
     
-    // Primary logo sources - FIXED: Use absolute URLs with cache busting
+    // Primary logo sources - Use the correct uploaded logo
     const timestamp = Date.now();
     const logoSources = [
-      `https://lovable.dev/lovable-uploads/e5ab65c7-a61e-4c6a-8c11-fa6cfd2cfb7b.png?t=${timestamp}`, // SourceCo gold circular logo  
-      `https://lovable.dev/lovable-uploads/9ef0d48e-7024-4923-9a18-93f58502978d.png?t=${timestamp}`, // Alternative SourceCo logo
-      `https://lovable.dev/lovable-uploads/329afbf5-cedf-4fcf-b6c0-1922a2b0624d.png?t=${timestamp}`, // Latest SourceCo upload
+      `https://lovable.dev/lovable-uploads/660e3240-2a08-42a0-8723-65b152b941a5.png?t=${timestamp}`, // SourceCo gold circular logo
       'https://vhzipqarkmmfuqadefep.supabase.co/storage/v1/object/public/listings/sourceco-logo-gold.png' // Backup in storage
     ];
     

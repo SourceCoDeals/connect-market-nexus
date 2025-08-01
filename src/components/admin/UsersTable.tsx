@@ -10,7 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { UserSavedListings } from "./UserSavedListings";
 import { UserDataCompleteness } from "./UserDataCompleteness";
 import { DualFeeAgreementToggle } from "./DualFeeAgreementToggle";
-import { ProfessionalFeeAgreementDialog } from "./ProfessionalFeeAgreementDialog";
+import { SimpleFeeAgreementDialog } from "./SimpleFeeAgreementDialog";
 import { getFieldCategories, FIELD_LABELS } from '@/lib/buyer-type-fields';
 import { useEnhancedUserExport } from '@/hooks/admin/use-enhanced-user-export';
 import { useLogFeeAgreementEmail } from '@/hooks/admin/use-fee-agreement';
@@ -582,7 +582,7 @@ export function UsersTable({
       </Table>
     </div>
     
-    <ProfessionalFeeAgreementDialog
+    <SimpleFeeAgreementDialog
       user={selectedUserForEmail}
       isOpen={!!selectedUserForEmail}
       onClose={() => setSelectedUserForEmail(null)}
