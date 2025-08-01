@@ -74,36 +74,61 @@ const handler = async (req: Request): Promise<Response> => {
       console.log('📎 No attachments provided, fetching default NDA document...');
       
       try {
-        const { data: files, error: listError } = await supabase.storage
+        // Try specific filename first
+        const defaultFileName = 'SourceCo Form Bilateral NDA_2025.docx';
+        
+        console.log('📎 Trying to fetch default NDA:', defaultFileName);
+        
+        const { data: fileData, error: downloadError } = await supabase.storage
           .from('nda-documents')
-          .list('', { limit: 1 });
+          .download(defaultFileName);
 
-        if (listError) {
-          console.error('❌ Error listing NDA documents:', listError);
-        } else if (files && files.length > 0) {
-          const defaultFile = files[0];
-          console.log('📎 Found default NDA file:', defaultFile.name);
+        if (!downloadError && fileData) {
+          const arrayBuffer = await fileData.arrayBuffer();
+          const base64Content = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
           
-          const { data: fileData, error: downloadError } = await supabase.storage
-            .from('nda-documents')
-            .download(defaultFile.name);
-
-          if (!downloadError && fileData) {
-            const arrayBuffer = await fileData.arrayBuffer();
-            const base64Content = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
-            
-            finalAttachments.push({
-              name: defaultFile.name,
-              content: base64Content,
-              contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-            });
-            
-            console.log('✅ Default NDA document loaded successfully');
-          } else {
-            console.error('❌ Error downloading default NDA:', downloadError);
-          }
+          finalAttachments.push({
+            name: defaultFileName,
+            content: base64Content,
+            contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+          });
+          
+          console.log('✅ Default NDA document loaded successfully:', defaultFileName);
         } else {
-          console.log('⚠️ No default NDA document found in storage');
+          console.log('⚠️ Could not fetch specific NDA file, trying to list all files...');
+          
+          // Fallback: list all files and take the first one
+          const { data: files, error: listError } = await supabase.storage
+            .from('nda-documents')
+            .list('', { limit: 10 });
+
+          if (!listError && files && files.length > 0) {
+            console.log('📎 Found files in NDA bucket:', files.map(f => f.name));
+            
+            const defaultFile = files[0];
+            console.log('📎 Using first available file:', defaultFile.name);
+            
+            const { data: fallbackFileData, error: fallbackError } = await supabase.storage
+              .from('nda-documents')
+              .download(defaultFile.name);
+
+            if (!fallbackError && fallbackFileData) {
+              const arrayBuffer = await fallbackFileData.arrayBuffer();
+              const base64Content = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+              
+              finalAttachments.push({
+                name: defaultFile.name,
+                content: base64Content,
+                contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+              });
+              
+              console.log('✅ Fallback NDA document loaded successfully:', defaultFile.name);
+            } else {
+              console.error('❌ Error downloading fallback NDA:', fallbackError);
+            }
+          } else {
+            console.log('⚠️ No NDA documents found in storage bucket');
+          }
         }
       } catch (error) {
         console.error('❌ Error fetching default NDA document:', error);
