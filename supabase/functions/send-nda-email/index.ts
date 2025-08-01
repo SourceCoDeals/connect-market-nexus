@@ -8,15 +8,16 @@ const corsHeaders = {
 };
 
 interface SendNDAEmailRequest {
-  userEmail: string;
   userId: string;
+  userEmail: string;
   customSubject?: string;
   customMessage?: string;
+  adminId?: string;
   adminEmail?: string;
   adminName?: string;
   listingTitle?: string;
-  customSignatureHtml?: string;
   customSignatureText?: string;
+  useTemplate?: boolean;
   attachments?: Array<{
     name: string;
     content: string; // base64 encoded content
@@ -24,24 +25,23 @@ interface SendNDAEmailRequest {
   }>;
 }
 
-// Default fallback signatures to prevent undefined errors
-const DEFAULT_TEXT_SIGNATURE = `Best regards,
-SourceCo Team
-
-SourceCo
-Email: hello@sourcecodeals.com
-Website: https://sourcecodeals.com`;
-
-const DEFAULT_HTML_SIGNATURE = `<div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #e5e5e5;">
-  <p style="margin: 0; color: #666;">Best regards,<br>
-  <strong>SourceCo Team</strong></p>
-  <br>
-  <p style="margin: 0; color: #888; font-size: 12px;">
-    <strong>SourceCo</strong><br>
-    Email: hello@sourcecodeals.com<br>
-    Website: <a href="https://sourcecodeals.com" style="color: #0066cc;">https://sourcecodeals.com</a>
-  </p>
-</div>`;
+// Admin profiles mapping for signature data
+const ADMIN_PROFILES: Record<string, any> = {
+  'bill.martin@sourcecodeals.com': {
+    email: 'bill.martin@sourcecodeals.com',
+    name: 'Bill Martin',
+    title: 'Principal & SVP - Growth',
+    phone: '(614) 832-6099',
+    calendlyUrl: 'https://calendly.com/bill-martin-sourceco/30min'
+  },
+  'adam.haile@sourcecodeals.com': {
+    email: 'adam.haile@sourcecodeals.com',
+    name: 'Adam Haile',
+    title: 'Founder & CEO',
+    phone: '(614) 555-0100',
+    calendlyUrl: 'https://calendly.com/adam-haile-sourceco/30min'
+  }
+};
 
 const handler = async (req: Request): Promise<Response> => {
   // Handle CORS preflight requests
@@ -62,15 +62,16 @@ const handler = async (req: Request): Promise<Response> => {
     console.log('✅ Brevo API key found, proceeding with email setup');
 
     const {
-      userEmail,
       userId,
+      userEmail,
       customSubject,
       customMessage,
+      adminId,
       adminEmail: providedAdminEmail,
       adminName: providedAdminName,
       listingTitle,
-      customSignatureHtml,
       customSignatureText,
+      useTemplate = true,
       attachments = []
     }: SendNDAEmailRequest = await req.json();
 
@@ -85,8 +86,18 @@ const handler = async (req: Request): Promise<Response> => {
       adminEmail: providedAdminEmail,
       adminName: providedAdminName,
       listingTitle,
-      attachmentCount: attachments.length
+      attachmentCount: attachments.length,
+      hasCustomMessage: !!customMessage
     });
+
+    // Validate required parameters
+    if (!userId || !userEmail) {
+      throw new Error("Missing required parameters: userId and userEmail are required");
+    }
+
+    if (!providedAdminEmail || !providedAdminName) {
+      throw new Error("Admin information is required: adminEmail and adminName must be provided");
+    }
 
     // Initialize Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -126,57 +137,102 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
-    // Determine sender information with fallbacks
-    let senderEmail = 'hello@sourcecodeals.com';
-    let senderName = 'SourceCo Team';
+    // Determine sender information with admin profile lookup
+    let senderEmail = providedAdminEmail;
+    let senderName = providedAdminName;
+    let adminTitle = '';
+    let adminPhone = '';
+    let adminCalendly = '';
 
-    // Use provided admin info if available
-    if (providedAdminEmail && providedAdminName) {
-      senderEmail = providedAdminEmail;
-      senderName = providedAdminName;
+    // Get admin profile data if available
+    const adminProfile = ADMIN_PROFILES[providedAdminEmail] || getAdminProfile(providedAdminEmail);
+    if (adminProfile) {
+      adminTitle = adminProfile.title || '';
+      adminPhone = adminProfile.phone || '';
+      adminCalendly = adminProfile.calendlyUrl || '';
     }
 
     console.log('📧 Using sender:', `${senderName} <${senderEmail}>`);
 
-    // Get signatures with robust fallback chain
-    let finalTextSignature = DEFAULT_TEXT_SIGNATURE;
-    let finalHtmlSignature = DEFAULT_HTML_SIGNATURE;
-
-    // Priority 1: Use provided custom signatures
-    if (customSignatureText) {
-      finalTextSignature = customSignatureText;
-      console.log('📝 Using provided custom text signature');
-    }
-    if (customSignatureHtml) {
-      finalHtmlSignature = customSignatureHtml;
-      console.log('📝 Using provided custom HTML signature');
-    }
-
-    // Priority 2: Try to get admin signature from database if no custom provided
-    if (!customSignatureText || !customSignatureHtml) {
-      console.log('📝 Fetching admin signature preferences...');
-      try {
-        const { data: signatureData } = await supabaseAdmin
-          .from('admin_signature_preferences')
-          .select('signature_html, signature_text')
-          .single();
-
-        if (signatureData) {
-          if (!customSignatureText && signatureData.signature_text) {
-            finalTextSignature = signatureData.signature_text;
-            console.log('✅ Using database text signature');
-          }
-          if (!customSignatureHtml && signatureData.signature_html) {
-            finalHtmlSignature = signatureData.signature_html;
-            console.log('✅ Using database HTML signature');
-          }
-        }
-      } catch (error) {
-        console.log('⚠️ No database signature found, using defaults');
+    // Try to get custom admin signature from database (like fee agreement function)
+    let customSignature = null;
+    try {
+      const { data: signatureData } = await supabaseAdmin
+        .from('admin_signature_preferences')
+        .select('signature_html, signature_text, phone_number, calendly_url')
+        .eq('admin_id', adminId)
+        .single();
+      
+      if (signatureData) {
+        customSignature = signatureData;
+        console.log('✅ Found custom signature for admin:', adminId);
       }
+    } catch (error) {
+      console.log('ℹ️ No custom signature found, using default template');
     }
 
-    console.log('📧 Signature processing complete - using safe fallbacks');
+    console.log('📧 Using text-only signature without logo for immediate delivery');
+    
+    // Create premium signature (same logic as fee agreement)
+    let adminSignature;
+    
+    if (customSignature && customSignature.signature_html) {
+      // Use custom signature if available
+      adminSignature = customSignature.signature_html;
+      console.log('✅ Using custom admin signature');
+    } else {
+      // Use standardized format with admin profile data
+      const finalPhone = customSignature?.phone_number || adminPhone || '(614) 555-0000';
+      const finalCalendly = customSignature?.calendly_url || adminCalendly || 'https://calendly.com/sourceco-admin/30min';
+      
+      adminSignature = `
+        <div style="font-family: Arial, sans-serif; color: #333; line-height: 1.4;">
+          <p style="margin: 0;">
+            <strong>${senderName}</strong><br>
+            ${adminTitle}<br>
+            <a href="mailto:${senderEmail}" style="color: #0066cc; text-decoration: none;">${senderEmail}</a><br>
+            <a href="tel:${finalPhone.replace(/[^\d]/g, '')}" style="color: #0066cc; text-decoration: none;">${finalPhone}</a><br>
+            <a href="${finalCalendly}" style="color: #0066cc; text-decoration: none;">Click here to schedule a call with me</a>
+          </p>
+        </div>`;
+      console.log('✅ Using standard format signature template');
+    }
+
+    // Simple text content - use custom signature text if provided, otherwise strip HTML
+    let signatureText;
+    if (customSignatureText) {
+      signatureText = customSignatureText;
+    } else if (customSignature?.signature_text) {
+      signatureText = customSignature.signature_text;
+    } else {
+      // Convert HTML signature to text with proper line breaks
+      signatureText = adminSignature
+        .replace(/<br\s*\/?>/gi, '\n')
+        .replace(/<[^>]*>/g, '')
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .trim();
+    }
+
+    // Build email content
+    const emailMessage = customMessage || `Dear valued client,
+
+Please find the attached Non-Disclosure Agreement for your review and signature. This agreement is required to access confidential deal information.
+
+Once signed, please return the executed document so we can proceed with sharing the relevant materials.
+
+Thank you for your understanding and cooperation.`;
+
+    const textContent = `${emailMessage}
+
+${signatureText}`;
+
+    const htmlContent = `<div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+${emailMessage.replace(/\n/g, '<br>')}
+<br><br>
+${adminSignature}
+</div>`;
 
     // Process attachments safely
     console.log('📎 Starting attachment processing for', finalAttachments.length, 'attachment(s)');
@@ -212,18 +268,21 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log('📎 Successfully added', processedAttachments.length, 'attachment(s) to Brevo payload');
 
-    // Build email content safely with null coalescing
-    const messageText = customMessage ?? '';
-    const textContent = messageText ? `${messageText}\n\n${finalTextSignature}` : finalTextSignature;
+    // Determine the sender email - use current admin info (same logic as fee agreement)
+    let finalSenderEmail = senderEmail;
+    let finalSenderName = senderName;
     
-    const htmlContent = messageText 
-      ? `<p>${messageText.replace(/\n/g, '<br>')}</p><br>${finalHtmlSignature}` 
-      : finalHtmlSignature;
+    // Only use noreply if admin email is not from our domain
+    if (!senderEmail.includes("@sourcecodeals.com")) {
+      finalSenderEmail = "noreply@sourcecodeals.com";
+      finalSenderName = `${senderName} - SourceCo`;
+    }
 
     // Send email via Brevo
     console.log('📬 Sending NDA email via Brevo...', {
       to: userEmail,
-      from: { name: senderName, email: senderEmail },
+      from: { name: finalSenderName, email: finalSenderEmail },
+      replyTo: { email: senderEmail, name: senderName },
       subject: subject,
       attachmentCount: processedAttachments.length,
       payloadSize: JSON.stringify(processedAttachments).length
@@ -231,7 +290,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     const brevoPayload = {
       to: [{ email: userEmail }],
-      sender: { name: senderName, email: senderEmail },
+      sender: { name: finalSenderName, email: finalSenderEmail },
       replyTo: { email: senderEmail, name: senderName },
       subject: subject,
       textContent: textContent,

@@ -10,6 +10,7 @@ import { User as UserType, Listing } from "@/types";
 import { formatDistanceToNow } from "date-fns";
 import { EditableSignature } from "@/components/admin/EditableSignature";
 import { useLogNDAEmail } from "@/hooks/admin/use-nda";
+import { useAuth } from '@/context/AuthContext';
 
 interface SimpleNDADialogProps {
   open: boolean;
@@ -24,19 +25,26 @@ export const SimpleNDADialog = ({ open, onOpenChange, user, listing, onSendEmail
   const [customMessage, setCustomMessage] = useState("");
   const [customSignatureText, setCustomSignatureText] = useState("");
   const [selectedTemplate, setSelectedTemplate] = useState<'quick' | 'standard' | 'executive'>('standard');
-
-  // Use the unified hook for consistent state management
+  
+  const { user: currentUser } = useAuth();
   const logNDAEmail = useLogNDAEmail();
 
   const handleSend = async () => {
     if (!user) return;
     
     try {
-      // Send email via the provided callback (which handles both email sending AND database logging)
-      await onSendEmail(user, {
-        subject: customSubject || quickTemplate.subject,
-        message: customMessage || quickTemplate.message,
-        customSignatureText: customSignatureText
+      // Send email directly using the hook with all the necessary data
+      await logNDAEmail.mutateAsync({
+        userId: user.id,
+        userEmail: user.email,
+        customSubject: customSubject || undefined,
+        customMessage: customMessage || undefined,
+        customSignatureText: customSignatureText || undefined,
+        adminId: currentUser?.id,
+        adminEmail: currentUser?.email,
+        adminName: `${currentUser?.first_name} ${currentUser?.last_name}`.trim(),
+        listingTitle: listing?.title,
+        notes: `NDA email sent via admin interface${listing ? ` for listing: ${listing.title}` : ''}`
       });
 
       // Close dialog and reset form
@@ -47,7 +55,7 @@ export const SimpleNDADialog = ({ open, onOpenChange, user, listing, onSendEmail
       
     } catch (error) {
       console.error('Error sending NDA email:', error);
-      // This error will be handled by the parent component's toast
+      // Error will be handled by the hook's onError
     }
   };
 
@@ -185,11 +193,18 @@ Best regards,`
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button onClick={handleSend} disabled={false}>
-              <>
-                <Mail className="h-4 w-4 mr-2" />
-                Send NDA Email
-              </>
+            <Button onClick={handleSend} disabled={logNDAEmail.isPending}>
+              {logNDAEmail.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Sending...
+                </>
+              ) : (
+                <>
+                  <Mail className="h-4 w-4 mr-2" />
+                  Send NDA Email
+                </>
+              )}
             </Button>
           </div>
         </div>

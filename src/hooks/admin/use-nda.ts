@@ -19,6 +19,13 @@ interface LogNDAEmailParams {
   userId: string;
   userEmail: string;
   notes?: string;
+  customSubject?: string;
+  customMessage?: string;
+  customSignatureText?: string;
+  adminId?: string;
+  adminEmail?: string;
+  adminName?: string;
+  listingTitle?: string;
 }
 
 export const useUpdateNDA = () => {
@@ -178,15 +185,31 @@ export const useLogNDAEmail = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ userId, userEmail, notes }: LogNDAEmailParams) => {
+    mutationFn: async ({ 
+      userId, 
+      userEmail, 
+      notes, 
+      customSubject, 
+      customMessage, 
+      customSignatureText, 
+      adminId, 
+      adminEmail, 
+      adminName, 
+      listingTitle 
+    }: LogNDAEmailParams) => {
       // Send actual email via edge function
       const { data, error } = await supabase.functions.invoke('send-nda-email', {
         body: {
           userId,
           userEmail,
-          useTemplate: true,
-          adminEmail: 'adam.haile@sourcecodeals.com',
-          adminName: 'Adam Haile'
+          customSubject,
+          customMessage,
+          customSignatureText,
+          adminId,
+          adminEmail: adminEmail || 'adam.haile@sourcecodeals.com',
+          adminName: adminName || 'Adam Haile',
+          listingTitle,
+          useTemplate: !customMessage // Use template only if no custom message
         }
       });
 
