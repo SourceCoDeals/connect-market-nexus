@@ -9,6 +9,8 @@ import { MoreHorizontal, UserCheck, UserX, UserPlus, UserMinus, Trash2, Mail, Bu
 import { formatDistanceToNow } from 'date-fns';
 import { DualFeeAgreementToggle } from "./DualFeeAgreementToggle";
 import { SimpleFeeAgreementDialog } from "./SimpleFeeAgreementDialog";
+import { NDAToggle } from "./NDAToggle";
+import { SimpleNDADialog } from "./SimpleNDADialog";
 import { useLogFeeAgreementEmail } from '@/hooks/admin/use-fee-agreement';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -168,6 +170,15 @@ const MobileUserCard = ({
         />
       </div>
       
+      {/* NDA Section */}
+      <div className="border-b pb-3">
+        <NDAToggle 
+          user={user}
+          onSendEmail={onSendNDAEmail}
+          size="default"
+        />
+      </div>
+      
       {/* Contact Information */}
       <div className="space-y-2">
         <div className="flex items-center gap-2 text-sm">
@@ -308,6 +319,7 @@ export const MobileUsersTable = ({
   isLoading 
 }: MobileUsersTableProps) => {
   const [selectedUserForEmail, setSelectedUserForEmail] = useState<User | null>(null);
+  const [selectedUserForNDA, setSelectedUserForNDA] = useState<User | null>(null);
   const logEmailMutation = useLogFeeAgreementEmail();
   
   const handleSendEmail = async (emailData: {
@@ -454,6 +466,7 @@ export const MobileUsersTable = ({
           onDelete={onDelete}
           isLoading={isLoading}
           onSendFeeAgreement={setSelectedUserForEmail}
+          onSendNDAEmail={setSelectedUserForNDA}
         />
       ))}
       
@@ -461,6 +474,18 @@ export const MobileUsersTable = ({
         user={selectedUserForEmail}
         isOpen={!!selectedUserForEmail}
         onClose={() => setSelectedUserForEmail(null)}
+      />
+      
+      <SimpleNDADialog
+        open={!!selectedUserForNDA}
+        onOpenChange={(open) => !open && setSelectedUserForNDA(null)}
+        user={selectedUserForNDA}
+        onSendEmail={async (user) => {
+          const { data, error } = await supabase.functions.invoke('send-nda-email', {
+            body: { userEmail: user.email, userId: user.id }
+          });
+          if (error) throw error;
+        }}
       />
     </div>
   );

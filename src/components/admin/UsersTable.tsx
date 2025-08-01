@@ -11,6 +11,8 @@ import { UserSavedListings } from "./UserSavedListings";
 import { UserDataCompleteness } from "./UserDataCompleteness";
 import { DualFeeAgreementToggle } from "./DualFeeAgreementToggle";
 import { SimpleFeeAgreementDialog } from "./SimpleFeeAgreementDialog";
+import { NDAToggle } from "./NDAToggle";
+import { SimpleNDADialog } from "./SimpleNDADialog";
 import { getFieldCategories, FIELD_LABELS } from '@/lib/buyer-type-fields';
 import { useEnhancedUserExport } from '@/hooks/admin/use-enhanced-user-export';
 import { useLogFeeAgreementEmail } from '@/hooks/admin/use-fee-agreement';
@@ -293,6 +295,7 @@ export function UsersTable({
 }: UsersTableProps) {
   const [expandedUserId, setExpandedUserId] = useState<string | null>(null);
   const [selectedUserForEmail, setSelectedUserForEmail] = useState<User | null>(null);
+  const [selectedUserForNDA, setSelectedUserForNDA] = useState<User | null>(null);
   const { exportUsersToCSV } = useEnhancedUserExport();
   const logEmailMutation = useLogFeeAgreementEmail();
   const { toast } = useToast();
@@ -492,6 +495,7 @@ export function UsersTable({
             <TableHead className="hidden md:table-cell">Buyer Type</TableHead>
             <TableHead className="text-center">Profile</TableHead>
             <TableHead className="text-center">Fee Agreement</TableHead>
+            <TableHead className="text-center">NDA</TableHead>
             <TableHead className="text-center">Status</TableHead>
             <TableHead className="hidden lg:table-cell">Joined</TableHead>
             <TableHead className="text-right">Actions</TableHead>
@@ -500,7 +504,7 @@ export function UsersTable({
         <TableBody>
           {users.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={8} className="h-24 text-center text-sm">
+              <TableCell colSpan={9} className="h-24 text-center text-sm">
                 No users found.
               </TableCell>
             </TableRow>
@@ -539,6 +543,13 @@ export function UsersTable({
                     size="sm"
                   />
                 </TableCell>
+                <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
+                  <NDAToggle 
+                    user={user}
+                    onSendEmail={setSelectedUserForNDA}
+                    size="sm"
+                  />
+                </TableCell>
                 <TableCell className="text-center">
                   {user.approval_status === "approved" && (
                     <Badge className="bg-green-100 text-green-800 hover:bg-green-100 text-xs">
@@ -571,7 +582,7 @@ export function UsersTable({
               </TableRow>,
               ...(expandedUserId === user.id ? [
                 <TableRow key={`${user.id}-details`}>
-                  <TableCell colSpan={8} className="py-2 px-4 bg-muted/30 border-t">
+                  <TableCell colSpan={9} className="py-2 px-4 bg-muted/30 border-t">
                     <UserDetails user={user} />
                   </TableCell>
                 </TableRow>
@@ -586,6 +597,51 @@ export function UsersTable({
       user={selectedUserForEmail}
       isOpen={!!selectedUserForEmail}
       onClose={() => setSelectedUserForEmail(null)}
+    />
+    
+    <SimpleNDADialog
+      open={!!selectedUserForNDA}
+      onOpenChange={(open) => !open && setSelectedUserForNDA(null)}
+      user={selectedUserForNDA}
+      onSendEmail={async (user, customSubject, customMessage) => {
+        try {
+          const { data: { user: currentUser } } = await supabase.auth.getUser();
+          if (!currentUser) throw new Error('Not authenticated');
+
+          const { data: adminProfile } = await supabase
+            .from('profiles')
+            .select('email, first_name, last_name')
+            .eq('id', currentUser.id)
+            .single();
+
+          if (!adminProfile) throw new Error('Admin profile not found');
+
+          const { data, error } = await supabase.functions.invoke('send-nda-email', {
+            body: {
+              userEmail: user.email,
+              userId: user.id,
+              customSubject,
+              customMessage,
+              adminEmail: adminProfile.email,
+              adminName: `${adminProfile.first_name} ${adminProfile.last_name}`
+            }
+          });
+
+          if (error) throw error;
+          
+          toast({
+            title: "NDA Email Sent",
+            description: `NDA sent successfully to ${user.email}`,
+          });
+        } catch (error: any) {
+          toast({
+            title: "Failed to send NDA",
+            description: error.message,
+            variant: "destructive",
+          });
+          throw error;
+        }
+      }}
     />
     </div>
   );

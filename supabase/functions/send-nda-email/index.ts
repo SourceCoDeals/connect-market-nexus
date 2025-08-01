@@ -1,0 +1,359 @@
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.47.10';
+import { getAdminProfile } from "../_shared/admin-profiles.ts";
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
+interface SendNDAEmailRequest {
+  userEmail: string;
+  userId: string;
+  customSubject?: string;
+  customMessage?: string;
+  adminEmail?: string;
+  adminName?: string;
+  attachments?: Array<{
+    name: string;
+    content: string; // base64 encoded content
+    contentType?: string;
+  }>;
+}
+
+const handler = async (req: Request): Promise<Response> => {
+  // Handle CORS preflight requests
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const brevoApiKey = Deno.env.get('BREVO_API_KEY');
+    if (!brevoApiKey) {
+      console.error('❌ BREVO_API_KEY not found');
+      return new Response(
+        JSON.stringify({ error: 'Email service not configured' }),
+        { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+      );
+    }
+
+    console.log('✅ Brevo API key found, proceeding with email setup');
+
+    const {
+      userEmail,
+      userId,
+      customSubject,
+      customMessage,
+      adminEmail: providedAdminEmail,
+      adminName: providedAdminName,
+      attachments = []
+    }: SendNDAEmailRequest = await req.json();
+
+    const subject = customSubject || "Non-Disclosure Agreement | SourceCo";
+    const useTemplate = !customMessage;
+    
+    console.log('📧 Starting NDA email process', {
+      userEmail,
+      userId,
+      useTemplate,
+      subject,
+      adminEmail: providedAdminEmail,
+      adminName: providedAdminName,
+      attachmentCount: attachments.length
+    });
+
+    // Initialize Supabase client
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Get default NDA document if no attachments provided
+    let finalAttachments = [...attachments];
+    
+    if (finalAttachments.length === 0) {
+      console.log('📎 No attachments provided, fetching default NDA document...');
+      
+      try {
+        const { data: files, error: listError } = await supabase.storage
+          .from('nda-documents')
+          .list('', { limit: 1 });
+
+        if (listError) {
+          console.error('❌ Error listing NDA documents:', listError);
+        } else if (files && files.length > 0) {
+          const defaultFile = files[0];
+          console.log('📎 Found default NDA file:', defaultFile.name);
+          
+          const { data: fileData, error: downloadError } = await supabase.storage
+            .from('nda-documents')
+            .download(defaultFile.name);
+
+          if (!downloadError && fileData) {
+            const arrayBuffer = await fileData.arrayBuffer();
+            const base64Content = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+            
+            finalAttachments.push({
+              name: defaultFile.name,
+              content: base64Content,
+              contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+            });
+            
+            console.log('✅ Default NDA document loaded successfully');
+          } else {
+            console.error('❌ Error downloading default NDA:', downloadError);
+          }
+        } else {
+          console.log('⚠️ No default NDA document found in storage');
+        }
+      } catch (error) {
+        console.error('❌ Error fetching default NDA document:', error);
+      }
+    }
+
+    // Determine sender information
+    let senderEmail = 'adam.haile@sourcecodeals.com';
+    let senderName = 'Adam Haile';
+    let adminTitle = 'Founder & CEO';
+    let adminPhone = '(614) 555-0100';
+    let adminCalendly = 'https://calendly.com/adam-haile-sourceco/30min';
+
+    if (providedAdminEmail) {
+      const adminProfile = getAdminProfile(providedAdminEmail);
+      if (adminProfile) {
+        senderEmail = adminProfile.email;
+        senderName = adminProfile.name;
+        adminTitle = adminProfile.title;
+        adminPhone = adminProfile.phone;
+        adminCalendly = adminProfile.calendlyUrl;
+      }
+    }
+
+    const effectiveAdminName = providedAdminName || senderName;
+
+    console.log('📧 Using sender:', `${effectiveAdminName} <${senderEmail}>`, 'reply-to:', `${effectiveAdminName} <${senderEmail}>`);
+
+    // Fetch SourceCo logo
+    console.log('🔄 Fetching SourceCo logo...');
+    
+    const logoSources = [
+      'https://vhzipqarkmmfuqadefep.supabase.co/storage/v1/object/public/listing-images/sourceco-logo-circular-gold.png',
+      'https://lovable.dev/lovable-uploads/e5ab65c7-a61e-4c6a-8c11-fa6cfd2cfb7b.png'
+    ];
+    
+    let logoBase64 = '';
+    let logoSrc = 'cid:sourceco-logo';
+    let logoAttachment = null;
+    
+    for (const logoUrl of logoSources) {
+      try {
+        console.log('🔄 Attempting to fetch SourceCo logo from:', logoUrl);
+        const logoResponse = await fetch(logoUrl);
+        if (logoResponse.ok) {
+          const logoArrayBuffer = await logoResponse.arrayBuffer();
+          logoBase64 = btoa(String.fromCharCode(...new Uint8Array(logoArrayBuffer)));
+          logoAttachment = {
+            name: 'sourceco-logo-circular-gold.png',
+            content: logoBase64,
+            cid: 'sourceco-logo'
+          };
+          console.log('✅ SourceCo logo fetched successfully from:', logoUrl);
+          break;
+        } else {
+          console.log(`⚠️ Could not fetch logo from ${logoUrl}, status: ${logoResponse.status}`);
+        }
+      } catch (error) {
+        console.log(`⚠️ Error fetching logo from ${logoUrl}:`, error.message);
+      }
+    }
+
+    if (!logoAttachment) {
+      console.log('⚠️ Could not fetch any SourceCo logo - will proceed without logo embedding');
+      logoSrc = '';
+    }
+
+    // Process attachments
+    console.log('📎 Starting attachment processing for', finalAttachments.length, 'attachment(s)');
+    
+    const processedAttachments = [];
+    
+    if (logoAttachment) {
+      processedAttachments.push(logoAttachment);
+    }
+
+    for (const [index, attachment] of finalAttachments.entries()) {
+      console.log(`📎 Processing attachment ${index + 1}/${finalAttachments.length}: ${attachment.name}`);
+      
+      try {
+        // Validate base64 content
+        const cleanBase64 = attachment.content.replace(/^data:[^;]+;base64,/, '');
+        console.log(`📎 Original content length for ${attachment.name}: ${cleanBase64.length} chars`);
+        
+        // Validate PDF header if it's a PDF
+        if (attachment.name.toLowerCase().endsWith('.pdf')) {
+          const decoded = atob(cleanBase64);
+          if (decoded.startsWith('%PDF-')) {
+            console.log(`✅ PDF header validation passed for ${attachment.name}`);
+          } else {
+            console.log(`⚠️ PDF header validation failed for ${attachment.name}`);
+          }
+        }
+
+        const decodedBytes = atob(cleanBase64);
+        console.log(`✅ Successfully decoded base64 for ${attachment.name}: ${cleanBase64.length} chars → ${decodedBytes.length} bytes`);
+        
+        processedAttachments.push({
+          name: attachment.name,
+          content: cleanBase64,
+          ...(attachment.contentType && { contentType: attachment.contentType })
+        });
+        
+        console.log(`✅ Successfully processed attachment: ${attachment.name} (${decodedBytes.length} bytes)`);
+      } catch (error) {
+        console.error(`❌ Error processing attachment ${attachment.name}:`, error);
+      }
+    }
+
+    console.log('📎 Successfully added', processedAttachments.length, 'attachment(s) to Brevo payload');
+
+    // Create email content
+    let htmlContent;
+    
+    if (useTemplate) {
+      // Create professional signature matching the fee agreement layout
+      const adminSignature = `
+        <div style="margin-top: 40px; padding: 0; font-family: 'Arial', sans-serif;">
+          <table cellpadding="0" cellspacing="0" style="width: 100%; border-top: 2px solid #d7b65c; padding-top: 20px;">
+            <tr>
+              <td style="vertical-align: top; width: 90px; padding-right: 20px;">
+                ${logoSrc ? `<img src="${logoSrc}" alt="SourceCo" style="width: 80px; height: 80px; display: block; border: none;" />` : ''}
+              </td>
+              <td style="vertical-align: top; padding-left: 20px;">
+                <div style="line-height: 1.3;">
+                  <p style="margin: 0; font-size: 16px; font-weight: 700; color: #000000; margin-bottom: 2px;">${effectiveAdminName}</p>
+                  ${adminTitle ? `<p style="margin: 0; font-size: 14px; color: #666666; margin-bottom: 12px;">${adminTitle}</p>` : ''}
+                  <p style="margin: 0; font-size: 16px; font-weight: 700; color: #d7b65c; margin-bottom: 12px; letter-spacing: 1px;">SOURCECO</p>
+                  
+                  <p style="margin: 0; font-size: 11px; color: #333333; margin-bottom: 3px;">
+                    <a href="mailto:${senderEmail}" style="color: #333333; text-decoration: none;">${senderEmail}</a>
+                  </p>
+                  <p style="margin: 0; font-size: 11px; color: #333333; margin-bottom: 3px;">
+                    <a href="tel:${adminPhone}" style="color: #333333; text-decoration: none;">${adminPhone}</a>
+                  </p>
+                  <p style="margin: 0; font-size: 11px; color: #333333; margin-bottom: 3px;">
+                    <a href="https://sourcecodeals.com" style="color: #333333; text-decoration: none;">sourcecodeals.com</a>
+                  </p>
+                  ${adminCalendly ? `<p style="margin: 0; font-size: 11px; color: #d7b65c; margin-bottom: 0;">
+                    <a href="${adminCalendly}" style="color: #d7b65c; text-decoration: none; font-weight: 600;">Schedule a call</a>
+                  </p>` : ''}
+                </div>
+              </td>
+            </tr>
+          </table>
+        </div>
+      `;
+
+      htmlContent = `
+        <div style="font-family: 'Arial', sans-serif; max-width: 600px; margin: 0 auto; color: #333333;">
+          <div style="padding: 40px 20px;">
+            <p style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.6;">Dear ${userEmail.split('@')[0]},</p>
+            
+            <p style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.6;">
+              I hope this message finds you well. As we move forward with our discussions regarding potential business opportunities, I'm sending you our Non-Disclosure Agreement (NDA) for your review and signature.
+            </p>
+            
+            <p style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.6;">
+              This NDA will ensure that any confidential information shared between us remains protected and allows us to have more detailed conversations about available opportunities.
+            </p>
+            
+            <p style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.6;">
+              Please review the attached document and let me know if you have any questions. Once signed, we'll be able to share more specific details about businesses that match your investment criteria.
+            </p>
+            
+            <p style="margin: 0 0 40px 0; font-size: 16px; line-height: 1.6;">
+              Thank you for your time and I look forward to our continued collaboration.
+            </p>
+            
+            <p style="margin: 0 0 10px 0; font-size: 16px; line-height: 1.6;">Best regards,</p>
+            
+            ${adminSignature}
+          </div>
+        </div>
+      `;
+    } else {
+      // Use custom message
+      htmlContent = `
+        <div style="font-family: 'Arial', sans-serif; max-width: 600px; margin: 0 auto; color: #333333;">
+          <div style="padding: 40px 20px;">
+            ${customMessage.split('\n').map(line => `<p style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.6;">${line}</p>`).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    // Send email via Brevo
+    console.log('📬 Sending NDA email via Brevo...', {
+      to: userEmail,
+      from: { name: effectiveAdminName, email: senderEmail },
+      replyTo: { email: senderEmail, name: effectiveAdminName },
+      subject: subject,
+      attachmentCount: processedAttachments.length,
+      payloadSize: JSON.stringify(processedAttachments).length
+    });
+
+    const brevoPayload = {
+      to: [{ email: userEmail }],
+      sender: { name: effectiveAdminName, email: senderEmail },
+      replyTo: { email: senderEmail, name: effectiveAdminName },
+      subject: subject,
+      htmlContent: htmlContent,
+      attachment: processedAttachments
+    };
+
+    const brevoResponse = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'api-key': brevoApiKey,
+      },
+      body: JSON.stringify(brevoPayload),
+    });
+
+    console.log('📡 Brevo API response status:', brevoResponse.status);
+
+    if (!brevoResponse.ok) {
+      const errorText = await brevoResponse.text();
+      console.error('❌ Brevo API error:', errorText);
+      throw new Error(`Failed to send email: ${brevoResponse.status} ${errorText}`);
+    }
+
+    const brevoResult = await brevoResponse.json();
+    console.log('✅ NDA email sent successfully via Brevo:', brevoResult);
+
+    return new Response(
+      JSON.stringify({ 
+        success: true, 
+        messageId: brevoResult.messageId,
+        message: 'NDA email sent successfully'
+      }),
+      { 
+        status: 200, 
+        headers: { 'Content-Type': 'application/json', ...corsHeaders } 
+      }
+    );
+
+  } catch (error: any) {
+    console.error('❌ Error in send-nda-email function:', error);
+    return new Response(
+      JSON.stringify({ 
+        error: error.message,
+        details: 'Failed to send NDA email'
+      }),
+      { 
+        status: 500, 
+        headers: { 'Content-Type': 'application/json', ...corsHeaders } 
+      }
+    );
+  }
+};
+
+serve(handler);

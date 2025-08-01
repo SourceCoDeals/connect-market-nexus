@@ -51,6 +51,12 @@ export interface User {
   fee_agreement_email_sent?: boolean;
   fee_agreement_email_sent_at?: string;
   
+  // NDA tracking
+  nda_signed?: boolean;
+  nda_signed_at?: string;
+  nda_email_sent?: boolean;
+  nda_email_sent_at?: string;
+  
   // Computed properties (aliases for snake_case properties)
   readonly firstName: string;
   readonly lastName: string;
