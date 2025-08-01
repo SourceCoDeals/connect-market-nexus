@@ -12,14 +12,14 @@ import {
   X, 
   User, 
   Mail, 
-  Send
+  Send,
+  Loader2
 } from "lucide-react";
 import { User as UserType, Listing } from "@/types";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
-import { getAdminProfile } from "@/lib/admin-profiles";
 import { EditableSignature } from "@/components/admin/EditableSignature";
+import { useLogFeeAgreementEmail } from "@/hooks/admin/use-fee-agreement";
 
 interface SimpleFeeAgreementDialogProps {
   user: UserType | null;
@@ -47,10 +47,11 @@ export function SimpleFeeAgreementDialog({
   const [subject, setSubject] = useState("");
   const [content, setContent] = useState("");
   const [attachments, setAttachments] = useState<File[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
   const [customSignatureText, setCustomSignatureText] = useState("");
   
   const { user: adminUser } = useAuth();
+  // Use the unified hook for consistent state management
+  const logFeeAgreementEmail = useLogFeeAgreementEmail();
 
   useEffect(() => {
     if (user && isOpen) {
@@ -139,39 +140,12 @@ export function SimpleFeeAgreementDialog({
       return;
     }
 
-    setIsLoading(true);
     try {
-      // Get enhanced admin profile for signature
-      const enhancedProfile = getAdminProfile(adminUser.email || '');
-      const effectiveAdminName = enhancedProfile?.name || adminName;
-
-      const base64Attachments = await convertFilesToBase64(attachments);
-      
-      const { data, error } = await supabase.functions.invoke('send-fee-agreement-email', {
-        body: {
-          userId: user.id,
-          userEmail: user.email,
-          subject: subject.trim(),
-          content: content.trim(),
-          useTemplate: false,
-          adminId: adminUser.id,
-          adminEmail: adminUser.email,
-          adminName: effectiveAdminName,
-          listingTitle: listing?.title,
-          attachments: base64Attachments,
-          customSignatureText: customSignatureText || undefined
-        }
-      });
-
-      if (error) {
-        console.error('Edge function error:', error);
-        throw new Error(error.message || 'Failed to send email');
-      }
-
-      await supabase.rpc('log_fee_agreement_email', {
-        target_user_id: user.id,
-        recipient_email: user.email,
-        admin_notes: `Email sent with subject: "${subject}"`
+      // Use the unified hook to send email + update state
+      await logFeeAgreementEmail.mutateAsync({
+        userId: user.id,
+        userEmail: user.email,
+        notes: `Email sent with subject: "${subject}"`
       });
 
       toast.success("Fee agreement email sent!");
@@ -179,8 +153,6 @@ export function SimpleFeeAgreementDialog({
     } catch (error: any) {
       console.error("Error sending email:", error);
       toast.error(error.message || "Failed to send email");
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -328,11 +300,19 @@ export function SimpleFeeAgreementDialog({
             </Button>
             <Button 
               onClick={handleSend} 
-              disabled={isLoading || !subject.trim() || !content.trim()}
+              disabled={logFeeAgreementEmail.isPending || !subject.trim() || !content.trim()}
             >
-              {isLoading && <Upload className="h-4 w-4 mr-2 animate-spin" />}
-              <Send className="h-4 w-4 mr-2" />
-              Send Email
+              {logFeeAgreementEmail.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Sending...
+                </>
+              ) : (
+                <>
+                  <Send className="h-4 w-4 mr-2" />
+                  Send Email
+                </>
+              )}
             </Button>
           </div>
         </div>

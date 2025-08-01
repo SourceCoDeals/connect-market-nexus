@@ -68,6 +68,9 @@ export function ApprovalEmailDialog({
     
     setIsLoading(true);
     try {
+      // Close dialog immediately to prevent flashing
+      onOpenChange(false);
+      
       await onSendApprovalEmail(user, {
         subject: customSubject || defaultSubject,
         message: customMessage || defaultMessage,
@@ -75,7 +78,7 @@ export function ApprovalEmailDialog({
         customSignatureText: customSignatureText || undefined
       });
       
-      onOpenChange(false);
+      // Reset form
       setCustomSubject("");
       setCustomMessage("");
       setCustomSignatureHtml("");

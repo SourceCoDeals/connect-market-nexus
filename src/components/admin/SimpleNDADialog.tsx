@@ -9,7 +9,7 @@ import { Loader2, FileText, Mail, User, Calendar } from "lucide-react";
 import { User as UserType, Listing } from "@/types";
 import { formatDistanceToNow } from "date-fns";
 import { EditableSignature } from "@/components/admin/EditableSignature";
-import { supabase } from "@/integrations/supabase/client";
+import { useLogNDAEmail } from "@/hooks/admin/use-nda";
 
 interface SimpleNDADialogProps {
   open: boolean;
@@ -22,35 +22,21 @@ interface SimpleNDADialogProps {
 export const SimpleNDADialog = ({ open, onOpenChange, user, listing, onSendEmail }: SimpleNDADialogProps) => {
   const [customSubject, setCustomSubject] = useState("");
   const [customMessage, setCustomMessage] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
   const [customSignatureText, setCustomSignatureText] = useState("");
-  // FIXED: Move this hook to the top, before any conditional returns
   const [selectedTemplate, setSelectedTemplate] = useState<'quick' | 'standard' | 'executive'>('standard');
+
+  // Use the unified hook for consistent state management
+  const logNDAEmail = useLogNDAEmail();
 
   const handleSend = async () => {
     if (!user) return;
     
-    setIsLoading(true);
     try {
-      // Send NDA email via edge function
-      const { data, error } = await supabase.functions.invoke('send-nda-email', {
-        body: {
-          userEmail: user.email,
-          userId: user.id,
-          customSubject: customSubject || undefined,
-          customMessage: customMessage || undefined,
-          listingTitle: listing?.title,
-          customSignatureText: customSignatureText || undefined
-        }
-      });
-
-      if (error) throw error;
-
-      // Log the email
-      await supabase.rpc('log_nda_email', {
-        target_user_id: user.id,
-        recipient_email: user.email,
-        admin_notes: 'NDA email sent from connection requests'
+      // Use the unified hook to send email + update state
+      await logNDAEmail.mutateAsync({
+        userId: user.id,
+        userEmail: user.email,
+        adminNotes: 'NDA email sent from connection requests'
       });
 
       onOpenChange(false);
@@ -62,8 +48,6 @@ export const SimpleNDADialog = ({ open, onOpenChange, user, listing, onSendEmail
       await onSendEmail(user);
     } catch (error) {
       console.error('Error sending NDA email:', error);
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -201,8 +185,8 @@ Best regards,`
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button onClick={handleSend} disabled={isLoading}>
-              {isLoading ? (
+            <Button onClick={handleSend} disabled={logNDAEmail.isPending}>
+              {logNDAEmail.isPending ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                   Sending NDA...
