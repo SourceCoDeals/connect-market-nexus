@@ -217,13 +217,19 @@ const AdminRequests = () => {
           user={selectedUserForApprovalEmail}
           onSendApprovalEmail={async (user, options) => {
             try {
-              await sendCustomApprovalEmail(user, options);
+              // Immediately close dialog and update cache for instant UI response
               setIsApprovalEmailDialogOpen(false);
               setSelectedUserForApprovalEmail(null);
-              // Efficient cache invalidation for faster UI updates
-              await invalidateConnectionRequests(queryClient);
+              
+              // Immediate cache invalidation without waiting
+              invalidateConnectionRequests(queryClient);
+              
+              // Send email in background
+              sendCustomApprovalEmail(user, options).catch(error => {
+                console.error('Error sending approval email:', error);
+              });
             } catch (error) {
-              console.error('Error sending approval email:', error);
+              console.error('Error processing approval:', error);
             }
           }}
         />

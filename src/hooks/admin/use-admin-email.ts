@@ -363,7 +363,7 @@ export function useAdminEmail() {
       // 2. Show immediate success feedback
       toast({
         title: "User approved",
-        description: `${user.first_name} ${user.last_name} has been approved. Sending email...`,
+        description: `${user.first_name} ${user.last_name} has been approved instantly`,
       });
 
       // 3. Send email asynchronously in background (don't await)
@@ -406,6 +406,17 @@ export function useAdminEmail() {
             description: `Welcome email delivered to ${user.email}`,
           });
         }
+      }).catch((error) => {
+        console.error("💥 Email sending failed:", error);
+        trackEmailDelivery(correlationId, {
+          success: false,
+          error: error.message || 'Email sending failed'
+        });
+        toast({
+          variant: "destructive",
+          title: "Email delivery failed",
+          description: "User was approved but email couldn't be sent.",
+        });
       });
       
       return true;
