@@ -204,23 +204,47 @@ export const useLogFeeAgreementEmail = () => {
       return data;
     },
     onMutate: async ({ userId }) => {
-      // Don't do optimistic updates since edge function handles database changes
-      // Just store previous data for rollback purposes
+      // Do optimistic updates for immediate UI feedback
       await queryClient.cancelQueries({ queryKey: ['admin-users'] });
       await queryClient.cancelQueries({ queryKey: ['connection-requests'] });
 
       const previousUsers = queryClient.getQueryData(['admin-users']);
       const previousRequests = queryClient.getQueryData(['connection-requests']);
 
+      // Optimistically update fee agreement email sent status
+      queryClient.setQueryData(['admin-users'], (old: any) => {
+        if (!old) return old;
+        return old.map((user: any) => 
+          user.id === userId 
+            ? { 
+                ...user, 
+                fee_agreement_email_sent: true,
+                fee_agreement_email_sent_at: new Date().toISOString()
+              }
+            : user
+        );
+      });
+
+      queryClient.setQueryData(['connection-requests'], (old: any) => {
+        if (!old) return old;
+        return old.map((request: any) => 
+          request.user?.id === userId 
+            ? { 
+                ...request, 
+                user: {
+                  ...request.user,
+                  fee_agreement_email_sent: true,
+                  fee_agreement_email_sent_at: new Date().toISOString()
+                }
+              }
+            : request
+        );
+      });
+
       return { previousUsers, previousRequests };
     },
     onSuccess: () => {
-      // Add delay before invalidating to allow edge function database updates to complete
-      setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: ['admin-users'] });
-        queryClient.invalidateQueries({ queryKey: ['connection-requests'] });
-      }, 1000);
-      
+      // Don't invalidate immediately - let optimistic updates show, database will sync later
       toast({
         title: "Fee agreement email sent successfully",
         description: "The fee agreement email has been sent and logged.",
