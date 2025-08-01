@@ -6,6 +6,14 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
+interface AdminProfile {
+  email: string;
+  name: string;
+  title: string;
+  phone: string;
+  calendlyUrl: string;
+}
+
 interface FeeAgreementEmailRequest {
   userId: string;
   userEmail: string;
@@ -21,6 +29,24 @@ interface FeeAgreementEmailRequest {
     type?: string;
   }>;
 }
+
+// Admin profiles mapping
+const ADMIN_PROFILES: Record<string, AdminProfile> = {
+  'bill.martin@sourcecodeals.com': {
+    email: 'bill.martin@sourcecodeals.com',
+    name: 'Bill Martin',
+    title: 'Principal & SVP - Growth',
+    phone: '(614) 832-6099',
+    calendlyUrl: 'https://calendly.com/bill-martin-sourceco/30min'
+  },
+  'adam.haile@sourcecodeals.com': {
+    email: 'adam.haile@sourcecodeals.com',
+    name: 'Adam Haile',
+    title: 'Founder & CEO',
+    phone: '(614) 555-0100',
+    calendlyUrl: 'https://calendly.com/adam-haile-sourceco/30min'
+  }
+};
 
 const handler = async (req: Request): Promise<Response> => {
   // Handle CORS preflight requests
@@ -69,6 +95,13 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log("✅ Brevo API key found, proceeding with email setup");
 
+    // Get admin profile for enhanced signature
+    const adminProfile = adminEmail ? ADMIN_PROFILES[adminEmail] : null;
+    const effectiveAdminName = adminProfile?.name || adminName || 'SourceCo Team';
+    const adminTitle = adminProfile?.title || '';
+    const adminPhone = adminProfile?.phone || '';
+    const adminCalendly = adminProfile?.calendlyUrl || '';
+
     // Use custom content if provided, otherwise use default template
     const emailSubject = subject || "SourceCo - Fee Agreement";
     
@@ -77,11 +110,10 @@ const handler = async (req: Request): Promise<Response> => {
     let logoBase64 = '';
     let logoAttachment = null;
     
-    // Primary logo sources - Use the correct uploaded logo
-    const timestamp = Date.now();
+    // Use the correct circular gold logo
     const logoSources = [
-      `https://lovable.dev/lovable-uploads/660e3240-2a08-42a0-8723-65b152b941a5.png?t=${timestamp}`, // SourceCo gold circular logo
-      'https://vhzipqarkmmfuqadefep.supabase.co/storage/v1/object/public/listings/sourceco-logo-gold.png' // Backup in storage
+      'https://vhzipqarkmmfuqadefep.supabase.co/storage/v1/object/public/listings/sourceco-logo-circular-gold.png',
+      '/sourceco-logo-circular-gold.png' // Local fallback
     ];
     
     for (const logoUrl of logoSources) {
@@ -132,28 +164,37 @@ const handler = async (req: Request): Promise<Response> => {
       logoSrc = `data:image/png;base64,${logoBase64}`;
     }
     
+    // Create professional signature matching Bill Martin's layout
     const adminSignature = `
-      <div style="margin-top: 40px; padding: 0; font-family: 'Georgia', 'Times New Roman', serif;">
-        <table cellpadding="0" cellspacing="0" style="width: 100%; border-top: 3px solid #D4AF37; padding-top: 25px;">
+      <div style="margin-top: 40px; padding: 0; font-family: 'Arial', sans-serif;">
+        <table cellpadding="0" cellspacing="0" style="width: 100%; border-top: 2px solid #D4AF37; padding-top: 20px;">
           <tr>
-            <td style="vertical-align: top; width: 100px; padding-right: 25px;">
-              <img src="${logoSrc}" alt="SourceCo" style="max-width: 80px; height: auto; display: block; border: none;" />
+            <td style="vertical-align: top; width: 90px; padding-right: 20px;">
+              <img src="${logoSrc}" alt="SourceCo" style="width: 80px; height: 80px; display: block; border: none;" />
             </td>
-            <td style="vertical-align: top; border-left: 1px solid #E5E5E5; padding-left: 25px;">
-              <div style="line-height: 1.4;">
-                <p style="margin: 0; font-size: 18px; font-weight: 700; color: #000000; margin-bottom: 6px; letter-spacing: 0.8px;">${adminName}</p>
-                <p style="margin: 0; font-size: 16px; font-weight: 700; color: #D4AF37; margin-bottom: 15px; letter-spacing: 2px;">SOURCECO</p>
-                <p style="margin: 0; font-size: 12px; color: #444444; margin-bottom: 4px; line-height: 1.5;">
-                  <span style="color: #D4AF37; font-weight: 700; margin-right: 8px;">EMAIL</span> ${adminEmail}
+            <td style="vertical-align: top; padding-left: 20px;">
+              <div style="line-height: 1.3;">
+                <p style="margin: 0; font-size: 16px; font-weight: 700; color: #000000; margin-bottom: 2px;">${effectiveAdminName}</p>
+                ${adminTitle ? `<p style="margin: 0; font-size: 14px; color: #666666; margin-bottom: 12px;">${adminTitle}</p>` : ''}
+                <p style="margin: 0; font-size: 16px; font-weight: 700; color: #D4AF37; margin-bottom: 12px; letter-spacing: 1px;">SOURCECO</p>
+                
+                <p style="margin: 0; font-size: 11px; color: #333333; margin-bottom: 3px;">
+                  <a href="mailto:${adminEmail}" style="color: #333333; text-decoration: none;">${adminEmail}</a>
                 </p>
-                <p style="margin: 0; font-size: 12px; color: #444444; line-height: 1.5;">
-                  <span style="color: #D4AF37; font-weight: 700; margin-right: 8px;">WEB</span> sourcecodeals.com
+                ${adminPhone ? `<p style="margin: 0; font-size: 11px; color: #333333; margin-bottom: 3px;">
+                  <a href="tel:${adminPhone.replace(/[^0-9]/g, '')}" style="color: #333333; text-decoration: none;">${adminPhone}</a>
+                </p>` : ''}
+                <p style="margin: 0; font-size: 11px; color: #333333; margin-bottom: 3px;">
+                  <a href="https://sourcecodeals.com" style="color: #333333; text-decoration: none;">sourcecodeals.com</a>
                 </p>
+                ${adminCalendly ? `<p style="margin: 0; font-size: 11px; color: #D4AF37; margin-bottom: 0;">
+                  <a href="${adminCalendly}" style="color: #D4AF37; text-decoration: none; font-weight: 600;">Schedule a call</a>
+                </p>` : ''}
               </div>
             </td>
           </tr>
         </table>
-        <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #E5E5E5; font-size: 10px; color: #888888; text-align: center; font-family: 'Arial', sans-serif;">
+        <div style="margin-top: 15px; padding-top: 10px; border-top: 1px solid #E5E5E5; font-size: 9px; color: #888888; text-align: center;">
           CONFIDENTIAL | This communication contains proprietary information.
         </div>
       </div>`;

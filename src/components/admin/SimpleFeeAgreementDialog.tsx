@@ -18,6 +18,7 @@ import { User as UserType } from "@/types";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { getAdminProfile } from "@/lib/admin-profiles";
 
 interface SimpleFeeAgreementDialogProps {
   user: UserType | null;
@@ -190,6 +191,10 @@ export function SimpleFeeAgreementDialog({
 
     setIsLoading(true);
     try {
+      // Get enhanced admin profile for signature
+      const enhancedProfile = getAdminProfile(adminUser.email || '');
+      const effectiveAdminName = enhancedProfile?.name || adminName;
+
       const base64Attachments = await convertFilesToBase64(attachments);
       
       const { data, error } = await supabase.functions.invoke('send-fee-agreement-email', {
@@ -201,7 +206,7 @@ export function SimpleFeeAgreementDialog({
           useTemplate: false,
           adminId: adminUser.id,
           adminEmail: adminUser.email,
-          adminName: adminName,
+          adminName: effectiveAdminName,
           attachments: base64Attachments
         }
       });
