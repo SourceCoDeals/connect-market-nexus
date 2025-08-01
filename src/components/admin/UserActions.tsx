@@ -6,6 +6,7 @@ import { useAdminUsers } from "@/hooks/admin/use-admin-users";
 import { useAdminEmail } from "@/hooks/admin/use-admin-email";
 import { adminErrorHandler } from "@/lib/error-handler";
 import { ApprovalEmailDialog } from "./ApprovalEmailDialog";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface UserActionsProps {
   onUserStatusUpdated?: () => void;
@@ -13,6 +14,7 @@ interface UserActionsProps {
 
 export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const {
     useUpdateUserStatus,
     useUpdateAdminStatus,
@@ -203,14 +205,21 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
     customSignatureText?: string;
   }) => {
     try {
-      // 1. INSTANT SUCCESS FEEDBACK - Just like rejection does
+      // 1. INSTANT UI UPDATE - Update cache immediately like rejection does
+      queryClient.setQueryData(['admin-users'], (old: User[] | undefined) => {
+        if (!old) return old;
+        return old.map(u => 
+          u.id === user.id 
+            ? { ...u, approval_status: "approved" as const }
+            : u
+        );
+      });
+
+      // 2. INSTANT SUCCESS FEEDBACK
       toast({
         title: "User approved",
         description: `${user.first_name} ${user.last_name} has been approved instantly`,
       });
-      
-      // 2. IMMEDIATE UI UPDATE - trigger refresh instantly
-      if (onUserStatusUpdated) onUserStatusUpdated();
 
       // 3. DATABASE UPDATE IN BACKGROUND - Don't await, let it run async
       updateUserStatusMutation.mutate(
