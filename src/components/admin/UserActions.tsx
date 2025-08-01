@@ -5,6 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAdminUsers } from "@/hooks/admin/use-admin-users";
 import { useAdminEmail } from "@/hooks/admin/use-admin-email";
 import { adminErrorHandler } from "@/lib/error-handler";
+import { ApprovalEmailDialog } from "./ApprovalEmailDialog";
 
 interface UserActionsProps {
   onUserStatusUpdated?: () => void;
@@ -20,7 +21,8 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
   
   const {
     sendUserApprovalEmail,
-    sendUserRejectionEmail
+    sendUserRejectionEmail,
+    sendCustomApprovalEmail
   } = useAdminEmail();
   
   // Get actual mutation functions
@@ -31,11 +33,11 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [actionType, setActionType] = useState<"approve" | "reject" | "makeAdmin" | "revokeAdmin" | "delete" | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isApprovalEmailDialogOpen, setIsApprovalEmailDialogOpen] = useState(false);
   
   const handleUserApproval = (user: User) => {
     setSelectedUser(user);
-    setActionType("approve");
-    setIsDialogOpen(true);
+    setIsApprovalEmailDialogOpen(true);
   };
   
   const handleUserRejection = (user: User) => {
@@ -78,37 +80,7 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
     try {
       switch (actionType) {
         case "approve":
-          updateUserStatusMutation.mutate(
-            { userId: selectedUser.id, status: "approved" },
-            {
-              onSuccess: async () => {
-                try {
-                  await sendUserApprovalEmail(selectedUser);
-                  toast({
-                    title: "User approved",
-                    description: `${selectedUser.first_name} ${selectedUser.last_name} has been approved and will receive an email notification with login instructions.`,
-                  });
-                } catch (error) {
-                  console.error("❌ Error sending approval email:", error);
-                  toast({
-                    title: "User approved",
-                    description: `${selectedUser.first_name} ${selectedUser.last_name} has been approved. Email notification may be delayed.`,
-                    variant: "default",
-                  });
-                }
-                setIsDialogOpen(false);
-                if (onUserStatusUpdated) onUserStatusUpdated();
-              },
-              onError: (error) => {
-                console.error('❌ Error approving user:', error);
-                toast({
-                  variant: 'destructive',
-                  title: 'Approval failed', 
-                  description: error.message || 'Failed to approve user. Please try again.',
-                });
-              }
-            }
-          );
+          // This case is now handled by the approval email dialog
           break;
           
         case "reject":
@@ -224,6 +196,43 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
     }
   };
 
+  const handleCustomApprovalEmail = async (user: User, options: {
+    subject: string;
+    message: string;
+    customSignatureHtml?: string;
+    customSignatureText?: string;
+  }) => {
+    try {
+      // First update the user status to approved
+      await new Promise<void>((resolve, reject) => {
+        updateUserStatusMutation.mutate(
+          { userId: user.id, status: "approved" },
+          {
+            onSuccess: () => resolve(),
+            onError: (error) => reject(error)
+          }
+        );
+      });
+
+      // Then send the custom approval email
+      await sendCustomApprovalEmail(user, options);
+      
+      toast({
+        title: "User approved",
+        description: `${user.first_name} ${user.last_name} has been approved and custom email sent.`,
+      });
+      
+      if (onUserStatusUpdated) onUserStatusUpdated();
+    } catch (error) {
+      console.error('❌ Error in approval process:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Approval failed',
+        description: error instanceof Error ? error.message : 'Failed to approve user and send email.',
+      });
+    }
+  };
+
   return {
     handleUserApproval,
     handleUserRejection,
@@ -241,5 +250,17 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
       updateAdmin: (updateAdminStatusMutation as any).meta?.retryState,
       deleteUser: (deleteUserMutation as any).meta?.retryState,
     },
+    // Approval email dialog props
+    isApprovalEmailDialogOpen,
+    setIsApprovalEmailDialogOpen,
+    handleCustomApprovalEmail,
+    ApprovalEmailDialog: () => (
+      <ApprovalEmailDialog
+        open={isApprovalEmailDialogOpen}
+        onOpenChange={setIsApprovalEmailDialogOpen}
+        user={selectedUser}
+        onSendApprovalEmail={handleCustomApprovalEmail}
+      />
+    )
   };
 }

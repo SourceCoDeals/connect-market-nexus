@@ -7,12 +7,13 @@ import { AdminConnectionRequest } from "@/types/admin";
 import { ConnectionRequestsTable } from "@/components/admin/ConnectionRequestsTable";
 import { MobileConnectionRequestsTable } from "@/components/admin/MobileConnectionRequestsTable";
 import { ConnectionRequestDialog } from "@/components/admin/ConnectionRequestDialog";
+import { ApprovalEmailDialog } from "@/components/admin/ApprovalEmailDialog";
 import { toast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { MobileConnectionRequests } from "@/components/admin/MobileConnectionRequests";
 
 const AdminRequests = () => {
-  const { useConnectionRequests, useConnectionRequestsMutation, sendConnectionApprovalEmail, sendConnectionRejectionEmail } = useAdmin();
+  const { useConnectionRequests, useConnectionRequestsMutation, sendConnectionApprovalEmail, sendConnectionRejectionEmail, sendCustomApprovalEmail } = useAdmin();
   
   const { data: requests = [], isLoading, error, refetch } = useConnectionRequests();
   const { mutate: updateRequest, isPending: isUpdating } = useConnectionRequestsMutation();
@@ -22,6 +23,8 @@ const AdminRequests = () => {
   const [selectedRequest, setSelectedRequest] = useState<AdminConnectionRequest | null>(null);
   const [actionType, setActionType] = useState<"approve" | "reject" | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [selectedUserForApprovalEmail, setSelectedUserForApprovalEmail] = useState<any>(null);
+  const [isApprovalEmailDialogOpen, setIsApprovalEmailDialogOpen] = useState(false);
   
   if (error) {
     console.error("Connection requests error:", error);
@@ -191,6 +194,21 @@ const AdminRequests = () => {
         selectedRequest={selectedRequest}
         actionType={actionType}
         isLoading={isUpdating}
+      />
+
+      <ApprovalEmailDialog
+        open={isApprovalEmailDialogOpen}
+        onOpenChange={setIsApprovalEmailDialogOpen}
+        user={selectedUserForApprovalEmail}
+        onSendApprovalEmail={async (user, options) => {
+          try {
+            await sendCustomApprovalEmail(user, options);
+            setIsApprovalEmailDialogOpen(false);
+            setSelectedUserForApprovalEmail(null);
+          } catch (error) {
+            console.error('Error sending approval email:', error);
+          }
+        }}
       />
     </div>
   );

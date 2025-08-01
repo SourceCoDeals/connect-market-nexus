@@ -313,11 +313,108 @@ export function useAdminEmail() {
     }
   };
   
+  /**
+   * Send a custom approval email using the new approval email system
+   */
+  const sendCustomApprovalEmail = async (user: User, options: {
+    subject: string;
+    message: string;
+    customSignatureHtml?: string;
+    customSignatureText?: string;
+  }) => {
+    console.log(`🔔 Sending custom approval email to ${user.email} for user ${user.first_name} ${user.last_name}`);
+    const correlationId = `custom-approval-${user.id}-${Date.now()}`;
+    
+    try {
+      // Get current admin user info
+      const { data: { user: currentUser }, error: authError } = await supabase.auth.getUser();
+      if (authError || !currentUser) {
+        throw new Error('Authentication required. Please refresh and try again.');
+      }
+
+      const { data: adminProfile, error: profileError } = await supabase
+        .from('profiles')
+        .select('email, first_name, last_name')
+        .eq('id', currentUser.id)
+        .single();
+
+      if (profileError || !adminProfile) {
+        throw new Error('Admin profile not found. Please contact support.');
+      }
+
+      const adminName = adminProfile.first_name && adminProfile.last_name 
+        ? `${adminProfile.first_name} ${adminProfile.last_name}`
+        : adminProfile.email;
+
+      const requestPayload = {
+        userId: user.id,
+        userEmail: user.email,
+        subject: options.subject,
+        message: options.message,
+        adminId: currentUser.id,
+        adminEmail: adminProfile.email,
+        adminName: adminName,
+        customSignatureHtml: options.customSignatureHtml,
+        customSignatureText: options.customSignatureText
+      };
+
+      const { data, error } = await supabase.functions.invoke('send-approval-email', {
+        body: requestPayload
+      });
+      
+      if (error) {
+        console.error("❌ Error sending custom approval email:", error);
+        trackEmailDelivery(correlationId, {
+          success: false,
+          error: error.message || 'Failed to send custom approval email'
+        });
+        throw error;
+      }
+      
+      if (data && !data.success) {
+        console.error("❌ Failed to send custom approval email:", data.message);
+        trackEmailDelivery(correlationId, {
+          success: false,
+          error: data.message || 'Failed to send custom approval email'
+        });
+        throw new Error(data.message || 'Failed to send custom approval email');
+      }
+      
+      console.log("✅ Custom approval email sent successfully");
+      trackEmailDelivery(correlationId, {
+        success: true,
+        messageId: data?.messageId,
+        emailProvider: data?.emailProvider
+      });
+      
+      toast({
+        title: "Email sent",
+        description: `Custom approval email sent to ${user.email}`,
+      });
+      
+      return true;
+    } catch (error) {
+      console.error("💥 Failed to send custom approval email:", error);
+      trackEmailDelivery(correlationId, {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+      
+      toast({
+        variant: "destructive",
+        title: "Email failed",
+        description: "Failed to send custom approval email. Please try again.",
+      });
+      throw error;
+    }
+  };
+
   return {
     sendUserApprovalEmail,
     sendUserRejectionEmail,
     sendConnectionApprovalEmail,
     sendConnectionRejectionEmail,
-    sendAdminConnectionRequestEmail
+    sendAdminConnectionRequestEmail,
+    sendCustomApprovalEmail
   };
 }

@@ -63,6 +63,7 @@ export function useAdmin() {
     sendUserRejectionEmail: adminEmail.sendUserRejectionEmail,
     sendConnectionApprovalEmail: adminEmail.sendConnectionApprovalEmail,
     sendConnectionRejectionEmail: adminEmail.sendConnectionRejectionEmail,
+    sendCustomApprovalEmail: adminEmail.sendCustomApprovalEmail,
   };
 }
 
