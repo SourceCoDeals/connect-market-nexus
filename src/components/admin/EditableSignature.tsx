@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Edit3, Eye, RotateCcw, Save } from 'lucide-react';
+import { Edit3, Eye, RotateCcw, Save, Phone, Calendar } from 'lucide-react';
 import { useAdminSignature } from '@/hooks/admin/use-admin-signature';
 
 interface EditableSignatureProps {
@@ -17,11 +19,15 @@ export function EditableSignature({ onSignatureChange, showInline = false }: Edi
   const [isEditing, setIsEditing] = useState(false);
   const [htmlSignature, setHtmlSignature] = useState('');
   const [textSignature, setTextSignature] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [calendlyUrl, setCalendlyUrl] = useState('');
 
   useEffect(() => {
     if (signature) {
       setHtmlSignature(signature.signature_html);
       setTextSignature(signature.signature_text);
+      setPhoneNumber((signature as any).phone_number || '');
+      setCalendlyUrl((signature as any).calendly_url || '');
       onSignatureChange?.(signature.signature_html, signature.signature_text);
     }
   }, [signature, onSignatureChange]);
@@ -29,7 +35,9 @@ export function EditableSignature({ onSignatureChange, showInline = false }: Edi
   const handleSave = () => {
     updateSignature({
       signature_html: htmlSignature,
-      signature_text: textSignature
+      signature_text: textSignature,
+      phone_number: phoneNumber,
+      calendly_url: calendlyUrl
     });
     setIsEditing(false);
     onSignatureChange?.(htmlSignature, textSignature);
@@ -44,6 +52,8 @@ export function EditableSignature({ onSignatureChange, showInline = false }: Edi
     if (signature) {
       setHtmlSignature(signature.signature_html);
       setTextSignature(signature.signature_text);
+      setPhoneNumber((signature as any).phone_number || '');
+      setCalendlyUrl((signature as any).calendly_url || '');
     }
     setIsEditing(false);
   };
@@ -117,6 +127,35 @@ export function EditableSignature({ onSignatureChange, showInline = false }: Edi
       <CardContent className="space-y-4">
         {isEditing ? (
           <>
+            <div className="space-y-4 mb-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="phone" className="flex items-center gap-2">
+                    <Phone className="h-4 w-4" />
+                    Phone Number
+                  </Label>
+                  <Input
+                    id="phone"
+                    value={phoneNumber}
+                    onChange={(e) => setPhoneNumber(e.target.value)}
+                    placeholder="(614) 832-6099"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="calendly" className="flex items-center gap-2">
+                    <Calendar className="h-4 w-4" />
+                    Calendly URL
+                  </Label>
+                  <Input
+                    id="calendly"
+                    value={calendlyUrl}
+                    onChange={(e) => setCalendlyUrl(e.target.value)}
+                    placeholder="https://calendly.com/bill-martin-sourceco/30min"
+                  />
+                </div>
+              </div>
+            </div>
+            
             <Tabs defaultValue="html" className="w-full">
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="html">HTML Version</TabsTrigger>

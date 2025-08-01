@@ -58,24 +58,30 @@ export type Database = {
       admin_signature_preferences: {
         Row: {
           admin_id: string
+          calendly_url: string | null
           created_at: string
           id: string
+          phone_number: string | null
           signature_html: string
           signature_text: string
           updated_at: string
         }
         Insert: {
           admin_id: string
+          calendly_url?: string | null
           created_at?: string
           id?: string
+          phone_number?: string | null
           signature_html: string
           signature_text: string
           updated_at?: string
         }
         Update: {
           admin_id?: string
+          calendly_url?: string | null
           created_at?: string
           id?: string
+          phone_number?: string | null
           signature_html?: string
           signature_text?: string
           updated_at?: string

@@ -102,29 +102,68 @@ const handler = async (req: Request): Promise<Response> => {
     const adminPhone = adminProfile?.phone || '';
     const adminCalendly = adminProfile?.calendlyUrl || '';
 
+    // Initialize Supabase client for custom signature lookup
+    const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Try to get custom admin signature
+    let customSignature = null;
+    try {
+      const { data: signatureData } = await supabase
+        .from('admin_signature_preferences')
+        .select('signature_html, phone_number, calendly_url')
+        .eq('admin_id', adminId)
+        .single();
+      
+      if (signatureData) {
+        customSignature = signatureData;
+        console.log('✅ Found custom signature for admin:', adminId);
+      }
+    } catch (error) {
+      console.log('ℹ️ No custom signature found, using default template');
+    }
+
     // Use custom content if provided, otherwise use default template
     const emailSubject = subject || "SourceCo - Fee Agreement";
     
     // Skip logo entirely for fast, reliable emails
     console.log('📧 Using text-only signature without logo for immediate delivery');
     
-    // Create minimal premium signature - investment grade design
-    const adminSignature = `
-      <div style="margin-top: 40px; padding-top: 24px; border-top: 1px solid #E5E5E5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
-        <div style="color: #000000; line-height: 1.4;">
-          <div style="font-size: 16px; font-weight: 600; margin-bottom: 4px;">${effectiveAdminName}</div>
-          ${adminTitle ? `<div style="font-size: 14px; color: #666666; margin-bottom: 12px;">${adminTitle}</div>` : ''}
-          
-          <div style="font-size: 14px; color: #333333; margin-bottom: 2px;">
-            <a href="mailto:${adminEmail}" style="color: #000000; text-decoration: none;">${adminEmail}</a>
+    // Create premium signature with Bill Martin format
+    let adminSignature;
+    
+    if (customSignature && customSignature.signature_html) {
+      // Use custom signature if available
+      adminSignature = customSignature.signature_html;
+      console.log('✅ Using custom admin signature');
+    } else {
+      // Use Bill Martin format with admin profile data or custom fields
+      const finalPhone = customSignature?.phone_number || adminPhone || '(614) 555-0000';
+      const finalCalendly = customSignature?.calendly_url || adminCalendly || 'https://calendly.com/sourceco-admin/30min';
+      
+      adminSignature = `
+        <div style="margin-top: 40px; padding-top: 24px; border-top: 1px solid #E5E5E5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+          <div style="color: #000000; line-height: 1.4;">
+            <div style="font-size: 16px; font-weight: 600; margin-bottom: 4px;">${effectiveAdminName}</div>
+            ${adminTitle ? `<div style="font-size: 14px; color: #666666; margin-bottom: 12px;">${adminTitle}</div>` : ''}
+            
+            <div style="font-size: 14px; color: #333333; margin-bottom: 2px;">
+              <a href="mailto:${adminEmail}" style="color: #000000; text-decoration: none;">${adminEmail}</a>
+            </div>
+            <div style="font-size: 14px; color: #666666; margin-bottom: 8px;">${finalPhone}</div>
+            <div style="font-size: 14px; margin-bottom: 16px;">
+              <a href="${finalCalendly}" style="color: #000000; text-decoration: underline;">Click here to schedule a call with me</a>
+            </div>
+            
+            <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #F0F0F0; font-size: 12px; color: #888888;">
+              This communication is confidential and may be legally privileged.
+            </div>
           </div>
-          ${adminPhone ? `<div style="font-size: 14px; color: #666666; margin-bottom: 2px;">${adminPhone}</div>` : ''}
-          
-          <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #F0F0F0; font-size: 12px; color: #888888;">
-            This communication is confidential and may be legally privileged.
-          </div>
-        </div>
-      </div>`;
+        </div>`;
+      console.log('✅ Using Bill Martin format signature template');
+    }
 
     // ENHANCED: Generate multiple premium email templates
     const templateVariants = {

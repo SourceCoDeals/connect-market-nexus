@@ -14,14 +14,19 @@ interface AdminSignaturePreference {
 interface UpdateSignatureParams {
   signature_html: string;
   signature_text: string;
+  phone_number?: string;
+  calendly_url?: string;
 }
 
 const DEFAULT_SIGNATURE = {
   html: `
     <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid #e5e7eb; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
       <div style="color: #374151; font-size: 14px; line-height: 1.5;">
-        <div style="font-weight: 600; margin-bottom: 4px;">Best regards,</div>
-        <div style="margin-bottom: 8px;">Admin Team</div>
+        <div style="font-weight: 600; margin-bottom: 4px;">Admin Team</div>
+        <div style="margin-bottom: 8px;">SourceCo</div>
+        <div style="margin-bottom: 8px;">admin@sourcecodeals.com</div>
+        <div style="margin-bottom: 8px;">(614) 555-0000</div>
+        <div style="margin-bottom: 8px;"><a href="https://calendly.com/sourceco-admin/30min" style="color: #374151; text-decoration: underline;">Click here to schedule a call with me</a></div>
         <div style="font-size: 12px; color: #6b7280;">
           This email was sent regarding your marketplace activity.
         </div>
@@ -31,8 +36,11 @@ const DEFAULT_SIGNATURE = {
   text: `
 
 ---
-Best regards,
 Admin Team
+SourceCo
+admin@sourcecodeals.com
+(614) 555-0000
+Click here to schedule a call with me: https://calendly.com/sourceco-admin/30min
 
 This email was sent regarding your marketplace activity.
   `
@@ -68,7 +76,7 @@ export function useAdminSignature() {
   });
 
   const updateSignatureMutation = useMutation({
-    mutationFn: async ({ signature_html, signature_text }: UpdateSignatureParams) => {
+    mutationFn: async ({ signature_html, signature_text, phone_number, calendly_url }: UpdateSignatureParams) => {
       const { data: existingSignature } = await supabase
         .from('admin_signature_preferences')
         .select('id')
@@ -81,6 +89,8 @@ export function useAdminSignature() {
           .update({
             signature_html,
             signature_text,
+            phone_number,
+            calendly_url,
             updated_at: new Date().toISOString()
           })
           .eq('admin_id', (await supabase.auth.getUser()).data.user?.id)
@@ -96,7 +106,9 @@ export function useAdminSignature() {
           .insert({
             admin_id: (await supabase.auth.getUser()).data.user?.id,
             signature_html,
-            signature_text
+            signature_text,
+            phone_number,
+            calendly_url
           })
           .select()
           .single();

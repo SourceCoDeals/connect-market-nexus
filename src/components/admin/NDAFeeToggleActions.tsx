@@ -15,6 +15,7 @@ import { User as UserType } from "@/types";
 import { useUpdateNDA, useUpdateNDAEmailSent } from "@/hooks/admin/use-nda";
 import { useUpdateFeeAgreement, useUpdateFeeAgreementEmailSent } from "@/hooks/admin/use-fee-agreement";
 import { useToast } from "@/hooks/use-toast";
+import { formatDistanceToNow } from 'date-fns';
 
 interface NDAFeeToggleActionsProps {
   user: UserType;
@@ -33,12 +34,14 @@ export function NDAFeeToggleActions({
   const updateFeeAgreement = useUpdateFeeAgreement();
   const updateFeeAgreementEmailSent = useUpdateFeeAgreementEmailSent();
 
-  const getStatusBadge = (sent: boolean, signed: boolean, type: 'fee' | 'nda') => {
-    if (signed) {
-      return <Badge variant="default" className="text-xs"><CheckCircle className="h-3 w-3 mr-1" />Signed</Badge>;
+  const getStatusBadge = (sent: boolean, signed: boolean, type: 'fee' | 'nda', sentAt?: string, signedAt?: string) => {
+    if (signed && signedAt) {
+      const timeAgo = formatDistanceToNow(new Date(signedAt), { addSuffix: true });
+      return <Badge variant="default" className="text-xs" title={`Signed ${timeAgo}`}><CheckCircle className="h-3 w-3 mr-1" />Signed {timeAgo}</Badge>;
     }
-    if (sent) {
-      return <Badge variant="secondary" className="text-xs"><Clock className="h-3 w-3 mr-1" />Sent</Badge>;
+    if (sent && sentAt) {
+      const timeAgo = formatDistanceToNow(new Date(sentAt), { addSuffix: true });
+      return <Badge variant="secondary" className="text-xs" title={`Sent ${timeAgo}`}><Clock className="h-3 w-3 mr-1" />Sent {timeAgo}</Badge>;
     }
     return <Badge variant="outline" className="text-xs"><XCircle className="h-3 w-3 mr-1" />Pending</Badge>;
   };
@@ -79,7 +82,7 @@ export function NDAFeeToggleActions({
             <FileText className="h-3 w-3" />
             Fee Agreement
           </div>
-          {getStatusBadge(user.fee_agreement_email_sent || false, user.fee_agreement_signed || false, 'fee')}
+          {getStatusBadge(user.fee_agreement_email_sent || false, user.fee_agreement_signed || false, 'fee', user.fee_agreement_email_sent_at, user.fee_agreement_signed_at)}
         </div>
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center space-x-2">
@@ -107,7 +110,7 @@ export function NDAFeeToggleActions({
             <Shield className="h-3 w-3" />
             NDA
           </div>
-          {getStatusBadge(user.nda_email_sent || false, user.nda_signed || false, 'nda')}
+          {getStatusBadge(user.nda_email_sent || false, user.nda_signed || false, 'nda', user.nda_email_sent_at, user.nda_signed_at)}
         </div>
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center space-x-2">
@@ -146,7 +149,7 @@ export function NDAFeeToggleActions({
             <FileText className="h-4 w-4" />
             <span className="text-sm font-medium">Fee Agreement</span>
           </div>
-          {getStatusBadge(user.fee_agreement_email_sent || false, user.fee_agreement_signed || false, 'fee')}
+          {getStatusBadge(user.fee_agreement_email_sent || false, user.fee_agreement_signed || false, 'fee', user.fee_agreement_email_sent_at, user.fee_agreement_signed_at)}
         </div>
         
         <div className="grid grid-cols-2 gap-4">
@@ -179,7 +182,7 @@ export function NDAFeeToggleActions({
             <Shield className="h-4 w-4" />
             <span className="text-sm font-medium">NDA</span>
           </div>
-          {getStatusBadge(user.nda_email_sent || false, user.nda_signed || false, 'nda')}
+          {getStatusBadge(user.nda_email_sent || false, user.nda_signed || false, 'nda', user.nda_email_sent_at, user.nda_signed_at)}
         </div>
         
         <div className="grid grid-cols-2 gap-4">

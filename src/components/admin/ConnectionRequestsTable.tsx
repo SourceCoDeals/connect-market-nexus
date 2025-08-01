@@ -17,6 +17,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Link } from 'react-router-dom';
 import { ConnectionRequestEmailActions } from './ConnectionRequestEmailActions';
 import { SmartWorkflowSuggestions } from './SmartWorkflowSuggestions';
+import { NDAFeeToggleActions } from './NDAFeeToggleActions';
 
 interface ConnectionRequestsTableProps {
   requests: AdminConnectionRequest[];
@@ -62,21 +63,16 @@ const RequestDetails = ({ request, onApprove, onReject, onRefresh }: {
           <p><span className="font-medium">Company:</span> {request.user?.company || "-"}</p>
           <p><span className="font-medium">Phone:</span> {request.user?.phone_number || "-"}</p>
           <p><span className="font-medium">Buyer Type:</span> {request.user?.buyer_type || "-"}</p>
-          <p><span className="font-medium">Fee Agreement:</span> 
-            <Badge variant={request.user?.fee_agreement_signed ? "success" : "secondary"} className="ml-2">
-              {request.user?.fee_agreement_signed ? "Signed" : "Not Signed"}
-            </Badge>
-          </p>
-          <p><span className="font-medium">NDA:</span> 
-            <Badge variant={request.user?.nda_signed ? "success" : "secondary"} className="ml-2">
-              {request.user?.nda_signed ? "Signed" : "Not Signed"}
-            </Badge>
-            {request.user?.nda_email_sent && (
-              <Badge variant="outline" className="ml-1">
-                Email Sent
-              </Badge>
+          <div className="flex items-center justify-between">
+            <span className="font-medium">Agreements:</span>
+            {request.user && (
+              <NDAFeeToggleActions 
+                user={request.user} 
+                compact={true}
+                showLabels={false}
+              />
             )}
-          </p>
+          </div>
         </div>
       </div>
       
