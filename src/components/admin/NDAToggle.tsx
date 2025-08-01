@@ -39,7 +39,7 @@ export const NDAToggle = ({ user, onSendEmail, size = "default" }: NDAToggleProp
       logNDAEmail.mutate({
         userId: user.id,
         userEmail: user.email,
-        adminNotes: 'NDA email sent via toggle'
+        notes: 'NDA email sent via toggle'
       });
     }
   };

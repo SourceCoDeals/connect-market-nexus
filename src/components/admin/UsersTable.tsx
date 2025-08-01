@@ -608,7 +608,7 @@ export function UsersTable({
         await logNDAEmail.mutateAsync({
           userId: user.id,
           userEmail: user.email,
-          adminNotes: options?.subject ? `Custom NDA email: ${options.subject}` : 'Standard NDA email sent'
+          notes: options?.subject ? `Custom NDA email: ${options.subject}` : 'Standard NDA email sent'
         });
       }}
     />

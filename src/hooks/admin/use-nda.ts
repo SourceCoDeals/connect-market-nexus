@@ -18,7 +18,7 @@ interface UpdateNDAEmailParams {
 interface LogNDAEmailParams {
   userId: string;
   userEmail: string;
-  adminNotes?: string;
+  notes?: string;
 }
 
 export const useUpdateNDA = () => {
@@ -178,38 +178,25 @@ export const useLogNDAEmail = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ userId, userEmail, adminNotes }: LogNDAEmailParams) => {
-      // Get current admin info
-      const { data: { user: currentUser } } = await supabase.auth.getUser();
-      if (!currentUser) throw new Error('Not authenticated');
-
-      const { data: adminProfile } = await supabase
-        .from('profiles')
-        .select('email, first_name, last_name')
-        .eq('id', currentUser.id)
-        .single();
-
-      if (!adminProfile) throw new Error('Admin profile not found');
-
+    mutationFn: async ({ userId, userEmail, notes }: LogNDAEmailParams) => {
       // Send actual email via edge function
       const { data, error } = await supabase.functions.invoke('send-nda-email', {
         body: {
           userId,
           userEmail,
           useTemplate: true,
-          adminEmail: adminProfile.email,
-          adminName: `${adminProfile.first_name} ${adminProfile.last_name}`
+          adminEmail: 'adam.haile@sourcecodeals.com',
+          adminName: 'Adam Haile'
         }
       });
 
       if (error) throw error;
       
-      // Log to database after successful email send
+      // Also log to database
       const { data: logData, error: logError } = await supabase.rpc('log_nda_email', {
         target_user_id: userId,
         recipient_email: userEmail,
-        admin_id_param: currentUser.id,
-        admin_notes: adminNotes
+        admin_notes: notes
       });
 
       if (logError) throw logError;

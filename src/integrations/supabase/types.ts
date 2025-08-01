@@ -1278,18 +1278,11 @@ export type Database = {
         Returns: boolean
       }
       log_nda_email: {
-        Args:
-          | {
-              target_user_id: string
-              recipient_email: string
-              admin_id_param: string
-              admin_notes?: string
-            }
-          | {
-              target_user_id: string
-              recipient_email: string
-              admin_notes?: string
-            }
+        Args: {
+          target_user_id: string
+          recipient_email: string
+          admin_notes?: string
+        }
         Returns: boolean
       }
       log_security_event: {
