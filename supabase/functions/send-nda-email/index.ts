@@ -284,39 +284,6 @@ ${finalTextSignature}` : finalTextSignature;
     const brevoResult = await brevoResponse.json();
     console.log('✅ NDA email sent successfully via Brevo:', brevoResult);
 
-    // Log the email to database after successful send
-    try {
-      console.log('📝 Logging NDA email to database...');
-      
-      // Get admin ID from the admin email to pass to the function
-      const { data: adminProfile } = await supabaseAdmin
-        .from('profiles')
-        .select('id')
-        .eq('email', senderEmail)
-        .single();
-
-      if (!adminProfile) {
-        console.error('❌ Could not find admin profile for email:', senderEmail);
-        throw new Error('Admin profile not found');
-      }
-
-      const { error: logError } = await supabaseAdmin.rpc('log_nda_email', {
-        target_user_id: userId,
-        recipient_email: userEmail,
-        admin_id_param: adminProfile.id,
-        admin_notes: 'NDA email sent via send-nda-email function'
-      });
-
-      if (logError) {
-        console.error('❌ Failed to log NDA email to database:', logError);
-        // Don't fail the whole operation, but log the error
-      } else {
-        console.log('✅ NDA email logged to database successfully');
-      }
-    } catch (logError) {
-      console.error('❌ Error logging NDA email to database:', logError);
-      // Don't fail the whole operation
-    }
 
     return new Response(
       JSON.stringify({ 
