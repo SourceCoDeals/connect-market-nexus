@@ -204,25 +204,22 @@ const handler = async (req: Request): Promise<Response> => {
     let htmlContent;
     
     if (useTemplate) {
-      // Create professional signature matching the fee agreement layout
+      // Create minimal premium signature - investment grade design
       const adminSignature = `
-        <div style="margin-top: 40px; padding: 20px 0; font-family: 'Arial', sans-serif; border-top: 2px solid #d7b65c;">
-          <p style="margin: 0; font-size: 16px; font-weight: 700; color: #000000; margin-bottom: 2px;">${effectiveAdminName}</p>
-          ${adminTitle ? `<p style="margin: 0; font-size: 14px; color: #666666; margin-bottom: 12px;">${adminTitle}</p>` : ''}
-          <p style="margin: 0; font-size: 16px; font-weight: 700; color: #d7b65c; margin-bottom: 12px; letter-spacing: 1px;">SOURCECO</p>
-          
-          <p style="margin: 0; font-size: 11px; color: #333333; margin-bottom: 3px;">
-            <a href="mailto:${senderEmail}" style="color: #333333; text-decoration: none;">${senderEmail}</a>
-          </p>
-          <p style="margin: 0; font-size: 11px; color: #333333; margin-bottom: 3px;">
-            <a href="tel:${adminPhone}" style="color: #333333; text-decoration: none;">${adminPhone}</a>
-          </p>
-          <p style="margin: 0; font-size: 11px; color: #333333; margin-bottom: 3px;">
-            <a href="https://sourcecodeals.com" style="color: #333333; text-decoration: none;">sourcecodeals.com</a>
-          </p>
-          ${adminCalendly ? `<p style="margin: 0; font-size: 11px; color: #d7b65c; margin-bottom: 0;">
-            <a href="${adminCalendly}" style="color: #d7b65c; text-decoration: none; font-weight: 600;">Schedule a call</a>
-          </p>` : ''}
+        <div style="margin-top: 40px; padding-top: 24px; border-top: 1px solid #E5E5E5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+          <div style="color: #000000; line-height: 1.4;">
+            <div style="font-size: 16px; font-weight: 600; margin-bottom: 4px;">${effectiveAdminName}</div>
+            ${adminTitle ? `<div style="font-size: 14px; color: #666666; margin-bottom: 12px;">${adminTitle}</div>` : ''}
+            
+            <div style="font-size: 14px; color: #333333; margin-bottom: 2px;">
+              <a href="mailto:${senderEmail}" style="color: #000000; text-decoration: none;">${senderEmail}</a>
+            </div>
+            ${adminPhone ? `<div style="font-size: 14px; color: #666666; margin-bottom: 2px;">${adminPhone}</div>` : ''}
+            
+            <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #F0F0F0; font-size: 12px; color: #888888;">
+              This communication is confidential and may be legally privileged.
+            </div>
+          </div>
         </div>
       `;
 

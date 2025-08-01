@@ -108,35 +108,21 @@ const handler = async (req: Request): Promise<Response> => {
     // Skip logo entirely for fast, reliable emails
     console.log('📧 Using text-only signature without logo for immediate delivery');
     
-    // Create professional signature without logo for now
+    // Create minimal premium signature - investment grade design
     const adminSignature = `
-      <div style="margin-top: 40px; padding: 0; font-family: 'Arial', sans-serif;">
-        <table cellpadding="0" cellspacing="0" style="width: 100%; border-top: 2px solid #d7b65c; padding-top: 20px;">
-           <tr>
-             <td style="vertical-align: top; padding: 20px 0;">
-               <div style="line-height: 1.3;">
-                 <p style="margin: 0; font-size: 16px; font-weight: 700; color: #000000; margin-bottom: 2px;">${effectiveAdminName}</p>
-                 ${adminTitle ? `<p style="margin: 0; font-size: 14px; color: #666666; margin-bottom: 12px;">${adminTitle}</p>` : ''}
-                 <p style="margin: 0; font-size: 16px; font-weight: 700; color: #d7b65c; margin-bottom: 12px; letter-spacing: 1px;">SOURCECO</p>
-                
-                <p style="margin: 0; font-size: 11px; color: #333333; margin-bottom: 3px;">
-                  <a href="mailto:${adminEmail}" style="color: #333333; text-decoration: none;">${adminEmail}</a>
-                </p>
-                ${adminPhone ? `<p style="margin: 0; font-size: 11px; color: #333333; margin-bottom: 3px;">
-                  <a href="tel:${adminPhone.replace(/[^0-9]/g, '')}" style="color: #333333; text-decoration: none;">${adminPhone}</a>
-                </p>` : ''}
-                <p style="margin: 0; font-size: 11px; color: #333333; margin-bottom: 3px;">
-                  <a href="https://sourcecodeals.com" style="color: #333333; text-decoration: none;">sourcecodeals.com</a>
-                </p>
-                 ${adminCalendly ? `<p style="margin: 0; font-size: 11px; color: #d7b65c; margin-bottom: 0;">
-                   <a href="${adminCalendly}" style="color: #d7b65c; text-decoration: none; font-weight: 600;">Schedule a call</a>
-                 </p>` : ''}
-              </div>
-            </td>
-          </tr>
-        </table>
-        <div style="margin-top: 15px; padding-top: 10px; border-top: 1px solid #E5E5E5; font-size: 9px; color: #888888; text-align: center;">
-          CONFIDENTIAL | This communication contains proprietary information.
+      <div style="margin-top: 40px; padding-top: 24px; border-top: 1px solid #E5E5E5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+        <div style="color: #000000; line-height: 1.4;">
+          <div style="font-size: 16px; font-weight: 600; margin-bottom: 4px;">${effectiveAdminName}</div>
+          ${adminTitle ? `<div style="font-size: 14px; color: #666666; margin-bottom: 12px;">${adminTitle}</div>` : ''}
+          
+          <div style="font-size: 14px; color: #333333; margin-bottom: 2px;">
+            <a href="mailto:${adminEmail}" style="color: #000000; text-decoration: none;">${adminEmail}</a>
+          </div>
+          ${adminPhone ? `<div style="font-size: 14px; color: #666666; margin-bottom: 2px;">${adminPhone}</div>` : ''}
+          
+          <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #F0F0F0; font-size: 12px; color: #888888;">
+            This communication is confidential and may be legally privileged.
+          </div>
         </div>
       </div>`;
 
