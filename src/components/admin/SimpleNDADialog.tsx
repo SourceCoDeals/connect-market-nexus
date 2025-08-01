@@ -32,35 +32,22 @@ export const SimpleNDADialog = ({ open, onOpenChange, user, listing, onSendEmail
     if (!user) return;
     
     try {
-      // Send email via the provided callback (which handles the actual email sending)
+      // Send email via the provided callback (which handles both email sending AND database logging)
       await onSendEmail(user, {
         subject: customSubject || quickTemplate.subject,
         message: customMessage || quickTemplate.message,
         customSignatureText: customSignatureText
       });
 
-      // Close dialog immediately after successful email send
+      // Close dialog and reset form
       onOpenChange(false);
       setCustomSubject("");
       setCustomMessage("");
       setCustomSignatureText("");
-
-      // Try to log the email in the database, but don't fail the whole operation if this fails
-      try {
-        await logNDAEmail.mutateAsync({
-          userId: user.id,
-          userEmail: user.email,
-          adminNotes: 'NDA email sent from connection requests'
-        });
-      } catch (logError) {
-        console.warn('Email sent successfully but failed to log to database:', logError);
-        // Don't throw this error - the email was sent successfully
-      }
       
     } catch (error) {
       console.error('Error sending NDA email:', error);
-      // Only throw if the actual email sending failed
-      throw error;
+      // This error will be handled by the parent component's toast
     }
   };
 
@@ -198,18 +185,11 @@ Best regards,`
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button onClick={handleSend} disabled={logNDAEmail.isPending}>
-              {logNDAEmail.isPending ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Sending NDA...
-                </>
-              ) : (
-                <>
-                  <Mail className="h-4 w-4 mr-2" />
-                  Send NDA Email
-                </>
-              )}
+            <Button onClick={handleSend} disabled={false}>
+              <>
+                <Mail className="h-4 w-4 mr-2" />
+                Send NDA Email
+              </>
             </Button>
           </div>
         </div>
