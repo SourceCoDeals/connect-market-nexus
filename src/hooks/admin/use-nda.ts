@@ -38,7 +38,6 @@ export const useUpdateNDA = () => {
 
   return useMutation({
     mutationFn: async ({ userId, isSigned, adminNotes }: UpdateNDAParams) => {
-      // Direct table update instead of RPC to avoid auth issues
       const { data, error } = await supabase
         .from('profiles')
         .update({
@@ -46,7 +45,8 @@ export const useUpdateNDA = () => {
           nda_signed_at: isSigned ? new Date().toISOString() : null,
           updated_at: new Date().toISOString()
         })
-        .eq('id', userId);
+        .eq('id', userId)
+        .select();
 
       if (error) throw error;
       return data;

@@ -19,31 +19,31 @@ interface UpdateSignatureParams {
 }
 
 const DEFAULT_SIGNATURE = {
-  html: `
-    <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid #e5e7eb; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
-      <div style="color: #374151; font-size: 14px; line-height: 1.5;">
-        <div style="font-weight: 600; margin-bottom: 4px;">Admin Team</div>
-        <div style="margin-bottom: 8px;">SourceCo</div>
-        <div style="margin-bottom: 8px;">admin@sourcecodeals.com</div>
-        <div style="margin-bottom: 8px;">(614) 555-0000</div>
-        <div style="margin-bottom: 8px;"><a href="https://calendly.com/sourceco-admin/30min" style="color: #374151; text-decoration: underline;">Click here to schedule a call with me</a></div>
-        <div style="font-size: 12px; color: #6b7280;">
-          This email was sent regarding your marketplace activity.
-        </div>
-      </div>
+  signature_html: `
+    <div style="font-family: Arial, sans-serif; color: #333; line-height: 1.4;">
+      <p style="margin: 0 0 10px 0;">Best regards,</p>
+      <p style="margin: 0; line-height: 1.6;">
+        <strong>Bill Martin</strong><br>
+        Principal &amp; SVP - Growth<br>
+        SourceCo Deals<br>
+        <a href="mailto:bill.martin@sourcecodeals.com" style="color: #0066cc; text-decoration: none;">bill.martin@sourcecodeals.com</a><br>
+        <a href="tel:+16148326099" style="color: #0066cc; text-decoration: none;">(614) 832-6099</a><br>
+        <a href="https://calendly.com/bill-martin-sourceco/30min" style="color: #0066cc; text-decoration: none;">Schedule a call with me</a>
+      </p>
     </div>
   `,
-  text: `
+  signature_text: `
+Best regards,
 
----
-Admin Team
-SourceCo
-admin@sourcecodeals.com
-(614) 555-0000
-Click here to schedule a call with me: https://calendly.com/sourceco-admin/30min
-
-This email was sent regarding your marketplace activity.
-  `
+Bill Martin
+Principal & SVP - Growth
+SourceCo Deals
+bill.martin@sourcecodeals.com
+(614) 832-6099
+Schedule a call with me: https://calendly.com/bill-martin-sourceco/30min
+  `,
+  phone_number: '(614) 832-6099',
+  calendly_url: 'https://calendly.com/bill-martin-sourceco/30min'
 };
 
 export function useAdminSignature() {
@@ -65,8 +65,10 @@ export function useAdminSignature() {
       if (!data) {
         // Return default signature if none exists
         return {
-          signature_html: DEFAULT_SIGNATURE.html,
-          signature_text: DEFAULT_SIGNATURE.text,
+          signature_html: DEFAULT_SIGNATURE.signature_html,
+          signature_text: DEFAULT_SIGNATURE.signature_text,
+          phone_number: DEFAULT_SIGNATURE.phone_number,
+          calendly_url: DEFAULT_SIGNATURE.calendly_url,
           isDefault: true
         };
       }
@@ -137,8 +139,10 @@ export function useAdminSignature() {
   const resetToDefaultMutation = useMutation({
     mutationFn: async () => {
       return updateSignatureMutation.mutateAsync({
-        signature_html: DEFAULT_SIGNATURE.html,
-        signature_text: DEFAULT_SIGNATURE.text
+        signature_html: DEFAULT_SIGNATURE.signature_html,
+        signature_text: DEFAULT_SIGNATURE.signature_text,
+        phone_number: DEFAULT_SIGNATURE.phone_number,
+        calendly_url: DEFAULT_SIGNATURE.calendly_url
       });
     },
     onSuccess: () => {

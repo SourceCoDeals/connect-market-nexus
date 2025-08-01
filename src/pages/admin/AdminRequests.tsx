@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Search } from "lucide-react";
 import { AdminConnectionRequest } from "@/types/admin";
-import { ConnectionRequestsTable } from "@/components/admin/ConnectionRequestsTable";
+import { ConnectionRequestsTable } from "@/components/admin/CleanConnectionRequestsTable";
 import { MobileConnectionRequestsTable } from "@/components/admin/MobileConnectionRequestsTable";
 import { ConnectionRequestDialog } from "@/components/admin/ConnectionRequestDialog";
 import { ApprovalEmailDialog } from "@/components/admin/ApprovalEmailDialog";
