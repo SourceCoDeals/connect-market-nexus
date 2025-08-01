@@ -203,32 +203,46 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
     customSignatureText?: string;
   }) => {
     try {
-      // First update the user status to approved
-      await new Promise<void>((resolve, reject) => {
-        updateUserStatusMutation.mutate(
-          { userId: user.id, status: "approved" },
-          {
-            onSuccess: () => resolve(),
-            onError: (error) => reject(error)
-          }
-        );
-      });
-
-      // Then send the custom approval email
-      await sendCustomApprovalEmail(user, options);
-      
+      // 1. INSTANT SUCCESS FEEDBACK - Just like rejection does
       toast({
         title: "User approved",
-        description: `${user.first_name} ${user.last_name} has been approved and custom email sent.`,
+        description: `${user.first_name} ${user.last_name} has been approved instantly`,
       });
       
+      // 2. IMMEDIATE UI UPDATE - trigger refresh instantly
       if (onUserStatusUpdated) onUserStatusUpdated();
+
+      // 3. DATABASE UPDATE IN BACKGROUND - Don't await, let it run async
+      updateUserStatusMutation.mutate(
+        { userId: user.id, status: "approved" },
+        {
+          onError: (error) => {
+            console.error('❌ Error updating database:', error);
+            toast({
+              variant: 'destructive',
+              title: 'Database update failed',
+              description: 'User approval may not have been saved. Please check status.',
+            });
+          }
+        }
+      );
+
+      // 4. EMAIL SENDING IN BACKGROUND - Don't await, let it run async
+      sendCustomApprovalEmail(user, options).catch((error) => {
+        console.error('❌ Error sending approval email:', error);
+        toast({
+          variant: 'destructive',
+          title: 'Email sending failed',
+          description: 'User was approved but email may not have been sent.',
+        });
+      });
+      
     } catch (error) {
       console.error('❌ Error in approval process:', error);
       toast({
         variant: 'destructive',
         title: 'Approval failed',
-        description: error instanceof Error ? error.message : 'Failed to approve user and send email.',
+        description: error instanceof Error ? error.message : 'Failed to approve user.',
       });
     }
   };

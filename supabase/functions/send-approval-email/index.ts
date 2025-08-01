@@ -78,7 +78,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // Create simple plain text email with proper spacing and signature
-    const textSignature = customSignatureText || `\n\n${senderInfo.name}\nSourceCo`;
+    const textSignature = customSignatureText || `\n\nQuestions? Reply to this email.\n\n${senderInfo.name}\nSourceCo`;
 
     // Send email using Brevo - plain text only
     const emailResponse = await fetch('https://api.brevo.com/v3/smtp/email', {
