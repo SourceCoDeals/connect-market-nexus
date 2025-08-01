@@ -110,10 +110,10 @@ const handler = async (req: Request): Promise<Response> => {
     let logoBase64 = '';
     let logoAttachment = null;
     
-    // Use the correct circular gold logo
+    // Use the correct circular gold logo from listing-images bucket
     const logoSources = [
-      'https://vhzipqarkmmfuqadefep.supabase.co/storage/v1/object/public/listings/sourceco-logo-circular-gold.png',
-      '/sourceco-logo-circular-gold.png' // Local fallback
+      'https://vhzipqarkmmfuqadefep.supabase.co/storage/v1/object/public/listing-images/sourceco-logo-circular-gold.png',
+      'https://lovable.dev/lovable-uploads/e5ab65c7-a61e-4c6a-8c11-fa6cfd2cfb7b.png' // Known working fallback
     ];
     
     for (const logoUrl of logoSources) {
@@ -167,16 +167,16 @@ const handler = async (req: Request): Promise<Response> => {
     // Create professional signature matching Bill Martin's layout
     const adminSignature = `
       <div style="margin-top: 40px; padding: 0; font-family: 'Arial', sans-serif;">
-        <table cellpadding="0" cellspacing="0" style="width: 100%; border-top: 2px solid #D4AF37; padding-top: 20px;">
-          <tr>
-            <td style="vertical-align: top; width: 90px; padding-right: 20px;">
-              <img src="${logoSrc}" alt="SourceCo" style="width: 80px; height: 80px; display: block; border: none;" />
-            </td>
-            <td style="vertical-align: top; padding-left: 20px;">
-              <div style="line-height: 1.3;">
-                <p style="margin: 0; font-size: 16px; font-weight: 700; color: #000000; margin-bottom: 2px;">${effectiveAdminName}</p>
-                ${adminTitle ? `<p style="margin: 0; font-size: 14px; color: #666666; margin-bottom: 12px;">${adminTitle}</p>` : ''}
-                <p style="margin: 0; font-size: 16px; font-weight: 700; color: #D4AF37; margin-bottom: 12px; letter-spacing: 1px;">SOURCECO</p>
+        <table cellpadding="0" cellspacing="0" style="width: 100%; border-top: 2px solid #d7b65c; padding-top: 20px;">
+           <tr>
+             <td style="vertical-align: top; width: 90px; padding-right: 20px;">
+               <img src="${logoSrc}" alt="SourceCo" style="width: 80px; height: 80px; display: block; border: none;" />
+             </td>
+             <td style="vertical-align: top; padding-left: 20px;">
+               <div style="line-height: 1.3;">
+                 <p style="margin: 0; font-size: 16px; font-weight: 700; color: #000000; margin-bottom: 2px;">${effectiveAdminName}</p>
+                 ${adminTitle ? `<p style="margin: 0; font-size: 14px; color: #666666; margin-bottom: 12px;">${adminTitle}</p>` : ''}
+                 <p style="margin: 0; font-size: 16px; font-weight: 700; color: #d7b65c; margin-bottom: 12px; letter-spacing: 1px;">SOURCECO</p>
                 
                 <p style="margin: 0; font-size: 11px; color: #333333; margin-bottom: 3px;">
                   <a href="mailto:${adminEmail}" style="color: #333333; text-decoration: none;">${adminEmail}</a>
@@ -187,9 +187,9 @@ const handler = async (req: Request): Promise<Response> => {
                 <p style="margin: 0; font-size: 11px; color: #333333; margin-bottom: 3px;">
                   <a href="https://sourcecodeals.com" style="color: #333333; text-decoration: none;">sourcecodeals.com</a>
                 </p>
-                ${adminCalendly ? `<p style="margin: 0; font-size: 11px; color: #D4AF37; margin-bottom: 0;">
-                  <a href="${adminCalendly}" style="color: #D4AF37; text-decoration: none; font-weight: 600;">Schedule a call</a>
-                </p>` : ''}
+                 ${adminCalendly ? `<p style="margin: 0; font-size: 11px; color: #d7b65c; margin-bottom: 0;">
+                   <a href="${adminCalendly}" style="color: #d7b65c; text-decoration: none; font-weight: 600;">Schedule a call</a>
+                 </p>` : ''}
               </div>
             </td>
           </tr>
