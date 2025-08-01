@@ -38,7 +38,18 @@ export const useUpdateNDA = () => {
 
   return useMutation({
     mutationFn: async ({ userId, isSigned, adminNotes }: UpdateNDAParams) => {
-      return execute({ userId, isSigned, adminNotes });
+      // Direct table update instead of RPC to avoid auth issues
+      const { data, error } = await supabase
+        .from('profiles')
+        .update({
+          nda_signed: isSigned,
+          nda_signed_at: isSigned ? new Date().toISOString() : null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', userId);
+
+      if (error) throw error;
+      return data;
     },
     onMutate: async ({ userId, isSigned }) => {
       await queryClient.cancelQueries({ queryKey: ['admin-users'] });
@@ -96,7 +107,18 @@ export const useUpdateNDAEmailSent = () => {
 
   return useMutation({
     mutationFn: async ({ userId, isSent, adminNotes }: UpdateNDAEmailParams) => {
-      return execute({ userId, isSent, adminNotes });
+      // Direct table update instead of RPC to avoid auth issues
+      const { data, error } = await supabase
+        .from('profiles')
+        .update({
+          nda_email_sent: isSent,
+          nda_email_sent_at: isSent ? new Date().toISOString() : null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', userId);
+
+      if (error) throw error;
+      return data;
     },
     onMutate: async ({ userId, isSent }) => {
       await queryClient.cancelQueries({ queryKey: ['admin-users'] });

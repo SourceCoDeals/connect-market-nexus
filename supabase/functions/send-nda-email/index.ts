@@ -157,53 +157,13 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log('📧 Using sender:', `${effectiveAdminName} <${senderEmail}>`, 'reply-to:', `${effectiveAdminName} <${senderEmail}>`);
 
-    // Fetch SourceCo logo
-    console.log('🔄 Fetching SourceCo logo...');
-    
-    const logoSources = [
-      'https://vhzipqarkmmfuqadefep.supabase.co/storage/v1/object/public/listing-images/sourceco-logo-circular-gold.png',
-      'https://lovable.dev/lovable-uploads/e5ab65c7-a61e-4c6a-8c11-fa6cfd2cfb7b.png'
-    ];
-    
-    let logoBase64 = '';
-    let logoSrc = 'cid:sourceco-logo';
-    let logoAttachment = null;
-    
-    for (const logoUrl of logoSources) {
-      try {
-        console.log('🔄 Attempting to fetch SourceCo logo from:', logoUrl);
-        const logoResponse = await fetch(logoUrl);
-        if (logoResponse.ok) {
-          const logoArrayBuffer = await logoResponse.arrayBuffer();
-          logoBase64 = btoa(String.fromCharCode(...new Uint8Array(logoArrayBuffer)));
-          logoAttachment = {
-            name: 'sourceco-logo-circular-gold.png',
-            content: logoBase64,
-            cid: 'sourceco-logo'
-          };
-          console.log('✅ SourceCo logo fetched successfully from:', logoUrl);
-          break;
-        } else {
-          console.log(`⚠️ Could not fetch logo from ${logoUrl}, status: ${logoResponse.status}`);
-        }
-      } catch (error) {
-        console.log(`⚠️ Error fetching logo from ${logoUrl}:`, error.message);
-      }
-    }
-
-    if (!logoAttachment) {
-      console.log('⚠️ Could not fetch any SourceCo logo - will proceed without logo embedding');
-      logoSrc = '';
-    }
+    // Skip logo entirely for fast, reliable emails
+    console.log('📧 Using text-only signature without logo for immediate delivery');
 
     // Process attachments
     console.log('📎 Starting attachment processing for', finalAttachments.length, 'attachment(s)');
     
     const processedAttachments = [];
-    
-    if (logoAttachment) {
-      processedAttachments.push(logoAttachment);
-    }
 
     for (const [index, attachment] of finalAttachments.entries()) {
       console.log(`📎 Processing attachment ${index + 1}/${finalAttachments.length}: ${attachment.name}`);
@@ -246,34 +206,23 @@ const handler = async (req: Request): Promise<Response> => {
     if (useTemplate) {
       // Create professional signature matching the fee agreement layout
       const adminSignature = `
-        <div style="margin-top: 40px; padding: 0; font-family: 'Arial', sans-serif;">
-          <table cellpadding="0" cellspacing="0" style="width: 100%; border-top: 2px solid #d7b65c; padding-top: 20px;">
-            <tr>
-              <td style="vertical-align: top; width: 90px; padding-right: 20px;">
-                ${logoSrc ? `<img src="${logoSrc}" alt="SourceCo" style="width: 80px; height: 80px; display: block; border: none;" />` : ''}
-              </td>
-              <td style="vertical-align: top; padding-left: 20px;">
-                <div style="line-height: 1.3;">
-                  <p style="margin: 0; font-size: 16px; font-weight: 700; color: #000000; margin-bottom: 2px;">${effectiveAdminName}</p>
-                  ${adminTitle ? `<p style="margin: 0; font-size: 14px; color: #666666; margin-bottom: 12px;">${adminTitle}</p>` : ''}
-                  <p style="margin: 0; font-size: 16px; font-weight: 700; color: #d7b65c; margin-bottom: 12px; letter-spacing: 1px;">SOURCECO</p>
-                  
-                  <p style="margin: 0; font-size: 11px; color: #333333; margin-bottom: 3px;">
-                    <a href="mailto:${senderEmail}" style="color: #333333; text-decoration: none;">${senderEmail}</a>
-                  </p>
-                  <p style="margin: 0; font-size: 11px; color: #333333; margin-bottom: 3px;">
-                    <a href="tel:${adminPhone}" style="color: #333333; text-decoration: none;">${adminPhone}</a>
-                  </p>
-                  <p style="margin: 0; font-size: 11px; color: #333333; margin-bottom: 3px;">
-                    <a href="https://sourcecodeals.com" style="color: #333333; text-decoration: none;">sourcecodeals.com</a>
-                  </p>
-                  ${adminCalendly ? `<p style="margin: 0; font-size: 11px; color: #d7b65c; margin-bottom: 0;">
-                    <a href="${adminCalendly}" style="color: #d7b65c; text-decoration: none; font-weight: 600;">Schedule a call</a>
-                  </p>` : ''}
-                </div>
-              </td>
-            </tr>
-          </table>
+        <div style="margin-top: 40px; padding: 20px 0; font-family: 'Arial', sans-serif; border-top: 2px solid #d7b65c;">
+          <p style="margin: 0; font-size: 16px; font-weight: 700; color: #000000; margin-bottom: 2px;">${effectiveAdminName}</p>
+          ${adminTitle ? `<p style="margin: 0; font-size: 14px; color: #666666; margin-bottom: 12px;">${adminTitle}</p>` : ''}
+          <p style="margin: 0; font-size: 16px; font-weight: 700; color: #d7b65c; margin-bottom: 12px; letter-spacing: 1px;">SOURCECO</p>
+          
+          <p style="margin: 0; font-size: 11px; color: #333333; margin-bottom: 3px;">
+            <a href="mailto:${senderEmail}" style="color: #333333; text-decoration: none;">${senderEmail}</a>
+          </p>
+          <p style="margin: 0; font-size: 11px; color: #333333; margin-bottom: 3px;">
+            <a href="tel:${adminPhone}" style="color: #333333; text-decoration: none;">${adminPhone}</a>
+          </p>
+          <p style="margin: 0; font-size: 11px; color: #333333; margin-bottom: 3px;">
+            <a href="https://sourcecodeals.com" style="color: #333333; text-decoration: none;">sourcecodeals.com</a>
+          </p>
+          ${adminCalendly ? `<p style="margin: 0; font-size: 11px; color: #d7b65c; margin-bottom: 0;">
+            <a href="${adminCalendly}" style="color: #d7b65c; text-decoration: none; font-weight: 600;">Schedule a call</a>
+          </p>` : ''}
         </div>
       `;
 
