@@ -603,7 +603,7 @@ export function UsersTable({
       open={!!selectedUserForNDA}
       onOpenChange={(open) => !open && setSelectedUserForNDA(null)}
       user={selectedUserForNDA}
-      onSendEmail={async (user, customSubject, customMessage) => {
+      onSendEmail={async (user, options) => {
         try {
           const { data: { user: currentUser } } = await supabase.auth.getUser();
           if (!currentUser) throw new Error('Not authenticated');
@@ -620,8 +620,10 @@ export function UsersTable({
             body: {
               userEmail: user.email,
               userId: user.id,
-              customSubject,
-              customMessage,
+              customSubject: options?.subject,
+              customMessage: options?.message,
+              customSignatureHtml: options?.customSignatureHtml,
+              customSignatureText: options?.customSignatureText,
               adminEmail: adminProfile.email,
               adminName: `${adminProfile.first_name} ${adminProfile.last_name}`
             }

@@ -19,6 +19,7 @@ import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { getAdminProfile } from "@/lib/admin-profiles";
+import { EditableSignature } from "@/components/admin/EditableSignature";
 
 interface SimpleFeeAgreementDialogProps {
   user: UserType | null;
@@ -98,6 +99,8 @@ export function SimpleFeeAgreementDialog({
   const [content, setContent] = useState("");
   const [attachments, setAttachments] = useState<File[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [customSignatureHtml, setCustomSignatureHtml] = useState("");
+  const [customSignatureText, setCustomSignatureText] = useState("");
   
   const { user: adminUser } = useAuth();
 
@@ -207,7 +210,9 @@ export function SimpleFeeAgreementDialog({
           adminId: adminUser.id,
           adminEmail: adminUser.email,
           adminName: effectiveAdminName,
-          attachments: base64Attachments
+          attachments: base64Attachments,
+          customSignatureHtml: customSignatureHtml || undefined,
+          customSignatureText: customSignatureText || undefined
         }
       });
 
@@ -236,6 +241,8 @@ export function SimpleFeeAgreementDialog({
     setSubject("");
     setContent("");
     setAttachments([]);
+    setCustomSignatureHtml("");
+    setCustomSignatureText("");
     onClose();
   };
 
@@ -360,6 +367,15 @@ export function SimpleFeeAgreementDialog({
                 )}
               </div>
             </div>
+
+            {/* Email Signature */}
+            <EditableSignature 
+              showInline
+              onSignatureChange={(html, text) => {
+                setCustomSignatureHtml(html);
+                setCustomSignatureText(text);
+              }}
+            />
           </div>
 
           {/* Actions */}

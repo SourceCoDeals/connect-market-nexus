@@ -8,28 +8,38 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, FileText, Mail, User, Calendar } from "lucide-react";
 import { User as UserType } from "@/types";
 import { formatDistanceToNow } from "date-fns";
+import { EditableSignature } from "@/components/admin/EditableSignature";
 
 interface SimpleNDADialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   user: UserType | null;
-  onSendEmail: (user: UserType, customSubject?: string, customMessage?: string) => Promise<void>;
+  onSendEmail: (user: UserType, options?: { subject?: string; message?: string; customSignatureHtml?: string; customSignatureText?: string }) => Promise<void>;
 }
 
 export const SimpleNDADialog = ({ open, onOpenChange, user, onSendEmail }: SimpleNDADialogProps) => {
   const [customSubject, setCustomSubject] = useState("");
   const [customMessage, setCustomMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [customSignatureHtml, setCustomSignatureHtml] = useState("");
+  const [customSignatureText, setCustomSignatureText] = useState("");
 
   const handleSend = async () => {
     if (!user) return;
     
     setIsLoading(true);
     try {
-      await onSendEmail(user, customSubject || undefined, customMessage || undefined);
+      await onSendEmail(user, {
+        subject: customSubject || undefined,
+        message: customMessage || undefined,
+        customSignatureHtml: customSignatureHtml || undefined,
+        customSignatureText: customSignatureText || undefined
+      });
       onOpenChange(false);
       setCustomSubject("");
       setCustomMessage("");
+      setCustomSignatureHtml("");
+      setCustomSignatureText("");
     } catch (error) {
       console.error('Error sending NDA email:', error);
     } finally {
@@ -143,6 +153,15 @@ Best regards,`;
                 Leave empty to use the default professional message template
               </p>
             </div>
+
+            {/* Email Signature */}
+            <EditableSignature 
+              showInline
+              onSignatureChange={(html, text) => {
+                setCustomSignatureHtml(html);
+                setCustomSignatureText(text);
+              }}
+            />
           </div>
         </div>
 

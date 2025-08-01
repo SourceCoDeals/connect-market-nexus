@@ -55,6 +55,33 @@ export type Database = {
           },
         ]
       }
+      admin_signature_preferences: {
+        Row: {
+          admin_id: string
+          created_at: string
+          id: string
+          signature_html: string
+          signature_text: string
+          updated_at: string
+        }
+        Insert: {
+          admin_id: string
+          created_at?: string
+          id?: string
+          signature_html: string
+          signature_text: string
+          updated_at?: string
+        }
+        Update: {
+          admin_id?: string
+          created_at?: string
+          id?: string
+          signature_html?: string
+          signature_text?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       alert_delivery_logs: {
         Row: {
           alert_id: string
@@ -625,6 +652,48 @@ export type Database = {
         }
         Relationships: []
       }
+      nda_logs: {
+        Row: {
+          action_type: string
+          admin_email: string | null
+          admin_id: string | null
+          admin_name: string | null
+          created_at: string
+          email_sent_to: string | null
+          id: string
+          metadata: Json | null
+          notes: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          action_type: string
+          admin_email?: string | null
+          admin_id?: string | null
+          admin_name?: string | null
+          created_at?: string
+          email_sent_to?: string | null
+          id?: string
+          metadata?: Json | null
+          notes?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          action_type?: string
+          admin_email?: string | null
+          admin_id?: string | null
+          admin_name?: string | null
+          created_at?: string
+          email_sent_to?: string | null
+          id?: string
+          metadata?: Json | null
+          notes?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       otp_rate_limits: {
         Row: {
           created_at: string
@@ -748,6 +817,10 @@ export type Database = {
           is_funded: string | null
           last_name: string
           linkedin_profile: string | null
+          nda_email_sent: boolean | null
+          nda_email_sent_at: string | null
+          nda_signed: boolean | null
+          nda_signed_at: string | null
           needs_loan: string | null
           onboarding_completed: boolean | null
           phone_number: string | null
@@ -788,6 +861,10 @@ export type Database = {
           is_funded?: string | null
           last_name: string
           linkedin_profile?: string | null
+          nda_email_sent?: boolean | null
+          nda_email_sent_at?: string | null
+          nda_signed?: boolean | null
+          nda_signed_at?: string | null
           needs_loan?: string | null
           onboarding_completed?: boolean | null
           phone_number?: string | null
@@ -828,6 +905,10 @@ export type Database = {
           is_funded?: string | null
           last_name?: string
           linkedin_profile?: string | null
+          nda_email_sent?: boolean | null
+          nda_email_sent_at?: string | null
+          nda_signed?: boolean | null
+          nda_signed_at?: string | null
           needs_loan?: string | null
           onboarding_completed?: boolean | null
           phone_number?: string | null
@@ -1181,6 +1262,14 @@ export type Database = {
         }
         Returns: boolean
       }
+      log_nda_email: {
+        Args: {
+          target_user_id: string
+          recipient_email: string
+          admin_notes?: string
+        }
+        Returns: boolean
+      }
       match_deal_alerts_with_listing: {
         Args: { listing_data: Json }
         Returns: {
@@ -1220,6 +1309,18 @@ export type Database = {
         Returns: boolean
       }
       update_fee_agreement_status: {
+        Args: {
+          target_user_id: string
+          is_signed: boolean
+          admin_notes?: string
+        }
+        Returns: boolean
+      }
+      update_nda_email_status: {
+        Args: { target_user_id: string; is_sent: boolean; admin_notes?: string }
+        Returns: boolean
+      }
+      update_nda_status: {
         Args: {
           target_user_id: string
           is_signed: boolean
