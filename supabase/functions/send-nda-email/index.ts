@@ -225,73 +225,10 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log('📎 Successfully added', processedAttachments.length, 'attachment(s) to Brevo payload');
 
-    // Create email content
-    let htmlContent;
-    
-    if (useTemplate) {
-      // Use admin signature or create default
-      const adminSignature = finalHtmlSignature || `
-        <div style="font-family: Arial, sans-serif; color: #333; line-height: 1.4;">
-          <p style="margin: 0;">
-            <strong>${effectiveAdminName}</strong><br>
-            ${adminTitle}<br>
-            <a href="mailto:${senderEmail}" style="color: #0066cc; text-decoration: none;">${senderEmail}</a><br>
-            ${adminPhone ? `<a href="tel:${adminPhone.replace(/[^\d]/g, '')}" style="color: #0066cc; text-decoration: none;">${adminPhone}</a><br>` : ''}
-            <a href="${adminCalendly}" style="color: #0066cc; text-decoration: none;">Click here to schedule a call with me</a>
-          </p>
-        </div>
-      `;
+    // Simple text content - just message + signature
+    const textContent = customMessage ? `${customMessage}
 
-      htmlContent = `
-        <div style="font-family: 'Arial', sans-serif; max-width: 600px; margin: 0 auto; color: #333333;">
-          <div style="padding: 40px 20px;">
-            <p style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.6;">Dear ${userEmail.split('@')[0]},</p>
-            
-            <p style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.6;">
-              I hope this message finds you well. As we move forward with our discussions regarding potential business opportunities, I'm sending you our Non-Disclosure Agreement (NDA) for your review and signature.
-            </p>
-            
-            <p style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.6;">
-              This NDA will ensure that any confidential information shared between us remains protected and allows us to have more detailed conversations about available opportunities.
-            </p>
-            
-            <p style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.6;">
-              Please review the attached document and let me know if you have any questions. Once signed, we'll be able to share more specific details about businesses that match your investment criteria.
-            </p>
-            
-            <p style="margin: 0 0 40px 0; font-size: 16px; line-height: 1.6;">
-              Thank you for your time and I look forward to our continued collaboration.
-            </p>
-            
-            <p style="margin: 0 0 10px 0; font-size: 16px; line-height: 1.6;">Best regards,</p>
-            
-            ${adminSignature}
-          </div>
-        </div>
-      `;
-    } else {
-      // Use custom message with signature
-      const customSignature = finalHtmlSignature || `
-        <div style="font-family: Arial, sans-serif; color: #333; line-height: 1.4;">
-          <p style="margin: 0;">
-            <strong>${effectiveAdminName}</strong><br>
-            ${adminTitle}<br>
-            <a href="mailto:${senderEmail}" style="color: #0066cc; text-decoration: none;">${senderEmail}</a><br>
-            ${adminPhone ? `<a href="tel:${adminPhone.replace(/[^\d]/g, '')}" style="color: #0066cc; text-decoration: none;">${adminPhone}</a><br>` : ''}
-            <a href="${adminCalendly}" style="color: #0066cc; text-decoration: none;">Click here to schedule a call with me</a>
-          </p>
-        </div>
-      `;
-
-      htmlContent = `
-        <div style="font-family: 'Arial', sans-serif; max-width: 600px; margin: 0 auto; color: #333333;">
-          <div style="padding: 40px 20px;">
-            ${customMessage.split('\n').map(line => `<p style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.6;">${line}</p>`).join('')}
-            ${customSignature}
-          </div>
-        </div>
-      `;
-    }
+${finalTextSignature}` : finalTextSignature;
 
     // Send email via Brevo
     console.log('📬 Sending NDA email via Brevo...', {
@@ -308,7 +245,7 @@ const handler = async (req: Request): Promise<Response> => {
       sender: { name: effectiveAdminName, email: senderEmail },
       replyTo: { email: senderEmail, name: effectiveAdminName },
       subject: subject,
-      htmlContent: htmlContent,
+      textContent: textContent,
       attachment: processedAttachments
     };
 

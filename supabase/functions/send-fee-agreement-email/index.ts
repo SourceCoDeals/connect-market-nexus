@@ -156,113 +156,12 @@ const handler = async (req: Request): Promise<Response> => {
       console.log('✅ Using Bill Martin format signature template');
     }
 
-    // ENHANCED: Generate multiple premium email templates
-    const templateVariants = {
-      standard: `<div style="font-family: 'Georgia', 'Times New Roman', serif; line-height: 1.7; color: #333333; max-width: 700px; margin: 0 auto; background-color: #ffffff;">
-          <div style="padding: 50px 40px; background: linear-gradient(135deg, #ffffff 0%, #fafafa 100%); border: 1px solid #E5E5E5;">
-            <div style="text-align: center; margin-bottom: 50px; padding-bottom: 30px; border-bottom: 3px solid #D4AF37;">
-              <h1 style="color: #000000; font-size: 32px; margin: 0; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;">Fee Agreement</h1>
-              <p style="color: #666666; margin: 15px 0 0 0; font-size: 16px; letter-spacing: 3px; text-transform: uppercase;">SourceCo</p>
-            </div>
-            
-            <div style="margin-bottom: 40px;">
-              <p style="margin-bottom: 30px; font-size: 18px; color: #333333;">Dear <strong style="color: #D4AF37; font-weight: 700;">${userEmail.split('@')[0]}</strong>,</p>
-              
-              <p style="margin-bottom: 30px; font-size: 16px; line-height: 1.8;">We are pleased to present our comprehensive Fee Agreement for your review and execution. This document establishes the framework for our professional advisory relationship and outlines the terms that will govern our collaboration.</p>
-              
-              <div style="background: linear-gradient(135deg, #F8F8F8 0%, #F0F0F0 100%); padding: 35px; margin: 40px 0; border-left: 6px solid #D4AF37; box-shadow: 0 4px 12px rgba(0,0,0,0.08); border-radius: 0 8px 8px 0;">
-                <p style="margin: 0 0 25px 0; font-weight: 700; color: #000000; font-size: 18px; letter-spacing: 0.5px;">Key Agreement Elements:</p>
-                <ul style="margin: 0; padding-left: 0; list-style: none; color: #444444; font-size: 15px; line-height: 1.8;">
-                  <li style="margin-bottom: 15px; padding-left: 25px; position: relative;">
-                    <span style="position: absolute; left: 0; color: #D4AF37; font-weight: 700;">✓</span>
-                    Professional advisory fees and transparent payment structure
-                  </li>
-                  <li style="margin-bottom: 15px; padding-left: 25px; position: relative;">
-                    <span style="position: absolute; left: 0; color: #D4AF37; font-weight: 700;">✓</span>
-                    Comprehensive scope of services and specific deliverables
-                  </li>
-                  <li style="margin-bottom: 15px; padding-left: 25px; position: relative;">
-                    <span style="position: absolute; left: 0; color: #D4AF37; font-weight: 700;">✓</span>
-                    Strict confidentiality and non-disclosure provisions
-                  </li>
-                  <li style="margin-bottom: 15px; padding-left: 25px; position: relative;">
-                    <span style="position: absolute; left: 0; color: #D4AF37; font-weight: 700;">✓</span>
-                    Project timeline, milestones, and success metrics
-                  </li>
-                  <li style="margin-bottom: 0; padding-left: 25px; position: relative;">
-                    <span style="position: absolute; left: 0; color: #D4AF37; font-weight: 700;">✓</span>
-                    Exclusive representation and fiduciary obligations
-                  </li>
-                </ul>
-              </div>
-              
-              <p style="margin-bottom: 30px; font-size: 16px; line-height: 1.8;">We encourage you to carefully review all terms and conditions. Our team remains readily available to address any questions or discuss specific provisions that may require clarification or modification.</p>
-              
-              <div style="background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%); color: #ffffff; padding: 35px; margin: 40px 0; text-align: center; border-radius: 8px; box-shadow: 0 6px 20px rgba(0,0,0,0.15);">
-                <p style="margin: 0; color: #D4AF37; font-weight: 700; font-size: 16px; letter-spacing: 2px; text-transform: uppercase;">Next Steps</p>
-                <p style="margin: 20px 0 0 0; color: #ffffff; font-size: 15px; line-height: 1.6;">Upon your acceptance of these terms, please execute and return the agreement to formalize our engagement and begin the collaboration process.</p>
-              </div>
-              
-              <p style="margin-bottom: 40px; font-size: 16px; line-height: 1.8;">We genuinely appreciate the opportunity to serve as your trusted advisor and look forward to a successful and mutually beneficial collaboration.</p>
-              
-              <p style="margin-bottom: 30px; font-weight: 600; font-size: 16px;">Respectfully yours,</p>
-            </div>
-            
-            ${adminSignature}
-          </div>
-        </div>`,
-      
-      executive: `<div style="font-family: 'Georgia', 'Times New Roman', serif; line-height: 1.8; color: #333333; max-width: 750px; margin: 0 auto; background-color: #ffffff;">
-          <div style="padding: 60px 50px; background: linear-gradient(135deg, #ffffff 0%, #f8f8f8 100%); border: 2px solid #D4AF37; box-shadow: 0 8px 30px rgba(0,0,0,0.1);">
-            <div style="text-align: center; margin-bottom: 60px; padding-bottom: 40px; border-bottom: 4px solid #D4AF37;">
-              <h1 style="color: #000000; font-size: 36px; margin: 0; font-weight: 800; letter-spacing: 2px; text-transform: uppercase;">Executive Fee Agreement</h1>
-              <p style="color: #666666; margin: 20px 0 0 0; font-size: 18px; letter-spacing: 4px; text-transform: uppercase; font-weight: 500;">SourceCo</p>
-            </div>
-            
-            <div style="margin-bottom: 50px;">
-              <p style="margin-bottom: 35px; font-size: 20px; color: #333333;">Dear <strong style="color: #D4AF37; font-weight: 800;">${userEmail.split('@')[0]}</strong>,</p>
-              
-              <p style="margin-bottom: 35px; font-size: 17px; line-height: 1.9;">We are honored to present our Executive Fee Agreement, meticulously crafted for high-value strategic engagements. This comprehensive document establishes the premium framework for our exclusive advisory partnership.</p>
-              
-              <div style="background: linear-gradient(135deg, #F5F5F5 0%, #EEEEEE 100%); padding: 45px; margin: 50px 0; border: 2px solid #D4AF37; border-radius: 12px; box-shadow: 0 8px 25px rgba(0,0,0,0.12);">
-                <p style="margin: 0 0 30px 0; font-weight: 800; color: #000000; font-size: 20px; letter-spacing: 1px; text-align: center;">Premium Service Framework</p>
-                <div style="display: flex; flex-wrap: wrap; gap: 20px;">
-                  <div style="flex: 1; min-width: 250px; background: #ffffff; padding: 25px; border-left: 4px solid #D4AF37; margin-bottom: 15px;">
-                    <h4 style="margin: 0 0 15px 0; color: #D4AF37; font-size: 16px; font-weight: 700;">Strategic Advisory</h4>
-                    <p style="margin: 0; color: #444444; font-size: 14px; line-height: 1.6;">Comprehensive strategic planning and execution guidance</p>
-                  </div>
-                  <div style="flex: 1; min-width: 250px; background: #ffffff; padding: 25px; border-left: 4px solid #D4AF37; margin-bottom: 15px;">
-                    <h4 style="margin: 0 0 15px 0; color: #D4AF37; font-size: 16px; font-weight: 700;">Exclusive Access</h4>
-                    <p style="margin: 0; color: #444444; font-size: 14px; line-height: 1.6;">Priority access to premium deal flow and opportunities</p>
-                  </div>
-                </div>
-              </div>
-              
-              <p style="margin-bottom: 35px; font-size: 17px; line-height: 1.9;">This agreement reflects our commitment to delivering exceptional value through personalized service, strategic insight, and unwavering dedication to your success.</p>
-              
-              <div style="background: linear-gradient(135deg, #D4AF37 0%, #B8941F 100%); color: #000000; padding: 40px; margin: 50px 0; text-align: center; border-radius: 12px; box-shadow: 0 8px 25px rgba(212,175,55,0.3);">
-                <p style="margin: 0; color: #000000; font-weight: 800; font-size: 18px; letter-spacing: 2px; text-transform: uppercase;">Executive Priority Processing</p>
-                <p style="margin: 25px 0 0 0; color: #000000; font-size: 16px; line-height: 1.7; font-weight: 500;">Your agreement will receive expedited review and processing within 24 hours of execution.</p>
-              </div>
-              
-              <p style="margin-bottom: 45px; font-size: 17px; line-height: 1.9;">We are privileged to partner with you and remain committed to exceeding your expectations at every stage of our collaboration.</p>
-              
-              <p style="margin-bottom: 35px; font-weight: 700; font-size: 17px;">With distinguished regards,</p>
-            </div>
-            
-            ${adminSignature}
-          </div>
-        </div>`
-    };
+    // Simple text content - just message + signature  
+    const textContent = content ? `${content}
 
-    const emailContent = useTemplate
-      ? templateVariants.standard
-      : `<div style="font-family: 'Georgia', 'Times New Roman', serif; line-height: 1.7; color: #333333; max-width: 650px; margin: 0 auto;">
-          <div style="padding: 50px 40px; background-color: #ffffff; border: 2px solid #f5f5f5;">
-            ${content ? content.replace(/\n/g, '<br>') : ''}
-            ${adminSignature}
-          </div>
-        </div>`;
+${adminSignature.replace(/<[^>]*>/g, '').replace(/&amp;/g, '&')}` : adminSignature.replace(/<[^>]*>/g, '').replace(/&amp;/g, '&');
+
+    // Skip complex templates - textContent is all we need for simple, working emails
 
     // Determine the best sender email based on admin domain
     let senderEmail = "noreply@sourcecodeals.com";
@@ -289,7 +188,7 @@ const handler = async (req: Request): Promise<Response> => {
         }
       ],
       subject: emailSubject,
-      htmlContent: emailContent,
+      textContent: textContent,
       replyTo: {
         email: adminEmail,
         name: adminName

@@ -19,17 +19,7 @@ interface UpdateSignatureParams {
 }
 
 const DEFAULT_SIGNATURE = {
-  signature_html: `
-    <div style="font-family: Arial, sans-serif; color: #333; line-height: 1.4;">
-      <p style="margin: 0;">
-        <strong>Bill Martin</strong><br>
-        Principal &amp; SVP - Growth<br>
-        <a href="mailto:bill.martin@sourcecodeals.com" style="color: #0066cc; text-decoration: none;">bill.martin@sourcecodeals.com</a><br>
-        <a href="tel:+16148326099" style="color: #0066cc; text-decoration: none;">(614) 832-6099</a><br>
-        <a href="https://calendly.com/bill-martin-sourceco/30min" style="color: #0066cc; text-decoration: none;">Click here to schedule a call with me</a>
-      </p>
-    </div>
-  `,
+  signature_html: 'Bill Martin<br>Principal &amp; SVP - Growth<br>bill.martin@sourcecodeals.com<br>(614) 832-6099<br><a href="https://calendly.com/bill-martin-sourceco/30min">Click here to schedule a call with me</a>',
   signature_text: `Bill Martin
 Principal & SVP - Growth
 bill.martin@sourcecodeals.com
@@ -49,6 +39,7 @@ export function useAdminSignature() {
       const { data, error } = await supabase
         .from('admin_signature_preferences')
         .select('*')
+        .eq('admin_id', (await supabase.auth.getUser()).data.user?.id)
         .single();
 
       if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
