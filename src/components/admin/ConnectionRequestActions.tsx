@@ -10,13 +10,15 @@ import {
   Clock,
   XCircle,
   Mail,
-  ExternalLink
+  ExternalLink,
+  MessageSquare
 } from "lucide-react";
 import { User as UserType, Listing } from "@/types";
 import { SimpleFeeAgreementDialog } from "./SimpleFeeAgreementDialog";
 import { SimpleNDADialog } from "./SimpleNDADialog";
 import { useUpdateNDA, useUpdateNDAEmailSent } from "@/hooks/admin/use-nda";
 import { useUpdateFeeAgreement, useUpdateFeeAgreementEmailSent } from "@/hooks/admin/use-fee-agreement";
+import { useUpdateFollowup } from "@/hooks/admin/use-followup";
 import { useToast } from "@/hooks/use-toast";
 import { useAdminSignature } from "@/hooks/admin/use-admin-signature";
 import { formatDistanceToNow } from 'date-fns';
@@ -24,12 +26,16 @@ import { formatDistanceToNow } from 'date-fns';
 interface ConnectionRequestActionsProps {
   user: UserType;
   listing?: Listing;
+  requestId?: string;
+  followedUp?: boolean;
   onEmailSent?: () => void;
 }
 
 export function ConnectionRequestActions({ 
   user, 
   listing,
+  requestId,
+  followedUp = false,
   onEmailSent 
 }: ConnectionRequestActionsProps) {
   const { toast } = useToast();
@@ -41,6 +47,7 @@ export function ConnectionRequestActions({
   const updateNDAEmailSent = useUpdateNDAEmailSent();
   const updateFeeAgreement = useUpdateFeeAgreement();
   const updateFeeAgreementEmailSent = useUpdateFeeAgreementEmailSent();
+  const updateFollowup = useUpdateFollowup();
 
   const getStatusBadge = (sent: boolean, signed: boolean, sentAt?: string, signedAt?: string) => {
     if (signed && signedAt) {
@@ -123,6 +130,23 @@ SourceCo Team`}`;
     updateFeeAgreementEmailSent.mutate({
       userId: user.id,
       isSent: checked
+    });
+  };
+
+  const handleFollowUpToggle = (checked: boolean) => {
+    if (!requestId) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Request ID is required to update follow-up status"
+      });
+      return;
+    }
+
+    updateFollowup.mutate({
+      requestId,
+      isFollowedUp: checked,
+      notes: checked ? "Follow-up marked via admin interface" : "Follow-up status removed"
     });
   };
 
@@ -241,6 +265,35 @@ SourceCo Team`}`;
                 />
                 <Label htmlFor={`nda-signed-${user.id}`} className="text-xs">Signed</Label>
               </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Follow-Up Status */}
+        <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/30">
+          <div className="flex items-center gap-2">
+            <MessageSquare className="h-4 w-4" />
+            <span className="text-sm font-medium">Follow-Up</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <Badge 
+              variant={followedUp ? "default" : "secondary"}
+              className={followedUp 
+                ? "text-xs bg-green-100 text-green-800 border-green-200 hover:bg-green-200" 
+                : "text-xs bg-amber-100 text-amber-800 border-amber-200 hover:bg-amber-200"
+              }
+            >
+              <CheckCircle className="h-3 w-3 mr-1" />
+              {followedUp ? "Completed" : "Pending"}
+            </Badge>
+            <div className="flex items-center space-x-2">
+              <Switch
+                id={`followup-${user.id}`}
+                checked={followedUp}
+                onCheckedChange={handleFollowUpToggle}
+                disabled={updateFollowup.isPending || !requestId}
+              />
+              <Label htmlFor={`followup-${user.id}`} className="text-xs">Followed Up</Label>
             </div>
           </div>
         </div>

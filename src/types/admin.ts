@@ -38,6 +38,9 @@ export interface AdminConnectionRequest {
   status: 'pending' | 'approved' | 'rejected';
   admin_comment?: string;
   user_message?: string;
+  followed_up?: boolean;
+  followed_up_at?: string;
+  followed_up_by?: string;
   created_at: string;
   updated_at: string;
   decision_at?: string;

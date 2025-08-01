@@ -204,6 +204,9 @@ export type Database = {
           admin_comment: string | null
           created_at: string
           decision_at: string | null
+          followed_up: boolean | null
+          followed_up_at: string | null
+          followed_up_by: string | null
           id: string
           listing_id: string
           status: string
@@ -215,6 +218,9 @@ export type Database = {
           admin_comment?: string | null
           created_at?: string
           decision_at?: string | null
+          followed_up?: boolean | null
+          followed_up_at?: string | null
+          followed_up_by?: string | null
           id?: string
           listing_id: string
           status?: string
@@ -226,6 +232,9 @@ export type Database = {
           admin_comment?: string | null
           created_at?: string
           decision_at?: string | null
+          followed_up?: boolean | null
+          followed_up_at?: string | null
+          followed_up_by?: string | null
           id?: string
           listing_id?: string
           status?: string
@@ -1300,6 +1309,14 @@ export type Database = {
       }
       soft_delete_profile: {
         Args: { profile_id: string }
+        Returns: boolean
+      }
+      update_connection_request_followup: {
+        Args: {
+          request_id: string
+          is_followed_up: boolean
+          admin_notes?: string
+        }
         Returns: boolean
       }
       update_daily_metrics: {

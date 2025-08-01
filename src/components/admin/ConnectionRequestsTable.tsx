@@ -160,6 +160,8 @@ const RequestDetails = ({
         <ConnectionRequestActions 
           user={request.user} 
           listing={request.listing || undefined}
+          requestId={request.id}
+          followedUp={request.followed_up || false}
           onEmailSent={() => onRefresh?.()} 
         />
       </div>
