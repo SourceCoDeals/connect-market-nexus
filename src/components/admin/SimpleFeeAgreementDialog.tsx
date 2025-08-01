@@ -20,7 +20,7 @@ import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { EditableSignature } from "@/components/admin/EditableSignature";
-import { useLogFeeAgreementEmail } from "@/hooks/admin/use-fee-agreement";
+// Hook removed - edge function handles both email sending and database logging
 
 interface SimpleFeeAgreementDialogProps {
   user: UserType | null;
@@ -51,8 +51,6 @@ export function SimpleFeeAgreementDialog({
   const [customSignatureText, setCustomSignatureText] = useState("");
   
   const { user: adminUser } = useAuth();
-  // Use the unified hook for consistent state management
-  const logFeeAgreementEmail = useLogFeeAgreementEmail();
 
   useEffect(() => {
     if (user && isOpen) {
@@ -168,12 +166,7 @@ export function SimpleFeeAgreementDialog({
         throw new Error(data?.error || 'Email sending failed');
       }
 
-      // Then log the email in the database
-      await logFeeAgreementEmail.mutateAsync({
-        userId: user.id,
-        userEmail: user.email,
-        notes: `Email sent with ${attachments.length} attachment(s): "${subject}"`
-      });
+      // Email sending and logging is handled entirely by the edge function
 
       toast.success("Fee agreement email sent!");
       handleClose();
@@ -327,19 +320,10 @@ export function SimpleFeeAgreementDialog({
             </Button>
             <Button 
               onClick={handleSend} 
-              disabled={logFeeAgreementEmail.isPending || !subject.trim() || !content.trim()}
+              disabled={!subject.trim() || !content.trim()}
             >
-              {logFeeAgreementEmail.isPending ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Sending...
-                </>
-              ) : (
-                <>
-                  <Send className="h-4 w-4 mr-2" />
-                  Send Email
-                </>
-              )}
+              <Send className="h-4 w-4 mr-2" />
+              Send Email
             </Button>
           </div>
         </div>

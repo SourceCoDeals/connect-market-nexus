@@ -9,7 +9,7 @@ import { Loader2, FileText, Mail, User, Calendar } from "lucide-react";
 import { User as UserType, Listing } from "@/types";
 import { formatDistanceToNow } from "date-fns";
 import { EditableSignature } from "@/components/admin/EditableSignature";
-import { useLogNDAEmail } from "@/hooks/admin/use-nda";
+// Hook removed - edge function handles both email sending and database logging
 import { useAuth } from '@/context/AuthContext';
 
 interface SimpleNDADialogProps {
@@ -27,24 +27,16 @@ export const SimpleNDADialog = ({ open, onOpenChange, user, listing, onSendEmail
   const [selectedTemplate, setSelectedTemplate] = useState<'quick' | 'standard' | 'executive'>('standard');
   
   const { user: currentUser } = useAuth();
-  const logNDAEmail = useLogNDAEmail();
 
   const handleSend = async () => {
     if (!user) return;
     
     try {
-      // Send email directly using the hook with all the necessary data
-      await logNDAEmail.mutateAsync({
-        userId: user.id,
-        userEmail: user.email,
-        customSubject: customSubject || undefined,
-        customMessage: customMessage || undefined,
-        customSignatureText: customSignatureText || undefined,
-        adminId: currentUser?.id,
-        adminEmail: currentUser?.email,
-        adminName: `${currentUser?.first_name} ${currentUser?.last_name}`.trim(),
-        listingTitle: listing?.title,
-        notes: `NDA email sent via admin interface${listing ? ` for listing: ${listing.title}` : ''}`
+      // Use the onSendEmail prop which calls the edge function directly
+      await onSendEmail(user, {
+        subject: customSubject || undefined,
+        message: customMessage || undefined,
+        customSignatureText: customSignatureText || undefined
       });
 
       // Close dialog and reset form
@@ -55,7 +47,6 @@ export const SimpleNDADialog = ({ open, onOpenChange, user, listing, onSendEmail
       
     } catch (error) {
       console.error('Error sending NDA email:', error);
-      // Error will be handled by the hook's onError
     }
   };
 
@@ -193,18 +184,9 @@ Best regards,`
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button onClick={handleSend} disabled={logNDAEmail.isPending}>
-              {logNDAEmail.isPending ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Sending...
-                </>
-              ) : (
-                <>
-                  <Mail className="h-4 w-4 mr-2" />
-                  Send NDA Email
-                </>
-              )}
+            <Button onClick={handleSend}>
+              <Mail className="h-4 w-4 mr-2" />
+              Send NDA Email
             </Button>
           </div>
         </div>

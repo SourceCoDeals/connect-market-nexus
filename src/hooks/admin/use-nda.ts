@@ -272,12 +272,9 @@ export const useLogNDAEmail = () => {
       return { previousUsers, previousRequests };
     },
     onSuccess: () => {
-      // Don't invalidate immediately - let the optimistic update persist
-      // Increased delay to ensure database updates have completed before invalidating cache
-      setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: ['admin-users'] });
-        queryClient.invalidateQueries({ queryKey: ['connection-requests'] });
-      }, 2000);
+      // Immediately invalidate queries since edge function handles the update
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+      queryClient.invalidateQueries({ queryKey: ['connection-requests'] });
       
       toast({
         title: "NDA email sent successfully",

@@ -333,20 +333,41 @@ ${adminSignature}
     // Now log to database after successful email send
     console.log('📝 Logging NDA email to database...');
     try {
-      const { data: logData, error: logError } = await supabaseAdmin.rpc('log_nda_email', {
-        target_user_id: userId,
-        recipient_email: userEmail,
-        admin_notes: `NDA email sent via admin interface${listingTitle ? ` for listing: ${listingTitle}` : ''}`
-      });
+      // Update profile status
+      const { error: profileError } = await supabaseAdmin
+        .from('profiles')
+        .update({
+          nda_email_sent: true,
+          nda_email_sent_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', userId);
+
+      if (profileError) {
+        console.error('⚠️ Profile update failed but email was sent:', profileError);
+      }
+
+      // Log the email action
+      const { error: logError } = await supabaseAdmin
+        .from('nda_logs')
+        .insert({
+          user_id: userId,
+          admin_id: adminId,
+          action_type: 'sent',
+          email_sent_to: userEmail,
+          admin_email: adminEmail,
+          admin_name: adminName,
+          notes: `NDA email sent via admin interface${listingTitle ? ` for listing: ${listingTitle}` : ''}`,
+          metadata: { email_sent: true, sent_at: new Date().toISOString() }
+        });
 
       if (logError) {
-        console.error('⚠️ Database logging failed but email was sent:', logError);
-        // Don't throw error since email was successfully sent
+        console.error('⚠️ Log insert failed but email was sent:', logError);
       } else {
-        console.log('✅ NDA email logged to database successfully');
+        console.log('✅ Database logging successful');
       }
-    } catch (dbError) {
-      console.error('⚠️ Database logging error:', dbError);
+    } catch (dbError: any) {
+      console.error('⚠️ Database logging failed but email was sent:', dbError);
       // Don't throw error since email was successfully sent
     }
 

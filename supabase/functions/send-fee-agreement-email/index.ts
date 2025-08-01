@@ -383,20 +383,41 @@ ${signatureText}` : signatureText;
     // Now log to database after successful email send
     console.log('📝 Logging fee agreement email to database...');
     try {
-      const { data: logData, error: logError } = await supabase.rpc('log_fee_agreement_email', {
-        target_user_id: userId,
-        recipient_email: userEmail,
-        admin_notes: `Fee agreement email sent via admin interface${listingTitle ? ` for listing: ${listingTitle}` : ''}`
-      });
+      // Update profile status
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({
+          fee_agreement_email_sent: true,
+          fee_agreement_email_sent_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', userId);
+
+      if (profileError) {
+        console.error('⚠️ Profile update failed but email was sent:', profileError);
+      }
+
+      // Log the email action
+      const { error: logError } = await supabase
+        .from('fee_agreement_logs')
+        .insert({
+          user_id: userId,
+          admin_id: adminId,
+          action_type: 'sent',
+          email_sent_to: userEmail,
+          admin_email: adminEmail,
+          admin_name: adminName,
+          notes: `Fee agreement email sent via admin interface${listingTitle ? ` for listing: ${listingTitle}` : ''}`,
+          metadata: { email_sent: true, sent_at: new Date().toISOString() }
+        });
 
       if (logError) {
-        console.error('⚠️ Database logging failed but email was sent:', logError);
-        // Don't throw error since email was successfully sent
+        console.error('⚠️ Log insert failed but email was sent:', logError);
       } else {
-        console.log('✅ Fee agreement email logged to database successfully');
+        console.log('✅ Database logging successful');
       }
-    } catch (dbError) {
-      console.error('⚠️ Database logging error:', dbError);
+    } catch (dbError: any) {
+      console.error('⚠️ Database logging failed but email was sent:', dbError);
       // Don't throw error since email was successfully sent
     }
 
