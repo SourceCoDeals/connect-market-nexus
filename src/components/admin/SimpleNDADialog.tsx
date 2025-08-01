@@ -24,6 +24,8 @@ export const SimpleNDADialog = ({ open, onOpenChange, user, listing, onSendEmail
   const [customMessage, setCustomMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [customSignatureText, setCustomSignatureText] = useState("");
+  // FIXED: Move this hook to the top, before any conditional returns
+  const [selectedTemplate, setSelectedTemplate] = useState<'quick' | 'standard' | 'executive'>('standard');
 
   const handleSend = async () => {
     if (!user) return;
@@ -65,9 +67,8 @@ export const SimpleNDADialog = ({ open, onOpenChange, user, listing, onSendEmail
     }
   };
 
+  // Early return AFTER all hooks are declared
   if (!user) return null;
-
-  const [selectedTemplate, setSelectedTemplate] = useState<'quick' | 'standard' | 'executive'>('standard');
 
   const quickTemplate = {
     subject: "NDA Required | SourceCo",
