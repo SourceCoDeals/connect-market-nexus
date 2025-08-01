@@ -144,23 +144,14 @@ const handler = async (req: Request): Promise<Response> => {
       const finalCalendly = customSignature?.calendly_url || adminCalendly || 'https://calendly.com/sourceco-admin/30min';
       
       adminSignature = `
-        <div style="margin-top: 40px; padding-top: 24px; border-top: 1px solid #E5E5E5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
-          <div style="color: #000000; line-height: 1.4;">
-            <div style="font-size: 16px; font-weight: 600; margin-bottom: 4px;">${effectiveAdminName}</div>
-            ${adminTitle ? `<div style="font-size: 14px; color: #666666; margin-bottom: 12px;">${adminTitle}</div>` : ''}
-            
-            <div style="font-size: 14px; color: #333333; margin-bottom: 2px;">
-              <a href="mailto:${adminEmail}" style="color: #000000; text-decoration: none;">${adminEmail}</a>
-            </div>
-            <div style="font-size: 14px; color: #666666; margin-bottom: 8px;">${finalPhone}</div>
-            <div style="font-size: 14px; margin-bottom: 16px;">
-              <a href="${finalCalendly}" style="color: #000000; text-decoration: underline;">Click here to schedule a call with me</a>
-            </div>
-            
-            <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #F0F0F0; font-size: 12px; color: #888888;">
-              This communication is confidential and may be legally privileged.
-            </div>
-          </div>
+        <div style="font-family: Arial, sans-serif; color: #333; line-height: 1.4;">
+          <p style="margin: 0;">
+            <strong>${effectiveAdminName}</strong><br>
+            ${adminTitle}<br>
+            <a href="mailto:${adminEmail}" style="color: #0066cc; text-decoration: none;">${adminEmail}</a><br>
+            <a href="tel:${finalPhone.replace(/[^\d]/g, '')}" style="color: #0066cc; text-decoration: none;">${finalPhone}</a><br>
+            <a href="${finalCalendly}" style="color: #0066cc; text-decoration: none;">Click here to schedule a call with me</a>
+          </p>
         </div>`;
       console.log('✅ Using Bill Martin format signature template');
     }

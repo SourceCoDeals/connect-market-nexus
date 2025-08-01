@@ -21,27 +21,20 @@ interface UpdateSignatureParams {
 const DEFAULT_SIGNATURE = {
   signature_html: `
     <div style="font-family: Arial, sans-serif; color: #333; line-height: 1.4;">
-      <p style="margin: 0 0 10px 0;">Best regards,</p>
-      <p style="margin: 0; line-height: 1.6;">
+      <p style="margin: 0;">
         <strong>Bill Martin</strong><br>
         Principal &amp; SVP - Growth<br>
-        SourceCo Deals<br>
         <a href="mailto:bill.martin@sourcecodeals.com" style="color: #0066cc; text-decoration: none;">bill.martin@sourcecodeals.com</a><br>
         <a href="tel:+16148326099" style="color: #0066cc; text-decoration: none;">(614) 832-6099</a><br>
-        <a href="https://calendly.com/bill-martin-sourceco/30min" style="color: #0066cc; text-decoration: none;">Schedule a call with me</a>
+        <a href="https://calendly.com/bill-martin-sourceco/30min" style="color: #0066cc; text-decoration: none;">Click here to schedule a call with me</a>
       </p>
     </div>
   `,
-  signature_text: `
-Best regards,
-
-Bill Martin
+  signature_text: `Bill Martin
 Principal & SVP - Growth
-SourceCo Deals
 bill.martin@sourcecodeals.com
 (614) 832-6099
-Schedule a call with me: https://calendly.com/bill-martin-sourceco/30min
-  `,
+Click here to schedule a call with me: https://calendly.com/bill-martin-sourceco/30min`,
   phone_number: '(614) 832-6099',
   calendly_url: 'https://calendly.com/bill-martin-sourceco/30min'
 };
