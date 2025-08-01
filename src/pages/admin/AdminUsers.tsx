@@ -28,7 +28,7 @@ const AdminUsers = () => {
   
   const [searchQuery, setSearchQuery] = useState("");
   
-  // Get user action handlers from the component
+  // Get user action handlers from the component - REMOVE REFETCH TO PREVENT CONFLICTS
   const {
     handleUserApproval,
     handleUserRejection,
@@ -41,7 +41,7 @@ const AdminUsers = () => {
     selectedUser,
     actionType,
     isLoading: isActionLoading
-  } = UserActions({ onUserStatusUpdated: refetch });
+  } = UserActions({ onUserStatusUpdated: undefined }); // CRITICAL: Remove refetch to prevent optimistic update conflicts
   
   // Handle errors and show user feedback
   useEffect(() => {

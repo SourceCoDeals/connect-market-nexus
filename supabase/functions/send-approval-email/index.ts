@@ -77,7 +77,7 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
-    // Create simple plain text email with proper spacing and signature
+    // Create simple plain text email with proper spacing and signature - FIXED LINE BREAKS
     const textSignature = customSignatureText || `\n\nQuestions? Reply to this email.\n\n${senderInfo.name}\nSourceCo`;
 
     // Send email using Brevo - plain text only
@@ -98,7 +98,7 @@ const handler = async (req: Request): Promise<Response> => {
           name: userEmail.split('@')[0]
         }],
         subject: subject,
-        textContent: `${message}${textSignature}`
+        textContent: `${message}\n\n${textSignature}`
       }),
     });
 

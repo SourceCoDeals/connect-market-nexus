@@ -205,20 +205,23 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
     customSignatureText?: string;
   }) => {
     try {
-      // 1. INSTANT UI UPDATE - Update cache immediately like rejection does
-      queryClient.setQueryData(['admin-users'], (old: User[] | undefined) => {
+      // 1. INSTANT UI UPDATE - Force immediate cache update with proper typing
+      queryClient.setQueryData(['admin-users'], (old: any[] | undefined) => {
         if (!old) return old;
-        return old.map(u => 
+        console.log('🚀 OPTIMISTIC UPDATE: Updating user', user.id, 'to approved');
+        const updated = old.map(u => 
           u.id === user.id 
-            ? { ...u, approval_status: "approved" as const }
+            ? { ...u, approval_status: "approved" }
             : u
         );
+        console.log('✅ Cache updated successfully');
+        return updated;
       });
 
       // 2. INSTANT SUCCESS FEEDBACK
       toast({
-        title: "User approved",
-        description: `${user.first_name} ${user.last_name} has been approved instantly`,
+        title: "✅ User approved instantly",
+        description: `${user.first_name} ${user.last_name} has been approved and can now access the marketplace`,
       });
 
       // 3. DATABASE UPDATE IN BACKGROUND - Don't await, let it run async
