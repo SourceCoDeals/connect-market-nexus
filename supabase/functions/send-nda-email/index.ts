@@ -156,19 +156,31 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Try to get custom admin signature from database (like fee agreement function)
     let customSignature = null;
-    try {
-      const { data: signatureData } = await supabaseAdmin
-        .from('admin_signature_preferences')
-        .select('signature_html, signature_text, phone_number, calendly_url')
-        .eq('admin_id', adminId)
-        .single();
-      
-      if (signatureData) {
-        customSignature = signatureData;
-        console.log('✅ Found custom signature for admin:', adminId);
+    console.log('🔍 Looking for custom signature for adminId:', adminId);
+    
+    if (adminId) {
+      try {
+        const { data: signatureData } = await supabaseAdmin
+          .from('admin_signature_preferences')
+          .select('signature_html, signature_text, phone_number, calendly_url')
+          .eq('admin_id', adminId)
+          .single();
+        
+        if (signatureData) {
+          customSignature = signatureData;
+          console.log('✅ Found custom signature for admin:', adminId);
+          console.log('📝 Signature data:', { 
+            hasHtml: !!signatureData.signature_html, 
+            hasText: !!signatureData.signature_text 
+          });
+        } else {
+          console.log('❌ No signature data returned from database');
+        }
+      } catch (error) {
+        console.log('⚠️ Error fetching custom signature:', error);
       }
-    } catch (error) {
-      console.log('ℹ️ No custom signature found, using default template');
+    } else {
+      console.log('⚠️ No adminId provided for signature lookup');
     }
 
     console.log('📧 Using text-only signature without logo for immediate delivery');
@@ -317,6 +329,26 @@ ${adminSignature}
 
     const brevoResult = await brevoResponse.json();
     console.log('✅ NDA email sent successfully via Brevo:', brevoResult);
+
+    // Now log to database after successful email send
+    console.log('📝 Logging NDA email to database...');
+    try {
+      const { data: logData, error: logError } = await supabaseAdmin.rpc('log_nda_email', {
+        target_user_id: userId,
+        recipient_email: userEmail,
+        admin_notes: `NDA email sent via admin interface${listingTitle ? ` for listing: ${listingTitle}` : ''}`
+      });
+
+      if (logError) {
+        console.error('⚠️ Database logging failed but email was sent:', logError);
+        // Don't throw error since email was successfully sent
+      } else {
+        console.log('✅ NDA email logged to database successfully');
+      }
+    } catch (dbError) {
+      console.error('⚠️ Database logging error:', dbError);
+      // Don't throw error since email was successfully sent
+    }
 
     return new Response(
       JSON.stringify({ 

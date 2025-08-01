@@ -197,7 +197,17 @@ export const useLogNDAEmail = () => {
       adminName, 
       listingTitle 
     }: LogNDAEmailParams) => {
-      // Send actual email via edge function
+      console.log('🚀 Sending NDA email with data:', {
+        userId,
+        userEmail,
+        adminId,
+        adminEmail,
+        adminName,
+        hasCustomMessage: !!customMessage,
+        hasCustomSignature: !!customSignatureText
+      });
+
+      // Send email via edge function (which also handles database logging)
       const { data, error } = await supabase.functions.invoke('send-nda-email', {
         body: {
           userId,
@@ -213,17 +223,14 @@ export const useLogNDAEmail = () => {
         }
       });
 
-      if (error) throw error;
-      
-      // Also log to database
-      const { data: logData, error: logError } = await supabase.rpc('log_nda_email', {
-        target_user_id: userId,
-        recipient_email: userEmail,
-        admin_notes: notes
-      });
+      if (error) {
+        console.error('❌ NDA email sending failed:', error);
+        throw error;
+      }
 
-      if (logError) throw logError;
-      return logData;
+      // The edge function handles database logging, so we don't need a separate RPC call
+      console.log('✅ NDA email sent successfully:', data);
+      return data;
     },
     onMutate: async ({ userId }) => {
       await queryClient.cancelQueries({ queryKey: ['admin-users'] });

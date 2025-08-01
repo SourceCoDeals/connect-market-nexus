@@ -178,7 +178,12 @@ export const useLogFeeAgreementEmail = () => {
 
   return useMutation({
     mutationFn: async ({ userId, userEmail, notes }: LogFeeAgreementEmailParams) => {
-      // Send actual email via edge function
+      console.log('🚀 Sending fee agreement email with data:', {
+        userId,
+        userEmail
+      });
+
+      // Send email via edge function (which also handles database logging)
       const { data, error } = await supabase.functions.invoke('send-fee-agreement-email', {
         body: {
           userId,
@@ -189,17 +194,14 @@ export const useLogFeeAgreementEmail = () => {
         }
       });
 
-      if (error) throw error;
-      
-      // Also log to database
-      const { data: logData, error: logError } = await supabase.rpc('log_fee_agreement_email', {
-        target_user_id: userId,
-        recipient_email: userEmail,
-        admin_notes: notes
-      });
+      if (error) {
+        console.error('❌ Fee agreement email sending failed:', error);
+        throw error;
+      }
 
-      if (logError) throw logError;
-      return logData;
+      // The edge function handles database logging, so we don't need a separate RPC call
+      console.log('✅ Fee agreement email sent successfully:', data);
+      return data;
     },
     onMutate: async ({ userId }) => {
       await queryClient.cancelQueries({ queryKey: ['admin-users'] });
