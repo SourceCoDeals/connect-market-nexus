@@ -22,18 +22,10 @@ export function DualFeeAgreementToggle({ user, onSendEmail, size = "default" }: 
   const updateEmailSent = useUpdateFeeAgreementEmailSent();
 
   const handleSignedToggleChange = async (checked: boolean) => {
-    console.log('🔄 Fee Agreement Signed Toggle:', { 
-      userId: user.id, 
-      userEmail: user.email,
-      currentValue: user.fee_agreement_signed, 
-      newValue: checked,
-      isUpdating: isUpdatingSigned,
-      isPending: updateFeeAgreement.isPending
-    });
+    // Fee Agreement Signed Toggle update
     
     if (isUpdatingSigned || updateFeeAgreement.isPending) {
-      console.log('⏳ Signed toggle update already in progress, skipping...');
-      return;
+      // Signed toggle update already in progress
     }
     
     setIsUpdatingSigned(true);
@@ -43,7 +35,7 @@ export function DualFeeAgreementToggle({ user, onSendEmail, size = "default" }: 
         isSigned: checked,
         notes: checked ? 'Manually marked as signed by admin' : 'Manually revoked by admin'
       });
-      console.log('✅ Fee Agreement Signed Toggle Success');
+      // Fee Agreement Signed Toggle Success
     } catch (error) {
       console.error('❌ Fee Agreement Signed Toggle Error:', error);
     } finally {
@@ -52,18 +44,10 @@ export function DualFeeAgreementToggle({ user, onSendEmail, size = "default" }: 
   };
 
   const handleEmailSentToggleChange = async (checked: boolean) => {
-    console.log('📧 Fee Agreement Email Toggle:', { 
-      userId: user.id, 
-      userEmail: user.email,
-      currentValue: user.fee_agreement_email_sent, 
-      newValue: checked,
-      isUpdating: isUpdatingEmailSent,
-      isPending: updateEmailSent.isPending
-    });
+    // Fee Agreement Email Toggle update
     
     if (isUpdatingEmailSent || updateEmailSent.isPending) {
-      console.log('⏳ Email toggle update already in progress, skipping...');
-      return;
+      // Email toggle update already in progress
     }
     
     setIsUpdatingEmailSent(true);
@@ -73,7 +57,7 @@ export function DualFeeAgreementToggle({ user, onSendEmail, size = "default" }: 
         isSent: checked,
         notes: checked ? 'Manually marked as email sent by admin' : 'Manually marked as email not sent by admin'
       });
-      console.log('✅ Fee Agreement Email Toggle Success');
+      // Fee Agreement Email Toggle Success
     } catch (error) {
       console.error('❌ Fee Agreement Email Toggle Error:', error);
     } finally {
@@ -92,14 +76,7 @@ export function DualFeeAgreementToggle({ user, onSendEmail, size = "default" }: 
   const emailSent = user.fee_agreement_email_sent || false;
   const emailSentAt = user.fee_agreement_email_sent_at;
 
-  console.log('🎛️ DualFeeAgreementToggle Render:', { 
-    userId: user.id, 
-    isSigned, 
-    signedAt, 
-    emailSent, 
-    emailSentAt,
-    userEmailField: user.email 
-  });
+  // DualFeeAgreementToggle component render
 
   if (size === "sm") {
     return (

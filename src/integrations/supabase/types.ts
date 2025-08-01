@@ -1285,6 +1285,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      log_security_event: {
+        Args: { event_type: string; user_id?: string; metadata?: Json }
+        Returns: undefined
+      }
       match_deal_alerts_with_listing: {
         Args: { listing_data: Json }
         Returns: {
@@ -1354,6 +1358,14 @@ export type Database = {
       validate_reset_token: {
         Args: { token_value: string }
         Returns: string
+      }
+      verify_production_readiness: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          check_name: string
+          status: string
+          details: string
+        }[]
       }
     }
     Enums: {
