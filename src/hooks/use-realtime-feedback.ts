@@ -30,7 +30,7 @@ export function useRealtimeFeedback() {
           table: "feedback_messages",
         },
         (payload) => {
-          console.log("New feedback message:", payload);
+          // Debug log removed
           const newFeedback = payload.new as FeedbackRealtimeData;
           setFeedbackMessages((prev) => [newFeedback, ...prev]);
         }
@@ -43,7 +43,7 @@ export function useRealtimeFeedback() {
           table: "feedback_messages",
         },
         (payload) => {
-          console.log("Feedback message updated:", payload);
+          // Debug log removed
           const updatedFeedback = payload.new as FeedbackRealtimeData;
           setFeedbackMessages((prev) =>
             prev.map((msg) => (msg.id === updatedFeedback.id ? updatedFeedback : msg))
@@ -51,12 +51,12 @@ export function useRealtimeFeedback() {
         }
       )
       .subscribe((status) => {
-        console.log("Feedback realtime subscription status:", status);
+        // Debug log removed
         setIsConnected(status === "SUBSCRIBED");
       });
 
     return () => {
-      console.log("Unsubscribing from feedback realtime");
+      // Debug log removed
       supabase.removeChannel(channel);
       setIsConnected(false);
     };

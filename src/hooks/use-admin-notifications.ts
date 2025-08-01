@@ -9,7 +9,7 @@ export function useAdminNotifications() {
    */
   const notifyAdminsOfNewRequest = async (request: AdminConnectionRequest) => {
     if (!request.user || !request.listing) {
-      console.error("Cannot send notification: missing user or listing data");
+      // Debug log removed
       return false;
     }
 
@@ -43,19 +43,19 @@ export function useAdminNotifications() {
       );
       
       if (error) {
-        console.error("Error sending admin notification:", error);
+        // Debug log removed
         return false;
       }
       
       if (data && !data.success) {
-        console.error("Failed to send admin notification:", data.message);
+        // Debug log removed
         return false;
       }
       
-      console.log("Admin notification sent successfully");
+      // Debug log removed
       return true;
     } catch (error) {
-      console.error("Failed to send admin notification:", error);
+      // Debug log removed
       return false;
     }
   };

@@ -55,7 +55,7 @@ export function AnalyticsTestPanel() {
       logTestResult('Connection Request', true, 'test-listing-123 connection requested');
 
       // Test 6: Track a search
-      console.log('🧪 Test 6: Search Tracking');
+      // Debug log removed
       await trackSearch('test search query', { category: 'technology' }, 42);
       logTestResult('Search Query', true, 'test search tracked with 42 results');
 
@@ -63,7 +63,7 @@ export function AnalyticsTestPanel() {
       setTimeout(async () => {
         try {
           // Test 7: Verify data in database
-          console.log('🧪 Test 7: Database Verification');
+          // Debug log removed
           
           const { data: pageViews } = await supabase
             .from('page_views')

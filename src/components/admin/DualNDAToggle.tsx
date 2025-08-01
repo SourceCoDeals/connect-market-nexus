@@ -20,14 +20,7 @@ export const DualNDAToggle = ({ user, onSendEmail, size = "default" }: DualNDATo
   const updateNDA = useUpdateNDA();
   const updateNDAEmailSent = useUpdateNDAEmailSent();
 
-  console.log('🎛️ DualNDAToggle Render:', {
-    userId: user.id,
-    isSigned: user.nda_signed,
-    signedAt: user.nda_signed_at,
-    emailSent: user.nda_email_sent,
-    emailSentAt: user.nda_email_sent_at,
-    userEmailField: user.email
-  });
+  // Debug log removed
 
   const handleSignedToggleChange = async (checked: boolean) => {
     if (isUpdatingSigned || updateNDA.isPending) return;

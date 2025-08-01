@@ -78,15 +78,13 @@ startxref
     const reader = new FileReader();
     reader.onload = (e) => {
       const result = e.target?.result as string;
-      console.log('📄 Test PDF base64 preview:', result.substring(0, 100) + '...');
-      console.log('📏 Base64 length:', result.length);
+      // Debug log removed
       
       // Test decoding
       try {
         const base64Data = result.split(',')[1];
         const decoded = atob(base64Data);
-        console.log('✅ Base64 decode test passed. Decoded size:', decoded.length);
-        console.log('🔍 PDF header check:', decoded.substring(0, 5) === '%PDF' ? 'Valid' : 'Invalid');
+        // Debug log removed
       } catch (error) {
         console.error('❌ Base64 decode test failed:', error);
       }

@@ -74,7 +74,7 @@ export const TabVisibilityProvider: React.FC<{ children: ReactNode }> = ({ child
       const newVisibility = !document.hidden;
       
       if (newVisibility !== isVisible) {
-        console.log(`👁️ Tab visibility changed: ${isVisible ? 'visible' : 'hidden'} → ${newVisibility ? 'visible' : 'hidden'}`);
+        // Debug log removed
         
         setIsVisible(newVisibility);
         setLastVisibilityChange(Date.now());

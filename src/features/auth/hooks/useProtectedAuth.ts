@@ -16,7 +16,7 @@ export const useProtectedAuth = (): ProtectedAuthContextType => {
     try {
       validateSignupStateTransition(signupFlowState, newState);
       // Update state in context
-      console.log(`Signup state transition: ${signupFlowState} -> ${newState}`);
+      // Debug log removed
     } catch (error) {
       console.error('Invalid signup state transition:', error);
       throw error;

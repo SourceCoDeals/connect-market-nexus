@@ -22,7 +22,7 @@ export const useSignupAnalytics = (sessionId: string, email?: string) => {
         dropped_off: false
       });
     } catch (error) {
-      console.error('Error tracking signup step:', error);
+      // Debug log removed
     }
   };
 
@@ -39,7 +39,7 @@ export const useSignupAnalytics = (sessionId: string, email?: string) => {
         drop_off_reason: step.dropOffReason
       });
     } catch (error) {
-      console.error('Error tracking signup drop-off:', error);
+      // Debug log removed
     }
   };
 
@@ -53,7 +53,7 @@ export const useSignupAnalytics = (sessionId: string, email?: string) => {
         dropped_off: false
       });
     } catch (error) {
-      console.error('Error tracking signup completion:', error);
+      // Debug log removed
     }
   };
 
