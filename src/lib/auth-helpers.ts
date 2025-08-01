@@ -50,6 +50,12 @@ export function createUserObject(profile: any): User {
       fee_agreement_email_sent: Boolean(profile.fee_agreement_email_sent),
       fee_agreement_email_sent_at: profile.fee_agreement_email_sent_at || null,
       
+      // NDA tracking fields
+      nda_signed: Boolean(profile.nda_signed),
+      nda_signed_at: profile.nda_signed_at || null,
+      nda_email_sent: Boolean(profile.nda_email_sent),
+      nda_email_sent_at: profile.nda_email_sent_at || null,
+      
       get firstName() { return this.first_name; },
       get lastName() { return this.last_name; },
       get phoneNumber() { return this.phone_number; },
