@@ -92,28 +92,50 @@ const handler = async (req: Request): Promise<Response> => {
 
     const signatureHtml = customSignatureHtml || defaultSignature;
 
-    // Construct HTML email content
+    // Construct SourceCo-branded HTML email content
     const htmlContent = `
-      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-        <div style="background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); padding: 30px; border-radius: 12px; margin-bottom: 30px;">
-          <h1 style="color: white; font-size: 28px; font-weight: 700; margin: 0; text-align: center;">
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f8fafc;">
+        <!-- Header with SourceCo Branding -->
+        <div style="background: linear-gradient(135deg, #b8860b 0%, #daa520 50%, #b8860b 100%); padding: 40px; border-radius: 16px; margin-bottom: 30px; text-align: center; box-shadow: 0 8px 32px rgba(184, 134, 11, 0.3);">
+          <div style="background: rgba(255, 255, 255, 0.1); border-radius: 50%; width: 80px; height: 80px; margin: 0 auto 20px; display: flex; align-items: center; justify-content: center;">
+            <div style="color: white; font-size: 36px; font-weight: 900;">S</div>
+          </div>
+          <h1 style="color: white; font-size: 32px; font-weight: 800; margin: 0; text-shadow: 0 2px 4px rgba(0,0,0,0.2);">
             Welcome to SourceCo
           </h1>
-          <p style="color: #e0e7ff; font-size: 16px; margin: 12px 0 0 0; text-align: center;">
+          <p style="color: rgba(255, 255, 255, 0.9); font-size: 18px; margin: 12px 0 0 0; font-weight: 500;">
             Your account has been approved
           </p>
         </div>
         
-        <div style="background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
-          <div style="white-space: pre-wrap; color: #374151; font-size: 16px; line-height: 1.6;">
+        <!-- Main Content -->
+        <div style="background: white; padding: 40px; border-radius: 16px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08); border: 1px solid #e2e8f0;">
+          <!-- Success Badge -->
+          <div style="text-align: center; margin-bottom: 30px;">
+            <div style="display: inline-block; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 12px 24px; border-radius: 50px; font-weight: 600; font-size: 14px; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);">
+              ✓ Account Approved
+            </div>
+          </div>
+          
+          <!-- Message Content -->
+          <div style="white-space: pre-wrap; color: #374151; font-size: 16px; line-height: 1.7; margin-bottom: 30px;">
 ${message}
+          </div>
+          
+          <!-- Call to Action -->
+          <div style="text-align: center; margin: 40px 0;">
+            <a href="https://marketplace.sourcecodeals.com/marketplace" style="display: inline-block; background: linear-gradient(135deg, #b8860b 0%, #daa520 100%); color: white; padding: 16px 32px; border-radius: 12px; text-decoration: none; font-weight: 600; font-size: 16px; box-shadow: 0 6px 20px rgba(184, 134, 11, 0.4); transition: transform 0.2s;">
+              Explore Marketplace →
+            </a>
           </div>
           
           ${signatureHtml}
         </div>
         
-        <div style="text-align: center; margin-top: 30px; color: #6b7280; font-size: 14px;">
-          <p>This email was sent regarding your SourceCo marketplace account.</p>
+        <!-- Footer -->
+        <div style="text-align: center; margin-top: 30px; color: #64748b; font-size: 14px;">
+          <p style="margin: 0;">© ${new Date().getFullYear()} SourceCo. Premium Business Marketplace.</p>
+          <p style="margin: 8px 0 0 0;">This email was sent regarding your SourceCo marketplace account.</p>
         </div>
       </div>
     `;

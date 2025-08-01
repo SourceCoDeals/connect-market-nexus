@@ -26,50 +26,22 @@ interface ApprovalEmailDialogProps {
   }) => Promise<void>;
 }
 
-const APPROVAL_TEMPLATES = {
-  standard: {
-    name: "Standard",
-    subject: "Account Approved | SourceCo",
-    message: `Dear {{userName}},
+const DEFAULT_APPROVAL_EMAIL = {
+  subject: "Welcome to SourceCo | Account Approved",
+  message: `Dear {{userName}},
 
-Congratulations! Your account has been approved and you now have full access to our marketplace.
+Congratulations! Your SourceCo marketplace account has been approved and you now have full access to our exclusive business marketplace.
 
-You can now:
-• Browse all available listings
-• Submit connection requests
-• Access detailed business information
-• Save listings to your portfolio
+What You Can Do Now:
+• Browse our curated portfolio of investment opportunities
+• Submit connection requests to sellers
+• Access detailed financial data and due diligence materials
+• Save listings to your personal portfolio
+• Connect directly with our advisory team
 
-Welcome to SourceCo's exclusive marketplace.
-
-Best regards,`
-  },
-  executive: {
-    name: "Executive",
-    subject: "Welcome to SourceCo | Account Approved",
-    message: `Dear {{userName}},
-
-We're delighted to welcome you to SourceCo's exclusive marketplace. Your account has been approved for our premium member services.
-
-As an approved member, you now have access to:
-• Our complete portfolio of curated opportunities
-• Priority connection requests with immediate processing
-• Detailed financial data and due diligence materials
-• Direct access to our advisory team
-
-We look forward to supporting your acquisition journey.
+Your journey to finding the perfect acquisition opportunity starts here. We look forward to helping you discover exceptional businesses that match your investment criteria.
 
 Best regards,`
-  },
-  quick: {
-    name: "Quick",
-    subject: "Account Approved | SourceCo",
-    message: `Dear {{userName}},
-
-Your SourceCo account has been approved. You now have full marketplace access.
-
-Best regards,`
-  }
 };
 
 export function ApprovalEmailDialog({ 
@@ -78,7 +50,6 @@ export function ApprovalEmailDialog({
   user, 
   onSendApprovalEmail 
 }: ApprovalEmailDialogProps) {
-  const [selectedTemplate, setSelectedTemplate] = useState<'standard' | 'executive' | 'quick'>('standard');
   const [customSubject, setCustomSubject] = useState("");
   const [customMessage, setCustomMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -89,9 +60,8 @@ export function ApprovalEmailDialog({
     ? `${user.first_name} ${user.last_name}` 
     : user?.first_name || user?.email?.split('@')[0] || "";
 
-  const currentTemplate = APPROVAL_TEMPLATES[selectedTemplate];
-  const defaultSubject = currentTemplate.subject;
-  const defaultMessage = currentTemplate.message.replace(/{{userName}}/g, userName);
+  const defaultSubject = DEFAULT_APPROVAL_EMAIL.subject;
+  const defaultMessage = DEFAULT_APPROVAL_EMAIL.message.replace(/{{userName}}/g, userName);
 
   const handleSend = async () => {
     if (!user) return;
@@ -121,98 +91,100 @@ export function ApprovalEmailDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <CheckCircle className="h-5 w-5" />
-            Send Approval Email
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto p-4 sm:p-6">
+        <DialogHeader className="space-y-3">
+          <DialogTitle className="flex items-center gap-2 text-lg sm:text-xl">
+            <CheckCircle className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
+            Approve User & Send Welcome Email
           </DialogTitle>
+          <p className="text-sm text-muted-foreground">
+            This will approve the user's account and send them a professional welcome email.
+          </p>
         </DialogHeader>
 
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
           {/* User Information */}
-          <div className="bg-muted/50 p-4 rounded-lg space-y-2">
-            <div className="flex items-center gap-2">
-              <User className="h-4 w-4 text-muted-foreground" />
-              <span className="font-medium">{userName}</span>
-              <Badge variant="outline">{user.email}</Badge>
+          <div className="bg-gradient-to-r from-primary/5 to-primary/10 p-3 sm:p-4 rounded-lg border border-primary/20">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+              <User className="h-4 w-4 text-primary" />
+              <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
+                <span className="font-medium text-foreground">{userName}</span>
+                <Badge variant="outline" className="w-fit text-xs">{user.email}</Badge>
+              </div>
             </div>
-            <div className="text-sm text-muted-foreground">
-              Approval status: {user.approval_status}
-            </div>
-          </div>
-
-          {/* Template Selection */}
-          <div className="space-y-3">
-            <Label>Email Template</Label>
-            <div className="grid grid-cols-3 gap-2">
-              {Object.entries(APPROVAL_TEMPLATES).map(([key, template]) => (
-                <Button
-                  key={key}
-                  type="button"
-                  variant={selectedTemplate === key ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setSelectedTemplate(key as keyof typeof APPROVAL_TEMPLATES)}
-                  className="text-xs"
-                >
-                  {template.name}
-                </Button>
-              ))}
+            <div className="text-sm text-muted-foreground mt-2">
+              Current status: <span className="capitalize">{user.approval_status}</span>
             </div>
           </div>
 
           {/* Email Customization */}
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="subject">Email Subject (optional)</Label>
+              <Label htmlFor="subject" className="text-sm font-medium">Email Subject</Label>
               <Input
                 id="subject"
                 placeholder={defaultSubject}
                 value={customSubject}
                 onChange={(e) => setCustomSubject(e.target.value)}
+                className="text-sm"
               />
+              <p className="text-xs text-muted-foreground">
+                Leave empty to use default: "{defaultSubject}"
+              </p>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="message">Custom Message (optional)</Label>
+              <Label htmlFor="message" className="text-sm font-medium">Welcome Message</Label>
               <Textarea
                 id="message"
                 placeholder={defaultMessage}
                 value={customMessage}
                 onChange={(e) => setCustomMessage(e.target.value)}
-                rows={6}
-                className="resize-none"
+                rows={8}
+                className="resize-none text-sm"
               />
               <p className="text-xs text-muted-foreground">
-                Leave empty to use the selected template
+                Customize the welcome message or leave empty to use the professional default template
               </p>
             </div>
 
             {/* Email Signature */}
-            <EditableSignature 
-              showInline
-              onSignatureChange={(html, text) => {
-                setCustomSignatureHtml(html);
-                setCustomSignatureText(text);
-              }}
-            />
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Email Signature</Label>
+              <EditableSignature 
+                showInline
+                onSignatureChange={(html, text) => {
+                  setCustomSignatureHtml(html);
+                  setCustomSignatureText(text);
+                }}
+              />
+            </div>
           </div>
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+        <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0 pt-4">
+          <Button 
+            variant="outline" 
+            onClick={() => onOpenChange(false)}
+            className="w-full sm:w-auto"
+            disabled={isLoading}
+          >
             Cancel
           </Button>
-          <Button onClick={handleSend} disabled={isLoading}>
+          <Button 
+            onClick={handleSend} 
+            disabled={isLoading}
+            className="w-full sm:w-auto bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary"
+          >
             {isLoading ? (
               <>
                 <Mail className="h-4 w-4 mr-2 animate-spin" />
-                Sending...
+                Approving & Sending...
               </>
             ) : (
               <>
-                <Send className="h-4 w-4 mr-2" />
-                Send Approval Email
+                <CheckCircle className="h-4 w-4 mr-2" />
+                Approve User & Send Email
               </>
             )}
           </Button>

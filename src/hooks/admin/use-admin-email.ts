@@ -315,6 +315,7 @@ export function useAdminEmail() {
   
   /**
    * Send a custom approval email using the new approval email system
+   * This function both sends the email AND approves the user
    */
   const sendCustomApprovalEmail = async (user: User, options: {
     subject: string;
@@ -322,10 +323,24 @@ export function useAdminEmail() {
     customSignatureHtml?: string;
     customSignatureText?: string;
   }) => {
-    // Sending custom approval email
+    // Sending custom approval email and approving user
     const correlationId = `custom-approval-${user.id}-${Date.now()}`;
     
     try {
+      // First, approve the user
+      const { error: approvalError } = await supabase
+        .from('profiles')
+        .update({ 
+          approval_status: 'approved',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', user.id);
+
+      if (approvalError) {
+        console.error('❌ Error approving user:', approvalError);
+        throw new Error('Failed to approve user: ' + approvalError.message);
+      }
+
       // Get current admin user info
       const { data: { user: currentUser }, error: authError } = await supabase.auth.getUser();
       if (authError || !currentUser) {
@@ -380,7 +395,7 @@ export function useAdminEmail() {
         throw new Error(data.message || 'Failed to send custom approval email');
       }
       
-      // Custom approval email sent successfully
+      // Custom approval email sent successfully and user approved
       trackEmailDelivery(correlationId, {
         success: true,
         messageId: data?.messageId,
@@ -388,8 +403,8 @@ export function useAdminEmail() {
       });
       
       toast({
-        title: "Email sent",
-        description: `Custom approval email sent to ${user.email}`,
+        title: "User approved and email sent",
+        description: `${user.first_name} ${user.last_name} has been approved and notified via email`,
       });
       
       return true;
@@ -402,8 +417,8 @@ export function useAdminEmail() {
       
       toast({
         variant: "destructive",
-        title: "Email failed",
-        description: "Failed to send custom approval email. Please try again.",
+        title: "Approval failed",
+        description: "Failed to approve user and send email. Please try again.",
       });
       throw error;
     }

@@ -217,6 +217,8 @@ const AdminRequests = () => {
               await sendCustomApprovalEmail(user, options);
               setIsApprovalEmailDialogOpen(false);
               setSelectedUserForApprovalEmail(null);
+              // Refresh the data to show updated approval status
+              refetch();
             } catch (error) {
               console.error('Error sending approval email:', error);
             }
