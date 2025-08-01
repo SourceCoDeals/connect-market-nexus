@@ -68,9 +68,7 @@ export function ApprovalEmailDialog({
     
     setIsLoading(true);
     try {
-      // Close dialog immediately to prevent flashing
-      onOpenChange(false);
-      
+      // Don't close dialog here - let UserActions handle it to prevent race condition
       await onSendApprovalEmail(user, {
         subject: customSubject || defaultSubject,
         message: customMessage || defaultMessage,

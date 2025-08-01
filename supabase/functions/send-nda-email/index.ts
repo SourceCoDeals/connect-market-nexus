@@ -199,6 +199,12 @@ const handler = async (req: Request): Promise<Response> => {
       console.log(`📎 Processing attachment ${index + 1}/${finalAttachments.length}: ${attachment.name}`);
       
       try {
+        // Validate attachment has content
+        if (!attachment.content) {
+          console.error(`❌ Attachment ${attachment.name} has no content`);
+          continue;
+        }
+        
         // Validate base64 content
         const cleanBase64 = attachment.content.replace(/^data:[^;]+;base64,/, '');
         console.log(`📎 Original content length for ${attachment.name}: ${cleanBase64.length} chars`);
