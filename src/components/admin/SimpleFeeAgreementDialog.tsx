@@ -28,65 +28,40 @@ interface SimpleFeeAgreementDialogProps {
 }
 
 const TEMPLATES = {
-  standard: {
-    name: "Standard Business",
-    subject: "Fee Agreement - {{userName}} | SourceCo",
+  quick: {
+    name: "Quick",
+    subject: "Fee Agreement | SourceCo",
     content: `Dear {{userName}},
 
-We are pleased to present our Fee Agreement for your review and execution. This document establishes the framework for our professional relationship and outlines the terms that will govern our collaboration.
+Please review and sign the attached fee agreement to proceed with your connection request.
 
-Key Agreement Elements:
-• Professional fees and transparent payment structure
-• Comprehensive scope of services and deliverables
-• Strict confidentiality and non-disclosure provisions
-• Project timeline, milestones, and success metrics
-• Exclusive representation and fiduciary obligations
+Best regards,`
+  },
+  standard: {
+    name: "Standard", 
+    subject: "Fee Agreement | SourceCo",
+    content: `Dear {{userName}},
 
-We encourage you to carefully review all terms and conditions. Our team remains readily available to address any questions or discuss specific provisions.
+We're pleased to present our Fee Agreement for your review. This document outlines our transparent fee structure and professional service terms for successful transactions.
 
-Upon your acceptance of these terms, please execute and return the agreement to formalize our engagement.
+Upon execution, you'll receive priority access to our premium deal flow and enhanced advisory services.
 
-We appreciate the opportunity to serve as your trusted partner and look forward to a successful collaboration.
+Please review, execute, and return at your earliest convenience.
 
 Best regards,`
   },
   executive: {
-    name: "Executive Premium",
-    subject: "Executive Fee Agreement - {{userName}} | SourceCo",
+    name: "Executive",
+    subject: "Exclusive Fee Agreement | SourceCo",
     content: `Dear {{userName}},
 
-We are honored to present our Executive Fee Agreement, crafted for high-value strategic engagements. This comprehensive document establishes the premium framework for our exclusive partnership.
+We're honored to present our Executive Fee Agreement, designed for sophisticated buyers seeking premium market access.
 
-Premium Service Framework:
-• Strategic advisory and execution guidance
-• Priority access to premium deal flow
-• Dedicated executive relationship management
-• Accelerated processing and response times
-• Comprehensive market intelligence and insights
+This agreement provides exclusive access to our curated deal pipeline, priority advisory services, and institutional-grade transaction support aligned with your acquisition strategy.
 
-This agreement reflects our commitment to delivering exceptional value through personalized service, strategic insight, and unwavering dedication to your success.
+Please review and execute to activate your exclusive membership benefits.
 
-Your agreement will receive expedited review and processing within 24 hours of execution.
-
-We are privileged to partner with you and remain committed to exceeding your expectations at every stage of our collaboration.
-
-With distinguished regards,`
-  },
-  minimal: {
-    name: "Clean & Minimal",
-    subject: "Fee Agreement | SourceCo",
-    content: `Hello,
-
-Please find attached our Fee Agreement for your review.
-
-This document outlines:
-- Service terms and fees
-- Project scope and timeline
-- Confidentiality provisions
-
-Please review and return signed when ready.
-
-Thank you,`
+Best regards,`
   }
 };
 

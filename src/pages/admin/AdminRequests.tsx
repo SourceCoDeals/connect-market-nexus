@@ -14,7 +14,7 @@ import { MobileConnectionRequests } from "@/components/admin/MobileConnectionReq
 const AdminRequests = () => {
   const { useConnectionRequests, useConnectionRequestsMutation, sendConnectionApprovalEmail, sendConnectionRejectionEmail } = useAdmin();
   
-  const { data: requests = [], isLoading, error } = useConnectionRequests();
+  const { data: requests = [], isLoading, error, refetch } = useConnectionRequests();
   const { mutate: updateRequest, isPending: isUpdating } = useConnectionRequestsMutation();
   const isMobile = useIsMobile();
   
@@ -179,6 +179,7 @@ const AdminRequests = () => {
               setIsDialogOpen(true);
             }}
             isLoading={isLoading}
+            onRefresh={() => refetch()}
           />
         </div>
       </div>

@@ -49,24 +49,45 @@ export const SimpleNDADialog = ({ open, onOpenChange, user, onSendEmail }: Simpl
 
   if (!user) return null;
 
-  const defaultSubject = "Non-Disclosure Agreement | SourceCo";
-  const defaultMessage = `Dear ${user.first_name || user.email},
+  const [selectedTemplate, setSelectedTemplate] = useState<'quick' | 'standard' | 'executive'>('standard');
 
-We are pleased to present our Non-Disclosure Agreement for your review and execution. This document establishes the confidentiality framework necessary for our business discussions.
+  const templates = {
+    quick: {
+      subject: "NDA Required | SourceCo",
+      message: `Dear ${user.first_name || user.email},
 
-Key Provisions:
-• Strict confidentiality of all shared information
-• Protection of proprietary business data
-• Professional obligations and legal safeguards
-• Mutual respect for sensitive commercial details
+Please sign the attached NDA to access confidential deal information.
 
-This agreement enables us to provide detailed business intelligence, financial data, and investment opportunities that match your acquisition criteria.
+Best regards,`
+    },
+    standard: {
+      subject: "Non-Disclosure Agreement | SourceCo",
+      message: `Dear ${user.first_name || user.email},
 
-Upon execution, you will gain immediate access to our comprehensive deal flow and proprietary market insights.
+Please review and execute our Non-Disclosure Agreement to access detailed business intelligence and financial data matching your acquisition criteria.
+
+Upon execution, you'll gain immediate access to our comprehensive deal flow and proprietary market insights.
 
 Please review, execute, and return at your earliest convenience.
 
-Best regards,`;
+Best regards,`
+    },
+    executive: {
+      subject: "Exclusive NDA | SourceCo",
+      message: `Dear ${user.first_name || user.email},
+
+We're pleased to present our Executive Non-Disclosure Agreement, providing access to our most confidential investment opportunities.
+
+This agreement enables exclusive access to proprietary deal intelligence, detailed financial data, and premium market insights reserved for our select partners.
+
+Please execute to unlock your exclusive access to our premier deal pipeline.
+
+Best regards,`
+    }
+  };
+
+  const defaultSubject = templates[selectedTemplate].subject;
+  const defaultMessage = templates[selectedTemplate].message;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -127,8 +148,41 @@ Best regards,`;
             </div>
           </div>
 
-          {/* Email Customization */}
+          {/* Template Selection */}
           <div className="space-y-4">
+            <div className="space-y-3">
+              <Label>Email Template</Label>
+              <div className="grid grid-cols-3 gap-2">
+                <Button
+                  type="button"
+                  variant={selectedTemplate === 'quick' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setSelectedTemplate('quick')}
+                  className="text-xs"
+                >
+                  Quick
+                </Button>
+                <Button
+                  type="button"
+                  variant={selectedTemplate === 'standard' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setSelectedTemplate('standard')}
+                  className="text-xs"
+                >
+                  Standard
+                </Button>
+                <Button
+                  type="button"
+                  variant={selectedTemplate === 'executive' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setSelectedTemplate('executive')}
+                  className="text-xs"
+                >
+                  Executive
+                </Button>
+              </div>
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="subject">Email Subject (optional)</Label>
               <Input
@@ -146,11 +200,11 @@ Best regards,`;
                 placeholder={defaultMessage}
                 value={customMessage}
                 onChange={(e) => setCustomMessage(e.target.value)}
-                rows={8}
+                rows={6}
                 className="resize-none"
               />
               <p className="text-xs text-muted-foreground">
-                Leave empty to use the default professional message template
+                Leave empty to use the selected template
               </p>
             </div>
 

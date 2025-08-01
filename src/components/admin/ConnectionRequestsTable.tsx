@@ -15,12 +15,15 @@ import { AdminConnectionRequest } from '@/types/admin';
 import { ChevronDown, ChevronRight, MessageSquare } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Link } from 'react-router-dom';
+import { ConnectionRequestEmailActions } from './ConnectionRequestEmailActions';
+import { SmartWorkflowSuggestions } from './SmartWorkflowSuggestions';
 
 interface ConnectionRequestsTableProps {
   requests: AdminConnectionRequest[];
   onApprove: (request: AdminConnectionRequest) => void;
   onReject: (request: AdminConnectionRequest) => void;
   isLoading: boolean;
+  onRefresh?: () => void;
 }
 
 // Smaller component for table loading state
@@ -43,10 +46,11 @@ const ConnectionRequestsTableEmpty = () => (
 );
 
 // Smaller component for request details
-const RequestDetails = ({ request, onApprove, onReject }: { 
+const RequestDetails = ({ request, onApprove, onReject, onRefresh }: { 
   request: AdminConnectionRequest;
   onApprove: (request: AdminConnectionRequest) => void;
   onReject: (request: AdminConnectionRequest) => void;
+  onRefresh?: () => void;
 }) => (
   <div className="mt-4 flex flex-col space-y-4">
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -115,9 +119,56 @@ const RequestDetails = ({ request, onApprove, onReject }: {
       </div>
     )}
     
-    <div className="mt-4 flex justify-end gap-2">
-      {request.status === "pending" ? (
-        <>
+    <div className="mt-4 space-y-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div>
+          {request.user && (
+            <div className="space-y-3">
+              <h4 className="font-semibold text-sm">Quick Actions</h4>
+              <ConnectionRequestEmailActions 
+                user={request.user} 
+                onEmailSent={onRefresh}
+              />
+            </div>
+          )}
+        </div>
+        
+        <div>
+          {request.user && (
+            <SmartWorkflowSuggestions 
+              user={request.user}
+              onSuggestedAction={(action, user) => {
+                if (action === 'approve_user') {
+                  onApprove(request);
+                }
+                // Other suggested actions can be handled here
+              }}
+            />
+          )}
+        </div>
+      </div>
+      
+      <div className="flex justify-end gap-2">
+        {request.status === "pending" ? (
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-green-500 hover:bg-green-500 hover:text-white"
+              onClick={() => onApprove(request)}
+            >
+              Approve
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-red-500 hover:bg-red-500 hover:text-white"
+              onClick={() => onReject(request)}
+            >
+              Reject
+            </Button>
+          </>
+        ) : request.status === "rejected" ? (
           <Button
             variant="outline"
             size="sm"
@@ -126,34 +177,17 @@ const RequestDetails = ({ request, onApprove, onReject }: {
           >
             Approve
           </Button>
+        ) : (
           <Button
             variant="outline"
             size="sm"
             className="border-red-500 hover:bg-red-500 hover:text-white"
             onClick={() => onReject(request)}
           >
-            Reject
+            Revoke
           </Button>
-        </>
-      ) : request.status === "rejected" ? (
-        <Button
-          variant="outline"
-          size="sm"
-          className="border-green-500 hover:bg-green-500 hover:text-white"
-          onClick={() => onApprove(request)}
-        >
-          Approve
-        </Button>
-      ) : (
-        <Button
-          variant="outline"
-          size="sm"
-          className="border-red-500 hover:bg-red-500 hover:text-white"
-          onClick={() => onReject(request)}
-        >
-          Revoke
-        </Button>
-      )}
+        )}
+      </div>
     </div>
   </div>
 );
@@ -176,6 +210,7 @@ export const ConnectionRequestsTable = ({
   onApprove,
   onReject,
   isLoading,
+  onRefresh,
 }: ConnectionRequestsTableProps) => {
   const [expandedRequestId, setExpandedRequestId] = useState<string | null>(null);
   
@@ -311,6 +346,7 @@ export const ConnectionRequestsTable = ({
                         request={request} 
                         onApprove={onApprove} 
                         onReject={onReject}
+                        onRefresh={onRefresh}
                       />
                     </TableCell>
                   </TableRow>
