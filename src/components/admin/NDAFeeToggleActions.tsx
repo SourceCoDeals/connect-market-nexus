@@ -37,13 +37,13 @@ export function NDAFeeToggleActions({
   const getStatusBadge = (sent: boolean, signed: boolean, type: 'fee' | 'nda', sentAt?: string, signedAt?: string) => {
     if (signed && signedAt) {
       const timeAgo = formatDistanceToNow(new Date(signedAt), { addSuffix: true });
-      return <Badge variant="default" className="text-xs bg-green-100 text-green-800 border-green-200" title={`Signed ${timeAgo}`}><CheckCircle className="h-3 w-3 mr-1" />Signed {timeAgo}</Badge>;
+      return <Badge variant="default" className="text-xs bg-green-100 text-green-800 border-green-200 hover:bg-green-200" title={`Signed ${timeAgo}`}><CheckCircle className="h-3 w-3 mr-1" />Signed {timeAgo}</Badge>;
     }
     if (sent && sentAt) {
       const timeAgo = formatDistanceToNow(new Date(sentAt), { addSuffix: true });
-      return <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-800 border-blue-200" title={`Sent ${timeAgo}`}><Clock className="h-3 w-3 mr-1" />Sent {timeAgo}</Badge>;
+      return <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-800 border-blue-200 hover:bg-blue-200" title={`Sent ${timeAgo}`}><Clock className="h-3 w-3 mr-1" />Sent {timeAgo}</Badge>;
     }
-    return <Badge variant="outline" className="text-xs bg-gray-100 text-gray-600 border-gray-300"><XCircle className="h-3 w-3 mr-1" />Pending</Badge>;
+    return <Badge variant="outline" className="text-xs bg-amber-100 text-amber-800 border-amber-200 hover:bg-amber-200"><XCircle className="h-3 w-3 mr-1" />Required</Badge>;
   };
 
   const handleNDASignedToggle = (checked: boolean) => {

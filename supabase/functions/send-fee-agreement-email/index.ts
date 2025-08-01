@@ -23,6 +23,7 @@ interface FeeAgreementEmailRequest {
   adminId?: string;
   adminEmail?: string;
   adminName?: string;
+  listingTitle?: string;
   attachments?: Array<{
     name: string;
     content: string; // base64 encoded
@@ -64,16 +65,22 @@ const handler = async (req: Request): Promise<Response> => {
       adminId, 
       adminEmail, 
       adminName,
+      listingTitle,
       attachments 
     }: FeeAgreementEmailRequest = await req.json();
+
+    const emailSubject = listingTitle 
+      ? `Fee Agreement - ${listingTitle} | SourceCo`
+      : subject || 'Fee Agreement | SourceCo';
 
     console.log(`📧 Starting fee agreement email process`, { 
       userEmail, 
       userId, 
       useTemplate, 
-      subject, 
+      subject: emailSubject, 
       adminEmail, 
       adminName,
+      listingTitle,
       attachmentCount: attachments?.length || 0 
     });
 
@@ -125,8 +132,7 @@ const handler = async (req: Request): Promise<Response> => {
       console.log('ℹ️ No custom signature found, using default template');
     }
 
-    // Use custom content if provided, otherwise use default template
-    const emailSubject = subject || "SourceCo - Fee Agreement";
+    // Email subject is already set above with listing title if available
     
     // Skip logo entirely for fast, reliable emails
     console.log('📧 Using text-only signature without logo for immediate delivery');

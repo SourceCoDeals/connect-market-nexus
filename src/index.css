@@ -21,6 +21,16 @@
     --accent-foreground: 222.2 47.4% 11.2%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
+    
+    /* Professional status colors */
+    --status-required: 25 95% 53%;
+    --status-required-foreground: 0 0% 100%;
+    --status-sent: 210 100% 56%;
+    --status-sent-foreground: 0 0% 100%;
+    --status-completed: 142 71% 45%;
+    --status-completed-foreground: 0 0% 100%;
+    --status-pending: 47 96% 89%;
+    --status-pending-foreground: 24 45% 37%;
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
     --ring: 222.2 84% 4.9%;

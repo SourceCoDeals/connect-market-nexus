@@ -4,10 +4,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ChevronDown, ChevronRight, User, Building, MessageSquare, Calendar, RefreshCw } from "lucide-react";
+import { ChevronDown, ChevronRight, User, Building, MessageSquare, Calendar, RefreshCw, FileText } from "lucide-react";
 import { AdminConnectionRequest } from "@/types/admin";
-import { ConnectionRequestEmailActions } from "@/components/admin/ConnectionRequestEmailActions";
-import { NDAFeeToggleActions } from "@/components/admin/NDAFeeToggleActions";
+import { ConnectionRequestActions } from "@/components/admin/ConnectionRequestActions";
 import { SmartWorkflowSuggestions } from "@/components/admin/SmartWorkflowSuggestions";
 
 interface ConnectionRequestsTableProps {
@@ -57,7 +56,7 @@ const StatusBadge = ({ status }: { status: string }) => {
       return <Badge variant="destructive">Rejected</Badge>;
     case "pending":
     default:
-      return <Badge variant="secondary" className="bg-yellow-500 hover:bg-yellow-600 text-white">Pending</Badge>;
+      return <Badge variant="secondary" className="bg-amber-100 text-amber-800 border-amber-200 hover:bg-amber-200">Pending</Badge>;
   }
 };
 
@@ -151,26 +150,18 @@ const RequestDetails = ({
       </div>
     )}
 
-    {/* Agreement Management - Single Section */}
+    {/* Agreement Management */}
     {request.user && (
       <div className="space-y-4">
-        <h4 className="font-semibold text-base">Agreement Management</h4>
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-          {/* Email Actions */}
-          <div className="space-y-3">
-            <h5 className="text-sm font-medium text-muted-foreground">Email Actions</h5>
-            <ConnectionRequestEmailActions 
-              user={request.user} 
-              onEmailSent={() => onRefresh?.()} 
-            />
-          </div>
-          
-          {/* Agreement Status & Toggles */}
-          <div className="space-y-3">
-            <h5 className="text-sm font-medium text-muted-foreground">Agreement Status</h5>
-            <NDAFeeToggleActions user={request.user} compact={true} showLabels={false} />
-          </div>
+        <div className="flex items-center gap-2">
+          <FileText className="h-5 w-5 text-primary" />
+          <h4 className="font-semibold text-base">Agreement Management</h4>
         </div>
+        <ConnectionRequestActions 
+          user={request.user} 
+          listing={request.listing || undefined}
+          onEmailSent={() => onRefresh?.()} 
+        />
       </div>
     )}
 
@@ -205,7 +196,7 @@ const RequestDetails = ({
           <Button
             variant="outline"
             size="default"
-            className="border-red-500 text-red-700 hover:bg-red-500 hover:text-white"
+            className="border-orange-500 text-orange-700 hover:bg-orange-500 hover:text-white"
             onClick={() => onReject(request)}
           >
             Reject Request
@@ -224,7 +215,7 @@ const RequestDetails = ({
         <Button
           variant="outline"
           size="default"
-          className="border-red-500 text-red-700 hover:bg-red-500 hover:text-white"
+          className="border-orange-500 text-orange-700 hover:bg-orange-500 hover:text-white"
           onClick={() => onReject(request)}
         >
           Revoke Approval

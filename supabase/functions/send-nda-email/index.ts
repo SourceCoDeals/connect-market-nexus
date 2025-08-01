@@ -14,6 +14,7 @@ interface SendNDAEmailRequest {
   customMessage?: string;
   adminEmail?: string;
   adminName?: string;
+  listingTitle?: string;
   customSignatureHtml?: string;
   customSignatureText?: string;
   attachments?: Array<{
@@ -48,12 +49,15 @@ const handler = async (req: Request): Promise<Response> => {
       customMessage,
       adminEmail: providedAdminEmail,
       adminName: providedAdminName,
+      listingTitle,
       customSignatureHtml,
       customSignatureText,
       attachments = []
     }: SendNDAEmailRequest = await req.json();
 
-    const subject = customSubject || "Non-Disclosure Agreement | SourceCo";
+    const subject = listingTitle 
+      ? `NDA Required - ${listingTitle} | SourceCo`
+      : customSubject || "Non-Disclosure Agreement | SourceCo";
     const useTemplate = !customMessage;
     
     console.log('📧 Starting NDA email process', {
@@ -63,6 +67,7 @@ const handler = async (req: Request): Promise<Response> => {
       subject,
       adminEmail: providedAdminEmail,
       adminName: providedAdminName,
+      listingTitle,
       attachmentCount: attachments.length
     });
 
