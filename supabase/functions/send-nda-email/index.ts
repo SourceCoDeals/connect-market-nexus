@@ -230,7 +230,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log('📎 Successfully added', processedAttachments.length, 'attachment(s) to Brevo payload');
 
-    // Simple text content - just message + signature
+    // Simple text content - just message + signature with proper formatting
     const textContent = customMessage ? `${customMessage}
 
 ${finalTextSignature}` : finalTextSignature;

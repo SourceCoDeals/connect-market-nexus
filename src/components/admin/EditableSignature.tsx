@@ -80,10 +80,9 @@ export function EditableSignature({ onSignatureChange, showInline = false }: Edi
             Edit
           </Button>
         </div>
-        <div 
-          className="text-sm border rounded p-2 bg-muted/5"
-          dangerouslySetInnerHTML={{ __html: signature?.signature_html || '' }}
-        />
+        <div className="text-sm border rounded p-2 bg-muted/5">
+          <pre className="whitespace-pre-wrap text-sm">{signature?.signature_text || ''}</pre>
+        </div>
       </div>
     );
   }
@@ -156,38 +155,20 @@ export function EditableSignature({ onSignatureChange, showInline = false }: Edi
               </div>
             </div>
             
-            <Tabs defaultValue="html" className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="html">HTML Version</TabsTrigger>
-                <TabsTrigger value="text">Text Version</TabsTrigger>
-              </TabsList>
-              
-              <TabsContent value="html" className="space-y-3">
-                <Textarea
-                  value={htmlSignature}
-                  onChange={(e) => setHtmlSignature(e.target.value)}
-                  placeholder="HTML signature content..."
-                  className="min-h-32 font-mono text-sm"
-                />
-                <div className="border rounded p-3 bg-muted/5">
-                  <div className="text-xs text-muted-foreground mb-2">Preview:</div>
-                  <div dangerouslySetInnerHTML={{ __html: htmlSignature }} />
-                </div>
-              </TabsContent>
-              
-              <TabsContent value="text" className="space-y-3">
-                <Textarea
-                  value={textSignature}
-                  onChange={(e) => setTextSignature(e.target.value)}
-                  placeholder="Plain text signature content..."
-                  className="min-h-32 font-mono text-sm"
-                />
-                <div className="border rounded p-3 bg-muted/5">
-                  <div className="text-xs text-muted-foreground mb-2">Preview:</div>
-                  <pre className="whitespace-pre-wrap text-sm">{textSignature}</pre>
-                </div>
-              </TabsContent>
-            </Tabs>
+            <div className="space-y-3">
+              <Label htmlFor="signature">Signature Content</Label>
+              <Textarea
+                id="signature"
+                value={textSignature}
+                onChange={(e) => setTextSignature(e.target.value)}
+                placeholder="Plain text signature content..."
+                className="min-h-32 font-mono text-sm"
+              />
+              <div className="border rounded p-3 bg-muted/5">
+                <div className="text-xs text-muted-foreground mb-2">Preview:</div>
+                <pre className="whitespace-pre-wrap text-sm">{textSignature}</pre>
+              </div>
+            </div>
             
             <div className="flex gap-2 pt-2">
               <Button
@@ -214,7 +195,7 @@ export function EditableSignature({ onSignatureChange, showInline = false }: Edi
                 <Eye className="h-4 w-4 text-muted-foreground" />
                 <span className="text-sm font-medium">Current Signature</span>
               </div>
-              <div dangerouslySetInnerHTML={{ __html: signature?.signature_html || '' }} />
+              <pre className="whitespace-pre-wrap text-sm">{signature?.signature_text || ''}</pre>
             </div>
           </div>
         )}

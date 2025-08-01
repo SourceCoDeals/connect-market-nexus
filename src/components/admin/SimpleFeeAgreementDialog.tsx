@@ -74,7 +74,6 @@ export function SimpleFeeAgreementDialog({
   const [content, setContent] = useState("");
   const [attachments, setAttachments] = useState<File[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [customSignatureHtml, setCustomSignatureHtml] = useState("");
   const [customSignatureText, setCustomSignatureText] = useState("");
   
   const { user: adminUser } = useAuth();
@@ -186,7 +185,6 @@ export function SimpleFeeAgreementDialog({
           adminEmail: adminUser.email,
           adminName: effectiveAdminName,
           attachments: base64Attachments,
-          customSignatureHtml: customSignatureHtml || undefined,
           customSignatureText: customSignatureText || undefined
         }
       });
@@ -216,7 +214,6 @@ export function SimpleFeeAgreementDialog({
     setSubject("");
     setContent("");
     setAttachments([]);
-    setCustomSignatureHtml("");
     setCustomSignatureText("");
     onClose();
   };
@@ -225,15 +222,15 @@ export function SimpleFeeAgreementDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-4xl max-h-[95vh] overflow-hidden">
-        <DialogHeader>
+      <DialogContent className="max-w-4xl max-h-[95vh] overflow-hidden flex flex-col">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle className="flex items-center gap-3">
             <FileText className="h-5 w-5" />
             Send Fee Agreement
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-6 overflow-y-auto max-h-[75vh]">
+        <div className="flex-1 overflow-y-auto space-y-6 min-h-0">
           {/* User Info */}
           <Card>
             <CardHeader className="pb-3">
@@ -347,13 +344,15 @@ export function SimpleFeeAgreementDialog({
             <EditableSignature 
               showInline
               onSignatureChange={(html, text) => {
-                setCustomSignatureHtml(html);
                 setCustomSignatureText(text);
               }}
             />
           </div>
 
-          {/* Actions */}
+        </div>
+
+        {/* Actions */}
+        <div className="flex-shrink-0 p-6 pt-0">
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={handleClose}>
               Cancel

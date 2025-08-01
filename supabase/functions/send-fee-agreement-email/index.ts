@@ -24,6 +24,7 @@ interface FeeAgreementEmailRequest {
   adminEmail?: string;
   adminName?: string;
   listingTitle?: string;
+  customSignatureText?: string;
   attachments?: Array<{
     name: string;
     content: string; // base64 encoded
@@ -66,6 +67,7 @@ const handler = async (req: Request): Promise<Response> => {
       adminEmail, 
       adminName,
       listingTitle,
+      customSignatureText,
       attachments 
     }: FeeAgreementEmailRequest = await req.json();
 
@@ -120,7 +122,7 @@ const handler = async (req: Request): Promise<Response> => {
     try {
       const { data: signatureData } = await supabase
         .from('admin_signature_preferences')
-        .select('signature_html, phone_number, calendly_url')
+        .select('signature_html, signature_text, phone_number, calendly_url')
         .eq('admin_id', adminId)
         .single();
       
@@ -162,10 +164,26 @@ const handler = async (req: Request): Promise<Response> => {
       console.log('✅ Using Bill Martin format signature template');
     }
 
-    // Simple text content - just message + signature  
+    // Simple text content - use custom signature text if provided, otherwise strip HTML
+    let signatureText;
+    if (customSignatureText) {
+      signatureText = customSignatureText;
+    } else if (customSignature?.signature_text) {
+      signatureText = customSignature.signature_text;
+    } else {
+      // Convert HTML signature to text with proper line breaks
+      signatureText = adminSignature
+        .replace(/<br\s*\/?>/gi, '\n')
+        .replace(/<[^>]*>/g, '')
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .trim();
+    }
+    
     const textContent = content ? `${content}
 
-${adminSignature.replace(/<[^>]*>/g, '').replace(/&amp;/g, '&')}` : adminSignature.replace(/<[^>]*>/g, '').replace(/&amp;/g, '&');
+${signatureText}` : signatureText;
 
     // Skip complex templates - textContent is all we need for simple, working emails
 

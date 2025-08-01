@@ -22,7 +22,6 @@ export const SimpleNDADialog = ({ open, onOpenChange, user, onSendEmail }: Simpl
   const [customSubject, setCustomSubject] = useState("");
   const [customMessage, setCustomMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [customSignatureHtml, setCustomSignatureHtml] = useState("");
   const [customSignatureText, setCustomSignatureText] = useState("");
 
   const handleSend = async () => {
@@ -37,7 +36,6 @@ export const SimpleNDADialog = ({ open, onOpenChange, user, onSendEmail }: Simpl
           userId: user.id,
           customSubject: customSubject || undefined,
           customMessage: customMessage || undefined,
-          customSignatureHtml: customSignatureHtml || undefined,
           customSignatureText: customSignatureText || undefined
         }
       });
@@ -54,7 +52,6 @@ export const SimpleNDADialog = ({ open, onOpenChange, user, onSendEmail }: Simpl
       onOpenChange(false);
       setCustomSubject("");
       setCustomMessage("");
-      setCustomSignatureHtml("");
       setCustomSignatureText("");
       
       // Call the callback for any additional processing
@@ -110,7 +107,8 @@ Best regards,`
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-2xl max-h-[95vh] overflow-hidden">
+        <div className="overflow-y-auto max-h-[85vh]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileText className="h-5 w-5" />
@@ -240,31 +238,33 @@ Best regards,`
             <EditableSignature 
               showInline
               onSignatureChange={(html, text) => {
-                setCustomSignatureHtml(html);
                 setCustomSignatureText(text);
               }}
             />
           </div>
         </div>
+        </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button onClick={handleSend} disabled={isLoading}>
-            {isLoading ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Sending NDA...
-              </>
-            ) : (
-              <>
-                <Mail className="h-4 w-4 mr-2" />
-                Send NDA Email
-              </>
-            )}
-          </Button>
-        </DialogFooter>
+        <div className="flex-shrink-0 p-6 pt-0">
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSend} disabled={isLoading}>
+              {isLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Sending NDA...
+                </>
+              ) : (
+                <>
+                  <Mail className="h-4 w-4 mr-2" />
+                  Send NDA Email
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
       </DialogContent>
     </Dialog>
   );

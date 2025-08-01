@@ -79,7 +79,7 @@ export function ConnectionRequestActions({
       return;
     }
 
-    const subject = `🚀 Exciting Opportunity: ${listing.title} - Let's Connect!`;
+    const subject = `${listing.title} - Let's Connect!`;
     const body = `Hi ${user.first_name},
 
 I hope this message finds you well! I wanted to follow up regarding your interest in "${listing.title}".
