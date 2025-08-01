@@ -18,13 +18,13 @@ export const useListings = (filters: FilterOptions = {}) => {
 
           // Simple auth check - must have user with verified email
           if (!user || !user.email_verified) {
-            console.log('❌ User not authenticated or email not verified');
+            // User not authenticated or email not verified
             throw new Error('Authentication required');
           }
 
           // Allow admin users to always see listings, require approval for regular users
           if (!user.is_admin && user.approval_status !== 'approved') {
-            console.log('❌ User not approved (and not admin)');
+            // User not approved (and not admin)
             throw new Error('User approval required');
           }
           
@@ -38,45 +38,45 @@ export const useListings = (filters: FilterOptions = {}) => {
             .eq('status', 'active')
             .is('deleted_at', null);
           
-          console.log('🔍 Base query: SELECT * FROM listings WHERE status = active AND deleted_at IS NULL');
+          // Base query: SELECT * FROM listings WHERE status = active AND deleted_at IS NULL
           
           // Apply filters if provided - only apply filters that have actual values
           if (filters.category) {
             // Check both the old category field and new categories array
             query = query.or(`category.eq.${filters.category},categories.cs.{${filters.category}}`);
-            console.log('🔍 Added category filter:', filters.category);
+            // Added category filter
           }
           
           if (filters.location) {
             query = query.eq('location', filters.location);
-            console.log('🔍 Added location filter:', filters.location);
+            // Added location filter
           }
           
           if (filters.search) {
             query = query.ilike('title', `%${filters.search}%`);
-            console.log('🔍 Added search filter:', filters.search);
+            // Added search filter
           }
           
           // Apply revenue filters
           if (filters.revenueMin !== undefined) {
             query = query.gte('revenue', filters.revenueMin);
-            console.log('🔍 Added revenue min filter:', filters.revenueMin);
+            // Added revenue min filter
           }
           
           if (filters.revenueMax !== undefined) {
             query = query.lte('revenue', filters.revenueMax);
-            console.log('🔍 Added revenue max filter:', filters.revenueMax);
+            // Added revenue max filter
           }
           
           // Apply EBITDA filters
           if (filters.ebitdaMin !== undefined) {
             query = query.gte('ebitda', filters.ebitdaMin);
-            console.log('🔍 Added EBITDA min filter:', filters.ebitdaMin);
+            // Added EBITDA min filter
           }
           
           if (filters.ebitdaMax !== undefined) {
             query = query.lte('ebitda', filters.ebitdaMax);
-            console.log('🔍 Added EBITDA max filter:', filters.ebitdaMax);
+            // Added EBITDA max filter
           }
           
           // Apply pagination
@@ -89,7 +89,7 @@ export const useListings = (filters: FilterOptions = {}) => {
             .order('created_at', { ascending: false })
             .range(start, end);
           
-          console.log('🔍 Added pagination:', { page, perPage, start, end });
+          // Added pagination
           
           // Execute the query
           const { data, error, count } = await query;
@@ -105,11 +105,10 @@ export const useListings = (filters: FilterOptions = {}) => {
             throw error;
           }
           
-          console.log(`✅ Successfully fetched ${data?.length || 0} listings from marketplace`);
-          console.log('📊 Total count from database:', count);
+          // Successfully fetched listings from marketplace
           
           if (!data || data.length === 0) {
-            console.log('⚠️ No data returned from query');
+            // No data returned from query
             return {
               listings: [],
               totalCount: count || 0
@@ -149,7 +148,7 @@ export const useListings = (filters: FilterOptions = {}) => {
             return listing;
           });
           
-          console.log(`🎯 Final result: ${listings?.length || 0} listings ready for marketplace`);
+          // Final result ready for marketplace
           
           return {
             listings: listings || [],
@@ -182,13 +181,7 @@ export const useListing = (id: string | undefined) => {
       
       return withPerformanceMonitoring('single-listing-query', async () => {
         try {
-          console.log('🔍 Fetching single listing:', id);
-          console.log('🔐 Auth state for single listing:', {
-            authChecked,
-            user: user?.email,
-            email_verified: user?.email_verified,
-            approval_status: user?.approval_status
-          });
+          // Fetching single listing
 
           // Simple auth check for single listings
           if (!user || !user.email_verified) {
@@ -208,11 +201,11 @@ export const useListing = (id: string | undefined) => {
           }
           
           if (!data) {
-            console.log('⚠️ No non-deleted listing found with id:', id);
+            // No non-deleted listing found
             return null;
           }
           
-          console.log('✅ Successfully fetched listing:', data.title);
+          // Successfully fetched listing
           
           // Transform to Listing type with computed properties
           const listing: Listing = {
@@ -263,13 +256,7 @@ export const useListingMetadata = () => {
     queryFn: async () => {
       return withPerformanceMonitoring('listing-metadata-query', async () => {
         try {
-          console.log('🔍 Fetching listing metadata');
-          console.log('🔐 Auth state for metadata:', {
-            authChecked,
-            user: user?.email,
-            email_verified: user?.email_verified,
-            approval_status: user?.approval_status
-          });
+          // Fetching listing metadata
 
           // Simple auth check for metadata
           if (!user || !user.email_verified) {
@@ -287,7 +274,7 @@ export const useListingMetadata = () => {
             throw error;
           }
           
-          console.log('📊 Metadata raw data:', data);
+          // Metadata raw data
           
           const allCategories = new Set<string>();
           data.forEach(item => {
@@ -300,7 +287,7 @@ export const useListingMetadata = () => {
           const categories = Array.from(allCategories).filter(Boolean).sort();
           const locations = [...new Set(data.map(item => item.location))].filter(Boolean).sort();
           
-          console.log('✅ Fetched metadata - Categories:', categories, 'Locations:', locations);
+          // Fetched metadata successfully
           
           return { categories, locations };
         } catch (error: any) {
