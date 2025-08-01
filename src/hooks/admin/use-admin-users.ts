@@ -84,18 +84,9 @@ export function useAdminUsers() {
     return useMutation({
       mutationFn: execute,
       onSuccess: ({ status, userId }) => {
-        
-        // Optimistically update the user in cache
-        queryClient.setQueryData(['admin-users'], (old: User[] | undefined) => {
-          if (!old) return old;
-          return old.map(user => 
-            user.id === userId 
-              ? { ...user, approval_status: status }
-              : user
-          );
-        });
-        // Also invalidate to ensure fresh data from server
-        queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+        console.log('✅ Database update successful for user:', userId, 'status:', status);
+        // NO CACHE UPDATES HERE - Let the optimistic update in UserActions be the source of truth
+        // This prevents race conditions that override the instant UI update
       },
       onError: (error: any) => {
         console.error('💥 Failed to update user approval:', error);
