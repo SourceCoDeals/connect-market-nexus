@@ -14,7 +14,7 @@ import {
   Mail, 
   Send
 } from "lucide-react";
-import { User as UserType } from "@/types";
+import { User as UserType, Listing } from "@/types";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -23,50 +23,24 @@ import { EditableSignature } from "@/components/admin/EditableSignature";
 
 interface SimpleFeeAgreementDialogProps {
   user: UserType | null;
+  listing?: Listing;
   isOpen: boolean;
   onClose: () => void;
 }
 
-const TEMPLATES = {
-  quick: {
-    name: "Quick",
-    subject: "Fee Agreement | SourceCo",
-    content: `Dear {{userName}},
+const QUICK_TEMPLATE = {
+  name: "Quick",
+  subject: "Fee Agreement | SourceCo",
+  content: `Dear {{userName}},
 
 Please review and sign the attached fee agreement to proceed with your connection request.
 
 Best regards,`
-  },
-  standard: {
-    name: "Standard", 
-    subject: "Fee Agreement | SourceCo",
-    content: `Dear {{userName}},
-
-We're pleased to present our Fee Agreement for your review. This document outlines our transparent fee structure and professional service terms for successful transactions.
-
-Upon execution, you'll receive priority access to our premium deal flow and enhanced advisory services.
-
-Please review, execute, and return at your earliest convenience.
-
-Best regards,`
-  },
-  executive: {
-    name: "Executive",
-    subject: "Exclusive Fee Agreement | SourceCo",
-    content: `Dear {{userName}},
-
-We're honored to present our Executive Fee Agreement, designed for sophisticated buyers seeking premium market access.
-
-This agreement provides exclusive access to our curated deal pipeline, priority advisory services, and institutional-grade transaction support aligned with your acquisition strategy.
-
-Please review and execute to activate your exclusive membership benefits.
-
-Best regards,`
-  }
 };
 
 export function SimpleFeeAgreementDialog({
   user,
+  listing,
   isOpen,
   onClose
 }: SimpleFeeAgreementDialogProps) {
@@ -95,14 +69,13 @@ export function SimpleFeeAgreementDialog({
     ? `${adminUser.first_name} ${adminUser.last_name}`
     : adminUser?.email || "Admin";
 
-  const loadTemplate = (templateKey: keyof typeof TEMPLATES) => {
-    const template = TEMPLATES[templateKey];
-    const filledSubject = template.subject.replace("{{userName}}", userName);
-    const filledContent = template.content.replace(/{{userName}}/g, userName);
+  const loadTemplate = () => {
+    const filledSubject = QUICK_TEMPLATE.subject.replace("{{userName}}", userName);
+    const filledContent = QUICK_TEMPLATE.content.replace(/{{userName}}/g, userName);
     
     setSubject(filledSubject);
     setContent(filledContent);
-    toast.success(`${template.name} template loaded`);
+    toast.success(`${QUICK_TEMPLATE.name} template loaded`);
   };
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -184,6 +157,7 @@ export function SimpleFeeAgreementDialog({
           adminId: adminUser.id,
           adminEmail: adminUser.email,
           adminName: effectiveAdminName,
+          listingTitle: listing?.title,
           attachments: base64Attachments,
           customSignatureText: customSignatureText || undefined
         }
@@ -258,21 +232,16 @@ export function SimpleFeeAgreementDialog({
             </CardContent>
           </Card>
 
-          {/* Template Buttons */}
+          {/* Template Button */}
           <div className="space-y-2">
             <Label>Load Template (one-click)</Label>
-            <div className="flex gap-2 flex-wrap">
-              {Object.entries(TEMPLATES).map(([key, template]) => (
-                <Button
-                  key={key}
-                  variant="outline"
-                  size="sm"
-                  onClick={() => loadTemplate(key as keyof typeof TEMPLATES)}
-                >
-                  Load {template.name}
-                </Button>
-              ))}
-            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={loadTemplate}
+            >
+              Load {QUICK_TEMPLATE.name} Template
+            </Button>
           </div>
 
           {/* Email Fields */}

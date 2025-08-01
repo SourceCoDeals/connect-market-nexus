@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, FileText, Mail, User, Calendar } from "lucide-react";
-import { User as UserType } from "@/types";
+import { User as UserType, Listing } from "@/types";
 import { formatDistanceToNow } from "date-fns";
 import { EditableSignature } from "@/components/admin/EditableSignature";
 import { supabase } from "@/integrations/supabase/client";
@@ -15,10 +15,11 @@ interface SimpleNDADialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   user: UserType | null;
+  listing?: Listing;
   onSendEmail: (user: UserType, options?: { subject?: string; message?: string; customSignatureHtml?: string; customSignatureText?: string }) => Promise<void>;
 }
 
-export const SimpleNDADialog = ({ open, onOpenChange, user, onSendEmail }: SimpleNDADialogProps) => {
+export const SimpleNDADialog = ({ open, onOpenChange, user, listing, onSendEmail }: SimpleNDADialogProps) => {
   const [customSubject, setCustomSubject] = useState("");
   const [customMessage, setCustomMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -36,6 +37,7 @@ export const SimpleNDADialog = ({ open, onOpenChange, user, onSendEmail }: Simpl
           userId: user.id,
           customSubject: customSubject || undefined,
           customMessage: customMessage || undefined,
+          listingTitle: listing?.title,
           customSignatureText: customSignatureText || undefined
         }
       });
@@ -67,43 +69,17 @@ export const SimpleNDADialog = ({ open, onOpenChange, user, onSendEmail }: Simpl
 
   const [selectedTemplate, setSelectedTemplate] = useState<'quick' | 'standard' | 'executive'>('standard');
 
-  const templates = {
-    quick: {
-      subject: "NDA Required | SourceCo",
-      message: `Dear ${user.first_name || user.email},
+  const quickTemplate = {
+    subject: "NDA Required | SourceCo",
+    message: `Dear ${user.first_name || user.email},
 
 Please sign the attached NDA to access confidential deal information.
 
 Best regards,`
-    },
-    standard: {
-      subject: "Non-Disclosure Agreement | SourceCo",
-      message: `Dear ${user.first_name || user.email},
-
-Please review and execute our Non-Disclosure Agreement to access detailed business intelligence and financial data matching your acquisition criteria.
-
-Upon execution, you'll gain immediate access to our comprehensive deal flow and proprietary market insights.
-
-Please review, execute, and return at your earliest convenience.
-
-Best regards,`
-    },
-    executive: {
-      subject: "Exclusive NDA | SourceCo",
-      message: `Dear ${user.first_name || user.email},
-
-We're pleased to present our Executive Non-Disclosure Agreement, providing access to our most confidential investment opportunities.
-
-This agreement enables exclusive access to proprietary deal intelligence, detailed financial data, and premium market insights reserved for our select partners.
-
-Please execute to unlock your exclusive access to our premier deal pipeline.
-
-Best regards,`
-    }
   };
 
-  const defaultSubject = templates[selectedTemplate].subject;
-  const defaultMessage = templates[selectedTemplate].message;
+  const defaultSubject = quickTemplate.subject;
+  const defaultMessage = quickTemplate.message;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -169,44 +145,18 @@ Best regards,`
           <div className="space-y-4">
             <div className="space-y-3">
               <Label>Email Template</Label>
-              <div className="grid grid-cols-3 gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setCustomSubject(templates.quick.subject);
-                    setCustomMessage(templates.quick.message);
-                  }}
-                  className="text-xs"
-                >
-                  Load Quick
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setCustomSubject(templates.standard.subject);
-                    setCustomMessage(templates.standard.message);
-                  }}
-                  className="text-xs"
-                >
-                  Load Standard
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setCustomSubject(templates.executive.subject);
-                    setCustomMessage(templates.executive.message);
-                  }}
-                  className="text-xs"
-                >
-                  Load Executive
-                </Button>
-              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setCustomSubject(quickTemplate.subject);
+                  setCustomMessage(quickTemplate.message);
+                }}
+                className="text-xs"
+              >
+                Load Quick Template
+              </Button>
             </div>
 
             <div className="space-y-2">

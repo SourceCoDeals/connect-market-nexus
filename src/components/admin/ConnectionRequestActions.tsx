@@ -249,6 +249,7 @@ SourceCo Team`}`;
       {/* Dialogs */}
       <SimpleFeeAgreementDialog
         user={user}
+        listing={listing}
         isOpen={showFeeDialog}
         onClose={() => {
           setShowFeeDialog(false);
@@ -263,6 +264,7 @@ SourceCo Team`}`;
           if (!open) onEmailSent?.();
         }}
         user={user}
+        listing={listing}
         onSendEmail={async () => {
           onEmailSent?.();
         }}

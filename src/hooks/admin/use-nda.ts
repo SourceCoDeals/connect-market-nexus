@@ -27,16 +27,11 @@ export const useUpdateNDA = () => {
 
   return useMutation({
     mutationFn: async ({ userId, isSigned, adminNotes }: UpdateNDAParams) => {
-      const { data, error } = await supabase
-        .from('profiles')
-        .update({
-          nda_signed: isSigned,
-          nda_signed_at: isSigned ? new Date().toISOString() : null,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', userId)
-        .select()
-        .single();
+      const { data, error } = await supabase.rpc('update_nda_status', {
+        target_user_id: userId,
+        is_signed: isSigned,
+        admin_notes: adminNotes
+      });
 
       if (error) throw error;
       return data;
@@ -107,16 +102,11 @@ export const useUpdateNDAEmailSent = () => {
 
   return useMutation({
     mutationFn: async ({ userId, isSent, adminNotes }: UpdateNDAEmailParams) => {
-      const { data, error } = await supabase
-        .from('profiles')
-        .update({
-          nda_email_sent: isSent,
-          nda_email_sent_at: isSent ? new Date().toISOString() : null,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', userId)
-        .select()
-        .single();
+      const { data, error } = await supabase.rpc('update_nda_email_status', {
+        target_user_id: userId,
+        is_sent: isSent,
+        admin_notes: adminNotes
+      });
 
       if (error) throw error;
       return data;

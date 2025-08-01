@@ -26,16 +26,11 @@ export const useUpdateFeeAgreement = () => {
 
   return useMutation({
     mutationFn: async ({ userId, isSigned, notes }: UpdateFeeAgreementParams) => {
-      const { data, error } = await supabase
-        .from('profiles')
-        .update({
-          fee_agreement_signed: isSigned,
-          fee_agreement_signed_at: isSigned ? new Date().toISOString() : null,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', userId)
-        .select()
-        .single();
+      const { data, error } = await supabase.rpc('update_fee_agreement_status', {
+        target_user_id: userId,
+        is_signed: isSigned,
+        admin_notes: notes
+      });
 
       if (error) throw error;
       return data;
@@ -106,16 +101,11 @@ export const useUpdateFeeAgreementEmailSent = () => {
 
   return useMutation({
     mutationFn: async ({ userId, isSent, notes }: UpdateFeeAgreementEmailParams) => {
-      const { data, error } = await supabase
-        .from('profiles')
-        .update({
-          fee_agreement_email_sent: isSent,
-          fee_agreement_email_sent_at: isSent ? new Date().toISOString() : null,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', userId)
-        .select()
-        .single();
+      const { data, error } = await supabase.rpc('update_fee_agreement_email_status', {
+        target_user_id: userId,
+        is_sent: isSent,
+        admin_notes: notes
+      });
 
       if (error) throw error;
       return data;
