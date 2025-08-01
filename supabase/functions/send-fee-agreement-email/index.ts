@@ -70,7 +70,7 @@ const handler = async (req: Request): Promise<Response> => {
     console.log("✅ Brevo API key found, proceeding with email setup");
 
     // Use custom content if provided, otherwise use default template
-    const emailSubject = subject || "SourceCo Advisory Services - Fee Agreement";
+    const emailSubject = subject || "SourceCo - Fee Agreement";
     
     // Fetch and embed SourceCo logo with fallback
     console.log('🔄 Fetching SourceCo logo...');
@@ -139,13 +139,12 @@ const handler = async (req: Request): Promise<Response> => {
         <table cellpadding="0" cellspacing="0" style="width: 100%; border-top: 3px solid #D4AF37; padding-top: 25px;">
           <tr>
             <td style="vertical-align: top; width: 100px; padding-right: 25px;">
-              <img src="${logoSrc}" alt="SourceCo Advisory Services" style="max-width: 80px; height: auto; display: block; border: none;" />
+              <img src="${logoSrc}" alt="SourceCo" style="max-width: 80px; height: auto; display: block; border: none;" />
             </td>
             <td style="vertical-align: top; border-left: 1px solid #E5E5E5; padding-left: 25px;">
               <div style="line-height: 1.4;">
                 <p style="margin: 0; font-size: 18px; font-weight: 700; color: #000000; margin-bottom: 6px; letter-spacing: 0.8px;">${adminName}</p>
-                <p style="margin: 0; font-size: 13px; color: #666666; margin-bottom: 4px; font-style: italic;">Managing Director</p>
-                <p style="margin: 0; font-size: 16px; font-weight: 700; color: #D4AF37; margin-bottom: 15px; letter-spacing: 2px;">SOURCECO ADVISORY</p>
+                <p style="margin: 0; font-size: 16px; font-weight: 700; color: #D4AF37; margin-bottom: 15px; letter-spacing: 2px;">SOURCECO</p>
                 <p style="margin: 0; font-size: 12px; color: #444444; margin-bottom: 4px; line-height: 1.5;">
                   <span style="color: #D4AF37; font-weight: 700; margin-right: 8px;">EMAIL</span> ${adminEmail}
                 </p>
@@ -157,7 +156,7 @@ const handler = async (req: Request): Promise<Response> => {
           </tr>
         </table>
         <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #E5E5E5; font-size: 10px; color: #888888; text-align: center; font-family: 'Arial', sans-serif;">
-          <p style="margin: 0; line-height: 1.4; font-weight: 500;">CONFIDENTIAL | This communication contains proprietary information for qualified business acquisition professionals.</p>
+          CONFIDENTIAL | This communication contains proprietary information.
         </div>
       </div>`;
 
@@ -167,7 +166,7 @@ const handler = async (req: Request): Promise<Response> => {
           <div style="padding: 50px 40px; background: linear-gradient(135deg, #ffffff 0%, #fafafa 100%); border: 1px solid #E5E5E5;">
             <div style="text-align: center; margin-bottom: 50px; padding-bottom: 30px; border-bottom: 3px solid #D4AF37;">
               <h1 style="color: #000000; font-size: 32px; margin: 0; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;">Fee Agreement</h1>
-              <p style="color: #666666; margin: 15px 0 0 0; font-size: 16px; letter-spacing: 3px; text-transform: uppercase;">SourceCo Advisory Services</p>
+              <p style="color: #666666; margin: 15px 0 0 0; font-size: 16px; letter-spacing: 3px; text-transform: uppercase;">SourceCo</p>
             </div>
             
             <div style="margin-bottom: 40px;">
@@ -221,7 +220,7 @@ const handler = async (req: Request): Promise<Response> => {
           <div style="padding: 60px 50px; background: linear-gradient(135deg, #ffffff 0%, #f8f8f8 100%); border: 2px solid #D4AF37; box-shadow: 0 8px 30px rgba(0,0,0,0.1);">
             <div style="text-align: center; margin-bottom: 60px; padding-bottom: 40px; border-bottom: 4px solid #D4AF37;">
               <h1 style="color: #000000; font-size: 36px; margin: 0; font-weight: 800; letter-spacing: 2px; text-transform: uppercase;">Executive Fee Agreement</h1>
-              <p style="color: #666666; margin: 20px 0 0 0; font-size: 18px; letter-spacing: 4px; text-transform: uppercase; font-weight: 500;">SourceCo Advisory Services</p>
+              <p style="color: #666666; margin: 20px 0 0 0; font-size: 18px; letter-spacing: 4px; text-transform: uppercase; font-weight: 500;">SourceCo</p>
             </div>
             
             <div style="margin-bottom: 50px;">

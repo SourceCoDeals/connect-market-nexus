@@ -8,7 +8,7 @@ import { User } from '@/types';
 import { MoreHorizontal, UserCheck, UserX, UserPlus, UserMinus, Trash2, Mail, Building, Phone, Globe } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { DualFeeAgreementToggle } from "./DualFeeAgreementToggle";
-import { EnhancedFeeAgreementEmailDialog } from "./EnhancedFeeAgreementEmailDialog";
+import { ProfessionalFeeAgreementDialog } from "./ProfessionalFeeAgreementDialog";
 import { useLogFeeAgreementEmail } from '@/hooks/admin/use-fee-agreement';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -457,11 +457,10 @@ export const MobileUsersTable = ({
         />
       ))}
       
-      <EnhancedFeeAgreementEmailDialog
+      <ProfessionalFeeAgreementDialog
         user={selectedUserForEmail}
         isOpen={!!selectedUserForEmail}
         onClose={() => setSelectedUserForEmail(null)}
-        onSend={handleSendEmail}
       />
     </div>
   );
