@@ -74,16 +74,13 @@ export function useAdminUsers() {
     return useMutation({
       mutationFn: execute,
       onSuccess: ({ status, userId }) => {
-        // NO CACHE UPDATES HERE - Let the optimistic update in UserActions be the source of truth
-        // This prevents race conditions that override the instant UI update
+        // Success - the optimistic update in UserActions is the source of truth
+        // Just invalidate to ensure eventual consistency
+        queryClient.invalidateQueries({ queryKey: ['admin-users'] });
       },
       onError: (error: Error) => {
         adminErrorHandler(error, 'update user approval status');
-        toast({
-          variant: 'destructive',
-          title: 'Update failed',
-          description: error.message || 'Failed to update user approval status. Please try again.',
-        });
+        // Error handling is done in UserActions component with rollback
       },
       meta: {
         retryState,

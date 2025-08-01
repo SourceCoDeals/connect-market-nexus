@@ -4,11 +4,21 @@ import { useToast } from "@/hooks/use-toast";
 import { useAdminUsers } from "@/hooks/admin/use-admin-users";
 import { useAdminEmail } from "@/hooks/admin/use-admin-email";
 import { ApprovalEmailDialog } from "./ApprovalEmailDialog";
+import { UserRejectionDialog } from "./UserRejectionDialog";
+import { UserConfirmationDialog } from "./UserConfirmationDialog";
 import { User } from "@/types";
 import { ApprovalEmailOptions } from "@/types/admin-users";
 
 interface UserActionsProps {
   onUserStatusUpdated?: () => void;
+}
+
+interface DialogState {
+  approval: boolean;
+  rejection: boolean;
+  makeAdmin: boolean;
+  revokeAdmin: boolean;
+  delete: boolean;
 }
 
 export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
@@ -31,181 +41,114 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
   const deleteUserMutation = useDeleteUser();
   
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const [actionType, setActionType] = useState<"approve" | "reject" | "makeAdmin" | "revokeAdmin" | "delete" | null>(null);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [rejectionReason, setRejectionReason] = useState<string>("");
   
+  // Separate dialog states for each action
+  const [dialogState, setDialogState] = useState<DialogState>({
+    approval: false,
+    rejection: false,
+    makeAdmin: false,
+    revokeAdmin: false,
+    delete: false
+  });
+
+  const closeAllDialogs = () => {
+    setDialogState({
+      approval: false,
+      rejection: false,
+      makeAdmin: false,
+      revokeAdmin: false,
+      delete: false
+    });
+    setSelectedUser(null);
+    setRejectionReason("");
+  };
+
   const handleUserApproval = (user: User) => {
     setSelectedUser(user);
-    setIsDialogOpen(true);
+    setDialogState(prev => ({ ...prev, approval: true }));
   };
   
   const handleUserRejection = (user: User) => {
     setSelectedUser(user);
-    setActionType("reject");
-    setIsDialogOpen(true);
+    setDialogState(prev => ({ ...prev, rejection: true }));
   };
   
   const handleMakeAdmin = (user: User) => {
     setSelectedUser(user);
-    setActionType("makeAdmin");
-    setIsDialogOpen(true);
+    setDialogState(prev => ({ ...prev, makeAdmin: true }));
   };
   
   const handleRevokeAdmin = (user: User) => {
     setSelectedUser(user);
-    setActionType("revokeAdmin");
-    setIsDialogOpen(true);
+    setDialogState(prev => ({ ...prev, revokeAdmin: true }));
   };
   
   const handleDeleteUser = (user: User) => {
     setSelectedUser(user);
-    setActionType("delete");
-    setIsDialogOpen(true);
+    setDialogState(prev => ({ ...prev, delete: true }));
   };
-  
-  const confirmAction = async (reason?: string) => {
-    if (!selectedUser) {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'No user selected for action.',
-      });
-      return;
-    }
+
+  const confirmUserRejection = async () => {
+    if (!selectedUser) return;
     
     try {
-      switch (actionType) {
-        case "approve":
-          // This case is now handled by the approval email dialog
-          break;
-          
-        case "reject":
-          // 1. INSTANT UI UPDATE
-          queryClient.setQueryData(['admin-users'], (old: User[] | undefined) => {
-            if (!old) return old;
-            return old.map(u => 
-              u.id === selectedUser.id 
-                ? { ...u, approval_status: "rejected" as const }
-                : u
-            );
-          });
+      // 1. INSTANT UI UPDATE WITH PROPER CACHE KEY
+      const cacheKey = ['admin-users'];
+      queryClient.setQueryData(cacheKey, (old: User[] | undefined) => {
+        if (!old) return old;
+        return old.map(u => 
+          u.id === selectedUser.id 
+            ? { ...u, approval_status: "rejected" as const }
+            : u
+        );
+      });
 
-          // 2. INSTANT SUCCESS FEEDBACK
-          toast({
-            title: "User rejected",
-            description: `${selectedUser.firstName} ${selectedUser.lastName} has been rejected instantly`,
-          });
+      // 2. INSTANT SUCCESS FEEDBACK
+      toast({
+        title: "User rejected",
+        description: `${selectedUser.firstName} ${selectedUser.lastName} has been rejected`,
+      });
 
-          // 3. DATABASE UPDATE IN BACKGROUND
-          updateUserStatusMutation.mutate(
-            { userId: selectedUser.id, status: "rejected" },
-            {
-              onSuccess: async () => {
-                try {
-                  await sendUserRejectionEmail(selectedUser, reason);
-                } catch (error) {
-                  toast({
-                    title: "Email notification delayed",
-                    description: "User was rejected but email notification may be delayed.",
-                    variant: "default",
-                  });
-                }
-              },
-              onError: (error) => {
-                // ROLLBACK: Revert the optimistic update
-                queryClient.setQueryData(['admin-users'], (old: User[] | undefined) => {
-                  if (!old) return old;
-                  return old.map(u => 
-                    u.id === selectedUser.id 
-                      ? { ...u, approval_status: "pending" as const }
-                      : u
-                  );
-                });
-                toast({
-                  variant: 'destructive',
-                  title: 'Rejection failed',
-                  description: error.message || 'Failed to reject user. Please try again.',
-                });
-              }
-            }
-          );
-          
-          setIsDialogOpen(false);
-          break;
-          
-        case "makeAdmin":
-          updateAdminStatusMutation.mutate(
-            { userId: selectedUser.id, isAdmin: true },
-            {
-              onSuccess: () => {
-                toast({
-                  title: "Admin privileges granted",
-                  description: `${selectedUser.firstName} ${selectedUser.lastName} is now an admin.`,
-                });
-                setIsDialogOpen(false);
-                if (onUserStatusUpdated) onUserStatusUpdated();
-              },
-              onError: (error) => {
-                toast({
-                  variant: 'destructive',
-                  title: 'Admin promotion failed',
-                  description: error.message || 'Failed to promote user to admin. Please try again.',
-                });
-              }
-            }
-          );
-          break;
-          
-        case "revokeAdmin":
-          updateAdminStatusMutation.mutate(
-            { userId: selectedUser.id, isAdmin: false },
-            {
-              onSuccess: () => {
-                toast({
-                  title: "Admin privileges revoked",
-                  description: `${selectedUser.firstName} ${selectedUser.lastName} is no longer an admin.`,
-                });
-                setIsDialogOpen(false);
-                if (onUserStatusUpdated) onUserStatusUpdated();
-              },
-              onError: (error) => {
-                toast({
-                  variant: 'destructive',
-                  title: 'Admin revocation failed',
-                  description: error.message || 'Failed to revoke admin privileges. Please try again.',
-                });
-              }
-            }
-          );
-          break;
-          
-        case "delete":
-          deleteUserMutation.mutate(selectedUser.id, {
-            onSuccess: () => {
+      // 3. CLOSE DIALOG IMMEDIATELY
+      closeAllDialogs();
+
+      // 4. DATABASE UPDATE IN BACKGROUND
+      updateUserStatusMutation.mutate(
+        { userId: selectedUser.id, status: "rejected" },
+        {
+          onSuccess: async () => {
+            try {
+              await sendUserRejectionEmail(selectedUser, rejectionReason);
+              // Force query invalidation to ensure data consistency
+              queryClient.invalidateQueries({ queryKey: cacheKey });
+            } catch (error) {
               toast({
-                title: "User deleted",
-                description: `${selectedUser.firstName} ${selectedUser.lastName} has been permanently deleted.`,
-              });
-              setIsDialogOpen(false);
-              if (onUserStatusUpdated) onUserStatusUpdated();
-            },
-            onError: (error) => {
-              toast({
-                variant: 'destructive',
-                title: 'Deletion failed',
-                description: error.message || 'Failed to delete user. Please try again.',
+                title: "Email notification delayed",
+                description: "User was rejected but email notification may be delayed.",
+                variant: "default",
               });
             }
-          });
-          break;
-          
-        default:
-          toast({
-            variant: 'destructive',
-            title: 'Invalid action',
-            description: 'Unknown action type. Please try again.',
-          });
-      }
+          },
+          onError: (error) => {
+            // ROLLBACK: Revert the optimistic update
+            queryClient.setQueryData(cacheKey, (old: User[] | undefined) => {
+              if (!old) return old;
+              return old.map(u => 
+                u.id === selectedUser.id 
+                  ? { ...u, approval_status: "pending" as const }
+                  : u
+              );
+            });
+            toast({
+              variant: 'destructive',
+              title: 'Rejection failed',
+              description: error.message || 'Failed to reject user. Please try again.',
+            });
+          }
+        }
+      );
+      
     } catch (error) {
       toast({
         variant: 'destructive',
@@ -215,10 +158,83 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
     }
   };
 
+  const confirmMakeAdmin = async () => {
+    if (!selectedUser) return;
+
+    updateAdminStatusMutation.mutate(
+      { userId: selectedUser.id, isAdmin: true },
+      {
+        onSuccess: () => {
+          toast({
+            title: "Admin privileges granted",
+            description: `${selectedUser.firstName} ${selectedUser.lastName} is now an admin.`,
+          });
+          closeAllDialogs();
+          if (onUserStatusUpdated) onUserStatusUpdated();
+        },
+        onError: (error) => {
+          toast({
+            variant: 'destructive',
+            title: 'Admin promotion failed',
+            description: error.message || 'Failed to promote user to admin. Please try again.',
+          });
+        }
+      }
+    );
+  };
+
+  const confirmRevokeAdmin = async () => {
+    if (!selectedUser) return;
+
+    updateAdminStatusMutation.mutate(
+      { userId: selectedUser.id, isAdmin: false },
+      {
+        onSuccess: () => {
+          toast({
+            title: "Admin privileges revoked",
+            description: `${selectedUser.firstName} ${selectedUser.lastName} is no longer an admin.`,
+          });
+          closeAllDialogs();
+          if (onUserStatusUpdated) onUserStatusUpdated();
+        },
+        onError: (error) => {
+          toast({
+            variant: 'destructive',
+            title: 'Admin revocation failed',
+            description: error.message || 'Failed to revoke admin privileges. Please try again.',
+          });
+        }
+      }
+    );
+  };
+
+  const confirmDeleteUser = async () => {
+    if (!selectedUser) return;
+
+    deleteUserMutation.mutate(selectedUser.id, {
+      onSuccess: () => {
+        toast({
+          title: "User deleted",
+          description: `${selectedUser.firstName} ${selectedUser.lastName} has been permanently deleted.`,
+        });
+        closeAllDialogs();
+        if (onUserStatusUpdated) onUserStatusUpdated();
+      },
+      onError: (error) => {
+        toast({
+          variant: 'destructive',
+          title: 'Deletion failed',
+          description: error.message || 'Failed to delete user. Please try again.',
+        });
+      }
+    });
+  };
+
   const handleCustomApprovalEmail = async (user: User, options: ApprovalEmailOptions) => {
     try {
-      // 1. INSTANT UI UPDATE
-      queryClient.setQueryData(['admin-users'], (old: User[] | undefined) => {
+      // 1. INSTANT UI UPDATE WITH PROPER CACHE KEY
+      const cacheKey = ['admin-users'];
+      queryClient.setQueryData(cacheKey, (old: User[] | undefined) => {
         if (!old) return old;
         return old.map(u => 
           u.id === user.id 
@@ -229,17 +245,24 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
 
       // 2. INSTANT SUCCESS FEEDBACK
       toast({
-        title: "User approved instantly",
+        title: "User approved",
         description: `${user.firstName} ${user.lastName} has been approved and can now access the marketplace`,
       });
 
-      // 3. DATABASE UPDATE IN BACKGROUND
+      // 3. CLOSE DIALOG IMMEDIATELY
+      closeAllDialogs();
+
+      // 4. DATABASE UPDATE IN BACKGROUND
       updateUserStatusMutation.mutate(
         { userId: user.id, status: "approved" },
         {
+          onSuccess: () => {
+            // Force query invalidation to ensure data consistency
+            queryClient.invalidateQueries({ queryKey: cacheKey });
+          },
           onError: (error) => {
             // ROLLBACK: Revert the optimistic update
-            queryClient.setQueryData(['admin-users'], (old: User[] | undefined) => {
+            queryClient.setQueryData(cacheKey, (old: User[] | undefined) => {
               if (!old) return old;
               return old.map(u => 
                 u.id === user.id 
@@ -256,7 +279,7 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
         }
       );
 
-      // 4. EMAIL SENDING IN BACKGROUND
+      // 5. EMAIL SENDING IN BACKGROUND
       sendCustomApprovalEmail(user, options).catch(() => {
         toast({
           variant: 'destructive',
@@ -281,18 +304,81 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
     handleRevokeAdmin,
     handleDeleteUser,
     handleCustomApprovalEmail,
-    confirmAction,
-    isDialogOpen,
-    setIsDialogOpen,
+    confirmUserRejection,
+    confirmMakeAdmin,
+    confirmRevokeAdmin,
+    confirmDeleteUser,
+    dialogState,
+    closeAllDialogs,
     selectedUser,
-    actionType,
+    rejectionReason,
+    setRejectionReason,
     isLoading: updateUserStatusMutation.isPending || updateAdminStatusMutation.isPending || deleteUserMutation.isPending,
     ApprovalEmailDialog: () => (
       <ApprovalEmailDialog
-        open={isDialogOpen}
-        onOpenChange={setIsDialogOpen}
+        open={dialogState.approval}
+        onOpenChange={(open) => {
+          if (!open) closeAllDialogs();
+        }}
         user={selectedUser}
         onSendApprovalEmail={handleCustomApprovalEmail}
+      />
+    ),
+    RejectionDialog: () => (
+      <UserRejectionDialog
+        open={dialogState.rejection}
+        onOpenChange={(open) => {
+          if (!open) closeAllDialogs();
+        }}
+        user={selectedUser}
+        reason={rejectionReason}
+        onReasonChange={setRejectionReason}
+        onConfirm={confirmUserRejection}
+        isLoading={updateUserStatusMutation.isPending || updateAdminStatusMutation.isPending || deleteUserMutation.isPending}
+      />
+    ),
+    AdminDialog: () => (
+      <UserConfirmationDialog
+        open={dialogState.makeAdmin}
+        onOpenChange={(open) => {
+          if (!open) closeAllDialogs();
+        }}
+        user={selectedUser}
+        title="Grant Admin Privileges"
+        description="Are you sure you want to grant admin privileges to {userName}?"
+        confirmText="Grant Admin Access"
+        onConfirm={confirmMakeAdmin}
+        isLoading={updateUserStatusMutation.isPending || updateAdminStatusMutation.isPending || deleteUserMutation.isPending}
+      />
+    ),
+    RevokeAdminDialog: () => (
+      <UserConfirmationDialog
+        open={dialogState.revokeAdmin}
+        onOpenChange={(open) => {
+          if (!open) closeAllDialogs();
+        }}
+        user={selectedUser}
+        title="Revoke Admin Privileges"
+        description="Are you sure you want to revoke admin privileges from {userName}?"
+        confirmText="Revoke Admin Access"
+        confirmVariant="destructive"
+        onConfirm={confirmRevokeAdmin}
+        isLoading={updateUserStatusMutation.isPending || updateAdminStatusMutation.isPending || deleteUserMutation.isPending}
+      />
+    ),
+    DeleteDialog: () => (
+      <UserConfirmationDialog
+        open={dialogState.delete}
+        onOpenChange={(open) => {
+          if (!open) closeAllDialogs();
+        }}
+        user={selectedUser}
+        title="Delete User"
+        description="Are you sure you want to permanently delete {userName}? This action cannot be undone."
+        confirmText="Delete User"
+        confirmVariant="destructive"
+        onConfirm={confirmDeleteUser}
+        isLoading={updateUserStatusMutation.isPending || updateAdminStatusMutation.isPending || deleteUserMutation.isPending}
       />
     ),
   };

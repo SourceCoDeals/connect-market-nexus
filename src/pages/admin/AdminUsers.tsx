@@ -7,7 +7,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Search, AlertCircle, RefreshCw, AlertTriangle } from "lucide-react";
 import { UsersTable } from "@/components/admin/UsersTable";
 import { MobileUsersTable } from "@/components/admin/MobileUsersTable";
-import { UserDetailDialog } from "@/components/admin/UserDetailDialog";
+import { User } from "@/types";
 import { UserActions } from "@/components/admin/UserActions";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -28,25 +28,26 @@ const AdminUsers = () => {
   
   const [searchQuery, setSearchQuery] = useState("");
   
-  // Get user action handlers from the component - REMOVE REFETCH TO PREVENT CONFLICTS
+  // Get user action handlers from the component
+  const userActions = UserActions({ onUserStatusUpdated: () => refetch() });
+  
   const {
     handleUserApproval,
     handleUserRejection,
     handleMakeAdmin,
     handleRevokeAdmin,
     handleDeleteUser,
-    confirmAction,
-    isDialogOpen,
-    setIsDialogOpen,
-    selectedUser,
-    actionType,
+    ApprovalEmailDialog,
+    RejectionDialog,
+    AdminDialog,
+    RevokeAdminDialog,
+    DeleteDialog,
     isLoading: isActionLoading
-  } = UserActions({ onUserStatusUpdated: undefined }); // CRITICAL: Remove refetch to prevent optimistic update conflicts
+  } = userActions;
   
   // Handle errors and show user feedback
   useEffect(() => {
     if (error) {
-      console.error('❌ Admin users error:', error);
       toast({
         variant: 'destructive',
         title: 'Error loading users',
@@ -56,7 +57,6 @@ const AdminUsers = () => {
   }, [error, toast]);
   
   const handleRetry = () => {
-    console.log('🔄 Retrying user data fetch...');
     refetch();
     toast({
       title: 'Refreshing data',
@@ -88,11 +88,11 @@ const AdminUsers = () => {
   };
 
   // User action handlers
-  const approveUser = (user: any) => handleUserApproval(user);
-  const rejectUser = (user: any) => handleUserRejection(user);
-  const makeAdmin = (user: any) => handleMakeAdmin(user);
-  const revokeAdmin = (user: any) => handleRevokeAdmin(user);
-  const deleteUser = (user: any) => handleDeleteUser(user);
+  const approveUser = (user: User) => handleUserApproval(user);
+  const rejectUser = (user: User) => handleUserRejection(user);
+  const makeAdmin = (user: User) => handleMakeAdmin(user);
+  const revokeAdmin = (user: User) => handleRevokeAdmin(user);
+  const deleteUser = (user: User) => handleDeleteUser(user);
 
   // Error state with better UX
   if (error) {
@@ -190,14 +190,12 @@ const AdminUsers = () => {
         )}
       </div>
 
-      <UserDetailDialog
-        isOpen={isDialogOpen}
-        onClose={() => setIsDialogOpen(false)}
-        onConfirm={confirmAction}
-        selectedUser={selectedUser}
-        actionType={actionType}
-        isLoading={isActionLoading}
-      />
+      {/* All user action dialogs */}
+      <ApprovalEmailDialog />
+      <RejectionDialog />
+      <AdminDialog />
+      <RevokeAdminDialog />
+      <DeleteDialog />
     </div>
   );
 };
