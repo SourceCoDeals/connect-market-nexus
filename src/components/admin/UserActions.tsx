@@ -8,6 +8,7 @@ import { UserRejectionDialog } from "./UserRejectionDialog";
 import { UserConfirmationDialog } from "./UserConfirmationDialog";
 import { User } from "@/types";
 import { ApprovalEmailOptions } from "@/types/admin-users";
+import { CentralizedCacheManager } from "@/lib/centralized-cache-manager";
 
 interface UserActionsProps {
   onUserStatusUpdated?: () => void;
@@ -24,6 +25,8 @@ interface DialogState {
 export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const cacheManager = new CentralizedCacheManager(queryClient);
+  
   const {
     useUpdateUserStatus,
     useUpdateAdminStatus,
@@ -93,15 +96,9 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
     if (!selectedUser) return;
     
     try {
-      // 1. INSTANT UI UPDATE WITH PROPER CACHE KEY
-      const cacheKey = ['admin-users'];
-      queryClient.setQueryData(cacheKey, (old: User[] | undefined) => {
-        if (!old) return old;
-        return old.map(u => 
-          u.id === selectedUser.id 
-            ? { ...u, approval_status: "rejected" as const }
-            : u
-        );
+      // 1. INSTANT UI UPDATE USING CENTRALIZED CACHE MANAGER
+      const previousData = cacheManager.updateUserData(selectedUser.id, {
+        approval_status: "rejected" as const
       });
 
       // 2. INSTANT SUCCESS FEEDBACK
@@ -120,8 +117,6 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
           onSuccess: async () => {
             try {
               await sendUserRejectionEmail(selectedUser, rejectionReason);
-              // Force query invalidation to ensure data consistency
-              queryClient.invalidateQueries({ queryKey: cacheKey });
             } catch (error) {
               toast({
                 title: "Email notification delayed",
@@ -131,15 +126,8 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
             }
           },
           onError: (error) => {
-            // ROLLBACK: Revert the optimistic update
-            queryClient.setQueryData(cacheKey, (old: User[] | undefined) => {
-              if (!old) return old;
-              return old.map(u => 
-                u.id === selectedUser.id 
-                  ? { ...u, approval_status: "pending" as const }
-                  : u
-              );
-            });
+            // ROLLBACK: Revert all optimistic updates
+            cacheManager.rollbackUserData(previousData);
             toast({
               variant: 'destructive',
               title: 'Rejection failed',
@@ -232,15 +220,9 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
 
   const handleCustomApprovalEmail = async (user: User, options: ApprovalEmailOptions) => {
     try {
-      // 1. INSTANT UI UPDATE WITH PROPER CACHE KEY
-      const cacheKey = ['admin-users'];
-      queryClient.setQueryData(cacheKey, (old: User[] | undefined) => {
-        if (!old) return old;
-        return old.map(u => 
-          u.id === user.id 
-            ? { ...u, approval_status: "approved" as const }
-            : u
-        );
+      // 1. INSTANT UI UPDATE USING CENTRALIZED CACHE MANAGER
+      const previousData = cacheManager.updateUserData(user.id, {
+        approval_status: "approved" as const
       });
 
       // 2. INSTANT SUCCESS FEEDBACK
@@ -256,20 +238,25 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
       updateUserStatusMutation.mutate(
         { userId: user.id, status: "approved" },
         {
-          onSuccess: () => {
-            // Force query invalidation to ensure data consistency
-            queryClient.invalidateQueries({ queryKey: cacheKey });
+          onSuccess: async () => {
+            // 5. EMAIL SENDING AFTER DATABASE SUCCESS
+            try {
+              await sendCustomApprovalEmail(user, options);
+              toast({
+                title: "Email sent successfully",
+                description: `Welcome email delivered to ${user.email}`,
+              });
+            } catch (emailError) {
+              toast({
+                variant: 'default',
+                title: 'Email sending failed',
+                description: 'User was approved but email may not have been sent.',
+              });
+            }
           },
           onError: (error) => {
-            // ROLLBACK: Revert the optimistic update
-            queryClient.setQueryData(cacheKey, (old: User[] | undefined) => {
-              if (!old) return old;
-              return old.map(u => 
-                u.id === user.id 
-                  ? { ...u, approval_status: "pending" as const }
-                  : u
-              );
-            });
+            // ROLLBACK: Revert all optimistic updates
+            cacheManager.rollbackUserData(previousData);
             toast({
               variant: 'destructive',
               title: 'Approval failed',
@@ -278,15 +265,6 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
           }
         }
       );
-
-      // 5. EMAIL SENDING IN BACKGROUND
-      sendCustomApprovalEmail(user, options).catch(() => {
-        toast({
-          variant: 'destructive',
-          title: 'Email sending failed',
-          description: 'User was approved but email may not have been sent.',
-        });
-      });
       
     } catch (error) {
       toast({

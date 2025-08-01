@@ -19,34 +19,26 @@ export const NDAToggle = ({ user, onSendEmail, size = "default" }: NDAToggleProp
   const logNDAEmail = useLogNDAEmail();
 
   const handleToggleChange = async (checked: boolean) => {
-    if (isLoading) return;
+    if (isLoading || updateNDA.isPending) return;
     
-    setIsLoading(true);
-    try {
-      await updateNDA.mutateAsync({
-        userId: user.id,
-        isSigned: checked,
-        adminNotes: checked ? 'Manually marked as signed' : 'Manually revoked signature'
-      });
-    } finally {
-      setIsLoading(false);
-    }
+    // Optimistic updates happen inside the mutation hook
+    updateNDA.mutate({
+      userId: user.id,
+      isSigned: checked,
+      adminNotes: checked ? 'Manually marked as signed' : 'Manually revoked signature'
+    });
   };
 
   const handleSendEmail = async () => {
     if (onSendEmail) {
       onSendEmail(user);
     } else {
-      // Default behavior - log the email sending
-      try {
-        await logNDAEmail.mutateAsync({
+      // Default behavior - log the email sending (optimistic update happens in hook)
+      logNDAEmail.mutate({
         userId: user.id,
         userEmail: user.email,
-          adminNotes: 'NDA email sent via toggle'
-        });
-      } catch (error) {
-        console.error('Error logging NDA email:', error);
-      }
+        adminNotes: 'NDA email sent via toggle'
+      });
     }
   };
 
@@ -56,7 +48,7 @@ export const NDAToggle = ({ user, onSendEmail, size = "default" }: NDAToggleProp
         <Switch
           checked={user.nda_signed || false}
           onCheckedChange={handleToggleChange}
-          disabled={isLoading}
+          disabled={updateNDA.isPending}
           className="h-4 w-7"
         />
         <Badge 
@@ -89,7 +81,7 @@ export const NDAToggle = ({ user, onSendEmail, size = "default" }: NDAToggleProp
         <Switch
           checked={user.nda_signed || false}
           onCheckedChange={handleToggleChange}
-          disabled={isLoading}
+          disabled={updateNDA.isPending}
         />
       </div>
       

@@ -76,9 +76,7 @@ export const useUpdateFeeAgreement = () => {
       return { previousUsers, previousRequests };
     },
     onSuccess: () => {
-      // Invalidate to sync across all user instances immediately
-      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
-      queryClient.invalidateQueries({ queryKey: ['connection-requests'] });
+      // DON'T INVALIDATE - Preserve optimistic updates as final state
       toast({
         title: "Fee agreement status updated",
         description: "The fee agreement status has been successfully updated.",
@@ -152,9 +150,7 @@ export const useUpdateFeeAgreementEmailSent = () => {
       return { previousUsers, previousRequests };
     },
     onSuccess: () => {
-      // Invalidate to sync across all user instances immediately
-      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
-      queryClient.invalidateQueries({ queryKey: ['connection-requests'] });
+      // DON'T INVALIDATE - Preserve optimistic updates as final state
       toast({
         title: "Fee agreement email status updated",
         description: "The fee agreement email status has been successfully updated.",

@@ -77,9 +77,7 @@ export const useUpdateNDA = () => {
       return { previousUsers, previousRequests };
     },
     onSuccess: () => {
-      // Invalidate to sync across all user instances immediately
-      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
-      queryClient.invalidateQueries({ queryKey: ['connection-requests'] });
+      // DON'T INVALIDATE - Preserve optimistic updates as final state
       toast({
         title: "NDA status updated",
         description: "The NDA status has been successfully updated.",
@@ -153,9 +151,7 @@ export const useUpdateNDAEmailSent = () => {
       return { previousUsers, previousRequests };
     },
     onSuccess: () => {
-      // Invalidate to sync across all user instances immediately
-      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
-      queryClient.invalidateQueries({ queryKey: ['connection-requests'] });
+      // DON'T INVALIDATE - Preserve optimistic updates as final state
       toast({
         title: "NDA email status updated",
         description: "The NDA email status has been successfully updated.",

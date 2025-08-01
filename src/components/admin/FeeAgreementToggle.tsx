@@ -20,24 +20,22 @@ export function FeeAgreementToggle({ user, onSendEmail, size = "default" }: FeeA
   const logEmailMutation = useLogFeeAgreementEmail();
 
   const handleToggleChange = async (checked: boolean) => {
-    setIsUpdating(true);
-    try {
-      await updateFeeAgreement.mutateAsync({
-        userId: user.id,
-        isSigned: checked,
-        notes: checked ? 'Manually marked as signed by admin' : 'Manually revoked by admin'
-      });
-    } finally {
-      setIsUpdating(false);
-    }
+    if (updateFeeAgreement.isPending) return;
+    
+    // Optimistic updates happen inside the mutation hook
+    updateFeeAgreement.mutate({
+      userId: user.id,
+      isSigned: checked,
+      notes: checked ? 'Manually marked as signed by admin' : 'Manually revoked by admin'
+    });
   };
 
   const handleSendEmail = async () => {
     if (onSendEmail) {
       onSendEmail(user);
     } else {
-      // Default email sending logic
-      await logEmailMutation.mutateAsync({
+      // Default email sending logic (optimistic update happens in hook)
+      logEmailMutation.mutate({
         userId: user.id,
         userEmail: user.email,
         notes: 'Fee agreement sent via admin dashboard'
@@ -54,7 +52,7 @@ export function FeeAgreementToggle({ user, onSendEmail, size = "default" }: FeeA
         <Switch
           checked={isSigned || false}
           onCheckedChange={handleToggleChange}
-          disabled={isUpdating || updateFeeAgreement.isPending}
+          disabled={updateFeeAgreement.isPending}
           className="data-[state=checked]:bg-green-600"
         />
         {!isSigned && (
@@ -92,7 +90,7 @@ export function FeeAgreementToggle({ user, onSendEmail, size = "default" }: FeeA
           <Switch
             checked={isSigned || false}
             onCheckedChange={handleToggleChange}
-            disabled={isUpdating || updateFeeAgreement.isPending}
+            disabled={updateFeeAgreement.isPending}
             className="data-[state=checked]:bg-green-600"
           />
           <Badge variant={isSigned ? "success" : "secondary"}>
