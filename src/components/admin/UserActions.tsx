@@ -205,40 +205,41 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
     // Close dialog immediately 
     closeAllDialogs();
     
-    updateUserStatusMutation.mutate(
-      { userId: user.id, status: "approved" },
-      {
-        onSuccess: async () => {
-          toast({
-            title: "User approved",
-            description: `${user.firstName} ${user.lastName} has been approved and can now access the marketplace`,
-          });
-          
-          try {
-            await sendCustomApprovalEmail(user, options);
-            toast({
-              title: "Email sent successfully",
-              description: `Welcome email delivered to ${user.email}`,
-            });
-          } catch (emailError) {
-            toast({
-              variant: 'default',
-              title: 'Email sending failed',
-              description: 'User was approved but email may not have been sent.',
-            });
-          }
-          
-          if (onUserStatusUpdated) onUserStatusUpdated();
-        },
-        onError: (error) => {
-          toast({
-            variant: 'destructive',
-            title: 'Approval failed',
-            description: error.message || 'Failed to approve user. Please try again.',
-          });
-        }
+    // Step 1: Approve user FIRST - this happens immediately and independently
+    try {
+      await updateUserStatusMutation.mutateAsync({ userId: user.id, status: "approved" });
+      
+      toast({
+        title: "User approved",
+        description: `${user.firstName} ${user.lastName} has been approved and can now access the marketplace`,
+      });
+      
+      // Step 2: Send email as a separate, non-blocking operation
+      try {
+        await sendCustomApprovalEmail(user, options);
+        toast({
+          title: "Email sent successfully", 
+          description: `Welcome email delivered to ${user.email}`,
+        });
+      } catch (emailError) {
+        console.error('Email sending failed after approval:', emailError);
+        toast({
+          variant: 'default',
+          title: 'Email sending failed',
+          description: 'User was approved successfully, but welcome email failed to send.',
+        });
       }
-    );
+      
+      if (onUserStatusUpdated) onUserStatusUpdated();
+      
+    } catch (approvalError) {
+      console.error('User approval failed:', approvalError);
+      toast({
+        variant: 'destructive',
+        title: 'Approval failed',
+        description: approvalError.message || 'Failed to approve user. Please try again.',
+      });
+    }
   };
 
   return {
