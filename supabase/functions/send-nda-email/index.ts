@@ -188,10 +188,26 @@ const handler = async (req: Request): Promise<Response> => {
     // Create premium signature (same logic as fee agreement)
     let adminSignature;
     
-    if (customSignature && customSignature.signature_html) {
-      // Use custom signature completely as-is without any modifications
-      adminSignature = customSignature.signature_html;
-      console.log('✅ Using custom admin signature as-is');
+    if (customSignature?.signature_text) {
+      // Prioritize text signature and build HTML from it
+      console.log('✅ Using custom text signature (prioritized)');
+      let signatureParts = customSignature.signature_text.split('\n').filter(line => line.trim());
+      
+      // Add optional phone and calendly if provided
+      if (customSignature.phone_number?.trim()) {
+        signatureParts.push(`<a href="tel:${customSignature.phone_number.replace(/[^\d]/g, '')}" style="color: #0066cc; text-decoration: none;">${customSignature.phone_number}</a>`);
+      }
+      
+      if (customSignature.calendly_url?.trim()) {
+        signatureParts.push(`<a href="${customSignature.calendly_url}" style="color: #0066cc; text-decoration: none;">Click here to schedule a call with me</a>`);
+      }
+      
+      adminSignature = `
+        <div style="font-family: Arial, sans-serif; color: #333; line-height: 1.4;">
+          <p style="margin: 0;">
+            ${signatureParts.join('<br>')}
+          </p>
+        </div>`;
     } else {
       // Create template signature with conditional elements
       let signatureParts = [
