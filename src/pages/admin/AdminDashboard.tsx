@@ -8,10 +8,9 @@ import { Store, Users, MessageSquare, TrendingUp, BarChart, Shield, Activity } f
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { AdminFeedbackTab } from "@/components/admin/AdminFeedbackTab";
+import { ResponsiveManagementTab } from "@/components/admin/ResponsiveManagementTab";
 import { AdvancedAnalyticsDashboard } from "@/components/admin/AdvancedAnalyticsDashboard";
 import { EnhancedAnalyticsHealthDashboard } from "@/components/admin/EnhancedAnalyticsHealthDashboard";
-import { DealAlertsOverview } from "@/components/admin/DealAlertsOverview";
 import { DataQualityDashboard } from "@/components/admin/DataQualityDashboard";
 import { UsersTable } from "@/components/admin/UsersTable";
 import { MobileUsersTable } from "@/components/admin/MobileUsersTable";
@@ -134,20 +133,7 @@ const AdminDashboard = () => {
         {/* Mobile: Combined Management Tab */}
         {isMobile && (
           <TabsContent value="management" className="space-y-4">
-            <Tabs defaultValue="feedback" className="space-y-4">
-              <TabsList className="grid w-full grid-cols-2 h-10">
-                <TabsTrigger value="feedback" className="text-xs">Feedback</TabsTrigger>
-                <TabsTrigger value="alerts" className="text-xs">Deal Alerts</TabsTrigger>
-              </TabsList>
-              
-              <TabsContent value="feedback" className="space-y-4">
-                <AdminFeedbackTab />
-              </TabsContent>
-              
-              <TabsContent value="alerts" className="space-y-4">
-                <DealAlertsOverview />
-              </TabsContent>
-            </Tabs>
+            <ResponsiveManagementTab />
           </TabsContent>
         )}
 
@@ -163,11 +149,11 @@ const AdminDashboard = () => {
             </TabsContent>
 
             <TabsContent value="feedback">
-              <AdminFeedbackTab />
+              <ResponsiveManagementTab />
             </TabsContent>
 
             <TabsContent value="alerts" className="space-y-4 md:space-y-6">
-              <DealAlertsOverview />
+              <ResponsiveManagementTab />
             </TabsContent>
           </>
         )}
