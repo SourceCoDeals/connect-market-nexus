@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { User } from "@/types";
+import { useCallback } from "react";
 
 interface UserRejectionDialogProps {
   open: boolean;
@@ -23,6 +24,10 @@ export function UserRejectionDialog({
   onConfirm,
   isLoading
 }: UserRejectionDialogProps) {
+  const handleReasonChange = useCallback((value: string) => {
+    onReasonChange(value);
+  }, [onReasonChange]);
+
   if (!user) return null;
 
   return (
@@ -42,8 +47,11 @@ export function UserRejectionDialog({
               id="rejection-reason"
               placeholder="Enter reason for rejection..."
               value={reason}
-              onChange={(e) => onReasonChange(e.target.value)}
+              onChange={(e) => handleReasonChange(e.target.value)}
               rows={3}
+              data-gramm="false"
+              data-gramm_editor="false"
+              data-enable-grammarly="false"
             />
           </div>
         </div>
