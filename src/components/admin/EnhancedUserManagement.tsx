@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { User } from '@/types';
-import { Search, Filter, Download, Users, UserCheck, UserX, AlertCircle, Database, Activity } from 'lucide-react';
+import { Search, Filter, Download, Users, UserCheck, AlertCircle, Database, Activity } from 'lucide-react';
 import { DataRecoveryDashboard } from './DataRecoveryDashboard';
 import { FormValidationMonitor } from './FormValidationMonitor';
 
@@ -23,7 +23,6 @@ interface EnhancedUserManagementProps {
 export function EnhancedUserManagement({
   users,
   onApprove,
-  onReject,
   onMakeAdmin,
   onRevokeAdmin,
   onDelete,
@@ -121,7 +120,6 @@ export function EnhancedUserManagement({
     usersToApprove.forEach(onApprove);
     setSelectedUsers([]);
   };
-
 
   const exportData = () => {
     const csvData = filteredUsers.map(user => ({
@@ -425,30 +423,16 @@ export function EnhancedUserManagement({
                 <h4 className="font-medium">Recent Signup Trends</h4>
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
-                    <span>This Week</span>
-                    <span className="font-medium">
-                      {users.filter(u => {
-                        const weekAgo = new Date();
-                        weekAgo.setDate(weekAgo.getDate() - 7);
-                        return new Date(u.created_at) > weekAgo;
-                      }).length}
-                    </span>
+                    <span>Last 7 days</span>
+                    <span>{users.filter(u => new Date(u.created_at) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)).length}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span>This Month</span>
-                    <span className="font-medium">
-                      {users.filter(u => {
-                        const monthAgo = new Date();
-                        monthAgo.setMonth(monthAgo.getMonth() - 1);
-                        return new Date(u.created_at) > monthAgo;
-                      }).length}
-                    </span>
+                    <span>Last 30 days</span>
+                    <span>{users.filter(u => new Date(u.created_at) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)).length}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span>Email Verified</span>
-                    <span className="text-green-600 font-medium">
-                      {users.filter(u => u.email_verified).length}
-                    </span>
+                    <span>Email Verification Rate</span>
+                    <span>{Math.round((users.filter(u => u.email_verified).length / users.length) * 100)}%</span>
                   </div>
                 </div>
               </div>

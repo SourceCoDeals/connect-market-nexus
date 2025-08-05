@@ -1,11 +1,10 @@
-
 import React, { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { User } from '@/types';
-import { MoreHorizontal, UserCheck, UserX, UserPlus, UserMinus, Trash2, Mail, Building, Phone, Globe } from 'lucide-react';
+import { MoreHorizontal, UserCheck, UserPlus, UserMinus, Trash2, Mail, Building, Phone, Globe } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { DualFeeAgreementToggle } from "./DualFeeAgreementToggle";
 import { SimpleFeeAgreementDialog } from "./SimpleFeeAgreementDialog";
@@ -41,7 +40,6 @@ const StatusBadge = ({ status }: { status: string }) => {
 const MobileUserCard = ({ 
   user, 
   onApprove, 
-  onReject,
   onMakeAdmin,
   onRevokeAdmin,
   onDelete,
@@ -51,7 +49,6 @@ const MobileUserCard = ({
 }: { 
   user: User;
   onApprove: (user: User) => void;
-  onReject: (user: User) => void;
   onMakeAdmin: (user: User) => void;
   onRevokeAdmin: (user: User) => void;
   onDelete: (user: User) => void;
@@ -296,7 +293,6 @@ const MobileUserCard = ({
 export const MobileUsersTable = ({ 
   users, 
   onApprove, 
-  onReject,
   onMakeAdmin,
   onRevokeAdmin,
   onDelete,

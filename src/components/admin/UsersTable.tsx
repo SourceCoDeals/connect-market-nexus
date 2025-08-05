@@ -637,16 +637,16 @@ export function UsersTable({
 
           const adminName = `${adminProfile.first_name} ${adminProfile.last_name}`;
 
-          await logNDAEmail.mutateAsync({
-            userId: user.id,
-            userEmail: user.email,
-            subject: options?.subject || 'NDA Agreement | SourceCo',
-            content: options?.content || 'Please review and sign the attached NDA.',
-            adminId: currentAuthUser.id,
-            adminEmail: adminProfile.email,
-            adminName: adminName,
-            notes: options?.content ? `Custom NDA email sent: ${options.subject}` : 'Standard NDA email sent'
-          });
+        await logNDAEmail.mutateAsync({
+          userId: user.id,
+          userEmail: user.email,
+          customSubject: options?.subject || 'NDA Agreement | SourceCo',
+          customMessage: options?.message || 'Please review and sign the attached NDA.',
+          adminId: currentAuthUser.id,
+          adminEmail: adminProfile.email,
+          adminName: adminName,
+          notes: options?.message ? `Custom NDA email sent: ${options.subject}` : 'Standard NDA email sent'
+        });
         }}
       />
     </>
