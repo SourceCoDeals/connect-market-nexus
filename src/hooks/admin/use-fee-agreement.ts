@@ -211,7 +211,7 @@ export const useLogFeeAgreementEmail = () => {
       const previousUsers = queryClient.getQueryData(['admin-users']);
       const previousRequests = queryClient.getQueryData(['connection-requests']);
 
-      // Optimistically update BOTH email sent AND signed status immediately
+      // Optimistically update ONLY email sent status
       queryClient.setQueryData(['admin-users'], (old: any) => {
         if (!old) return old;
         return old.map((user: any) => 
@@ -219,9 +219,7 @@ export const useLogFeeAgreementEmail = () => {
             ? { 
                 ...user, 
                 fee_agreement_email_sent: true,
-                fee_agreement_email_sent_at: new Date().toISOString(),
-                fee_agreement_signed: true,
-                fee_agreement_signed_at: new Date().toISOString()
+                fee_agreement_email_sent_at: new Date().toISOString()
               }
             : user
         );
@@ -236,9 +234,7 @@ export const useLogFeeAgreementEmail = () => {
                 user: {
                   ...request.user,
                   fee_agreement_email_sent: true,
-                  fee_agreement_email_sent_at: new Date().toISOString(),
-                  fee_agreement_signed: true,
-                  fee_agreement_signed_at: new Date().toISOString()
+                  fee_agreement_email_sent_at: new Date().toISOString()
                 }
               }
             : request
