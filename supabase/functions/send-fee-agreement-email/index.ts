@@ -199,6 +199,15 @@ ${signatureText}` : signatureText;
     
     console.log(`📧 Using sender: ${senderName} <${senderEmail}>, reply-to: ${adminName} <${adminEmail}>`);
 
+    // Build HTML content (required by Brevo API)
+    const htmlContent = content ? `<div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+${content.replace(/\n/g, '<br>')}
+<br><br>
+${adminSignature}
+</div>` : `<div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+${adminSignature}
+</div>`;
+
     // Prepare Brevo email payload
     const brevoPayload: any = {
       sender: {
@@ -213,6 +222,7 @@ ${signatureText}` : signatureText;
       ],
       subject: emailSubject,
       textContent: textContent,
+      htmlContent: htmlContent,
       replyTo: {
         email: adminEmail,
         name: adminName
