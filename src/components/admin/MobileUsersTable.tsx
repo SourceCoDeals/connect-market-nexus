@@ -17,7 +17,6 @@ import { supabase } from '@/integrations/supabase/client';
 interface MobileUsersTableProps {
   users: User[];
   onApprove: (user: User) => void;
-  onReject: (user: User) => void;
   onMakeAdmin: (user: User) => void;
   onRevokeAdmin: (user: User) => void;
   onDelete: (user: User) => void;
@@ -93,25 +92,6 @@ const MobileUserCard = ({
             <DropdownMenuSeparator />
             
             {user.approval_status === "pending" && (
-              <>
-                <DropdownMenuItem 
-                  onClick={() => onApprove(user)}
-                  className="text-green-600"
-                >
-                  <UserCheck className="h-4 w-4 mr-2" />
-                  Approve User
-                </DropdownMenuItem>
-                <DropdownMenuItem 
-                  onClick={() => onReject(user)}
-                  className="text-red-600"
-                >
-                  <UserX className="h-4 w-4 mr-2" />
-                  Reject User
-                </DropdownMenuItem>
-              </>
-            )}
-            
-            {user.approval_status === "rejected" && (
               <DropdownMenuItem 
                 onClick={() => onApprove(user)}
                 className="text-green-600"
@@ -121,13 +101,13 @@ const MobileUserCard = ({
               </DropdownMenuItem>
             )}
             
-            {user.approval_status === "approved" && (
+            {user.approval_status === "rejected" && (
               <DropdownMenuItem 
-                onClick={() => onReject(user)}
-                className="text-red-600"
+                onClick={() => onApprove(user)}
+                className="text-green-600"
               >
-                <UserX className="h-4 w-4 mr-2" />
-                Reject User
+                <UserCheck className="h-4 w-4 mr-2" />
+                Approve User
               </DropdownMenuItem>
             )}
             
@@ -408,7 +388,6 @@ export const MobileUsersTable = ({
           key={user.id}
           user={user}
           onApprove={onApprove}
-          onReject={onReject}
           onMakeAdmin={onMakeAdmin}
           onRevokeAdmin={onRevokeAdmin}
           onDelete={onDelete}

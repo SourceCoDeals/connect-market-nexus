@@ -4,7 +4,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAdminUsers } from "@/hooks/admin/use-admin-users";
 import { useAdminEmail } from "@/hooks/admin/use-admin-email";
 import { ApprovalEmailDialog } from "./ApprovalEmailDialog";
-import { UserRejectionDialog } from "./UserRejectionDialog";
+
 import { UserConfirmationDialog } from "./UserConfirmationDialog";
 import { User } from "@/types";
 import { ApprovalEmailOptions } from "@/types/admin-users";
@@ -16,7 +16,6 @@ interface UserActionsProps {
 
 interface DialogState {
   approval: boolean;
-  rejection: boolean;
   makeAdmin: boolean;
   revokeAdmin: boolean;
   delete: boolean;
@@ -33,7 +32,6 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
   } = useAdminUsers();
   
   const {
-    sendUserRejectionEmail,
     sendCustomApprovalEmail
   } = useAdminEmail();
   
@@ -43,12 +41,10 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
   const deleteUserMutation = useDeleteUser();
   
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const [rejectionReason, setRejectionReason] = useState<string>("");
   
   // Separate dialog states for each action
   const [dialogState, setDialogState] = useState<DialogState>({
     approval: false,
-    rejection: false,
     makeAdmin: false,
     revokeAdmin: false,
     delete: false
@@ -57,13 +53,11 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
   const closeAllDialogs = () => {
     setDialogState({
       approval: false,
-      rejection: false,
       makeAdmin: false,
       revokeAdmin: false,
       delete: false
     });
     setSelectedUser(null);
-    setRejectionReason("");
   };
 
   const handleUserApproval = (user: User) => {
@@ -71,10 +65,6 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
     setDialogState(prev => ({ ...prev, approval: true }));
   };
   
-  const handleUserRejection = (user: User) => {
-    setSelectedUser(user);
-    setDialogState(prev => ({ ...prev, rejection: true }));
-  };
   
   const handleMakeAdmin = (user: User) => {
     setSelectedUser(user);
@@ -91,42 +81,6 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
     setDialogState(prev => ({ ...prev, delete: true }));
   };
 
-  const confirmUserRejection = async () => {
-    if (!selectedUser) return;
-    
-    updateUserStatusMutation.mutate(
-      { userId: selectedUser.id, status: "rejected" },
-      {
-        onSuccess: async () => {
-          toast({
-            title: "User rejected",
-            description: `${selectedUser.firstName} ${selectedUser.lastName} has been rejected`,
-          });
-          
-          try {
-            await sendUserRejectionEmail(selectedUser, rejectionReason);
-          } catch (error) {
-            toast({
-              title: "Email notification delayed",
-              description: "User was rejected but email notification may be delayed.",
-              variant: "default",
-            });
-          }
-          
-          closeAllDialogs();
-          if (onUserStatusUpdated) onUserStatusUpdated();
-        },
-        onError: (error) => {
-          toast({
-            variant: 'destructive',
-            title: 'Rejection failed',
-            description: error.message || 'Failed to reject user. Please try again.',
-          });
-          closeAllDialogs();
-        }
-      }
-    );
-  };
 
   const confirmMakeAdmin = async () => {
     if (!selectedUser) return;
@@ -243,20 +197,16 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
 
   return {
     handleUserApproval,
-    handleUserRejection,
     handleMakeAdmin,
     handleRevokeAdmin,
     handleDeleteUser,
     handleCustomApprovalEmail,
-    confirmUserRejection,
     confirmMakeAdmin,
     confirmRevokeAdmin,
     confirmDeleteUser,
     dialogState,
     closeAllDialogs,
     selectedUser,
-    rejectionReason,
-    setRejectionReason,
     isLoading: updateUserStatusMutation.isPending || updateAdminStatusMutation.isPending || deleteUserMutation.isPending,
     ApprovalEmailDialog: () => (
       <ApprovalEmailDialog
@@ -266,19 +216,6 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
         }}
         user={selectedUser}
         onSendApprovalEmail={handleCustomApprovalEmail}
-      />
-    ),
-    RejectionDialog: () => (
-      <UserRejectionDialog
-        open={dialogState.rejection}
-        onOpenChange={(open) => {
-          if (!open) closeAllDialogs();
-        }}
-        user={selectedUser}
-        reason={rejectionReason}
-        onReasonChange={setRejectionReason}
-        onConfirm={confirmUserRejection}
-        isLoading={updateUserStatusMutation.isPending || updateAdminStatusMutation.isPending || deleteUserMutation.isPending}
       />
     ),
     AdminDialog: () => (

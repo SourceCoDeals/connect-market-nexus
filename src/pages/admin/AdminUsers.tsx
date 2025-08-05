@@ -31,12 +31,10 @@ const AdminUsers = () => {
   // Get user action handlers from the hook
   const {
     handleUserApproval,
-    handleUserRejection,
     handleMakeAdmin,
     handleRevokeAdmin,
     handleDeleteUser,
     ApprovalEmailDialog,
-    RejectionDialog,
     AdminDialog,
     RevokeAdminDialog,
     DeleteDialog,
@@ -87,7 +85,6 @@ const AdminUsers = () => {
 
   // User action handlers
   const approveUser = (user: User) => handleUserApproval(user);
-  const rejectUser = (user: User) => handleUserRejection(user);
   const makeAdmin = (user: User) => handleMakeAdmin(user);
   const revokeAdmin = (user: User) => handleRevokeAdmin(user);
   const deleteUser = (user: User) => handleDeleteUser(user);
@@ -132,7 +129,6 @@ const AdminUsers = () => {
       <EnhancedUserManagement
         users={usersData}
         onApprove={approveUser}
-        onReject={rejectUser}
         onMakeAdmin={makeAdmin}
         onRevokeAdmin={revokeAdmin}
         onDelete={deleteUser}
@@ -164,7 +160,6 @@ const AdminUsers = () => {
             <MobileUsersTable
               users={filteredUsers}
               onApprove={approveUser}
-              onReject={rejectUser}
               onMakeAdmin={makeAdmin}
               onRevokeAdmin={revokeAdmin}
               onDelete={deleteUser}
@@ -178,7 +173,6 @@ const AdminUsers = () => {
             <UsersTable
               users={filteredUsers}
               onApprove={approveUser}
-              onReject={rejectUser}
               onMakeAdmin={makeAdmin}
               onRevokeAdmin={revokeAdmin}
               onDelete={deleteUser}
@@ -190,7 +184,6 @@ const AdminUsers = () => {
 
       {/* All user action dialogs */}
       <ApprovalEmailDialog />
-      <RejectionDialog />
       <AdminDialog />
       <RevokeAdminDialog />
       <DeleteDialog />

@@ -14,7 +14,6 @@ import { FormValidationMonitor } from './FormValidationMonitor';
 interface EnhancedUserManagementProps {
   users: User[];
   onApprove: (user: User) => void;
-  onReject: (user: User) => void;
   onMakeAdmin: (user: User) => void;
   onRevokeAdmin: (user: User) => void;
   onDelete: (user: User) => void;
@@ -123,13 +122,6 @@ export function EnhancedUserManagement({
     setSelectedUsers([]);
   };
 
-  const handleBulkReject = () => {
-    const usersToReject = users.filter(u => 
-      selectedUsers.includes(u.id) && u.approval_status === 'pending'
-    );
-    usersToReject.forEach(onReject);
-    setSelectedUsers([]);
-  };
 
   const exportData = () => {
     const csvData = filteredUsers.map(user => ({
@@ -350,10 +342,6 @@ export function EnhancedUserManagement({
                   <Button size="sm" onClick={handleBulkApprove} variant="outline">
                     <UserCheck className="h-4 w-4 mr-2" />
                     Bulk Approve
-                  </Button>
-                  <Button size="sm" onClick={handleBulkReject} variant="outline">
-                    <UserX className="h-4 w-4 mr-2" />
-                    Bulk Reject
                   </Button>
                 </div>
               </div>

@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { User } from "@/types";
-import { CheckCircle, XCircle, MoreHorizontal, UserCheck, UserX, UserPlus, UserMinus, Trash2, ChevronDown, ChevronRight, ExternalLink, Mail, Building, UserIcon, Linkedin, Download } from "lucide-react";
+import { CheckCircle, XCircle, MoreHorizontal, UserCheck, UserPlus, UserMinus, Trash2, ChevronDown, ChevronRight, ExternalLink, Mail, Building, UserIcon, Linkedin, Download } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
 import { UserSavedListings } from "./UserSavedListings";
@@ -26,7 +26,6 @@ import { useAuth } from "@/context/AuthContext";
 interface UsersTableProps {
   users: User[];
   onApprove: (user: User) => void;
-  onReject: (user: User) => void;
   onMakeAdmin: (user: User) => void;
   onRevokeAdmin: (user: User) => void;
   onDelete: (user: User) => void;
@@ -177,7 +176,6 @@ const UserDetails = ({ user }: { user: User }) => {
 function UserActionButtons({ 
   user, 
   onApprove, 
-  onReject,
   onMakeAdmin,
   onRevokeAdmin,
   onDelete,
@@ -185,7 +183,6 @@ function UserActionButtons({
 }: { 
   user: User;
   onApprove: (user: User) => void;
-  onReject: (user: User) => void;
   onMakeAdmin: (user: User) => void;
   onRevokeAdmin: (user: User) => void;
   onDelete: (user: User) => void;
@@ -204,25 +201,6 @@ function UserActionButtons({
           <DropdownMenuSeparator />
           
           {user.approval_status === "pending" && (
-            <>
-              <DropdownMenuItem 
-                onClick={() => onApprove(user)}
-                className="text-green-600"
-              >
-                <UserCheck className="h-4 w-4 mr-2" />
-                Approve User
-              </DropdownMenuItem>
-              <DropdownMenuItem 
-                onClick={() => onReject(user)}
-                className="text-red-600"
-              >
-                <UserX className="h-4 w-4 mr-2" />
-                Reject User
-              </DropdownMenuItem>
-            </>
-          )}
-          
-          {user.approval_status === "rejected" && (
             <DropdownMenuItem 
               onClick={() => onApprove(user)}
               className="text-green-600"
@@ -232,13 +210,13 @@ function UserActionButtons({
             </DropdownMenuItem>
           )}
           
-          {user.approval_status === "approved" && (
+          {user.approval_status === "rejected" && (
             <DropdownMenuItem 
-              onClick={() => onReject(user)}
-              className="text-red-600"
+              onClick={() => onApprove(user)}
+              className="text-green-600"
             >
-              <UserX className="h-4 w-4 mr-2" />
-              Reject User
+              <UserCheck className="h-4 w-4 mr-2" />
+              Approve User
             </DropdownMenuItem>
           )}
           
@@ -291,7 +269,6 @@ const UsersTableSkeleton = () => (
 export function UsersTable({ 
   users, 
   onApprove, 
-  onReject,
   onMakeAdmin,
   onRevokeAdmin,
   onDelete,
@@ -468,87 +445,101 @@ export function UsersTable({
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <h3 className="text-lg font-semibold">Users ({users.length})</h3>
-        <div className="flex gap-2">
+    <>
+      <div className="space-y-4">
+        <div className="flex justify-between items-center">
+          <div className="text-sm text-muted-foreground">
+            {users.length} user{users.length !== 1 ? 's' : ''}
+          </div>
           <Button
             onClick={() => exportUsersToCSV(users)}
             variant="outline"
             size="sm"
-            disabled={users.length === 0}
+            className="flex items-center gap-2"
           >
-            <Download className="h-4 w-4 mr-2" />
+            <Download className="h-4 w-4" />
             Export CSV
           </Button>
         </div>
-      </div>
-      
-      <div className="rounded-md border">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="w-[200px]">User</TableHead>
-            <TableHead className="hidden sm:table-cell">Company</TableHead>
-            <TableHead className="hidden md:table-cell">Buyer Type</TableHead>
-            <TableHead className="text-center">Profile</TableHead>
-            <TableHead className="text-center">Fee Agreement</TableHead>
-            <TableHead className="text-center">NDA</TableHead>
-            <TableHead className="text-center">Status</TableHead>
-            <TableHead className="hidden lg:table-cell">Joined</TableHead>
-            <TableHead className="text-right">Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {users.length === 0 ? (
+        
+        <Table>
+          <TableHeader>
             <TableRow>
-              <TableCell colSpan={9} className="h-24 text-center text-sm">
-                No users found.
-              </TableCell>
+              <TableHead></TableHead>
+              <TableHead>User</TableHead>
+              <TableHead>Company</TableHead>
+              <TableHead>Buyer Type</TableHead>
+              <TableHead>Profile</TableHead>
+              <TableHead>Fee Agreement</TableHead>
+              <TableHead>NDA</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead className="hidden lg:table-cell">Joined</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
             </TableRow>
-          ) : (
-            users.map((user) => [
+          </TableHeader>
+          <TableBody>
+            {users.flatMap((user) => [
               <TableRow 
                 key={user.id}
                 className="cursor-pointer hover:bg-muted/50"
                 onClick={() => toggleExpand(user.id)}
               >
-                <TableCell className="font-medium">
-                  <div className="flex items-center gap-2">
-                    {expandedUserId === user.id ? 
-                      <ChevronDown className="h-4 w-4 text-muted-foreground" /> :
-                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                    }
-                    <div className="flex flex-col">
-                      <span className="text-sm sm:text-base">{user.first_name} {user.last_name}</span>
-                      <span className="text-xs sm:text-sm text-muted-foreground">{user.email}</span>
+                <TableCell className="w-8">
+                  <Button variant="ghost" size="sm">
+                    {expandedUserId === user.id ? (
+                      <ChevronDown className="h-4 w-4" />
+                    ) : (
+                      <ChevronRight className="h-4 w-4" />
+                    )}
+                  </Button>
+                </TableCell>
+                <TableCell>
+                  <div className="flex flex-col">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">{user.firstName} {user.lastName}</span>
+                      {user.is_admin && (
+                        <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700">
+                          Admin
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="text-sm text-muted-foreground">{user.email}</div>
+                    <div className="flex items-center gap-2 mt-1">
+                      {user.email_verified && (
+                        <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700">
+                          <CheckCircle className="h-3 w-3 mr-1" />
+                          Verified
+                        </Badge>
+                      )}
                     </div>
                   </div>
                 </TableCell>
-                <TableCell className="hidden sm:table-cell">{user.company || "—"}</TableCell>
-                <TableCell className="hidden md:table-cell">
-                  <Badge variant="outline" className="capitalize text-xs">
-                    {user.buyer_type || "—"}
-                  </Badge>
+                <TableCell>
+                  <div className="text-sm">{user.company || '—'}</div>
                 </TableCell>
-                <TableCell className="text-center">
-                  <UserDataCompleteness user={user} size="sm" />
+                <TableCell>
+                  <div className="text-sm capitalize">
+                    {user.buyer_type?.replace(/([A-Z])/g, ' $1').trim() || '—'}
+                  </div>
                 </TableCell>
-                <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
+                <TableCell>
+                  <UserDataCompleteness user={user} />
+                </TableCell>
+                <TableCell onClick={(e) => e.stopPropagation()}>
                   <DualFeeAgreementToggle 
                     user={user}
-                    onSendEmail={setSelectedUserForEmail}
+                    onSendEmail={(user) => setSelectedUserForEmail(user)}
                     size="sm"
                   />
                 </TableCell>
-                <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
+                <TableCell onClick={(e) => e.stopPropagation()}>
                   <DualNDAToggle 
                     user={user}
-                    onSendEmail={setSelectedUserForNDA}
+                    onSendEmail={(user) => setSelectedUserForNDA(user)}
                     size="sm"
                   />
                 </TableCell>
-                <TableCell className="text-center">
+                <TableCell>
                   {user.approval_status === "approved" && (
                     <Badge className="bg-green-100 text-green-800 hover:bg-green-100 text-xs">
                       Approved
@@ -566,104 +557,98 @@ export function UsersTable({
                   )}
                 </TableCell>
                 <TableCell className="hidden lg:table-cell text-xs">{formatDate(user.created_at)}</TableCell>
-                <TableCell className="text-right">
-                 <UserActionButtons
-                   user={user}
-                   onApprove={onApprove}
-                   onReject={onReject}
-                   onMakeAdmin={onMakeAdmin}
-                   onRevokeAdmin={onRevokeAdmin}
-                   onDelete={onDelete}
-                   isLoading={isLoading}
-                 />
-                </TableCell>
+                 <TableCell className="text-right">
+                  <UserActionButtons
+                    user={user}
+                    onApprove={onApprove}
+                    onMakeAdmin={onMakeAdmin}
+                    onRevokeAdmin={onRevokeAdmin}
+                    onDelete={onDelete}
+                    isLoading={isLoading}
+                  />
+                 </TableCell>
               </TableRow>,
               ...(expandedUserId === user.id ? [
                 <TableRow key={`${user.id}-details`}>
-                  <TableCell colSpan={9} className="py-2 px-4 bg-muted/30 border-t">
+                  <TableCell colSpan={10} className="p-0">
                     <UserDetails user={user} />
                   </TableCell>
                 </TableRow>
               ] : [])
-            ]).flat()
-          )}
-        </TableBody>
-      </Table>
-    </div>
-    
-    <SimpleFeeAgreementDialog
-      user={selectedUserForEmail}
-      isOpen={!!selectedUserForEmail}
-      onClose={() => setSelectedUserForEmail(null)}
-      onSendEmail={async (user, options) => {
-        if (!currentAuthUser) {
-          throw new Error('Authentication required');
-        }
+            ])}
+          </TableBody>
+        </Table>
+      </div>
+      
+      <SimpleFeeAgreementDialog
+        user={selectedUserForEmail}
+        isOpen={!!selectedUserForEmail}
+        onClose={() => setSelectedUserForEmail(null)}
+        onSendEmail={async (user, options) => {
+          if (!currentAuthUser) {
+            throw new Error('Authentication required');
+          }
 
-        const { data: adminProfile, error: profileError } = await supabase
-          .from('profiles')
-          .select('email, first_name, last_name')
-          .eq('id', currentAuthUser.id)
-          .single();
+          const { data: adminProfile, error: profileError } = await supabase
+            .from('profiles')
+            .select('email, first_name, last_name')
+            .eq('id', currentAuthUser.id)
+            .single();
 
-        if (profileError || !adminProfile) {
-          throw new Error('Admin profile not found');
-        }
+          if (profileError || !adminProfile) {
+            throw new Error('Admin profile not found');
+          }
 
-        const adminName = `${adminProfile.first_name} ${adminProfile.last_name}`;
+          const adminName = `${adminProfile.first_name} ${adminProfile.last_name}`;
 
-        await logEmailMutation.mutateAsync({
-          userId: user.id,
-          userEmail: user.email,
-          subject: options?.subject,
-          content: options?.content,
-          attachments: options?.attachments,
-          customSignatureText: options?.customSignatureText,
-          adminId: currentAuthUser.id,
-          adminEmail: adminProfile.email,
-          adminName: adminName,
-          notes: options?.subject ? `Custom fee agreement email: ${options.subject}` : 'Standard fee agreement email sent'
-        });
-      }}
-    />
-    
-    <SimpleNDADialog
-      open={!!selectedUserForNDA}
-      onOpenChange={(open) => !open && setSelectedUserForNDA(null)}
-      user={selectedUserForNDA}
-      onSendEmail={async (user, options) => {
-        if (!currentAuthUser) {
-          throw new Error('Authentication required');
-        }
+          await logEmailMutation.mutateAsync({
+            userId: user.id,
+            userEmail: user.email,
+            subject: options?.subject,
+            content: options?.content,
+            attachments: options?.attachments,
+            customSignatureText: options?.customSignatureText,
+            adminId: currentAuthUser.id,
+            adminEmail: adminProfile.email,
+            adminName: adminName,
+            notes: options?.subject ? `Custom fee agreement email: ${options.subject}` : 'Standard fee agreement email sent'
+          });
+        }}
+      />
+      
+      <SimpleNDADialog
+        open={!!selectedUserForNDA}
+        onOpenChange={(open) => !open && setSelectedUserForNDA(null)}
+        user={selectedUserForNDA}
+        onSendEmail={async (user, options) => {
+          if (!currentAuthUser) {
+            throw new Error('Authentication required');
+          }
 
-        const { data: adminProfile, error: profileError } = await supabase
-          .from('profiles')
-          .select('email, first_name, last_name')
-          .eq('id', currentAuthUser.id)
-          .single();
+          const { data: adminProfile, error: profileError } = await supabase
+            .from('profiles')
+            .select('email, first_name, last_name')
+            .eq('id', currentAuthUser.id)
+            .single();
 
-        if (profileError || !adminProfile) {
-          throw new Error('Admin profile not found');
-        }
+          if (profileError || !adminProfile) {
+            throw new Error('Admin profile not found');
+          }
 
-        const adminName = `${adminProfile.first_name} ${adminProfile.last_name}`;
+          const adminName = `${adminProfile.first_name} ${adminProfile.last_name}`;
 
-        await logNDAEmail.mutateAsync({
-          userId: user.id,
-          userEmail: user.email,
-          customSubject: options?.subject,
-          customMessage: options?.message,
-          customSignatureText: options?.customSignatureText,
-          adminId: currentAuthUser.id,
-          adminEmail: adminProfile.email,
-          adminName: adminName,
-          notes: options?.subject ? `Custom NDA email: ${options.subject}` : 'Standard NDA email sent'
-        });
-      }}
-    />
-
-    </div>
+          await logNDAEmail.mutateAsync({
+            userId: user.id,
+            userEmail: user.email,
+            subject: options?.subject || 'NDA Agreement | SourceCo',
+            content: options?.content || 'Please review and sign the attached NDA.',
+            adminId: currentAuthUser.id,
+            adminEmail: adminProfile.email,
+            adminName: adminName,
+            notes: options?.content ? `Custom NDA email sent: ${options.subject}` : 'Standard NDA email sent'
+          });
+        }}
+      />
+    </>
   );
 }
-
-export default UsersTable;
