@@ -3,12 +3,13 @@ import { Button } from "@/components/ui/button";
 import { RefreshCw, TrendingUp, TrendingDown, Users, Store, MessageSquare, Activity } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useAdmin } from "@/hooks/use-admin";
+import { useRecentUserActivity } from "@/hooks/use-recent-user-activity";
 import { Badge } from "@/components/ui/badge";
 
 export function StreamlinedOverviewTab() {
-  const { useStats, useRecentActivities } = useAdmin();
+  const { useStats } = useAdmin();
   const { data: stats, isLoading: isLoadingStats, refetch: refetchStats } = useStats();
-  const { data: activities = [], isLoading: isLoadingActivities, refetch: refetchActivities } = useRecentActivities();
+  const { data: activities = [], isLoading: isLoadingActivities, refetch: refetchActivities } = useRecentUserActivity();
 
   const handleRefresh = () => {
     refetchStats();
@@ -186,15 +187,28 @@ export function StreamlinedOverviewTab() {
             </div>
           ) : activities.length > 0 ? (
             <div className="space-y-3 max-h-64 overflow-y-auto">
-              {activities.slice(0, 8).map((activity, index) => (
-                <div key={index} className="flex items-center gap-3 text-sm">
-                  <div className="h-2 w-2 bg-primary rounded-full"></div>
-                  <span className="flex-1">{activity.description}</span>
-                  <span className="text-xs text-muted-foreground">
-                    {formatDistanceToNow(new Date(activity.timestamp), { addSuffix: true })}
-                  </span>
-                </div>
-              ))}
+              {activities.slice(0, 8).map((activity) => {
+                const getActivityDescription = () => {
+                  if (activity.activity_type === 'listing_action') {
+                    return `${activity.first_name} ${activity.last_name} ${activity.action_type}d listing: ${activity.listing_title}`;
+                  } else if (activity.activity_type === 'page_view') {
+                    return `${activity.first_name} ${activity.last_name} viewed ${activity.page_path}`;
+                  } else if (activity.activity_type === 'user_event') {
+                    return `${activity.first_name} ${activity.last_name} performed ${activity.action_type}`;
+                  }
+                  return 'Unknown activity';
+                };
+
+                return (
+                  <div key={activity.id} className="flex items-center gap-3 text-sm">
+                    <div className="h-2 w-2 bg-primary rounded-full"></div>
+                    <span className="flex-1">{getActivityDescription()}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {formatDistanceToNow(new Date(activity.created_at), { addSuffix: true })}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           ) : (
             <p className="text-muted-foreground text-center py-4">No recent activity</p>
