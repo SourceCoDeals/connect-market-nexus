@@ -5,6 +5,9 @@ import { TrendingUp, BarChart, Settings } from "lucide-react";
 import { StreamlinedOverviewTab } from "@/components/admin/StreamlinedOverviewTab";
 import { StreamlinedAnalyticsTab } from "@/components/admin/StreamlinedAnalyticsTab";
 import { StreamlinedManagementTab } from "@/components/admin/StreamlinedManagementTab";
+import { RecentActivityTab } from "@/components/admin/RecentActivityTab";
+import { ListingIntelligenceTab } from "@/components/admin/ListingIntelligenceTab";
+import { MarketIntelligenceTab } from "@/components/admin/MarketIntelligenceTab";
 
 const AdminDashboard = () => {
   return (
@@ -20,19 +23,13 @@ const AdminDashboard = () => {
         </div>
 
         <Tabs defaultValue="overview" className="space-y-4 md:space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="overview" className="flex items-center gap-2">
-              <TrendingUp className="h-4 w-4" />
-              Overview
-            </TabsTrigger>
-            <TabsTrigger value="analytics" className="flex items-center gap-2">
-              <BarChart className="h-4 w-4" />
-              Advanced Analytics
-            </TabsTrigger>
-            <TabsTrigger value="management" className="flex items-center gap-2">
-              <Settings className="h-4 w-4" />
-              Management
-            </TabsTrigger>
+          <TabsList className="grid w-full grid-cols-6">
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="analytics">Analytics</TabsTrigger>
+            <TabsTrigger value="activity">Activity</TabsTrigger>
+            <TabsTrigger value="listings">Listings</TabsTrigger>
+            <TabsTrigger value="market">Market</TabsTrigger>
+            <TabsTrigger value="management">Management</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview">
@@ -41,6 +38,18 @@ const AdminDashboard = () => {
 
           <TabsContent value="analytics">
             <StreamlinedAnalyticsTab />
+          </TabsContent>
+
+          <TabsContent value="activity">
+            <RecentActivityTab />
+          </TabsContent>
+
+          <TabsContent value="listings">
+            <ListingIntelligenceTab />
+          </TabsContent>
+
+          <TabsContent value="market">
+            <MarketIntelligenceTab />
           </TabsContent>
 
           <TabsContent value="management">
