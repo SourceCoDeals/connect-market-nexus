@@ -1,8 +1,10 @@
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Store, Users, MessageSquare, TrendingUp, Activity } from "lucide-react";
+import { Store, Users, MessageSquare, TrendingUp, Activity, RefreshCw } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useLongPress, triggerHaptic } from "@/hooks/use-mobile-gestures";
+import { useLazyComponent, usePerformanceMetrics } from "@/hooks/use-mobile-performance";
 import { cn } from "@/lib/utils";
 
 interface OverviewCardsProps {
@@ -13,10 +15,23 @@ interface OverviewCardsProps {
     totalUsers?: number;
   };
   isLoading: boolean;
+  onRefresh?: () => void;
 }
 
-export function ResponsiveOverviewCards({ stats, isLoading }: OverviewCardsProps) {
+export function ResponsiveOverviewCards({ stats, isLoading, onRefresh }: OverviewCardsProps) {
   const isMobile = useIsMobile();
+  const { shouldReduceAnimations } = usePerformanceMetrics();
+  const { isVisible, ref } = useLazyComponent({ enabled: isMobile });
+  
+  const longPressHandlers = useLongPress({
+    onLongPress: () => {
+      if (onRefresh) {
+        triggerHaptic({ type: 'medium' });
+        onRefresh();
+      }
+    },
+    threshold: 800,
+  });
 
   const cards = [
     {

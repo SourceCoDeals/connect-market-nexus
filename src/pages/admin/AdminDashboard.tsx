@@ -85,7 +85,14 @@ const AdminDashboard = () => {
 
         <TabsContent value="overview" className="space-y-4 md:space-y-6 mt-6">
           {/* Responsive Overview Cards */}
-          <ResponsiveOverviewCards stats={stats} isLoading={isLoadingStats} />
+          <ResponsiveOverviewCards 
+            stats={stats} 
+            isLoading={isLoadingStats}
+            onRefresh={() => {
+              // Trigger refresh for all dashboard data
+              window.location.reload();
+            }}
+          />
           
           {/* Responsive Recent Activity */}
           <ResponsiveRecentActivity 
