@@ -1,9 +1,9 @@
-import React, { useCallback, memo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { User } from "@/types";
+import { useCallback } from "react";
 
 interface UserRejectionDialogProps {
   open: boolean;
@@ -15,7 +15,7 @@ interface UserRejectionDialogProps {
   isLoading: boolean;
 }
 
-const UserRejectionDialogComponent = ({
+export function UserRejectionDialog({
   open,
   onOpenChange,
   user,
@@ -23,9 +23,9 @@ const UserRejectionDialogComponent = ({
   onReasonChange,
   onConfirm,
   isLoading
-}: UserRejectionDialogProps) => {
-  const handleReasonChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    onReasonChange(e.target.value);
+}: UserRejectionDialogProps) {
+  const handleReasonChange = useCallback((value: string) => {
+    onReasonChange(value);
   }, [onReasonChange]);
 
   if (!user) return null;
@@ -47,7 +47,7 @@ const UserRejectionDialogComponent = ({
               id="rejection-reason"
               placeholder="Enter reason for rejection..."
               value={reason}
-              onChange={handleReasonChange}
+              onChange={(e) => handleReasonChange(e.target.value)}
               rows={3}
               data-gramm="false"
               data-gramm_editor="false"
@@ -75,7 +75,4 @@ const UserRejectionDialogComponent = ({
       </DialogContent>
     </Dialog>
   );
-};
-
-// Memoize the component to prevent unnecessary re-renders
-export const UserRejectionDialog = memo(UserRejectionDialogComponent);
+}

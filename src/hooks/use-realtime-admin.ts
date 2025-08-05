@@ -79,15 +79,6 @@ export function useRealtimeAdmin() {
         (payload) => {
           console.log('🔄 User profile updated:', payload.new);
           
-          // Only show notifications and invalidate for significant changes
-          const hasSignificantChange = 
-            payload.old?.approval_status !== payload.new?.approval_status ||
-            payload.old?.is_admin !== payload.new?.is_admin;
-          
-          if (!hasSignificantChange) {
-            return; // Skip invalidation for minor profile updates
-          }
-          
           // Enhanced status change notifications (consolidated from enhanced hook)
           if (payload.old?.approval_status !== payload.new?.approval_status) {
             const status = payload.new.approval_status;
@@ -106,11 +97,7 @@ export function useRealtimeAdmin() {
               description: `${userName} ${payload.new.is_admin ? 'is now an admin' : 'is no longer an admin'}`,
             });
           }
-          
-          // Use setTimeout to batch invalidations and prevent excessive re-renders
-          setTimeout(() => {
-            queryClient.invalidateQueries({ queryKey: ['admin-users'] });
-          }, 100);
+          queryClient.invalidateQueries({ queryKey: ['admin-users'] });
         }
       )
       .on(
