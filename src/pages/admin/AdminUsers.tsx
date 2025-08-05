@@ -1,10 +1,8 @@
 
 import { useState, useEffect } from "react";
 import { useAdmin } from "@/hooks/use-admin";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Search, AlertCircle, RefreshCw, AlertTriangle } from "lucide-react";
+import { Search, AlertCircle, RefreshCw } from "lucide-react";
 import { UsersTable } from "@/components/admin/UsersTable";
 import { MobileUsersTable } from "@/components/admin/MobileUsersTable";
 import { User } from "@/types";
@@ -13,9 +11,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useRealtimeAdmin } from "@/hooks/use-realtime-admin";
-import { cn } from "@/lib/utils";
 import { EnhancedUserManagement } from "@/components/admin/EnhancedUserManagement";
-import { UserProfileCompletion } from "@/components/admin/UserProfileCompletion";
 
 
 
@@ -66,15 +62,6 @@ const AdminUsers = () => {
   };
   
 
-  // Enhanced statistics
-  const stats = {
-    total: usersData.length,
-    pending: usersData.filter((u) => u.approval_status === "pending").length,
-    approved: usersData.filter((u) => u.approval_status === "approved").length,
-    rejected: usersData.filter((u) => u.approval_status === "rejected").length,
-    admins: usersData.filter((u) => u.is_admin).length,
-    emailVerified: usersData.filter((u) => u.email_verified).length,
-  };
 
   // User action handlers
   const approveUser = (user: User) => handleUserApproval(user);
@@ -129,16 +116,6 @@ const AdminUsers = () => {
         onFilteredUsersChange={setFilteredUsers}
       />
 
-      {/* Priority Alert */}
-      {stats.pending > 0 && (
-        <Alert className="border-orange-200 bg-orange-50">
-          <AlertTriangle className="h-4 w-4 text-orange-600" />
-          <AlertTitle className="text-orange-900">Action Required</AlertTitle>
-          <AlertDescription className="text-orange-800">
-            You have {stats.pending} users waiting for approval.
-          </AlertDescription>
-        </Alert>
-      )}
 
       {/* Users Table */}
       <div className="bg-card rounded-lg border overflow-hidden">
@@ -178,23 +155,5 @@ const AdminUsers = () => {
   );
 };
 
-function StatsCard({ 
-  title, 
-  value, 
-  className 
-}: { 
-  title: string; 
-  value: number; 
-  className?: string 
-}) {
-  return (
-    <Card className={cn("p-3 md:p-4", className)}>
-      <CardContent className="p-0">
-        <div className="text-xs md:text-sm font-medium opacity-80">{title}</div>
-        <div className="text-lg md:text-2xl font-bold">{value}</div>
-      </CardContent>
-    </Card>
-  );
-}
 
 export default AdminUsers;
