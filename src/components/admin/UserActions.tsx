@@ -94,9 +94,6 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
   const confirmUserRejection = async () => {
     if (!selectedUser) return;
     
-    // Close dialog immediately 
-    closeAllDialogs();
-    
     updateUserStatusMutation.mutate(
       { userId: selectedUser.id, status: "rejected" },
       {
@@ -116,6 +113,7 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
             });
           }
           
+          closeAllDialogs();
           if (onUserStatusUpdated) onUserStatusUpdated();
         },
         onError: (error) => {
@@ -124,6 +122,7 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
             title: 'Rejection failed',
             description: error.message || 'Failed to reject user. Please try again.',
           });
+          closeAllDialogs();
         }
       }
     );

@@ -1,4 +1,4 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -27,14 +27,14 @@ export function UserRejectionDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md" aria-describedby="rejection-dialog-description">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Reject User Application</DialogTitle>
-        </DialogHeader>
-        <div id="rejection-dialog-description" className="space-y-4">
-          <p className="text-sm text-muted-foreground">
+          <DialogDescription>
             Are you sure you want to reject <span className="font-medium">{user.firstName} {user.lastName}</span>?
-          </p>
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
           
           <div className="space-y-2">
             <Label htmlFor="rejection-reason">Reason for rejection (optional)</Label>
