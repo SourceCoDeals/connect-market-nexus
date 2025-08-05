@@ -66,8 +66,8 @@ const AdminUsers = () => {
     });
   };
   
-  // Enhanced search functionality
-  const filteredUsers = usersData.filter((user) => {
+  // Enhanced search functionality with safety check
+  const filteredUsers = (usersData || []).filter((user) => {
     const searchLower = searchQuery.toLowerCase();
     return (
       user.email?.toLowerCase().includes(searchLower) ||
@@ -79,14 +79,14 @@ const AdminUsers = () => {
     );
   });
 
-  // Enhanced statistics
+  // Enhanced statistics with safety checks
   const stats = {
-    total: usersData.length,
-    pending: usersData.filter((u) => u.approval_status === "pending").length,
-    approved: usersData.filter((u) => u.approval_status === "approved").length,
-    rejected: usersData.filter((u) => u.approval_status === "rejected").length,
-    admins: usersData.filter((u) => u.is_admin).length,
-    emailVerified: usersData.filter((u) => u.email_verified).length,
+    total: (usersData || []).length,
+    pending: (usersData || []).filter((u) => u.approval_status === "pending").length,
+    approved: (usersData || []).filter((u) => u.approval_status === "approved").length,
+    rejected: (usersData || []).filter((u) => u.approval_status === "rejected").length,
+    admins: (usersData || []).filter((u) => u.is_admin).length,
+    emailVerified: (usersData || []).filter((u) => u.email_verified).length,
   };
 
   // User action handlers
@@ -132,16 +132,18 @@ const AdminUsers = () => {
       </div>
 
 
-      {/* Enhanced User Management with Analytics */}
-      <EnhancedUserManagement
-        users={usersData}
-        onApprove={approveUser}
-        onReject={rejectUser}
-        onMakeAdmin={makeAdmin}
-        onRevokeAdmin={revokeAdmin}
-        onDelete={deleteUser}
-        isLoading={isLoading}
-      />
+      {/* Enhanced User Management with Analytics - only render when data is available */}
+      {usersData && (
+        <EnhancedUserManagement
+          users={usersData}
+          onApprove={approveUser}
+          onReject={rejectUser}
+          onMakeAdmin={makeAdmin}
+          onRevokeAdmin={revokeAdmin}
+          onDelete={deleteUser}
+          isLoading={isLoading}
+        />
+      )}
 
       {/* Priority Alert */}
       {stats.pending > 0 && (
