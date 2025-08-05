@@ -29,119 +29,214 @@ export function useSmartAlerts() {
       // 1. Underperforming listings alert
       const { data: listings } = await supabase
         .from('listings')
-        .select(`
-          id, title, category, created_at,
-          listing_analytics!listing_analytics_listing_id_fkey(action_type, created_at),
-          saved_listings!saved_listings_listing_id_fkey(id),
-          connection_requests!connection_requests_listing_id_fkey(id)
-        `)
+        .select('id, title, category, created_at')
         .eq('status', 'active')
         .is('deleted_at', null)
         .gte('created_at', sevenDaysAgo.toISOString());
 
-      listings?.forEach(listing => {
-        const daysSinceListed = Math.floor((now.getTime() - new Date(listing.created_at).getTime()) / (1000 * 60 * 60 * 24));
-        const views = listing.listing_analytics?.filter(a => a.action_type === 'view').length || 0;
-        const saves = listing.saved_listings?.length || 0;
-        const connections = listing.connection_requests?.length || 0;
+      if (listings && listings.length > 0) {
+        const listingIds = listings.map(l => l.id);
+        
+        // Get analytics for all listings
+        const { data: listingAnalytics } = await supabase
+          .from('listing_analytics')
+          .select('listing_id, action_type, created_at')
+          .in('listing_id', listingIds);
 
-        // Alert for listings with very low engagement after 3+ days
-        if (daysSinceListed >= 3 && views < 5) {
-          alerts.push({
-            id: `underperform-${listing.id}`,
-            type: 'performance',
-            priority: 'medium',
-            title: `Low engagement on "${listing.title}"`,
-            description: `Only ${views} views in ${daysSinceListed} days. Consider optimizing the listing.`,
-            action_required: 'Review and optimize listing content, pricing, or keywords',
-            created_at: now.toISOString(),
-            metadata: {
-              listing_id: listing.id,
-              metrics: { views, days_listed: daysSinceListed }
-            }
-          });
-        }
+        const { data: listingSaves } = await supabase
+          .from('saved_listings')
+          .select('listing_id, created_at')
+          .in('listing_id', listingIds);
 
-        // Alert for high views but no saves (pricing issue?)
-        if (views >= 20 && saves === 0) {
-          alerts.push({
-            id: `no-saves-${listing.id}`,
-            type: 'opportunity',
-            priority: 'high',
-            title: `High views, no saves: "${listing.title}"`,
-            description: `${views} views but no saves suggests pricing or business metrics might be off.`,
-            action_required: 'Review pricing strategy and business financials',
-            created_at: now.toISOString(),
-            metadata: {
-              listing_id: listing.id,
-              metrics: { views, saves }
-            }
-          });
-        }
+        const { data: listingConnections } = await supabase
+          .from('connection_requests')
+          .select('listing_id, created_at')
+          .in('listing_id', listingIds);
 
-        // Alert for saves but no connections (follow-up opportunity)
-        if (saves >= 3 && connections === 0) {
-          alerts.push({
-            id: `follow-up-${listing.id}`,
-            type: 'opportunity',
-            priority: 'high',
-            title: `Multiple saves, no connections: "${listing.title}"`,
-            description: `${saves} users saved this listing but haven't connected yet.`,
-            action_required: 'Proactively reach out to interested users',
-            created_at: now.toISOString(),
-            metadata: {
-              listing_id: listing.id,
-              metrics: { saves, connections }
-            }
+        // Group data by listing
+        const listingDataMap = new Map();
+        listingIds.forEach(listingId => {
+          listingDataMap.set(listingId, {
+            analytics: [],
+            saves: [],
+            connections: []
           });
-        }
-      });
+        });
+
+        listingAnalytics?.forEach(analytics => {
+          if (listingDataMap.has(analytics.listing_id)) {
+            listingDataMap.get(analytics.listing_id).analytics.push(analytics);
+          }
+        });
+
+        listingSaves?.forEach(save => {
+          if (listingDataMap.has(save.listing_id)) {
+            listingDataMap.get(save.listing_id).saves.push(save);
+          }
+        });
+
+        listingConnections?.forEach(connection => {
+          if (listingDataMap.has(connection.listing_id)) {
+            listingDataMap.get(connection.listing_id).connections.push(connection);
+          }
+        });
+
+        listings.forEach(listing => {
+          const listingData = listingDataMap.get(listing.id);
+          if (!listingData) return;
+
+          const daysSinceListed = Math.floor((now.getTime() - new Date(listing.created_at).getTime()) / (1000 * 60 * 60 * 24));
+          const views = listingData.analytics.filter(a => a.action_type === 'view').length;
+          const saves = listingData.saves.length;
+          const connections = listingData.connections.length;
+
+          // Alert for listings with very low engagement after 3+ days
+          if (daysSinceListed >= 3 && views < 5) {
+            alerts.push({
+              id: `underperform-${listing.id}`,
+              type: 'performance',
+              priority: 'medium',
+              title: `Low engagement on "${listing.title}"`,
+              description: `Only ${views} views in ${daysSinceListed} days. Consider optimizing the listing.`,
+              action_required: 'Review and optimize listing content, pricing, or keywords',
+              created_at: now.toISOString(),
+              metadata: {
+                listing_id: listing.id,
+                metrics: { views, days_listed: daysSinceListed }
+              }
+            });
+          }
+
+          // Alert for high views but no saves (pricing issue?)
+          if (views >= 20 && saves === 0) {
+            alerts.push({
+              id: `no-saves-${listing.id}`,
+              type: 'opportunity',
+              priority: 'high',
+              title: `High views, no saves: "${listing.title}"`,
+              description: `${views} views but no saves suggests pricing or business metrics might be off.`,
+              action_required: 'Review pricing strategy and business financials',
+              created_at: now.toISOString(),
+              metadata: {
+                listing_id: listing.id,
+                metrics: { views, saves }
+              }
+            });
+          }
+
+          // Alert for saves but no connections (follow-up opportunity)
+          if (saves >= 3 && connections === 0) {
+            alerts.push({
+              id: `follow-up-${listing.id}`,
+              type: 'opportunity',
+              priority: 'high',
+              title: `Multiple saves, no connections: "${listing.title}"`,
+              description: `${saves} users saved this listing but haven't connected yet.`,
+              action_required: 'Proactively reach out to interested users',
+              created_at: now.toISOString(),
+              metadata: {
+                listing_id: listing.id,
+                metrics: { saves, connections }
+              }
+            });
+          }
+        });
+      }
 
       // 2. Churn risk users alert
       const { data: users } = await supabase
         .from('profiles')
-        .select(`
-          id, email, first_name, last_name, created_at,
-          listing_analytics!listing_analytics_user_id_fkey(created_at),
-          saved_listings!saved_listings_user_id_fkey(created_at),
-          user_sessions!user_sessions_user_id_fkey(started_at)
-        `)
+        .select('id, email, first_name, last_name, created_at')
         .eq('approval_status', 'approved');
 
       const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000);
       const sevenDaysAgo2 = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-      users?.forEach(user => {
-        const recentActivity = [
-          ...(user.listing_analytics || []).map(a => ({ ...a, timestamp: a.created_at })),
-          ...(user.saved_listings || []).map(a => ({ ...a, timestamp: a.created_at })),
-          ...(user.user_sessions || []).map(a => ({ ...a, timestamp: a.started_at }))
-        ].filter(activity => new Date(activity.timestamp) > threeDaysAgo);
+      // Get user activity data separately
+      if (users && users.length > 0) {
+        const userIds = users.map(u => u.id);
+        
+        const { data: userAnalytics } = await supabase
+          .from('listing_analytics')
+          .select('user_id, created_at')
+          .in('user_id', userIds)
+          .gte('created_at', sevenDaysAgo2.toISOString());
 
-        const weeklyActivity = [
-          ...(user.listing_analytics || []).map(a => ({ ...a, timestamp: a.created_at })),
-          ...(user.saved_listings || []).map(a => ({ ...a, timestamp: a.created_at })),
-          ...(user.user_sessions || []).map(a => ({ ...a, timestamp: a.started_at }))
-        ].filter(activity => new Date(activity.timestamp) > sevenDaysAgo2);
+        const { data: userSessions } = await supabase
+          .from('user_sessions')
+          .select('user_id, started_at')
+          .in('user_id', userIds)
+          .gte('started_at', sevenDaysAgo2.toISOString());
 
-        // High-value user who went quiet
-        if (weeklyActivity.length >= 10 && recentActivity.length === 0) {
-          alerts.push({
-            id: `churn-risk-${user.id}`,
-            type: 'churn_risk',
-            priority: 'high',
-            title: `High-value user inactive: ${user.first_name} ${user.last_name}`,
-            description: `Active user with ${weeklyActivity.length} weekly activities has been quiet for 3+ days.`,
-            action_required: 'Send re-engagement email or call',
-            created_at: now.toISOString(),
-            metadata: {
-              user_id: user.id,
-              metrics: { weekly_activity: weeklyActivity.length, recent_activity: recentActivity.length }
-            },
-            auto_dismiss_at: new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString()
+        const { data: userSaves } = await supabase
+          .from('saved_listings')
+          .select('user_id, created_at')
+          .in('user_id', userIds)
+          .gte('created_at', sevenDaysAgo2.toISOString());
+
+        // Group activity by user
+        const userActivityMap = new Map();
+        userIds.forEach(userId => {
+          userActivityMap.set(userId, {
+            analytics: [],
+            sessions: [],
+            saves: []
           });
-        }
-      });
+        });
+
+        userAnalytics?.forEach(activity => {
+          if (userActivityMap.has(activity.user_id)) {
+            userActivityMap.get(activity.user_id).analytics.push(activity);
+          }
+        });
+
+        userSessions?.forEach(session => {
+          if (userActivityMap.has(session.user_id)) {
+            userActivityMap.get(session.user_id).sessions.push(session);
+          }
+        });
+
+        userSaves?.forEach(save => {
+          if (userActivityMap.has(save.user_id)) {
+            userActivityMap.get(save.user_id).saves.push(save);
+          }
+        });
+
+        users.forEach(user => {
+          const userActivity = userActivityMap.get(user.id);
+          if (!userActivity) return;
+
+          const recentActivity = [
+            ...userActivity.analytics.filter(a => new Date(a.created_at) > threeDaysAgo),
+            ...userActivity.sessions.filter(s => new Date(s.started_at) > threeDaysAgo),
+            ...userActivity.saves.filter(s => new Date(s.created_at) > threeDaysAgo)
+          ];
+
+          const weeklyActivity = [
+            ...userActivity.analytics,
+            ...userActivity.sessions,
+            ...userActivity.saves
+          ];
+
+          // High-value user who went quiet
+          if (weeklyActivity.length >= 10 && recentActivity.length === 0) {
+            alerts.push({
+              id: `churn-risk-${user.id}`,
+              type: 'churn_risk',
+              priority: 'high',
+              title: `High-value user inactive: ${user.first_name} ${user.last_name}`,
+              description: `Active user with ${weeklyActivity.length} weekly activities has been quiet for 3+ days.`,
+              action_required: 'Send re-engagement email or call',
+              created_at: now.toISOString(),
+              metadata: {
+                user_id: user.id,
+                metrics: { weekly_activity: weeklyActivity.length, recent_activity: recentActivity.length }
+              },
+              auto_dismiss_at: new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString()
+            });
+          }
+        });
+      }
 
       // 3. Pending approvals alert
       const { data: pendingUsers } = await supabase
@@ -151,7 +246,7 @@ export function useSmartAlerts() {
 
       const { data: pendingConnections } = await supabase
         .from('connection_requests')
-        .select('id, created_at, listings!connection_requests_listing_id_fkey(title)')
+        .select('id, created_at')
         .eq('status', 'pending');
 
       const urgentUserApprovals = pendingUsers?.filter(user => 
