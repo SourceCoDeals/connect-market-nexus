@@ -48,14 +48,14 @@ export function UserDataCompleteness({ user, showProgress = false, size = 'md' }
   const completionPercentage = Math.round((completedFields.length / applicableFields.length) * 100);
   const missingCount = applicableFields.length - completedFields.length;
 
-  // Get styling based on completion
+  // Get styling based on completion with better color coding
   const getCompletionBadge = (percentage: number) => {
-    if (percentage >= 90) return { variant: 'default' as const, color: 'text-green-700', icon: CheckCircle2 };
-    if (percentage >= 70) return { variant: 'secondary' as const, color: 'text-blue-700', icon: Info };
-    return { variant: 'secondary' as const, color: 'text-blue-700', icon: AlertCircle };
+    if (percentage >= 80) return { variant: 'default' as const, className: 'bg-green-100 text-green-800 border-green-200', icon: CheckCircle2 };
+    if (percentage >= 50) return { variant: 'secondary' as const, className: 'bg-yellow-100 text-yellow-800 border-yellow-200', icon: Info };
+    return { variant: 'destructive' as const, className: 'bg-red-100 text-red-800 border-red-200', icon: AlertCircle };
   };
 
-  const { variant, color, icon: Icon } = getCompletionBadge(completionPercentage);
+  const { variant, className, icon: Icon } = getCompletionBadge(completionPercentage);
 
   // Missing fields summary
   const missingFields = applicableFields.filter(field => {
@@ -79,7 +79,7 @@ export function UserDataCompleteness({ user, showProgress = false, size = 'md' }
       <TooltipProvider>
         <Tooltip>
           <TooltipTrigger asChild>
-            <Badge variant={variant} className="cursor-help">
+            <Badge variant={variant} className={`cursor-help ${className}`}>
               <Icon className="h-3 w-3 mr-1" />
               {completionPercentage}%
             </Badge>
