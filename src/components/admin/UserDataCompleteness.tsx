@@ -79,14 +79,8 @@ export function UserDataCompleteness({ user, showProgress = false, size = 'md' }
       <TooltipProvider>
         <Tooltip>
           <TooltipTrigger asChild>
-            <Badge 
-              variant={variant} 
-              className={`cursor-help px-2 py-1 ${
-                completionPercentage >= 90 ? 'bg-green-100 text-green-800 hover:bg-green-100' : 
-                completionPercentage >= 70 ? 'bg-blue-100 text-blue-800 hover:bg-blue-100' : 
-                'bg-amber-100 text-amber-800 hover:bg-amber-100'
-              }`}
-            >
+            <Badge variant={variant} className="cursor-help">
+              <Icon className="h-3 w-3 mr-1" />
               {completionPercentage}%
             </Badge>
           </TooltipTrigger>
@@ -94,7 +88,7 @@ export function UserDataCompleteness({ user, showProgress = false, size = 'md' }
             <div className="space-y-2">
               <p className="font-medium">Profile Completion: {completionPercentage}%</p>
               <p className="text-xs">
-                {completedFields.length} of {applicableFields.length} required fields completed
+                {completedFields.length} of {applicableFields.length} fields completed
               </p>
               {missingCount > 0 && (
                 <div className="text-xs">
