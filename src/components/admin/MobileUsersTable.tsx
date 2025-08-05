@@ -333,7 +333,7 @@ export const MobileUsersTable = ({
     userEmail: string;
     subject: string;
     content: string;
-    attachments?: File[];
+    attachments?: Array<{name: string, content: string}>;
     useTemplate: boolean;
   }) => {
     // Sending fee agreement email
@@ -363,26 +363,23 @@ export const MobileUsersTable = ({
       // Process attachments with validation
       const processedAttachments = [];
       if (emailData.attachments && emailData.attachments.length > 0) {
-        // Processing attachments
-        
-        for (const file of emailData.attachments) {
-          // Validate file size (5MB limit)
-          if (file.size > 5 * 1024 * 1024) {
-            console.warn(`Mobile: File ${file.name} is too large (${file.size} bytes), skipping`);
-            continue;
-          }
-
+        // Attachments are already base64-encoded from SimpleFeeAgreementDialog
+        for (const attachment of emailData.attachments) {
           try {
-            const buffer = await file.arrayBuffer();
-            const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
+            // Validate base64 content exists
+            if (!attachment.content || !attachment.name) {
+              console.warn(`Mobile: Invalid attachment data for ${attachment.name}, skipping`);
+              continue;
+            }
+
             processedAttachments.push({
-              name: file.name,
-              content: base64,
-              type: file.type
+              name: attachment.name,
+              content: attachment.content, // Already base64
+              type: 'application/pdf'
             });
-            // Attachment processed
+            console.log(`Mobile: Successfully processed attachment: ${attachment.name}`);
           } catch (attachError) {
-            console.error(`Mobile: Error processing attachment ${file.name}:`, attachError);
+            console.error(`Mobile: Error processing attachment ${attachment.name}:`, attachError);
           }
         }
       }
@@ -483,7 +480,7 @@ export const MobileUsersTable = ({
             userEmail: user.email,
             subject: options?.subject || 'Fee Agreement | SourceCo',
             content: options?.content || 'Please review and sign the attached fee agreement.',
-            attachments: options?.attachments?.map(att => ({ ...att, type: 'application/pdf' } as any)) || [],
+            attachments: options?.attachments || [],
             useTemplate: false
           });
         }}
