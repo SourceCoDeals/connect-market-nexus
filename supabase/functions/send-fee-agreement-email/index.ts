@@ -143,11 +143,11 @@ const handler = async (req: Request): Promise<Response> => {
     let adminSignature;
     
     if (customSignature && customSignature.signature_html) {
-      // Use custom signature if available
+      // Use custom signature completely as-is without any modifications
       adminSignature = customSignature.signature_html;
-      console.log('✅ Using custom admin signature');
+      console.log('✅ Using custom admin signature as-is');
     } else {
-      // Use Bill Martin format with admin profile data or custom fields
+      // Only use fallback logic when NO custom signature exists
       const finalPhone = customSignature?.phone_number || adminPhone || '(614) 555-0000';
       const finalCalendly = customSignature?.calendly_url || adminCalendly || 'https://calendly.com/sourceco-admin/30min';
       
