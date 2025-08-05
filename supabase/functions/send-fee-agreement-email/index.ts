@@ -32,21 +32,21 @@ interface FeeAgreementEmailRequest {
   }>;
 }
 
-// Admin profiles mapping
+// Admin profiles mapping - only basic info, no hardcoded contact details
 const ADMIN_PROFILES: Record<string, AdminProfile> = {
   'bill.martin@sourcecodeals.com': {
     email: 'bill.martin@sourcecodeals.com',
     name: 'Bill Martin',
     title: 'Principal & SVP - Growth',
-    phone: '(614) 832-6099',
-    calendlyUrl: 'https://calendly.com/bill-martin-sourceco/30min'
+    phone: '',
+    calendlyUrl: ''
   },
   'adam.haile@sourcecodeals.com': {
     email: 'adam.haile@sourcecodeals.com',
     name: 'Adam Haile',
     title: 'Founder & CEO',
-    phone: '(614) 555-0100',
-    calendlyUrl: 'https://calendly.com/adam-haile-sourceco/30min'
+    phone: '',
+    calendlyUrl: ''
   }
 };
 
@@ -147,21 +147,30 @@ const handler = async (req: Request): Promise<Response> => {
       adminSignature = customSignature.signature_html;
       console.log('✅ Using custom admin signature as-is');
     } else {
-      // Only use fallback logic when NO custom signature exists
-      const finalPhone = customSignature?.phone_number || adminPhone || '(614) 555-0000';
-      const finalCalendly = customSignature?.calendly_url || adminCalendly || 'https://calendly.com/sourceco-admin/30min';
+      // Create template signature with conditional elements
+      let signatureParts = [
+        `<strong>${effectiveAdminName}</strong>`,
+        adminTitle,
+        `<a href="mailto:${adminEmail}" style="color: #0066cc; text-decoration: none;">${adminEmail}</a>`
+      ];
+      
+      // Only add phone if provided in custom signature
+      if (customSignature?.phone_number) {
+        signatureParts.push(`<a href="tel:${customSignature.phone_number.replace(/[^\d]/g, '')}" style="color: #0066cc; text-decoration: none;">${customSignature.phone_number}</a>`);
+      }
+      
+      // Only add calendly if provided in custom signature
+      if (customSignature?.calendly_url) {
+        signatureParts.push(`<a href="${customSignature.calendly_url}" style="color: #0066cc; text-decoration: none;">Click here to schedule a call with me</a>`);
+      }
       
       adminSignature = `
         <div style="font-family: Arial, sans-serif; color: #333; line-height: 1.4;">
           <p style="margin: 0;">
-            <strong>${effectiveAdminName}</strong><br>
-            ${adminTitle}<br>
-            <a href="mailto:${adminEmail}" style="color: #0066cc; text-decoration: none;">${adminEmail}</a><br>
-            <a href="tel:${finalPhone.replace(/[^\d]/g, '')}" style="color: #0066cc; text-decoration: none;">${finalPhone}</a><br>
-            <a href="${finalCalendly}" style="color: #0066cc; text-decoration: none;">Click here to schedule a call with me</a>
+            ${signatureParts.join('<br>')}
           </p>
         </div>`;
-      console.log('✅ Using Bill Martin format signature template');
+      console.log('✅ Using conditional signature template');
     }
 
     // Simple text content - use custom signature text if provided, otherwise strip HTML

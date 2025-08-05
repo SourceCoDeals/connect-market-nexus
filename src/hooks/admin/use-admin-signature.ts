@@ -19,14 +19,14 @@ interface UpdateSignatureParams {
 }
 
 const DEFAULT_SIGNATURE = {
-  signature_html: 'Bill Martin<br>Principal &amp; SVP - Growth<br>bill.martin@sourcecodeals.com<br>(614) 832-6099<br><a href="https://calendly.com/bill-martin-sourceco/30min">Click here to schedule a call with me</a>',
-  signature_text: `Bill Martin
-Principal & SVP - Growth
-bill.martin@sourcecodeals.com
-(614) 832-6099
-Click here to schedule a call with me: https://calendly.com/bill-martin-sourceco/30min`,
-  phone_number: '(614) 832-6099',
-  calendly_url: 'https://calendly.com/bill-martin-sourceco/30min'
+  signature_html: '[Your Name]<br>[Your Title]<br>[Your Email]<br>[Your Phone - Optional]<br>[Your Calendly Link - Optional]',
+  signature_text: `[Your Name]
+[Your Title]
+[Your Email]
+[Your Phone - Optional]
+[Your Calendly Link - Optional]`,
+  phone_number: '',
+  calendly_url: ''
 };
 
 export function useAdminSignature() {

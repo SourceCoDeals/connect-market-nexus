@@ -11,14 +11,14 @@ export const ADMIN_PROFILES: Record<string, AdminProfile> = {
     email: 'bill.martin@sourcecodeals.com',
     name: 'Bill Martin',
     title: 'Principal & SVP - Growth',
-    phone: '(614) 832-6099',
-    calendlyUrl: 'https://calendly.com/bill-martin-sourceco/30min'
+    phone: '',
+    calendlyUrl: ''
   },
   'adam.haile@sourcecodeals.com': {
     email: 'adam.haile@sourcecodeals.com',
     name: 'Adam Haile',
     title: 'Founder & CEO',
-    phone: '(614) 555-0100',
+    phone: '',
     calendlyUrl: ''
   }
 };

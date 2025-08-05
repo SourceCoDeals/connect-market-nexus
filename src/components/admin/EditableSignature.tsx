@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Edit3, Eye, RotateCcw, Save, Phone, Calendar } from 'lucide-react';
 import { useAdminSignature } from '@/hooks/admin/use-admin-signature';
+import { SignatureSetupWarning } from './SignatureSetupWarning';
 
 interface EditableSignatureProps {
   onSignatureChange?: (html: string, text: string) => void;
@@ -56,6 +57,13 @@ export function EditableSignature({ onSignatureChange, showInline = false }: Edi
       setCalendlyUrl((signature as any).calendly_url || '');
     }
     setIsEditing(false);
+  };
+
+  const isSignatureIncomplete = () => {
+    if (!signature || signature.isDefault) return true;
+    const hasPlaceholders = signature.signature_text.includes('[Your') || 
+                           signature.signature_html.includes('[Your');
+    return hasPlaceholders;
   };
 
   if (isLoading) {
@@ -124,6 +132,11 @@ export function EditableSignature({ onSignatureChange, showInline = false }: Edi
       </CardHeader>
       
       <CardContent className="space-y-4">
+        <SignatureSetupWarning 
+          isIncomplete={isSignatureIncomplete()} 
+          onEdit={() => setIsEditing(true)} 
+        />
+        
         {isEditing ? (
           <>
             <div className="space-y-4 mb-6">
@@ -137,7 +150,7 @@ export function EditableSignature({ onSignatureChange, showInline = false }: Edi
                     id="phone"
                     value={phoneNumber}
                     onChange={(e) => setPhoneNumber(e.target.value)}
-                    placeholder="(614) 832-6099"
+                    placeholder="(555) 123-4567 - Optional"
                   />
                 </div>
                 <div className="space-y-2">
@@ -149,7 +162,7 @@ export function EditableSignature({ onSignatureChange, showInline = false }: Edi
                     id="calendly"
                     value={calendlyUrl}
                     onChange={(e) => setCalendlyUrl(e.target.value)}
-                    placeholder="https://calendly.com/bill-martin-sourceco/30min"
+                    placeholder="https://calendly.com/your-name/30min - Optional"
                   />
                 </div>
               </div>
@@ -161,7 +174,7 @@ export function EditableSignature({ onSignatureChange, showInline = false }: Edi
                 id="signature"
                 value={textSignature}
                 onChange={(e) => setTextSignature(e.target.value)}
-                placeholder="Plain text signature content..."
+                placeholder="John Smith&#10;Chief Executive Officer&#10;john.smith@sourcecodeals.com&#10;(555) 123-4567&#10;https://calendly.com/john-smith/30min"
                 className="min-h-32 font-mono text-sm"
               />
               <div className="border rounded p-3 bg-muted/5">
