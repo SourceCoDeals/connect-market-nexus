@@ -25,7 +25,12 @@ const AdminUsers = () => {
   const { toast } = useToast();
   const isMobile = useIsMobile();
   const { isConnected } = useRealtimeAdmin(); // Enable real-time updates
-  
+  const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
+
+  // Update filtered users when usersData changes
+  useEffect(() => {
+    setFilteredUsers(usersData);
+  }, [usersData]);
   
   
   // Get user action handlers from the hook
@@ -121,6 +126,7 @@ const AdminUsers = () => {
         onRevokeAdmin={revokeAdmin}
         onDelete={deleteUser}
         isLoading={isLoading}
+        onFilteredUsersChange={setFilteredUsers}
       />
 
       {/* Priority Alert */}
@@ -139,7 +145,7 @@ const AdminUsers = () => {
         {isMobile ? (
           <div className="p-2 md:p-4">
             <MobileUsersTable
-              users={usersData}
+              users={filteredUsers}
               onApprove={approveUser}
               onMakeAdmin={makeAdmin}
               onRevokeAdmin={revokeAdmin}
@@ -152,7 +158,7 @@ const AdminUsers = () => {
         ) : (
           <div className="overflow-x-auto">
             <UsersTable
-              users={usersData}
+              users={filteredUsers}
               onApprove={approveUser}
               onMakeAdmin={makeAdmin}
               onRevokeAdmin={revokeAdmin}

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
@@ -18,6 +18,7 @@ interface EnhancedUserManagementProps {
   onRevokeAdmin: (user: User) => void;
   onDelete: (user: User) => void;
   isLoading: boolean;
+  onFilteredUsersChange?: (filteredUsers: User[]) => void;
 }
 
 export function EnhancedUserManagement({
@@ -26,7 +27,8 @@ export function EnhancedUserManagement({
   onMakeAdmin,
   onRevokeAdmin,
   onDelete,
-  isLoading
+  isLoading,
+  onFilteredUsersChange
 }: EnhancedUserManagementProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -85,6 +87,11 @@ export function EnhancedUserManagement({
       return matchesSearch && matchesStatus && matchesBuyerType && matchesCompletion;
     });
   }, [users, searchQuery, statusFilter, buyerTypeFilter, profileCompletionFilter]);
+
+  // Notify parent component of filtered users changes
+  useEffect(() => {
+    onFilteredUsersChange?.(filteredUsers);
+  }, [filteredUsers, onFilteredUsersChange]);
 
   // Analytics calculations
   const analytics = useMemo(() => {
