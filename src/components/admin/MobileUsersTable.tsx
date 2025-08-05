@@ -336,95 +336,43 @@ export const MobileUsersTable = ({
     attachments?: Array<{name: string, content: string}>;
     useTemplate: boolean;
   }) => {
-    // Sending fee agreement email
-    try {
-      // Get current admin user info first
-      const { data: { user: currentUser }, error: authError } = await supabase.auth.getUser();
-      if (authError || !currentUser) {
-        throw new Error('Authentication required. Please refresh and try again.');
-      }
+    // Get current user for admin info
+    const current_auth_user = await supabase.auth.getUser();
+    if (!current_auth_user.data.user) {
+      return;
+    }
 
+    try {
+      // Get admin profile info
       const { data: adminProfile, error: profileError } = await supabase
         .from('profiles')
         .select('email, first_name, last_name')
-        .eq('id', currentUser.id)
+        .eq('id', current_auth_user.data.user.id)
         .single();
 
       if (profileError || !adminProfile) {
-        throw new Error('Admin profile not found. Please contact support.');
-      }
-
-      if (!adminProfile.first_name || !adminProfile.last_name || !adminProfile.email) {
-        throw new Error('Incomplete admin profile. Please complete your profile first.');
+        console.error('Mobile: Failed to fetch admin profile:', profileError);
+        throw new Error('Failed to fetch admin profile');
       }
 
       const adminName = `${adminProfile.first_name} ${adminProfile.last_name}`;
 
-      // Process attachments with validation
-      const processedAttachments = [];
-      if (emailData.attachments && emailData.attachments.length > 0) {
-        // Attachments are already base64-encoded from SimpleFeeAgreementDialog
-        for (const attachment of emailData.attachments) {
-          try {
-            // Validate base64 content exists
-            if (!attachment.content || !attachment.name) {
-              console.warn(`Mobile: Invalid attachment data for ${attachment.name}, skipping`);
-              continue;
-            }
-
-            processedAttachments.push({
-              name: attachment.name,
-              content: attachment.content, // Already base64
-              type: 'application/pdf'
-            });
-            console.log(`Mobile: Successfully processed attachment: ${attachment.name}`);
-          } catch (attachError) {
-            console.error(`Mobile: Error processing attachment ${attachment.name}:`, attachError);
-          }
-        }
-      }
-
-      const requestPayload = {
+      // Use the hook for optimistic updates and consistent behavior
+      await logEmailMutation.mutateAsync({
         userId: emailData.userId,
         userEmail: emailData.userEmail,
         subject: emailData.subject,
         content: emailData.content,
-        useTemplate: emailData.useTemplate,
-        adminId: currentUser.id,
+        attachments: emailData.attachments,
+        adminId: current_auth_user.data.user.id,
         adminEmail: adminProfile.email,
         adminName: adminName,
-        attachments: processedAttachments
-      };
-
-      // Sending email request
-
-      // Send the email via edge function
-      const { data: emailResult, error: emailError } = await supabase.functions.invoke('send-fee-agreement-email', {
-        body: requestPayload
+        notes: emailData.useTemplate ? 'Template fee agreement email sent' : 'Custom fee agreement email sent'
       });
 
-      if (emailError) {
-        console.error('Mobile: Edge function error:', emailError);
-        throw new Error(emailError.message || 'Failed to send email');
-      }
-
-      if (!emailResult?.success) {
-        console.error('Mobile: Email sending failed:', emailResult);
-        throw new Error(emailResult?.error || 'Email sending failed');
-      }
-
-      // Email sent successfully
-
-      // Then log the email in the database
-      await logEmailMutation.mutateAsync({
-        userId: emailData.userId,
-        userEmail: emailData.userEmail,
-        notes: `Email sent: ${emailData.subject}`
-      });
-      // Fee agreement email sent successfully
-    } catch (error) {
-      console.error('❌ Fee agreement email error (mobile):', error);
-      throw error;
+    } catch (error: any) {
+      console.error('Mobile: Error in handleSendEmail:', error);
+      // Error handling is done by the hook
     }
   };
   if (isLoading) {

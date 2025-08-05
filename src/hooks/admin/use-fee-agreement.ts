@@ -18,6 +18,13 @@ interface LogFeeAgreementEmailParams {
   userId: string;
   userEmail: string;
   notes?: string;
+  subject?: string;
+  content?: string;
+  attachments?: Array<{name: string, content: string}>;
+  customSignatureText?: string;
+  adminId?: string;
+  adminEmail?: string;
+  adminName?: string;
 }
 
 export const useUpdateFeeAgreement = () => {
@@ -177,10 +184,23 @@ export const useLogFeeAgreementEmail = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ userId, userEmail, notes }: LogFeeAgreementEmailParams) => {
+    mutationFn: async ({ 
+      userId, 
+      userEmail, 
+      notes, 
+      subject, 
+      content, 
+      attachments, 
+      customSignatureText,
+      adminId,
+      adminEmail,
+      adminName 
+    }: LogFeeAgreementEmailParams) => {
       console.log('🚀 Sending fee agreement email with data:', {
         userId,
-        userEmail
+        userEmail,
+        hasCustomContent: !!(subject || content),
+        attachmentCount: attachments?.length || 0
       });
 
       // Send email via edge function (which also handles database logging)
@@ -188,9 +208,14 @@ export const useLogFeeAgreementEmail = () => {
         body: {
           userId,
           userEmail,
-          useTemplate: true,
-          adminEmail: 'adam.haile@sourcecodeals.com',
-          adminName: 'Adam Haile'
+          subject: subject || 'Fee Agreement | SourceCo',
+          content: content || 'Please review and sign the attached fee agreement.',
+          useTemplate: !(subject || content), // Use template only if no custom content
+          adminId: adminId,
+          adminEmail: adminEmail || 'adam.haile@sourcecodeals.com',
+          adminName: adminName || 'Adam Haile',
+          attachments: attachments || [],
+          customSignatureText
         }
       });
 

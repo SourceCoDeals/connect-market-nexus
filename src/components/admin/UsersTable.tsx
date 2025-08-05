@@ -612,40 +612,18 @@ export function UsersTable({
 
         const adminName = `${adminProfile.first_name} ${adminProfile.last_name}`;
 
-        // Process attachments (already base64 encoded from dialog)
-        const processedAttachments = options?.attachments?.map(att => ({
-          name: att.name,
-          content: att.content,
-          type: 'application/pdf'
-        })) || [];
-
-        const requestPayload = {
+        await logEmailMutation.mutateAsync({
           userId: user.id,
           userEmail: user.email,
-          subject: options?.subject || 'Fee Agreement | SourceCo',
-          content: options?.content || 'Please review and sign the attached fee agreement.',
-          useTemplate: false,
+          subject: options?.subject,
+          content: options?.content,
+          attachments: options?.attachments,
+          customSignatureText: options?.customSignatureText,
           adminId: currentAuthUser.id,
           adminEmail: adminProfile.email,
           adminName: adminName,
-          attachments: processedAttachments,
-          customSignatureText: options?.customSignatureText
-        };
-
-        // Send the email via edge function
-        const { data: emailResult, error: emailError } = await supabase.functions.invoke('send-fee-agreement-email', {
-          body: requestPayload
+          notes: options?.subject ? `Custom fee agreement email: ${options.subject}` : 'Standard fee agreement email sent'
         });
-
-        if (emailError) {
-          console.error('Desktop: Edge function error:', emailError);
-          throw new Error(emailError.message || 'Failed to send email');
-        }
-
-        if (!emailResult?.success) {
-          console.error('Desktop: Email sending failed:', emailResult);
-          throw new Error(emailResult?.error || 'Email sending failed');
-        }
       }}
     />
     
