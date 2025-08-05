@@ -26,7 +26,7 @@ const AdminUsers = () => {
   const isMobile = useIsMobile();
   const { isConnected } = useRealtimeAdmin(); // Enable real-time updates
   
-  const [searchQuery, setSearchQuery] = useState("");
+  
   
   // Get user action handlers from the hook
   const {
@@ -60,18 +60,6 @@ const AdminUsers = () => {
     });
   };
   
-  // Enhanced search functionality
-  const filteredUsers = usersData.filter((user) => {
-    const searchLower = searchQuery.toLowerCase();
-    return (
-      user.email?.toLowerCase().includes(searchLower) ||
-      user.first_name?.toLowerCase().includes(searchLower) ||
-      user.last_name?.toLowerCase().includes(searchLower) ||
-      user.company?.toLowerCase().includes(searchLower) ||
-      user.buyer_type?.toLowerCase().includes(searchLower) ||
-      user.approval_status?.toLowerCase().includes(searchLower)
-    );
-  });
 
   // Enhanced statistics
   const stats = {
@@ -146,19 +134,12 @@ const AdminUsers = () => {
         </Alert>
       )}
 
-      {/* Search Results Info */}
-      {searchQuery && (
-        <div className="text-sm text-muted-foreground">
-          Found {filteredUsers.length} user{filteredUsers.length !== 1 ? 's' : ''} matching "{searchQuery}"
-        </div>
-      )}
-
       {/* Users Table */}
       <div className="bg-card rounded-lg border overflow-hidden">
         {isMobile ? (
           <div className="p-2 md:p-4">
             <MobileUsersTable
-              users={filteredUsers}
+              users={usersData}
               onApprove={approveUser}
               onMakeAdmin={makeAdmin}
               onRevokeAdmin={revokeAdmin}
@@ -171,7 +152,7 @@ const AdminUsers = () => {
         ) : (
           <div className="overflow-x-auto">
             <UsersTable
-              users={filteredUsers}
+              users={usersData}
               onApprove={approveUser}
               onMakeAdmin={makeAdmin}
               onRevokeAdmin={revokeAdmin}
