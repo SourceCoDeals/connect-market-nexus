@@ -196,7 +196,7 @@ function UserActionButtons({
             <MoreHorizontal className="h-4 w-4" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
+        <DropdownMenuContent align="end" className="bg-background border shadow-lg z-50">
           <DropdownMenuLabel>User Actions</DropdownMenuLabel>
           <DropdownMenuSeparator />
           
@@ -463,20 +463,18 @@ export function UsersTable({
         </div>
         
         <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead></TableHead>
-              <TableHead>User</TableHead>
-              <TableHead>Company</TableHead>
-              <TableHead>Buyer Type</TableHead>
-              <TableHead>Profile</TableHead>
-              <TableHead>Fee Agreement</TableHead>
-              <TableHead>NDA</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="hidden lg:table-cell">Joined</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
+           <TableHeader>
+             <TableRow>
+               <TableHead className="w-8"></TableHead>
+               <TableHead className="min-w-[220px]">User Details</TableHead>
+               <TableHead className="w-20">Profile</TableHead>
+               <TableHead className="w-28">Fee</TableHead>
+               <TableHead className="w-24">NDA</TableHead>
+               <TableHead className="w-24">Status</TableHead>
+               <TableHead className="w-20 hidden lg:table-cell">Joined</TableHead>
+               <TableHead className="w-16 text-right">Actions</TableHead>
+             </TableRow>
+           </TableHeader>
           <TableBody>
             {users.flatMap((user) => [
               <TableRow 
@@ -493,71 +491,70 @@ export function UsersTable({
                     )}
                   </Button>
                 </TableCell>
-                <TableCell>
-                  <div className="flex flex-col">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium">{user.firstName} {user.lastName}</span>
+                <TableCell className="min-w-0">
+                  <div className="flex flex-col gap-1">
+                    <div className="font-medium flex items-center gap-2 flex-wrap">
+                      <span>{user.first_name} {user.last_name}</span>
                       {user.is_admin && (
-                        <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700">
+                        <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 px-1 py-0">
                           Admin
                         </Badge>
                       )}
-                    </div>
-                    <div className="text-sm text-muted-foreground">{user.email}</div>
-                    <div className="flex items-center gap-2 mt-1">
                       {user.email_verified && (
-                        <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700">
-                          <CheckCircle className="h-3 w-3 mr-1" />
-                          Verified
+                        <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 px-1 py-0">
+                          ✓
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="text-sm text-muted-foreground truncate">{user.email}</div>
+                    <div className="flex items-center gap-2 text-xs">
+                      {user.company && (
+                        <span className="text-muted-foreground truncate">{user.company}</span>
+                      )}
+                      {user.buyer_type && (
+                        <Badge variant="outline" className="text-xs capitalize px-1 py-0">
+                          {user.buyer_type}
                         </Badge>
                       )}
                     </div>
                   </div>
                 </TableCell>
-                <TableCell>
-                  <div className="text-sm">{user.company || '—'}</div>
+                <TableCell className="w-20">
+                  <UserDataCompleteness user={user} size="sm" />
                 </TableCell>
-                <TableCell>
-                  <div className="text-sm capitalize">
-                    {user.buyer_type?.replace(/([A-Z])/g, ' $1').trim() || '—'}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <UserDataCompleteness user={user} />
-                </TableCell>
-                <TableCell onClick={(e) => e.stopPropagation()}>
+                <TableCell className="w-28" onClick={(e) => e.stopPropagation()}>
                   <DualFeeAgreementToggle 
                     user={user}
                     onSendEmail={(user) => setSelectedUserForEmail(user)}
                     size="sm"
                   />
                 </TableCell>
-                <TableCell onClick={(e) => e.stopPropagation()}>
+                <TableCell className="w-24" onClick={(e) => e.stopPropagation()}>
                   <DualNDAToggle 
                     user={user}
                     onSendEmail={(user) => setSelectedUserForNDA(user)}
                     size="sm"
                   />
                 </TableCell>
-                <TableCell>
+                <TableCell className="w-24">
                   {user.approval_status === "approved" && (
-                    <Badge className="bg-green-100 text-green-800 hover:bg-green-100 text-xs">
-                      Approved
+                    <Badge className="bg-green-100 text-green-800 hover:bg-green-100 text-xs px-2 py-1">
+                      ✓
                     </Badge>
                   )}
                   {user.approval_status === "pending" && (
-                    <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100 text-xs">
-                      Pending
+                    <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100 text-xs px-2 py-1">
+                      ⏳
                     </Badge>
                   )}
                   {user.approval_status === "rejected" && (
-                    <Badge className="bg-red-100 text-red-800 hover:bg-red-100 text-xs">
-                      Rejected
+                    <Badge className="bg-red-100 text-red-800 hover:bg-red-100 text-xs px-2 py-1">
+                      ✗
                     </Badge>
                   )}
                 </TableCell>
-                <TableCell className="hidden lg:table-cell text-xs">{formatDate(user.created_at)}</TableCell>
-                 <TableCell className="text-right">
+                <TableCell className="hidden lg:table-cell text-xs w-20">{formatDate(user.created_at)}</TableCell>
+                 <TableCell className="text-right w-16">
                   <UserActionButtons
                     user={user}
                     onApprove={onApprove}
@@ -568,13 +565,13 @@ export function UsersTable({
                   />
                  </TableCell>
               </TableRow>,
-              ...(expandedUserId === user.id ? [
-                <TableRow key={`${user.id}-details`}>
-                  <TableCell colSpan={10} className="p-0">
-                    <UserDetails user={user} />
-                  </TableCell>
-                </TableRow>
-              ] : [])
+               ...(expandedUserId === user.id ? [
+                 <TableRow key={`${user.id}-details`}>
+                   <TableCell colSpan={8} className="p-0">
+                     <UserDetails user={user} />
+                   </TableCell>
+                 </TableRow>
+               ] : [])
             ])}
           </TableBody>
         </Table>
