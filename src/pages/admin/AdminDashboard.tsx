@@ -17,6 +17,9 @@ import { UsersTable } from "@/components/admin/UsersTable";
 import { MobileUsersTable } from "@/components/admin/MobileUsersTable";
 import { useAdminUsers } from "@/hooks/admin/use-admin-users";
 import { User } from "@/types";
+import { ResponsiveOverviewCards } from "@/components/admin/ResponsiveOverviewCards";
+import { ResponsiveRecentActivity } from "@/components/admin/ResponsiveRecentActivity";
+import { MobileOptimizedAnalytics } from "@/components/admin/MobileOptimizedAnalytics";
 
 const AdminDashboard = () => {
   const { useStats, useRecentActivities } = useAdmin();
@@ -82,155 +85,25 @@ const AdminDashboard = () => {
           )}
 
         <TabsContent value="overview" className="space-y-4 md:space-y-6 mt-6">
-          {/* Responsive Overview Stats */}
-          {isLoadingStats ? (
-            renderSkeleton()
-          ) : (
-            <div className={cn(
-              "grid gap-3 md:gap-4",
-              isMobile ? "grid-cols-2" : "grid-cols-2 md:grid-cols-4"
-            )}>
-              <Card className={cn(
-                "p-3 md:p-4",
-                isMobile && "bg-gradient-to-br from-blue-50 to-blue-100/50 border-blue-200"
-              )}>
-                <CardHeader className="p-0 pb-2">
-                  <CardDescription className="flex items-center text-xs md:text-sm">
-                    <Store className="h-4 w-4 mr-1 text-blue-600" /> Listings
-                  </CardDescription>
-                  <CardTitle className={cn(
-                    "text-lg md:text-2xl",
-                    isMobile && "text-blue-900"
-                  )}>{stats?.totalListings || 0}</CardTitle>
-                </CardHeader>
-                <CardContent className="p-0">
-                  <p className={cn(
-                    "text-xs md:text-sm text-muted-foreground",
-                    isMobile && "text-blue-700"
-                  )}>
-                    Active listings
-                  </p>
-                </CardContent>
-              </Card>
-              
-              <Card className={cn(
-                "p-3 md:p-4",
-                isMobile && "bg-gradient-to-br from-orange-50 to-orange-100/50 border-orange-200"
-              )}>
-                <CardHeader className="p-0 pb-2">
-                  <CardDescription className="flex items-center text-xs md:text-sm">
-                    <Users className="h-4 w-4 mr-1 text-orange-600" /> Users
-                  </CardDescription>
-                  <CardTitle className={cn(
-                    "text-lg md:text-2xl",
-                    isMobile && "text-orange-900"
-                  )}>{stats?.pendingUsers || 0}</CardTitle>
-                </CardHeader>
-                <CardContent className="p-0">
-                  <p className={cn(
-                    "text-xs md:text-sm text-muted-foreground",
-                    isMobile && "text-orange-700"
-                  )}>
-                    Pending approval
-                  </p>
-                </CardContent>
-              </Card>
-              
-              <Card className={cn(
-                "p-3 md:p-4",
-                isMobile && "bg-gradient-to-br from-purple-50 to-purple-100/50 border-purple-200"
-              )}>
-                <CardHeader className="p-0 pb-2">
-                  <CardDescription className="flex items-center text-xs md:text-sm">
-                    <MessageSquare className="h-4 w-4 mr-1 text-purple-600" /> Connections
-                  </CardDescription>
-                  <CardTitle className={cn(
-                    "text-lg md:text-2xl",
-                    isMobile && "text-purple-900"
-                  )}>{stats?.pendingConnections || 0}</CardTitle>
-                </CardHeader>
-                <CardContent className="p-0">
-                  <p className={cn(
-                    "text-xs md:text-sm text-muted-foreground",
-                    isMobile && "text-purple-700"
-                  )}>
-                    New requests
-                  </p>
-                </CardContent>
-              </Card>
-              
-              <Card className={cn(
-                "p-3 md:p-4",
-                isMobile && "bg-gradient-to-br from-green-50 to-green-100/50 border-green-200"
-              )}>
-                <CardHeader className="p-0 pb-2">
-                  <CardDescription className="flex items-center text-xs md:text-sm">
-                    <TrendingUp className="h-4 w-4 mr-1 text-green-600" /> Total
-                  </CardDescription>
-                  <CardTitle className={cn(
-                    "text-lg md:text-2xl",
-                    isMobile && "text-green-900"
-                  )}>{stats?.totalUsers || 0}</CardTitle>
-                </CardHeader>
-                <CardContent className="p-0">
-                  <p className={cn(
-                    "text-xs md:text-sm text-muted-foreground",
-                    isMobile && "text-green-700"
-                  )}>
-                    Registered users
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
-          )}
+          {/* Responsive Overview Cards */}
+          <ResponsiveOverviewCards stats={stats} isLoading={isLoadingStats} />
           
-          {/* Recent Activity */}
-          <Card className="p-4 md:p-6">
-            <CardHeader className="p-0 pb-4">
-              <CardTitle className="text-base md:text-lg">Recent Activity</CardTitle>
-              <CardDescription className="text-sm">
-                Latest actions across the marketplace
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-0">
-              {isLoadingActivities ? (
-                renderActivitySkeleton()
-              ) : activities.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-6">
-                  No recent activity to display
-                </p>
-              ) : (
-                <div className="space-y-3">
-                  {activities.slice(0, 5).map((activity) => (
-                    <div
-                      key={activity.id}
-                      className={cn(
-                        "border-l-4 pl-3 py-1",
-                        activity.type === "signup"
-                          ? "border-green-500"
-                          : activity.type === "connection_request"
-                          ? "border-blue-500"
-                          : activity.type === "listing_creation"
-                          ? "border-purple-500"
-                          : "border-gray-500"
-                      )}
-                    >
-                      <p className="text-sm">{activity.description}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {formatDistanceToNow(new Date(activity.timestamp), {
-                          addSuffix: true,
-                        })}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          {/* Responsive Recent Activity */}
+          <ResponsiveRecentActivity 
+            activities={activities} 
+            isLoading={isLoadingActivities}
+            onRefresh={() => {
+              // Add refresh functionality if needed
+            }}
+          />
         </TabsContent>
 
         <TabsContent value="analytics" className="space-y-4 md:space-y-6">
-          <AdvancedAnalyticsDashboard />
+          {isMobile ? (
+            <MobileOptimizedAnalytics />
+          ) : (
+            <AdvancedAnalyticsDashboard />
+          )}
         </TabsContent>
 
         {/* Mobile: Combined Users & Health Tab */}
