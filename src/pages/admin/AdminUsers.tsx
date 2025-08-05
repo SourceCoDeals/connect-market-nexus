@@ -28,9 +28,7 @@ const AdminUsers = () => {
   
   const [searchQuery, setSearchQuery] = useState("");
   
-  // Get user action handlers from the component
-  const userActions = UserActions({ onUserStatusUpdated: () => refetch() });
-  
+  // Get user action handlers from the hook
   const {
     handleUserApproval,
     handleUserRejection,
@@ -43,7 +41,7 @@ const AdminUsers = () => {
     RevokeAdminDialog,
     DeleteDialog,
     isLoading: isActionLoading
-  } = userActions;
+  } = UserActions({ onUserStatusUpdated: () => refetch() });
   
   // Handle errors and show user feedback
   useEffect(() => {
