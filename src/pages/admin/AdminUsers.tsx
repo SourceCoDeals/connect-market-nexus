@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useAdmin } from "@/hooks/use-admin";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -28,7 +28,11 @@ const AdminUsers = () => {
   
   const [searchQuery, setSearchQuery] = useState("");
   
-  // Get user action handlers from the hook
+  // Memoize user action handlers to prevent recreation on every render
+  const userActions = useMemo(() => {
+    return UserActions({ onUserStatusUpdated: () => refetch() });
+  }, [refetch]);
+  
   const {
     handleUserApproval,
     handleUserRejection,
@@ -41,7 +45,7 @@ const AdminUsers = () => {
     RevokeAdminDialog,
     DeleteDialog,
     isLoading: isActionLoading
-  } = UserActions({ onUserStatusUpdated: () => refetch() });
+  } = userActions;
   
   // Handle errors and show user feedback
   useEffect(() => {
