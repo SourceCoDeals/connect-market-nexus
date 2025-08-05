@@ -8,6 +8,9 @@ import { StreamlinedManagementTab } from "@/components/admin/StreamlinedManageme
 import { RecentActivityTab } from "@/components/admin/RecentActivityTab";
 import { ListingIntelligenceTab } from "@/components/admin/ListingIntelligenceTab";
 import { MarketIntelligenceTab } from "@/components/admin/MarketIntelligenceTab";
+import { PredictiveIntelligenceTab } from "@/components/admin/PredictiveIntelligenceTab";
+import { AutomatedIntelligenceTab } from "@/components/admin/AutomatedIntelligenceTab";
+import { RevenueOptimizationTab } from "@/components/admin/RevenueOptimizationTab";
 
 const AdminDashboard = () => {
   return (
@@ -23,12 +26,15 @@ const AdminDashboard = () => {
         </div>
 
         <Tabs defaultValue="overview" className="space-y-4 md:space-y-6">
-          <TabsList className="grid w-full grid-cols-6">
+          <TabsList className="grid w-full grid-cols-3 lg:grid-cols-9 text-xs">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="analytics">Analytics</TabsTrigger>
             <TabsTrigger value="activity">Activity</TabsTrigger>
             <TabsTrigger value="listings">Listings</TabsTrigger>
             <TabsTrigger value="market">Market</TabsTrigger>
+            <TabsTrigger value="predictive">AI Insights</TabsTrigger>
+            <TabsTrigger value="automation">Automation</TabsTrigger>
+            <TabsTrigger value="revenue">Revenue</TabsTrigger>
             <TabsTrigger value="management">Management</TabsTrigger>
           </TabsList>
 
@@ -50,6 +56,18 @@ const AdminDashboard = () => {
 
           <TabsContent value="market">
             <MarketIntelligenceTab />
+          </TabsContent>
+
+          <TabsContent value="predictive">
+            <PredictiveIntelligenceTab />
+          </TabsContent>
+
+          <TabsContent value="automation">
+            <AutomatedIntelligenceTab />
+          </TabsContent>
+
+          <TabsContent value="revenue">
+            <RevenueOptimizationTab />
           </TabsContent>
 
           <TabsContent value="management">
