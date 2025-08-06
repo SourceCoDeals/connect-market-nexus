@@ -12,8 +12,8 @@ import { CurrencyInput } from "@/components/ui/currency-input";
 import { MultiSelect } from "@/components/ui/multi-select";
 import { ImageUpload } from "@/components/ui/image-upload";
 import { Checkbox } from "@/components/ui/checkbox";
-import { RichTextEditor } from "@/components/ui/rich-text-editor";
-import { BusinessListingTemplates } from "@/components/ui/business-listing-templates";
+import { RichTextEditorEnhanced } from "@/components/ui/rich-text-editor-enhanced";
+import { EnhancedBusinessTemplates } from "@/components/ui/enhanced-business-templates";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, Bell } from "lucide-react";
 import {
@@ -340,7 +340,7 @@ export function ListingForm({
                 render={({ field }) => (
                   <FormItem>
                     <FormControl>
-                      <RichTextEditor
+                      <RichTextEditorEnhanced
                         content={field.value || form.getValues('description') || ''}
                         onChange={(html, json) => {
                           field.onChange(html);
@@ -351,8 +351,12 @@ export function ListingForm({
                           const plainText = tempDiv.textContent || tempDiv.innerText || '';
                           form.setValue('description', plainText);
                         }}
-                        placeholder="Describe the business in detail using rich formatting..."
-                        className="min-h-[300px]"
+                        placeholder="Create a compelling business description using our professional tools..."
+                        className="min-h-[500px]"
+                        characterLimit={15000}
+                        autoSave={true}
+                        showWordCount={true}
+                        showPreview={true}
                       />
                     </FormControl>
                     <FormMessage />
@@ -362,7 +366,7 @@ export function ListingForm({
             </TabsContent>
             
             <TabsContent value="templates" className="space-y-4">
-              <BusinessListingTemplates
+              <EnhancedBusinessTemplates
                 onSelectTemplate={(template) => {
                   form.setValue('description_html', template);
                   form.setValue('description_json', null);
