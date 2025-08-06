@@ -72,6 +72,8 @@ export function useRobustListingCreation() {
           categories: sanitizedCategories,
           category: sanitizedCategories[0], // First category for backward compatibility
           description: sanitizeStringField(listing.description),
+          description_html: listing.description_html || null,
+          description_json: listing.description_json || null,
           location: sanitizeStringField(listing.location),
           revenue: sanitizeNumericField(listing.revenue),
           ebitda: sanitizeNumericField(listing.ebitda),

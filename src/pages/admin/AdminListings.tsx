@@ -280,9 +280,13 @@ const AdminListings = () => {
                       </div>
                     </div>
                   </div>
-                  <p className="text-muted-foreground mb-4 text-sm line-clamp-2">
-                    {listing.description}
-                  </p>
+                  <div className="text-muted-foreground mb-4 text-sm line-clamp-2">
+                    {listing.description_html ? (
+                      <div dangerouslySetInnerHTML={{ __html: listing.description_html }} className="prose prose-sm max-w-none" />
+                    ) : (
+                      <p>{listing.description}</p>
+                    )}
+                  </div>
                   
                   {expandedListings.has(listing.id) && (
                     <div className="border-t pt-4 space-y-4">

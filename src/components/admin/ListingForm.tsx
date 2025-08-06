@@ -12,6 +12,9 @@ import { CurrencyInput } from "@/components/ui/currency-input";
 import { MultiSelect } from "@/components/ui/multi-select";
 import { ImageUpload } from "@/components/ui/image-upload";
 import { Checkbox } from "@/components/ui/checkbox";
+import { RichTextEditor } from "@/components/ui/rich-text-editor";
+import { BusinessListingTemplates } from "@/components/ui/business-listing-templates";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, Bell } from "lucide-react";
 import {
   Form,
@@ -43,6 +46,8 @@ const listingFormSchema = z.object({
     .transform((val) => parseCurrency(val))
     .refine((val) => val >= 0, "EBITDA cannot be negative"),
   description: z.string().min(20, "Description must be at least 20 characters"),
+  description_html: z.string().optional(),
+  description_json: z.any().optional(),
   owner_notes: z.string().optional(),
   status: z.enum(["active", "inactive"]).default("active"),
   sendDealAlerts: z.boolean().default(true),
@@ -56,6 +61,8 @@ type ListingFormInput = {
   revenue: string;
   ebitda: string;
   description: string;
+  description_html?: string;
+  description_json?: any;
   owner_notes?: string;
   status: "active" | "inactive";
   sendDealAlerts: boolean;
@@ -65,7 +72,7 @@ type ListingFormInput = {
 type ListingFormValues = z.infer<typeof listingFormSchema>;
 
 interface ListingFormProps {
-  onSubmit: (data: ListingFormValues, image?: File | null, sendDealAlerts?: boolean) => Promise<void>;
+  onSubmit: (data: ListingFormValues & { description_html?: string; description_json?: any }, image?: File | null, sendDealAlerts?: boolean) => Promise<void>;
   listing?: AdminListing;
   isLoading?: boolean;
 }
@@ -79,6 +86,8 @@ const convertListingToFormInput = (listing?: AdminListing): ListingFormInput => 
     revenue: listing?.revenue ? formatNumber(Number(listing.revenue)) : "",
     ebitda: listing?.ebitda ? formatNumber(Number(listing.ebitda)) : "",
     description: listing?.description || "",
+    description_html: listing?.description_html || "",
+    description_json: listing?.description_json || null,
     owner_notes: listing?.owner_notes || "",
     status: listing?.status || "active",
     sendDealAlerts: true, // Default to true for new listings
@@ -149,13 +158,15 @@ export function ListingForm({
       }
       
       // Transform the form data to match ListingFormValues type
-      const transformedData: ListingFormValues = {
+      const transformedData: ListingFormValues & { description_html?: string; description_json?: any } = {
         title: formData.title,
         categories: formData.categories,
         location: formData.location,
         revenue: parseCurrency(formData.revenue),
         ebitda: parseCurrency(formData.ebitda),
         description: formData.description,
+        description_html: formData.description_html,
+        description_json: formData.description_json,
         owner_notes: formData.owner_notes,
         status: formData.status,
         sendDealAlerts: formData.sendDealAlerts,
@@ -313,23 +324,58 @@ export function ListingForm({
           )}
         />
 
-        <FormField
-          control={form.control}
-          name="description"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Business Description</FormLabel>
-              <FormControl>
-                <Textarea
-                  placeholder="Describe the business in detail..."
-                  className="min-h-[120px]"
-                  {...field}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        <div className="space-y-4">
+          <FormLabel className="text-base font-semibold">Business Description</FormLabel>
+          
+          <Tabs defaultValue="editor" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="editor">Rich Text Editor</TabsTrigger>
+              <TabsTrigger value="templates">Templates</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="editor" className="space-y-4">
+              <FormField
+                control={form.control}
+                name="description_html"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormControl>
+                      <RichTextEditor
+                        content={field.value || form.getValues('description') || ''}
+                        onChange={(html, json) => {
+                          field.onChange(html);
+                          form.setValue('description_json', json);
+                          // Keep plain text description for backwards compatibility
+                          const tempDiv = document.createElement('div');
+                          tempDiv.innerHTML = html;
+                          const plainText = tempDiv.textContent || tempDiv.innerText || '';
+                          form.setValue('description', plainText);
+                        }}
+                        placeholder="Describe the business in detail using rich formatting..."
+                        className="min-h-[300px]"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </TabsContent>
+            
+            <TabsContent value="templates" className="space-y-4">
+              <BusinessListingTemplates
+                onSelectTemplate={(template) => {
+                  form.setValue('description_html', template);
+                  form.setValue('description_json', null);
+                  // Convert to plain text for backwards compatibility
+                  const tempDiv = document.createElement('div');
+                  tempDiv.innerHTML = template;
+                  const plainText = tempDiv.textContent || tempDiv.innerText || '';
+                  form.setValue('description', plainText);
+                }}
+              />
+            </TabsContent>
+          </Tabs>
+        </div>
 
         <FormField
           control={form.control}

@@ -195,7 +195,11 @@ const ListingDetail = () => {
               <CardTitle className="text-xl">Business Overview</CardTitle>
             </CardHeader>
             <CardContent className="prose max-w-none text-foreground/90 leading-relaxed">
-              <p>{listing.description}</p>
+              {listing.description_html ? (
+                <div dangerouslySetInnerHTML={{ __html: listing.description_html }} />
+              ) : (
+                <p>{listing.description}</p>
+              )}
             </CardContent>
           </Card>
 

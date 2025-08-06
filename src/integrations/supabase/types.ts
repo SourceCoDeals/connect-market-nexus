@@ -617,6 +617,8 @@ export type Database = {
           created_at: string
           deleted_at: string | null
           description: string
+          description_html: string | null
+          description_json: Json | null
           ebitda: number
           files: string[] | null
           id: string
@@ -635,6 +637,8 @@ export type Database = {
           created_at?: string
           deleted_at?: string | null
           description: string
+          description_html?: string | null
+          description_json?: Json | null
           ebitda: number
           files?: string[] | null
           id?: string
@@ -653,6 +657,8 @@ export type Database = {
           created_at?: string
           deleted_at?: string | null
           description?: string
+          description_html?: string | null
+          description_json?: Json | null
           ebitda?: number
           files?: string[] | null
           id?: string

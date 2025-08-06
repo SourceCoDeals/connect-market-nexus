@@ -97,9 +97,13 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
                 />
               </div>
 
-              <p className="text-sm text-muted-foreground line-clamp-3 mb-4">
-                {listing.description}
-              </p>
+              <div className="text-sm text-muted-foreground line-clamp-3 mb-4">
+                {listing.description_html ? (
+                  <div dangerouslySetInnerHTML={{ __html: listing.description_html }} className="prose prose-sm max-w-none" />
+                ) : (
+                  <p>{listing.description}</p>
+                )}
+              </div>
             </CardContent>
 
             <CardFooter

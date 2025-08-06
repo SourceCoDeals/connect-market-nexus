@@ -78,6 +78,8 @@ export interface Listing {
   revenue: number;
   ebitda: number;
   description: string;
+  description_html?: string;
+  description_json?: any;
   tags: string[];
   owner_notes?: string;
   files?: string[];
