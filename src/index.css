@@ -5,28 +5,20 @@
 
 @layer base {
   :root {
-    /* SourceCo Brand Colors */
-    --background: 37 36% 98%; /* #fcfbfa */
-    --foreground: 0 0% 13%; /* Dark text */
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
     --card: 0 0% 100%;
-    --card-foreground: 0 0% 13%;
+    --card-foreground: 222.2 84% 4.9%;
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 13%;
-    
-    /* SourceCo Primary - Gold accent */
-    --primary: 40 39% 60%; /* #d7b65c */
-    --primary-foreground: 0 0% 100%;
-    
-    /* Form backgrounds */
-    --secondary: 33 22% 90%; /* #e8e0d6 */
-    --secondary-foreground: 0 0% 13%;
+    --popover-foreground: 222.2 84% 4.9%;
+    --primary: 222.2 47.4% 11.2%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
     --muted: 210 40% 96.1%;
     --muted-foreground: 215.4 16.3% 46.9%;
-    
-    /* SourceCo Accent */
-    --accent: 40 39% 60%; /* #d7b65c */
-    --accent-foreground: 0 0% 100%;
-    
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
     
@@ -49,24 +41,30 @@
     --warning-foreground: 24 45% 20%;
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 40 39% 60%; /* SourceCo gold for focus rings */
+    --ring: 222.2 84% 4.9%;
     --radius: 0.5rem;
     
-    /* SourceCo Brand Design Tokens */
-    --sourceco-gold: 40 39% 60%; /* #d7b65c */
-    --sourceco-gold-foreground: 0 0% 100%;
-    --sourceco-form-bg: 33 22% 90%; /* #e8e0d6 */
-    --sourceco-page-bg: 37 36% 98%; /* #fcfbfa */
-    --sourceco-text: 0 0% 13%;
-    --sourceco-text-muted: 215.4 16.3% 46.9%;
+    /* Premium design tokens */
+    --premium-primary: 221 83% 53%;
+    --premium-primary-foreground: 0 0% 100%;
+    --premium-accent: 45 93% 58%;
+    --premium-accent-foreground: 222 84% 4.9%;
+    --premium-secondary: 210 100% 97%;
+    --premium-secondary-foreground: 221 83% 53%;
+    --premium-border: 221 83% 53%;
+    --premium-shadow: 221 83% 53%;
+    
+    /* Premium gradients */
+    --gradient-premium: linear-gradient(135deg, hsl(var(--premium-primary)), hsl(221 83% 45%));
+    --gradient-accent: linear-gradient(135deg, hsl(var(--premium-accent)), hsl(45 93% 65%));
     
     /* Sidebar colors */
     --sidebar: 0 0% 100%;
-    --sidebar-foreground: 0 0% 13%;
+    --sidebar-foreground: 222.2 84% 4.9%;
     --sidebar-border: 214.3 31.8% 91.4%;
-    --sidebar-accent: 40 39% 60%;
-    --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-ring: 40 39% 60%;
+    --sidebar-accent: 210 40% 96.1%;
+    --sidebar-accent-foreground: 222.2 47.4% 11.2%;
+    --sidebar-ring: 222.2 47.4% 11.2%;
   }
 
   .dark {
@@ -239,40 +237,5 @@
 }
 
 .document-content {
-  @apply bg-[#fcfbfa];
-}
-
-/* SourceCo Brand Components */
-.sourceco-cta {
-  @apply bg-[#d7b65c] text-white hover:bg-[#c5a44f] transition-colors font-medium;
-}
-
-.sourceco-form-bg {
-  @apply bg-[#e8e0d6];
-}
-
-.sourceco-sidebar-section {
-  @apply bg-white border border-slate-200 p-6;
-}
-
-/* Financial metrics grid */
-.metrics-grid {
-  @apply grid grid-cols-4 gap-6 py-6 border-b border-slate-200 last:border-b-0;
-}
-
-.metric-item {
-  @apply space-y-1;
-}
-
-.metric-label {
-  @apply text-[10px] font-medium uppercase tracking-[0.8px] text-slate-500;
-}
-
-.metric-value {
-  @apply text-[18px] font-light text-slate-900;
-}
-
-/* Custom section styling */
-.custom-section {
-  @apply bg-slate-50/50 border border-slate-200 p-6 space-y-3;
+  @apply bg-white;
 }

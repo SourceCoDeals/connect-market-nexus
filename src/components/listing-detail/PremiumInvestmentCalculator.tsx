@@ -95,7 +95,7 @@ export function PremiumInvestmentCalculator({
   };
 
   return (
-    <div className="sourceco-sidebar-section space-y-6">
+    <div className="border border-slate-200 bg-white p-6 space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
         <span className="document-label">Investment Calculator</span>
@@ -110,7 +110,7 @@ export function PremiumInvestmentCalculator({
         </Button>
       </div>
 
-        {/* Scenario Selection */}
+      {/* Scenario Selection */}
       <div className="space-y-3">
         <span className="document-label">Scenario</span>
         <div className="flex gap-1">
@@ -120,9 +120,7 @@ export function PremiumInvestmentCalculator({
               variant={scenario === scenarioType ? 'default' : 'outline'}
               size="sm"
               onClick={() => setScenario(scenarioType)}
-              className={`flex-1 capitalize text-xs h-8 border-slate-300 ${
-                scenario === scenarioType ? 'sourceco-cta' : ''
-              }`}
+              className="flex-1 capitalize text-xs h-8 border-slate-300"
             >
               {scenarioType}
             </Button>
@@ -224,7 +222,7 @@ export function PremiumInvestmentCalculator({
       </div>
 
       {/* Risk Metrics */}
-      <div className="sourceco-form-bg p-4 space-y-2">
+      <div className="bg-slate-50 p-4 space-y-2">
         <span className="document-label">Risk Metrics</span>
         <div className="grid grid-cols-2 gap-4">
           <div>

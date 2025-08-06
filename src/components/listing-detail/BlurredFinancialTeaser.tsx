@@ -97,7 +97,7 @@ const BlurredFinancialTeaser = ({
             <Button
               onClick={handleButtonClick}
               disabled={isRequesting || (hasConnection && connectionStatus !== "rejected")}
-              className="sourceco-cta px-6 py-2 text-sm font-medium"
+              className="bg-slate-900 text-white hover:bg-slate-800 transition-colors px-6 py-2 text-sm font-medium"
             >
               <Lock className="h-4 w-4 mr-2" />
               {isRequesting ? "Sending Request..." : hasConnection && connectionStatus !== "rejected" ? "Request Sent" : "Request Connection"}

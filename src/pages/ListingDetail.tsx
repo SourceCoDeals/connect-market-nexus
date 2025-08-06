@@ -126,12 +126,6 @@ const ListingDetail = () => {
   // Use listing's image_url or fallback to default image
   const imageUrl = listing?.image_url || DEFAULT_IMAGE;
 
-  // Calculate derived metrics
-  const ebitdaMargin = listing.revenue && listing.ebitda ? 
-    ((listing.ebitda / listing.revenue) * 100).toFixed(1) : '0';
-  const revenueMultiple = listing.revenue && listing.ebitda ? 
-    (listing.revenue / listing.ebitda).toFixed(1) : '0';
-
   return (
     <div className="document-content min-h-screen">
       {/* Navigation */}
@@ -155,8 +149,7 @@ const ListingDetail = () => {
             
             {/* Header Section */}
             <div className="document-section py-8">
-              <div className="space-y-6">
-                {/* Category and Location */}
+              <div className="space-y-3">
                 <div className="flex gap-4">
                   <span className="document-label">{listing.category}</span>
                   <span className="document-label">{listing.location}</span>
@@ -164,24 +157,13 @@ const ListingDetail = () => {
                     <span className="document-label text-red-600">Inactive</span>
                   )}
                 </div>
-                
-                {/* Title */}
                 <h1 className="document-title">{listing.title}</h1>
-                
-                {/* Description */}
-                <div className="prose prose-slate max-w-none">
-                  {listing.description_html ? (
-                    <RichTextDisplay content={listing.description_html} />
-                  ) : (
-                    <p className="document-subtitle leading-relaxed">{listing.description}</p>
-                  )}
-                </div>
               </div>
             </div>
 
             {/* Hero Image */}
             <div className="document-section py-8">
-              <div className="w-full h-[320px] border border-slate-200 bg-slate-50 overflow-hidden">
+              <div className="w-full h-[280px] border border-slate-200 bg-slate-50 overflow-hidden">
                 {imageUrl ? (
                   <img
                     src={imageUrl}
@@ -201,33 +183,27 @@ const ListingDetail = () => {
               </div>
             </div>
 
-            {/* Financial Summary */}
+            {/* Financial Dashboard */}
             <div className="document-section py-8">
-              <div className="space-y-6">
-                <span className="document-label">Financial Summary</span>
-                
-                <div className="metrics-grid">
-                  <div className="metric-item">
-                    <div className="metric-label">Annual Revenue</div>
-                    <div className="metric-value">{formatCurrency(listing.revenue)}</div>
-                  </div>
-                  <div className="metric-item">
-                    <div className="metric-label">EBITDA</div>
-                    <div className="metric-value">{formatCurrency(listing.ebitda)}</div>
-                  </div>
-                  <div className="metric-item">
-                    <div className="metric-label">EBITDA Margin</div>
-                    <div className="metric-value">{ebitdaMargin}%</div>
-                  </div>
-                  <div className="metric-item">
-                    <div className="metric-label">Revenue Multiple</div>
-                    <div className="metric-value">{revenueMultiple}x</div>
-                  </div>
+              <EnhancedInvestorDashboard 
+                listing={listing}
+                formatCurrency={formatCurrency}
+              />
+            </div>
+
+            {/* Business Overview */}
+            <div className="document-section py-8">
+              <div className="space-y-4">
+                <span className="document-label">Business Overview</span>
+                <div className="prose prose-slate max-w-none">
+                  {listing.description_html ? (
+                    <RichTextDisplay content={listing.description_html} />
+                  ) : (
+                    <p className="document-subtitle leading-relaxed">{listing.description}</p>
+                  )}
                 </div>
               </div>
             </div>
-
-            {/* Custom Sections placeholder - will be implemented in admin editor */}
 
             {/* Financial Teaser */}
             <div className="document-section py-8">
@@ -250,30 +226,33 @@ const ListingDetail = () => {
             )}
           </div>
 
-          {/* Right Column - 30% Sidebar */}
-          <div className="col-span-3 space-y-6">
+          {/* Right Column - 30% */}
+          <div className="col-span-3 space-y-8">
             
-            {/* CTA Section - Request Full Deal Details */}
-            <div className="sourceco-sidebar-section">
-              <div className="space-y-4">
-                <h3 className="document-value">Interested in This Deal?</h3>
-                <p className="document-subtitle">
-                  Get full access to detailed financials and business metrics
-                </p>
-                <Button
-                  onClick={() => handleRequestConnection()}
-                  disabled={isRequesting || (connectionExists && connectionStatusValue !== "rejected")}
-                  className="sourceco-cta w-full h-12 text-sm font-medium"
-                >
-                  {isRequesting ? "Sending Request..." : 
-                   connectionExists && connectionStatusValue !== "rejected" ? "Request Sent" : 
-                   "Request Full Deal Details"}
-                </Button>
-              </div>
+            {/* Ownership & Transaction */}
+            <OwnershipTransactionCard listing={listing} />
+            
+            {/* Investment Calculator */}
+            <PremiumInvestmentCalculator 
+              revenue={listing.revenue} 
+              ebitda={listing.ebitda}
+              formatCurrency={formatCurrency}
+            />
+
+            {/* Connection Actions */}
+            <div className="border border-slate-200 bg-white p-6">
+              <ConnectionButton 
+                connectionExists={connectionExists}
+                connectionStatus={connectionStatusValue}
+                isRequesting={isRequesting}
+                isAdmin={isAdmin}
+                handleRequestConnection={handleRequestConnection}
+                listingTitle={listing.title}
+              />
             </div>
-            
-            {/* Save Listing */}
-            <div className="sourceco-sidebar-section">
+
+            {/* Save Action */}
+            <div className="border border-slate-200 bg-white p-6">
               <Button
                 variant="outline"
                 className="w-full h-10 border-slate-300 bg-white hover:bg-slate-50 transition-all duration-200 text-sm font-medium"
@@ -289,15 +268,8 @@ const ListingDetail = () => {
               </Button>
             </div>
 
-            {/* Investment Calculator */}
-            <PremiumInvestmentCalculator 
-              revenue={listing.revenue} 
-              ebitda={listing.ebitda}
-              formatCurrency={formatCurrency}
-            />
-
             {/* Listing Info */}
-            <div className="sourceco-sidebar-section">
+            <div className="border border-slate-200 bg-white">
               <ListingInfo id={listing.id} createdAt={listing.createdAt} />
             </div>
           </div>
