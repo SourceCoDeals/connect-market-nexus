@@ -53,23 +53,17 @@ export default {
 					DEFAULT: 'hsl(var(--card))',
 					foreground: 'hsl(var(--card-foreground))'
 				},
-				marketplace: {
-					50: '#F0F7FF',
-					100: '#E0EFFF',
-					200: '#B8DBFF',
-					300: '#8FC7FF',
-					400: '#67B3FF',
-					500: '#3F9FFF',
-					600: '#0B7FFC',
-					700: '#0963C4',
-					800: '#074792',
-					900: '#052C61',
+				sourceco: {
+					gold: 'hsl(var(--sourceco-gold))',
+					'gold-foreground': 'hsl(var(--sourceco-gold-foreground))',
+					'form-bg': 'hsl(var(--sourceco-form-bg))',
+					'page-bg': 'hsl(var(--sourceco-page-bg))',
+					text: 'hsl(var(--sourceco-text))',
+					'text-muted': 'hsl(var(--sourceco-text-muted))'
 				},
 				sidebar: {
-					DEFAULT: 'hsl(var(--sidebar-background))',
+					DEFAULT: 'hsl(var(--sidebar))',
 					foreground: 'hsl(var(--sidebar-foreground))',
-					primary: 'hsl(var(--sidebar-primary))',
-					'primary-foreground': 'hsl(var(--sidebar-primary-foreground))',
 					accent: 'hsl(var(--sidebar-accent))',
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
