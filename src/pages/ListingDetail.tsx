@@ -151,7 +151,7 @@ const ListingDetail = () => {
           <div className="col-span-7 space-y-0">
             
             {/* Hero Image */}
-            <div className="w-full h-[240px] border border-sourceco-form bg-sourceco-form overflow-hidden mb-6">
+            <div className="w-full h-[240px] border border-sourceco-form bg-sourceco-form overflow-hidden mb-6 rounded-lg">
               {imageUrl ? (
                 <img
                   src={imageUrl}
@@ -206,11 +206,11 @@ const ListingDetail = () => {
             <div className="document-section py-6">
               <div className="space-y-4">
                 <span className="document-label">Business Overview</span>
-                <div className="prose prose-slate max-w-none">
+                <div className="prose prose-slate max-w-none text-sm">
                   {listing.description_html ? (
                     <RichTextDisplay content={listing.description_html} />
                   ) : (
-                    <p className="document-subtitle leading-relaxed">{listing.description}</p>
+                    <p className="text-sm leading-relaxed text-slate-700">{listing.description}</p>
                   )}
                 </div>
               </div>
@@ -375,22 +375,8 @@ const ListingDetail = () => {
                      {isSaved ? "Saved" : "Save Listing"}
                    </Button>
                    
-                   {/* Schedule Buyer Call */}
-                   <Button
-                     variant="outline"
-                     className="w-full h-9 bg-white border-slate-300 text-slate-700 hover:bg-slate-50 text-xs font-medium transition-colors duration-200 rounded-md"
-                   >
-                     <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                       <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-                       <line x1="16" y1="2" x2="16" y2="6"/>
-                       <line x1="8" y1="2" x2="8" y2="6"/>
-                       <line x1="3" y1="10" x2="21" y2="10"/>
-                     </svg>
-                     Schedule Buyer Call
-                   </Button>
-                   
-                   {/* Download Executive Summary - Simple Link */}
-                   <div className="pt-2 text-center">
+                   {/* Download Executive Summary - Centered */}
+                   <div className="pt-4 text-center border-t border-sourceco-form">
                      <ExecutiveSummaryGenerator listing={listing} />
                    </div>
                 </div>
@@ -400,18 +386,18 @@ const ListingDetail = () => {
                <div className="bg-white border border-sourceco-form rounded-lg p-4 border-t-0 rounded-t-none">
                  <div className="space-y-3">
                    <div className="text-center space-y-2">
-                     <h4 className="text-sm font-semibold text-slate-900">Exclusive Deal Flow</h4>
+                     <h4 className="text-sm font-semibold text-slate-900">Get Notified When Similar Deals Go Live</h4>
                      <p className="text-xs text-slate-600 leading-relaxed">
-                       Access 50+ vetted founder-led businesses with $2M-50M revenue. Off-market opportunities from our proprietary network.
+                       Set up deal alerts based on your investment criteria and get notified when businesses matching your preferences become available.
                      </p>
                    </div>
                    <CreateDealAlertDialog
                      trigger={
                        <button className="w-full h-8 bg-white border border-sourceco-accent text-sourceco-accent hover:bg-sourceco-accent hover:text-white text-xs font-medium transition-colors duration-200 flex items-center justify-center gap-2 rounded-md">
                          <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-5 5-5-5h5v-5a7.5 7.5 0 1 0-15 0v5h5"/>
                          </svg>
-                         Browse Marketplace
+                         Set Up Deal Alerts
                        </button>
                      }
                    />
