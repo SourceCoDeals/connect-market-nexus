@@ -127,152 +127,164 @@ const ListingDetail = () => {
   const imageUrl = listing?.image_url || DEFAULT_IMAGE;
 
   return (
-    <div className="container mx-auto pt-6 pb-12">
-      <div className="mb-8">
-        <Link
-          to="/marketplace"
-          className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors duration-200"
-        >
-          <ChevronLeft className="mr-1 h-4 w-4" />
-          Back to Marketplace
-        </Link>
+    <div className="min-h-screen bg-background">
+      {/* Navigation Strip */}
+      <div className="border-b border-section-border bg-background/95 backdrop-blur-sm sticky top-0 z-10">
+        <div className="max-w-7xl mx-auto px-6 py-4">
+          <Link
+            to="/marketplace"
+            className="inline-flex items-center document-subtitle hover:text-foreground transition-colors"
+          >
+            <ChevronLeft className="mr-2 h-4 w-4" />
+            Return to Marketplace
+          </Link>
+        </div>
       </div>
       
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left column - Image and Content */}
-        <div className="lg:col-span-2 space-y-8">
-          {/* Image */}
-          <div className="rounded-xl overflow-hidden border border-border/50 shadow-lg min-h-[300px] max-h-[400px] aspect-[16/9] relative bg-gradient-to-br from-background to-muted/10">
-            {imageUrl ? (
-              <img
-                src={imageUrl}
-                alt={listing.title}
-                className="absolute inset-0 w-full h-full object-cover"
-                onError={(e) => {
-                  const target = e.target as HTMLImageElement;
-                  target.onerror = null;
-                  target.src = DEFAULT_IMAGE;
-                }}
+      {/* Asymmetric Layout: 70/30 split */}
+      <div className="max-w-7xl mx-auto">
+        <div className="grid grid-cols-10 min-h-screen">
+          
+          {/* Main Content Area - 70% */}
+          <div className="col-span-7 px-6">
+            
+            {/* Hero Section */}
+            <div className="py-8 border-b border-section-border">
+              <div className="space-y-6">
+                
+                {/* Meta Information */}
+                <div className="flex items-center gap-4">
+                  <span className="document-label">{listing.category}</span>
+                  <span className="text-muted-foreground">•</span>
+                  <span className="document-label">{listing.location}</span>
+                  {isInactive && isAdmin && (
+                    <>
+                      <span className="text-muted-foreground">•</span>
+                      <span className="document-label text-destructive">Inactive Listing</span>
+                    </>
+                  )}
+                </div>
+                
+                {/* Company Name */}
+                <h1 className="text-4xl font-light text-foreground tracking-tight leading-tight">
+                  {listing.title}
+                </h1>
+                
+                {/* Image - Clean, document-like presentation */}
+                <div className="border border-section-border bg-muted/30 aspect-[2/1] relative overflow-hidden">
+                  {imageUrl ? (
+                    <img
+                      src={imageUrl}
+                      alt={listing.title}
+                      className="absolute inset-0 w-full h-full object-cover"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.onerror = null;
+                        target.src = DEFAULT_IMAGE;
+                      }}
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-muted/30 flex items-center justify-center">
+                      <ImageIcon className="h-12 w-12 text-muted-foreground/30" />
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Financial Overview Section */}
+            <div className="py-8 border-b border-section-border">
+              <EnhancedInvestorDashboard 
+                listing={listing}
+                formatCurrency={formatCurrency}
               />
-            ) : (
-              <div className="w-full h-full bg-gradient-to-br from-muted/20 to-muted/40 flex items-center justify-center">
-                <ImageIcon className="h-16 w-16 text-muted-foreground/50" />
+            </div>
+
+            {/* Business Overview Section */}
+            <div className="py-8 border-b border-section-border">
+              <div className="space-y-6">
+                <h2 className="document-title">Business Overview</h2>
+                <div className="prose max-w-none text-foreground/90 leading-relaxed font-light">
+                  {listing.description_html ? (
+                    <RichTextDisplay content={listing.description_html} />
+                  ) : (
+                    <p className="text-sm leading-relaxed">{listing.description}</p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Connection Section */}
+            <div className="py-8 border-b border-section-border">
+              <BlurredFinancialTeaser 
+                onRequestConnection={handleRequestConnection}
+                isRequesting={isRequesting}
+                hasConnection={connectionExists}
+                connectionStatus={connectionStatusValue}
+                listingTitle={listing.title}
+              />
+            </div>
+
+            {/* Admin Notes (if applicable) */}
+            {isAdmin && listing.owner_notes && (
+              <div className="py-8 border-b border-section-border">
+                <div className="space-y-4">
+                  <h2 className="document-title">Administrative Notes</h2>
+                  <p className="text-sm text-foreground/80 leading-relaxed">{listing.owner_notes}</p>
+                </div>
               </div>
             )}
           </div>
-
-          {/* Title and badges section */}
-          <div className="space-y-4">
-            <div className="flex flex-wrap gap-2">
-              <Badge variant="outline" className="bg-background/80 backdrop-blur-sm border-border/50 font-medium px-3 py-1">
-                <Building2 className="h-3 w-3 mr-1.5" />
-                {listing.category}
-              </Badge>
-              <Badge variant="outline" className="bg-background/80 backdrop-blur-sm border-border/50 font-medium px-3 py-1">
-                <MapPin className="h-3 w-3 mr-1.5" />
-                {listing.location}
-              </Badge>
-              {isInactive && isAdmin && (
-                <Badge variant="destructive" className="font-medium px-3 py-1">
-                  <AlertTriangle className="h-3 w-3 mr-1.5" />
-                  Inactive
-                </Badge>
-              )}
-            </div>
-            <h1 className="text-3xl md:text-4xl font-bold tracking-tight bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
-              {listing.title}
-            </h1>
-          </div>
-
-          {/* Enhanced Financial Dashboard */}
-          <EnhancedInvestorDashboard 
-            listing={listing}
-            formatCurrency={formatCurrency}
-          />
-
-          {/* Business overview section */}
-          <Card className="bg-gradient-to-br from-background to-muted/10 border-border/50 shadow-sm">
-            <CardHeader className="pb-4">
-              <CardTitle className="text-xl">Business Overview</CardTitle>
-            </CardHeader>
-            <CardContent className="prose max-w-none text-foreground/90 leading-relaxed">
-              {listing.description_html ? (
-                <RichTextDisplay content={listing.description_html} />
-              ) : (
-                <p>{listing.description}</p>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Blurred Financial Teaser */}
-          <BlurredFinancialTeaser 
-            onRequestConnection={handleRequestConnection}
-            isRequesting={isRequesting}
-            hasConnection={connectionExists}
-            connectionStatus={connectionStatusValue}
-            listingTitle={listing.title}
-          />
-
-          {isAdmin && listing.owner_notes && (
-            <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-primary/10 shadow-sm">
-              <CardHeader className="pb-4">
-                <CardTitle className="text-xl">Admin Notes</CardTitle>
-              </CardHeader>
-              <CardContent className="prose max-w-none text-foreground/90 leading-relaxed">
-                <p>{listing.owner_notes}</p>
-              </CardContent>
-            </Card>
-          )}
-        </div>
-
-        {/* Right column - Financial info and actions */}
-        <div className="space-y-6">
-          {/* Ownership & Transaction Card */}
-          <OwnershipTransactionCard listing={listing} />
           
-          {/* Premium Investment Calculator */}
-          <PremiumInvestmentCalculator 
-            revenue={listing.revenue} 
-            ebitda={listing.ebitda}
-            formatCurrency={formatCurrency}
-          />
-
-          {/* Connection Button Card */}
-          <Card className="bg-gradient-to-br from-background to-muted/10 border-border/50 shadow-sm">
-            <CardContent className="p-6">
-              <ConnectionButton 
-                connectionExists={connectionExists}
-                connectionStatus={connectionStatusValue}
-                isRequesting={isRequesting}
-                isAdmin={isAdmin}
-                handleRequestConnection={handleRequestConnection}
-                listingTitle={listing.title}
+          {/* Sidebar - 30% */}
+          <div className="col-span-3 border-l border-section-border bg-muted/20">
+            <div className="sticky top-20 p-6 space-y-8">
+              
+              {/* Transaction Details */}
+              <OwnershipTransactionCard listing={listing} />
+              
+              {/* Investment Calculator */}
+              <PremiumInvestmentCalculator 
+                revenue={listing.revenue} 
+                ebitda={listing.ebitda}
+                formatCurrency={formatCurrency}
               />
-            </CardContent>
-          </Card>
 
-          {/* Save Button Card */}
-          <Card className="bg-gradient-to-br from-background to-muted/10 border-border/50 shadow-sm">
-            <CardContent className="p-6">
-              <Button
-                variant="outline"
-                className="w-full h-11 border-border/50 bg-background/50 hover:bg-background/80 transition-all duration-200 font-medium"
-                onClick={handleToggleSave}
-                disabled={isSaving || isSavedLoading}
-              >
-                <Bookmark
-                  className={`h-4 w-4 mr-2 ${
-                    isSaved ? "fill-current text-primary" : ""
-                  }`}
-                />
-                {isSaved ? "Saved" : "Save Listing"}
-              </Button>
-            </CardContent>
-          </Card>
+              {/* Actions */}
+              <div className="space-y-4">
+                <div className="document-section p-4">
+                  <ConnectionButton 
+                    connectionExists={connectionExists}
+                    connectionStatus={connectionStatusValue}
+                    isRequesting={isRequesting}
+                    isAdmin={isAdmin}
+                    handleRequestConnection={handleRequestConnection}
+                    listingTitle={listing.title}
+                  />
+                </div>
 
-          <Card className="bg-gradient-to-br from-background to-muted/10 border-border/50 shadow-sm">
-            <ListingInfo id={listing.id} createdAt={listing.createdAt} />
-          </Card>
+                <div className="document-section p-4">
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start text-sm font-normal"
+                    onClick={handleToggleSave}
+                    disabled={isSaving || isSavedLoading}
+                  >
+                    <Bookmark
+                      className={`h-4 w-4 mr-2 ${
+                        isSaved ? "fill-current" : ""
+                      }`}
+                    />
+                    {isSaved ? "Listing Saved" : "Save Listing"}
+                  </Button>
+                </div>
+
+                <div className="document-section p-4">
+                  <ListingInfo id={listing.id} createdAt={listing.createdAt} />
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
