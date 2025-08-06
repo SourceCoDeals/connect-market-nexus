@@ -114,9 +114,7 @@ const ConnectionButton = ({
       <Button
         onClick={handleButtonClick}
         disabled={disabled || isRequesting}
-        className={`w-full h-12 px-6 py-3 text-sm font-semibold tracking-wide rounded transition-all duration-200 ${className} ${
-          isRequesting ? "opacity-60 cursor-not-allowed" : ""
-        }`}
+        className="w-full h-12 bg-sourceco-accent hover:bg-opacity-90 text-white font-semibold text-sm transition-all duration-200"
       >
         <div className="flex items-center justify-center gap-2">
           <ButtonIcon className="h-4 w-4" />

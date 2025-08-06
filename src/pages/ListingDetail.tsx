@@ -141,23 +141,36 @@ const ListingDetail = () => {
         </div>
       </div>
       
-      {/* Main Content - 70/30 Split */}
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        <div className="grid grid-cols-10 gap-12">
+      {/* Main Content - Narrow Container */}
+      <div className="max-w-5xl mx-auto px-6 py-8">
+        <div className="grid grid-cols-10 gap-8">
           {/* Left Column - 70% */}
           <div className="col-span-7 space-y-0">
             
-            {/* Header Section */}
+            {/* Header Section - Correct Hierarchy */}
             <div className="document-section py-8">
-              <div className="space-y-3">
-                <div className="flex gap-4">
-                  <span className="document-label">{listing.category}</span>
-                  <span className="document-label">{listing.location}</span>
+              <div className="space-y-6">
+                {/* Category */}
+                <span className="document-label">{listing.category}</span>
+                
+                {/* Title */}
+                <h1 className="document-title">{listing.title}</h1>
+                
+                {/* Location & Listed Date */}
+                <div className="flex items-center gap-6 text-sm text-slate-500">
+                  <div className="flex items-center gap-1">
+                    <MapPin className="h-4 w-4" />
+                    <span>{listing.location}</span>
+                  </div>
+                  <span>Listed {new Date(listing.created_at).toLocaleDateString('en-US', { 
+                    month: 'long', 
+                    day: 'numeric', 
+                    year: 'numeric' 
+                  })}</span>
                   {isInactive && isAdmin && (
-                    <span className="document-label text-red-600">Inactive</span>
+                    <span className="text-red-600 font-medium">Inactive</span>
                   )}
                 </div>
-                <h1 className="document-title">{listing.title}</h1>
               </div>
             </div>
 
@@ -264,6 +277,15 @@ const ListingDetail = () => {
               </div>
             )}
 
+            {/* Investment Calculator */}
+            <div className="document-section py-8 border-t border-sourceco-form">
+              <PremiumInvestmentCalculator 
+                revenue={listing.revenue} 
+                ebitda={listing.ebitda}
+                formatCurrency={formatCurrency}
+              />
+            </div>
+
             {/* Financial Teaser */}
             <div className="document-section py-8">
               <BlurredFinancialTeaser 
@@ -285,48 +307,82 @@ const ListingDetail = () => {
             )}
           </div>
 
-          {/* Right Column - 30% */}
-          <div className="col-span-3 space-y-6">
-            
-            {/* Request Full Deal Details CTA */}
-            <div className="bg-sourceco-accent p-6 border border-sourceco-accent">
-              <ConnectionButton 
-                connectionExists={connectionExists}
-                connectionStatus={connectionStatusValue}
-                isRequesting={isRequesting}
-                isAdmin={isAdmin}
-                handleRequestConnection={handleRequestConnection}
-                listingTitle={listing.title}
-              />
-            </div>
+          {/* Right Column - 30% Sticky Sidebar */}
+          <div className="col-span-3">
+            <div className="sticky top-6 space-y-6">
+              
+              {/* Interested in This Deal? - Premium CTA */}
+              <div className="bg-white border border-sourceco-form p-8">
+                <div className="text-center space-y-6">
+                  <div className="space-y-3">
+                    <h3 className="text-xl font-semibold text-slate-900">Interested in This Deal?</h3>
+                    <p className="text-sm text-slate-600 leading-relaxed">
+                      Get full access to detailed financials<br />
+                      and business metrics
+                    </p>
+                  </div>
+                  
+                  <ConnectionButton 
+                    connectionExists={connectionExists}
+                    connectionStatus={connectionStatusValue}
+                    isRequesting={isRequesting}
+                    isAdmin={isAdmin}
+                    handleRequestConnection={handleRequestConnection}
+                    listingTitle={listing.title}
+                  />
+                  
+                  <button className="w-full h-12 border border-sourceco-form bg-white hover:bg-sourceco-background text-slate-700 text-sm font-medium transition-colors duration-200 flex items-center justify-center gap-2">
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                      <line x1="16" y1="2" x2="16" y2="6"/>
+                      <line x1="8" y1="2" x2="8" y2="6"/>
+                      <line x1="3" y1="10" x2="21" y2="10"/>
+                    </svg>
+                    Schedule Buyer Call
+                  </button>
+                  
+                  <div className="pt-3 border-t border-sourceco-form">
+                    <button className="text-sm text-sourceco-accent hover:text-slate-900 font-medium transition-colors">
+                      Download Executive Summary
+                    </button>
+                  </div>
+                </div>
+              </div>
 
-            {/* Save Listing CTA */}
-            <div className="bg-sourceco-background p-6 border border-sourceco-form">
-              <Button
-                variant="outline"
-                className="w-full h-12 border-sourceco-accent bg-sourceco-form hover:bg-sourceco-accent hover:text-white transition-all duration-200 text-sm font-medium"
-                onClick={handleToggleSave}
-                disabled={isSaving || isSavedLoading}
-              >
-                <Bookmark
-                  className={`h-4 w-4 mr-2 ${
-                    isSaved ? "fill-current text-sourceco-accent" : ""
-                  }`}
-                />
-                {isSaved ? "Saved" : "Save Listing"}
-              </Button>
-            </div>
-            
-            {/* Investment Calculator */}
-            <PremiumInvestmentCalculator 
-              revenue={listing.revenue} 
-              ebitda={listing.ebitda}
-              formatCurrency={formatCurrency}
-            />
+              {/* Save Listing */}
+              <div className="bg-white border border-sourceco-form p-6">
+                <Button
+                  variant="outline"
+                  className="w-full h-12 border-sourceco-form bg-white hover:bg-sourceco-background text-slate-700 text-sm font-medium transition-colors duration-200"
+                  onClick={handleToggleSave}
+                  disabled={isSaving || isSavedLoading}
+                >
+                  <Bookmark
+                    className={`h-4 w-4 mr-2 ${
+                      isSaved ? "fill-current text-sourceco-accent" : ""
+                    }`}
+                  />
+                  {isSaved ? "Saved" : "Save Listing"}
+                </Button>
+              </div>
 
-            {/* Listing Info */}
-            <div className="border border-sourceco-form bg-sourceco-background">
-              <ListingInfo id={listing.id} createdAt={listing.createdAt} />
+              {/* Exclusive Deal Flow */}
+              <div className="bg-white border border-sourceco-form p-6">
+                <div className="space-y-4">
+                  <h4 className="font-semibold text-slate-900">Exclusive Deal Flow</h4>
+                  <p className="text-sm text-slate-600 leading-relaxed">
+                    Access 50+ vetted founder-led businesses with $2M-50M revenue. 
+                    Off-market opportunities from our proprietary network.
+                  </p>
+                  <button className="w-full h-10 border border-sourceco-accent text-sourceco-accent hover:bg-sourceco-accent hover:text-white text-sm font-medium transition-colors duration-200 flex items-center justify-center gap-2">
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path d="m9 18 6-6-6-6"/>
+                    </svg>
+                    Browse Marketplace
+                  </button>
+                </div>
+              </div>
+              
             </div>
           </div>
         </div>

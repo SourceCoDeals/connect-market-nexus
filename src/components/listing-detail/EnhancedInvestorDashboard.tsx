@@ -31,25 +31,29 @@ export function EnhancedInvestorDashboard({ listing, formatCurrency }: EnhancedI
 
   return (
     <div className="space-y-8">
-      {/* Financial Metrics Table */}
+      {/* Financial Summary - Horizontal Layout */}
       <div className="space-y-4">
         <span className="document-label">Financial Summary</span>
-        <div className="grid grid-cols-2 gap-x-12 gap-y-6">
+        <div className="grid grid-cols-4 gap-8">
           <div className="space-y-1">
-            <span className="document-label">Annual Revenue</span>
-            <div className="document-value-large">{formatCurrency(listing.revenue)}</div>
+            <span className="text-xs text-slate-500 uppercase tracking-wider">2024 Revenue</span>
+            <div className="text-2xl font-semibold text-slate-900">{formatCurrency(listing.revenue)}</div>
+            <div className="text-xs text-slate-500">Infrastructure contracting</div>
           </div>
           <div className="space-y-1">
-            <span className="document-label">EBITDA Margin</span>
-            <div className="document-value-large">{ebitdaMargin.toFixed(1)}%</div>
+            <span className="text-xs text-slate-500 uppercase tracking-wider">EBITDA</span>
+            <div className="text-2xl font-semibold text-slate-900">{formatCurrency(listing.ebitda)}</div>
+            <div className="text-xs text-slate-500">{ebitdaMargin.toFixed(0)}% margin profile</div>
           </div>
           <div className="space-y-1">
-            <span className="document-label">Annual EBITDA</span>
-            <div className="document-value-large">{formatCurrency(listing.ebitda)}</div>
+            <span className="text-xs text-slate-500 uppercase tracking-wider">Contract Model</span>
+            <div className="text-2xl font-semibold text-slate-900">Project-Based</div>
+            <div className="text-xs text-slate-500">Commercial & government</div>
           </div>
           <div className="space-y-1">
-            <span className="document-label">Revenue Multiple</span>
-            <div className="document-value-large">{revenueMultiple.toFixed(1)}x</div>
+            <span className="text-xs text-slate-500 uppercase tracking-wider">Market Coverage</span>
+            <div className="text-2xl font-semibold text-slate-900">Western U.S.</div>
+            <div className="text-xs text-slate-500">Regional specialization</div>
           </div>
         </div>
       </div>
@@ -108,49 +112,6 @@ export function EnhancedInvestorDashboard({ listing, formatCurrency }: EnhancedI
         )}
       </div>
 
-      {/* Quality Assessment */}
-      <div className="space-y-4 pt-6 border-t border-sourceco-form">
-        <span className="document-label">Quality Metrics</span>
-        <div className="grid grid-cols-2 gap-8">
-          <div className="space-y-2">
-            <div className="flex justify-between">
-              <span className="document-subtitle">Margin Quality</span>
-              <span className="document-value">{marginQuality.label}</span>
-            </div>
-            <div className="text-xs text-slate-500">
-              {ebitdaMargin.toFixed(1)}% EBITDA margin
-            </div>
-          </div>
-          
-          <div className="space-y-2">
-            <div className="flex justify-between">
-              <span className="document-subtitle">Customer Risk</span>
-              <span className="document-value">{customerRisk.label}</span>
-            </div>
-            <div className="text-xs text-slate-500">
-              {listing.customer_concentration 
-                ? `${listing.customer_concentration}% concentration`
-                : 'Data not available'
-              }
-            </div>
-          </div>
-        </div>
-
-        {/* Market Position */}
-        {listing.market_position && Object.keys(listing.market_position).length > 0 && (
-          <div className="space-y-3 pt-4">
-            <span className="document-label">Market Position</span>
-            <div className="grid grid-cols-2 gap-x-8 gap-y-2">
-              {Object.entries(listing.market_position).map(([key, value]) => (
-                <div key={key} className="flex justify-between">
-                  <span className="text-xs text-slate-500 capitalize">{key.replace('_', ' ')}</span>
-                  <span className="text-xs font-medium">{String(value)}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
     </div>
   );
 }
