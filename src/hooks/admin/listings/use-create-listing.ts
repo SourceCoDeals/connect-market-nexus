@@ -48,11 +48,15 @@ export function useCreateListing() {
 
         console.log('Inserting listing data:', JSON.stringify(insertData, null, 2));
 
+        console.log('Inserting listing data:', JSON.stringify(insertData, null, 2));
+
         const { data, error } = await supabase
           .from('listings')
           .insert(insertData)
           .select()
           .single();
+        
+        console.log('Insert result:', { data, error });
         
         if (error) {
           console.error("Error inserting listing:", error);
