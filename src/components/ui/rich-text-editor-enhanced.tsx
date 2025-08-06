@@ -18,9 +18,11 @@ import {
   Heading2,
   Heading3,
   Table as TableIcon,
+  Minus,
   Eye,
   Save,
-  FileText
+  FileText,
+  Copy
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
@@ -44,7 +46,7 @@ export function RichTextEditorEnhanced({
   onChange, 
   placeholder = 'Start typing your professional business description...',
   className,
-  characterLimit = 10000,
+  characterLimit = 20000,
   autoSave = true,
   showWordCount = true,
   showPreview = true
@@ -103,17 +105,35 @@ export function RichTextEditorEnhanced({
         return () => clearTimeout(timer);
       }
     },
-    editorProps: {
-      attributes: {
-        class: cn(
-          'prose prose-sm sm:prose lg:prose-lg xl:prose-2xl mx-auto focus:outline-none min-h-[300px] p-6',
-          'prose-headings:text-foreground prose-p:text-foreground prose-strong:text-foreground',
-          'prose-ul:text-foreground prose-ol:text-foreground prose-li:text-foreground',
-          'prose-blockquote:text-muted-foreground prose-blockquote:border-l-border'
-        ),
-        'data-placeholder': placeholder,
+      editorProps: {
+        attributes: {
+          class: cn(
+            'prose prose-sm sm:prose lg:prose-lg xl:prose-2xl mx-auto focus:outline-none min-h-[300px] p-6',
+            'prose-headings:text-foreground prose-p:text-foreground prose-strong:text-foreground',
+            'prose-ul:text-foreground prose-ol:text-foreground prose-li:text-foreground',
+            'prose-blockquote:text-muted-foreground prose-blockquote:border-l-border',
+            'prose-table:border-collapse prose-th:border prose-th:border-border prose-th:p-2',
+            'prose-td:border prose-td:border-border prose-td:p-2 prose-hr:border-border'
+          ),
+          'data-placeholder': placeholder,
+        },
+        handleKeyDown: (view, event) => {
+          // Add keyboard shortcuts
+          if (event.metaKey || event.ctrlKey) {
+            if (event.key === 'b') {
+              event.preventDefault();
+              editor.chain().focus().toggleBold().run();
+              return true;
+            }
+            if (event.key === 'i') {
+              event.preventDefault();
+              editor.chain().focus().toggleItalic().run();
+              return true;
+            }
+          }
+          return false;
+        },
       },
-    },
   });
 
   useEffect(() => {
@@ -253,6 +273,13 @@ export function RichTextEditorEnhanced({
               >
                 <TableIcon className="h-4 w-4" />
               </ToolbarButton>
+
+              <ToolbarButton
+                onClick={() => editor.chain().focus().setHorizontalRule().run()}
+                title="Horizontal Rule"
+              >
+                <Minus className="h-4 w-4" />
+              </ToolbarButton>
             </div>
 
             <div className="w-px bg-border mx-1" />
@@ -279,6 +306,20 @@ export function RichTextEditorEnhanced({
 
           {/* Action Buttons */}
           <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                navigator.clipboard.writeText(editor.getHTML());
+                toast({ title: "Copied!", description: "HTML content copied to clipboard" });
+              }}
+              className="flex items-center gap-1"
+              title="Copy HTML"
+            >
+              <Copy className="h-4 w-4" />
+            </Button>
+            
             {showPreview && (
               <Button
                 type="button"
@@ -340,9 +381,13 @@ export function RichTextEditorEnhanced({
 
       {/* Content Guidelines */}
       <div className="border-t bg-muted/30 p-3">
-        <div className="text-xs text-muted-foreground">
-          <strong>Professional Content Guidelines:</strong> Use clear headings to structure your content, bullet points for key features, 
-          and tables for financial metrics. Keep descriptions concise and focus on business value and growth opportunities.
+        <div className="text-xs text-muted-foreground space-y-1">
+          <div><strong>Professional Content Guidelines:</strong></div>
+          <div>• Use headings (H1-H3) to structure content sections</div>
+          <div>• Create bullet points for key features and benefits</div>
+          <div>• Insert tables for financial metrics and comparisons</div>
+          <div>• Add horizontal rules to separate major sections</div>
+          <div>• <strong>Keyboard shortcuts:</strong> Ctrl/Cmd+B (bold), Ctrl/Cmd+I (italic)</div>
         </div>
       </div>
     </div>

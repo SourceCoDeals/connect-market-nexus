@@ -1,6 +1,7 @@
 
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
+import { RichTextDisplay } from "@/components/ui/rich-text-display";
 import { useMarketplace } from "@/hooks/use-marketplace";
 import { useAnalytics } from "@/context/AnalyticsContext";
 import { Listing } from "@/types";
@@ -99,7 +100,7 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
 
               <div className="text-sm text-muted-foreground line-clamp-3 mb-4">
                 {listing.description_html ? (
-                  <div dangerouslySetInnerHTML={{ __html: listing.description_html }} className="prose prose-sm max-w-none" />
+                  <RichTextDisplay content={listing.description_html} className="prose prose-sm max-w-none" />
                 ) : (
                   <p>{listing.description}</p>
                 )}

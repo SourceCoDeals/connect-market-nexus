@@ -13,8 +13,6 @@ import { MultiSelect } from "@/components/ui/multi-select";
 import { ImageUpload } from "@/components/ui/image-upload";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RichTextEditorEnhanced } from "@/components/ui/rich-text-editor-enhanced";
-import { EnhancedBusinessTemplates } from "@/components/ui/enhanced-business-templates";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, Bell } from "lucide-react";
 import {
   Form,
@@ -327,58 +325,35 @@ export function ListingForm({
         <div className="space-y-4">
           <FormLabel className="text-base font-semibold">Business Description</FormLabel>
           
-          <Tabs defaultValue="editor" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="editor">Rich Text Editor</TabsTrigger>
-              <TabsTrigger value="templates">Templates</TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="editor" className="space-y-4">
-              <FormField
-                control={form.control}
-                name="description_html"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormControl>
-                      <RichTextEditorEnhanced
-                        content={field.value || form.getValues('description') || ''}
-                        onChange={(html, json) => {
-                          field.onChange(html);
-                          form.setValue('description_json', json);
-                          // Keep plain text description for backwards compatibility
-                          const tempDiv = document.createElement('div');
-                          tempDiv.innerHTML = html;
-                          const plainText = tempDiv.textContent || tempDiv.innerText || '';
-                          form.setValue('description', plainText);
-                        }}
-                        placeholder="Create a compelling business description using our professional tools..."
-                        className="min-h-[500px]"
-                        characterLimit={15000}
-                        autoSave={true}
-                        showWordCount={true}
-                        showPreview={true}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </TabsContent>
-            
-            <TabsContent value="templates" className="space-y-4">
-              <EnhancedBusinessTemplates
-                onSelectTemplate={(template) => {
-                  form.setValue('description_html', template);
-                  form.setValue('description_json', null);
-                  // Convert to plain text for backwards compatibility
-                  const tempDiv = document.createElement('div');
-                  tempDiv.innerHTML = template;
-                  const plainText = tempDiv.textContent || tempDiv.innerText || '';
-                  form.setValue('description', plainText);
-                }}
-              />
-            </TabsContent>
-          </Tabs>
+          <FormField
+            control={form.control}
+            name="description_html"
+            render={({ field }) => (
+              <FormItem>
+                <FormControl>
+                  <RichTextEditorEnhanced
+                    content={field.value || form.getValues('description') || ''}
+                    onChange={(html, json) => {
+                      field.onChange(html);
+                      form.setValue('description_json', json);
+                      // Keep plain text description for backwards compatibility
+                      const tempDiv = document.createElement('div');
+                      tempDiv.innerHTML = html;
+                      const plainText = tempDiv.textContent || tempDiv.innerText || '';
+                      form.setValue('description', plainText);
+                    }}
+                    placeholder="Create a compelling business description using our professional tools..."
+                    className="min-h-[500px]"
+                    characterLimit={20000}
+                    autoSave={true}
+                    showWordCount={true}
+                    showPreview={true}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
         </div>
 
         <FormField

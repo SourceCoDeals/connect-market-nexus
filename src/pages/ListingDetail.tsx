@@ -8,6 +8,7 @@ import { useAnalytics } from "@/context/AnalyticsContext";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { RichTextDisplay } from "@/components/ui/rich-text-display";
 import {
   Building2,
   ChevronLeft,
@@ -196,7 +197,7 @@ const ListingDetail = () => {
             </CardHeader>
             <CardContent className="prose max-w-none text-foreground/90 leading-relaxed">
               {listing.description_html ? (
-                <div dangerouslySetInnerHTML={{ __html: listing.description_html }} />
+                <RichTextDisplay content={listing.description_html} />
               ) : (
                 <p>{listing.description}</p>
               )}
