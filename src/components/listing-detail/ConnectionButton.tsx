@@ -114,7 +114,10 @@ const ConnectionButton = ({
       <Button
         onClick={handleButtonClick}
         disabled={disabled || isRequesting}
-        className="w-full h-12 bg-sourceco-accent hover:bg-opacity-90 text-white font-semibold text-sm transition-all duration-200"
+        className="w-full h-11 text-sm font-medium transition-colors duration-200"
+        style={{ backgroundColor: '#d7b65c', color: 'white' }}
+        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#c4a550'}
+        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#d7b65c'}
       >
         <div className="flex items-center justify-center gap-2">
           <ButtonIcon className="h-4 w-4" />

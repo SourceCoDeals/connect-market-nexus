@@ -30,30 +30,26 @@ export function EnhancedInvestorDashboard({ listing, formatCurrency }: EnhancedI
   const customerRisk = getCustomerRisk(listing.customer_concentration);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       {/* Financial Summary - Horizontal Layout */}
       <div className="space-y-4">
         <span className="document-label">Financial Summary</span>
-        <div className="grid grid-cols-4 gap-8">
+        <div className="grid grid-cols-4 gap-6">
           <div className="space-y-1">
             <span className="text-xs text-slate-500 uppercase tracking-wider">2024 Revenue</span>
-            <div className="text-2xl font-semibold text-slate-900">{formatCurrency(listing.revenue)}</div>
-            <div className="text-xs text-slate-500">Infrastructure contracting</div>
+            <div className="text-xl font-semibold text-slate-900">{formatCurrency(listing.revenue)}</div>
           </div>
           <div className="space-y-1">
             <span className="text-xs text-slate-500 uppercase tracking-wider">EBITDA</span>
-            <div className="text-2xl font-semibold text-slate-900">{formatCurrency(listing.ebitda)}</div>
-            <div className="text-xs text-slate-500">{ebitdaMargin.toFixed(0)}% margin profile</div>
+            <div className="text-xl font-semibold text-slate-900">{formatCurrency(listing.ebitda)}</div>
           </div>
           <div className="space-y-1">
-            <span className="text-xs text-slate-500 uppercase tracking-wider">Contract Model</span>
-            <div className="text-2xl font-semibold text-slate-900">Project-Based</div>
-            <div className="text-xs text-slate-500">Commercial & government</div>
+            <span className="text-xs text-slate-500 uppercase tracking-wider">EBITDA Margin</span>
+            <div className="text-xl font-semibold text-slate-900">{ebitdaMargin.toFixed(1)}%</div>
           </div>
           <div className="space-y-1">
-            <span className="text-xs text-slate-500 uppercase tracking-wider">Market Coverage</span>
-            <div className="text-2xl font-semibold text-slate-900">Western U.S.</div>
-            <div className="text-xs text-slate-500">Regional specialization</div>
+            <span className="text-xs text-slate-500 uppercase tracking-wider">Revenue Multiple</span>
+            <div className="text-xl font-semibold text-slate-900">{revenueMultiple.toFixed(1)}x</div>
           </div>
         </div>
       </div>

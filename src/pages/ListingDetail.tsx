@@ -142,70 +142,65 @@ const ListingDetail = () => {
       </div>
       
       {/* Main Content - Narrow Container */}
-      <div className="max-w-5xl mx-auto px-6 py-8">
-        <div className="grid grid-cols-10 gap-8">
-          {/* Left Column - 70% */}
-          <div className="col-span-7 space-y-0">
+      <div className="max-w-4xl mx-auto px-6 py-8">
+        <div className="grid grid-cols-10 gap-6">
+          {/* Left Column - 65% */}
+          <div className="col-span-6 space-y-0">
             
+            {/* Hero Image */}
+            <div className="w-full h-[240px] border border-sourceco-form bg-sourceco-form overflow-hidden mb-6">
+              {imageUrl ? (
+                <img
+                  src={imageUrl}
+                  alt={listing.title}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    target.onerror = null;
+                    target.src = DEFAULT_IMAGE;
+                  }}
+                />
+              ) : (
+                <div className="w-full h-full bg-sourceco-form flex items-center justify-center">
+                  <ImageIcon className="h-12 w-12 text-slate-500" />
+                </div>
+              )}
+            </div>
+
             {/* Header Section - Correct Hierarchy */}
-            <div className="document-section py-8">
-              <div className="space-y-6">
-                {/* Category */}
-                <span className="document-label">{listing.category}</span>
-                
-                {/* Title */}
-                <h1 className="document-title">{listing.title}</h1>
-                
-                {/* Location & Listed Date */}
-                <div className="flex items-center gap-6 text-sm text-slate-500">
-                  <div className="flex items-center gap-1">
-                    <MapPin className="h-4 w-4" />
-                    <span>{listing.location}</span>
-                  </div>
-                  <span>Listed {new Date(listing.created_at).toLocaleDateString('en-US', { 
+            <div className="space-y-4 mb-8">
+              {/* Title */}
+              <h1 className="document-title">{listing.title}</h1>
+              
+              {/* Location, Category & Listed Date */}
+              <div className="flex items-center gap-4 text-sm text-slate-500">
+                <div className="flex items-center gap-1">
+                  <MapPin className="h-4 w-4" />
+                  <span>{listing.location}</span>
+                </div>
+                <span>{listing.category}</span>
+                <span>Listed {(() => {
+                  const listedDate = new Date(listing.created_at);
+                  const now = new Date();
+                  const daysDiff = Math.floor((now.getTime() - listedDate.getTime()) / (1000 * 3600 * 24));
+                  
+                  if (daysDiff > 30) {
+                    return "More than 30 days ago";
+                  }
+                  return listedDate.toLocaleDateString('en-US', { 
                     month: 'long', 
                     day: 'numeric', 
                     year: 'numeric' 
-                  })}</span>
-                  {isInactive && isAdmin && (
-                    <span className="text-red-600 font-medium">Inactive</span>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Hero Image */}
-            <div className="document-section py-8">
-              <div className="w-full h-[280px] border border-sourceco-form bg-sourceco-form overflow-hidden">
-                {imageUrl ? (
-                  <img
-                    src={imageUrl}
-                    alt={listing.title}
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      const target = e.target as HTMLImageElement;
-                      target.onerror = null;
-                      target.src = DEFAULT_IMAGE;
-                    }}
-                  />
-                ) : (
-                  <div className="w-full h-full bg-sourceco-form flex items-center justify-center">
-                    <ImageIcon className="h-12 w-12 text-slate-500" />
-                  </div>
+                  });
+                })()}</span>
+                {isInactive && isAdmin && (
+                  <span className="text-red-600 font-medium">Inactive</span>
                 )}
               </div>
             </div>
 
-            {/* Financial Dashboard */}
-            <div className="document-section py-8">
-              <EnhancedInvestorDashboard 
-                listing={listing}
-                formatCurrency={formatCurrency}
-              />
-            </div>
-
             {/* Business Overview */}
-            <div className="document-section py-8">
+            <div className="document-section py-6">
               <div className="space-y-4">
                 <span className="document-label">Business Overview</span>
                 <div className="prose prose-slate max-w-none">
@@ -216,6 +211,14 @@ const ListingDetail = () => {
                   )}
                 </div>
               </div>
+            </div>
+
+            {/* Financial Summary */}
+            <div className="document-section py-6">
+              <EnhancedInvestorDashboard 
+                listing={listing}
+                formatCurrency={formatCurrency}
+              />
             </div>
 
             {/* Current Structure */}
@@ -277,23 +280,23 @@ const ListingDetail = () => {
               </div>
             )}
 
-            {/* Investment Calculator */}
-            <div className="document-section py-8 border-t border-sourceco-form">
-              <PremiumInvestmentCalculator 
-                revenue={listing.revenue} 
-                ebitda={listing.ebitda}
-                formatCurrency={formatCurrency}
-              />
-            </div>
-
             {/* Financial Teaser */}
-            <div className="document-section py-8">
+            <div className="document-section py-6">
               <BlurredFinancialTeaser 
                 onRequestConnection={handleRequestConnection}
                 isRequesting={isRequesting}
                 hasConnection={connectionExists}
                 connectionStatus={connectionStatusValue}
                 listingTitle={listing.title}
+              />
+            </div>
+
+            {/* Investment Calculator */}
+            <div className="document-section py-6">
+              <PremiumInvestmentCalculator 
+                revenue={listing.revenue} 
+                ebitda={listing.ebitda}
+                formatCurrency={formatCurrency}
               />
             </div>
 
@@ -307,16 +310,16 @@ const ListingDetail = () => {
             )}
           </div>
 
-          {/* Right Column - 30% Sticky Sidebar */}
-          <div className="col-span-3">
-            <div className="sticky top-6 space-y-6">
+          {/* Right Column - 35% Sticky Sidebar */}
+          <div className="col-span-4">
+            <div className="sticky top-6 space-y-5">
               
               {/* Interested in This Deal? - Premium CTA */}
-              <div className="bg-white border border-sourceco-form p-8">
-                <div className="text-center space-y-6">
+              <div className="bg-white border border-sourceco-form p-6">
+                <div className="text-center space-y-5">
                   <div className="space-y-3">
-                    <h3 className="text-xl font-semibold text-slate-900">Interested in This Deal?</h3>
-                    <p className="text-sm text-slate-600 leading-relaxed">
+                    <h3 className="text-lg font-semibold text-slate-900">Interested in This Deal?</h3>
+                    <p className="text-xs text-slate-600 leading-relaxed">
                       Get full access to detailed financials<br />
                       and business metrics
                     </p>
@@ -331,18 +334,8 @@ const ListingDetail = () => {
                     listingTitle={listing.title}
                   />
                   
-                  <button className="w-full h-12 border border-sourceco-form bg-white hover:bg-sourceco-background text-slate-700 text-sm font-medium transition-colors duration-200 flex items-center justify-center gap-2">
-                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-                      <line x1="16" y1="2" x2="16" y2="6"/>
-                      <line x1="8" y1="2" x2="8" y2="6"/>
-                      <line x1="3" y1="10" x2="21" y2="10"/>
-                    </svg>
-                    Schedule Buyer Call
-                  </button>
-                  
                   <div className="pt-3 border-t border-sourceco-form">
-                    <button className="text-sm text-sourceco-accent hover:text-slate-900 font-medium transition-colors">
+                    <button className="text-xs text-slate-600 hover:text-slate-900 font-medium transition-colors">
                       Download Executive Summary
                     </button>
                   </div>
@@ -350,10 +343,10 @@ const ListingDetail = () => {
               </div>
 
               {/* Save Listing */}
-              <div className="bg-white border border-sourceco-form p-6">
+              <div className="bg-white border border-sourceco-form p-5">
                 <Button
                   variant="outline"
-                  className="w-full h-12 border-sourceco-form bg-white hover:bg-sourceco-background text-slate-700 text-sm font-medium transition-colors duration-200"
+                  className="w-full h-10 border-sourceco-form bg-white hover:bg-sourceco-background text-slate-700 text-xs font-medium transition-colors duration-200"
                   onClick={handleToggleSave}
                   disabled={isSaving || isSavedLoading}
                 >
@@ -366,19 +359,18 @@ const ListingDetail = () => {
                 </Button>
               </div>
 
-              {/* Exclusive Deal Flow */}
-              <div className="bg-white border border-sourceco-form p-6">
-                <div className="space-y-4">
-                  <h4 className="font-semibold text-slate-900">Exclusive Deal Flow</h4>
-                  <p className="text-sm text-slate-600 leading-relaxed">
-                    Access 50+ vetted founder-led businesses with $2M-50M revenue. 
-                    Off-market opportunities from our proprietary network.
+              {/* Deal Alerts */}
+              <div className="bg-white border border-sourceco-form p-5">
+                <div className="space-y-3">
+                  <h4 className="text-sm font-semibold text-slate-900">Deal Alerts</h4>
+                  <p className="text-xs text-slate-600 leading-relaxed">
+                    Get notified when similar businesses become available in your target criteria.
                   </p>
-                  <button className="w-full h-10 border border-sourceco-accent text-sourceco-accent hover:bg-sourceco-accent hover:text-white text-sm font-medium transition-colors duration-200 flex items-center justify-center gap-2">
-                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path d="m9 18 6-6-6-6"/>
+                  <button className="w-full h-9 bg-sourceco-accent text-white hover:bg-opacity-90 text-xs font-medium transition-colors duration-200 flex items-center justify-center gap-2">
+                    <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path d="M15 17h5l-5 5-5-5h5v-5a7.5 7.5 0 1 0-15 0v5h5"/>
                     </svg>
-                    Browse Marketplace
+                    Set Up Deal Alerts
                   </button>
                 </div>
               </div>

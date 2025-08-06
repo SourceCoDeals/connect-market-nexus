@@ -99,15 +99,6 @@ export function PremiumInvestmentCalculator({
       {/* Header */}
       <div className="flex justify-between items-center">
         <span className="document-label">Investment Calculator</span>
-        <Button 
-          variant="outline" 
-          size="sm" 
-          onClick={exportCalculations}
-          className="text-xs h-8 px-3 border-sourceco-form"
-        >
-          <Download className="h-3 w-3 mr-1" />
-          Export
-        </Button>
       </div>
 
       {/* Scenario Selection */}
