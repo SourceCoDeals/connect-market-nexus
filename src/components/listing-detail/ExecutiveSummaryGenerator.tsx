@@ -211,7 +211,7 @@ export const ExecutiveSummaryGenerator = ({ listing }: ExecutiveSummaryGenerator
   return (
     <button 
       onClick={generatePDF}
-      className="w-full h-8 bg-sourceco-accent text-white hover:bg-sourceco-accent/90 text-xs font-medium transition-colors duration-200 flex items-center justify-center gap-2 rounded-sm"
+      className="text-xs text-slate-600 hover:text-slate-900 transition-colors duration-200 flex items-center justify-center gap-1"
     >
       <Download className="h-3 w-3" />
       Download Executive Summary

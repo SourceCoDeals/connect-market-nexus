@@ -39,13 +39,13 @@ const BlurredFinancialTeaser = ({
   };
 
   return (
-    <div className="relative border border-slate-200 bg-white overflow-hidden">
+    <div className="relative border border-slate-200 bg-white overflow-hidden rounded-lg">
       {/* Background image */}
       <div className="absolute inset-0">
         <img 
           src={financialMetricsBg} 
           alt=""
-          className="w-full h-full object-cover opacity-20 blur-[2px]"
+          className="w-full h-full object-cover opacity-15 blur-[1px]"
         />
       </div>
       
@@ -107,7 +107,7 @@ const BlurredFinancialTeaser = ({
             <Button
               onClick={handleButtonClick}
               disabled={isRequesting || (hasConnection && connectionStatus !== "rejected")}
-              className="bg-slate-900 text-white hover:bg-slate-800 transition-colors px-6 py-2 text-sm font-medium"
+              className="bg-sourceco-accent text-white hover:bg-sourceco-accent/90 transition-colors px-6 py-2 text-sm font-medium rounded-md"
             >
               <Lock className="h-4 w-4 mr-2" />
               {isRequesting ? "Sending Request..." : hasConnection && connectionStatus !== "rejected" ? "Request Sent" : "Request Connection"}

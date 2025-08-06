@@ -132,8 +132,8 @@ const ListingDetail = () => {
   return (
     <div className="document-content min-h-screen bg-sourceco-background">
       {/* Navigation */}
-      <div className="border-b border-sourceco-form bg-white">
-        <div className="max-w-7xl mx-auto px-6 py-4">
+      <div className="border-b border-sourceco-form">
+        <div className="max-w-5xl mx-auto px-6 py-4">
           <Link
             to="/marketplace"
             className="inline-flex items-center document-label hover:text-slate-700 transition-colors"
@@ -225,34 +225,43 @@ const ListingDetail = () => {
             </div>
 
             {/* Ownership Structure */}
-            {((listing as any).ownership_structure || (listing as any).management_depth || (listing as any).seller_motivation) && (
+            {((listing as any).ownership_structure || (listing as any).seller_motivation) && (
               <div className="document-section py-8 border-t border-sourceco-form">
                 <div className="space-y-6">
-                  <span className="document-label">Ownership Structure</span>
+                  <span className="document-label">Ownership & Transaction Overview</span>
                   
-                  <div className="flex items-start gap-4">
-                    <div className="w-12 h-12 bg-sourceco-background rounded-full flex items-center justify-center text-slate-600 font-medium text-sm">
-                      CEO
-                    </div>
-                    <div className="flex-1">
-                      <h4 className="text-base font-semibold text-slate-900 mb-1">Founder/CEO</h4>
-                      <p className="document-subtitle mb-4">
-                        {(listing as any).ownership_structure === 'individual' && 'Sole founder-owner, looking to roll equity and continue leading growth.'}
-                        {(listing as any).ownership_structure === 'family' && 'Family-owned business with established succession planning and growth trajectory.'}
-                        {(listing as any).ownership_structure === 'corporate' && 'Corporate-owned entity with professional management and structured operations.'}
-                        {(listing as any).ownership_structure === 'private_equity' && 'Private equity backed with proven growth strategies and exit readiness.'}
-                        {!(listing as any).ownership_structure && 'Established owner-operator with strong business fundamentals and growth potential.'}
-                      </p>
-                      
-                      {(listing as any).seller_motivation && (
-                        <p className="document-subtitle">
-                          Seeks a {(listing as any).seller_motivation === 'retirement' && 'retirement-focused transition with succession planning'}
-                          {(listing as any).seller_motivation === 'succession' && 'succession partnership with long-term continuity'}
-                          {(listing as any).seller_motivation === 'growth_capital' && 'majority recapitalization with a partner that understands the business model'}
-                          {(listing as any).seller_motivation === 'liquidity_event' && 'liquidity event while maintaining operational involvement'}
-                          {!(listing as any).seller_motivation && 'strategic partnership for continued growth and expansion'}.
-                        </p>
-                      )}
+                  <div className="bg-sourceco-background rounded-lg p-6 space-y-6">
+                    <div className="flex items-start gap-4">
+                      <div className="w-14 h-14 bg-white rounded-full flex items-center justify-center border border-sourceco-form">
+                        <div className="w-8 h-8 bg-sourceco-accent rounded-full flex items-center justify-center">
+                          <span className="text-white font-medium text-xs">CEO</span>
+                        </div>
+                      </div>
+                      <div className="flex-1 space-y-4">
+                        <div>
+                          <h4 className="text-base font-semibold text-slate-900 mb-2">Current Ownership Structure</h4>
+                          <p className="document-subtitle">
+                            {(listing as any).ownership_structure === 'individual' && 'Individual founder-owner operating the business with full control and deep operational knowledge.'}
+                            {(listing as any).ownership_structure === 'family' && 'Family-owned enterprise with established governance and multi-generational involvement.'}
+                            {(listing as any).ownership_structure === 'corporate' && 'Corporate-owned subsidiary with professional management structure and reporting protocols.'}
+                            {(listing as any).ownership_structure === 'private_equity' && 'Private equity-backed company with institutional ownership and growth capital experience.'}
+                            {!(listing as any).ownership_structure && 'Established business ownership with proven operational track record.'}
+                          </p>
+                        </div>
+                        
+                        {(listing as any).seller_motivation && (
+                          <div>
+                            <h4 className="text-base font-semibold text-slate-900 mb-2">Transaction Motivation</h4>
+                            <p className="document-subtitle">
+                              Owner is seeking a {(listing as any).seller_motivation === 'retirement' && 'retirement-focused exit with comprehensive succession planning and knowledge transfer'}
+                              {(listing as any).seller_motivation === 'succession' && 'strategic succession partnership ensuring long-term business continuity and growth'}
+                              {(listing as any).seller_motivation === 'growth_capital' && 'growth capital partnership while maintaining significant ownership and operational control'}
+                              {(listing as any).seller_motivation === 'liquidity_event' && 'partial liquidity event while retaining operational involvement and upside participation'}
+                              {!(listing as any).seller_motivation && 'strategic partnership to accelerate growth and market expansion'}.
+                            </p>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -329,10 +338,10 @@ const ListingDetail = () => {
 
           {/* Right Column - 30% Sticky Sidebar */}
           <div className="col-span-3">
-            <div className="sticky top-6 space-y-5">
+            <div className="sticky top-6 space-y-0">
               
               {/* Interested in This Deal? - Premium CTA */}
-              <div className="bg-white border border-sourceco-form p-3">
+              <div className="bg-white border border-sourceco-form rounded-lg p-4">
                 <div className="text-center space-y-3">
                   <div className="space-y-1">
                     <h3 className="text-lg font-semibold text-slate-900">Interested in This Deal?</h3>
@@ -354,7 +363,7 @@ const ListingDetail = () => {
                    {/* Save Listing CTA directly under connection */}
                    <Button
                      variant="outline"
-                     className="w-full h-9 bg-white border-sourceco-accent text-sourceco-accent hover:bg-sourceco-accent hover:text-white text-xs font-medium transition-colors duration-200"
+                     className="w-full h-9 bg-white border-sourceco-accent text-sourceco-accent hover:bg-sourceco-accent hover:text-white text-xs font-medium transition-colors duration-200 rounded-md"
                      onClick={handleToggleSave}
                      disabled={isSaving || isSavedLoading}
                    >
@@ -366,26 +375,43 @@ const ListingDetail = () => {
                      {isSaved ? "Saved" : "Save Listing"}
                    </Button>
                    
-                   <div className="pt-2 border-t border-sourceco-form">
+                   {/* Schedule Buyer Call */}
+                   <Button
+                     variant="outline"
+                     className="w-full h-9 bg-white border-slate-300 text-slate-700 hover:bg-slate-50 text-xs font-medium transition-colors duration-200 rounded-md"
+                   >
+                     <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                       <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                       <line x1="16" y1="2" x2="16" y2="6"/>
+                       <line x1="8" y1="2" x2="8" y2="6"/>
+                       <line x1="3" y1="10" x2="21" y2="10"/>
+                     </svg>
+                     Schedule Buyer Call
+                   </Button>
+                   
+                   {/* Download Executive Summary - Simple Link */}
+                   <div className="pt-2 text-center">
                      <ExecutiveSummaryGenerator listing={listing} />
                    </div>
                 </div>
               </div>
 
-               {/* Deal Alerts */}
-               <div className="bg-white border border-sourceco-form p-3">
-                 <div className="space-y-2">
-                   <h4 className="text-sm font-semibold text-slate-900">Deal Alerts</h4>
-                   <p className="text-xs text-slate-600 leading-relaxed">
-                     Get notified when similar businesses become available in your target criteria.
-                   </p>
+               {/* Deal Alerts - Connected to above */}
+               <div className="bg-white border border-sourceco-form rounded-lg p-4 border-t-0 rounded-t-none">
+                 <div className="space-y-3">
+                   <div className="text-center space-y-2">
+                     <h4 className="text-sm font-semibold text-slate-900">Exclusive Deal Flow</h4>
+                     <p className="text-xs text-slate-600 leading-relaxed">
+                       Access 50+ vetted founder-led businesses with $2M-50M revenue. Off-market opportunities from our proprietary network.
+                     </p>
+                   </div>
                    <CreateDealAlertDialog
                      trigger={
-                       <button className="w-full h-8 bg-white border border-sourceco-accent text-sourceco-accent hover:bg-sourceco-accent hover:text-white text-xs font-medium transition-colors duration-200 flex items-center justify-center gap-2">
+                       <button className="w-full h-8 bg-white border border-sourceco-accent text-sourceco-accent hover:bg-sourceco-accent hover:text-white text-xs font-medium transition-colors duration-200 flex items-center justify-center gap-2 rounded-md">
                          <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                           <path d="M15 17h5l-5 5-5-5h5v-5a7.5 7.5 0 1 0-15 0v5h5"/>
+                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                          </svg>
-                         Set Up Deal Alerts
+                         Browse Marketplace
                        </button>
                      }
                    />

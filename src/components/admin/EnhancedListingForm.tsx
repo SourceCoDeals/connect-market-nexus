@@ -277,7 +277,7 @@ export function EnhancedListingForm({
             <Tabs defaultValue="basic" className="w-full">
               <TabsList className="grid w-full grid-cols-5">
                 <TabsTrigger value="basic">Basic Info</TabsTrigger>
-                <TabsTrigger value="ownership">Ownership</TabsTrigger>
+                <TabsTrigger value="ownership">Ownership & Transaction</TabsTrigger>
                 <TabsTrigger value="financial">Financial</TabsTrigger>
                 <TabsTrigger value="strategy">Strategy & Risk</TabsTrigger>
                 <TabsTrigger value="custom">Custom Sections</TabsTrigger>
