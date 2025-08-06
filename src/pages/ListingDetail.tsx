@@ -127,9 +127,9 @@ const ListingDetail = () => {
   const imageUrl = listing?.image_url || DEFAULT_IMAGE;
 
   return (
-    <div className="document-content min-h-screen">
+    <div className="document-content min-h-screen bg-sourceco-background">
       {/* Navigation */}
-      <div className="border-b border-slate-200 bg-white">
+      <div className="border-b border-sourceco-form bg-white">
         <div className="max-w-7xl mx-auto px-6 py-4">
           <Link
             to="/marketplace"
@@ -163,7 +163,7 @@ const ListingDetail = () => {
 
             {/* Hero Image */}
             <div className="document-section py-8">
-              <div className="w-full h-[280px] border border-slate-200 bg-slate-50 overflow-hidden">
+              <div className="w-full h-[280px] border border-sourceco-form bg-sourceco-form overflow-hidden">
                 {imageUrl ? (
                   <img
                     src={imageUrl}
@@ -176,8 +176,8 @@ const ListingDetail = () => {
                     }}
                   />
                 ) : (
-                  <div className="w-full h-full bg-slate-100 flex items-center justify-center">
-                    <ImageIcon className="h-12 w-12 text-slate-400" />
+                  <div className="w-full h-full bg-sourceco-form flex items-center justify-center">
+                    <ImageIcon className="h-12 w-12 text-slate-500" />
                   </div>
                 )}
               </div>
@@ -207,7 +207,7 @@ const ListingDetail = () => {
 
             {/* Current Structure */}
             {((listing as any).ownership_structure || (listing as any).management_depth) && (
-              <div className="document-section py-8">
+              <div className="document-section py-8 border-t border-sourceco-form">
                 <div className="space-y-4">
                   <span className="document-label">Current Structure</span>
                   {(listing as any).ownership_structure && (
@@ -228,7 +228,7 @@ const ListingDetail = () => {
 
             {/* Transaction Preferences */}
             {((listing as any).seller_motivation || (listing as any).timeline_preference || (listing as any).seller_involvement_preference) && (
-              <div className="document-section py-8">
+              <div className="document-section py-8 border-t border-sourceco-form">
                 <div className="space-y-4">
                   <span className="document-label">Transaction Preferences</span>
                   {(listing as any).seller_motivation && (
@@ -255,7 +255,7 @@ const ListingDetail = () => {
 
             {/* Custom Sections */}
             {(listing as any).custom_sections && Array.isArray((listing as any).custom_sections) && (listing as any).custom_sections.length > 0 && (
-              <div className="document-section py-8">
+              <div className="document-section py-8 border-t border-sourceco-form">
                 <div className="space-y-6">
                   {(listing as any).custom_sections.map((section: any, index: number) => (
                     <CustomSection key={index} section={section} />
@@ -276,7 +276,7 @@ const ListingDetail = () => {
             </div>
 
             {isAdmin && listing.owner_notes && (
-              <div className="document-section py-8">
+              <div className="document-section py-8 border-t border-sourceco-form">
                 <div className="space-y-4">
                   <span className="document-label">Admin Notes</span>
                   <p className="document-subtitle leading-relaxed">{listing.owner_notes}</p>
@@ -289,7 +289,7 @@ const ListingDetail = () => {
           <div className="col-span-3 space-y-6">
             
             {/* Request Full Deal Details CTA */}
-            <div className="bg-sourceco-accent text-sourceco-accent-foreground p-6 rounded">
+            <div className="bg-sourceco-accent p-6 border border-sourceco-accent">
               <ConnectionButton 
                 connectionExists={connectionExists}
                 connectionStatus={connectionStatusValue}
@@ -301,10 +301,10 @@ const ListingDetail = () => {
             </div>
 
             {/* Save Listing CTA */}
-            <div className="bg-white border border-slate-200 p-6">
+            <div className="bg-sourceco-background p-6 border border-sourceco-form">
               <Button
                 variant="outline"
-                className="w-full h-12 border-sourceco-accent bg-sourceco-form hover:bg-sourceco-muted transition-all duration-200 text-sm font-medium text-slate-900"
+                className="w-full h-12 border-sourceco-accent bg-sourceco-form hover:bg-sourceco-accent hover:text-white transition-all duration-200 text-sm font-medium"
                 onClick={handleToggleSave}
                 disabled={isSaving || isSavedLoading}
               >
@@ -325,7 +325,7 @@ const ListingDetail = () => {
             />
 
             {/* Listing Info */}
-            <div className="border border-slate-200 bg-white">
+            <div className="border border-sourceco-form bg-sourceco-background">
               <ListingInfo id={listing.id} createdAt={listing.createdAt} />
             </div>
           </div>

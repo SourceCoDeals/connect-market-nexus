@@ -95,7 +95,7 @@ export function PremiumInvestmentCalculator({
   };
 
   return (
-    <div className="border border-slate-200 bg-white p-6 space-y-6">
+    <div className="border border-sourceco-form bg-sourceco-background p-6 space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
         <span className="document-label">Investment Calculator</span>
@@ -103,7 +103,7 @@ export function PremiumInvestmentCalculator({
           variant="outline" 
           size="sm" 
           onClick={exportCalculations}
-          className="text-xs h-8 px-3 border-slate-300"
+          className="text-xs h-8 px-3 border-sourceco-form"
         >
           <Download className="h-3 w-3 mr-1" />
           Export
@@ -120,7 +120,7 @@ export function PremiumInvestmentCalculator({
               variant={scenario === scenarioType ? 'default' : 'outline'}
               size="sm"
               onClick={() => setScenario(scenarioType)}
-              className="flex-1 capitalize text-xs h-8 border-slate-300"
+              className="flex-1 capitalize text-xs h-8 border-sourceco-form"
             >
               {scenarioType}
             </Button>
@@ -198,7 +198,7 @@ export function PremiumInvestmentCalculator({
       </div>
 
       {/* Results */}
-      <div className="space-y-4 pt-4 border-t border-slate-200">
+      <div className="space-y-4 pt-4 border-t border-sourceco-form">
         <span className="document-label">Projected Returns</span>
         
         <div className="space-y-3">
@@ -221,8 +221,8 @@ export function PremiumInvestmentCalculator({
         </div>
       </div>
 
-      {/* Risk Metrics */}
-      <div className="bg-slate-50 p-4 space-y-2">
+        {/* Risk Metrics */}
+      <div className="bg-sourceco-form p-4 space-y-2">
         <span className="document-label">Risk Metrics</span>
         <div className="grid grid-cols-2 gap-4">
           <div>

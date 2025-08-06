@@ -239,7 +239,7 @@
 }
 
 .document-section {
-  @apply border-b border-slate-200 last:border-b-0;
+  @apply border-b border-sourceco-form last:border-b-0;
 }
 
 .document-grid {
@@ -252,5 +252,5 @@
 
 /* Custom sections styling */
 .custom-section {
-  @apply bg-sourceco-background border border-slate-200 p-6 space-y-3;
+  @apply bg-sourceco-background p-6 border border-sourceco-form space-y-3;
 }

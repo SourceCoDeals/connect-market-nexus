@@ -1,8 +1,4 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
-import { Separator } from "@/components/ui/separator";
-import { TrendingUp, Shield, AlertTriangle, Target, DollarSign, Users } from "lucide-react";
+// No UI imports needed - using pure document styling
 import { AdminListing } from "@/types/admin";
 
 interface EnhancedInvestorDashboardProps {
@@ -60,7 +56,7 @@ export function EnhancedInvestorDashboard({ listing, formatCurrency }: EnhancedI
 
       {/* Revenue Model Breakdown */}
       {listing.revenue_model_breakdown && Object.keys(listing.revenue_model_breakdown).length > 0 && (
-        <div className="space-y-4 pt-6 border-t border-slate-200">
+        <div className="space-y-4 pt-6 border-t border-sourceco-form">
           <span className="document-label">Revenue Composition</span>
           <div className="space-y-3">
             {Object.entries(listing.revenue_model_breakdown).map(([type, percentage]) => (
@@ -75,14 +71,14 @@ export function EnhancedInvestorDashboard({ listing, formatCurrency }: EnhancedI
 
       {/* Investment Thesis */}
       {listing.investment_thesis && (
-        <div className="space-y-4 pt-6 border-t border-slate-200">
+        <div className="space-y-4 pt-6 border-t border-sourceco-form">
           <span className="document-label">Investment Thesis</span>
           <p className="document-subtitle leading-relaxed">{listing.investment_thesis}</p>
         </div>
       )}
 
       {/* Growth & Risk Analysis */}
-      <div className="grid grid-cols-2 gap-8 pt-6 border-t border-slate-200">
+      <div className="grid grid-cols-2 gap-8 pt-6 border-t border-sourceco-form">
         {/* Growth Drivers */}
         {listing.growth_drivers && listing.growth_drivers.length > 0 && (
           <div className="space-y-4">
@@ -113,7 +109,7 @@ export function EnhancedInvestorDashboard({ listing, formatCurrency }: EnhancedI
       </div>
 
       {/* Quality Assessment */}
-      <div className="space-y-4 pt-6 border-t border-slate-200">
+      <div className="space-y-4 pt-6 border-t border-sourceco-form">
         <span className="document-label">Quality Metrics</span>
         <div className="grid grid-cols-2 gap-8">
           <div className="space-y-2">
