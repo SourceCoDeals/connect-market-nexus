@@ -24,22 +24,27 @@ export function useCreateListing() {
       try {
         
         
-        // Step 1: Create the listing with the new categories array
+        // Step 1: Create the listing with proper array formatting
+        const categoriesArray = Array.isArray(listing.categories) ? listing.categories : [];
+        const tagsArray = Array.isArray(listing.tags) ? listing.tags : [];
+        
+        const insertData = {
+          title: listing.title,
+          categories: categoriesArray,
+          category: categoriesArray.length > 0 ? categoriesArray[0] : '', // Required field
+          description: listing.description,
+          location: listing.location,
+          revenue: listing.revenue,
+          ebitda: listing.ebitda,
+          tags: tagsArray,
+          owner_notes: listing.owner_notes || '',
+          status: listing.status || 'active',
+          image_url: null // We'll update this after upload
+        };
+
         const { data, error } = await supabase
           .from('listings')
-          .insert({
-            title: listing.title,
-            categories: listing.categories || [], // Use categories array
-            category: listing.categories?.[0] || '', // Keep category for backward compatibility
-            description: listing.description,
-            location: listing.location,
-            revenue: listing.revenue,
-            ebitda: listing.ebitda,
-            tags: listing.tags || [],
-            owner_notes: listing.owner_notes,
-            status: listing.status || 'active',
-            image_url: null // We'll update this after upload
-          })
+          .insert(insertData)
           .select()
           .single();
         
