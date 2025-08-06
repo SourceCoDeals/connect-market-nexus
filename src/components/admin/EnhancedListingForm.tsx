@@ -14,7 +14,7 @@ import { RichTextEditorEnhanced } from "@/components/ui/rich-text-editor-enhance
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Building2, Users, TrendingUp, Shield } from "lucide-react";
+import { Loader2, Building2, Users, TrendingUp, Shield, Plus, X } from "lucide-react";
 import {
   Form,
   FormControl,
@@ -74,6 +74,12 @@ const enhancedListingFormSchema = z.object({
   // Market position
   market_rank: z.string().optional(),
   geographic_coverage: z.string().optional(),
+  
+  // Custom sections
+  custom_sections: z.array(z.object({
+    title: z.string(),
+    description: z.string()
+  })).optional(),
 });
 
 type EnhancedListingFormInput = {
@@ -100,6 +106,7 @@ type EnhancedListingFormInput = {
   key_risks?: string;
   market_rank?: string;
   geographic_coverage?: string;
+  custom_sections?: { title: string; description: string; }[];
 };
 
 type EnhancedListingFormValues = z.infer<typeof enhancedListingFormSchema>;
@@ -135,6 +142,7 @@ const convertListingToFormInput = (listing?: AdminListing): EnhancedListingFormI
     key_risks: listing?.key_risks?.join('\n') || "",
     market_rank: listing?.market_position?.rank || "",
     geographic_coverage: listing?.market_position?.coverage || "",
+    custom_sections: (listing as any)?.custom_sections || [],
   };
 };
 
@@ -228,6 +236,7 @@ export function EnhancedListingForm({
           rank: formData.market_rank || "",
           coverage: formData.geographic_coverage || "",
         },
+        custom_sections: formData.custom_sections || [],
       };
       
       await onSubmit(transformedData, isImageChanged ? selectedImage : undefined);
@@ -266,11 +275,12 @@ export function EnhancedListingForm({
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
             <Tabs defaultValue="basic" className="w-full">
-              <TabsList className="grid w-full grid-cols-4">
+              <TabsList className="grid w-full grid-cols-5">
                 <TabsTrigger value="basic">Basic Info</TabsTrigger>
                 <TabsTrigger value="ownership">Ownership</TabsTrigger>
                 <TabsTrigger value="financial">Financial</TabsTrigger>
                 <TabsTrigger value="strategy">Strategy & Risk</TabsTrigger>
+                <TabsTrigger value="custom">Custom Sections</TabsTrigger>
               </TabsList>
 
               {/* Basic Information Tab */}
@@ -752,6 +762,94 @@ export function EnhancedListingForm({
                               {...field}
                             />
                           </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              {/* Custom Sections Tab */}
+              <TabsContent value="custom" className="space-y-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <Building2 className="h-5 w-5" />
+                      Custom Sections
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <FormField
+                      control={form.control}
+                      name="custom_sections"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Additional Listing Sections</FormLabel>
+                          <FormDescription>
+                            Add custom sections that will appear on the listing page in premium style
+                          </FormDescription>
+                          <div className="space-y-4">
+                            {(field.value || []).map((section: any, index: number) => (
+                              <Card key={index} className="p-4">
+                                <div className="space-y-4">
+                                  <div className="flex items-center justify-between">
+                                    <h4 className="font-medium">Section {index + 1}</h4>
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => {
+                                        const updatedSections = (field.value || []).filter((_: any, i: number) => i !== index);
+                                        field.onChange(updatedSections);
+                                      }}
+                                    >
+                                      <X className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                      <label className="text-sm font-medium">Section Title</label>
+                                      <Input
+                                        placeholder="e.g., Financial Performance"
+                                        value={section.title}
+                                        onChange={(e) => {
+                                          const updatedSections = [...(field.value || [])];
+                                          updatedSections[index] = { ...section, title: e.target.value };
+                                          field.onChange(updatedSections);
+                                        }}
+                                      />
+                                    </div>
+                                    <div className="md:col-span-1">
+                                      <label className="text-sm font-medium">Description</label>
+                                      <Textarea
+                                        placeholder="Detailed information for this section..."
+                                        value={section.description}
+                                        onChange={(e) => {
+                                          const updatedSections = [...(field.value || [])];
+                                          updatedSections[index] = { ...section, description: e.target.value };
+                                          field.onChange(updatedSections);
+                                        }}
+                                        className="min-h-[80px]"
+                                      />
+                                    </div>
+                                  </div>
+                                </div>
+                              </Card>
+                            ))}
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => {
+                                const currentSections = field.value || [];
+                                field.onChange([...currentSections, { title: "", description: "" }]);
+                              }}
+                              className="w-full"
+                            >
+                              <Plus className="h-4 w-4 mr-2" />
+                              Add Custom Section
+                            </Button>
+                          </div>
                           <FormMessage />
                         </FormItem>
                       )}

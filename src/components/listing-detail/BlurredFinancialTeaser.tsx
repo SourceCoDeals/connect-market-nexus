@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Lock, TrendingUp, Calculator, PieChart, BarChart3 } from "lucide-react";
 import ConnectionRequestDialog from "@/components/connection/ConnectionRequestDialog";
+import financialMetricsBg from "@/assets/financial-metrics-bg.jpg";
 
 interface BlurredFinancialTeaserProps {
   onRequestConnection: (message?: string) => void;
@@ -39,7 +40,16 @@ const BlurredFinancialTeaser = ({
 
   return (
     <div className="relative border border-slate-200 bg-white overflow-hidden">
-      <div className="p-6">
+      {/* Background image */}
+      <div className="absolute inset-0">
+        <img 
+          src={financialMetricsBg} 
+          alt=""
+          className="w-full h-full object-cover opacity-20 blur-[2px]"
+        />
+      </div>
+      
+      <div className="relative p-6">
         <span className="document-label">Detailed Financial Analysis</span>
         
         {/* Blurred content preview */}
@@ -83,7 +93,7 @@ const BlurredFinancialTeaser = ({
         </div>
 
         {/* Overlay with call to action */}
-        <div className="absolute inset-0 bg-white/90 flex items-center justify-center">
+        <div className="absolute inset-0 bg-white/95 flex items-center justify-center">
           <div className="text-center px-6 py-8">
             <div className="mb-6">
               <Lock className="h-8 w-8 text-slate-500 mx-auto mb-4" />

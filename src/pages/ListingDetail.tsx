@@ -144,8 +144,8 @@ const ListingDetail = () => {
         </div>
       </div>
       
-      {/* Main Content - 1280px Container */}
-      <div className="max-w-[1280px] mx-auto px-6 py-8">
+      {/* Main Content - 1024px Container */}
+      <div className="max-w-5xl mx-auto px-6 py-8">
         <div className="grid grid-cols-10 gap-6">
           {/* Left Column - 70% */}
           <div className="col-span-7 space-y-0">
@@ -224,23 +224,37 @@ const ListingDetail = () => {
               />
             </div>
 
-            {/* Current Structure */}
-            {((listing as any).ownership_structure || (listing as any).management_depth) && (
+            {/* Ownership Structure */}
+            {((listing as any).ownership_structure || (listing as any).management_depth || (listing as any).seller_motivation) && (
               <div className="document-section py-8 border-t border-sourceco-form">
-                <div className="space-y-4">
-                  <span className="document-label">Current Structure</span>
-                  {(listing as any).ownership_structure && (
-                    <div className="space-y-2">
-                      <span className="text-xs text-slate-500 uppercase tracking-wider">Ownership Type</span>
-                      <p className="document-subtitle">{(listing as any).ownership_structure}</p>
+                <div className="space-y-6">
+                  <span className="document-label">Ownership Structure</span>
+                  
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 bg-sourceco-background rounded-full flex items-center justify-center text-slate-600 font-medium text-sm">
+                      CEO
                     </div>
-                  )}
-                  {(listing as any).management_depth && (
-                    <div className="space-y-2">
-                      <span className="text-xs text-slate-500 uppercase tracking-wider">Management Depth</span>
-                      <p className="document-subtitle">{(listing as any).management_depth}</p>
+                    <div className="flex-1">
+                      <h4 className="text-base font-semibold text-slate-900 mb-1">Founder/CEO</h4>
+                      <p className="document-subtitle mb-4">
+                        {(listing as any).ownership_structure === 'individual' && 'Sole founder-owner, looking to roll equity and continue leading growth.'}
+                        {(listing as any).ownership_structure === 'family' && 'Family-owned business with established succession planning and growth trajectory.'}
+                        {(listing as any).ownership_structure === 'corporate' && 'Corporate-owned entity with professional management and structured operations.'}
+                        {(listing as any).ownership_structure === 'private_equity' && 'Private equity backed with proven growth strategies and exit readiness.'}
+                        {!(listing as any).ownership_structure && 'Established owner-operator with strong business fundamentals and growth potential.'}
+                      </p>
+                      
+                      {(listing as any).seller_motivation && (
+                        <p className="document-subtitle">
+                          Seeks a {(listing as any).seller_motivation === 'retirement' && 'retirement-focused transition with succession planning'}
+                          {(listing as any).seller_motivation === 'succession' && 'succession partnership with long-term continuity'}
+                          {(listing as any).seller_motivation === 'growth_capital' && 'majority recapitalization with a partner that understands the business model'}
+                          {(listing as any).seller_motivation === 'liquidity_event' && 'liquidity event while maintaining operational involvement'}
+                          {!(listing as any).seller_motivation && 'strategic partnership for continued growth and expansion'}.
+                        </p>
+                      )}
                     </div>
-                  )}
+                  </div>
                 </div>
               </div>
             )}
@@ -318,9 +332,9 @@ const ListingDetail = () => {
             <div className="sticky top-6 space-y-5">
               
               {/* Interested in This Deal? - Premium CTA */}
-              <div className="bg-white border border-sourceco-form p-4">
-                <div className="text-center space-y-4">
-                  <div className="space-y-2">
+              <div className="bg-white border border-sourceco-form p-3">
+                <div className="text-center space-y-3">
+                  <div className="space-y-1">
                     <h3 className="text-lg font-semibold text-slate-900">Interested in This Deal?</h3>
                     <p className="text-xs text-slate-600 leading-relaxed">
                       Get full access to detailed financials<br />
@@ -340,7 +354,7 @@ const ListingDetail = () => {
                    {/* Save Listing CTA directly under connection */}
                    <Button
                      variant="outline"
-                     className="w-full h-10 bg-white border-sourceco-accent text-sourceco-accent hover:bg-sourceco-accent hover:text-white text-xs font-medium transition-colors duration-200"
+                     className="w-full h-9 bg-white border-sourceco-accent text-sourceco-accent hover:bg-sourceco-accent hover:text-white text-xs font-medium transition-colors duration-200"
                      onClick={handleToggleSave}
                      disabled={isSaving || isSavedLoading}
                    >
@@ -359,15 +373,15 @@ const ListingDetail = () => {
               </div>
 
                {/* Deal Alerts */}
-               <div className="bg-white border border-sourceco-form p-4">
-                 <div className="space-y-3">
+               <div className="bg-white border border-sourceco-form p-3">
+                 <div className="space-y-2">
                    <h4 className="text-sm font-semibold text-slate-900">Deal Alerts</h4>
                    <p className="text-xs text-slate-600 leading-relaxed">
                      Get notified when similar businesses become available in your target criteria.
                    </p>
                    <CreateDealAlertDialog
                      trigger={
-                       <button className="w-full h-9 bg-white border border-sourceco-accent text-sourceco-accent hover:bg-sourceco-accent hover:text-white text-xs font-medium transition-colors duration-200 flex items-center justify-center gap-2">
+                       <button className="w-full h-8 bg-white border border-sourceco-accent text-sourceco-accent hover:bg-sourceco-accent hover:text-white text-xs font-medium transition-colors duration-200 flex items-center justify-center gap-2">
                          <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                            <path d="M15 17h5l-5 5-5-5h5v-5a7.5 7.5 0 1 0-15 0v5h5"/>
                          </svg>
