@@ -128,7 +128,8 @@
   }
   
   .document-section {
-    @apply border-t border-section-border bg-section-bg;
+    border-top: 1px solid hsl(var(--section-border));
+    background-color: hsl(var(--section-bg));
   }
 }
 
