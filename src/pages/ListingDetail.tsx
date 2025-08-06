@@ -1,5 +1,5 @@
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useMarketplace } from "@/hooks/use-marketplace";
 import { useAuth } from "@/context/AuthContext";
@@ -25,10 +25,12 @@ import BlurredFinancialTeaser from "@/components/listing-detail/BlurredFinancial
 import { PremiumInvestmentCalculator } from "@/components/listing-detail/PremiumInvestmentCalculator";
 import { EnhancedInvestorDashboard } from "@/components/listing-detail/EnhancedInvestorDashboard";
 import { CustomSection } from "@/components/listing-detail/CustomSection";
+import { CreateDealAlertDialog } from "@/components/deal-alerts/CreateDealAlertDialog";
 
 const ListingDetail = () => {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
+  const [showDealAlerts, setShowDealAlerts] = useState(false);
   const { 
     useListing, 
     useRequestConnection, 
@@ -144,8 +146,8 @@ const ListingDetail = () => {
       {/* Main Content - Narrow Container */}
       <div className="max-w-4xl mx-auto px-6 py-8">
         <div className="grid grid-cols-10 gap-6">
-          {/* Left Column - 65% */}
-          <div className="col-span-6 space-y-0">
+          {/* Left Column - 70% */}
+          <div className="col-span-7 space-y-0">
             
             {/* Hero Image */}
             <div className="w-full h-[240px] border border-sourceco-form bg-sourceco-form overflow-hidden mb-6">
@@ -310,8 +312,8 @@ const ListingDetail = () => {
             )}
           </div>
 
-          {/* Right Column - 35% Sticky Sidebar */}
-          <div className="col-span-4">
+          {/* Right Column - 30% Sticky Sidebar */}
+          <div className="col-span-3">
             <div className="sticky top-6 space-y-5">
               
               {/* Interested in This Deal? - Premium CTA */}
@@ -325,55 +327,57 @@ const ListingDetail = () => {
                     </p>
                   </div>
                   
-                  <ConnectionButton 
-                    connectionExists={connectionExists}
-                    connectionStatus={connectionStatusValue}
-                    isRequesting={isRequesting}
-                    isAdmin={isAdmin}
-                    handleRequestConnection={handleRequestConnection}
-                    listingTitle={listing.title}
-                  />
-                  
-                  <div className="pt-3 border-t border-sourceco-form">
-                    <button className="text-xs text-slate-600 hover:text-slate-900 font-medium transition-colors">
-                      Download Executive Summary
-                    </button>
-                  </div>
+                   <ConnectionButton 
+                     connectionExists={connectionExists}
+                     connectionStatus={connectionStatusValue}
+                     isRequesting={isRequesting}
+                     isAdmin={isAdmin}
+                     handleRequestConnection={handleRequestConnection}
+                     listingTitle={listing.title}
+                   />
+                   
+                   {/* Save Listing CTA directly under connection */}
+                   <Button
+                     variant="outline"
+                     className="w-full h-10 bg-white border-[#d7b65c] text-[#d7b65c] hover:bg-[#d7b65c] hover:text-white text-xs font-medium transition-colors duration-200"
+                     onClick={handleToggleSave}
+                     disabled={isSaving || isSavedLoading}
+                   >
+                     <Bookmark
+                       className={`h-4 w-4 mr-2 ${
+                         isSaved ? "fill-current" : ""
+                       }`}
+                     />
+                     {isSaved ? "Saved" : "Save Listing"}
+                   </Button>
+                   
+                   <div className="pt-3 border-t border-sourceco-form">
+                     <button className="text-xs text-slate-600 hover:text-slate-900 font-medium transition-colors">
+                       Download Executive Summary
+                     </button>
+                   </div>
                 </div>
               </div>
 
-              {/* Save Listing */}
-              <div className="bg-white border border-sourceco-form p-5">
-                <Button
-                  variant="outline"
-                  className="w-full h-10 border-sourceco-form bg-white hover:bg-sourceco-background text-slate-700 text-xs font-medium transition-colors duration-200"
-                  onClick={handleToggleSave}
-                  disabled={isSaving || isSavedLoading}
-                >
-                  <Bookmark
-                    className={`h-4 w-4 mr-2 ${
-                      isSaved ? "fill-current text-sourceco-accent" : ""
-                    }`}
-                  />
-                  {isSaved ? "Saved" : "Save Listing"}
-                </Button>
-              </div>
-
-              {/* Deal Alerts */}
-              <div className="bg-white border border-sourceco-form p-5">
-                <div className="space-y-3">
-                  <h4 className="text-sm font-semibold text-slate-900">Deal Alerts</h4>
-                  <p className="text-xs text-slate-600 leading-relaxed">
-                    Get notified when similar businesses become available in your target criteria.
-                  </p>
-                  <button className="w-full h-9 bg-sourceco-accent text-white hover:bg-opacity-90 text-xs font-medium transition-colors duration-200 flex items-center justify-center gap-2">
-                    <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path d="M15 17h5l-5 5-5-5h5v-5a7.5 7.5 0 1 0-15 0v5h5"/>
-                    </svg>
-                    Set Up Deal Alerts
-                  </button>
-                </div>
-              </div>
+               {/* Deal Alerts */}
+               <div className="bg-white border border-sourceco-form p-5">
+                 <div className="space-y-3">
+                   <h4 className="text-sm font-semibold text-slate-900">Deal Alerts</h4>
+                   <p className="text-xs text-slate-600 leading-relaxed">
+                     Get notified when similar businesses become available in your target criteria.
+                   </p>
+                   <CreateDealAlertDialog
+                     trigger={
+                       <button className="w-full h-9 bg-white border border-[#d7b65c] text-[#d7b65c] hover:bg-[#d7b65c] hover:text-white text-xs font-medium transition-colors duration-200 flex items-center justify-center gap-2">
+                         <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                           <path d="M15 17h5l-5 5-5-5h5v-5a7.5 7.5 0 1 0-15 0v5h5"/>
+                         </svg>
+                         Set Up Deal Alerts
+                       </button>
+                     }
+                   />
+                 </div>
+               </div>
               
             </div>
           </div>
