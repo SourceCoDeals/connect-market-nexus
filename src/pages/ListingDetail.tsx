@@ -132,7 +132,7 @@ const ListingDetail = () => {
   return (
     <div className="document-content min-h-screen bg-sourceco-background">
       {/* Navigation */}
-      <div className="border-b border-sourceco-form">
+      <div className="">
         <div className="max-w-5xl mx-auto px-6 py-4">
           <Link
             to="/marketplace"
@@ -206,7 +206,7 @@ const ListingDetail = () => {
             <div className="document-section py-6">
               <div className="space-y-4">
                 <span className="document-label">Business Overview</span>
-                <div className="prose prose-slate max-w-none text-sm">
+                <div className="prose prose-slate max-w-none text-sm [&_p]:text-sm [&_div]:text-sm [&_span]:text-sm">
                   {listing.description_html ? (
                     <RichTextDisplay content={listing.description_html} />
                   ) : (
@@ -363,7 +363,7 @@ const ListingDetail = () => {
                    {/* Save Listing CTA directly under connection */}
                    <Button
                      variant="outline"
-                     className="w-full h-9 bg-white border-sourceco-accent text-sourceco-accent hover:bg-sourceco-accent hover:text-white text-xs font-medium transition-colors duration-200 rounded-md"
+                     className="w-full h-9 bg-white border-[#d7b65c] text-[#d7b65c] hover:bg-[#d7b65c] hover:text-white text-xs font-medium transition-colors duration-200 rounded-md"
                      onClick={handleToggleSave}
                      disabled={isSaving || isSavedLoading}
                    >
@@ -376,8 +376,10 @@ const ListingDetail = () => {
                    </Button>
                    
                    {/* Download Executive Summary - Centered */}
-                   <div className="pt-4 text-center border-t border-sourceco-form">
-                     <ExecutiveSummaryGenerator listing={listing} />
+                   <div className="pt-4 border-t border-sourceco-form">
+                     <div className="flex justify-center">
+                       <ExecutiveSummaryGenerator listing={listing} />
+                     </div>
                    </div>
                 </div>
               </div>
@@ -393,7 +395,7 @@ const ListingDetail = () => {
                    </div>
                    <CreateDealAlertDialog
                      trigger={
-                       <button className="w-full h-8 bg-white border border-sourceco-accent text-sourceco-accent hover:bg-sourceco-accent hover:text-white text-xs font-medium transition-colors duration-200 flex items-center justify-center gap-2 rounded-md">
+                       <button className="w-full h-8 bg-white border border-[#d7b65c] text-[#d7b65c] hover:bg-[#d7b65c] hover:text-white text-xs font-medium transition-colors duration-200 flex items-center justify-center gap-2 rounded-md">
                          <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-5 5-5-5h5v-5a7.5 7.5 0 1 0-15 0v5h5"/>
                          </svg>
