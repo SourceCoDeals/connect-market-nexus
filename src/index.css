@@ -22,6 +22,16 @@
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
     
+    /* SourceCo Brand Colors */
+    --sourceco-primary: 43 38% 56%; /* #d7b65c - Main gold */
+    --sourceco-primary-foreground: 0 0% 100%;
+    --sourceco-accent: 43 38% 56%; /* #d7b65c - CTA gold */
+    --sourceco-accent-foreground: 0 0% 100%;
+    --sourceco-muted: 40 31% 89%; /* #e8e0d6 - Form backgrounds */
+    --sourceco-muted-foreground: 222.2 47.4% 11.2%;
+    --sourceco-background: 50 43% 98%; /* #fcfbfa - Page background */
+    --sourceco-form: 40 31% 89%; /* #e8e0d6 - Form field backgrounds */
+    
     /* Professional status colors */
     --status-required: 25 95% 53%;
     --status-required-foreground: 0 0% 100%;
@@ -237,5 +247,10 @@
 }
 
 .document-content {
-  @apply bg-white;
+  @apply bg-sourceco-background;
+}
+
+/* Custom sections styling */
+.custom-section {
+  @apply bg-sourceco-background border border-slate-200 p-6 space-y-3;
 }

@@ -615,6 +615,7 @@ export type Database = {
           categories: string[] | null
           category: string
           created_at: string
+          custom_sections: Json | null
           customer_concentration: number | null
           deleted_at: string | null
           description: string
@@ -647,6 +648,7 @@ export type Database = {
           categories?: string[] | null
           category: string
           created_at?: string
+          custom_sections?: Json | null
           customer_concentration?: number | null
           deleted_at?: string | null
           description: string
@@ -679,6 +681,7 @@ export type Database = {
           categories?: string[] | null
           category?: string
           created_at?: string
+          custom_sections?: Json | null
           customer_concentration?: number | null
           deleted_at?: string | null
           description?: string

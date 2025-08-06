@@ -23,8 +23,8 @@ import ListingInfo from "@/components/listing-detail/ListingInfo";
 import ConnectionButton from "@/components/listing-detail/ConnectionButton";
 import BlurredFinancialTeaser from "@/components/listing-detail/BlurredFinancialTeaser";
 import { PremiumInvestmentCalculator } from "@/components/listing-detail/PremiumInvestmentCalculator";
-import { OwnershipTransactionCard } from "@/components/listing-detail/OwnershipTransactionCard";
 import { EnhancedInvestorDashboard } from "@/components/listing-detail/EnhancedInvestorDashboard";
+import { CustomSection } from "@/components/listing-detail/CustomSection";
 
 const ListingDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -205,6 +205,65 @@ const ListingDetail = () => {
               </div>
             </div>
 
+            {/* Current Structure */}
+            {((listing as any).ownership_structure || (listing as any).management_depth) && (
+              <div className="document-section py-8">
+                <div className="space-y-4">
+                  <span className="document-label">Current Structure</span>
+                  {(listing as any).ownership_structure && (
+                    <div className="space-y-2">
+                      <span className="text-xs text-slate-500 uppercase tracking-wider">Ownership Type</span>
+                      <p className="document-subtitle">{(listing as any).ownership_structure}</p>
+                    </div>
+                  )}
+                  {(listing as any).management_depth && (
+                    <div className="space-y-2">
+                      <span className="text-xs text-slate-500 uppercase tracking-wider">Management Depth</span>
+                      <p className="document-subtitle">{(listing as any).management_depth}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Transaction Preferences */}
+            {((listing as any).seller_motivation || (listing as any).timeline_preference || (listing as any).seller_involvement_preference) && (
+              <div className="document-section py-8">
+                <div className="space-y-4">
+                  <span className="document-label">Transaction Preferences</span>
+                  {(listing as any).seller_motivation && (
+                    <div className="space-y-2">
+                      <span className="text-xs text-slate-500 uppercase tracking-wider">Seller Motivation</span>
+                      <p className="document-subtitle">{(listing as any).seller_motivation}</p>
+                    </div>
+                  )}
+                  {(listing as any).timeline_preference && (
+                    <div className="space-y-2">
+                      <span className="text-xs text-slate-500 uppercase tracking-wider">Timeline Preference</span>
+                      <p className="document-subtitle">{(listing as any).timeline_preference}</p>
+                    </div>
+                  )}
+                  {(listing as any).seller_involvement_preference && (
+                    <div className="space-y-2">
+                      <span className="text-xs text-slate-500 uppercase tracking-wider">Post-Sale Role</span>
+                      <p className="document-subtitle">{(listing as any).seller_involvement_preference}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Custom Sections */}
+            {(listing as any).custom_sections && Array.isArray((listing as any).custom_sections) && (listing as any).custom_sections.length > 0 && (
+              <div className="document-section py-8">
+                <div className="space-y-6">
+                  {(listing as any).custom_sections.map((section: any, index: number) => (
+                    <CustomSection key={index} section={section} />
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Financial Teaser */}
             <div className="document-section py-8">
               <BlurredFinancialTeaser 
@@ -227,20 +286,10 @@ const ListingDetail = () => {
           </div>
 
           {/* Right Column - 30% */}
-          <div className="col-span-3 space-y-8">
+          <div className="col-span-3 space-y-6">
             
-            {/* Ownership & Transaction */}
-            <OwnershipTransactionCard listing={listing} />
-            
-            {/* Investment Calculator */}
-            <PremiumInvestmentCalculator 
-              revenue={listing.revenue} 
-              ebitda={listing.ebitda}
-              formatCurrency={formatCurrency}
-            />
-
-            {/* Connection Actions */}
-            <div className="border border-slate-200 bg-white p-6">
+            {/* Request Full Deal Details CTA */}
+            <div className="bg-sourceco-accent text-sourceco-accent-foreground p-6 rounded">
               <ConnectionButton 
                 connectionExists={connectionExists}
                 connectionStatus={connectionStatusValue}
@@ -251,22 +300,29 @@ const ListingDetail = () => {
               />
             </div>
 
-            {/* Save Action */}
-            <div className="border border-slate-200 bg-white p-6">
+            {/* Save Listing CTA */}
+            <div className="bg-white border border-slate-200 p-6">
               <Button
                 variant="outline"
-                className="w-full h-10 border-slate-300 bg-white hover:bg-slate-50 transition-all duration-200 text-sm font-medium"
+                className="w-full h-12 border-sourceco-accent bg-sourceco-form hover:bg-sourceco-muted transition-all duration-200 text-sm font-medium text-slate-900"
                 onClick={handleToggleSave}
                 disabled={isSaving || isSavedLoading}
               >
                 <Bookmark
                   className={`h-4 w-4 mr-2 ${
-                    isSaved ? "fill-current text-slate-900" : ""
+                    isSaved ? "fill-current text-sourceco-accent" : ""
                   }`}
                 />
                 {isSaved ? "Saved" : "Save Listing"}
               </Button>
             </div>
+            
+            {/* Investment Calculator */}
+            <PremiumInvestmentCalculator 
+              revenue={listing.revenue} 
+              ebitda={listing.ebitda}
+              formatCurrency={formatCurrency}
+            />
 
             {/* Listing Info */}
             <div className="border border-slate-200 bg-white">

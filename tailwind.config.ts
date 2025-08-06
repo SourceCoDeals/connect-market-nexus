@@ -53,17 +53,16 @@ export default {
 					DEFAULT: 'hsl(var(--card))',
 					foreground: 'hsl(var(--card-foreground))'
 				},
-				marketplace: {
-					50: '#F0F7FF',
-					100: '#E0EFFF',
-					200: '#B8DBFF',
-					300: '#8FC7FF',
-					400: '#67B3FF',
-					500: '#3F9FFF',
-					600: '#0B7FFC',
-					700: '#0963C4',
-					800: '#074792',
-					900: '#052C61',
+				// SourceCo Brand Colors
+				sourceco: {
+					DEFAULT: 'hsl(var(--sourceco-primary))',
+					foreground: 'hsl(var(--sourceco-primary-foreground))',
+					accent: 'hsl(var(--sourceco-accent))',
+					'accent-foreground': 'hsl(var(--sourceco-accent-foreground))',
+					muted: 'hsl(var(--sourceco-muted))',
+					'muted-foreground': 'hsl(var(--sourceco-muted-foreground))',
+					background: 'hsl(var(--sourceco-background))',
+					form: 'hsl(var(--sourceco-form))'
 				},
 				sidebar: {
 					DEFAULT: 'hsl(var(--sidebar-background))',

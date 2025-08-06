@@ -57,14 +57,14 @@ const ConnectionButton = ({
           return {
             icon: Send,
             text: "Request Connection Again",
-            className: "group relative bg-gradient-to-r from-[#D7B65C] via-[#E5C76A] to-[#D7B65C] text-slate-900 border-0 hover:shadow-lg hover:shadow-[rgba(215,182,92,0.2)] hover:scale-[1.01]",
+            className: "bg-sourceco-accent text-sourceco-accent-foreground hover:bg-sourceco-accent/90 border-none",
             disabled: false
           };
         default:
           return {
             icon: Send,
             text: "Request Connection",
-            className: "group relative bg-gradient-to-r from-[#D7B65C] via-[#E5C76A] to-[#D7B65C] text-slate-900 border-0 hover:shadow-lg hover:shadow-[rgba(215,182,92,0.2)] hover:scale-[1.01]",
+            className: "bg-sourceco-accent text-sourceco-accent-foreground hover:bg-sourceco-accent/90 border-none",
             disabled: false
           };
       }
@@ -73,7 +73,7 @@ const ConnectionButton = ({
     return {
       icon: Send,
       text: "Request Connection",
-      className: "group relative bg-gradient-to-r from-[#D7B65C] via-[#E5C76A] to-[#D7B65C] text-slate-900 border-0 hover:shadow-lg hover:shadow-[rgba(215,182,92,0.2)] hover:scale-[1.01]",
+      className: "bg-sourceco-accent text-sourceco-accent-foreground hover:bg-sourceco-accent/90 border-none",
       disabled: false
     };
   };
@@ -114,19 +114,11 @@ const ConnectionButton = ({
       <Button
         onClick={handleButtonClick}
         disabled={disabled || isRequesting}
-        className={`w-full h-12 px-6 py-3 text-sm font-semibold tracking-wide rounded-lg relative overflow-hidden transition-all duration-300 ease-out active:scale-[0.98] ${className} ${
+        className={`w-full h-12 px-6 py-3 text-sm font-semibold tracking-wide rounded transition-all duration-200 ${className} ${
           isRequesting ? "opacity-60 cursor-not-allowed" : ""
         }`}
       >
-        {/* Premium button effects */}
-        {isPremiumButton && !disabled && (
-          <>
-            <div className="absolute inset-0 bg-gradient-to-r from-[#E5C76A] via-[#F0D478] to-[#E5C76A] opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[rgba(255,255,255,0.15)] to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-500 ease-out" />
-          </>
-        )}
-        
-        <div className="relative flex items-center justify-center gap-2">
+        <div className="flex items-center justify-center gap-2">
           <ButtonIcon className="h-4 w-4" />
           <span>{isRequesting ? "Sending Request..." : buttonText}</span>
         </div>
