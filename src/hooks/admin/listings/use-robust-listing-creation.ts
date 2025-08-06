@@ -29,6 +29,8 @@ interface DatabaseListingInsert {
   categories: string[];
   category: string;
   description: string;
+  description_html: string | null;
+  description_json: any;
   location: string;
   revenue: number;
   ebitda: number;
