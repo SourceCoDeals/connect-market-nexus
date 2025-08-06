@@ -17,6 +17,19 @@ export interface AdminListing {
   files?: string[];
   image_url?: string | null;
   status: 'active' | 'inactive';
+  // New investor-focused fields
+  ownership_structure?: string;
+  seller_motivation?: string;
+  management_depth?: string;
+  revenue_model_breakdown?: Record<string, number>;
+  customer_concentration?: number;
+  market_position?: Record<string, any>;
+  transaction_preferences?: Record<string, any>;
+  growth_drivers?: string[];
+  key_risks?: string[];
+  investment_thesis?: string;
+  seller_involvement_preference?: string;
+  timeline_preference?: string;
   created_at: string;
   updated_at: string;
 }
@@ -31,6 +44,19 @@ export interface CreateListingData {
   tags?: string[];
   owner_notes?: string;
   status?: 'active' | 'inactive';
+  // New investor-focused fields
+  ownership_structure?: string;
+  seller_motivation?: string;
+  management_depth?: string;
+  revenue_model_breakdown?: Record<string, number>;
+  customer_concentration?: number;
+  market_position?: Record<string, any>;
+  transaction_preferences?: Record<string, any>;
+  growth_drivers?: string[];
+  key_risks?: string[];
+  investment_thesis?: string;
+  seller_involvement_preference?: string;
+  timeline_preference?: string;
 }
 
 export interface AdminConnectionRequest {

@@ -22,8 +22,9 @@ import { formatCurrency } from "@/lib/currency-utils";
 import ListingInfo from "@/components/listing-detail/ListingInfo";
 import ConnectionButton from "@/components/listing-detail/ConnectionButton";
 import BlurredFinancialTeaser from "@/components/listing-detail/BlurredFinancialTeaser";
-import InvestorFinancialDashboard from "@/components/listing-detail/InvestorFinancialDashboard";
-import InvestmentCalculator from "@/components/listing-detail/InvestmentCalculator";
+import { PremiumInvestmentCalculator } from "@/components/listing-detail/PremiumInvestmentCalculator";
+import { OwnershipTransactionCard } from "@/components/listing-detail/OwnershipTransactionCard";
+import { EnhancedInvestorDashboard } from "@/components/listing-detail/EnhancedInvestorDashboard";
 
 const ListingDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -184,10 +185,8 @@ const ListingDetail = () => {
           </div>
 
           {/* Enhanced Financial Dashboard */}
-          <InvestorFinancialDashboard 
-            revenue={listing.revenue} 
-            ebitda={listing.ebitda}
-            description={listing.description}
+          <EnhancedInvestorDashboard 
+            listing={listing}
             formatCurrency={formatCurrency}
           />
 
@@ -228,8 +227,11 @@ const ListingDetail = () => {
 
         {/* Right column - Financial info and actions */}
         <div className="space-y-6">
-          {/* Investment Calculator */}
-          <InvestmentCalculator 
+          {/* Ownership & Transaction Card */}
+          <OwnershipTransactionCard listing={listing} />
+          
+          {/* Premium Investment Calculator */}
+          <PremiumInvestmentCalculator 
             revenue={listing.revenue} 
             ebitda={listing.ebitda}
             formatCurrency={formatCurrency}

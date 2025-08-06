@@ -615,60 +615,96 @@ export type Database = {
           categories: string[] | null
           category: string
           created_at: string
+          customer_concentration: number | null
           deleted_at: string | null
           description: string
           description_html: string | null
           description_json: Json | null
           ebitda: number
           files: string[] | null
+          growth_drivers: Json | null
           id: string
           image_url: string | null
+          investment_thesis: string | null
+          key_risks: Json | null
           location: string
+          management_depth: string | null
+          market_position: Json | null
           owner_notes: string | null
+          ownership_structure: string | null
           revenue: number
+          revenue_model_breakdown: Json | null
+          seller_involvement_preference: string | null
+          seller_motivation: string | null
           status: string
           tags: string[] | null
+          timeline_preference: string | null
           title: string
+          transaction_preferences: Json | null
           updated_at: string
         }
         Insert: {
           categories?: string[] | null
           category: string
           created_at?: string
+          customer_concentration?: number | null
           deleted_at?: string | null
           description: string
           description_html?: string | null
           description_json?: Json | null
           ebitda: number
           files?: string[] | null
+          growth_drivers?: Json | null
           id?: string
           image_url?: string | null
+          investment_thesis?: string | null
+          key_risks?: Json | null
           location: string
+          management_depth?: string | null
+          market_position?: Json | null
           owner_notes?: string | null
+          ownership_structure?: string | null
           revenue: number
+          revenue_model_breakdown?: Json | null
+          seller_involvement_preference?: string | null
+          seller_motivation?: string | null
           status?: string
           tags?: string[] | null
+          timeline_preference?: string | null
           title: string
+          transaction_preferences?: Json | null
           updated_at?: string
         }
         Update: {
           categories?: string[] | null
           category?: string
           created_at?: string
+          customer_concentration?: number | null
           deleted_at?: string | null
           description?: string
           description_html?: string | null
           description_json?: Json | null
           ebitda?: number
           files?: string[] | null
+          growth_drivers?: Json | null
           id?: string
           image_url?: string | null
+          investment_thesis?: string | null
+          key_risks?: Json | null
           location?: string
+          management_depth?: string | null
+          market_position?: Json | null
           owner_notes?: string | null
+          ownership_structure?: string | null
           revenue?: number
+          revenue_model_breakdown?: Json | null
+          seller_involvement_preference?: string | null
+          seller_motivation?: string | null
           status?: string
           tags?: string[] | null
+          timeline_preference?: string | null
           title?: string
+          transaction_preferences?: Json | null
           updated_at?: string
         }
         Relationships: []
