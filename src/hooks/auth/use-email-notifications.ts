@@ -7,7 +7,7 @@ export function useEmailNotifications() {
    * Trigger user journey notification
    */
   const triggerUserJourneyEvent = async (
-    eventType: 'user_created' | 'email_verified' | 'profile_approved' | 'profile_rejected' | 'reminder_due',
+    eventType: 'user_created' | 'email_verified' | 'profile_approved' | 'profile_rejected',
     user: User,
     metadata?: Record<string, any>
   ) => {
@@ -62,12 +62,6 @@ export function useEmailNotifications() {
     return await triggerUserJourneyEvent('email_verified', user);
   };
 
-  /**
-   * Send reminder notification
-   */
-  const sendReminderNotification = async (user: User, reminderType: string = 'general') => {
-    return await triggerUserJourneyEvent('reminder_due', user, { reminder_type: reminderType });
-  };
 
   /**
    * Request daily admin digest
@@ -96,7 +90,6 @@ export function useEmailNotifications() {
     sendApprovalNotification,
     sendRejectionNotification,
     sendEmailVerificationConfirmation,
-    sendReminderNotification,
     requestAdminDigest
   };
 }

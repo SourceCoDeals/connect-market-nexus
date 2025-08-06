@@ -8,10 +8,9 @@ import { CheckCircle2, AlertCircle, Mail, Phone, Building2, Globe, Linkedin } fr
 
 interface UserProfileCompletionProps {
   user: User;
-  onSendReminder?: (user: User) => void;
 }
 
-export function UserProfileCompletion({ user, onSendReminder }: UserProfileCompletionProps) {
+export function UserProfileCompletion({ user }: UserProfileCompletionProps) {
   // Define required fields and their descriptions
   const requiredFields = [
     { key: 'first_name', label: 'First Name', icon: CheckCircle2, category: 'basic' },
@@ -182,17 +181,6 @@ export function UserProfileCompletion({ user, onSendReminder }: UserProfileCompl
               </ul>
             </div>
 
-            {onSendReminder && completionPercentage < 80 && (
-              <Button 
-                onClick={() => onSendReminder(user)}
-                size="sm"
-                variant="outline"
-                className="mt-3"
-              >
-                <Mail className="h-4 w-4 mr-2" />
-                Send Completion Reminder
-              </Button>
-            )}
           </div>
         )}
 

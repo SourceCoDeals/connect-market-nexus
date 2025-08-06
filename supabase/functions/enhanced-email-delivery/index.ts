@@ -12,7 +12,7 @@ const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 interface EmailDeliveryRequest {
-  type: 'welcome' | 'approval' | 'rejection' | 'reminder' | 'password_reset' | 'connection_status' | 'email_verified';
+  type: 'welcome' | 'approval' | 'rejection' | 'password_reset' | 'connection_status' | 'email_verified';
   recipientEmail: string;
   recipientName: string;
   correlationId?: string;
@@ -427,26 +427,6 @@ function generateEmailContent(type: string, recipientName: string, data?: Record
           </div>
         `,
         text: `✅ Email Verified Successfully!\n\nHi ${firstName},\n\nGreat news! Your email address has been successfully verified for your SourceCo Marketplace account.\n\nWhat happens next?\n- Your application is now under review by our team\n- We'll evaluate your profile and approve it within a few hours\n- Once approved, you'll receive another email with access instructions\n- You'll then be able to browse listings and request owner conversations\n\nTimeline: Most applications are reviewed and approved within 2-4 hours during business hours.\n\nWe're excited to have you join our marketplace community!\n\nIf you have any questions, please don't hesitate to contact our support team.\n\nThe SourceCo Team`
-      };
-      
-    case 'reminder':
-      return {
-        subject: '📋 Action Required: Complete Your SourceCo Profile',
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-            <h2>Hi ${firstName},</h2>
-            <p>We noticed your SourceCo Marketplace account is still pending approval.</p>
-            <p>To help us process your application faster, please ensure:</p>
-            <ul>
-              <li>Your email address is verified</li>
-              <li>All required profile information is complete</li>
-              <li>Your company information is accurate</li>
-            </ul>
-            <p>If you need assistance, please reply to this email.</p>
-            <p>Best regards,<br>The SourceCo Team</p>
-          </div>
-        `,
-        text: `Hi ${firstName},\n\nWe noticed your SourceCo Marketplace account is still pending approval.\n\nTo help us process your application faster, please ensure:\n- Your email address is verified\n- All required profile information is complete\n- Your company information is accurate\n\nIf you need assistance, please reply to this email.\n\nBest regards,\nThe SourceCo Team`
       };
       
     default:
