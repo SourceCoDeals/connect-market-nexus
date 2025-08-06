@@ -24,23 +24,29 @@ export function useCreateListing() {
       try {
         
         
-        // Step 1: Create the listing with proper array formatting
-        const categoriesArray = Array.isArray(listing.categories) ? listing.categories : [];
-        const tagsArray = Array.isArray(listing.tags) ? listing.tags : [];
+        // Step 1: Create the listing with proper array formatting and validation
+        const categoriesArray = Array.isArray(listing.categories) 
+          ? listing.categories.filter(cat => cat && typeof cat === 'string') 
+          : [];
+        const tagsArray = Array.isArray(listing.tags) 
+          ? listing.tags.filter(tag => tag && typeof tag === 'string') 
+          : [];
         
         const insertData = {
           title: listing.title,
-          categories: categoriesArray,
-          category: categoriesArray.length > 0 ? categoriesArray[0] : '', // Required field
+          categories: categoriesArray.length > 0 ? categoriesArray : null,
+          category: categoriesArray.length > 0 ? categoriesArray[0] : '',
           description: listing.description,
           location: listing.location,
           revenue: listing.revenue,
           ebitda: listing.ebitda,
-          tags: tagsArray,
-          owner_notes: listing.owner_notes || '',
+          tags: tagsArray.length > 0 ? tagsArray : null,
+          owner_notes: listing.owner_notes || null,
           status: listing.status || 'active',
-          image_url: null // We'll update this after upload
+          image_url: null
         };
+
+        console.log('Inserting listing data:', JSON.stringify(insertData, null, 2));
 
         const { data, error } = await supabase
           .from('listings')
