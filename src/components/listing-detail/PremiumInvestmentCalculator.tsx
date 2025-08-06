@@ -95,206 +95,146 @@ export function PremiumInvestmentCalculator({
   };
 
   return (
-    <Card className="bg-gradient-to-br from-background to-muted/30 border-primary/20 shadow-xl">
-      <CardHeader className="pb-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Calculator className="h-5 w-5 text-primary" />
-            <CardTitle className="text-lg">Premium Investment Calculator</CardTitle>
-          </div>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={exportCalculations}
-            className="gap-1"
-          >
-            <Download className="h-4 w-4" />
-            Export
-          </Button>
+    <div className="border border-slate-200 bg-white p-6 space-y-6">
+      {/* Header */}
+      <div className="flex justify-between items-center">
+        <span className="document-label">Investment Calculator</span>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={exportCalculations}
+          className="text-xs h-8 px-3 border-slate-300"
+        >
+          <Download className="h-3 w-3 mr-1" />
+          Export
+        </Button>
+      </div>
+
+      {/* Scenario Selection */}
+      <div className="space-y-3">
+        <span className="document-label">Scenario</span>
+        <div className="flex gap-1">
+          {(['base', 'bull', 'bear'] as const).map((scenarioType) => (
+            <Button
+              key={scenarioType}
+              variant={scenario === scenarioType ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setScenario(scenarioType)}
+              className="flex-1 capitalize text-xs h-8 border-slate-300"
+            >
+              {scenarioType}
+            </Button>
+          ))}
         </div>
-      </CardHeader>
-      
-      <CardContent className="space-y-6">
-        {/* Scenario Selection */}
+      </div>
+
+      {/* Key Assumptions */}
+      <div className="space-y-4">
+        <span className="document-label">Assumptions</span>
+        
+        {/* Exit Multiple */}
+        <div className="space-y-2">
+          <div className="flex justify-between">
+            <span className="text-xs text-slate-500">Exit Multiple</span>
+            <span className="text-xs font-medium">{exitMultiple[0]}x</span>
+          </div>
+          <Slider
+            value={exitMultiple}
+            onValueChange={setExitMultiple}
+            min={3}
+            max={10}
+            step={0.1}
+            className="w-full"
+          />
+        </div>
+
+        {/* Growth Rate */}
+        <div className="space-y-2">
+          <div className="flex justify-between">
+            <span className="text-xs text-slate-500">Annual Growth</span>
+            <span className="text-xs font-medium">{adjustedGrowth.toFixed(1)}%</span>
+          </div>
+          <Slider
+            value={growthRate}
+            onValueChange={setGrowthRate}
+            min={0}
+            max={30}
+            step={1}
+            className="w-full"
+          />
+        </div>
+
+        {/* Time Horizon */}
+        <div className="space-y-2">
+          <div className="flex justify-between">
+            <span className="text-xs text-slate-500">Hold Period</span>
+            <span className="text-xs font-medium">{timeHorizon[0]} years</span>
+          </div>
+          <Slider
+            value={timeHorizon}
+            onValueChange={setTimeHorizon}
+            min={3}
+            max={10}
+            step={1}
+            className="w-full"
+          />
+        </div>
+
+        {/* Leverage Ratio */}
+        <div className="space-y-2">
+          <div className="flex justify-between">
+            <span className="text-xs text-slate-500">Debt-to-Equity</span>
+            <span className="text-xs font-medium">{leverageRatio[0]}x</span>
+          </div>
+          <Slider
+            value={leverageRatio}
+            onValueChange={setLeverageRatio}
+            min={0}
+            max={5}
+            step={0.1}
+            className="w-full"
+          />
+        </div>
+      </div>
+
+      {/* Results */}
+      <div className="space-y-4 pt-4 border-t border-slate-200">
+        <span className="document-label">Projected Returns</span>
+        
         <div className="space-y-3">
-          <Label className="text-sm font-semibold">Investment Scenario</Label>
-          <div className="flex gap-2">
-            {(['base', 'bull', 'bear'] as const).map((scenarioType) => (
-              <Button
-                key={scenarioType}
-                variant={scenario === scenarioType ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setScenario(scenarioType)}
-                className="flex-1 capitalize"
-              >
-                {scenarioType}
-              </Button>
-            ))}
+          <div className="flex justify-between">
+            <span className="text-xs text-slate-500">Current Valuation</span>
+            <span className="text-xs font-medium">{formatCurrency(currentValuation)}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-xs text-slate-500">Exit Valuation</span>
+            <span className="text-xs font-medium">{formatCurrency(futureValuation)}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-xs text-slate-500">Unleveraged IRR</span>
+            <span className="text-xs font-semibold text-slate-900">{annualizedReturn.toFixed(1)}%</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-xs text-slate-500">Leveraged IRR</span>
+            <span className="text-xs font-semibold text-slate-900">{leveragedAnnualizedReturn.toFixed(1)}%</span>
           </div>
         </div>
+      </div>
 
-        {/* Key Assumptions */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Exit Multiple */}
-          <div className="space-y-3">
-            <div className="flex justify-between items-center">
-              <Label className="text-sm font-medium">Exit Multiple</Label>
-              <Badge variant="outline">{exitMultiple[0]}x</Badge>
-            </div>
-            <Slider
-              value={exitMultiple}
-              onValueChange={setExitMultiple}
-              min={3}
-              max={10}
-              step={0.1}
-              className="w-full"
-            />
-            <div className="flex justify-between text-xs text-muted-foreground">
-              <span>3x</span>
-              <span className="font-medium">Industry: {industryBenchmarks.medianMultiple}x</span>
-              <span>10x</span>
-            </div>
+      {/* Risk Metrics */}
+      <div className="bg-slate-50 p-4 space-y-2">
+        <span className="document-label">Risk Metrics</span>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <span className="text-xs text-slate-500">Revenue Multiple</span>
+            <div className="text-xs font-medium">{(currentValuation / revenue).toFixed(1)}x</div>
           </div>
-
-          {/* Growth Rate */}
-          <div className="space-y-3">
-            <div className="flex justify-between items-center">
-              <Label className="text-sm font-medium">Annual Growth</Label>
-              <Badge variant="outline">{adjustedGrowth.toFixed(1)}%</Badge>
-            </div>
-            <Slider
-              value={growthRate}
-              onValueChange={setGrowthRate}
-              min={0}
-              max={30}
-              step={1}
-              className="w-full"
-            />
-            <div className="flex justify-between text-xs text-muted-foreground">
-              <span>0%</span>
-              <span className="font-medium">Industry: {industryBenchmarks.medianGrowth}%</span>
-              <span>30%</span>
-            </div>
-          </div>
-
-          {/* Time Horizon */}
-          <div className="space-y-3">
-            <div className="flex justify-between items-center">
-              <Label className="text-sm font-medium">Hold Period</Label>
-              <Badge variant="outline">{timeHorizon[0]} years</Badge>
-            </div>
-            <Slider
-              value={timeHorizon}
-              onValueChange={setTimeHorizon}
-              min={3}
-              max={10}
-              step={1}
-              className="w-full"
-            />
-            <div className="flex justify-between text-xs text-muted-foreground">
-              <span>3 years</span>
-              <span>10 years</span>
-            </div>
-          </div>
-
-          {/* Leverage Ratio */}
-          <div className="space-y-3">
-            <div className="flex justify-between items-center">
-              <Label className="text-sm font-medium">Debt-to-Equity</Label>
-              <Badge variant="outline">{leverageRatio[0]}x</Badge>
-            </div>
-            <Slider
-              value={leverageRatio}
-              onValueChange={setLeverageRatio}
-              min={0}
-              max={5}
-              step={0.1}
-              className="w-full"
-            />
-            <div className="flex justify-between text-xs text-muted-foreground">
-              <span>No Debt</span>
-              <span>5x Leverage</span>
-            </div>
+          <div>
+            <span className="text-xs text-slate-500">EBITDA Margin</span>
+            <div className="text-xs font-medium">{((adjustedEbitda / revenue) * 100).toFixed(1)}%</div>
           </div>
         </div>
-
-        <Separator />
-
-        {/* Investment Analysis */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Current Valuation */}
-          <div className="space-y-4">
-            <h4 className="font-semibold flex items-center gap-2">
-              <BarChart3 className="h-4 w-4 text-primary" />
-              Current Analysis
-            </h4>
-            <div className="space-y-3">
-              <div className="flex justify-between">
-                <span className="text-sm text-muted-foreground">Current EBITDA</span>
-                <span className="font-medium">{formatCurrency(adjustedEbitda)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-sm text-muted-foreground">Enterprise Value</span>
-                <span className="font-medium">{formatCurrency(currentValuation)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-sm text-muted-foreground">Equity Investment</span>
-                <span className="font-medium">{formatCurrency(equityInvestment)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-sm text-muted-foreground">Debt Financing</span>
-                <span className="font-medium">{formatCurrency(debtFinancing)}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Future Projections */}
-          <div className="space-y-4">
-            <h4 className="font-semibold flex items-center gap-2">
-              <TrendingUp className="h-4 w-4 text-primary" />
-              Exit Projections
-            </h4>
-            <div className="space-y-3">
-              <div className="flex justify-between">
-                <span className="text-sm text-muted-foreground">Future EBITDA</span>
-                <span className="font-medium">{formatCurrency(futureEbitda)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-sm text-muted-foreground">Exit Valuation</span>
-                <span className="font-medium">{formatCurrency(futureValuation)}</span>
-              </div>
-              <Separator />
-              <div className="flex justify-between">
-                <span className="text-sm text-muted-foreground">Unleveraged IRR</span>
-                <Badge variant={annualizedReturn > 20 ? "default" : annualizedReturn > 15 ? "secondary" : "outline"}>
-                  {annualizedReturn.toFixed(1)}%
-                </Badge>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-sm text-muted-foreground">Leveraged IRR</span>
-                <Badge variant={leveragedAnnualizedReturn > 25 ? "default" : leveragedAnnualizedReturn > 20 ? "secondary" : "outline"}>
-                  {leveragedAnnualizedReturn.toFixed(1)}%
-                </Badge>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Risk Metrics */}
-        <div className="bg-muted/30 rounded-lg p-4 space-y-2">
-          <h5 className="font-medium text-sm">Key Risk Metrics</h5>
-          <div className="grid grid-cols-2 gap-4 text-xs">
-            <div>
-              <span className="text-muted-foreground">Revenue Multiple: </span>
-              <span className="font-medium">{(currentValuation / revenue).toFixed(1)}x</span>
-            </div>
-            <div>
-              <span className="text-muted-foreground">EBITDA Margin: </span>
-              <span className="font-medium">{((adjustedEbitda / revenue) * 100).toFixed(1)}%</span>
-            </div>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

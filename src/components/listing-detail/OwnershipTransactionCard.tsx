@@ -51,104 +51,94 @@ export function OwnershipTransactionCard({ listing }: OwnershipTransactionCardPr
   };
 
   return (
-    <Card className="bg-gradient-to-br from-background to-muted/20">
-      <CardHeader className="pb-4">
-        <CardTitle className="text-lg flex items-center gap-2">
-          <Target className="h-5 w-5 text-primary" />
-          Ownership & Transaction
-        </CardTitle>
-      </CardHeader>
+    <div className="border border-slate-200 bg-white p-6 space-y-6">
+      {/* Header */}
+      <span className="document-label">Ownership & Transaction</span>
       
-      <CardContent className="space-y-6">
-        {/* Current Ownership */}
-        <div className="space-y-3">
-          <h4 className="font-semibold text-sm flex items-center gap-2">
-            {getOwnershipIcon(listing.ownership_structure)}
-            Current Ownership
-          </h4>
-          <div className="flex flex-wrap gap-2">
-            {listing.ownership_structure && (
-              <Badge variant="outline" className="capitalize">
+      {/* Current Ownership */}
+      <div className="space-y-3">
+        <span className="document-label">Current Structure</span>
+        <div className="space-y-2">
+          {listing.ownership_structure && (
+            <div className="flex justify-between">
+              <span className="text-xs text-slate-500">Type</span>
+              <span className="text-xs font-medium capitalize">
                 {listing.ownership_structure.replace('_', ' ')}
-              </Badge>
-            )}
-            {listing.management_depth && (
-              <Badge variant={getManagementBadgeColor(listing.management_depth)}>
-                {listing.management_depth.replace('_', ' ')}
-              </Badge>
-            )}
-          </div>
-        </div>
-
-        <Separator />
-
-        {/* Seller Motivation */}
-        {listing.seller_motivation && (
-          <div className="space-y-3">
-            <h4 className="font-semibold text-sm">Seller Motivation</h4>
-            <Badge variant={getMotivationColor(listing.seller_motivation)} className="capitalize">
-              {listing.seller_motivation.replace('_', ' ')}
-            </Badge>
-          </div>
-        )}
-
-        {/* Transaction Preferences */}
-        {(listing.seller_involvement_preference || listing.timeline_preference || listing.transaction_preferences) && (
-          <>
-            <Separator />
-            <div className="space-y-4">
-              <h4 className="font-semibold text-sm flex items-center gap-2">
-                <Clock className="h-4 w-4" />
-                Transaction Preferences
-              </h4>
-              
-              <div className="grid grid-cols-1 gap-3">
-                {listing.timeline_preference && (
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">Timeline</span>
-                    <Badge variant="outline" className="capitalize">
-                      {listing.timeline_preference.replace('_', ' ')}
-                    </Badge>
-                  </div>
-                )}
-                
-                {listing.seller_involvement_preference && (
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">Post-Sale Involvement</span>
-                    <Badge variant="secondary" className="capitalize">
-                      {listing.seller_involvement_preference.replace('_', ' ')}
-                    </Badge>
-                  </div>
-                )}
-
-                {listing.transaction_preferences && Object.keys(listing.transaction_preferences).length > 0 && (
-                  <div className="space-y-2">
-                    <span className="text-sm text-muted-foreground">Deal Structure</span>
-                    <div className="flex flex-wrap gap-2">
-                      {Object.entries(listing.transaction_preferences).map(([key, value]) => (
-                        <Badge key={key} variant="outline" className="text-xs">
-                          {key.replace('_', ' ')}: {String(value)}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
+              </span>
             </div>
-          </>
-        )}
-
-        {/* Key Considerations */}
-        <div className="bg-primary/5 rounded-lg p-4 space-y-2">
-          <h5 className="font-medium text-sm text-primary">Key Considerations</h5>
-          <ul className="text-xs text-muted-foreground space-y-1">
-            <li>• Management transition and retention requirements</li>
-            <li>• Cultural fit and operational continuity</li>
-            <li>• Seller financing and earn-out opportunities</li>
-            <li>• Integration timeline and synergy realization</li>
-          </ul>
+          )}
+          {listing.management_depth && (
+            <div className="flex justify-between">
+              <span className="text-xs text-slate-500">Management</span>
+              <span className="text-xs font-medium capitalize">
+                {listing.management_depth.replace('_', ' ')}
+              </span>
+            </div>
+          )}
         </div>
-      </CardContent>
-    </Card>
+      </div>
+
+      {/* Seller Motivation */}
+      {listing.seller_motivation && (
+        <div className="space-y-3 pt-4 border-t border-slate-200">
+          <span className="document-label">Seller Motivation</span>
+          <div className="flex justify-between">
+            <span className="text-xs text-slate-500">Primary Reason</span>
+            <span className="text-xs font-medium capitalize">
+              {listing.seller_motivation.replace('_', ' ')}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Transaction Preferences */}
+      {(listing.seller_involvement_preference || listing.timeline_preference || listing.transaction_preferences) && (
+        <div className="space-y-3 pt-4 border-t border-slate-200">
+          <span className="document-label">Transaction Preferences</span>
+          
+          <div className="space-y-2">
+            {listing.timeline_preference && (
+              <div className="flex justify-between">
+                <span className="text-xs text-slate-500">Timeline</span>
+                <span className="text-xs font-medium capitalize">
+                  {listing.timeline_preference.replace('_', ' ')}
+                </span>
+              </div>
+            )}
+            
+            {listing.seller_involvement_preference && (
+              <div className="flex justify-between">
+                <span className="text-xs text-slate-500">Post-Sale Role</span>
+                <span className="text-xs font-medium capitalize">
+                  {listing.seller_involvement_preference.replace('_', ' ')}
+                </span>
+              </div>
+            )}
+
+            {listing.transaction_preferences && Object.keys(listing.transaction_preferences).length > 0 && (
+              <div className="space-y-2">
+                {Object.entries(listing.transaction_preferences).map(([key, value]) => (
+                  <div key={key} className="flex justify-between">
+                    <span className="text-xs text-slate-500 capitalize">{key.replace('_', ' ')}</span>
+                    <span className="text-xs font-medium">{String(value)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Key Considerations */}
+      <div className="bg-slate-50 p-4 space-y-2">
+        <span className="document-label">Key Considerations</span>
+        <div className="space-y-1">
+          <div className="text-xs text-slate-600">• Management transition and retention</div>
+          <div className="text-xs text-slate-600">• Cultural fit and operational continuity</div>
+          <div className="text-xs text-slate-600">• Seller financing and earn-out structures</div>
+          <div className="text-xs text-slate-600">• Integration timeline and synergies</div>
+        </div>
+      </div>
+    </div>
   );
 }

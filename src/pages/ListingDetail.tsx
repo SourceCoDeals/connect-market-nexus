@@ -127,119 +127,120 @@ const ListingDetail = () => {
   const imageUrl = listing?.image_url || DEFAULT_IMAGE;
 
   return (
-    <div className="container mx-auto pt-6 pb-12">
-      <div className="mb-8">
-        <Link
-          to="/marketplace"
-          className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors duration-200"
-        >
-          <ChevronLeft className="mr-1 h-4 w-4" />
-          Back to Marketplace
-        </Link>
+    <div className="document-content min-h-screen">
+      {/* Navigation */}
+      <div className="border-b border-slate-200 bg-white">
+        <div className="max-w-7xl mx-auto px-6 py-4">
+          <Link
+            to="/marketplace"
+            className="inline-flex items-center document-label hover:text-slate-700 transition-colors"
+          >
+            <ChevronLeft className="mr-1 h-3 w-3" />
+            Back to Marketplace
+          </Link>
+        </div>
       </div>
       
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left column - Image and Content */}
-        <div className="lg:col-span-2 space-y-8">
-          {/* Image */}
-          <div className="rounded-xl overflow-hidden border border-border/50 shadow-lg min-h-[300px] max-h-[400px] aspect-[16/9] relative bg-gradient-to-br from-background to-muted/10">
-            {imageUrl ? (
-              <img
-                src={imageUrl}
-                alt={listing.title}
-                className="absolute inset-0 w-full h-full object-cover"
-                onError={(e) => {
-                  const target = e.target as HTMLImageElement;
-                  target.onerror = null;
-                  target.src = DEFAULT_IMAGE;
-                }}
+      {/* Main Content - 70/30 Split */}
+      <div className="max-w-7xl mx-auto px-6 py-8">
+        <div className="grid grid-cols-10 gap-12">
+          {/* Left Column - 70% */}
+          <div className="col-span-7 space-y-0">
+            
+            {/* Header Section */}
+            <div className="document-section py-8">
+              <div className="space-y-3">
+                <div className="flex gap-4">
+                  <span className="document-label">{listing.category}</span>
+                  <span className="document-label">{listing.location}</span>
+                  {isInactive && isAdmin && (
+                    <span className="document-label text-red-600">Inactive</span>
+                  )}
+                </div>
+                <h1 className="document-title">{listing.title}</h1>
+              </div>
+            </div>
+
+            {/* Hero Image */}
+            <div className="document-section py-8">
+              <div className="w-full h-[280px] border border-slate-200 bg-slate-50 overflow-hidden">
+                {imageUrl ? (
+                  <img
+                    src={imageUrl}
+                    alt={listing.title}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.onerror = null;
+                      target.src = DEFAULT_IMAGE;
+                    }}
+                  />
+                ) : (
+                  <div className="w-full h-full bg-slate-100 flex items-center justify-center">
+                    <ImageIcon className="h-12 w-12 text-slate-400" />
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Financial Dashboard */}
+            <div className="document-section py-8">
+              <EnhancedInvestorDashboard 
+                listing={listing}
+                formatCurrency={formatCurrency}
               />
-            ) : (
-              <div className="w-full h-full bg-gradient-to-br from-muted/20 to-muted/40 flex items-center justify-center">
-                <ImageIcon className="h-16 w-16 text-muted-foreground/50" />
+            </div>
+
+            {/* Business Overview */}
+            <div className="document-section py-8">
+              <div className="space-y-4">
+                <span className="document-label">Business Overview</span>
+                <div className="prose prose-slate max-w-none">
+                  {listing.description_html ? (
+                    <RichTextDisplay content={listing.description_html} />
+                  ) : (
+                    <p className="document-subtitle leading-relaxed">{listing.description}</p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Financial Teaser */}
+            <div className="document-section py-8">
+              <BlurredFinancialTeaser 
+                onRequestConnection={handleRequestConnection}
+                isRequesting={isRequesting}
+                hasConnection={connectionExists}
+                connectionStatus={connectionStatusValue}
+                listingTitle={listing.title}
+              />
+            </div>
+
+            {isAdmin && listing.owner_notes && (
+              <div className="document-section py-8">
+                <div className="space-y-4">
+                  <span className="document-label">Admin Notes</span>
+                  <p className="document-subtitle leading-relaxed">{listing.owner_notes}</p>
+                </div>
               </div>
             )}
           </div>
 
-          {/* Title and badges section */}
-          <div className="space-y-4">
-            <div className="flex flex-wrap gap-2">
-              <Badge variant="outline" className="bg-background/80 backdrop-blur-sm border-border/50 font-medium px-3 py-1">
-                <Building2 className="h-3 w-3 mr-1.5" />
-                {listing.category}
-              </Badge>
-              <Badge variant="outline" className="bg-background/80 backdrop-blur-sm border-border/50 font-medium px-3 py-1">
-                <MapPin className="h-3 w-3 mr-1.5" />
-                {listing.location}
-              </Badge>
-              {isInactive && isAdmin && (
-                <Badge variant="destructive" className="font-medium px-3 py-1">
-                  <AlertTriangle className="h-3 w-3 mr-1.5" />
-                  Inactive
-                </Badge>
-              )}
-            </div>
-            <h1 className="text-3xl md:text-4xl font-bold tracking-tight bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
-              {listing.title}
-            </h1>
-          </div>
+          {/* Right Column - 30% */}
+          <div className="col-span-3 space-y-8">
+            
+            {/* Ownership & Transaction */}
+            <OwnershipTransactionCard listing={listing} />
+            
+            {/* Investment Calculator */}
+            <PremiumInvestmentCalculator 
+              revenue={listing.revenue} 
+              ebitda={listing.ebitda}
+              formatCurrency={formatCurrency}
+            />
 
-          {/* Enhanced Financial Dashboard */}
-          <EnhancedInvestorDashboard 
-            listing={listing}
-            formatCurrency={formatCurrency}
-          />
-
-          {/* Business overview section */}
-          <Card className="bg-gradient-to-br from-background to-muted/10 border-border/50 shadow-sm">
-            <CardHeader className="pb-4">
-              <CardTitle className="text-xl">Business Overview</CardTitle>
-            </CardHeader>
-            <CardContent className="prose max-w-none text-foreground/90 leading-relaxed">
-              {listing.description_html ? (
-                <RichTextDisplay content={listing.description_html} />
-              ) : (
-                <p>{listing.description}</p>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Blurred Financial Teaser */}
-          <BlurredFinancialTeaser 
-            onRequestConnection={handleRequestConnection}
-            isRequesting={isRequesting}
-            hasConnection={connectionExists}
-            connectionStatus={connectionStatusValue}
-            listingTitle={listing.title}
-          />
-
-          {isAdmin && listing.owner_notes && (
-            <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-primary/10 shadow-sm">
-              <CardHeader className="pb-4">
-                <CardTitle className="text-xl">Admin Notes</CardTitle>
-              </CardHeader>
-              <CardContent className="prose max-w-none text-foreground/90 leading-relaxed">
-                <p>{listing.owner_notes}</p>
-              </CardContent>
-            </Card>
-          )}
-        </div>
-
-        {/* Right column - Financial info and actions */}
-        <div className="space-y-6">
-          {/* Ownership & Transaction Card */}
-          <OwnershipTransactionCard listing={listing} />
-          
-          {/* Premium Investment Calculator */}
-          <PremiumInvestmentCalculator 
-            revenue={listing.revenue} 
-            ebitda={listing.ebitda}
-            formatCurrency={formatCurrency}
-          />
-
-          {/* Connection Button Card */}
-          <Card className="bg-gradient-to-br from-background to-muted/10 border-border/50 shadow-sm">
-            <CardContent className="p-6">
+            {/* Connection Actions */}
+            <div className="border border-slate-200 bg-white p-6">
               <ConnectionButton 
                 connectionExists={connectionExists}
                 connectionStatus={connectionStatusValue}
@@ -248,31 +249,30 @@ const ListingDetail = () => {
                 handleRequestConnection={handleRequestConnection}
                 listingTitle={listing.title}
               />
-            </CardContent>
-          </Card>
+            </div>
 
-          {/* Save Button Card */}
-          <Card className="bg-gradient-to-br from-background to-muted/10 border-border/50 shadow-sm">
-            <CardContent className="p-6">
+            {/* Save Action */}
+            <div className="border border-slate-200 bg-white p-6">
               <Button
                 variant="outline"
-                className="w-full h-11 border-border/50 bg-background/50 hover:bg-background/80 transition-all duration-200 font-medium"
+                className="w-full h-10 border-slate-300 bg-white hover:bg-slate-50 transition-all duration-200 text-sm font-medium"
                 onClick={handleToggleSave}
                 disabled={isSaving || isSavedLoading}
               >
                 <Bookmark
                   className={`h-4 w-4 mr-2 ${
-                    isSaved ? "fill-current text-primary" : ""
+                    isSaved ? "fill-current text-slate-900" : ""
                   }`}
                 />
                 {isSaved ? "Saved" : "Save Listing"}
               </Button>
-            </CardContent>
-          </Card>
+            </div>
 
-          <Card className="bg-gradient-to-br from-background to-muted/10 border-border/50 shadow-sm">
-            <ListingInfo id={listing.id} createdAt={listing.createdAt} />
-          </Card>
+            {/* Listing Info */}
+            <div className="border border-slate-200 bg-white">
+              <ListingInfo id={listing.id} createdAt={listing.createdAt} />
+            </div>
+          </div>
         </div>
       </div>
     </div>
