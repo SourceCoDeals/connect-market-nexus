@@ -86,9 +86,7 @@ export default {
 				warning: {
 					DEFAULT: 'hsl(var(--warning))',
 					foreground: 'hsl(var(--warning-foreground))'
-				},
-				'section-border': 'hsl(var(--section-border))',
-				'section-bg': 'hsl(var(--section-bg))'
+				}
 			},
 			borderRadius: {
 				lg: 'var(--radius)',
