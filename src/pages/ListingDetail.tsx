@@ -26,6 +26,7 @@ import { PremiumInvestmentCalculator } from "@/components/listing-detail/Premium
 import { EnhancedInvestorDashboard } from "@/components/listing-detail/EnhancedInvestorDashboard";
 import { CustomSection } from "@/components/listing-detail/CustomSection";
 import { CreateDealAlertDialog } from "@/components/deal-alerts/CreateDealAlertDialog";
+import { ExecutiveSummaryGenerator } from "@/components/listing-detail/ExecutiveSummaryGenerator";
 
 const ListingDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -143,8 +144,8 @@ const ListingDetail = () => {
         </div>
       </div>
       
-      {/* Main Content - Narrow Container */}
-      <div className="max-w-4xl mx-auto px-6 py-8">
+      {/* Main Content - 1280px Container */}
+      <div className="max-w-[1280px] mx-auto px-6 py-8">
         <div className="grid grid-cols-10 gap-6">
           {/* Left Column - 70% */}
           <div className="col-span-7 space-y-0">
@@ -317,9 +318,9 @@ const ListingDetail = () => {
             <div className="sticky top-6 space-y-5">
               
               {/* Interested in This Deal? - Premium CTA */}
-              <div className="bg-white border border-sourceco-form p-6">
-                <div className="text-center space-y-5">
-                  <div className="space-y-3">
+              <div className="bg-white border border-sourceco-form p-4">
+                <div className="text-center space-y-4">
+                  <div className="space-y-2">
                     <h3 className="text-lg font-semibold text-slate-900">Interested in This Deal?</h3>
                     <p className="text-xs text-slate-600 leading-relaxed">
                       Get full access to detailed financials<br />
@@ -339,7 +340,7 @@ const ListingDetail = () => {
                    {/* Save Listing CTA directly under connection */}
                    <Button
                      variant="outline"
-                     className="w-full h-10 bg-white border-[#d7b65c] text-[#d7b65c] hover:bg-[#d7b65c] hover:text-white text-xs font-medium transition-colors duration-200"
+                     className="w-full h-10 bg-white border-sourceco-accent text-sourceco-accent hover:bg-sourceco-accent hover:text-white text-xs font-medium transition-colors duration-200"
                      onClick={handleToggleSave}
                      disabled={isSaving || isSavedLoading}
                    >
@@ -351,16 +352,14 @@ const ListingDetail = () => {
                      {isSaved ? "Saved" : "Save Listing"}
                    </Button>
                    
-                   <div className="pt-3 border-t border-sourceco-form">
-                     <button className="text-xs text-slate-600 hover:text-slate-900 font-medium transition-colors">
-                       Download Executive Summary
-                     </button>
+                   <div className="pt-2 border-t border-sourceco-form">
+                     <ExecutiveSummaryGenerator listing={listing} />
                    </div>
                 </div>
               </div>
 
                {/* Deal Alerts */}
-               <div className="bg-white border border-sourceco-form p-5">
+               <div className="bg-white border border-sourceco-form p-4">
                  <div className="space-y-3">
                    <h4 className="text-sm font-semibold text-slate-900">Deal Alerts</h4>
                    <p className="text-xs text-slate-600 leading-relaxed">
@@ -368,7 +367,7 @@ const ListingDetail = () => {
                    </p>
                    <CreateDealAlertDialog
                      trigger={
-                       <button className="w-full h-9 bg-white border border-[#d7b65c] text-[#d7b65c] hover:bg-[#d7b65c] hover:text-white text-xs font-medium transition-colors duration-200 flex items-center justify-center gap-2">
+                       <button className="w-full h-9 bg-white border border-sourceco-accent text-sourceco-accent hover:bg-sourceco-accent hover:text-white text-xs font-medium transition-colors duration-200 flex items-center justify-center gap-2">
                          <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                            <path d="M15 17h5l-5 5-5-5h5v-5a7.5 7.5 0 1 0-15 0v5h5"/>
                          </svg>
