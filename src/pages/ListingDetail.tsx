@@ -144,7 +144,7 @@ const ListingDetail = () => {
       </div>
       
       {/* Main Content - Narrow Container */}
-      <div className="max-w-5xl mx-auto px-6 py-8">
+      <div className="max-w-4xl mx-auto px-6 py-8">
         <div className="grid grid-cols-10 gap-6">
           {/* Left Column - 70% */}
           <div className="col-span-7 space-y-0">
@@ -172,10 +172,10 @@ const ListingDetail = () => {
             {/* Header Section - Correct Hierarchy */}
             <div className="space-y-4 mb-8">
               {/* Title */}
-              <h1 className="text-2xl font-light text-slate-900 leading-tight">{listing.title}</h1>
+              <h1 className="document-title">{listing.title}</h1>
               
               {/* Location, Category & Listed Date */}
-              <div className="flex items-center gap-4 text-xs text-slate-500 uppercase tracking-wider font-medium">
+              <div className="flex items-center gap-4 text-sm text-slate-500">
                 <div className="flex items-center gap-1">
                   <MapPin className="h-4 w-4" />
                   <span>{listing.location}</span>
@@ -204,12 +204,12 @@ const ListingDetail = () => {
             {/* Business Overview */}
             <div className="document-section py-6">
               <div className="space-y-4">
-                <span className="text-xs text-slate-500 uppercase tracking-wider font-medium">Business Overview</span>
+                <span className="document-label">Business Overview</span>
                 <div className="prose prose-slate max-w-none">
                   {listing.description_html ? (
                     <RichTextDisplay content={listing.description_html} />
                   ) : (
-                    <p className="text-sm text-slate-700 leading-relaxed font-light">{listing.description}</p>
+                    <p className="document-subtitle leading-relaxed">{listing.description}</p>
                   )}
                 </div>
               </div>
@@ -227,17 +227,17 @@ const ListingDetail = () => {
             {((listing as any).ownership_structure || (listing as any).management_depth) && (
               <div className="document-section py-8 border-t border-sourceco-form">
                 <div className="space-y-4">
-                  <span className="text-xs text-slate-500 uppercase tracking-wider font-medium">Current Structure</span>
+                  <span className="document-label">Current Structure</span>
                   {(listing as any).ownership_structure && (
                     <div className="space-y-2">
                       <span className="text-xs text-slate-500 uppercase tracking-wider">Ownership Type</span>
-                      <p className="text-sm text-slate-700 font-light">{(listing as any).ownership_structure}</p>
+                      <p className="document-subtitle">{(listing as any).ownership_structure}</p>
                     </div>
                   )}
                   {(listing as any).management_depth && (
                     <div className="space-y-2">
                       <span className="text-xs text-slate-500 uppercase tracking-wider">Management Depth</span>
-                      <p className="text-sm text-slate-700 font-light">{(listing as any).management_depth}</p>
+                      <p className="document-subtitle">{(listing as any).management_depth}</p>
                     </div>
                   )}
                 </div>
@@ -248,23 +248,23 @@ const ListingDetail = () => {
             {((listing as any).seller_motivation || (listing as any).timeline_preference || (listing as any).seller_involvement_preference) && (
               <div className="document-section py-8 border-t border-sourceco-form">
                 <div className="space-y-4">
-                  <span className="text-xs text-slate-500 uppercase tracking-wider font-medium">Transaction Preferences</span>
+                  <span className="document-label">Transaction Preferences</span>
                   {(listing as any).seller_motivation && (
                     <div className="space-y-2">
                       <span className="text-xs text-slate-500 uppercase tracking-wider">Seller Motivation</span>
-                      <p className="text-sm text-slate-700 font-light">{(listing as any).seller_motivation}</p>
+                      <p className="document-subtitle">{(listing as any).seller_motivation}</p>
                     </div>
                   )}
                   {(listing as any).timeline_preference && (
                     <div className="space-y-2">
                       <span className="text-xs text-slate-500 uppercase tracking-wider">Timeline Preference</span>
-                      <p className="text-sm text-slate-700 font-light">{(listing as any).timeline_preference}</p>
+                      <p className="document-subtitle">{(listing as any).timeline_preference}</p>
                     </div>
                   )}
                   {(listing as any).seller_involvement_preference && (
                     <div className="space-y-2">
                       <span className="text-xs text-slate-500 uppercase tracking-wider">Post-Sale Role</span>
-                      <p className="text-sm text-slate-700 font-light">{(listing as any).seller_involvement_preference}</p>
+                      <p className="document-subtitle">{(listing as any).seller_involvement_preference}</p>
                     </div>
                   )}
                 </div>
@@ -305,8 +305,8 @@ const ListingDetail = () => {
             {isAdmin && listing.owner_notes && (
               <div className="document-section py-8 border-t border-sourceco-form">
                 <div className="space-y-4">
-                  <span className="text-xs text-slate-500 uppercase tracking-wider font-medium">Admin Notes</span>
-                  <p className="text-sm text-slate-700 leading-relaxed font-light">{listing.owner_notes}</p>
+                  <span className="document-label">Admin Notes</span>
+                  <p className="document-subtitle leading-relaxed">{listing.owner_notes}</p>
                 </div>
               </div>
             )}
@@ -320,8 +320,8 @@ const ListingDetail = () => {
               <div className="bg-white border border-sourceco-form p-6">
                 <div className="text-center space-y-5">
                   <div className="space-y-3">
-                    <h3 className="text-lg font-light text-slate-900">Interested in This Deal?</h3>
-                    <p className="text-xs text-slate-600 leading-relaxed font-light">
+                    <h3 className="text-lg font-semibold text-slate-900">Interested in This Deal?</h3>
+                    <p className="text-xs text-slate-600 leading-relaxed">
                       Get full access to detailed financials<br />
                       and business metrics
                     </p>
@@ -352,7 +352,7 @@ const ListingDetail = () => {
                    </Button>
                    
                    <div className="pt-3 border-t border-sourceco-form">
-                     <button className="text-xs text-slate-600 hover:text-slate-900 font-light transition-colors uppercase tracking-wider">
+                     <button className="text-xs text-slate-600 hover:text-slate-900 font-medium transition-colors">
                        Download Executive Summary
                      </button>
                    </div>
@@ -362,8 +362,8 @@ const ListingDetail = () => {
                {/* Deal Alerts */}
                <div className="bg-white border border-sourceco-form p-5">
                  <div className="space-y-3">
-                   <h4 className="text-sm font-light text-slate-900">Deal Alerts</h4>
-                   <p className="text-xs text-slate-600 leading-relaxed font-light">
+                   <h4 className="text-sm font-semibold text-slate-900">Deal Alerts</h4>
+                   <p className="text-xs text-slate-600 leading-relaxed">
                      Get notified when similar businesses become available in your target criteria.
                    </p>
                    <CreateDealAlertDialog
