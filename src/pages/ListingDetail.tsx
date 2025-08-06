@@ -144,7 +144,7 @@ const ListingDetail = () => {
       </div>
       
       {/* Main Content - Narrow Container */}
-      <div className="max-w-3xl mx-auto px-6 py-8">
+      <div className="max-w-5xl mx-auto px-6 py-8">
         <div className="grid grid-cols-10 gap-6">
           {/* Left Column - 70% */}
           <div className="col-span-7 space-y-0">
