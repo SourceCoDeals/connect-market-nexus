@@ -24,7 +24,7 @@ export function useCreateListing() {
       try {
         
         
-        // Step 1: Create the listing with proper array formatting and validation
+        // Step 1: Create the listing with proper PostgreSQL array formatting
         const categoriesArray = Array.isArray(listing.categories) 
           ? listing.categories.filter(cat => cat && typeof cat === 'string') 
           : [];
@@ -34,13 +34,13 @@ export function useCreateListing() {
         
         const insertData = {
           title: listing.title,
-          categories: categoriesArray.length > 0 ? categoriesArray : null,
+          categories: categoriesArray, // PostgreSQL array - never null
           category: categoriesArray.length > 0 ? categoriesArray[0] : '',
           description: listing.description,
           location: listing.location,
           revenue: listing.revenue,
           ebitda: listing.ebitda,
-          tags: tagsArray.length > 0 ? tagsArray : null,
+          tags: tagsArray, // PostgreSQL array - never null
           owner_notes: listing.owner_notes || null,
           status: listing.status || 'active',
           image_url: null
