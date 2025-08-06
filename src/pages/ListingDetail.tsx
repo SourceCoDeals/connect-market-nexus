@@ -18,10 +18,12 @@ import {
   Bookmark
 } from "lucide-react";
 import { DEFAULT_IMAGE } from "@/lib/storage-utils";
-import ListingFinancials from "@/components/listing-detail/ListingFinancials";
+import { formatCurrency } from "@/lib/currency-utils";
 import ListingInfo from "@/components/listing-detail/ListingInfo";
 import ConnectionButton from "@/components/listing-detail/ConnectionButton";
 import BlurredFinancialTeaser from "@/components/listing-detail/BlurredFinancialTeaser";
+import InvestorFinancialDashboard from "@/components/listing-detail/InvestorFinancialDashboard";
+import InvestmentCalculator from "@/components/listing-detail/InvestmentCalculator";
 
 const ListingDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -51,15 +53,6 @@ const ListingDetail = () => {
       trackListingView(id);
     }
   }, [id, listing, trackListingView]);
-
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(value);
-  };
 
   const handleRequestConnection = (message?: string) => {
     if (id) {
@@ -167,7 +160,7 @@ const ListingDetail = () => {
             )}
           </div>
 
-          {/* Title and badges section - moved here */}
+          {/* Title and badges section */}
           <div className="space-y-4">
             <div className="flex flex-wrap gap-2">
               <Badge variant="outline" className="bg-background/80 backdrop-blur-sm border-border/50 font-medium px-3 py-1">
@@ -190,7 +183,15 @@ const ListingDetail = () => {
             </h1>
           </div>
 
-          {/* Business overview section - moved here */}
+          {/* Enhanced Financial Dashboard */}
+          <InvestorFinancialDashboard 
+            revenue={listing.revenue} 
+            ebitda={listing.ebitda}
+            description={listing.description}
+            formatCurrency={formatCurrency}
+          />
+
+          {/* Business overview section */}
           <Card className="bg-gradient-to-br from-background to-muted/10 border-border/50 shadow-sm">
             <CardHeader className="pb-4">
               <CardTitle className="text-xl">Business Overview</CardTitle>
@@ -227,13 +228,12 @@ const ListingDetail = () => {
 
         {/* Right column - Financial info and actions */}
         <div className="space-y-6">
-          <Card className="bg-gradient-to-br from-background to-muted/10 border-border/50 shadow-sm">
-            <ListingFinancials 
-              revenue={listing.revenue} 
-              ebitda={listing.ebitda} 
-              formatCurrency={formatCurrency} 
-            />
-          </Card>
+          {/* Investment Calculator */}
+          <InvestmentCalculator 
+            revenue={listing.revenue} 
+            ebitda={listing.ebitda}
+            formatCurrency={formatCurrency}
+          />
 
           {/* Connection Button Card */}
           <Card className="bg-gradient-to-br from-background to-muted/10 border-border/50 shadow-sm">

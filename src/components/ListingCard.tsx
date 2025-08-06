@@ -94,6 +94,7 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
                 <ListingCardFinancials 
                   revenue={listing.revenue} 
                   ebitda={listing.ebitda}
+                  description={listing.description}
                   formatCurrency={formatCurrency}
                 />
               </div>
