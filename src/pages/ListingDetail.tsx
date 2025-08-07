@@ -29,6 +29,10 @@ import { CreateDealAlertDialog } from "@/components/deal-alerts/CreateDealAlertD
 import { ExecutiveSummaryGenerator } from "@/components/listing-detail/ExecutiveSummaryGenerator";
 import { PersonalNotesWidget } from "@/components/listing-detail/PersonalNotesWidget";
 import { DealComparisonWidget } from "@/components/listing-detail/DealComparisonWidget";
+import { ListingBadges } from "@/components/listing-detail/ListingBadges";
+import { InvestmentThesisGenerator } from "@/components/listing-detail/InvestmentThesisGenerator";
+import { InvestmentFitScore } from "@/components/listing-detail/InvestmentFitScore";
+import { EnhancedInvestmentCalculator } from "@/components/listing-detail/EnhancedInvestmentCalculator";
 
 const ListingDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -174,6 +178,14 @@ const ListingDetail = () => {
 
             {/* Header Section - Correct Hierarchy */}
             <div className="space-y-4 mb-8">
+              {/* Listing Badges */}
+              <ListingBadges 
+                createdAt={listing.created_at}
+                revenue={listing.revenue}
+                ebitda={listing.ebitda}
+                category={listing.category}
+              />
+              
               {/* Title */}
               <h1 className="document-title">{listing.title}</h1>
               
@@ -408,13 +420,31 @@ const ListingDetail = () => {
                   </div>
                 </div>
 
-                {/* Personal Notes Widget */}
-                <div className="pt-6">
+                {/* Investment Analysis Tools */}
+                <div className="pt-6 space-y-4">
+                  <InvestmentFitScore 
+                    revenue={listing.revenue}
+                    ebitda={listing.ebitda}
+                    category={listing.category}
+                    location={listing.location}
+                  />
+                  
+                  <InvestmentThesisGenerator
+                    revenue={listing.revenue}
+                    ebitda={listing.ebitda}
+                    category={listing.category}
+                    location={listing.location}
+                    formatCurrency={formatCurrency}
+                  />
+                  
+                  <EnhancedInvestmentCalculator
+                    revenue={listing.revenue}
+                    ebitda={listing.ebitda}
+                    formatCurrency={formatCurrency}
+                  />
+                  
                   <PersonalNotesWidget listingId={listing.id} />
-                </div>
-
-                {/* Deal Comparison Widget */}
-                <div className="pt-6">
+                  
                   <DealComparisonWidget 
                     currentListingId={listing.id}
                     formatCurrency={formatCurrency}
