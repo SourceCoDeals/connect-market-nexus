@@ -152,17 +152,19 @@ export const InteractiveCashFlowProjections: React.FC<InteractiveCashFlowProject
   };
 
   return (
-    <Card className="border-sourceco-form">
-      <CardHeader>
-        <CardTitle className="text-base font-semibold flex items-center gap-2">
-          <Calculator className="h-4 w-4" />
+    <Card className="border-sourceco-form bg-white shadow-sm hover:shadow-md transition-shadow duration-300">
+      <CardHeader className="pb-4 border-b border-sourceco-form/50">
+        <CardTitle className="text-lg font-semibold text-sourceco-text flex items-center gap-3 tracking-tight">
+          <div className="p-2 bg-sourceco-accent/10 rounded-lg">
+            <Calculator className="h-5 w-5 text-sourceco-accent" />
+          </div>
           Interactive Cash Flow Projections
         </CardTitle>
-        <p className="text-xs text-muted-foreground">
-          Model different growth scenarios and investment returns
+        <p className="text-sm text-muted-foreground">
+          Model different growth scenarios and investment returns with precision
         </p>
       </CardHeader>
-      <CardContent className="space-y-6">
+      <CardContent className="space-y-6 pt-6">
         {/* Scenario Selection */}
         <div className="space-y-3">
           <Label className="text-xs font-medium">Scenario Analysis</Label>
@@ -361,6 +363,29 @@ export const InteractiveCashFlowProjections: React.FC<InteractiveCashFlowProject
             size="sm" 
             variant="outline" 
             className="flex-1 text-xs border-sourceco-accent text-sourceco-accent hover:bg-sourceco-accent hover:text-white"
+            onClick={() => {
+              const csvData = projectionData.map(p => ({
+                Year: p.year,
+                Revenue: p.revenue.toFixed(0),
+                EBITDA: p.ebitda.toFixed(0),
+                'EBITDA Margin %': p.ebitdaMargin.toFixed(1),
+                'Free Cash Flow': p.freeCashFlow.toFixed(0),
+                'Cumulative Cash Flow': p.cumulativeCashFlow.toFixed(0)
+              }));
+              
+              const csv = [
+                Object.keys(csvData[0]).join(','),
+                ...csvData.map(row => Object.values(row).join(','))
+              ].join('\n');
+              
+              const blob = new Blob([csv], { type: 'text/csv' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = `cash-flow-projections-${selectedScenario}.csv`;
+              a.click();
+              URL.revokeObjectURL(url);
+            }}
           >
             <Download className="h-3 w-3 mr-2" />
             Export Model
@@ -369,6 +394,30 @@ export const InteractiveCashFlowProjections: React.FC<InteractiveCashFlowProject
             size="sm" 
             variant="outline" 
             className="flex-1 text-xs border-sourceco-accent text-sourceco-accent hover:bg-sourceco-accent hover:text-white"
+            onClick={() => {
+              const summary = `
+Investment Analysis Summary
+${scenarios[selectedScenario].name} Scenario
+
+Key Metrics:
+• Net Present Value: ${formatCompactCurrency(valuation.npv)}
+• Projected IRR: ${(valuation.irr * 100).toFixed(1)}%
+• Terminal Value: ${formatCompactCurrency(valuation.terminalValue)}
+• 5-Year Revenue Growth: ${formatCompactCurrency(revenue)} → ${formatCompactCurrency(projectionData[projectionData.length - 1].revenue)}
+
+Analysis assumptions:
+• Exit Multiple: ${exitMultiple}x EBITDA
+• Discount Rate: ${discountRate}%
+• Growth Rates: ${scenarios[selectedScenario].revenueGrowth.join(', ')}%
+              `.trim();
+              
+              navigator.clipboard.writeText(summary);
+              // Show toast notification
+              const event = new CustomEvent('show-toast', {
+                detail: { message: 'Analysis summary copied to clipboard', type: 'success' }
+              });
+              window.dispatchEvent(event);
+            }}
           >
             <Zap className="h-3 w-3 mr-2" />
             Share Analysis

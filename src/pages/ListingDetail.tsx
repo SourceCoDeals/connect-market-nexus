@@ -35,7 +35,7 @@ import { InvestmentFitScore } from "@/components/listing-detail/InvestmentFitSco
 import { EnhancedInvestmentCalculator } from "@/components/listing-detail/EnhancedInvestmentCalculator";
 import { AdvancedComparisonMatrix } from "@/components/listing-detail/AdvancedComparisonMatrix";
 import { InteractiveCashFlowProjections } from "@/components/listing-detail/InteractiveCashFlowProjections";
-import { DueDiligenceTracker } from "@/components/listing-detail/DueDiligenceTracker";
+
 
 const ListingDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -153,11 +153,11 @@ const ListingDetail = () => {
         </div>
       </div>
       
-      {/* Main Content - 1024px Container */}
-      <div className="max-w-5xl mx-auto px-6 py-8">
-        <div className="grid grid-cols-10 gap-6">
-          {/* Left Column - 70% */}
-          <div className="col-span-7 space-y-0">
+      {/* Main Content - 1600px Premium Container */}
+      <div className="max-w-7xl mx-auto px-8 py-8">
+        <div className="grid grid-cols-12 gap-8">
+          {/* Left Column - 65% */}
+          <div className="col-span-8 space-y-0">
             
             {/* Hero Image */}
             <div className="w-full h-[240px] border border-sourceco-form bg-sourceco-form overflow-hidden mb-6 rounded-lg">
@@ -387,12 +387,6 @@ const ListingDetail = () => {
               />
             </div>
 
-            <div className="document-section py-6">
-              <DueDiligenceTracker
-                listingId={id!}
-                listingTitle={listing.title}
-              />
-            </div>
 
             {isAdmin && listing.owner_notes && (
               <div className="document-section py-8 border-t border-sourceco-form">
@@ -404,18 +398,17 @@ const ListingDetail = () => {
             )}
           </div>
 
-          {/* Right Column - 30% Sticky Sidebar */}
-          <div className="col-span-3">
-            <div className="sticky top-6 space-y-0">
+          {/* Right Column - 35% Premium Sticky Sidebar */}
+          <div className="col-span-4">
+            <div className="sticky top-6 space-y-6">
               
               {/* Interested in This Deal? - Premium CTA */}
-              <div className="bg-white border border-sourceco-form rounded-lg p-4">
-                <div className="text-center space-y-3">
-                  <div className="space-y-1">
-                    <h3 className="text-lg font-semibold text-slate-900">Interested in This Deal?</h3>
-                    <p className="text-xs text-slate-600 leading-relaxed">
-                      Get full access to detailed financials<br />
-                      and business metrics
+              <div className="bg-white border border-sourceco-form rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow duration-300">
+                <div className="text-center space-y-4">
+                  <div className="space-y-2">
+                    <h3 className="text-xl font-semibold text-slate-900 tracking-tight">Interested in This Deal?</h3>
+                    <p className="text-sm text-slate-600 leading-relaxed">
+                      Get full access to detailed financials and business metrics
                     </p>
                   </div>
                   
@@ -428,10 +421,10 @@ const ListingDetail = () => {
                      listingTitle={listing.title}
                    />
                    
-                   {/* Save Listing CTA directly under connection */}
+                   {/* Save Listing CTA */}
                     <Button
                       variant="outline"
-                      className="w-full h-9 bg-white border-sourceco-accent text-sourceco-accent hover:bg-sourceco-accent hover:text-white text-xs font-medium transition-colors duration-200 rounded-md"
+                      className="w-full h-10 bg-white border-sourceco-accent text-sourceco-accent hover:bg-sourceco-accent hover:text-white text-sm font-medium transition-all duration-300 rounded-lg"
                       onClick={handleToggleSave}
                       disabled={isSaving || isSavedLoading}
                     >
@@ -443,8 +436,8 @@ const ListingDetail = () => {
                      {isSaved ? "Saved" : "Save Listing"}
                    </Button>
                    
-                   {/* Download Executive Summary - Centered */}
-                   <div className="pt-4 border-t border-sourceco-form">
+                   {/* Download Executive Summary */}
+                   <div className="pt-4 border-t border-sourceco-form/50">
                      <div className="flex justify-center">
                        <ExecutiveSummaryGenerator listing={listing} />
                      </div>
@@ -452,19 +445,19 @@ const ListingDetail = () => {
                 </div>
               </div>
 
-               {/* Deal Alerts - Connected to above */}
-               <div className="bg-white border border-sourceco-form rounded-lg p-4 border-t-0 rounded-t-none">
-                 <div className="space-y-3">
-                   <div className="text-center space-y-2">
-                     <h4 className="text-sm font-semibold text-slate-900">Get Notified When Similar Deals Go Live</h4>
-                     <p className="text-xs text-slate-600 leading-relaxed">
+               {/* Deal Alerts */}
+               <div className="bg-white border border-sourceco-form rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow duration-300">
+                 <div className="space-y-4">
+                   <div className="text-center space-y-3">
+                     <h4 className="text-lg font-semibold text-slate-900 tracking-tight">Get Notified</h4>
+                     <p className="text-sm text-slate-600 leading-relaxed">
                        Set up deal alerts based on your investment criteria and get notified when businesses matching your preferences become available.
                      </p>
                    </div>
                    <CreateDealAlertDialog
                      trigger={
-                       <button className="w-full h-8 bg-white border border-sourceco-accent text-sourceco-accent hover:bg-sourceco-accent hover:text-white text-xs font-medium transition-colors duration-200 flex items-center justify-center gap-2 rounded-md">
-                         <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                       <button className="w-full h-10 bg-white border border-sourceco-accent text-sourceco-accent hover:bg-sourceco-accent hover:text-white text-sm font-medium transition-all duration-300 flex items-center justify-center gap-2 rounded-lg">
+                         <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-5 5-5-5h5v-5a7.5 7.5 0 1 0-15 0v5h5"/>
                          </svg>
                          Set Up Deal Alerts
@@ -475,16 +468,8 @@ const ListingDetail = () => {
                 </div>
 
                {/* Personal Notes Widget */}
-              <div className="bg-white border border-sourceco-form rounded-lg p-4 mb-4">
+              <div className="bg-white border border-sourceco-form rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow duration-300">
                 <PersonalNotesWidget listingId={id!} />
-              </div>
-
-              {/* Deal Comparison Widget */}
-              <div className="bg-white border border-sourceco-form rounded-lg">
-                <DealComparisonWidget 
-                  currentListingId={id!}
-                  formatCurrency={formatCurrency}
-                />
               </div>
               </div>
             </div>

@@ -29,6 +29,7 @@ import AdminUsers from "@/pages/admin/AdminUsers";
 import AdminRequests from "@/pages/admin/AdminRequests";
 import AuthCallback from "@/pages/auth/callback";
 import { Toaster } from "@/components/ui/toaster";
+import { SimpleToastProvider } from "@/components/ui/simple-toast";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { errorHandler } from "@/lib/error-handler";
 
@@ -63,7 +64,8 @@ function App() {
           <NavigationStateProvider>
             <AuthProvider>
               <AnalyticsProvider>
-                <Toaster />
+                <SimpleToastProvider>
+                  <Toaster />
           <Routes>
             {/* Authentication routes - no protection needed */}
             <Route path="/login" element={<Login />} />
@@ -96,6 +98,7 @@ function App() {
             {/* Catch-all route for 404 Not Found */}
             <Route path="*" element={<NotFound />} />
           </Routes>
+                </SimpleToastProvider>
               </AnalyticsProvider>
             </AuthProvider>
           </NavigationStateProvider>

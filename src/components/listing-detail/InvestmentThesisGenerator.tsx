@@ -88,58 +88,76 @@ export const InvestmentThesisGenerator: React.FC<InvestmentThesisGeneratorProps>
   const riskProfile = getRiskProfile();
 
   return (
-    <Card className="border-sourceco-form bg-white">
-      <CardHeader className="pb-3">
-        <CardTitle className="text-sm font-medium text-sourceco-text flex items-center gap-2">
-          <Target className="h-4 w-4" />
+    <Card className="border-sourceco-form bg-white shadow-sm hover:shadow-md transition-shadow duration-300">
+      <CardHeader className="pb-4 border-b border-sourceco-form/50">
+        <CardTitle className="text-lg font-semibold text-sourceco-text flex items-center gap-3 tracking-tight">
+          <div className="p-2 bg-sourceco-accent/10 rounded-lg">
+            <Target className="h-5 w-5 text-sourceco-accent" />
+          </div>
           Investment Analysis
         </CardTitle>
+        <p className="text-sm text-muted-foreground">
+          AI-generated insights based on financial metrics and business characteristics
+        </p>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-6 pt-6">
         {/* Key Metrics Overview */}
-        <div className="grid grid-cols-2 gap-3">
-          <div className="bg-gray-50 p-3 rounded-lg">
-            <div className="flex items-center gap-2 mb-1">
-              <DollarSign className="h-3 w-3 text-gray-600" />
-              <span className="text-xs font-medium text-gray-600">Revenue</span>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="bg-gradient-to-br from-sourceco-accent/5 to-sourceco-accent/10 rounded-xl border border-sourceco-accent/10 p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <DollarSign className="h-4 w-4 text-sourceco-accent" />
+              <span className="text-sm font-medium text-muted-foreground">Annual Revenue</span>
             </div>
-            <div className="text-sm font-semibold text-sourceco-text">{formatCurrency(revenue)}</div>
+            <div className="text-xl font-bold text-sourceco-accent">{formatCurrency(revenue)}</div>
           </div>
-          <div className="bg-gray-50 p-3 rounded-lg">
-            <div className="flex items-center gap-2 mb-1">
-              <TrendingUp className="h-3 w-3 text-gray-600" />
-              <span className="text-xs font-medium text-gray-600">EBITDA Margin</span>
+          <div className="bg-gradient-to-br from-sourceco-accent/5 to-sourceco-accent/10 rounded-xl border border-sourceco-accent/10 p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <TrendingUp className="h-4 w-4 text-sourceco-accent" />
+              <span className="text-sm font-medium text-muted-foreground">EBITDA Margin</span>
             </div>
-            <div className="text-sm font-semibold text-sourceco-text">{ebitdaMargin.toFixed(1)}%</div>
+            <div className="text-xl font-bold text-sourceco-accent">{ebitdaMargin.toFixed(1)}%</div>
           </div>
         </div>
 
         {/* Risk Profile */}
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-medium text-gray-600">Risk Profile:</span>
-          <Badge className={`text-xs ${riskProfile.color}`}>
-            {riskProfile.level}
-          </Badge>
+        <div className="space-y-3">
+          <h4 className="text-sm font-semibold text-sourceco-text">Risk Assessment</h4>
+          <div className="flex items-center gap-3">
+            <Badge className={`text-sm px-3 py-1 font-medium ${riskProfile.color}`}>
+              {riskProfile.level}
+            </Badge>
+            <span className="text-sm text-muted-foreground">Investment grade classification</span>
+          </div>
         </div>
 
         {/* Investment Thesis Points */}
-        <div>
-          <h4 className="text-xs font-medium text-sourceco-text mb-2">Key Investment Highlights</h4>
-          <ul className="space-y-1">
+        <div className="space-y-3">
+          <h4 className="text-sm font-semibold text-sourceco-text">Investment Highlights</h4>
+          <div className="space-y-3">
             {thesisPoints.map((point, index) => (
-              <li key={index} className="text-xs text-gray-600 pl-2 border-l-2 border-gray-200">
-                {point}
-              </li>
+              <div key={index} className="flex items-start gap-3 p-3 bg-sourceco-background/50 rounded-lg border border-sourceco-form/50">
+                <div className="w-2 h-2 bg-sourceco-accent rounded-full mt-2 flex-shrink-0"></div>
+                <span className="text-sm text-slate-700 leading-relaxed">{point}</span>
+              </div>
             ))}
-          </ul>
+          </div>
         </div>
 
         {/* Valuation Framework */}
-        <div className="bg-sourceco-bg/10 p-3 rounded-lg">
-          <h4 className="text-xs font-medium text-sourceco-text mb-2">Valuation Framework</h4>
-          <div className="text-xs text-gray-600 space-y-1">
-            <div>Current EBITDA: {formatCurrency(ebitda)}</div>
-            <div>Estimated Range (4-6x): {formatCurrency(ebitda * 4)} - {formatCurrency(ebitda * 6)}</div>
+        <div className="space-y-3 bg-gradient-to-r from-sourceco-background to-sourceco-muted/20 p-4 rounded-xl border border-sourceco-form/50">
+          <h4 className="text-sm font-semibold text-sourceco-text">Valuation Framework</h4>
+          <div className="space-y-2 text-sm">
+            <div className="flex justify-between items-center">
+              <span className="text-muted-foreground">Current EBITDA</span>
+              <span className="font-semibold text-sourceco-accent">{formatCurrency(ebitda)}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-muted-foreground">Estimated Range (4-6x)</span>
+              <span className="font-semibold text-sourceco-accent">{formatCurrency(ebitda * 4)} - {formatCurrency(ebitda * 6)}</span>
+            </div>
+          </div>
+          <div className="text-xs text-muted-foreground pt-2 border-t border-sourceco-form/30">
+            Market-based valuation methodology
           </div>
         </div>
       </CardContent>

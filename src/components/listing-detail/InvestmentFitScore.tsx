@@ -19,7 +19,25 @@ export const InvestmentFitScore: React.FC<InvestmentFitScoreProps> = ({
 }) => {
   const { user } = useAuth();
   
-  if (!user) return null;
+  if (!user) {
+    return (
+      <Card className="border-sourceco-form bg-white">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-medium text-sourceco-text flex items-center gap-2">
+            <Target className="h-4 w-4" />
+            Investment Fit Analysis
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-4">
+            <p className="text-xs text-muted-foreground mb-2">
+              Please sign in to see how this opportunity fits your investment criteria
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   // Calculate fit score based on user preferences vs listing characteristics
   const calculateFitScore = () => {
@@ -218,45 +236,82 @@ export const InvestmentFitScore: React.FC<InvestmentFitScoreProps> = ({
   };
 
   return (
-    <Card className="border-sourceco-form bg-white">
-      <CardHeader className="pb-3">
-        <CardTitle className="text-sm font-medium text-sourceco-text flex items-center gap-2">
-          <Target className="h-4 w-4" />
+    <Card className="border-sourceco-form bg-white shadow-sm hover:shadow-md transition-shadow duration-300">
+      <CardHeader className="pb-4 border-b border-sourceco-form/50">
+        <CardTitle className="text-lg font-semibold text-sourceco-text flex items-center gap-3 tracking-tight">
+          <div className="p-2 bg-sourceco-accent/10 rounded-lg">
+            <Target className="h-5 w-5 text-sourceco-accent" />
+          </div>
           Investment Fit Analysis
         </CardTitle>
+        <p className="text-sm text-muted-foreground">
+          Personalized compatibility based on your investment criteria
+        </p>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-6 pt-6">
         {/* Overall Score */}
-        <div className="text-center">
-          <div className={`text-2xl font-bold ${getScoreColor(score)}`}>
-            {score}%
+        <div className="text-center space-y-4">
+          <div className="relative">
+            <div className={`text-4xl font-bold ${getScoreColor(score)} tracking-tight`}>
+              {score}%
+            </div>
+            <div className="text-sm text-muted-foreground font-medium mt-1">Investment Fit Score</div>
           </div>
-          <div className="text-xs text-gray-600 mb-2">Investment Fit Score</div>
-          <Progress value={score} className="h-2" />
+          <div className="space-y-2">
+            <Progress value={score} className="h-3 bg-sourceco-background" />
+            <div className="text-xs text-muted-foreground">
+              Based on your investment preferences
+            </div>
+          </div>
         </div>
 
         {/* Criteria Breakdown */}
-        <div className="space-y-2">
-          <h4 className="text-xs font-medium text-sourceco-text">Fit Criteria</h4>
-          {criteria.map((criterion, index) => (
-            <div key={index} className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                {getStatusIcon(criterion.status)}
-                <span className="text-xs font-medium text-gray-700">{criterion.name}</span>
+        <div className="space-y-4">
+          <h4 className="text-sm font-semibold text-sourceco-text">Detailed Analysis</h4>
+          <div className="space-y-3">
+            {criteria.map((criterion, index) => (
+              <div key={index} className="flex items-start justify-between p-3 bg-sourceco-background/50 rounded-lg border border-sourceco-form/50">
+                <div className="flex items-center gap-3">
+                  {getStatusIcon(criterion.status)}
+                  <span className="text-sm font-medium text-slate-700">{criterion.name}</span>
+                </div>
+                <span className="text-sm text-muted-foreground text-right max-w-[60%]">{criterion.detail}</span>
               </div>
-              <span className="text-xs text-gray-500">{criterion.detail}</span>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
 
+        {/* Profile Completion Guidance */}
+        {criteria.some(c => c.detail.includes('not specified') || c.detail.includes('not set')) && (
+          <div className="bg-blue-50 border border-blue-200 p-3 rounded-lg">
+            <div className="text-xs font-medium text-blue-800 mb-1">
+              Complete Your Profile for Better Matching
+            </div>
+            <div className="text-xs text-blue-700 mb-2">
+              This analysis is based on your profile preferences. Update your investment criteria for more accurate fit scoring.
+            </div>
+            <button 
+              onClick={() => window.location.href = '/profile'}
+              className="text-xs text-blue-600 hover:text-blue-800 underline"
+            >
+              Update Investment Preferences →
+            </button>
+          </div>
+        )}
+
         {score >= 80 && (
-          <div className="bg-green-50 p-3 rounded-lg">
+          <div className="bg-green-50 border border-green-200 p-3 rounded-lg">
             <div className="text-xs font-medium text-green-800 mb-1">Strong Fit</div>
             <div className="text-xs text-green-700">
               This opportunity aligns well with your investment criteria and preferences.
             </div>
           </div>
         )}
+
+        {/* How It Works */}
+        <div className="text-xs text-muted-foreground text-center pt-2 border-t border-sourceco-form">
+          This score is calculated dynamically based on your profile preferences vs. this listing's characteristics
+        </div>
       </CardContent>
     </Card>
   );
