@@ -16,6 +16,8 @@ import AdminLayout from "@/components/admin/AdminLayout";
 import Login from "@/pages/Login";
 import Signup from "@/pages/Signup";
 import SignupSuccess from "@/pages/SignupSuccess";
+import ForgotPassword from "@/pages/ForgotPassword";
+import ResetPassword from "@/pages/ResetPassword";
 import PendingApproval from "@/pages/PendingApproval";
 import Unauthorized from "@/pages/Unauthorized";
 import Profile from "@/pages/Profile";
@@ -71,6 +73,8 @@ function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
             <Route path="/signup-success" element={<SignupSuccess />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/pending-approval" element={<PendingApproval />} />
             <Route path="/auth/callback" element={<AuthCallback />} />
             <Route path="/unauthorized" element={<Unauthorized />} />

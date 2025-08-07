@@ -188,6 +188,25 @@ function UserActionButtons({
   onDelete: (user: User) => void;
   isLoading: boolean;
 }) {
+  const { toast } = useToast();
+  const handleSendPasswordReset = async () => {
+    try {
+      const { error } = await supabase.functions.invoke('password-reset', {
+        body: { action: 'request', email: user.email }
+      });
+      if (error) throw error;
+      toast({
+        title: 'Password reset initiated',
+        description: 'If the email exists, the user will receive a reset link.'
+      });
+    } catch (err: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Failed to send reset',
+        description: err.message || 'Please try again.'
+      });
+    }
+  };
   return (
     <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
       <DropdownMenu>
@@ -241,6 +260,10 @@ function UserActionButtons({
           )}
           
           <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={handleSendPasswordReset}>
+            <Mail className="h-4 w-4 mr-2" />
+            Send password reset
+          </DropdownMenuItem>
           <DropdownMenuItem 
             onClick={() => onDelete(user)}
             className="text-red-600"
