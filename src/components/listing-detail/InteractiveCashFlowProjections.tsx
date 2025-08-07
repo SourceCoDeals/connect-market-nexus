@@ -143,51 +143,30 @@ export const InteractiveCashFlowProjections: React.FC<InteractiveCashFlowProject
 
 
   const exportModel = () => {
-    const today = new Date().toLocaleDateString('en-US', { 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
-    });
+    const modelData = {
+      assumptions: {
+        selectedScenario,
+        discountRate,
+        exitMultiple,
+        marginExpansion,
+        customGrowthRates
+      },
+      projections: projectionData,
+      valuation,
+      generatedAt: new Date().toISOString()
+    };
     
-    const csvContent = `CASH FLOW PROJECTIONS MODEL
-Generated on ${today}
-
-BASE ASSUMPTIONS
-Scenario,${selectedScenario}
-Discount Rate,${(discountRate * 100).toFixed(1)}%
-Exit Multiple,${exitMultiple}x EBITDA
-Margin Expansion,${marginExpansion ? 'Yes' : 'No'}
-
-FIVE YEAR PROJECTIONS
-Year,Revenue,Revenue Growth,EBITDA,EBITDA Margin,Cash Flow
-${projectionData.map((year, index) => 
-  `Year ${index + 1},${formatCurrency(year.revenue)},${year.revenueGrowth ? (year.revenueGrowth * 100).toFixed(1) : 'N/A'}%,${formatCurrency(year.ebitda)},${year.ebitdaMargin ? (year.ebitdaMargin * 100).toFixed(1) : 'N/A'}%,${formatCurrency(year.cashFlow)}`
-).join('\n')}
-
-VALUATION SUMMARY
-NPV (Net Present Value),${formatCurrency(valuation.npv)}
-IRR (Internal Rate of Return),${(valuation.irr * 100).toFixed(1)}%
-Terminal Value,${formatCurrency(valuation.terminalValue)}
-Total Enterprise Value,${formatCurrency(valuation.npv + valuation.terminalValue)}
-
-NOTES
-- All projections are forward-looking estimates
-- Terminal value calculated using perpetual growth method
-- Cash flows adjusted for working capital and capital expenditure assumptions
-- Model assumes ${exitMultiple}x EBITDA exit multiple in Year 5
-`;
-    
-    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const blob = new Blob([JSON.stringify(modelData, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `Cash_Flow_Model_${selectedScenario}_${new Date().toISOString().split('T')[0]}.csv`;
+    a.download = `cash-flow-model-${selectedScenario}.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
     
-    toast.success('Professional cash flow model exported as CSV');
+    toast.success('Cash flow model exported successfully');
   };
 
   const shareAnalysis = () => {
