@@ -44,10 +44,15 @@ export function InvestmentFitScore({ revenue, ebitda, category, location }: Inve
     );
   }
 
-  // Parse user data safely with improved error handling
+  // ENHANCED: Parse user data with robust error handling for all formats
   const userTargetLocations = user.target_locations 
     ? (typeof user.target_locations === 'string'
-        ? user.target_locations.split(',').map(loc => loc.trim()).filter(Boolean)
+        ? (user.target_locations.startsWith('[') 
+           ? (() => {
+               try { return JSON.parse(user.target_locations as string); } 
+               catch { return user.target_locations.split(',').map(loc => loc.trim()).filter(Boolean); }
+             })()
+           : user.target_locations.split(',').map(loc => loc.trim()).filter(Boolean))
         : Array.isArray(user.target_locations)
         ? user.target_locations
         : [])
@@ -58,7 +63,10 @@ export function InvestmentFitScore({ revenue, ebitda, category, location }: Inve
         ? user.business_categories 
         : typeof user.business_categories === 'string'
         ? ((user.business_categories as string).startsWith('[') 
-           ? JSON.parse(user.business_categories as string) 
+           ? (() => {
+               try { return JSON.parse(user.business_categories as string); } 
+               catch { return [user.business_categories as string]; }
+             })()
            : [user.business_categories as string])
         : [])
     : [];
@@ -231,8 +239,7 @@ export function InvestmentFitScore({ revenue, ebitda, category, location }: Inve
 
   const getScoreIcon = (score: number) => {
     if (score >= 70) return '✓';
-    if (score >= 50) return '○';
-    return '✗';
+    return '○';
   };
 
   return (

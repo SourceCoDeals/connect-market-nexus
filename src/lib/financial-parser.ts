@@ -635,7 +635,7 @@ export function calculateLocationMatchScore(userLocations: string[], listingLoca
     return 100;
   }
   
-  // Direct exact match (case-insensitive)
+  // CRITICAL FIX: Direct exact match (case-insensitive) - this should return 100%
   if (normalizedUserLocations.includes(normalizedListing)) {
     return 100;
   }
@@ -657,17 +657,23 @@ export function calculateLocationMatchScore(userLocations: string[], listingLoca
     ]
   };
   
-  // Check if listing location is a sub-region and user selected the parent region
+  // FIXED: Check if listing location is a sub-region and user selected the parent region
   for (const [parentRegion, subRegions] of Object.entries(locationHierarchy)) {
     const normalizedSubRegions = subRegions.map(normalizeLocation);
     const normalizedParent = normalizeLocation(parentRegion);
     
+    // If listing is in a sub-region and user selected the parent region
+    if (normalizedSubRegions.includes(normalizedListing) && normalizedUserLocations.includes(normalizedParent)) {
+      return 100; // Perfect hierarchical match
+    }
+    
+    // If listing is parent region and user selected a sub-region
+    if (normalizedListing === normalizedParent && normalizedUserLocations.some(loc => normalizedSubRegions.includes(loc))) {
+      return 100; // Perfect hierarchical match
+    }
+    
+    // If both are sub-regions of the same parent
     if (normalizedSubRegions.includes(normalizedListing)) {
-      // If user selected the parent region (e.g., 'United States') and listing is in a sub-region
-      if (normalizedUserLocations.includes(normalizedParent)) {
-        return 100; // Perfect match for hierarchical relationship
-      }
-      // If user selected other sub-regions of the same parent
       const matchingSubRegions = normalizedUserLocations.filter(loc => normalizedSubRegions.includes(loc));
       if (matchingSubRegions.length > 0) {
         return 75; // Good regional match
