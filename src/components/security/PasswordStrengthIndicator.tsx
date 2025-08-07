@@ -70,6 +70,51 @@ export const PasswordStrengthIndicator: React.FC<PasswordStrengthIndicatorProps>
         </Badge>
       </div>
 
+      {/* Requirements checklist */}
+      <div className="grid grid-cols-2 gap-2 text-xs">
+        <div className="flex items-center gap-2">
+          {password.length >= 8 ? (
+            <CheckCircle className="h-4 w-4 text-green-500" />
+          ) : (
+            <XCircle className="h-4 w-4 text-red-500" />
+          )}
+          <span className="text-muted-foreground">8+ characters</span>
+        </div>
+        <div className="flex items-center gap-2">
+          {/[A-Z]/.test(password) ? (
+            <CheckCircle className="h-4 w-4 text-green-500" />
+          ) : (
+            <XCircle className="h-4 w-4 text-red-500" />
+          )}
+          <span className="text-muted-foreground">Uppercase</span>
+        </div>
+        <div className="flex items-center gap-2">
+          {/[a-z]/.test(password) ? (
+            <CheckCircle className="h-4 w-4 text-green-500" />
+          ) : (
+            <XCircle className="h-4 w-4 text-red-500" />
+          )}
+          <span className="text-muted-foreground">Lowercase</span>
+        </div>
+        <div className="flex items-center gap-2">
+          {/\d/.test(password) ? (
+            <CheckCircle className="h-4 w-4 text-green-500" />
+          ) : (
+            <XCircle className="h-4 w-4 text-red-500" />
+          )}
+          <span className="text-muted-foreground">Number</span>
+        </div>
+        <div className="flex items-center gap-2">
+          {/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password) ? (
+            <CheckCircle className="h-4 w-4 text-green-500" />
+          ) : (
+            <XCircle className="h-4 w-4 text-red-500" />
+          )}
+          <span className="text-muted-foreground">Symbol</span>
+        </div>
+      </div>
+      <div className="text-[11px] text-muted-foreground">Use at least 3 of the 4 character types.</div>
+
       {showDetails && strengthResult.feedback.length > 0 && (
         <div className="space-y-1">
           {strengthResult.feedback.map((feedback, index) => (

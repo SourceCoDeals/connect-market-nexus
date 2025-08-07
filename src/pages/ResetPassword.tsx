@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
 import { usePasswordSecurity } from "@/hooks/security/use-password-security";
+import { PasswordStrengthIndicator } from "@/components/security/PasswordStrengthIndicator";
 
 const setSEO = () => {
   document.title = "Reset Password | SourceCo Marketplace";
@@ -78,10 +79,8 @@ export default function ResetPassword() {
               <div className="space-y-2">
                 <label className="text-sm font-medium" htmlFor="password">New password</label>
                 <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required disabled={loading} />
-                {strengthResult && (
-                  <div className="text-xs text-muted-foreground">
-                    Strength: {strengthResult.strength.replace('_', ' ')} {breachResult?.is_breached ? "• Appears in breaches" : ""}
-                  </div>
+                {password && (
+                  <PasswordStrengthIndicator password={password} strengthResult={strengthResult ?? undefined} />
                 )}
               </div>
               <div className="space-y-2">

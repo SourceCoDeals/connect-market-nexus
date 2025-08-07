@@ -161,9 +161,12 @@ async function validatePasswordStrength(password?: string, email?: string): Prom
   else strength = 'very_weak';
   
   // Check if meets minimum policy
-  const meetsPolicy = score >= 60 && password.length >= 8 && 
-                     /[a-z]/.test(password) && /[A-Z]/.test(password) && 
-                     /\d/.test(password);
+  const hasLower = /[a-z]/.test(password);
+  const hasUpper = /[A-Z]/.test(password);
+  const hasNumber = /\d/.test(password);
+  const hasSpecial = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password);
+  const typesMet = [hasLower, hasUpper, hasNumber, hasSpecial].filter(Boolean).length;
+  const meetsPolicy = score >= 50 && password.length >= 8 && typesMet >= 3;
   
   return {
     score,
@@ -260,7 +263,7 @@ function getPasswordPolicy() {
     require_uppercase: true,
     require_lowercase: true,
     require_numbers: true,
-    require_special: true,
+    require_special: false, // Simplified: special characters optional
     max_age_days: 90,
     prevent_reuse: 3
   };
