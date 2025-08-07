@@ -340,6 +340,36 @@ const ListingDetail = () => {
               />
             </div>
 
+            {/* Investment Thesis Generator */}
+            <div className="document-section py-6">
+              <InvestmentThesisGenerator 
+                revenue={listing.revenue}
+                ebitda={listing.ebitda}
+                category={listing.category}
+                location={listing.location}
+                formatCurrency={formatCurrency}
+              />
+            </div>
+
+            {/* Investment Fit Score */}
+            <div className="document-section py-6">
+              <InvestmentFitScore 
+                revenue={listing.revenue}
+                ebitda={listing.ebitda}
+                category={listing.category}
+                location={listing.location}
+              />
+            </div>
+
+            {/* Enhanced Investment Calculator */}
+            <div className="document-section py-6">
+              <EnhancedInvestmentCalculator 
+                revenue={listing.revenue}
+                ebitda={listing.ebitda}
+                formatCurrency={formatCurrency}
+              />
+            </div>
+
             {isAdmin && listing.owner_notes && (
               <div className="document-section py-8 border-t border-sourceco-form">
                 <div className="space-y-4">
@@ -375,12 +405,12 @@ const ListingDetail = () => {
                    />
                    
                    {/* Save Listing CTA directly under connection */}
-                   <Button
-                     variant="outline"
-                     className="w-full h-9 bg-white border-[#d7b65c] text-[#d7b65c] hover:bg-[#d7b65c] hover:text-white text-xs font-medium transition-colors duration-200 rounded-md"
-                     onClick={handleToggleSave}
-                     disabled={isSaving || isSavedLoading}
-                   >
+                    <Button
+                      variant="outline"
+                      className="w-full h-9 bg-white border-sourceco-accent text-sourceco-accent hover:bg-sourceco-accent hover:text-white text-xs font-medium transition-colors duration-200 rounded-md"
+                      onClick={handleToggleSave}
+                      disabled={isSaving || isSavedLoading}
+                    >
                      <Bookmark
                        className={`h-4 w-4 mr-2 ${
                          isSaved ? "fill-current" : ""
@@ -409,7 +439,7 @@ const ListingDetail = () => {
                    </div>
                    <CreateDealAlertDialog
                      trigger={
-                       <button className="w-full h-8 bg-white border border-[#d7b65c] text-[#d7b65c] hover:bg-[#d7b65c] hover:text-white text-xs font-medium transition-colors duration-200 flex items-center justify-center gap-2 rounded-md">
+                       <button className="w-full h-8 bg-white border border-sourceco-accent text-sourceco-accent hover:bg-sourceco-accent hover:text-white text-xs font-medium transition-colors duration-200 flex items-center justify-center gap-2 rounded-md">
                          <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-5 5-5-5h5v-5a7.5 7.5 0 1 0-15 0v5h5"/>
                          </svg>
@@ -420,36 +450,18 @@ const ListingDetail = () => {
                   </div>
                 </div>
 
-                {/* Investment Analysis Tools */}
-                <div className="pt-6 space-y-4">
-                  <InvestmentFitScore 
-                    revenue={listing.revenue}
-                    ebitda={listing.ebitda}
-                    category={listing.category}
-                    location={listing.location}
-                  />
-                  
-                  <InvestmentThesisGenerator
-                    revenue={listing.revenue}
-                    ebitda={listing.ebitda}
-                    category={listing.category}
-                    location={listing.location}
-                    formatCurrency={formatCurrency}
-                  />
-                  
-                  <EnhancedInvestmentCalculator
-                    revenue={listing.revenue}
-                    ebitda={listing.ebitda}
-                    formatCurrency={formatCurrency}
-                  />
-                  
-                  <PersonalNotesWidget listingId={listing.id} />
-                  
-                  <DealComparisonWidget 
-                    currentListingId={listing.id}
-                    formatCurrency={formatCurrency}
-                  />
-                </div>
+               {/* Personal Notes Widget */}
+              <div className="bg-white border border-sourceco-form rounded-lg p-4 mb-4">
+                <PersonalNotesWidget listingId={id!} />
+              </div>
+
+              {/* Deal Comparison Widget */}
+              <div className="bg-white border border-sourceco-form rounded-lg">
+                <DealComparisonWidget 
+                  currentListingId={id!}
+                  formatCurrency={formatCurrency}
+                />
+              </div>
               </div>
             </div>
           </div>

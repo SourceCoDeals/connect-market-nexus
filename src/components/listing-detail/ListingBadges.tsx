@@ -23,7 +23,7 @@ export const ListingBadges: React.FC<ListingBadgesProps> = ({
     badges.push({
       text: 'Just Listed',
       icon: Clock,
-      className: 'bg-blue-100 text-blue-800 border-blue-200'
+      className: 'bg-sourceco-muted text-sourceco-accent border-sourceco-accent/30'
     });
   }
   
@@ -33,7 +33,7 @@ export const ListingBadges: React.FC<ListingBadgesProps> = ({
     badges.push({
       text: 'High Margin',
       icon: TrendingUp,
-      className: 'bg-green-100 text-green-800 border-green-200'
+      className: 'bg-success/10 text-success border-success/30'
     });
   }
   
@@ -42,7 +42,7 @@ export const ListingBadges: React.FC<ListingBadgesProps> = ({
     badges.push({
       text: 'Profitable',
       icon: Award,
-      className: 'bg-emerald-100 text-emerald-800 border-emerald-200'
+      className: 'bg-success/10 text-success border-success/30'
     });
   }
   
@@ -51,7 +51,7 @@ export const ListingBadges: React.FC<ListingBadgesProps> = ({
     badges.push({
       text: 'Enterprise Scale',
       icon: TrendingUp,
-      className: 'bg-purple-100 text-purple-800 border-purple-200'
+      className: 'bg-sourceco-accent/10 text-sourceco-accent border-sourceco-accent/30'
     });
   }
   
@@ -60,7 +60,7 @@ export const ListingBadges: React.FC<ListingBadgesProps> = ({
     badges.push({
       text: 'Growth Stage',
       icon: TrendingUp,
-      className: 'bg-orange-100 text-orange-800 border-orange-200'
+      className: 'bg-warning/10 text-warning border-warning/30'
     });
   }
   
@@ -69,7 +69,7 @@ export const ListingBadges: React.FC<ListingBadgesProps> = ({
     badges.push({
       text: 'Growth Focus',
       icon: AlertTriangle,
-      className: 'bg-yellow-100 text-yellow-800 border-yellow-200'
+      className: 'bg-warning/10 text-warning border-warning/30'
     });
   }
 
