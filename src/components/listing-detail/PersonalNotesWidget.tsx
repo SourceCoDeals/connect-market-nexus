@@ -135,13 +135,13 @@ export const PersonalNotesWidget: React.FC<PersonalNotesWidgetProps> = ({ listin
   if (!user) return null;
 
   return (
-    <Card className="border-sourceco-form bg-white">
-      <CardHeader className="pb-3">
-        <CardTitle className="document-label">Private Investment Notes</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
+    <div className="border border-sourceco-form bg-white rounded-lg">
+      <div className="p-4 border-b border-slate-100">
+        <h3 className="document-label">Private Investment Notes</h3>
+      </div>
+      <div className="p-4 space-y-3">
         {isLoading ? (
-          <div className="py-8">
+          <div className="py-6">
             <LoadingSpinner size="sm" variant="inline" showMessage message="Loading notes..." />
           </div>
         ) : (
@@ -150,14 +150,14 @@ export const PersonalNotesWidget: React.FC<PersonalNotesWidgetProps> = ({ listin
               value={content}
               onChange={(e) => setContent(e.target.value)}
               placeholder="Add your private due diligence notes, investment thesis, follow-up items..."
-              className="min-h-[120px] text-sm border-slate-200 focus:border-slate-400"
+              className="min-h-[100px] text-xs border-slate-200 focus:border-slate-400 resize-none"
             />
 
             <div className="flex gap-2">
               <Button
                 onClick={saveNote}
                 disabled={isSaving || !content.trim()}
-                className="flex-1 text-sm"
+                className="flex-1 text-xs h-8"
                 variant="outline"
               >
                 {isSaving ? 'Saving...' : 'Save Notes'}
@@ -168,7 +168,7 @@ export const PersonalNotesWidget: React.FC<PersonalNotesWidgetProps> = ({ listin
                   onClick={handleDelete}
                   disabled={isSaving}
                   variant="outline"
-                  className="text-sm text-red-600 hover:text-red-700"
+                  className="text-xs h-8 text-red-600 hover:text-red-700"
                 >
                   Delete
                 </Button>
@@ -176,13 +176,13 @@ export const PersonalNotesWidget: React.FC<PersonalNotesWidgetProps> = ({ listin
             </div>
 
             {note && (
-              <div className="text-xs text-slate-500 pt-2 border-t">
+              <div className="text-xs text-slate-500 pt-1">
                 Last updated: {new Date(note.updated_at).toLocaleString()}
               </div>
             )}
           </>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 };

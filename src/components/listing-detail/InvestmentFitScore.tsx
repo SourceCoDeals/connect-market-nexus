@@ -239,48 +239,44 @@ export function InvestmentFitScore({ revenue, ebitda, category, location }: Inve
       <CardHeader className="pb-3">
         <CardTitle className="document-label">Investment Fit Analysis</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-6">
-        {/* Overall Score - Minimal Design */}
-        <div className="text-center py-4">
-          <div className="text-3xl font-bold text-slate-900 mb-1">
+      <CardContent className="space-y-3">
+        {/* Overall Score - Hyper-Minimal */}
+        <div className="text-center py-2">
+          <div className="text-4xl font-light text-slate-900 mb-1">
             {Math.round(overallScore)}%
-          </div>
-          <div className="text-slate-500 mb-2 text-lg tracking-wider">
-            {getScoreIndicator(overallScore)}
           </div>
           <div className="document-subtitle">
             {getScoreLabel(overallScore)} Match
           </div>
         </div>
 
-        <Separator />
-
-        {/* Criteria Analysis - Clean List */}
-        <div className="space-y-4">
+        {/* Criteria Analysis - Ultra Clean */}
+        <div className="space-y-2 pt-3">
           {criteria.map((criterion, index) => (
-            <div key={index} className="flex items-center justify-between py-2">
+            <div key={index} className="flex items-center justify-between py-1">
               <div className="flex-1">
-                <div className="text-sm font-medium text-slate-900">{criterion.name}</div>
+                <div className="text-xs font-medium text-slate-900">{criterion.name}</div>
                 <div className="text-xs text-slate-500">{criterion.details}</div>
               </div>
-              <div className="text-right ml-4">
-                <div className="text-sm font-medium text-slate-900">
-                  {Math.round(criterion.score)}%
-                </div>
-                <div className="text-xs text-slate-400">
-                  {criterion.weight}% weight
-                </div>
+              <div className="text-xs font-medium text-slate-900 ml-4">
+                {Math.round(criterion.score)}%
               </div>
             </div>
           ))}
         </div>
 
-        <Separator />
-
-        {/* Profile Data - Transparent */}
-        <div className="space-y-3">
-          <h4 className="text-sm font-medium text-slate-900">Profile Data Used</h4>
-          <div className="space-y-2 text-xs">
+        {/* Profile Data & Completion - Consolidated */}
+        <div className="space-y-2 pt-3 border-t border-slate-100">
+          <div className="flex items-center justify-between">
+            <h4 className="text-xs font-medium text-slate-900">Profile Analysis</h4>
+            {profileCompleteness < 100 && (
+              <span className="text-xs text-slate-500">
+                {Math.round(profileCompleteness)}% complete
+              </span>
+            )}
+          </div>
+          
+          <div className="space-y-1 text-xs">
             <div className="flex justify-between">
               <span className="text-slate-500">Revenue Range:</span> 
               <span className="text-slate-900 text-right max-w-[60%]">
@@ -307,34 +303,21 @@ export function InvestmentFitScore({ revenue, ebitda, category, location }: Inve
               <span className="text-slate-900 text-right">{user.investment_size || 'Not set'}</span>
             </div>
           </div>
-        </div>
 
-        {/* Profile Completion - Minimal */}
-        {profileCompleteness < 100 && (
-          <>
-            <Separator />
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h4 className="text-sm font-medium text-slate-900">Profile Completion</h4>
-                <span className="text-sm text-slate-500">
-                  {Math.round(profileCompleteness)}%
-                </span>
-              </div>
-              <div className="w-full bg-slate-100 rounded-full h-1">
+          {profileCompleteness < 100 && (
+            <div className="pt-2">
+              <div className="w-full bg-slate-100 rounded-full h-0.5">
                 <div 
-                  className="h-1 bg-slate-400 rounded-full transition-all duration-300"
+                  className="h-0.5 bg-slate-400 rounded-full transition-all duration-300"
                   style={{ width: `${profileCompleteness}%` }}
                 />
               </div>
-              <p className="text-xs text-slate-500">
-                Complete your profile for more accurate matching
-              </p>
-              <Button variant="outline" size="sm" className="w-full text-xs" asChild>
+              <Button variant="outline" className="w-full text-xs h-8 mt-2" asChild>
                 <Link to="/profile">Update Profile</Link>
               </Button>
             </div>
-          </>
-        )}
+          )}
+        </div>
       </CardContent>
     </Card>
   );
