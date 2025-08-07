@@ -50,17 +50,17 @@ export const PersonalNotesWidget: React.FC<PersonalNotesWidgetProps> = ({ listin
     setIsLoading(true);
     try {
       const { data, error } = await supabase
-        .from('listing_personal_notes')
+        .from('listing_personal_notes' as any)
         .select('*')
         .eq('listing_id', listingId)
         .eq('user_id', user?.id)
-        .single();
+        .maybeSingle();
 
-      if (data) {
-        setNote(data);
-        setContent(data.content || '');
-        setSelectedTags(data.tags || []);
-        setRating(data.rating || 0);
+      if (data && !error) {
+        setNote(data as unknown as PersonalNote);
+        setContent((data as any).content || '');
+        setSelectedTags((data as any).tags || []);
+        setRating((data as any).rating || 0);
       }
     } catch (error) {
       // Note doesn't exist yet, which is fine
@@ -85,23 +85,23 @@ export const PersonalNotesWidget: React.FC<PersonalNotesWidgetProps> = ({ listin
 
       if (note) {
         const { error } = await supabase
-          .from('listing_personal_notes')
+          .from('listing_personal_notes' as any)
           .update(noteData)
           .eq('id', note.id);
         
         if (error) throw error;
       } else {
         const { data, error } = await supabase
-          .from('listing_personal_notes')
+          .from('listing_personal_notes' as any)
           .insert({
             ...noteData,
             created_at: new Date().toISOString()
           })
           .select()
-          .single();
+          .maybeSingle();
         
         if (error) throw error;
-        setNote(data);
+        if (data) setNote(data as unknown as PersonalNote);
       }
 
       toast({

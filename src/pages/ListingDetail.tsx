@@ -27,6 +27,8 @@ import { EnhancedInvestorDashboard } from "@/components/listing-detail/EnhancedI
 import { CustomSection } from "@/components/listing-detail/CustomSection";
 import { CreateDealAlertDialog } from "@/components/deal-alerts/CreateDealAlertDialog";
 import { ExecutiveSummaryGenerator } from "@/components/listing-detail/ExecutiveSummaryGenerator";
+import { PersonalNotesWidget } from "@/components/listing-detail/PersonalNotesWidget";
+import { DealComparisonWidget } from "@/components/listing-detail/DealComparisonWidget";
 
 const ListingDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -403,15 +405,27 @@ const ListingDetail = () => {
                        </button>
                      }
                    />
-                 </div>
-               </div>
-              
+                  </div>
+                </div>
+
+                {/* Personal Notes Widget */}
+                <div className="pt-6">
+                  <PersonalNotesWidget listingId={listing.id} />
+                </div>
+
+                {/* Deal Comparison Widget */}
+                <div className="pt-6">
+                  <DealComparisonWidget 
+                    currentListingId={listing.id}
+                    formatCurrency={formatCurrency}
+                  />
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
-  );
-};
+    );
+  };
 
-export default ListingDetail;
+  export default ListingDetail;

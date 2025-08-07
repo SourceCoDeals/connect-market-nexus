@@ -610,6 +610,39 @@ export type Database = {
           },
         ]
       }
+      listing_personal_notes: {
+        Row: {
+          content: string | null
+          created_at: string
+          id: string
+          listing_id: string
+          rating: number | null
+          tags: string[] | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          content?: string | null
+          created_at?: string
+          id?: string
+          listing_id: string
+          rating?: number | null
+          tags?: string[] | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          content?: string | null
+          created_at?: string
+          id?: string
+          listing_id?: string
+          rating?: number | null
+          tags?: string[] | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       listings: {
         Row: {
           categories: string[] | null
