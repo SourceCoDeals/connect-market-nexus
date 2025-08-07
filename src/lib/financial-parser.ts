@@ -1,4 +1,3 @@
-
 /**
  * Advanced utility functions for parsing financial data and business insights from descriptions
  */
@@ -73,8 +72,9 @@ export type StandardizedLocation = typeof STANDARDIZED_LOCATIONS[number];
 
 // Standardized business categories
 export const STANDARDIZED_CATEGORIES = [
-  'Technology',
-  'Healthcare',
+  'All Industries',
+  'Technology & Software',
+  'Healthcare & Medical',
   'Finance & Insurance',
   'Manufacturing',
   'Retail & E-commerce',
@@ -86,22 +86,111 @@ export const STANDARDIZED_CATEGORIES = [
   'Energy & Utilities',
   'Education',
   'Entertainment & Media',
-  'Agriculture',
+  'Agriculture & Farming',
   'Automotive',
   'Telecommunications',
   'Aerospace & Defense',
   'Chemicals',
   'Consumer Goods',
+  'Infrastructure',
+  'Mining & Natural Resources',
+  'Hospitality & Tourism',
+  'Government Services',
+  'Non-Profit',
+  'Biotechnology',
+  'Environmental Services',
+  'Consulting',
+  'Marketing & Advertising',
+  'Legal Services',
+  'Architecture & Engineering',
+  'Security Services',
+  'Waste Management',
+  'Fitness & Wellness',
+  'Beauty & Personal Care',
+  'Textiles & Apparel',
+  'Pharmaceuticals',
+  'Publishing & Media',
+  'Gaming & Entertainment',
+  'Pet Services',
+  'Home Services',
+  'Import/Export',
+  'Industrial Equipment',
+  'Marine & Maritime',
+  'Aviation',
   'Other'
 ] as const;
 
 export type StandardizedCategory = typeof STANDARDIZED_CATEGORIES[number];
+
+// Helper function to format large numbers into readable format
+export function formatCurrency(value: number): string {
+  if (value >= 1000000000) {
+    return (value / 1000000000).toFixed(1) + 'B';
+  } else if (value >= 1000000) {
+    return (value / 1000000).toFixed(1) + 'M';
+  } else if (value >= 1000) {
+    return (value / 1000).toFixed(0) + 'K';
+  }
+  return value.toString();
+}
 
 export interface InvestmentThesis {
   overview: string;
   keyStrengths: string[];
   growthOpportunity: string;
   marketPosition: string;
+}
+
+// Industry proximity mapping for smart matching
+const INDUSTRY_PROXIMITY_MAP: Record<string, string[]> = {
+  'Technology & Software': ['Telecommunications', 'Biotechnology', 'Gaming & Entertainment'],
+  'Manufacturing': ['Automotive', 'Industrial Equipment', 'Chemicals', 'Aerospace & Defense'],
+  'Healthcare & Medical': ['Pharmaceuticals', 'Biotechnology', 'Fitness & Wellness'],
+  'Finance & Insurance': ['Professional Services', 'Legal Services', 'Consulting'],
+  'Real Estate': ['Construction', 'Architecture & Engineering', 'Home Services'],
+  'Energy & Utilities': ['Environmental Services', 'Mining & Natural Resources', 'Infrastructure'],
+  'Food & Beverage': ['Agriculture & Farming', 'Hospitality & Tourism', 'Retail & E-commerce'],
+  'Transportation & Logistics': ['Automotive', 'Aviation', 'Marine & Maritime'],
+  'Professional Services': ['Consulting', 'Legal Services', 'Marketing & Advertising'],
+  'Entertainment & Media': ['Gaming & Entertainment', 'Publishing & Media', 'Marketing & Advertising']
+};
+
+export function calculateIndustryMatchScore(userCategories: string[], listingCategory: string): number {
+  if (!userCategories.length || !listingCategory) return 0;
+  
+  // Handle 'All Industries' option
+  if (userCategories.includes('All Industries')) {
+    return 100;
+  }
+  
+  // Direct exact match
+  if (userCategories.includes(listingCategory)) {
+    return 100;
+  }
+  
+  // Check for industry proximity/similarity
+  for (const userCategory of userCategories) {
+    const proximateIndustries = INDUSTRY_PROXIMITY_MAP[userCategory] || [];
+    if (proximateIndustries.includes(listingCategory)) {
+      return 80; // High similarity
+    }
+    
+    // Check reverse mapping
+    const reverseMatch = INDUSTRY_PROXIMITY_MAP[listingCategory] || [];
+    if (reverseMatch.includes(userCategory)) {
+      return 80; // High similarity
+    }
+  }
+  
+  // Broader category matching (e.g., "Technology" matches "Technology & Software")
+  for (const userCategory of userCategories) {
+    if (userCategory.toLowerCase().includes(listingCategory.toLowerCase()) ||
+        listingCategory.toLowerCase().includes(userCategory.toLowerCase())) {
+      return 70; // Good partial match
+    }
+  }
+  
+  return 0; // No match
 }
 
 /**
@@ -533,66 +622,77 @@ export function calculateInvestmentMetrics(revenue: number, ebitda: number) {
   };
 }
 
-// Smart location matching function with hierarchical scoring
 export function calculateLocationMatchScore(userLocations: string[], listingLocation: string): number {
-  console.log('Location matching debug:', { userLocations, listingLocation });
+  if (!userLocations.length || !listingLocation) return 0;
   
-  if (!userLocations || userLocations.length === 0) {
-    console.log('No user locations provided');
-    return 0;
-  }
-  
-  // Direct match - 100%
-  if (userLocations.includes(listingLocation)) {
-    console.log('Direct match found!');
+  // Handle 'All Locations' option
+  if (userLocations.includes('All Locations')) {
     return 100;
   }
   
-  // If user selected "United States", they match with all US regions
-  if (userLocations.includes('United States')) {
-    const usRegions = ['Northeast', 'Southeast', 'Southwest', 'West Coast', 'Midwest'];
-    console.log('User selected US, checking if listing location is in US regions:', usRegions);
-    if (usRegions.includes(listingLocation)) {
-      console.log('US region match found!');
+  // Direct exact match
+  for (const userLocation of userLocations) {
+    if (userLocation.toLowerCase() === listingLocation.toLowerCase()) {
       return 100;
     }
   }
   
-  // Regional proximity scoring
-  const locationProximity: Record<string, string[]> = {
-    'Northeast': ['Southeast', 'Midwest'],
-    'Southeast': ['Northeast', 'Southwest'],
-    'Southwest': ['Southeast', 'West Coast'],
-    'West Coast': ['Southwest'],
-    'Midwest': ['Northeast'],
-    'Eastern Canada': ['Northeast', 'Western Canada'],
-    'Western Canada': ['Eastern Canada', 'West Coast']
+  // Regional and proximity matching with corrected hierarchical logic
+  const locationHierarchy = {
+    'United States': [
+      'Northeast US', 'Southeast US', 'Southwest US', 'Northwest US', 
+      'Midwest US', 'West Coast US', 'East Coast US'
+    ],
+    'Canada': ['Western Canada', 'Eastern Canada'],
+    'Europe': [
+      'Western Europe', 'Eastern Europe', 'Northern Europe', 'Southern Europe',
+      'United Kingdom', 'Germany', 'France', 'Spain', 'Italy'
+    ],
+    'Asia': [
+      'East Asia', 'Southeast Asia', 'South Asia', 'Central Asia',
+      'China', 'Japan', 'India', 'Singapore'
+    ]
   };
   
-  // Check for regional proximity - 75% match
-  for (const userLocation of userLocations) {
-    if (locationProximity[userLocation]?.includes(listingLocation)) {
-      console.log('Regional proximity match found!');
-      return 75;
+  // Check if listing location is a sub-region and user selected the parent region
+  for (const [parentRegion, subRegions] of Object.entries(locationHierarchy)) {
+    if (subRegions.includes(listingLocation)) {
+      // If user selected the parent region (e.g., 'United States') and listing is in a sub-region
+      if (userLocations.includes(parentRegion)) {
+        return 100; // Perfect match for hierarchical relationship
+      }
+      // If user selected other sub-regions of the same parent
+      const matchingSubRegions = userLocations.filter(loc => subRegions.includes(loc));
+      if (matchingSubRegions.length > 0) {
+        return 75; // Good regional match
+      }
     }
   }
   
-  // Same continent/region - 50% match
-  const usRegions = ['United States', 'Northeast', 'Southeast', 'Southwest', 'West Coast', 'Midwest'];
-  const canadaRegions = ['Eastern Canada', 'Western Canada'];
-  const europeRegions = ['United Kingdom', 'Western Europe', 'Eastern Europe'];
-  
-  const userHasUS = userLocations.some(loc => usRegions.includes(loc));
-  const userHasCanada = userLocations.some(loc => canadaRegions.includes(loc));
-  const userHasEurope = userLocations.some(loc => europeRegions.includes(loc));
-  
-  if (userHasUS && usRegions.includes(listingLocation)) {
-    console.log('Same continent match found!');
-    return 50;
+  // Check if user selected a sub-region and listing is in the parent region
+  for (const userLocation of userLocations) {
+    for (const [parentRegion, subRegions] of Object.entries(locationHierarchy)) {
+      if (subRegions.includes(userLocation) && listingLocation === parentRegion) {
+        return 100; // Perfect match for hierarchical relationship
+      }
+    }
   }
-  if (userHasCanada && canadaRegions.includes(listingLocation)) return 50;
-  if (userHasEurope && europeRegions.includes(listingLocation)) return 50;
   
-  console.log('No location match found');
-  return 0;
+  // Continental proximity matching
+  const continentalGroups = {
+    northAmerica: ['United States', 'Canada', 'Mexico', 'Northeast US', 'Southeast US', 'Southwest US', 'Northwest US', 'Midwest US', 'West Coast US', 'East Coast US', 'Western Canada', 'Eastern Canada'],
+    europe: ['Europe', 'Western Europe', 'Eastern Europe', 'Northern Europe', 'Southern Europe', 'United Kingdom', 'Germany', 'France', 'Spain', 'Italy'],
+    asia: ['Asia', 'East Asia', 'Southeast Asia', 'South Asia', 'Central Asia', 'China', 'Japan', 'India', 'Singapore'],
+    other: ['Australia', 'Global', 'Remote', 'Worldwide']
+  };
+  
+  for (const [, locations] of Object.entries(continentalGroups)) {
+    const userInGroup = userLocations.some(loc => locations.includes(loc));
+    const listingInGroup = locations.includes(listingLocation);
+    if (userInGroup && listingInGroup) {
+      return 50; // Same continental region
+    }
+  }
+  
+  return 0; // No match
 }

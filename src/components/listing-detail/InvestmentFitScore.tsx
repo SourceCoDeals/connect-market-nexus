@@ -1,9 +1,10 @@
-import { useAuth } from "@/context/AuthContext";
-import { calculateLocationMatchScore, STANDARDIZED_CATEGORIES } from "@/lib/financial-parser";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Target, CheckCircle, AlertCircle, XCircle, User } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { formatCurrency, calculateLocationMatchScore, calculateIndustryMatchScore } from '@/lib/financial-parser';
+import { Separator } from '@/components/ui/separator';
+import { Progress } from '@/components/ui/progress';
+import { useAuth } from '@/context/AuthContext';
+import { Button } from '@/components/ui/button';
+import { Link } from 'react-router-dom';
 
 interface InvestmentFitScoreProps {
   revenue: number;
@@ -12,16 +13,6 @@ interface InvestmentFitScoreProps {
   location: string;
 }
 
-const formatCurrency = (value: number): string => {
-  if (value >= 1000000000) {
-    return `${(value / 1000000000).toFixed(1)}B`;
-  } else if (value >= 1000000) {
-    return `${(value / 1000000).toFixed(1)}M`;
-  } else if (value >= 1000) {
-    return `${(value / 1000).toFixed(0)}K`;
-  }
-  return value.toString();
-};
 
 interface FitCriteria {
   name: string;
@@ -32,51 +23,39 @@ interface FitCriteria {
 
 export function InvestmentFitScore({ revenue, ebitda, category, location }: InvestmentFitScoreProps) {
   const { user } = useAuth();
-  const navigate = useNavigate();
 
   if (!user) {
     return (
-      <Card className="border-muted">
-        <CardContent className="pt-6">
-          <div className="text-center space-y-3">
-            <User className="h-12 w-12 text-muted-foreground mx-auto" />
-            <div className="text-muted-foreground">
-              Sign in to see your investment fit analysis
-            </div>
+      <Card className="w-full">
+        <CardHeader>
+          <CardTitle className="text-lg">Investment Fit Analysis</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-8">
+            <p className="text-muted-foreground mb-4">
+              Sign in to see how well this opportunity matches your investment criteria
+            </p>
+            <Button asChild>
+              <Link to="/login">Sign In</Link>
+            </Button>
           </div>
         </CardContent>
       </Card>
     );
   }
 
-  const getProfileCompleteness = () => {
-    const fields = [
-      user?.revenue_range_min,
-      user?.revenue_range_max,
-      user?.business_categories?.length,
-      user?.target_locations,
-      user?.investment_size,
-      user?.ideal_target_description
-    ];
-    
-    const completedFields = fields.filter(field => 
-      field !== null && field !== undefined && field !== '' && field !== 0
-    ).length;
-    
-    return Math.round((completedFields / fields.length) * 100);
-  };
+  // Parse user data safely
+  const userTargetLocations = user.target_locations 
+    ? user.target_locations.split(',').map(loc => loc.trim()).filter(Boolean)
+    : [];
+  
+  const userCategories = user.business_categories 
+    ? (Array.isArray(user.business_categories) 
+        ? user.business_categories 
+        : JSON.parse(user.business_categories || '[]'))
+    : [];
 
-  const calculateFitScore = () => {
-    if (!user) return { overallScore: 0, criteria: [], profileCompleteness: 0 };
-
-    // Parse user target locations (now comma-separated standardized values)
-    const userTargetLocations = user.target_locations ? 
-      user.target_locations.split(',').map(loc => loc.trim()).filter(loc => loc.length > 0) : [];
-    
-    // Parse user business categories (array from database)
-    const userBusinessCategories = Array.isArray(user.business_categories) ? 
-      user.business_categories : [];
-
+  function calculateFitScore(): { score: number; criteria: FitCriteria[] } {
     // Location is already standardized, no need to map
     const listingLocation = location;
     
@@ -148,169 +127,194 @@ export function InvestmentFitScore({ revenue, ebitda, category, location }: Inve
       details: locationDetails
     });
 
-    // Smart Industry Matching (25% weight) - with "all industries" support
-    const industryWeight = 25;
-    let industryScore = 0;
-    let industryDetails = '';
+    // Smart Industry/Category Matching (25% weight)
+    const categoryWeight = 25;
+    let categoryScore = 0;
+    let categoryDetails = '';
     
-    if (userBusinessCategories.length > 0) {
-      // Check if user selected "all industries" or most categories
-      if (userBusinessCategories.includes('all') || userBusinessCategories.length >= STANDARDIZED_CATEGORIES.length - 1) {
-        industryScore = 100;
-        industryDetails = `✓ Perfect: All industries selected`;
-      } else {
-        // Direct match with standardized categories
-        const hasMatch = userBusinessCategories.includes(category);
-        
-        if (hasMatch) {
-          industryScore = 100;
-          industryDetails = `✓ Perfect: ${category} matches your focus`;
+    if (userCategories.length > 0) {
+      categoryScore = calculateIndustryMatchScore(userCategories, category);
+      
+      if (categoryScore === 100) {
+        if (userCategories.includes('All Industries')) {
+          categoryDetails = `✓ Perfect: Matches your "All Industries" preference`;
         } else {
-          industryScore = 30;
-          industryDetails = `✗ Mismatch: ${category} vs your focus: ${userBusinessCategories.slice(0,2).join(', ')}${userBusinessCategories.length > 2 ? ` +${userBusinessCategories.length - 2} more` : ''}`;
+          categoryDetails = `✓ Perfect: ${category} matches your interests`;
         }
+      } else if (categoryScore === 80) {
+        categoryDetails = `✓ Similar: ${category} is closely related to your interests`;
+      } else if (categoryScore === 70) {
+        categoryDetails = `○ Related: ${category} partially matches your interests`;
+      } else {
+        categoryDetails = `✗ Different: ${category} vs your interests: ${userCategories.join(', ')}`;
       }
-      totalWeight += industryWeight;
-      weightedScore += industryScore * industryWeight / 100;
+      totalWeight += categoryWeight;
+      weightedScore += categoryScore * categoryWeight / 100;
     } else {
-      industryDetails = '○ Not set in your profile';
+      categoryDetails = '○ Not set in your profile';
     }
 
     criteria.push({
       name: 'Industry Match',
-      score: industryScore,
-      weight: industryWeight,
-      details: industryDetails
+      score: categoryScore,
+      weight: categoryWeight,
+      details: categoryDetails
     });
 
     // Investment Size Matching (20% weight)
-    const investmentWeight = 20;
-    let investmentScore = 0;
-    let investmentDetails = '';
-    
-    const estimatedValue = revenue * 4;
+    const sizeWeight = 20;
+    let sizeScore = 0;
+    let sizeDetails = '';
     
     if (user.investment_size) {
-      const sizeText = user.investment_size.toLowerCase();
-      let minInvestment = 0;
-      let maxInvestment = Infinity;
+      const investmentSize = user.investment_size.toLowerCase();
       
-      if (sizeText.includes('1m') || sizeText.includes('1 million')) {
-        minInvestment = 1000000;
-        maxInvestment = 5000000;
-      } else if (sizeText.includes('5m') || sizeText.includes('5 million')) {
-        minInvestment = 5000000;
-        maxInvestment = 25000000;
-      } else if (sizeText.includes('10m') || sizeText.includes('10 million')) {
-        minInvestment = 10000000;
-        maxInvestment = 50000000;
-      }
-      
-      if (estimatedValue >= minInvestment && estimatedValue <= maxInvestment) {
-        investmentScore = 100;
-        investmentDetails = `✓ Good fit: Est. $${formatCurrency(estimatedValue)} matches target`;
+      if (investmentSize.includes('small') || investmentSize.includes('<5m')) {
+        sizeScore = revenue < 10000000 ? 100 : revenue < 25000000 ? 75 : 50;
+        sizeDetails = `${sizeScore === 100 ? '✓' : sizeScore === 75 ? '○' : '⚠'} Small deal preference vs $${formatCurrency(revenue)} revenue`;
+      } else if (investmentSize.includes('medium') || investmentSize.includes('5-25m')) {
+        sizeScore = revenue >= 5000000 && revenue <= 50000000 ? 100 : 75;
+        sizeDetails = `${sizeScore === 100 ? '✓' : '○'} Medium deal preference vs $${formatCurrency(revenue)} revenue`;
+      } else if (investmentSize.includes('large') || investmentSize.includes('>25m')) {
+        sizeScore = revenue > 25000000 ? 100 : revenue > 10000000 ? 75 : 50;
+        sizeDetails = `${sizeScore === 100 ? '✓' : sizeScore === 75 ? '○' : '⚠'} Large deal preference vs $${formatCurrency(revenue)} revenue`;
       } else {
-        investmentScore = 50;
-        investmentDetails = `⚠ Size gap: Est. $${formatCurrency(estimatedValue)} vs target range`;
+        sizeScore = 75; // Default if we can't parse
+        sizeDetails = `○ Investment size: "${user.investment_size}" vs $${formatCurrency(revenue)} revenue`;
       }
-      totalWeight += investmentWeight;
-      weightedScore += investmentScore * investmentWeight / 100;
+      
+      totalWeight += sizeWeight;
+      weightedScore += sizeScore * sizeWeight / 100;
     } else {
-      investmentDetails = '○ Not set in your profile';
+      sizeDetails = '○ Not set in your profile';
     }
 
     criteria.push({
-      name: 'Size Match',
-      score: investmentScore,
-      weight: investmentWeight,
-      details: investmentDetails
+      name: 'Investment Size',
+      score: sizeScore,
+      weight: sizeWeight,
+      details: sizeDetails
     });
 
-    const overallScore = totalWeight > 0 ? Math.round(weightedScore) : 0;
-    const profileCompleteness = getProfileCompleteness();
+    const finalScore = totalWeight > 0 ? (weightedScore / totalWeight) * 100 : 0;
+    return { score: finalScore, criteria };
+  }
 
-    return { overallScore, criteria, profileCompleteness };
-  };
+  function getProfileCompleteness(): number {
+    const fields = [
+      user.revenue_range_min || user.revenue_range_max,
+      userTargetLocations.length > 0,
+      userCategories.length > 0,
+      user.investment_size,
+      user.buyer_type
+    ];
+    
+    const completedFields = fields.filter(Boolean).length;
+    return (completedFields / fields.length) * 100;
+  }
 
-  const { overallScore, criteria, profileCompleteness } = calculateFitScore();
+  const { score: overallScore, criteria } = calculateFitScore();
+  const profileCompleteness = getProfileCompleteness();
 
   const getScoreColor = (score: number) => {
-    if (score >= 70) return 'text-green-600';
+    if (score >= 70) return 'text-emerald-600';
     return 'text-muted-foreground';
   };
 
   const getScoreIcon = (score: number) => {
-    if (score >= 70) return <CheckCircle className="h-4 w-4 text-green-600" />;
-    return <Target className="h-4 w-4 text-muted-foreground" />;
+    if (score >= 70) return '✓';
+    if (score >= 50) return '○';
+    return '✗';
   };
 
   return (
-    <Card className="border-border bg-card">
-      <CardHeader className="pb-3">
-        <CardTitle className="text-base font-medium text-foreground">
-          Investment Fit Analysis
-        </CardTitle>
+    <Card className="w-full">
+      <CardHeader className="pb-4">
+        <CardTitle className="text-lg font-semibold text-foreground">Investment Fit Analysis</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
-        {/* Overall Score - Clean and Minimal */}
-        <div className="space-y-2">
-          <div className={`text-xl font-semibold ${getScoreColor(overallScore)}`}>
-            {overallScore}% Match
+      <CardContent className="space-y-6">
+        <div className="space-y-6">
+          <div className="text-center">
+            <div className={`text-3xl font-semibold ${getScoreColor(overallScore)}`}>
+              {Math.round(overallScore)}%
+            </div>
+            <p className="text-sm text-muted-foreground">Investment Fit Score</p>
           </div>
-          <div className="text-sm text-muted-foreground">
-            Based on your investment criteria
-          </div>
-        </div>
 
-        {/* Criteria Breakdown - Investment Grade Clean Layout */}
-        <div className="space-y-3">
-          {criteria.map((criterion, index) => (
-            <div key={index} className="space-y-1 py-1">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-foreground">{criterion.name}</span>
-                <span className={`text-sm font-medium ${getScoreColor(criterion.score)}`}>
-                  {Math.round(criterion.score)}%
+          <div className="space-y-4">
+            <h4 className="font-medium text-sm text-foreground">Score Breakdown</h4>
+            {criteria.map((criterion, index) => (
+              <div key={index} className="space-y-1">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="font-medium text-foreground">
+                    {criterion.name}
+                  </span>
+                  <span className={`font-semibold ${getScoreColor(criterion.score)}`}>
+                    {Math.round(criterion.score)}%
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  {criterion.details}
+                </p>
+              </div>
+            ))}
+          </div>
+
+          <Separator className="my-4" />
+
+          {/* Profile data transparency */}
+          <div className="space-y-3">
+            <h4 className="font-medium text-sm text-foreground">Your Profile Data</h4>
+            <div className="text-xs space-y-2">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Revenue Range:</span> 
+                <span className="font-medium text-right">
+                  {user.revenue_range_min || user.revenue_range_max 
+                    ? `$${formatCurrency(user.revenue_range_min || 0)} - $${formatCurrency(user.revenue_range_max || Infinity)}`
+                    : 'Not set'
+                  }
                 </span>
               </div>
-              <div className="text-xs text-muted-foreground">
-                {criterion.details}
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Target Locations:</span> 
+                <span className="font-medium text-right max-w-[60%]">
+                  {userTargetLocations.length > 0 ? userTargetLocations.join(', ') : 'Not set'}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Target Industries:</span> 
+                <span className="font-medium text-right max-w-[60%]">
+                  {userCategories.length > 0 ? userCategories.join(', ') : 'Not set'}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Investment Size:</span> 
+                <span className="font-medium text-right">{user.investment_size || 'Not set'}</span>
               </div>
             </div>
-          ))}
-        </div>
-
-        {/* Profile Data - Clean Transparency */}
-        <div className="pt-3 border-t border-border/50">
-          <div className="text-xs font-medium text-foreground mb-2">Profile Data:</div>
-          <div className="space-y-1 text-xs text-muted-foreground">
-            <div>Revenue Target: {user?.revenue_range_min ? `$${formatCurrency(user.revenue_range_min)}` : 'Not set'} - {user?.revenue_range_max ? `$${formatCurrency(user.revenue_range_max)}` : 'Not set'}</div>
-            <div>Industries: {user?.business_categories?.length ? user.business_categories.slice(0,2).join(', ') + (user.business_categories.length > 2 ? ` +${user.business_categories.length - 2} more` : '') : 'None selected'}</div>
-            <div>Target Regions: {user?.target_locations || 'Not specified'}</div>
-            <div>Investment Size: {user?.investment_size || 'Not specified'}</div>
           </div>
-        </div>
 
-        {/* Profile Completeness - Encourage Completion */}
-        {profileCompleteness < 100 && (
-          <div className="pt-3 border-t border-border/50">
-            <div className="flex items-center justify-between mb-1">
-              <div className="text-xs font-medium text-foreground">
-                Profile {profileCompleteness}% Complete
+          {profileCompleteness < 100 && (
+            <>
+              <Separator />
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-medium text-sm text-foreground">Profile Completion</h4>
+                  <span className="text-sm font-medium text-muted-foreground">
+                    {Math.round(profileCompleteness)}%
+                  </span>
+                </div>
+                <Progress value={profileCompleteness} className="h-2" />
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Complete your profile to get more accurate investment fit scores and better deal matching.
+                </p>
+                <Button variant="outline" size="sm" asChild className="w-full">
+                  <Link to="/profile">Complete Profile</Link>
+                </Button>
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => navigate('/profile')}
-                className="h-7 px-3 text-xs"
-              >
-                Complete Profile
-              </Button>
-            </div>
-            <div className="text-xs text-muted-foreground">
-              Complete your profile for more precise matching
-            </div>
-          </div>
-        )}
+            </>
+          )}
+        </div>
       </CardContent>
     </Card>
   );
