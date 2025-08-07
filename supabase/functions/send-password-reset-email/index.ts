@@ -33,7 +33,7 @@ const handler = async (req: Request): Promise<Response> => {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            from: "no-reply@yourdomain.com",
+            from: "SourceCo Marketplace <onboarding@resend.dev>",
             to: [email],
             subject: "Reset Your Password",
             html: `
@@ -84,7 +84,7 @@ const handler = async (req: Request): Promise<Response> => {
               name: "Your App",
               email: "no-reply@yourdomain.com"
             },
-            to: [{ email, name: "" }],
+            to: [{ email, name: email }],
             subject: "Reset Your Password",
             htmlContent: `
               <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
