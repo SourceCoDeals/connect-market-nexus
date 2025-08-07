@@ -235,90 +235,79 @@ export function InvestmentFitScore({ revenue, ebitda, category, location }: Inve
   const { overallScore, criteria, profileCompleteness } = calculateFitScore();
 
   const getScoreColor = (score: number) => {
-    if (score >= 80) return 'text-emerald-600';
-    if (score >= 60) return 'text-amber-600';
-    return 'text-red-600';
+    if (score >= 70) return 'text-green-600';
+    return 'text-muted-foreground';
   };
 
   const getScoreIcon = (score: number) => {
-    if (score >= 80) return <CheckCircle className="h-4 w-4 text-emerald-600" />;
-    if (score >= 60) return <AlertCircle className="h-4 w-4 text-amber-600" />;
-    return <XCircle className="h-4 w-4 text-red-600" />;
+    if (score >= 70) return <CheckCircle className="h-4 w-4 text-green-600" />;
+    return <Target className="h-4 w-4 text-muted-foreground" />;
   };
 
   return (
-    <Card className="border-border">
-      <CardHeader className="pb-4">
-        <CardTitle className="text-lg font-semibold flex items-center gap-2">
-          <Target className="h-5 w-5 text-primary" />
+    <Card className="border-border bg-card">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base font-medium text-foreground">
           Investment Fit Analysis
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-6">
-        {/* Overall Score */}
-        <div className="flex items-center justify-between">
-          <div className="space-y-1">
-            <div className={`text-2xl font-bold ${getScoreColor(overallScore)}`}>
-              {overallScore}% Match
-            </div>
-            <div className="text-sm text-muted-foreground">
-              Investment compatibility score
-            </div>
+      <CardContent className="space-y-4">
+        {/* Overall Score - Clean and Minimal */}
+        <div className="space-y-2">
+          <div className={`text-xl font-semibold ${getScoreColor(overallScore)}`}>
+            {overallScore}% Match
           </div>
-          <div className="flex items-center justify-center">
-            {getScoreIcon(overallScore)}
+          <div className="text-sm text-muted-foreground">
+            Based on your investment criteria
           </div>
         </div>
 
-        {/* Criteria Breakdown */}
+        {/* Criteria Breakdown - Investment Grade Clean Layout */}
         <div className="space-y-3">
-          <div className="text-sm font-medium text-foreground">Match Analysis</div>
-          <div className="space-y-2">
-            {criteria.map((criterion, index) => (
-              <div key={index} className="space-y-1">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-foreground">{criterion.name}</span>
-                  <span className={`text-sm font-medium ${getScoreColor(criterion.score)}`}>
-                    {Math.round(criterion.score)}%
-                  </span>
-                </div>
-                <div className="text-xs text-muted-foreground pl-0">
-                  {criterion.details}
-                </div>
+          {criteria.map((criterion, index) => (
+            <div key={index} className="space-y-1 py-1">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-foreground">{criterion.name}</span>
+                <span className={`text-sm font-medium ${getScoreColor(criterion.score)}`}>
+                  {Math.round(criterion.score)}%
+                </span>
               </div>
-            ))}
+              <div className="text-xs text-muted-foreground">
+                {criterion.details}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Profile Data - Clean Transparency */}
+        <div className="pt-3 border-t border-border/50">
+          <div className="text-xs font-medium text-foreground mb-2">Profile Data:</div>
+          <div className="space-y-1 text-xs text-muted-foreground">
+            <div>Revenue Target: {user?.revenue_range_min ? `$${formatCurrency(user.revenue_range_min)}` : 'Not set'} - {user?.revenue_range_max ? `$${formatCurrency(user.revenue_range_max)}` : 'Not set'}</div>
+            <div>Industries: {user?.business_categories?.length ? user.business_categories.slice(0,2).join(', ') + (user.business_categories.length > 2 ? ` +${user.business_categories.length - 2} more` : '') : 'None selected'}</div>
+            <div>Target Regions: {user?.target_locations || 'Not specified'}</div>
+            <div>Investment Size: {user?.investment_size || 'Not specified'}</div>
           </div>
         </div>
 
-        {/* Data Transparency */}
-        <div className="pt-4 border-t border-border">
-          <div className="text-xs font-medium text-foreground mb-2">Your Profile Data Used:</div>
-          <div className="grid gap-1 text-xs text-muted-foreground">
-            <div>• Revenue: {user?.revenue_range_min ? `$${formatCurrency(user.revenue_range_min)}` : 'Not set'} - {user?.revenue_range_max ? `$${formatCurrency(user.revenue_range_max)}` : 'Not set'}</div>
-            <div>• Industries: {user?.business_categories?.length ? user.business_categories.slice(0,2).join(', ') + (user.business_categories.length > 2 ? ` +${user.business_categories.length - 2} more` : '') : 'None'}</div>
-            <div>• Regions: {user?.target_locations || 'Not specified'}</div>
-            <div>• Investment Size: {user?.investment_size || 'Not specified'}</div>
-          </div>
-        </div>
-
-        {/* Profile Completeness CTA */}
+        {/* Profile Completeness - Encourage Completion */}
         {profileCompleteness < 100 && (
-          <div className="pt-4 border-t border-border">
-            <div className="flex items-center justify-between mb-2">
-              <div className="text-sm font-medium text-foreground">
+          <div className="pt-3 border-t border-border/50">
+            <div className="flex items-center justify-between mb-1">
+              <div className="text-xs font-medium text-foreground">
                 Profile {profileCompleteness}% Complete
               </div>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => navigate('/profile')}
-                className="h-8 px-3 text-xs"
+                className="h-7 px-3 text-xs"
               >
                 Complete Profile
               </Button>
             </div>
             <div className="text-xs text-muted-foreground">
-              Complete your profile for more accurate investment matching.
+              Complete your profile for more precise matching
             </div>
           </div>
         )}

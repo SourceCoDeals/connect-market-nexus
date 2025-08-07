@@ -535,42 +535,50 @@ export function calculateInvestmentMetrics(revenue: number, ebitda: number) {
 
 // Smart location matching function with hierarchical scoring
 export function calculateLocationMatchScore(userLocations: string[], listingLocation: string): number {
-  if (!userLocations || userLocations.length === 0) return 0;
+  console.log('Location matching debug:', { userLocations, listingLocation });
   
-  // If user selected "United States", they match 100% with all US regions
-  if (userLocations.includes('United States')) {
-    const usRegions = ['Northeast US', 'Southeast US', 'Southwest US', 'West Coast US', 'Midwest US', 'Mountain West US'];
-    if (usRegions.includes(listingLocation)) {
-      return 100;
-    }
+  if (!userLocations || userLocations.length === 0) {
+    console.log('No user locations provided');
+    return 0;
   }
   
   // Direct match - 100%
   if (userLocations.includes(listingLocation)) {
+    console.log('Direct match found!');
     return 100;
   }
   
-  // Regional proximity scoring for better UX
+  // If user selected "United States", they match with all US regions
+  if (userLocations.includes('United States')) {
+    const usRegions = ['Northeast', 'Southeast', 'Southwest', 'West Coast', 'Midwest'];
+    console.log('User selected US, checking if listing location is in US regions:', usRegions);
+    if (usRegions.includes(listingLocation)) {
+      console.log('US region match found!');
+      return 100;
+    }
+  }
+  
+  // Regional proximity scoring
   const locationProximity: Record<string, string[]> = {
-    'Northeast US': ['Southeast US', 'Midwest US'],
-    'Southeast US': ['Northeast US', 'Southwest US'],
-    'Southwest US': ['Southeast US', 'West Coast US', 'Mountain West US'],
-    'West Coast US': ['Southwest US', 'Mountain West US'],
-    'Midwest US': ['Northeast US', 'Mountain West US'],
-    'Mountain West US': ['Southwest US', 'West Coast US', 'Midwest US'],
-    'Eastern Canada': ['Northeast US', 'Western Canada'],
-    'Western Canada': ['Eastern Canada', 'West Coast US', 'Mountain West US']
+    'Northeast': ['Southeast', 'Midwest'],
+    'Southeast': ['Northeast', 'Southwest'],
+    'Southwest': ['Southeast', 'West Coast'],
+    'West Coast': ['Southwest'],
+    'Midwest': ['Northeast'],
+    'Eastern Canada': ['Northeast', 'Western Canada'],
+    'Western Canada': ['Eastern Canada', 'West Coast']
   };
   
   // Check for regional proximity - 75% match
   for (const userLocation of userLocations) {
     if (locationProximity[userLocation]?.includes(listingLocation)) {
+      console.log('Regional proximity match found!');
       return 75;
     }
   }
   
   // Same continent/region - 50% match
-  const usRegions = ['United States', 'Northeast US', 'Southeast US', 'Southwest US', 'West Coast US', 'Midwest US', 'Mountain West US'];
+  const usRegions = ['United States', 'Northeast', 'Southeast', 'Southwest', 'West Coast', 'Midwest'];
   const canadaRegions = ['Eastern Canada', 'Western Canada'];
   const europeRegions = ['United Kingdom', 'Western Europe', 'Eastern Europe'];
   
@@ -578,10 +586,13 @@ export function calculateLocationMatchScore(userLocations: string[], listingLoca
   const userHasCanada = userLocations.some(loc => canadaRegions.includes(loc));
   const userHasEurope = userLocations.some(loc => europeRegions.includes(loc));
   
-  if (userHasUS && usRegions.includes(listingLocation)) return 50;
+  if (userHasUS && usRegions.includes(listingLocation)) {
+    console.log('Same continent match found!');
+    return 50;
+  }
   if (userHasCanada && canadaRegions.includes(listingLocation)) return 50;
   if (userHasEurope && europeRegions.includes(listingLocation)) return 50;
   
-  // No match
+  console.log('No location match found');
   return 0;
 }
