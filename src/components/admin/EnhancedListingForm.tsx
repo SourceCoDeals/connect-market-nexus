@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/select";
 import { parseCurrency, formatNumber } from "@/lib/currency-utils";
 import { useAdmin } from "@/hooks/use-admin";
+import { LocationSelect } from "@/components/ui/location-select";
 
 // Enhanced schema with investor-focused fields
 const enhancedListingFormSchema = z.object({
@@ -335,7 +336,11 @@ export function EnhancedListingForm({
                           <FormItem>
                             <FormLabel>Location</FormLabel>
                             <FormControl>
-                              <Input placeholder="E.g., New York, NY" {...field} />
+                              <LocationSelect
+                                value={field.value}
+                                onValueChange={field.onChange}
+                                placeholder="Select standardized region..."
+                              />
                             </FormControl>
                             <FormMessage />
                           </FormItem>

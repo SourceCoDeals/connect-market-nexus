@@ -1,10 +1,11 @@
-import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
-import { Button } from '@/components/ui/button';
-import { Target, CheckCircle, AlertCircle, XCircle, User, Settings } from 'lucide-react';
-import { useAuth } from '@/context/AuthContext';
-import { mapToStandardizedLocation } from '@/lib/financial-parser';
+import { useAuth } from "@/context/AuthContext";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+import { Button } from "@/components/ui/button";
+import { Target, CheckCircle, AlertCircle, XCircle } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { mapToStandardizedLocation, StandardizedLocation } from "@/lib/financial-parser";
+import { formatNumber } from "@/lib/currency-utils";
 
 interface InvestmentFitScoreProps {
   revenue: number;
@@ -13,241 +14,156 @@ interface InvestmentFitScoreProps {
   location: string;
 }
 
-export const InvestmentFitScore: React.FC<InvestmentFitScoreProps> = ({
-  revenue,
-  ebitda,
-  category,
-  location
-}) => {
+export function InvestmentFitScore({ revenue, ebitda, category, location }: InvestmentFitScoreProps) {
   const { user } = useAuth();
-  
+  const navigate = useNavigate();
+
   if (!user) {
     return (
       <Card className="border-border bg-card">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-medium text-foreground flex items-center gap-2">
-            <Target className="h-4 w-4" />
-            Investment Fit Analysis
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center py-4">
-            <p className="text-xs text-muted-foreground mb-2">
-              Please sign in to see how this opportunity fits your investment criteria
-            </p>
+        <CardContent className="pt-6">
+          <div className="text-center text-muted-foreground">
+            Sign in to see your investment fit analysis
           </div>
         </CardContent>
       </Card>
     );
   }
 
-  // Calculate fit score based on user preferences vs listing characteristics
+  // Standardize the listing location for accurate matching
+  const standardizedListingLocation = mapToStandardizedLocation(location);
+
   const calculateFitScore = () => {
-    let score = 0;
+    let totalScore = 0;
     let maxScore = 0;
     const criteria = [];
 
-    // Revenue range fit
-    maxScore += 25;
-    const userMinRevenue = user.revenue_range_min || 0;
-    const userMaxRevenue = user.revenue_range_max || Number.MAX_SAFE_INTEGER;
+    // Revenue Range (35% weight)
+    const revenueWeight = 35;
+    maxScore += revenueWeight;
+    const userMinRevenue = user?.revenue_range_min || 0;
+    const userMaxRevenue = user?.revenue_range_max || Infinity;
+    
+    let revenueScore = 0;
+    let revenueStatus = 'mismatch';
+    let revenueDetail = `Target: $${formatNumber(userMinRevenue)}-$${formatNumber(userMaxRevenue)}`;
     
     if (revenue >= userMinRevenue && revenue <= userMaxRevenue) {
-      score += 25;
-      criteria.push({ 
-        name: 'Revenue Range', 
-        status: 'match', 
-        detail: 'Within your target range' 
-      });
-    } else if (revenue < userMinRevenue) {
-      score += 10;
-      criteria.push({ 
-        name: 'Revenue Range', 
-        status: 'partial', 
-        detail: 'Below target range' 
-      });
-    } else {
-      score += 15;
-      criteria.push({ 
-        name: 'Revenue Range', 
-        status: 'partial', 
-        detail: 'Above target range' 
-      });
+      revenueScore = revenueWeight;
+      revenueStatus = 'match';
+    } else if (Math.abs(revenue - userMinRevenue) / userMinRevenue < 0.5 || 
+               Math.abs(revenue - userMaxRevenue) / userMaxRevenue < 0.5) {
+      revenueScore = revenueWeight * 0.7;
+      revenueStatus = 'partial';
     }
-
-    // Business category fit
-    maxScore += 25;
-    const userCategories = user.business_categories || [];
-    if (Array.isArray(userCategories) && userCategories.length > 0) {
-      if (userCategories.includes(category)) {
-        score += 25;
-        criteria.push({ 
-          name: 'Industry Focus', 
-          status: 'match', 
-          detail: 'Matches your sector preference' 
-        });
-      } else {
-        score += 5;
-        criteria.push({ 
-          name: 'Industry Focus', 
-          status: 'mismatch', 
-          detail: 'Different from your focus areas' 
-        });
-      }
-    } else {
-      score += 15;
-      criteria.push({ 
-        name: 'Industry Focus', 
-        status: 'partial', 
-        detail: 'No specific preference set' 
-      });
-    }
-
-    // Geographic fit with standardized locations
-    maxScore += 20;
-    const userLocations = user.target_locations || '';
-    const standardizedListingLocation = mapToStandardizedLocation(location);
-    const standardizedUserLocation = userLocations ? mapToStandardizedLocation(userLocations) : '';
     
-    if (standardizedUserLocation && standardizedListingLocation === standardizedUserLocation) {
-      score += 20;
-      criteria.push({ 
-        name: 'Geography', 
-        status: 'match', 
-        detail: `Perfect match: ${standardizedListingLocation}` 
-      });
-    } else if (standardizedUserLocation) {
-      // Check for regional proximity
-      const regionalMatch = checkRegionalProximity(standardizedListingLocation, standardizedUserLocation);
-      if (regionalMatch) {
-        score += 12;
-        criteria.push({ 
-          name: 'Geography', 
-          status: 'partial', 
-          detail: `Nearby region: ${standardizedListingLocation}` 
-        });
-      } else {
-        score += 8;
-        criteria.push({ 
-          name: 'Geography', 
-          status: 'mismatch', 
-          detail: `Different region: ${standardizedListingLocation}` 
-        });
-      }
-    } else {
-      score += 15;
-      criteria.push({ 
-        name: 'Geography', 
-        status: 'partial', 
-        detail: 'Complete your profile to specify target locations' 
-      });
-    }
+    totalScore += revenueScore;
+    criteria.push({
+      name: 'Revenue Range',
+      status: revenueStatus,
+      weight: revenueScore,
+      detail: revenueDetail
+    });
 
-    // Profitability fit (based on buyer type)
-    maxScore += 20;
-    const ebitdaMargin = revenue > 0 ? (ebitda / revenue) * 100 : 0;
+    // Business Category (25% weight)
+    const categoryWeight = 25;
+    maxScore += categoryWeight;
+    const userCategories = user?.business_categories || [];
     
-    if (user.buyer_type === 'privateEquity') {
-      if (ebitdaMargin >= 15) {
-        score += 20;
-        criteria.push({ 
-          name: 'Profitability', 
-          status: 'match', 
-          detail: 'Strong margins for PE investment' 
-        });
-      } else if (ebitdaMargin >= 10) {
-        score += 15;
-        criteria.push({ 
-          name: 'Profitability', 
-          status: 'partial', 
-          detail: 'Moderate margins' 
-        });
-      } else {
-        score += 5;
-        criteria.push({ 
-          name: 'Profitability', 
-          status: 'mismatch', 
-          detail: 'Low margins for PE model' 
-        });
-      }
-    } else {
-      if (ebitda > 0) {
-        score += 20;
-        criteria.push({ 
-          name: 'Profitability', 
-          status: 'match', 
-          detail: 'Positive cash flow' 
-        });
-      } else {
-        score += 10;
-        criteria.push({ 
-          name: 'Profitability', 
-          status: 'partial', 
-          detail: 'Growth-focused business' 
-        });
-      }
+    let categoryScore = 0;
+    let categoryStatus = 'mismatch';
+    let categoryDetail = `Interest: ${userCategories.length > 0 ? userCategories.slice(0, 2).join(', ') : 'Not specified'}`;
+    
+    if (userCategories.includes(category)) {
+      categoryScore = categoryWeight;
+      categoryStatus = 'match';
+    } else if (userCategories.length === 0) {
+      categoryScore = categoryWeight * 0.5;
+      categoryStatus = 'partial';
+      categoryDetail = 'No categories specified';
     }
-
-    // Investment size fit
-    maxScore += 10;
-    const estimatedValue = ebitda * 5; // Rough 5x multiple
-    const userInvestmentSize = user.investment_size || '';
     
-    if (userInvestmentSize && estimatedValue > 0) {
-      // Simple heuristic based on common investment size ranges
+    totalScore += categoryScore;
+    criteria.push({
+      name: 'Industry Focus',
+      status: categoryStatus,
+      weight: categoryScore,
+      detail: categoryDetail
+    });
+
+    // Geographic Location (20% weight)
+    const locationWeight = 20;
+    maxScore += locationWeight;
+    const userLocations = user?.target_locations?.split(',').map(l => l.trim()) || [];
+    
+    let locationScore = 0;
+    let locationStatus = 'mismatch';
+    let locationDetail = `Target: ${userLocations.length > 0 ? userLocations.slice(0, 2).join(', ') : 'Not specified'}`;
+    
+    if (userLocations.includes(standardizedListingLocation) || userLocations.includes('International')) {
+      locationScore = locationWeight;
+      locationStatus = 'match';
+    } else if (userLocations.length === 0) {
+      locationScore = locationWeight * 0.5;
+      locationStatus = 'partial';
+      locationDetail = 'No regions specified';
+    }
+    
+    totalScore += locationScore;
+    criteria.push({
+      name: 'Geographic Focus',
+      status: locationStatus,
+      weight: locationScore,
+      detail: locationDetail
+    });
+
+    // Investment Size Compatibility (20% weight)
+    const investmentWeight = 20;
+    maxScore += investmentWeight;
+    const investmentSize = user?.investment_size || '';
+    
+    let investmentScore = 0;
+    let investmentStatus = 'mismatch';
+    let investmentDetail = `Size: ${investmentSize || 'Not specified'}`;
+    
+    // Estimate deal value (3-5x revenue multiple)
+    const estimatedDealValue = revenue * 4;
+    
+    if (investmentSize) {
       const sizeRanges = {
         'Under $1M': [0, 1000000],
         '$1M - $5M': [1000000, 5000000],
         '$5M - $10M': [5000000, 10000000],
         '$10M - $25M': [10000000, 25000000],
-        'Over $25M': [25000000, Number.MAX_SAFE_INTEGER]
+        'Over $25M': [25000000, Infinity]
       };
       
-      const range = sizeRanges[userInvestmentSize as keyof typeof sizeRanges];
-      if (range && estimatedValue >= range[0] && estimatedValue <= range[1]) {
-        score += 10;
-        criteria.push({ 
-          name: 'Investment Size', 
-          status: 'match', 
-          detail: 'Fits your investment range' 
-        });
-      } else {
-        score += 5;
-        criteria.push({ 
-          name: 'Investment Size', 
-          status: 'partial', 
-          detail: 'Different size than typical range' 
-        });
+      const [min, max] = sizeRanges[investmentSize as keyof typeof sizeRanges] || [0, 0];
+      
+      if (estimatedDealValue >= min && estimatedDealValue <= max) {
+        investmentScore = investmentWeight;
+        investmentStatus = 'match';
+      } else if (Math.abs(estimatedDealValue - min) / min < 0.5 || 
+                 Math.abs(estimatedDealValue - max) / max < 0.5) {
+        investmentScore = investmentWeight * 0.7;
+        investmentStatus = 'partial';
       }
     } else {
-      score += 7;
-      criteria.push({ 
-        name: 'Investment Size', 
-        status: 'partial', 
-        detail: 'Investment size not specified' 
-      });
+      investmentScore = investmentWeight * 0.3;
+      investmentStatus = 'partial';
     }
-
-    return { 
-      score: Math.round((score / maxScore) * 100), 
-      criteria 
-    };
-  };
-
-  // Helper function to check regional proximity
-  const checkRegionalProximity = (location1: string, location2: string): boolean => {
-    const proximityGroups = [
-      ['Northeast US', 'Southeast US'],
-      ['West Coast US', 'Southwest US', 'Mountain West US'],
-      ['Midwest US', 'Northeast US'],
-      ['Eastern Canada', 'Western Canada'],
-      ['Western Europe', 'Eastern Europe', 'United Kingdom'],
-      ['Asia Pacific', 'Australia/New Zealand']
-    ];
     
-    return proximityGroups.some(group => 
-      group.includes(location1) && group.includes(location2)
-    );
+    totalScore += investmentScore;
+    criteria.push({
+      name: 'Deal Size',
+      status: investmentStatus,
+      weight: investmentScore,
+      detail: investmentDetail
+    });
+
+    const finalScore = maxScore > 0 ? Math.round((totalScore / maxScore) * 100) : 0;
+    
+    return { score: finalScore, criteria };
   };
 
   const { score, criteria } = calculateFitScore();
@@ -270,102 +186,93 @@ export const InvestmentFitScore: React.FC<InvestmentFitScoreProps> = ({
 
   const getScoreColor = (score: number) => {
     if (score >= 80) return 'text-green-600';
-    if (score >= 60) return 'text-yellow-600';
+    if (score >= 60) return 'text-amber-600';
     return 'text-red-600';
   };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'match': return <CheckCircle className="h-3 w-3 text-green-600" />;
-      case 'partial': return <AlertCircle className="h-3 w-3 text-yellow-600" />;
-      case 'mismatch': return <XCircle className="h-3 w-3 text-red-600" />;
+      case 'match': return <CheckCircle className="h-3 w-3 text-green-600 flex-shrink-0" />;
+      case 'partial': return <AlertCircle className="h-3 w-3 text-amber-600 flex-shrink-0" />;
+      case 'mismatch': return <XCircle className="h-3 w-3 text-red-600 flex-shrink-0" />;
       default: return null;
     }
   };
 
   return (
     <Card className="border-border bg-card">
-      <CardHeader className="pb-4 border-b border-border">
-        <CardTitle className="text-lg font-medium text-foreground flex items-center gap-3">
-          <Target className="h-5 w-5 text-muted-foreground" />
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base font-medium text-foreground flex items-center gap-2">
+          <Target className="h-4 w-4 text-muted-foreground" />
           Investment Fit Analysis
         </CardTitle>
       </CardHeader>
-      <CardContent className="pt-6">
-        <div className="space-y-6">
-          {/* Overall Score */}
-          <div className="text-center space-y-3">
-            <div className={`text-3xl font-medium ${getScoreColor(score)}`}>
-              {score}%
-            </div>
-            <div className="text-sm text-muted-foreground">Fit Score</div>
-            <Progress value={score} className="h-2" />
-          </div>
-
-          {/* Criteria Breakdown */}
-          <div className="space-y-3">
-            <h4 className="text-sm font-medium text-foreground">Match Analysis</h4>
-            <div className="space-y-2">
-              {criteria.map((criterion, index) => (
-                <div key={index} className="flex items-center justify-between p-3 border border-border rounded-lg">
-                  <div className="flex items-center gap-3">
-                    {getStatusIcon(criterion.status)}
-                    <span className="text-sm text-foreground">{criterion.name}</span>
-                  </div>
-                  <span className="text-sm text-muted-foreground text-right">{criterion.detail}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Profile Completion */}
-          <div className="border border-border p-3 rounded-lg">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <User className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-medium text-foreground">Profile Completeness</span>
+      <CardContent className="pt-0">
+        <div className="space-y-4">
+          {/* Overall Score - Minimal */}
+          <div className="flex items-center justify-between">
+            <div className="space-y-1">
+              <div className={`text-xl font-medium ${getScoreColor(score)}`}>
+                {score}% Match
               </div>
-              <span className="text-sm font-medium text-foreground">{profileCompleteness}%</span>
-            </div>
-            
-            <Progress value={profileCompleteness} className="h-2 mb-3" />
-            
-            <div className="text-xs text-muted-foreground mb-3">
-              {profileCompleteness >= 80 
-                ? "Complete profile provides accurate analysis based on your investment criteria."
-                : "Incomplete criteria are treated as flexible. Complete your profile for better accuracy."
-              }
-            </div>
-            
-            {profileCompleteness < 80 && (
-              <div className="space-y-2">
-                <div className="text-xs font-medium text-foreground">Missing criteria:</div>
-                <div className="grid gap-1 text-xs text-muted-foreground">
-                  {!user?.revenue_range_min && <span>• Revenue range</span>}
-                  {(!user?.business_categories || user.business_categories.length === 0) && <span>• Industry focus</span>}
-                  {!user?.target_locations && <span>• Geographic preference</span>}
-                  {!user?.investment_size && <span>• Investment size</span>}
-                  {!user?.ideal_target_description && <span>• Investment thesis</span>}
-                </div>
+              <div className="text-xs text-muted-foreground">
+                Based on {criteria.filter(c => c.status !== 'mismatch').length} of {criteria.length} criteria
               </div>
-            )}
-            
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={() => window.location.href = '/profile'}
-              className="mt-3 text-xs"
-            >
-              <Settings className="h-3 w-3 mr-1" />
-              Update Profile
-            </Button>
+            </div>
+            <div className="w-12 h-12 rounded-full border-2 border-muted flex items-center justify-center">
+              <span className={`text-sm font-medium ${getScoreColor(score)}`}>
+                {Math.round(score / 10)}
+              </span>
+            </div>
           </div>
 
-          <div className="text-xs text-muted-foreground text-center pt-3 border-t border-border">
-            Score based on your investment criteria vs. listing characteristics
+          {/* Criteria Breakdown - Minimal */}
+          <div className="space-y-2">
+            {criteria.map((criterion, index) => (
+              <div key={index} className="flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                  {getStatusIcon(criterion.status)}
+                  <span className="text-muted-foreground truncate">{criterion.name}</span>
+                </div>
+                <span className="font-mono text-xs text-muted-foreground ml-2">
+                  {Math.round(criterion.weight)}pts
+                </span>
+              </div>
+            ))}
           </div>
+
+          {/* Data Transparency - Show what user data is being used */}
+          <div className="text-xs text-muted-foreground space-y-1 pt-2 border-t border-border">
+            <div className="font-medium text-foreground">Analysis based on your profile:</div>
+            <div className="grid grid-cols-1 gap-y-0.5 space-y-0">
+              <div>Revenue: {user?.revenue_range_min ? `$${formatNumber(user.revenue_range_min)}` : 'Not set'} - {user?.revenue_range_max ? `$${formatNumber(user.revenue_range_max)}` : 'Not set'}</div>
+              <div>Industries: {user?.business_categories?.length ? `${user.business_categories.length} selected` : 'None selected'}</div>
+              <div>Regions: {user?.target_locations || 'Not specified'}</div>
+              <div>Investment Size: {user?.investment_size || 'Not specified'}</div>
+            </div>
+          </div>
+
+          {/* Profile Completeness - Minimal */}
+          {profileCompleteness < 100 && (
+            <div className="pt-3 border-t border-border">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-medium text-foreground">Profile: {profileCompleteness}% complete</span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigate('/profile')}
+                  className="h-6 px-2 text-xs"
+                >
+                  Complete
+                </Button>
+              </div>
+              <div className="text-xs text-muted-foreground">
+                Missing criteria reduce accuracy. Complete your profile for better matching.
+              </div>
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>
   );
-};
+}

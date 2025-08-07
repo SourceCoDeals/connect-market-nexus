@@ -13,6 +13,7 @@ import { DealAlertsTab } from "@/components/deal-alerts/DealAlertsTab";
 import { useToast } from "@/hooks/use-toast";
 import { Textarea } from "@/components/ui/textarea";
 import { MultiSelect } from "@/components/ui/multi-select";
+import { MultiLocationSelect } from "@/components/ui/location-select";
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@/types";
 
@@ -265,33 +266,14 @@ const Profile = () => {
                     />
                   </div>
                   
-                  <div className="space-y-2">
-                    <Label htmlFor="target_locations">Target Locations</Label>
-                    <Select 
-                      value={formData.target_locations} 
-                      onValueChange={(value) => handleSelectChange(value, "target_locations")}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select target location" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Northeast US">Northeast US</SelectItem>
-                        <SelectItem value="Southeast US">Southeast US</SelectItem>
-                        <SelectItem value="Midwest US">Midwest US</SelectItem>
-                        <SelectItem value="West Coast US">West Coast US</SelectItem>
-                        <SelectItem value="Southwest US">Southwest US</SelectItem>
-                        <SelectItem value="Mountain West US">Mountain West US</SelectItem>
-                        <SelectItem value="Canada">Canada</SelectItem>
-                        <SelectItem value="United Kingdom">United Kingdom</SelectItem>
-                        <SelectItem value="Western Europe">Western Europe</SelectItem>
-                        <SelectItem value="Eastern Europe">Eastern Europe</SelectItem>
-                        <SelectItem value="Asia Pacific">Asia Pacific</SelectItem>
-                        <SelectItem value="Australia/New Zealand">Australia/New Zealand</SelectItem>
-                        <SelectItem value="Latin America">Latin America</SelectItem>
-                        <SelectItem value="International">International</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                   <div className="space-y-2">
+                     <Label htmlFor="target_locations">Target Locations</Label>
+                     <MultiLocationSelect
+                       value={formData.target_locations ? formData.target_locations.split(',').map(s => s.trim()) : []}
+                       onValueChange={(values) => handleSelectChange(values.join(', '), "target_locations")}
+                       placeholder="Select target regions..."
+                     />
+                   </div>
                 </div>
                 
                 <Separator />
