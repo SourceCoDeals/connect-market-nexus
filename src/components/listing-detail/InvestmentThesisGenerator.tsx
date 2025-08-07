@@ -35,12 +35,25 @@ export const InvestmentThesisGenerator: React.FC<InvestmentThesisGeneratorProps>
       </CardHeader>
       <CardContent className="pt-6">
         <div className="space-y-6">
-          {/* Business Overview */}
+          {/* Business Overview - Enhanced to show AI analysis */}
           <div className="space-y-3">
-            <h4 className="text-sm font-medium text-foreground">Business Overview</h4>
+            <h4 className="text-sm font-medium text-foreground">AI Business Analysis</h4>
             <p className="text-sm text-muted-foreground leading-relaxed">
               {customThesis.overview}
             </p>
+            {customThesis.keyStrengths.length > 0 && (
+              <div className="space-y-2">
+                <div className="text-xs font-medium text-foreground">Key Business Strengths:</div>
+                <ul className="space-y-1">
+                  {customThesis.keyStrengths.slice(0, 3).map((strength, index) => (
+                    <li key={index} className="text-xs text-muted-foreground flex items-start gap-2">
+                      <span className="w-1 h-1 bg-muted-foreground rounded-full mt-2 flex-shrink-0"></span>
+                      {strength}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
 
           {/* Key Financial Metrics */}
@@ -104,7 +117,8 @@ export const InvestmentThesisGenerator: React.FC<InvestmentThesisGeneratorProps>
           </div>
 
           <div className="text-xs text-muted-foreground pt-3 border-t border-border">
-            Analysis based on business description and financial metrics. 
+            <strong>AI-Generated Analysis:</strong> Based on detailed parsing of business description, 
+            extracting market position, competitive advantages, and growth drivers. 
             Multiples are indicative and subject to due diligence.
           </div>
         </div>
