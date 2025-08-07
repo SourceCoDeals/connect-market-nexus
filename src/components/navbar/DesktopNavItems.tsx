@@ -58,7 +58,7 @@ const DesktopNavItems = ({ isAdmin, isApproved, onNavigateToAdmin }: DesktopNavI
         Notes
       </Link>
 
-      <div className="h-4 w-px bg-border mx-4" />
+      <div className="h-4 w-px bg-border mx-6" />
 
       <Link
         to="/deal-alerts"
