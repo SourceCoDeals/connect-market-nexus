@@ -203,7 +203,7 @@ export function EditDealAlertDialog({ alert, open, onOpenChange }: EditDealAlert
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="z-[200]">
                       <SelectItem value="instant">Instant (immediate notification)</SelectItem>
                       <SelectItem value="daily">Daily digest</SelectItem>
                       <SelectItem value="weekly">Weekly digest</SelectItem>
@@ -223,7 +223,7 @@ export function EditDealAlertDialog({ alert, open, onOpenChange }: EditDealAlert
                     <SelectTrigger>
                       <SelectValue placeholder="Any revenue" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="z-[200]">
                       <SelectItem value="all">Any revenue</SelectItem>
                       {REVENUE_RANGES.map(range => (
                         <SelectItem key={range.label} value={range.label}>
@@ -246,7 +246,7 @@ export function EditDealAlertDialog({ alert, open, onOpenChange }: EditDealAlert
                     <SelectTrigger>
                       <SelectValue placeholder="Any EBITDA" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="z-[200]">
                       <SelectItem value="all">Any EBITDA</SelectItem>
                       {EBITDA_RANGES.map(range => (
                         <SelectItem key={range.label} value={range.label}>
