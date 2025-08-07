@@ -1,7 +1,9 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { TrendingUp, DollarSign, Target } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { TrendingUp, DollarSign, Target, Share2, Download } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface InvestmentThesisGeneratorProps {
   revenue: number;
@@ -87,28 +89,104 @@ export const InvestmentThesisGenerator: React.FC<InvestmentThesisGeneratorProps>
   
   const riskProfile = getRiskProfile();
 
+  const handleExportAnalysis = () => {
+    const analysisData = {
+      businessOverview: {
+        revenue: formatCurrency(revenue),
+        ebitda: formatCurrency(ebitda),
+        ebitdaMargin: `${ebitdaMargin.toFixed(1)}%`,
+        category,
+        location
+      },
+      riskProfile: riskProfile.level,
+      investmentHighlights: thesisPoints,
+      valuationFramework: {
+        currentEbitda: formatCurrency(ebitda),
+        estimatedRange: `${formatCurrency(ebitda * 4)} - ${formatCurrency(ebitda * 6)}`
+      },
+      generatedAt: new Date().toISOString()
+    };
+    
+    const blob = new Blob([JSON.stringify(analysisData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `investment-analysis-${category.toLowerCase().replace(/\s+/g, '-')}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    toast.success('Investment analysis exported successfully');
+  };
+
+  const handleShareAnalysis = () => {
+    const shareText = `Investment Analysis Summary:\n\n` +
+      `Revenue: ${formatCurrency(revenue)}\n` +
+      `EBITDA: ${formatCurrency(ebitda)} (${ebitdaMargin.toFixed(1)}% margin)\n` +
+      `Risk Profile: ${riskProfile.level}\n` +
+      `Location: ${location}\n` +
+      `Category: ${category}\n\n` +
+      `Key Highlights:\n${thesisPoints.map(point => `• ${point}`).join('\n')}`;
+    
+    if (navigator.share) {
+      navigator.share({
+        title: 'Investment Analysis',
+        text: shareText
+      }).catch(() => {
+        navigator.clipboard.writeText(shareText);
+        toast.success('Analysis copied to clipboard');
+      });
+    } else {
+      navigator.clipboard.writeText(shareText);
+      toast.success('Analysis copied to clipboard');
+    }
+  };
+
   return (
     <Card className="border-sourceco-form bg-white">
       <CardHeader className="pb-3">
-        <CardTitle className="text-sm font-medium text-sourceco-text flex items-center gap-2">
-          <Target className="h-4 w-4" />
-          Investment Analysis
-        </CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-sm font-medium text-sourceco-text flex items-center gap-2">
+            <Target className="h-4 w-4" />
+            Investment Analysis
+          </CardTitle>
+          <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleShareAnalysis}
+              className="h-7 px-2 text-xs"
+            >
+              <Share2 className="h-3 w-3 mr-1" />
+              Share
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleExportAnalysis}
+              className="h-7 px-2 text-xs"
+            >
+              <Download className="h-3 w-3 mr-1" />
+              Export
+            </Button>
+          </div>
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Key Metrics Overview */}
         <div className="grid grid-cols-2 gap-3">
-          <div className="bg-gray-50 p-3 rounded-lg">
+          <div className="bg-sourceco-background/30 p-3 rounded-lg border border-sourceco-form">
             <div className="flex items-center gap-2 mb-1">
-              <DollarSign className="h-3 w-3 text-gray-600" />
-              <span className="text-xs font-medium text-gray-600">Revenue</span>
+              <DollarSign className="h-3 w-3 text-sourceco-text/60" />
+              <span className="text-xs font-medium text-sourceco-text/60">Revenue</span>
             </div>
             <div className="text-sm font-semibold text-sourceco-text">{formatCurrency(revenue)}</div>
           </div>
-          <div className="bg-gray-50 p-3 rounded-lg">
+          <div className="bg-sourceco-background/30 p-3 rounded-lg border border-sourceco-form">
             <div className="flex items-center gap-2 mb-1">
-              <TrendingUp className="h-3 w-3 text-gray-600" />
-              <span className="text-xs font-medium text-gray-600">EBITDA Margin</span>
+              <TrendingUp className="h-3 w-3 text-sourceco-text/60" />
+              <span className="text-xs font-medium text-sourceco-text/60">EBITDA Margin</span>
             </div>
             <div className="text-sm font-semibold text-sourceco-text">{ebitdaMargin.toFixed(1)}%</div>
           </div>
@@ -116,8 +194,8 @@ export const InvestmentThesisGenerator: React.FC<InvestmentThesisGeneratorProps>
 
         {/* Risk Profile */}
         <div className="flex items-center justify-between">
-          <span className="text-xs font-medium text-gray-600">Risk Profile:</span>
-          <Badge className={`text-xs ${riskProfile.color}`}>
+          <span className="text-xs font-medium text-sourceco-text/60">Risk Profile:</span>
+          <Badge variant="secondary" className="text-xs bg-sourceco-accent/10 text-sourceco-accent">
             {riskProfile.level}
           </Badge>
         </div>
@@ -127,7 +205,7 @@ export const InvestmentThesisGenerator: React.FC<InvestmentThesisGeneratorProps>
           <h4 className="text-xs font-medium text-sourceco-text mb-2">Key Investment Highlights</h4>
           <ul className="space-y-1">
             {thesisPoints.map((point, index) => (
-              <li key={index} className="text-xs text-gray-600 pl-2 border-l-2 border-gray-200">
+              <li key={index} className="text-xs text-sourceco-text/70 pl-2 border-l-2 border-sourceco-accent/30">
                 {point}
               </li>
             ))}
@@ -135,9 +213,9 @@ export const InvestmentThesisGenerator: React.FC<InvestmentThesisGeneratorProps>
         </div>
 
         {/* Valuation Framework */}
-        <div className="bg-sourceco-bg/10 p-3 rounded-lg">
+        <div className="bg-sourceco-accent/5 p-3 rounded-lg border border-sourceco-accent/20">
           <h4 className="text-xs font-medium text-sourceco-text mb-2">Valuation Framework</h4>
-          <div className="text-xs text-gray-600 space-y-1">
+          <div className="text-xs text-sourceco-text/70 space-y-1">
             <div>Current EBITDA: {formatCurrency(ebitda)}</div>
             <div>Estimated Range (4-6x): {formatCurrency(ebitda * 4)} - {formatCurrency(ebitda * 6)}</div>
           </div>

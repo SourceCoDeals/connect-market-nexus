@@ -6,7 +6,8 @@ import { Slider } from '@/components/ui/slider';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
-import { TrendingUp, Calculator, Download, Zap } from 'lucide-react';
+import { TrendingUp, Calculator, Download, Share2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface InteractiveCashFlowProjectionsProps {
   revenue: number;
@@ -140,6 +141,56 @@ export const InteractiveCashFlowProjections: React.FC<InteractiveCashFlowProject
     };
   }, [projectionData, exitMultiple, discountRate]);
 
+
+  const exportModel = () => {
+    const modelData = {
+      assumptions: {
+        selectedScenario,
+        discountRate,
+        exitMultiple,
+        marginExpansion,
+        customGrowthRates
+      },
+      projections: projectionData,
+      valuation,
+      generatedAt: new Date().toISOString()
+    };
+    
+    const blob = new Blob([JSON.stringify(modelData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `cash-flow-model-${selectedScenario}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    toast.success('Cash flow model exported successfully');
+  };
+
+  const shareAnalysis = () => {
+    const shareText = `Cash Flow Projections Summary:\n\n` +
+      `Scenario: ${selectedScenario}\n` +
+      `Current Revenue: ${formatCurrency(revenue)}\n` +
+      `Current EBITDA: ${formatCurrency(ebitda)}\n` +
+      `NPV: ${formatCurrency(valuation.npv)}\n` +
+      `IRR: ${(valuation.irr * 100).toFixed(1)}%\n` +
+      `Terminal Value: ${formatCurrency(valuation.terminalValue)}`;
+    
+    if (navigator.share) {
+      navigator.share({
+        title: 'Cash Flow Projections',
+        text: shareText
+      }).catch(() => {
+        navigator.clipboard.writeText(shareText);
+        toast.success('Analysis copied to clipboard');
+      });
+    } else {
+      navigator.clipboard.writeText(shareText);
+      toast.success('Analysis copied to clipboard');
+    }
+  };
 
   const formatCompactCurrency = (value: number) => {
     if (value >= 1000000) {
@@ -360,6 +411,7 @@ export const InteractiveCashFlowProjections: React.FC<InteractiveCashFlowProject
           <Button 
             size="sm" 
             variant="outline" 
+            onClick={exportModel}
             className="flex-1 text-xs border-sourceco-accent text-sourceco-accent hover:bg-sourceco-accent hover:text-white"
           >
             <Download className="h-3 w-3 mr-2" />
@@ -368,9 +420,10 @@ export const InteractiveCashFlowProjections: React.FC<InteractiveCashFlowProject
           <Button 
             size="sm" 
             variant="outline" 
+            onClick={shareAnalysis}
             className="flex-1 text-xs border-sourceco-accent text-sourceco-accent hover:bg-sourceco-accent hover:text-white"
           >
-            <Zap className="h-3 w-3 mr-2" />
+            <Share2 className="h-3 w-3 mr-2" />
             Share Analysis
           </Button>
         </div>

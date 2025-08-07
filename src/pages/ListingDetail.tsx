@@ -35,7 +35,7 @@ import { InvestmentFitScore } from "@/components/listing-detail/InvestmentFitSco
 import { EnhancedInvestmentCalculator } from "@/components/listing-detail/EnhancedInvestmentCalculator";
 import { AdvancedComparisonMatrix } from "@/components/listing-detail/AdvancedComparisonMatrix";
 import { InteractiveCashFlowProjections } from "@/components/listing-detail/InteractiveCashFlowProjections";
-import { DueDiligenceTracker } from "@/components/listing-detail/DueDiligenceTracker";
+
 
 const ListingDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -387,12 +387,6 @@ const ListingDetail = () => {
               />
             </div>
 
-            <div className="document-section py-6">
-              <DueDiligenceTracker
-                listingId={id!}
-                listingTitle={listing.title}
-              />
-            </div>
 
             {isAdmin && listing.owner_notes && (
               <div className="document-section py-8 border-t border-sourceco-form">
