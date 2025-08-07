@@ -76,53 +76,9 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
-    // Fallback to Resend only if available (may fail without verified domain)
-    const resendApiKey = Deno.env.get("RESEND_API_KEY");
-    if (resendApiKey) {
-      try {
-        const resendResponse = await fetch("https://api.resend.com/emails", {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${resendApiKey}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            from: "SourceCo Marketplace <noreply@sourcecodeals.com>",
-            to: [email],
-            subject: "Reset Your Password",
-            html: `
-              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-                <h2 style="color: #333;">Reset Your Password</h2>
-                <p>You requested a password reset for your account.</p>
-                <p>Click the button below to reset your password:</p>
-                <a href="${resetUrl}" style="background-color: #007bff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; display: inline-block; margin: 16px 0;">
-                  Reset Password
-                </a>
-                <p>This link will expire in 1 hour.</p>
-                <p>If you didn't request this password reset, please ignore this email.</p>
-                <p style="color: #666; font-size: 12px;">If the button doesn't work, copy and paste this link: ${resetUrl}</p>
-              </div>
-            `,
-            text: `Reset your password using this link: ${resetUrl}\nThis link will expire in 1 hour. If you didn't request this, please ignore this email.`
-          }),
-        });
+    // No fallback provider. Enforce Brevo-only to match production policy
+    // and avoid hidden blocks from unverified senders.
 
-        if (resendResponse.ok) {
-          console.log("Password reset email sent successfully via Resend");
-          return new Response(
-            JSON.stringify({ success: true, provider: "resend" }),
-            {
-              status: 200,
-              headers: { "Content-Type": "application/json", ...corsHeaders },
-            }
-          );
-        } else {
-          console.error("Resend failed:", await resendResponse.text());
-        }
-      } catch (error) {
-        console.error("Resend error:", error);
-      }
-    }
 
     // If both email services fail, log the error but don't expose specifics
     console.error("All email services failed for password reset");
