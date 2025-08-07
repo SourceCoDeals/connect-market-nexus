@@ -12,7 +12,7 @@ import { AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
 import { DealAlertsTab } from "@/components/deal-alerts/DealAlertsTab";
 import { useToast } from "@/hooks/use-toast";
 import { Textarea } from "@/components/ui/textarea";
-import { MultiSelect } from "@/components/ui/multi-select";
+import { MultiCategorySelect } from "@/components/ui/category-select";
 import { MultiLocationSelect } from "@/components/ui/location-select";
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@/types";
@@ -464,13 +464,9 @@ const Profile = () => {
                   
                   <div className="space-y-2">
                     <Label htmlFor="business_categories">Business Categories of Interest</Label>
-                     <MultiSelect
-                       options={STANDARDIZED_CATEGORIES.map(category => ({
-                         label: category,
-                         value: category
-                       }))}
-                       selected={formData.business_categories || []}
-                       onSelectedChange={(value) => handleSelectChange(value, "business_categories")}
+                     <MultiCategorySelect
+                       value={formData.business_categories || []}
+                       onValueChange={(value) => handleSelectChange(value, "business_categories")}
                        placeholder="Select business categories..."
                        className="w-full"
                      />

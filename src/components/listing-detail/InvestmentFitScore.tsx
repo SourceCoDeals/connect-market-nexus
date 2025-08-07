@@ -44,15 +44,23 @@ export function InvestmentFitScore({ revenue, ebitda, category, location }: Inve
     );
   }
 
-  // Parse user data safely
+  // Parse user data safely with improved error handling
   const userTargetLocations = user.target_locations 
-    ? user.target_locations.split(',').map(loc => loc.trim()).filter(Boolean)
+    ? (typeof user.target_locations === 'string'
+        ? user.target_locations.split(',').map(loc => loc.trim()).filter(Boolean)
+        : Array.isArray(user.target_locations)
+        ? user.target_locations
+        : [])
     : [];
   
   const userCategories = user.business_categories 
     ? (Array.isArray(user.business_categories) 
         ? user.business_categories 
-        : JSON.parse(user.business_categories || '[]'))
+        : typeof user.business_categories === 'string'
+        ? ((user.business_categories as string).startsWith('[') 
+           ? JSON.parse(user.business_categories as string) 
+           : [user.business_categories as string])
+        : [])
     : [];
 
   function calculateFitScore(): { score: number; criteria: FitCriteria[] } {
@@ -112,7 +120,7 @@ export function InvestmentFitScore({ revenue, ebitda, category, location }: Inve
       } else if (locationScore === 50) {
         locationDetails = `○ Regional: ${listingLocation} same area as targets`;
       } else {
-        locationDetails = `✗ Distant: ${listingLocation} vs targets: ${userTargetLocations.join(', ')}`;
+        locationDetails = `○ Different: ${listingLocation} vs targets: ${userTargetLocations.join(', ')}`;
       }
       totalWeight += locationWeight;
       weightedScore += locationScore * locationWeight / 100;
@@ -146,7 +154,7 @@ export function InvestmentFitScore({ revenue, ebitda, category, location }: Inve
       } else if (categoryScore === 70) {
         categoryDetails = `○ Related: ${category} partially matches your interests`;
       } else {
-        categoryDetails = `✗ Different: ${category} vs your interests: ${userCategories.join(', ')}`;
+        categoryDetails = `○ Different: ${category} vs your interests: ${userCategories.join(', ')}`;
       }
       totalWeight += categoryWeight;
       weightedScore += categoryScore * categoryWeight / 100;

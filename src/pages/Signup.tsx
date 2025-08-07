@@ -22,30 +22,8 @@ const steps = [
   "Buyer Profile",
 ];
 
-// Use standardized categories for consistency
-const businessCategories = [
-  { value: "all", label: "All Industries" },
-  { value: "Technology", label: "Technology" },
-  { value: "Healthcare", label: "Healthcare" },
-  { value: "Finance & Insurance", label: "Finance & Insurance" },
-  { value: "Manufacturing", label: "Manufacturing" },
-  { value: "Retail & E-commerce", label: "Retail & E-commerce" },
-  { value: "Real Estate", label: "Real Estate" },
-  { value: "Food & Beverage", label: "Food & Beverage" },
-  { value: "Professional Services", label: "Professional Services" },
-  { value: "Construction", label: "Construction" },
-  { value: "Transportation & Logistics", label: "Transportation & Logistics" },
-  { value: "Energy & Utilities", label: "Energy & Utilities" },
-  { value: "Education", label: "Education" },
-  { value: "Entertainment & Media", label: "Entertainment & Media" },
-  { value: "Agriculture", label: "Agriculture" },
-  { value: "Automotive", label: "Automotive" },
-  { value: "Telecommunications", label: "Telecommunications" },
-  { value: "Aerospace & Defense", label: "Aerospace & Defense" },
-  { value: "Chemicals", label: "Chemicals" },
-  { value: "Consumer Goods", label: "Consumer Goods" },
-  { value: "Other", label: "Other" },
-];
+import { STANDARDIZED_CATEGORIES } from "@/lib/financial-parser";
+import { MultiCategorySelect } from "@/components/ui/category-select";
 
 const buyerTypeOptions = [
   { value: "corporate", label: "Corporate" },
@@ -689,10 +667,9 @@ const Signup = () => {
               <Label className="text-base font-medium">
                 What kind of businesses are you looking to buy?
               </Label>
-              <MultiSelect
-                options={businessCategories.map(cat => ({ value: cat.value, label: cat.label }))}
-                selected={formData.businessCategories}
-                onSelectedChange={(selected) => setFormData(prev => ({ ...prev, businessCategories: selected }))}
+              <MultiCategorySelect
+                value={formData.businessCategories}
+                onValueChange={(selected) => setFormData(prev => ({ ...prev, businessCategories: selected }))}
                 placeholder="Select industries..."
                 className="w-full"
               />
