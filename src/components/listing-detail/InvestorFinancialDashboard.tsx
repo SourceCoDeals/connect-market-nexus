@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Calculator, TrendingUp, DollarSign, Target } from "lucide-react";
-import { extractFinancialMetrics, parseInvestmentThesis, calculateInvestmentMetrics } from "@/lib/financial-parser";
+import { extractFinancialMetrics, generateCustomInvestmentThesis, calculateInvestmentMetrics } from "@/lib/financial-parser";
 
 interface InvestorFinancialDashboardProps {
   revenue: number;
@@ -19,7 +19,7 @@ const InvestorFinancialDashboard = ({
   formatCurrency 
 }: InvestorFinancialDashboardProps) => {
   const extractedMetrics = extractFinancialMetrics(description);
-  const investmentThesis = parseInvestmentThesis(description);
+  const investmentThesis = generateCustomInvestmentThesis(description, 'Technology', '', revenue, ebitda);
   const calculatedMetrics = calculateInvestmentMetrics(revenue, ebitda);
   
   const ebitdaMargin = revenue > 0 ? ((ebitda / revenue) * 100) : 0;

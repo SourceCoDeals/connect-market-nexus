@@ -345,13 +345,14 @@ const ListingDetail = () => {
 
             {/* Investment Thesis Generator */}
             <div className="document-section py-6">
-              <InvestmentThesisGenerator 
-                revenue={listing.revenue}
-                ebitda={listing.ebitda}
-                category={listing.category}
-                location={listing.location}
-                formatCurrency={formatCurrency}
-              />
+            <InvestmentThesisGenerator
+              revenue={listing.revenue}
+              ebitda={listing.ebitda}
+              category={listing.category}
+              location={listing.location}
+              description={listing.description}
+              formatCurrency={formatCurrency}
+            />
             </div>
 
             {/* Investment Fit Score */}

@@ -1,8 +1,10 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { Target, CheckCircle, AlertCircle, XCircle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Target, CheckCircle, AlertCircle, XCircle, User, Settings } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { mapToStandardizedLocation } from '@/lib/financial-parser';
 
 interface InvestmentFitScoreProps {
   revenue: number;
@@ -101,29 +103,43 @@ export const InvestmentFitScore: React.FC<InvestmentFitScoreProps> = ({
       });
     }
 
-    // Geographic fit
+    // Geographic fit with standardized locations
     maxScore += 20;
     const userLocations = user.target_locations || '';
-    if (userLocations && userLocations.includes(location)) {
+    const standardizedListingLocation = mapToStandardizedLocation(location);
+    const standardizedUserLocation = userLocations ? mapToStandardizedLocation(userLocations) : '';
+    
+    if (standardizedUserLocation && standardizedListingLocation === standardizedUserLocation) {
       score += 20;
       criteria.push({ 
         name: 'Geography', 
         status: 'match', 
-        detail: 'Matches your target location' 
+        detail: `Perfect match: ${standardizedListingLocation}` 
       });
-    } else if (userLocations) {
-      score += 8;
-      criteria.push({ 
-        name: 'Geography', 
-        status: 'mismatch', 
-        detail: 'Outside your target locations' 
-      });
+    } else if (standardizedUserLocation) {
+      // Check for regional proximity
+      const regionalMatch = checkRegionalProximity(standardizedListingLocation, standardizedUserLocation);
+      if (regionalMatch) {
+        score += 12;
+        criteria.push({ 
+          name: 'Geography', 
+          status: 'partial', 
+          detail: `Nearby region: ${standardizedListingLocation}` 
+        });
+      } else {
+        score += 8;
+        criteria.push({ 
+          name: 'Geography', 
+          status: 'mismatch', 
+          detail: `Different region: ${standardizedListingLocation}` 
+        });
+      }
     } else {
       score += 15;
       criteria.push({ 
         name: 'Geography', 
         status: 'partial', 
-        detail: 'No location preference set' 
+        detail: 'Complete your profile to specify target locations' 
       });
     }
 
@@ -218,7 +234,39 @@ export const InvestmentFitScore: React.FC<InvestmentFitScoreProps> = ({
     };
   };
 
+  // Helper function to check regional proximity
+  const checkRegionalProximity = (location1: string, location2: string): boolean => {
+    const proximityGroups = [
+      ['Northeast US', 'Southeast US'],
+      ['West Coast US', 'Southwest US', 'Mountain West US'],
+      ['Midwest US', 'Northeast US'],
+      ['Eastern Canada', 'Western Canada'],
+      ['Western Europe', 'Eastern Europe', 'United Kingdom'],
+      ['Asia Pacific', 'Australia/New Zealand']
+    ];
+    
+    return proximityGroups.some(group => 
+      group.includes(location1) && group.includes(location2)
+    );
+  };
+
   const { score, criteria } = calculateFitScore();
+
+  // Calculate profile completeness
+  const getProfileCompleteness = () => {
+    const fields = [
+      user?.revenue_range_min,
+      user?.revenue_range_max,
+      user?.business_categories?.length,
+      user?.target_locations,
+      user?.investment_size,
+      user?.ideal_target_description
+    ];
+    const completed = fields.filter(field => field && field !== '').length;
+    return Math.round((completed / fields.length) * 100);
+  };
+
+  const profileCompleteness = getProfileCompleteness();
 
   const getScoreColor = (score: number) => {
     if (score >= 80) return 'text-green-600';
@@ -282,22 +330,47 @@ export const InvestmentFitScore: React.FC<InvestmentFitScoreProps> = ({
         </div>
 
         {/* Profile Completion Guidance */}
-        {criteria.some(c => c.detail.includes('not specified') || c.detail.includes('not set')) && (
-          <div className="bg-blue-50 border border-blue-200 p-3 rounded-lg">
-            <div className="text-xs font-medium text-blue-800 mb-1">
-              Complete Your Profile for Better Matching
+        <div className="bg-gradient-to-br from-blue-50/50 to-indigo-50/30 border border-blue-200/50 p-4 rounded-lg">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <User className="h-4 w-4 text-blue-600" />
+              <span className="text-sm font-medium text-blue-800">Profile Completeness</span>
             </div>
-            <div className="text-xs text-blue-700 mb-2">
-              This analysis is based on your profile preferences. Update your investment criteria for more accurate fit scoring.
-            </div>
-            <button 
-              onClick={() => window.location.href = '/profile'}
-              className="text-xs text-blue-600 hover:text-blue-800 underline"
-            >
-              Update Investment Preferences →
-            </button>
+            <span className="text-sm font-bold text-blue-600">{profileCompleteness}%</span>
           </div>
-        )}
+          
+          <Progress value={profileCompleteness} className="h-2 mb-3" />
+          
+          <div className="text-xs text-blue-700 mb-3">
+            {profileCompleteness >= 80 
+              ? "Your profile is comprehensive! This analysis is based on your detailed investment preferences."
+              : "Complete your investment profile for more accurate fit analysis. Missing preferences are treated as flexible criteria."
+            }
+          </div>
+          
+          {profileCompleteness < 80 && (
+            <div className="space-y-2">
+              <div className="text-xs font-medium text-blue-800">Enhance your analysis by adding:</div>
+              <div className="grid gap-1 text-xs text-blue-700">
+                {!user?.revenue_range_min && <span>• Target revenue range</span>}
+                {(!user?.business_categories || user.business_categories.length === 0) && <span>• Industry preferences</span>}
+                {!user?.target_locations && <span>• Geographic focus areas</span>}
+                {!user?.investment_size && <span>• Investment size preferences</span>}
+                {!user?.ideal_target_description && <span>• Investment criteria description</span>}
+              </div>
+            </div>
+          )}
+          
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => window.location.href = '/profile'}
+            className="mt-3 text-xs border-blue-200 text-blue-700 hover:bg-blue-50"
+          >
+            <Settings className="h-3 w-3 mr-1" />
+            Update Investment Profile
+          </Button>
+        </div>
 
         {score >= 80 && (
           <div className="bg-green-50 border border-green-200 p-3 rounded-lg">
@@ -309,8 +382,11 @@ export const InvestmentFitScore: React.FC<InvestmentFitScoreProps> = ({
         )}
 
         {/* How It Works */}
-        <div className="text-xs text-muted-foreground text-center pt-2 border-t border-sourceco-form">
-          This score is calculated dynamically based on your profile preferences vs. this listing's characteristics
+        <div className="text-xs text-muted-foreground text-center pt-2 border-t border-sourceco-form space-y-1">
+          <div>This score is calculated dynamically based on your profile preferences vs. this listing's characteristics</div>
+          <div className="text-sourceco-accent font-medium">
+            Analysis updates automatically when you modify your investment criteria
+          </div>
         </div>
       </CardContent>
     </Card>
