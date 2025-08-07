@@ -12,6 +12,8 @@ import { BuyerType, User } from "@/types";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
+import { MultiSelect } from "@/components/ui/multi-select";
+import { MultiLocationSelect } from "@/components/ui/location-select";
 
 const steps = [
   "Account Information",
@@ -20,28 +22,29 @@ const steps = [
   "Buyer Profile",
 ];
 
+// Use standardized categories for consistency
 const businessCategories = [
-  { value: "any", label: "Any kind of business" },
-  { value: "agriculture", label: "Agriculture" },
-  { value: "automotive", label: "Automotive / Boat" },
-  { value: "beauty", label: "Beauty & Personal Care" },
-  { value: "construction", label: "Building & Construction" },
-  { value: "communication", label: "Communication / Media" },
-  { value: "education", label: "Education / Childcare" },
-  { value: "entertainment", label: "Entertainment / Recreation" },
-  { value: "financial", label: "Financial Services" },
-  { value: "healthcare", label: "Health Care & Fitness" },
-  { value: "home", label: "Home Services" },
-  { value: "technology", label: "Online / Technology" },
-  { value: "other_services", label: "Other Services" },
-  { value: "pets", label: "Pet Services" },
-  { value: "professional", label: "Professional Services" },
-  { value: "restaurants", label: "Restaurants & Food" },
-  { value: "retail", label: "Retail" },
-  { value: "transportation", label: "Transportation & Storage" },
-  { value: "travel", label: "Travel" },
-  { value: "wholesale", label: "Wholesale & Distributors" },
-  { value: "other", label: "Other" },
+  { value: "all", label: "All Industries" },
+  { value: "Technology", label: "Technology" },
+  { value: "Healthcare", label: "Healthcare" },
+  { value: "Finance & Insurance", label: "Finance & Insurance" },
+  { value: "Manufacturing", label: "Manufacturing" },
+  { value: "Retail & E-commerce", label: "Retail & E-commerce" },
+  { value: "Real Estate", label: "Real Estate" },
+  { value: "Food & Beverage", label: "Food & Beverage" },
+  { value: "Professional Services", label: "Professional Services" },
+  { value: "Construction", label: "Construction" },
+  { value: "Transportation & Logistics", label: "Transportation & Logistics" },
+  { value: "Energy & Utilities", label: "Energy & Utilities" },
+  { value: "Education", label: "Education" },
+  { value: "Entertainment & Media", label: "Entertainment & Media" },
+  { value: "Agriculture", label: "Agriculture" },
+  { value: "Automotive", label: "Automotive" },
+  { value: "Telecommunications", label: "Telecommunications" },
+  { value: "Aerospace & Defense", label: "Aerospace & Defense" },
+  { value: "Chemicals", label: "Chemicals" },
+  { value: "Consumer Goods", label: "Consumer Goods" },
+  { value: "Other", label: "Other" },
 ];
 
 const buyerTypeOptions = [
@@ -84,7 +87,7 @@ const Signup = () => {
     // Profile fields
     idealTargetDescription: string;
     businessCategories: string[];
-    targetLocations: string;
+    targetLocations: string[];
     revenueRangeMin: string;
     revenueRangeMax: string;
     specificBusinessSearch: string;
@@ -113,7 +116,7 @@ const Signup = () => {
     // Profile fields
     idealTargetDescription: "",
     businessCategories: [],
-    targetLocations: "",
+    targetLocations: [],
     revenueRangeMin: "",
     revenueRangeMax: "",
     specificBusinessSearch: "",
@@ -311,7 +314,7 @@ const Signup = () => {
         buyer_type: buyerType as BuyerType,
         ideal_target_description: idealTargetDescription,
         business_categories: businessCategories,
-        target_locations: targetLocations,
+        target_locations: targetLocations.join(', '),
         revenue_range_min: revenueRangeMin ? parseFloat(revenueRangeMin.replace(/[^0-9.]/g, "")) : undefined,
         revenue_range_max: revenueRangeMax ? parseFloat(revenueRangeMax.replace(/[^0-9.]/g, "")) : undefined,
         specific_business_search: specificBusinessSearch,
@@ -686,37 +689,24 @@ const Signup = () => {
               <Label className="text-base font-medium">
                 What kind of businesses are you looking to buy?
               </Label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {businessCategories.map((category) => (
-                  <div key={category.value} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={category.value}
-                      checked={formData.businessCategories.includes(category.value)}
-                      onCheckedChange={(checked) =>
-                        handleBusinessCategoryChange(category.value, checked as boolean)
-                      }
-                    />
-                    <Label
-                      htmlFor={category.value}
-                      className="text-sm font-normal cursor-pointer"
-                    >
-                      {category.label}
-                    </Label>
-                  </div>
-                ))}
-              </div>
+              <MultiSelect
+                options={businessCategories.map(cat => ({ value: cat.value, label: cat.label }))}
+                selected={formData.businessCategories}
+                onSelectedChange={(selected) => setFormData(prev => ({ ...prev, businessCategories: selected }))}
+                placeholder="Select industries..."
+                className="w-full"
+              />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="targetLocations">
                 What locations are you considering purchasing in?
               </Label>
-              <Input
-                id="targetLocations"
-                name="targetLocations"
-                placeholder="Midwest, Northeast, California, etc."
+              <MultiLocationSelect
                 value={formData.targetLocations}
-                onChange={(e) => setFormData(prev => ({ ...prev, targetLocations: e.target.value }))}
+                onValueChange={(selected) => setFormData(prev => ({ ...prev, targetLocations: selected }))}
+                placeholder="Select target locations..."
+                className="w-full"
               />
             </div>
 

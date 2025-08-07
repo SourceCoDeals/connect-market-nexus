@@ -12,6 +12,8 @@ import { CurrencyInput } from "@/components/ui/currency-input";
 import { MultiSelect } from "@/components/ui/multi-select";
 import { ImageUpload } from "@/components/ui/image-upload";
 import { RichTextEditorEnhanced } from "@/components/ui/rich-text-editor-enhanced";
+import { LocationSelect } from "@/components/ui/location-select";
+import { STANDARDIZED_CATEGORIES } from "@/lib/financial-parser";
 import { Loader2 } from "lucide-react";
 import {
   Form,
@@ -185,9 +187,10 @@ export function ListingForm({
     }
   };
 
-  const categoryOptions = categories.map(category => ({
-    value: category.name,
-    label: category.name,
+  // Use standardized categories for consistency
+  const categoryOptions = STANDARDIZED_CATEGORIES.map(category => ({
+    value: category,
+    label: category,
   }));
 
   return (
@@ -242,10 +245,11 @@ export function ListingForm({
               <FormItem>
                 <FormLabel className="text-sm font-medium">Location</FormLabel>
                 <FormControl>
-                  <Input 
-                    placeholder="E.g., New York, NY" 
-                    className="h-11" 
-                    {...field} 
+                  <LocationSelect
+                    value={field.value}
+                    onValueChange={field.onChange}
+                    placeholder="Select location..."
+                    className="h-11"
                   />
                 </FormControl>
                 <FormMessage />

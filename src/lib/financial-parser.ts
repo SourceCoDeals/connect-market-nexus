@@ -52,6 +52,7 @@ export interface CustomInvestmentThesis {
 
 // Standardized geographic regions
 export const STANDARDIZED_LOCATIONS = [
+  'United States',
   'Northeast US',
   'Southeast US', 
   'Southwest US',
@@ -530,4 +531,57 @@ export function calculateInvestmentMetrics(revenue: number, ebitda: number) {
     roiPotential: ebitda > 25000000 ? 'High' : ebitda > 10000000 ? 'Medium' : 'Conservative',
     scalabilityScore: revenue > 50000000 ? 95 : revenue > 20000000 ? 85 : revenue > 10000000 ? 75 : 65
   };
+}
+
+// Smart location matching function with hierarchical scoring
+export function calculateLocationMatchScore(userLocations: string[], listingLocation: string): number {
+  if (!userLocations || userLocations.length === 0) return 0;
+  
+  // If user selected "United States", they match 100% with all US regions
+  if (userLocations.includes('United States')) {
+    const usRegions = ['Northeast US', 'Southeast US', 'Southwest US', 'West Coast US', 'Midwest US', 'Mountain West US'];
+    if (usRegions.includes(listingLocation)) {
+      return 100;
+    }
+  }
+  
+  // Direct match - 100%
+  if (userLocations.includes(listingLocation)) {
+    return 100;
+  }
+  
+  // Regional proximity scoring for better UX
+  const locationProximity: Record<string, string[]> = {
+    'Northeast US': ['Southeast US', 'Midwest US'],
+    'Southeast US': ['Northeast US', 'Southwest US'],
+    'Southwest US': ['Southeast US', 'West Coast US', 'Mountain West US'],
+    'West Coast US': ['Southwest US', 'Mountain West US'],
+    'Midwest US': ['Northeast US', 'Mountain West US'],
+    'Mountain West US': ['Southwest US', 'West Coast US', 'Midwest US'],
+    'Eastern Canada': ['Northeast US', 'Western Canada'],
+    'Western Canada': ['Eastern Canada', 'West Coast US', 'Mountain West US']
+  };
+  
+  // Check for regional proximity - 75% match
+  for (const userLocation of userLocations) {
+    if (locationProximity[userLocation]?.includes(listingLocation)) {
+      return 75;
+    }
+  }
+  
+  // Same continent/region - 50% match
+  const usRegions = ['United States', 'Northeast US', 'Southeast US', 'Southwest US', 'West Coast US', 'Midwest US', 'Mountain West US'];
+  const canadaRegions = ['Eastern Canada', 'Western Canada'];
+  const europeRegions = ['United Kingdom', 'Western Europe', 'Eastern Europe'];
+  
+  const userHasUS = userLocations.some(loc => usRegions.includes(loc));
+  const userHasCanada = userLocations.some(loc => canadaRegions.includes(loc));
+  const userHasEurope = userLocations.some(loc => europeRegions.includes(loc));
+  
+  if (userHasUS && usRegions.includes(listingLocation)) return 50;
+  if (userHasCanada && canadaRegions.includes(listingLocation)) return 50;
+  if (userHasEurope && europeRegions.includes(listingLocation)) return 50;
+  
+  // No match
+  return 0;
 }

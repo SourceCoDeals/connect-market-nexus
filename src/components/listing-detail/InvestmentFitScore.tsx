@@ -1,4 +1,5 @@
 import { useAuth } from "@/context/AuthContext";
+import { calculateLocationMatchScore, STANDARDIZED_CATEGORIES } from "@/lib/financial-parser";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Target, CheckCircle, AlertCircle, XCircle, User } from "lucide-react";
@@ -117,18 +118,22 @@ export function InvestmentFitScore({ revenue, ebitda, category, location }: Inve
       details: revenueDetails
     });
 
-    // Location Matching (25% weight)  
+    // Smart Location Matching (25% weight) - with hierarchical scoring
     const locationWeight = 25;
     let locationScore = 0;
     let locationDetails = '';
     
     if (userTargetLocations.length > 0) {
-      if (userTargetLocations.includes(listingLocation)) {
-        locationScore = 100;
+      locationScore = calculateLocationMatchScore(userTargetLocations, listingLocation);
+      
+      if (locationScore === 100) {
         locationDetails = `✓ Perfect: ${listingLocation} matches your targets`;
+      } else if (locationScore === 75) {
+        locationDetails = `✓ Good: ${listingLocation} is in nearby region`;
+      } else if (locationScore === 50) {
+        locationDetails = `○ Regional: ${listingLocation} same area as targets`;
       } else {
-        locationScore = 20;
-        locationDetails = `✗ Mismatch: ${listingLocation} vs your targets: ${userTargetLocations.join(', ')}`;
+        locationDetails = `✗ Distant: ${listingLocation} vs targets: ${userTargetLocations.join(', ')}`;
       }
       totalWeight += locationWeight;
       weightedScore += locationScore * locationWeight / 100;
@@ -143,22 +148,27 @@ export function InvestmentFitScore({ revenue, ebitda, category, location }: Inve
       details: locationDetails
     });
 
-    // Industry Matching (25% weight)
+    // Smart Industry Matching (25% weight) - with "all industries" support
     const industryWeight = 25;
     let industryScore = 0;
     let industryDetails = '';
     
     if (userBusinessCategories.length > 0) {
-      const hasMatch = userBusinessCategories.some(userCat => 
-        userCat.toLowerCase() === category.toLowerCase()
-      );
-      
-      if (hasMatch) {
+      // Check if user selected "all industries" or most categories
+      if (userBusinessCategories.includes('all') || userBusinessCategories.length >= STANDARDIZED_CATEGORIES.length - 1) {
         industryScore = 100;
-        industryDetails = `✓ Perfect: ${category} matches your focus`;
+        industryDetails = `✓ Perfect: All industries selected`;
       } else {
-        industryScore = 30;
-        industryDetails = `✗ Mismatch: ${category} vs your focus: ${userBusinessCategories.join(', ')}`;
+        // Direct match with standardized categories
+        const hasMatch = userBusinessCategories.includes(category);
+        
+        if (hasMatch) {
+          industryScore = 100;
+          industryDetails = `✓ Perfect: ${category} matches your focus`;
+        } else {
+          industryScore = 30;
+          industryDetails = `✗ Mismatch: ${category} vs your focus: ${userBusinessCategories.slice(0,2).join(', ')}${userBusinessCategories.length > 2 ? ` +${userBusinessCategories.length - 2} more` : ''}`;
+        }
       }
       totalWeight += industryWeight;
       weightedScore += industryScore * industryWeight / 100;
