@@ -64,11 +64,10 @@ export function DealAlertsTab() {
           <div className="flex items-start justify-between mb-6">
             <div className="max-w-2xl">
               <p className="text-muted-foreground mb-2">
-                Never miss out on opportunities that match your investment criteria. 
-                Set up custom alerts and get notified instantly when new deals are added to the marketplace.
+                Never miss opportunities. Create alerts and get in-app notifications the moment a matching deal is published.
               </p>
               <p className="text-sm text-muted-foreground">
-                Choose from instant notifications, daily digests, or weekly summaries based on your preferences.
+                Choose instant, daily, or weekly summaries based on your preference.
               </p>
             </div>
             <CreateDealAlertDialog />

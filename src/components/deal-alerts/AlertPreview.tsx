@@ -1,13 +1,15 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Mail, Clock, MapPin, DollarSign, Search, Tag } from 'lucide-react';
+import { Clock } from 'lucide-react';
 import { formatCurrency } from '@/lib/currency-utils';
 
 interface AlertPreviewProps {
   alertName: string;
   criteria: {
     category?: string;
+    categories?: string[];
     location?: string;
+    locations?: string[];
     revenueMin?: number;
     revenueMax?: number;
     ebitdaMin?: number;
@@ -22,11 +24,15 @@ export function AlertPreview({ alertName, criteria, frequency, userEmail }: Aler
   const formatCriteria = () => {
     const parts = [];
     
-    if (criteria.category && criteria.category !== 'all') {
+    if (criteria.categories && criteria.categories.length > 0) {
+      parts.push(`Categories: ${criteria.categories.join(', ')}`);
+    } else if (criteria.category && criteria.category !== 'all') {
       parts.push(criteria.category);
     }
     
-    if (criteria.location && criteria.location !== 'all') {
+    if (criteria.locations && criteria.locations.length > 0) {
+      parts.push(`Locations: ${criteria.locations.join(', ')}`);
+    } else if (criteria.location && criteria.location !== 'all') {
       parts.push(criteria.location);
     }
     
@@ -63,7 +69,7 @@ export function AlertPreview({ alertName, criteria, frequency, userEmail }: Aler
         <div className="space-y-3">
           {criteriaList.length > 0 ? (
             <div className="space-y-2">
-              <p className="text-xs text-muted-foreground">You'll receive emails for deals matching:</p>
+              <p className="text-xs text-muted-foreground">You'll be notified for deals matching:</p>
               <div className="flex flex-wrap gap-1">
                 {criteriaList.map((criterion, index) => (
                   <Badge key={index} variant="secondary" className="text-xs">
@@ -74,16 +80,10 @@ export function AlertPreview({ alertName, criteria, frequency, userEmail }: Aler
             </div>
           ) : (
             <p className="text-xs text-muted-foreground">
-              You'll receive emails for all new deals matching your criteria.
+              You'll be notified for all new deals. Add criteria to narrow your matches.
             </p>
           )}
           
-          {userEmail && (
-            <div className="flex items-center gap-1 text-xs text-muted-foreground pt-2 border-t">
-              <Mail className="h-3 w-3" />
-              Notifications will be sent to {userEmail}
-            </div>
-          )}
         </div>
       </CardContent>
     </Card>

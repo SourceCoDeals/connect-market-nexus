@@ -8,6 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Search, MapPin, DollarSign, TrendingUp } from 'lucide-react';
 import { useUpdateDealAlert, DealAlert, UpdateDealAlertRequest } from '@/hooks/use-deal-alerts';
 import { useListingMetadata } from '@/hooks/marketplace/use-listings';
+import { MultiCategorySelect } from '@/components/ui/category-select';
+import { MultiLocationSelect } from '@/components/ui/location-select';
 
 const REVENUE_RANGES = [
   { label: 'Under $1M', min: 0, max: 1000000 },
@@ -162,46 +164,32 @@ export function EditDealAlertDialog({ alert, open, onOpenChange }: EditDealAlert
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Category</Label>
-                  <Select
-                    value={formData.criteria.category || 'all'}
-                    onValueChange={(value) => updateCriteria('category', value === 'all' ? '' : value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Any category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Any category</SelectItem>
-                      {categories.map(category => (
-                        <SelectItem key={category} value={category}>
-                          {category}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Label>Categories</Label>
+                  <MultiCategorySelect
+                    value={formData.criteria.categories ?? (formData.criteria.category ? [formData.criteria.category] : [])}
+                    onValueChange={(values) => {
+                      updateCriteria('categories', values);
+                      updateCriteria('category', values.length === 1 ? values[0] : '');
+                    }}
+                    placeholder="Any categories"
+                    className="z-[200]"
+                  />
                 </div>
 
                 <div className="space-y-2">
                   <Label className="flex items-center gap-2">
                     <MapPin className="h-4 w-4" />
-                    Location
+                    Locations
                   </Label>
-                  <Select
-                    value={formData.criteria.location || 'all'}
-                    onValueChange={(value) => updateCriteria('location', value === 'all' ? '' : value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Any location" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Any location</SelectItem>
-                      {locations.map(location => (
-                        <SelectItem key={location} value={location}>
-                          {location}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <MultiLocationSelect
+                    value={formData.criteria.locations ?? (formData.criteria.location ? [formData.criteria.location] : [])}
+                    onValueChange={(values) => {
+                      updateCriteria('locations', values);
+                      updateCriteria('location', values.length === 1 ? values[0] : '');
+                    }}
+                    placeholder="Any locations"
+                    className="z-[200]"
+                  />
                 </div>
 
                 <div className="space-y-2">

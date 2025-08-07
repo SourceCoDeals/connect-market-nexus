@@ -27,8 +27,10 @@ export function DealAlertCard({ alert, onEdit, onDelete, onToggle }: DealAlertCa
     const criteria = alert.criteria;
     const parts = [];
 
-    if (criteria.category) parts.push(`Category: ${criteria.category}`);
-    if (criteria.location) parts.push(`Location: ${criteria.location}`);
+    if (criteria.categories && criteria.categories.length > 0) parts.push(`Categories: ${criteria.categories.join(', ')}`);
+    else if (criteria.category) parts.push(`Category: ${criteria.category}`);
+    if (criteria.locations && criteria.locations.length > 0) parts.push(`Locations: ${criteria.locations.join(', ')}`);
+    else if (criteria.location) parts.push(`Location: ${criteria.location}`);
     if (criteria.revenueMin || criteria.revenueMax) {
       const min = formatCurrency(criteria.revenueMin);
       const max = formatCurrency(criteria.revenueMax);

@@ -8,7 +8,9 @@ export interface DealAlert {
   name: string;
   criteria: {
     category?: string;
+    categories?: string[];
     location?: string;
+    locations?: string[];
     revenueMin?: number;
     revenueMax?: number;
     ebitdaMin?: number;
