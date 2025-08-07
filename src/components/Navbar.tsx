@@ -33,9 +33,9 @@ const Navbar = () => {
   const handleNavigateToAdmin = () => navigate("/admin");
 
   return (
-    <header className="bg-white/95 backdrop-blur-lg border-b border-gray-200/30 shadow-sm">
-      <div className="max-w-[1600px] mx-auto px-6 sm:px-8">
-        <div className="flex justify-between items-center h-20">
+    <header className="bg-background border-b border-border">
+      <div className="max-w-[1400px] mx-auto px-4 sm:px-6">
+        <div className="flex justify-between items-center h-16">
           <div className="flex items-center">
             <NavbarLogo destination={getLogoDestination()} />
           </div>
