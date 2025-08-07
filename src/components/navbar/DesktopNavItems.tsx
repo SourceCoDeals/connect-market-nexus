@@ -55,22 +55,7 @@ const DesktopNavItems = ({ isAdmin, isApproved, onNavigateToAdmin }: DesktopNavI
         )}
       >
         <MessageSquare className="h-4 w-4" />
-        Notes
-      </Link>
-
-      <div className="h-4 w-px bg-border mx-4" />
-
-      <Link
-        to="/deal-alerts"
-        className={cn(
-          "flex items-center gap-2 px-3 py-2 text-sm font-medium transition-colors",
-          location.pathname === "/deal-alerts" 
-            ? "text-foreground" 
-            : "text-muted-foreground hover:text-foreground"
-        )}
-      >
-        <MessageSquare className="h-4 w-4" />
-        Get Notified
+        My Requests
       </Link>
 
       {isAdmin && (

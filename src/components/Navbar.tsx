@@ -34,7 +34,7 @@ const Navbar = () => {
 
   return (
     <header className="bg-background border-b border-border">
-      <div className="max-w-[1200px] mx-auto px-4 sm:px-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center">
             <NavbarLogo destination={getLogoDestination()} />

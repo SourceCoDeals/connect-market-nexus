@@ -1,11 +1,8 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { Button } from '@/components/ui/button';
-import { Target, CheckCircle, AlertCircle, XCircle, Settings, Share2 } from 'lucide-react';
+import { Target, CheckCircle, AlertCircle, XCircle } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
-import { useNavigate } from 'react-router-dom';
-import { toast } from 'sonner';
 
 interface InvestmentFitScoreProps {
   revenue: number;
@@ -21,34 +18,8 @@ export const InvestmentFitScore: React.FC<InvestmentFitScoreProps> = ({
   location
 }) => {
   const { user } = useAuth();
-  const navigate = useNavigate();
   
-  if (!user) {
-    return (
-      <Card className="border-sourceco-form bg-white">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-medium text-sourceco-text flex items-center gap-2">
-            <Target className="h-4 w-4" />
-            Investment Fit Analysis
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center py-4">
-            <p className="text-xs text-sourceco-text/60 mb-3">
-              Sign in to see how this investment matches your criteria
-            </p>
-            <Button 
-              onClick={() => navigate('/login')} 
-              size="sm"
-              className="text-xs"
-            >
-              Sign In
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
+  if (!user) return null;
 
   // Calculate fit score based on user preferences vs listing characteristics
   const calculateFitScore = () => {
@@ -232,96 +203,35 @@ export const InvestmentFitScore: React.FC<InvestmentFitScoreProps> = ({
   const { score, criteria } = calculateFitScore();
 
   const getScoreColor = (score: number) => {
-    if (score >= 80) return 'text-sourceco-accent';
+    if (score >= 80) return 'text-green-600';
     if (score >= 60) return 'text-yellow-600';
     return 'text-red-600';
   };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'match': return <CheckCircle className="h-3 w-3 text-sourceco-accent" />;
+      case 'match': return <CheckCircle className="h-3 w-3 text-green-600" />;
       case 'partial': return <AlertCircle className="h-3 w-3 text-yellow-600" />;
       case 'mismatch': return <XCircle className="h-3 w-3 text-red-600" />;
       default: return null;
     }
   };
 
-  const handleUpdateProfile = () => {
-    navigate('/profile');
-  };
-
-  const handleShareFitAnalysis = () => {
-    const shareText = `Investment Fit Analysis:\n\n` +
-      `Overall Fit Score: ${score}%\n\n` +
-      `Criteria Breakdown:\n${criteria.map(c => `• ${c.name}: ${c.detail}`).join('\n')}`;
-    
-    if (navigator.share) {
-      navigator.share({
-        title: 'Investment Fit Analysis',
-        text: shareText
-      }).catch(() => {
-        navigator.clipboard.writeText(shareText);
-        toast.success('Fit analysis copied to clipboard');
-      });
-    } else {
-      navigator.clipboard.writeText(shareText);
-      toast.success('Fit analysis copied to clipboard');
-    }
-  };
-
-  // Check if user has incomplete profile data
-  const hasIncompleteProfile = !user.revenue_range_min || !user.business_categories?.length || !user.target_locations;
-
   return (
     <Card className="border-sourceco-form bg-white">
       <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-sm font-medium text-sourceco-text flex items-center gap-2">
-            <Target className="h-4 w-4" />
-            Investment Fit Analysis
-          </CardTitle>
-          <div className="flex gap-2">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={handleShareFitAnalysis}
-              className="h-7 px-2 text-xs"
-            >
-              <Share2 className="h-3 w-3 mr-1" />
-              Share
-            </Button>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={handleUpdateProfile}
-              className="h-7 px-2 text-xs"
-            >
-              <Settings className="h-3 w-3 mr-1" />
-              Update
-            </Button>
-          </div>
-        </div>
+        <CardTitle className="text-sm font-medium text-sourceco-text flex items-center gap-2">
+          <Target className="h-4 w-4" />
+          Investment Fit Analysis
+        </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Profile Completeness Warning */}
-        {hasIncompleteProfile && (
-          <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-200">
-            <div className="text-xs font-medium text-yellow-800 mb-1">Improve Your Fit Score</div>
-            <div className="text-xs text-yellow-700">
-              Complete your investment preferences in your profile for more accurate fit analysis.
-            </div>
-          </div>
-        )}
-
         {/* Overall Score */}
         <div className="text-center">
           <div className={`text-2xl font-bold ${getScoreColor(score)}`}>
             {score}%
           </div>
-          <div className="text-xs text-sourceco-text/60 mb-2">Investment Fit Score</div>
-          <div className="text-xs text-sourceco-text/50 mb-2">
-            Based on your profile vs. this opportunity
-          </div>
+          <div className="text-xs text-gray-600 mb-2">Investment Fit Score</div>
           <Progress value={score} className="h-2" />
         </div>
 
@@ -332,17 +242,17 @@ export const InvestmentFitScore: React.FC<InvestmentFitScoreProps> = ({
             <div key={index} className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 {getStatusIcon(criterion.status)}
-                <span className="text-xs font-medium text-sourceco-text">{criterion.name}</span>
+                <span className="text-xs font-medium text-gray-700">{criterion.name}</span>
               </div>
-              <span className="text-xs text-sourceco-text/60">{criterion.detail}</span>
+              <span className="text-xs text-gray-500">{criterion.detail}</span>
             </div>
           ))}
         </div>
 
         {score >= 80 && (
-          <div className="bg-sourceco-accent/10 p-3 rounded-lg border border-sourceco-accent/20">
-            <div className="text-xs font-medium text-sourceco-accent mb-1">Strong Fit</div>
-            <div className="text-xs text-sourceco-text/70">
+          <div className="bg-green-50 p-3 rounded-lg">
+            <div className="text-xs font-medium text-green-800 mb-1">Strong Fit</div>
+            <div className="text-xs text-green-700">
               This opportunity aligns well with your investment criteria and preferences.
             </div>
           </div>
