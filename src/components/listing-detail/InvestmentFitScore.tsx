@@ -45,18 +45,30 @@ export function InvestmentFitScore({ revenue, ebitda, category, location }: Inve
   }
 
   // ENHANCED: Parse user data with robust error handling for all formats
-  const userTargetLocations = user.target_locations 
-    ? (typeof user.target_locations === 'string'
-        ? (user.target_locations.startsWith('[') 
-           ? (() => {
-               try { return JSON.parse(user.target_locations as string); } 
-               catch { return user.target_locations.split(',').map(loc => loc.trim()).filter(Boolean); }
-             })()
-           : user.target_locations.split(',').map(loc => loc.trim()).filter(Boolean))
-        : Array.isArray(user.target_locations)
-        ? user.target_locations
-        : [])
-    : [];
+  const userTargetLocations = (() => {
+    if (!user.target_locations) return [];
+    
+    if (typeof user.target_locations === 'string') {
+      // Handle JSON array string
+      if (user.target_locations.startsWith('[')) {
+        try { 
+          const parsed = JSON.parse(user.target_locations);
+          return Array.isArray(parsed) ? parsed.filter(Boolean) : [];
+        } catch { 
+          return user.target_locations.split(',').map(loc => loc.trim()).filter(Boolean);
+        }
+      }
+      // Handle comma-separated string
+      return user.target_locations.split(',').map(loc => loc.trim()).filter(Boolean);
+    }
+    
+    // Handle array format
+    if (Array.isArray(user.target_locations)) {
+      return (user.target_locations as string[]).filter(Boolean);
+    }
+    
+    return [];
+  })();
   
   const userCategories = user.business_categories 
     ? (Array.isArray(user.business_categories) 
@@ -94,11 +106,11 @@ export function InvestmentFitScore({ revenue, ebitda, category, location }: Inve
       } else if (revenue < minRange) {
         const ratio = revenue / minRange;
         revenueScore = Math.max(0, ratio * 80);
-        revenueDetails = `⚠ Below: $${formatCurrency(revenue)} vs min $${formatCurrency(minRange)}`;
+        revenueDetails = `○ Below: $${formatCurrency(revenue)} vs min $${formatCurrency(minRange)}`;
       } else {
         const ratio = maxRange / revenue;
         revenueScore = Math.max(0, ratio * 80);
-        revenueDetails = `⚠ Above: $${formatCurrency(revenue)} vs max $${formatCurrency(maxRange)}`;
+        revenueDetails = `○ Above: $${formatCurrency(revenue)} vs max $${formatCurrency(maxRange)}`;
       }
       totalWeight += revenueWeight;
       weightedScore += revenueScore * revenueWeight / 100;
@@ -187,13 +199,13 @@ export function InvestmentFitScore({ revenue, ebitda, category, location }: Inve
       
       if (investmentSize.includes('small') || investmentSize.includes('<5m')) {
         sizeScore = revenue < 10000000 ? 100 : revenue < 25000000 ? 75 : 50;
-        sizeDetails = `${sizeScore === 100 ? '✓' : sizeScore === 75 ? '○' : '⚠'} Small deal preference vs $${formatCurrency(revenue)} revenue`;
+        sizeDetails = `${sizeScore === 100 ? '✓' : '○'} Small deal preference vs $${formatCurrency(revenue)} revenue`;
       } else if (investmentSize.includes('medium') || investmentSize.includes('5-25m')) {
         sizeScore = revenue >= 5000000 && revenue <= 50000000 ? 100 : 75;
         sizeDetails = `${sizeScore === 100 ? '✓' : '○'} Medium deal preference vs $${formatCurrency(revenue)} revenue`;
       } else if (investmentSize.includes('large') || investmentSize.includes('>25m')) {
         sizeScore = revenue > 25000000 ? 100 : revenue > 10000000 ? 75 : 50;
-        sizeDetails = `${sizeScore === 100 ? '✓' : sizeScore === 75 ? '○' : '⚠'} Large deal preference vs $${formatCurrency(revenue)} revenue`;
+        sizeDetails = `${sizeScore === 100 ? '✓' : '○'} Large deal preference vs $${formatCurrency(revenue)} revenue`;
       } else {
         sizeScore = 75; // Default if we can't parse
         sizeDetails = `○ Investment size: "${user.investment_size}" vs $${formatCurrency(revenue)} revenue`;
@@ -233,12 +245,14 @@ export function InvestmentFitScore({ revenue, ebitda, category, location }: Inve
   const profileCompleteness = getProfileCompleteness();
 
   const getScoreColor = (score: number) => {
-    if (score >= 70) return 'text-emerald-600';
+    if (score >= 70) return 'text-emerald-600 dark:text-emerald-500';
+    if (score >= 50) return 'text-blue-600 dark:text-blue-400';
     return 'text-muted-foreground';
   };
 
   const getScoreIcon = (score: number) => {
     if (score >= 70) return '✓';
+    if (score >= 50) return '○';
     return '○';
   };
 

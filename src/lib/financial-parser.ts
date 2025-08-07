@@ -625,10 +625,16 @@ export function calculateInvestmentMetrics(revenue: number, ebitda: number) {
 export function calculateLocationMatchScore(userLocations: string[], listingLocation: string): number {
   if (!userLocations.length || !listingLocation) return 0;
   
-  // Normalize strings for comparison
-  const normalizeLocation = (loc: string) => loc.trim().toLowerCase();
+  // Normalize strings for comparison - handle edge cases
+  const normalizeLocation = (loc: string) => {
+    if (!loc || typeof loc !== 'string') return '';
+    return loc.trim().toLowerCase().replace(/[^\w\s]/g, ' ').replace(/\s+/g, ' ');
+  };
+  
   const normalizedListing = normalizeLocation(listingLocation);
-  const normalizedUserLocations = userLocations.map(normalizeLocation);
+  const normalizedUserLocations = userLocations.map(normalizeLocation).filter(Boolean);
+  
+  if (!normalizedUserLocations.length || !normalizedListing) return 0;
   
   // Handle 'All Locations' option
   if (normalizedUserLocations.includes('all locations')) {

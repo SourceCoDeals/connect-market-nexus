@@ -72,6 +72,13 @@ const Profile = () => {
     }));
   };
 
+  const handleLocationChange = (values: string[]) => {
+    setFormData((prev) => ({
+      ...prev,
+      target_locations: values.join(', '),
+    }));
+  };
+
   const handleProfileUpdate = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!user) return;
@@ -270,8 +277,17 @@ const Profile = () => {
                    <div className="space-y-2">
                      <Label htmlFor="target_locations">Target Locations</Label>
                      <MultiLocationSelect
-                       value={formData.target_locations ? formData.target_locations.split(',').map(s => s.trim()) : []}
-                       onValueChange={(values) => handleSelectChange(values.join(', '), "target_locations")}
+                       value={(() => {
+                         if (!formData.target_locations) return [];
+                         if (typeof formData.target_locations === 'string') {
+                           return formData.target_locations.split(',').map(s => s.trim()).filter(Boolean);
+                         }
+                         if (Array.isArray(formData.target_locations)) {
+                           return formData.target_locations;
+                         }
+                         return [];
+                       })()}
+                       onValueChange={handleLocationChange}
                        placeholder="Select target regions..."
                      />
                    </div>
