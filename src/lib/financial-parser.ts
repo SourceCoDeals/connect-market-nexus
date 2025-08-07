@@ -70,6 +70,32 @@ export const STANDARDIZED_LOCATIONS = [
 
 export type StandardizedLocation = typeof STANDARDIZED_LOCATIONS[number];
 
+// Standardized business categories
+export const STANDARDIZED_CATEGORIES = [
+  'Technology',
+  'Healthcare',
+  'Finance & Insurance',
+  'Manufacturing',
+  'Retail & E-commerce',
+  'Real Estate',
+  'Food & Beverage',
+  'Professional Services',
+  'Construction',
+  'Transportation & Logistics',
+  'Energy & Utilities',
+  'Education',
+  'Entertainment & Media',
+  'Agriculture',
+  'Automotive',
+  'Telecommunications',
+  'Aerospace & Defense',
+  'Chemicals',
+  'Consumer Goods',
+  'Other'
+] as const;
+
+export type StandardizedCategory = typeof STANDARDIZED_CATEGORIES[number];
+
 export interface InvestmentThesis {
   overview: string;
   keyStrengths: string[];

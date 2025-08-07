@@ -16,6 +16,7 @@ import { MultiSelect } from "@/components/ui/multi-select";
 import { MultiLocationSelect } from "@/components/ui/location-select";
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@/types";
+import { STANDARDIZED_CATEGORIES } from "@/lib/financial-parser";
 
 const Profile = () => {
   const { user, updateUserProfile } = useAuth();
@@ -463,29 +464,16 @@ const Profile = () => {
                   
                   <div className="space-y-2">
                     <Label htmlFor="business_categories">Business Categories of Interest</Label>
-                    <MultiSelect
-                      options={[
-                        { label: "Technology", value: "technology" },
-                        { label: "Healthcare", value: "healthcare" },
-                        { label: "Manufacturing", value: "manufacturing" },
-                        { label: "Retail", value: "retail" },
-                        { label: "Financial Services", value: "financial_services" },
-                        { label: "Real Estate", value: "real_estate" },
-                        { label: "Energy", value: "energy" },
-                        { label: "Transportation", value: "transportation" },
-                        { label: "Education", value: "education" },
-                        { label: "Food & Beverage", value: "food_beverage" },
-                        { label: "Construction", value: "construction" },
-                        { label: "Media", value: "media" },
-                        { label: "Hospitality", value: "hospitality" },
-                        { label: "Agriculture", value: "agriculture" },
-                        { label: "Professional Services", value: "professional_services" }
-                      ]}
-                      selected={formData.business_categories || []}
-                      onSelectedChange={(value) => handleSelectChange(value, "business_categories")}
-                      placeholder="Select business categories..."
-                      className="w-full"
-                    />
+                     <MultiSelect
+                       options={STANDARDIZED_CATEGORIES.map(category => ({
+                         label: category,
+                         value: category
+                       }))}
+                       selected={formData.business_categories || []}
+                       onSelectedChange={(value) => handleSelectChange(value, "business_categories")}
+                       placeholder="Select business categories..."
+                       className="w-full"
+                     />
                   </div>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
