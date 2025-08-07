@@ -42,6 +42,17 @@ const Profile = () => {
     revenue_range_min: user?.revenue_range_min || undefined,
     revenue_range_max: user?.revenue_range_max || undefined,
     specific_business_search: user?.specific_business_search || "",
+    // Add missing financial fields
+    investment_size: user?.investment_size || "",
+    fund_size: user?.fund_size || "",
+    aum: user?.aum || "",
+    estimated_revenue: user?.estimated_revenue || "",
+    is_funded: user?.is_funded || "",
+    funded_by: user?.funded_by || "",
+    target_company_size: user?.target_company_size || "",
+    funding_source: user?.funding_source || "",
+    needs_loan: user?.needs_loan || "",
+    ideal_target: user?.ideal_target || "",
   });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -256,54 +267,201 @@ const Profile = () => {
                   
                   <div className="space-y-2">
                     <Label htmlFor="target_locations">Target Locations</Label>
-                    <Input 
-                      id="target_locations" 
-                      name="target_locations" 
+                    <Select 
                       value={formData.target_locations} 
-                      onChange={handleInputChange}
-                      placeholder="e.g. West Coast, Texas, International"
-                    />
+                      onValueChange={(value) => handleSelectChange(value, "target_locations")}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select target location" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Northeast US">Northeast US</SelectItem>
+                        <SelectItem value="Southeast US">Southeast US</SelectItem>
+                        <SelectItem value="Midwest US">Midwest US</SelectItem>
+                        <SelectItem value="West Coast US">West Coast US</SelectItem>
+                        <SelectItem value="Southwest US">Southwest US</SelectItem>
+                        <SelectItem value="Mountain West US">Mountain West US</SelectItem>
+                        <SelectItem value="Canada">Canada</SelectItem>
+                        <SelectItem value="United Kingdom">United Kingdom</SelectItem>
+                        <SelectItem value="Western Europe">Western Europe</SelectItem>
+                        <SelectItem value="Eastern Europe">Eastern Europe</SelectItem>
+                        <SelectItem value="Asia Pacific">Asia Pacific</SelectItem>
+                        <SelectItem value="Australia/New Zealand">Australia/New Zealand</SelectItem>
+                        <SelectItem value="Latin America">Latin America</SelectItem>
+                        <SelectItem value="International">International</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
+                </div>
+                
+                <Separator />
+                
+                {/* Investment Criteria Section */}
+                <div className="space-y-6">
+                  <h3 className="text-lg font-medium">Investment Criteria</h3>
                   
-                  {/* Additional fields based on buyer type */}
-                  {(formData.buyer_type === "privateEquity" || formData.buyer_type === "familyOffice") && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                    {/* Investment Size - for all buyer types */}
                     <div className="space-y-2">
-                      <Label htmlFor="fund_size">Fund Size</Label>
-                      <Input 
-                        id="fund_size" 
-                        name="fund_size" 
-                        value={formData.fund_size || ""} 
-                        onChange={handleInputChange}
-                        placeholder="e.g. $100M-$500M"
-                      />
+                      <Label htmlFor="investment_size">Investment Size Range</Label>
+                      <Select 
+                        value={formData.investment_size} 
+                        onValueChange={(value) => handleSelectChange(value, "investment_size")}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select investment size" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Under $1M">Under $1M</SelectItem>
+                          <SelectItem value="$1M - $5M">$1M - $5M</SelectItem>
+                          <SelectItem value="$5M - $10M">$5M - $10M</SelectItem>
+                          <SelectItem value="$10M - $25M">$10M - $25M</SelectItem>
+                          <SelectItem value="Over $25M">Over $25M</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
-                  )}
-                  
-                  {formData.buyer_type === "familyOffice" && (
-                    <div className="space-y-2">
-                      <Label htmlFor="aum">Assets Under Management</Label>
-                      <Input 
-                        id="aum" 
-                        name="aum" 
-                        value={formData.aum || ""} 
-                        onChange={handleInputChange}
-                        placeholder="e.g. $500M"
-                      />
-                    </div>
-                  )}
-                  
-                  {formData.buyer_type === "corporate" && (
-                    <div className="space-y-2">
-                      <Label htmlFor="estimated_revenue">Estimated Revenue</Label>
-                      <Input 
-                        id="estimated_revenue" 
-                        name="estimated_revenue" 
-                        value={formData.estimated_revenue || ""} 
-                        onChange={handleInputChange}
-                        placeholder="e.g. $10M-$50M"
-                      />
-                    </div>
-                  )}
+
+                    {/* Additional fields based on buyer type */}
+                    {(formData.buyer_type === "privateEquity" || formData.buyer_type === "familyOffice") && (
+                      <>
+                        <div className="space-y-2">
+                          <Label htmlFor="fund_size">Fund Size</Label>
+                          <Input 
+                            id="fund_size" 
+                            name="fund_size" 
+                            value={formData.fund_size || ""} 
+                            onChange={handleInputChange}
+                            placeholder="e.g. $100M-$500M"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="aum">Assets Under Management</Label>
+                          <Input 
+                            id="aum" 
+                            name="aum" 
+                            value={formData.aum || ""} 
+                            onChange={handleInputChange}
+                            placeholder="e.g. $500M"
+                          />
+                        </div>
+                      </>
+                    )}
+                    
+                    {formData.buyer_type === "corporate" && (
+                      <div className="space-y-2">
+                        <Label htmlFor="estimated_revenue">Your Company Revenue</Label>
+                        <Input 
+                          id="estimated_revenue" 
+                          name="estimated_revenue" 
+                          value={formData.estimated_revenue || ""} 
+                          onChange={handleInputChange}
+                          placeholder="e.g. $10M-$50M"
+                        />
+                      </div>
+                    )}
+
+                    {formData.buyer_type === "searchFund" && (
+                      <>
+                        <div className="space-y-2">
+                          <Label htmlFor="is_funded">Funding Status</Label>
+                          <Select 
+                            value={formData.is_funded} 
+                            onValueChange={(value) => handleSelectChange(value, "is_funded")}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select funding status" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="yes">Funded</SelectItem>
+                              <SelectItem value="no">Not Funded</SelectItem>
+                              <SelectItem value="seeking">Seeking Funding</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        
+                        {formData.is_funded === "yes" && (
+                          <div className="space-y-2">
+                            <Label htmlFor="funded_by">Funded By</Label>
+                            <Input 
+                              id="funded_by" 
+                              name="funded_by" 
+                              value={formData.funded_by || ""} 
+                              onChange={handleInputChange}
+                              placeholder="Name of investor/fund"
+                            />
+                          </div>
+                        )}
+                        
+                        <div className="space-y-2">
+                          <Label htmlFor="target_company_size">Target Company Size</Label>
+                          <Select 
+                            value={formData.target_company_size} 
+                            onValueChange={(value) => handleSelectChange(value, "target_company_size")}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select target size" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="small">Small (under $5M revenue)</SelectItem>
+                              <SelectItem value="medium">Medium ($5M-$50M revenue)</SelectItem>
+                              <SelectItem value="large">Large (over $50M revenue)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </>
+                    )}
+
+                    {formData.buyer_type === "individual" && (
+                      <>
+                        <div className="space-y-2">
+                          <Label htmlFor="funding_source">Primary Funding Source</Label>
+                          <Select 
+                            value={formData.funding_source} 
+                            onValueChange={(value) => handleSelectChange(value, "funding_source")}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select funding source" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="personal">Personal Funds</SelectItem>
+                              <SelectItem value="investors">External Investors</SelectItem>
+                              <SelectItem value="bank_loan">Bank Loan</SelectItem>
+                              <SelectItem value="sba_loan">SBA Loan</SelectItem>
+                              <SelectItem value="combination">Combination</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <Label htmlFor="needs_loan">SBA/Bank Loan Interest</Label>
+                          <Select 
+                            value={formData.needs_loan} 
+                            onValueChange={(value) => handleSelectChange(value, "needs_loan")}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select loan interest" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="yes">Yes</SelectItem>
+                              <SelectItem value="no">No</SelectItem>
+                              <SelectItem value="maybe">Maybe</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <Label htmlFor="ideal_target">Ideal Target Type</Label>
+                          <Input 
+                            id="ideal_target" 
+                            name="ideal_target" 
+                            value={formData.ideal_target || ""} 
+                            onChange={handleInputChange}
+                            placeholder="e.g. lifestyle business, growth company"
+                          />
+                        </div>
+                      </>
+                     )}
+                  </div>
                 </div>
                 
                 <Separator />

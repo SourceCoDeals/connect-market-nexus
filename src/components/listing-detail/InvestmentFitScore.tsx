@@ -23,9 +23,9 @@ export const InvestmentFitScore: React.FC<InvestmentFitScoreProps> = ({
   
   if (!user) {
     return (
-      <Card className="border-sourceco-form bg-white">
+      <Card className="border-border bg-card">
         <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-medium text-sourceco-text flex items-center gap-2">
+          <CardTitle className="text-sm font-medium text-foreground flex items-center gap-2">
             <Target className="h-4 w-4" />
             Investment Fit Analysis
           </CardTitle>
@@ -284,108 +284,85 @@ export const InvestmentFitScore: React.FC<InvestmentFitScoreProps> = ({
   };
 
   return (
-    <Card className="border-sourceco-form bg-white shadow-sm hover:shadow-md transition-shadow duration-300">
-      <CardHeader className="pb-4 border-b border-sourceco-form/50">
-        <CardTitle className="text-lg font-semibold text-sourceco-text flex items-center gap-3 tracking-tight">
-          <div className="p-2 bg-sourceco-accent/10 rounded-lg">
-            <Target className="h-5 w-5 text-sourceco-accent" />
-          </div>
+    <Card className="border-border bg-card">
+      <CardHeader className="pb-4 border-b border-border">
+        <CardTitle className="text-lg font-medium text-foreground flex items-center gap-3">
+          <Target className="h-5 w-5 text-muted-foreground" />
           Investment Fit Analysis
         </CardTitle>
-        <p className="text-sm text-muted-foreground">
-          Personalized compatibility based on your investment criteria
-        </p>
       </CardHeader>
-      <CardContent className="space-y-6 pt-6">
-        {/* Overall Score */}
-        <div className="text-center space-y-4">
-          <div className="relative">
-            <div className={`text-4xl font-bold ${getScoreColor(score)} tracking-tight`}>
+      <CardContent className="pt-6">
+        <div className="space-y-6">
+          {/* Overall Score */}
+          <div className="text-center space-y-3">
+            <div className={`text-3xl font-medium ${getScoreColor(score)}`}>
               {score}%
             </div>
-            <div className="text-sm text-muted-foreground font-medium mt-1">Investment Fit Score</div>
+            <div className="text-sm text-muted-foreground">Fit Score</div>
+            <Progress value={score} className="h-2" />
           </div>
-          <div className="space-y-2">
-            <Progress value={score} className="h-3 bg-sourceco-background" />
-            <div className="text-xs text-muted-foreground">
-              Based on your investment preferences
-            </div>
-          </div>
-        </div>
 
-        {/* Criteria Breakdown */}
-        <div className="space-y-4">
-          <h4 className="text-sm font-semibold text-sourceco-text">Detailed Analysis</h4>
+          {/* Criteria Breakdown */}
           <div className="space-y-3">
-            {criteria.map((criterion, index) => (
-              <div key={index} className="flex items-start justify-between p-3 bg-sourceco-background/50 rounded-lg border border-sourceco-form/50">
-                <div className="flex items-center gap-3">
-                  {getStatusIcon(criterion.status)}
-                  <span className="text-sm font-medium text-slate-700">{criterion.name}</span>
-                </div>
-                <span className="text-sm text-muted-foreground text-right max-w-[60%]">{criterion.detail}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Profile Completion Guidance */}
-        <div className="bg-gradient-to-br from-blue-50/50 to-indigo-50/30 border border-blue-200/50 p-4 rounded-lg">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <User className="h-4 w-4 text-blue-600" />
-              <span className="text-sm font-medium text-blue-800">Profile Completeness</span>
-            </div>
-            <span className="text-sm font-bold text-blue-600">{profileCompleteness}%</span>
-          </div>
-          
-          <Progress value={profileCompleteness} className="h-2 mb-3" />
-          
-          <div className="text-xs text-blue-700 mb-3">
-            {profileCompleteness >= 80 
-              ? "Your profile is comprehensive! This analysis is based on your detailed investment preferences."
-              : "Complete your investment profile for more accurate fit analysis. Missing preferences are treated as flexible criteria."
-            }
-          </div>
-          
-          {profileCompleteness < 80 && (
+            <h4 className="text-sm font-medium text-foreground">Match Analysis</h4>
             <div className="space-y-2">
-              <div className="text-xs font-medium text-blue-800">Enhance your analysis by adding:</div>
-              <div className="grid gap-1 text-xs text-blue-700">
-                {!user?.revenue_range_min && <span>• Target revenue range</span>}
-                {(!user?.business_categories || user.business_categories.length === 0) && <span>• Industry preferences</span>}
-                {!user?.target_locations && <span>• Geographic focus areas</span>}
-                {!user?.investment_size && <span>• Investment size preferences</span>}
-                {!user?.ideal_target_description && <span>• Investment criteria description</span>}
-              </div>
-            </div>
-          )}
-          
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={() => window.location.href = '/profile'}
-            className="mt-3 text-xs border-blue-200 text-blue-700 hover:bg-blue-50"
-          >
-            <Settings className="h-3 w-3 mr-1" />
-            Update Investment Profile
-          </Button>
-        </div>
-
-        {score >= 80 && (
-          <div className="bg-green-50 border border-green-200 p-3 rounded-lg">
-            <div className="text-xs font-medium text-green-800 mb-1">Strong Fit</div>
-            <div className="text-xs text-green-700">
-              This opportunity aligns well with your investment criteria and preferences.
+              {criteria.map((criterion, index) => (
+                <div key={index} className="flex items-center justify-between p-3 border border-border rounded-lg">
+                  <div className="flex items-center gap-3">
+                    {getStatusIcon(criterion.status)}
+                    <span className="text-sm text-foreground">{criterion.name}</span>
+                  </div>
+                  <span className="text-sm text-muted-foreground text-right">{criterion.detail}</span>
+                </div>
+              ))}
             </div>
           </div>
-        )}
 
-        {/* How It Works */}
-        <div className="text-xs text-muted-foreground text-center pt-2 border-t border-sourceco-form space-y-1">
-          <div>This score is calculated dynamically based on your profile preferences vs. this listing's characteristics</div>
-          <div className="text-sourceco-accent font-medium">
-            Analysis updates automatically when you modify your investment criteria
+          {/* Profile Completion */}
+          <div className="border border-border p-3 rounded-lg">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <User className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-medium text-foreground">Profile Completeness</span>
+              </div>
+              <span className="text-sm font-medium text-foreground">{profileCompleteness}%</span>
+            </div>
+            
+            <Progress value={profileCompleteness} className="h-2 mb-3" />
+            
+            <div className="text-xs text-muted-foreground mb-3">
+              {profileCompleteness >= 80 
+                ? "Complete profile provides accurate analysis based on your investment criteria."
+                : "Incomplete criteria are treated as flexible. Complete your profile for better accuracy."
+              }
+            </div>
+            
+            {profileCompleteness < 80 && (
+              <div className="space-y-2">
+                <div className="text-xs font-medium text-foreground">Missing criteria:</div>
+                <div className="grid gap-1 text-xs text-muted-foreground">
+                  {!user?.revenue_range_min && <span>• Revenue range</span>}
+                  {(!user?.business_categories || user.business_categories.length === 0) && <span>• Industry focus</span>}
+                  {!user?.target_locations && <span>• Geographic preference</span>}
+                  {!user?.investment_size && <span>• Investment size</span>}
+                  {!user?.ideal_target_description && <span>• Investment thesis</span>}
+                </div>
+              </div>
+            )}
+            
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => window.location.href = '/profile'}
+              className="mt-3 text-xs"
+            >
+              <Settings className="h-3 w-3 mr-1" />
+              Update Profile
+            </Button>
+          </div>
+
+          <div className="text-xs text-muted-foreground text-center pt-3 border-t border-border">
+            Score based on your investment criteria vs. listing characteristics
           </div>
         </div>
       </CardContent>
