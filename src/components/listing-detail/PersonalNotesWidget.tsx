@@ -3,9 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { StickyNote, Tag, Star, AlertCircle, TrendingUp } from 'lucide-react';
+import { StickyNote, Star } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
 
 interface PersonalNotesWidgetProps {
@@ -22,12 +21,12 @@ interface PersonalNote {
 }
 
 const tagOptions = [
-  { value: 'high-potential', label: 'High Potential', color: 'bg-green-100 text-green-800' },
-  { value: 'watch-list', label: 'Watch List', color: 'bg-blue-100 text-blue-800' },
-  { value: 'due-diligence', label: 'Due Diligence', color: 'bg-purple-100 text-purple-800' },
-  { value: 'follow-up', label: 'Follow Up', color: 'bg-yellow-100 text-yellow-800' },
-  { value: 'red-flag', label: 'Red Flag', color: 'bg-red-100 text-red-800' },
-  { value: 'financial-review', label: 'Financial Review', color: 'bg-orange-100 text-orange-800' },
+  { value: 'high-potential', label: 'High Potential' },
+  { value: 'watch-list', label: 'Watch List' },
+  { value: 'due-diligence', label: 'Due Diligence' },
+  { value: 'follow-up', label: 'Follow Up' },
+  { value: 'red-flag', label: 'Red Flag' },
+  { value: 'financial-review', label: 'Financial Review' },
 ];
 
 export const PersonalNotesWidget: React.FC<PersonalNotesWidgetProps> = ({ listingId }) => {
@@ -35,7 +34,6 @@ export const PersonalNotesWidget: React.FC<PersonalNotesWidgetProps> = ({ listin
   const [content, setContent] = useState('');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [rating, setRating] = useState(0);
-  const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
@@ -46,26 +44,22 @@ export const PersonalNotesWidget: React.FC<PersonalNotesWidgetProps> = ({ listin
     }
   }, [listingId, user]);
 
-  const loadNote = async () => {
-    setIsLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from('listing_personal_notes' as any)
-        .select('*')
-        .eq('listing_id', listingId)
-        .eq('user_id', user?.id)
-        .maybeSingle();
+  const getStorageKey = () => `personal_note_${user?.id}_${listingId}`;
 
-      if (data && !error) {
-        setNote(data as unknown as PersonalNote);
-        setContent((data as any).content || '');
-        setSelectedTags((data as any).tags || []);
-        setRating((data as any).rating || 0);
+  const loadNote = () => {
+    if (!user) return;
+    
+    try {
+      const stored = localStorage.getItem(getStorageKey());
+      if (stored) {
+        const noteData = JSON.parse(stored) as PersonalNote;
+        setNote(noteData);
+        setContent(noteData.content);
+        setSelectedTags(noteData.tags);
+        setRating(noteData.rating);
       }
     } catch (error) {
-      // Note doesn't exist yet, which is fine
-    } finally {
-      setIsLoading(false);
+      console.error('Error loading note:', error);
     }
   };
 
@@ -74,41 +68,26 @@ export const PersonalNotesWidget: React.FC<PersonalNotesWidgetProps> = ({ listin
     
     setIsSaving(true);
     try {
-      const noteData = {
-        listing_id: listingId,
-        user_id: user.id,
+      const now = new Date().toISOString();
+      const noteData: PersonalNote = {
+        id: note?.id || crypto.randomUUID(),
         content,
         tags: selectedTags,
         rating,
-        updated_at: new Date().toISOString()
+        created_at: note?.created_at || now,
+        updated_at: now
       };
 
-      if (note) {
-        const { error } = await supabase
-          .from('listing_personal_notes' as any)
-          .update(noteData)
-          .eq('id', note.id);
-        
-        if (error) throw error;
-      } else {
-        const { data, error } = await supabase
-          .from('listing_personal_notes' as any)
-          .insert({
-            ...noteData,
-            created_at: new Date().toISOString()
-          })
-          .select()
-          .maybeSingle();
-        
-        if (error) throw error;
-        if (data) setNote(data as unknown as PersonalNote);
-      }
+      // Save to localStorage temporarily
+      localStorage.setItem(getStorageKey(), JSON.stringify(noteData));
+      setNote(noteData);
 
       toast({
         title: "Notes saved",
         description: "Your personal notes have been saved successfully.",
       });
     } catch (error) {
+      console.error('Error saving note:', error);
       toast({
         title: "Error saving notes",
         description: "Please try again.",
@@ -205,6 +184,12 @@ export const PersonalNotesWidget: React.FC<PersonalNotesWidgetProps> = ({ listin
         >
           {isSaving ? 'Saving...' : 'Save Notes'}
         </Button>
+
+        {note && (
+          <div className="text-xs text-gray-500 text-center">
+            Last updated: {new Date(note.updated_at).toLocaleDateString()}
+          </div>
+        )}
       </CardContent>
     </Card>
   );
