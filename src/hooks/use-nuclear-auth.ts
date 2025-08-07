@@ -3,6 +3,7 @@ import { User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { User as AppUser } from '@/types';
 import { createUserObject } from '@/lib/auth-helpers';
+import { parseCurrency } from '@/lib/currency-utils';
 
 // Ultra-simple auth state - no caching, no localStorage interference, no managers
 export function useNuclearAuth() {
@@ -138,10 +139,14 @@ export function useNuclearAuth() {
           buyer_type: userData.buyer_type || 'corporate',
           linkedin_profile: userData.linkedin_profile || '',
           ideal_target_description: userData.ideal_target_description || '',
-          business_categories: JSON.stringify(userData.business_categories || []),
-          target_locations: userData.target_locations || '',
-          revenue_range_min: userData.revenue_range_min,
-          revenue_range_max: userData.revenue_range_max,
+          business_categories: Array.isArray(userData.business_categories) ? userData.business_categories : [],
+          target_locations: Array.isArray(userData.target_locations) ? (userData.target_locations as any) : [],
+          revenue_range_min: typeof userData.revenue_range_min === 'number' 
+            ? userData.revenue_range_min 
+            : parseCurrency(String(userData.revenue_range_min ?? '')),
+          revenue_range_max: typeof userData.revenue_range_max === 'number' 
+            ? userData.revenue_range_max 
+            : parseCurrency(String(userData.revenue_range_max ?? '')),
           specific_business_search: userData.specific_business_search || '',
           // Additional fields for different buyer types
           estimated_revenue: userData.estimated_revenue || '',

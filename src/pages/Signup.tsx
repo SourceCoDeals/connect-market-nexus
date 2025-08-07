@@ -14,6 +14,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { MultiSelect } from "@/components/ui/multi-select";
 import { MultiLocationSelect } from "@/components/ui/location-select";
+import { CurrencyInput } from "@/components/ui/currency-input";
+import { parseCurrency } from "@/lib/currency-utils";
 
 const steps = [
   "Account Information",
@@ -220,9 +222,12 @@ const Signup = () => {
         if (formData.businessCategories.length === 0) {
           errors.push("Please select at least one business category");
         }
+        if (formData.targetLocations.length === 0) {
+          errors.push("Please select at least one target location");
+        }
         if (formData.revenueRangeMin && formData.revenueRangeMax) {
-          const min = parseFloat(formData.revenueRangeMin.replace(/[^0-9.]/g, ""));
-          const max = parseFloat(formData.revenueRangeMax.replace(/[^0-9.]/g, ""));
+          const min = parseCurrency(formData.revenueRangeMin);
+          const max = parseCurrency(formData.revenueRangeMax);
           if (min >= max) {
             errors.push("Maximum revenue must be greater than minimum revenue");
           }
@@ -498,12 +503,12 @@ const Signup = () => {
             {formData.buyerType === "corporate" && (
               <div className="space-y-2">
                 <Label htmlFor="estimatedRevenue">Estimated Revenue</Label>
-                <Input
+                <CurrencyInput
                   id="estimatedRevenue"
                   name="estimatedRevenue"
-                  placeholder="$1M-$5M"
+                  placeholder="$1,000,000"
                   value={formData.estimatedRevenue}
-                  onChange={handleBuyerSpecificChange}
+                  onChange={(val) => setFormData((prev) => ({ ...prev, estimatedRevenue: val }))}
                   required
                 />
               </div>
@@ -513,33 +518,41 @@ const Signup = () => {
               <div className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="fundSize">Fund Size</Label>
-                  <Input
+                  <CurrencyInput
                     id="fundSize"
                     name="fundSize"
-                    placeholder="$10M-$50M"
+                    placeholder="$10,000,000"
                     value={formData.fundSize}
-                    onChange={handleBuyerSpecificChange}
+                    onChange={(val) => setFormData((prev) => ({ ...prev, fundSize: val }))}
                     required
                   />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="investmentSize">Investment Size</Label>
-                  <Input
-                    id="investmentSize"
-                    name="investmentSize"
-                    placeholder="$1M-$10M"
+                  <Select
                     value={formData.investmentSize}
-                    onChange={handleBuyerSpecificChange}
-                  />
+                    onValueChange={(value) => setFormData((prev) => ({ ...prev, investmentSize: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select investment size" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Under $1M">Under $1M</SelectItem>
+                      <SelectItem value="$1M - $5M">$1M - $5M</SelectItem>
+                      <SelectItem value="$5M - $10M">$5M - $10M</SelectItem>
+                      <SelectItem value="$10M - $25M">$10M - $25M</SelectItem>
+                      <SelectItem value="Over $25M">Over $25M</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="aum">Assets Under Management</Label>
-                  <Input
+                  <CurrencyInput
                     id="aum"
                     name="aum"
-                    placeholder="$100M"
+                    placeholder="$100,000,000"
                     value={formData.aum}
-                    onChange={handleBuyerSpecificChange}
+                    onChange={(val) => setFormData((prev) => ({ ...prev, aum: val }))}
                   />
                 </div>
               </div>
@@ -583,13 +596,19 @@ const Signup = () => {
                 
                 <div className="space-y-2">
                   <Label htmlFor="targetCompanySize">Target Company Size</Label>
-                  <Input
-                    id="targetCompanySize"
-                    name="targetCompanySize"
-                    placeholder="$5M-$20M"
+                  <Select
                     value={formData.targetCompanySize}
-                    onChange={handleBuyerSpecificChange}
-                  />
+                    onValueChange={(value) => setFormData((prev) => ({ ...prev, targetCompanySize: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select target size" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="small">Small (under $5M revenue)</SelectItem>
+                      <SelectItem value="medium">Medium ($5M-$50M revenue)</SelectItem>
+                      <SelectItem value="large">Large (over $50M revenue)</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
             )}
@@ -598,14 +617,21 @@ const Signup = () => {
               <div className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="fundingSource">Funding Source</Label>
-                  <Input
-                    id="fundingSource"
-                    name="fundingSource"
-                    placeholder="Personal funds, investors, etc."
+                  <Select
                     value={formData.fundingSource}
-                    onChange={handleBuyerSpecificChange}
-                    required
-                  />
+                    onValueChange={(value) => setFormData((prev) => ({ ...prev, fundingSource: value }))}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select funding source" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="personal">Personal Funds</SelectItem>
+                      <SelectItem value="investors">External Investors</SelectItem>
+                      <SelectItem value="bank_loan">Bank Loan</SelectItem>
+                      <SelectItem value="sba_loan">SBA Loan</SelectItem>
+                      <SelectItem value="combination">Combination</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="needsLoan">SBA/Bank loan?</Label>
@@ -699,22 +725,22 @@ const Signup = () => {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="revenueRangeMin">$ Minimum</Label>
-                    <Input
+                    <CurrencyInput
                       id="revenueRangeMin"
                       name="revenueRangeMin"
                       placeholder="500,000"
                       value={formData.revenueRangeMin}
-                      onChange={(e) => setFormData(prev => ({ ...prev, revenueRangeMin: e.target.value }))}
+                      onChange={(val) => setFormData(prev => ({ ...prev, revenueRangeMin: val }))}
                     />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="revenueRangeMax">$ Maximum</Label>
-                    <Input
+                    <CurrencyInput
                       id="revenueRangeMax"
                       name="revenueRangeMax"
                       placeholder="5,000,000"
                       value={formData.revenueRangeMax}
-                      onChange={(e) => setFormData(prev => ({ ...prev, revenueRangeMax: e.target.value }))}
+                      onChange={(val) => setFormData(prev => ({ ...prev, revenueRangeMax: val }))}
                     />
                   </div>
                 </div>
