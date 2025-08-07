@@ -6,6 +6,7 @@ import { ComprehensiveMatchingValidator } from '@/components/testing/Comprehensi
 import { QuickFitAnalysisTest } from '@/components/testing/QuickFitAnalysisTest';
 import { PerformanceTestSuite } from '@/components/testing/PerformanceTestSuite';
 import { DataConsistencyValidator } from '@/components/testing/DataConsistencyValidator';
+import { ComprehensiveSystemValidator } from '@/components/testing/ComprehensiveSystemValidator';
 import { TestTube2, Zap, Database, CheckCircle } from 'lucide-react';
 
 export default function TestingSuite() {
@@ -83,8 +84,12 @@ export default function TestingSuite() {
         </Card>
       </div>
 
-      <Tabs defaultValue="quick" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+      <Tabs defaultValue="system" className="w-full">
+        <TabsList className="grid w-full grid-cols-5">
+          <TabsTrigger value="system" className="flex items-center gap-2">
+            <CheckCircle className="h-4 w-4" />
+            System
+          </TabsTrigger>
           <TabsTrigger value="quick" className="flex items-center gap-2">
             <Zap className="h-4 w-4" />
             Quick Test
@@ -102,6 +107,25 @@ export default function TestingSuite() {
             Data Validation
           </TabsTrigger>
         </TabsList>
+
+        <TabsContent value="system" className="space-y-6">
+          <div className="grid gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <CheckCircle className="h-5 w-5" />
+                  Comprehensive System Validation
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Full end-to-end validation of database schema, matching algorithms, data consistency, and component integration.
+                </p>
+              </CardHeader>
+              <CardContent>
+                <ComprehensiveSystemValidator />
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
 
         <TabsContent value="quick" className="space-y-6">
           <div className="grid gap-6">

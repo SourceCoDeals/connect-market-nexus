@@ -45,31 +45,10 @@ export function InvestmentFitScore({ revenue, ebitda, category, location }: Inve
     );
   }
 
-  // ENHANCED: Parse user data with robust error handling for all formats
-  const userTargetLocations = (() => {
-    if (!user.target_locations) return [];
-    
-    if (typeof user.target_locations === 'string') {
-      // Handle JSON array string
-      if (user.target_locations.startsWith('[')) {
-        try { 
-          const parsed = JSON.parse(user.target_locations);
-          return Array.isArray(parsed) ? parsed.filter(Boolean) : [];
-        } catch { 
-          return user.target_locations.split(',').map(loc => loc.trim()).filter(Boolean);
-        }
-      }
-      // Handle comma-separated string
-      return user.target_locations.split(',').map(loc => loc.trim()).filter(Boolean);
-    }
-    
-    // Handle array format
-    if (Array.isArray(user.target_locations)) {
-      return (user.target_locations as string[]).filter(Boolean);
-    }
-    
-    return [];
-  })();
+  // SIMPLIFIED: Now that data is standardized as JSONB arrays
+  const userTargetLocations = Array.isArray(user.target_locations) 
+    ? user.target_locations.filter(Boolean)
+    : [];
   
   const userCategories = user.business_categories 
     ? (Array.isArray(user.business_categories) 

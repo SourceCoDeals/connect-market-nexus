@@ -921,7 +921,7 @@ export type Database = {
           revenue_range_min: number | null
           specific_business_search: string | null
           target_company_size: string | null
-          target_locations: string | null
+          target_locations: Json | null
           updated_at: string
           website: string | null
         }
@@ -965,7 +965,7 @@ export type Database = {
           revenue_range_min?: number | null
           specific_business_search?: string | null
           target_company_size?: string | null
-          target_locations?: string | null
+          target_locations?: Json | null
           updated_at?: string
           website?: string | null
         }
@@ -1009,7 +1009,7 @@ export type Database = {
           revenue_range_min?: number | null
           specific_business_search?: string | null
           target_company_size?: string | null
-          target_locations?: string | null
+          target_locations?: Json | null
           updated_at?: string
           website?: string | null
         }

@@ -292,7 +292,7 @@ const Signup = () => {
         buyer_type: buyerType as BuyerType,
         ideal_target_description: idealTargetDescription,
         business_categories: businessCategories,
-        target_locations: targetLocations.join(', '),
+        target_locations: targetLocations as any,
         revenue_range_min: revenueRangeMin ? parseFloat(revenueRangeMin.replace(/[^0-9.]/g, "")) : undefined,
         revenue_range_max: revenueRangeMax ? parseFloat(revenueRangeMax.replace(/[^0-9.]/g, "")) : undefined,
         specific_business_search: specificBusinessSearch,

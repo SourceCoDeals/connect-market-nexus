@@ -39,7 +39,7 @@ export interface User {
   linkedin_profile?: string;
   ideal_target_description?: string;
   business_categories?: string[];
-  target_locations?: string;
+  target_locations?: string[] | string;
   revenue_range_min?: number;
   revenue_range_max?: number;
   specific_business_search?: string;

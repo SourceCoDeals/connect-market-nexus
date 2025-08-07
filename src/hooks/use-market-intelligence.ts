@@ -187,7 +187,11 @@ export function useMarketIntelligence(daysBack: number = 30) {
       userProfiles?.forEach(profile => {
         if (!profile.target_locations) return;
         
-        const locations = profile.target_locations.split(',').map(l => l.trim());
+        const locations = Array.isArray(profile.target_locations) 
+          ? profile.target_locations 
+          : typeof profile.target_locations === 'string' 
+            ? profile.target_locations.split(',').map(l => l.trim()) 
+            : [];
         const userEngagement = (profile.listing_analytics?.length || 0) + 
                               (profile.saved_listings?.length || 0) + 
                               (profile.connection_requests?.length || 0);

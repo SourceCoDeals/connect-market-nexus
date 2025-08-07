@@ -40,7 +40,7 @@ const Profile = () => {
     bio: user?.bio || "",
     ideal_target_description: user?.ideal_target_description || "",
     business_categories: user?.business_categories || [],
-    target_locations: user?.target_locations || "",
+    target_locations: Array.isArray(user?.target_locations) ? user.target_locations : [],
     revenue_range_min: user?.revenue_range_min || undefined,
     revenue_range_max: user?.revenue_range_max || undefined,
     specific_business_search: user?.specific_business_search || "",
@@ -75,7 +75,7 @@ const Profile = () => {
   const handleLocationChange = (values: string[]) => {
     setFormData((prev) => ({
       ...prev,
-      target_locations: values.join(', '),
+      target_locations: values as any,
     }));
   };
 
@@ -276,20 +276,11 @@ const Profile = () => {
                   
                    <div className="space-y-2">
                      <Label htmlFor="target_locations">Target Locations</Label>
-                     <MultiLocationSelect
-                       value={(() => {
-                         if (!formData.target_locations) return [];
-                         if (typeof formData.target_locations === 'string') {
-                           return formData.target_locations.split(',').map(s => s.trim()).filter(Boolean);
-                         }
-                         if (Array.isArray(formData.target_locations)) {
-                           return formData.target_locations;
-                         }
-                         return [];
-                       })()}
-                       onValueChange={handleLocationChange}
-                       placeholder="Select target regions..."
-                     />
+                      <MultiLocationSelect
+                        value={Array.isArray(formData.target_locations) ? formData.target_locations : []}
+                        onValueChange={handleLocationChange}
+                        placeholder="Select target regions..."
+                      />
                    </div>
                 </div>
                 
