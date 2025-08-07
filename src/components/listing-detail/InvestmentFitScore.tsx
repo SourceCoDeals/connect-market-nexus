@@ -5,6 +5,7 @@ import { Progress } from '@/components/ui/progress';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
+import { Star, TrendingUp, AlertCircle, BarChart3 } from 'lucide-react';
 
 interface InvestmentFitScoreProps {
   revenue: number;
@@ -244,16 +245,16 @@ export function InvestmentFitScore({ revenue, ebitda, category, location }: Inve
   const { score: overallScore, criteria } = calculateFitScore();
   const profileCompleteness = getProfileCompleteness();
 
-  const getScoreColor = (score: number) => {
-    if (score >= 70) return 'text-emerald-600 dark:text-emerald-500';
-    if (score >= 50) return 'text-blue-600 dark:text-blue-400';
+  const getScoreColor = (score: number): string => {
+    if (score >= 70) return 'text-emerald-600 dark:text-emerald-400';
+    if (score >= 50) return 'text-slate-600 dark:text-slate-300';
     return 'text-muted-foreground';
   };
 
-  const getScoreIcon = (score: number) => {
-    if (score >= 70) return '✓';
-    if (score >= 50) return '○';
-    return '○';
+  const getScoreIcon = (score: number): React.ReactNode => {
+    if (score >= 70) return <Star className="h-6 w-6 fill-current" />;
+    if (score >= 50) return <TrendingUp className="h-6 w-6" />;
+    return <AlertCircle className="h-6 w-6" />;
   };
 
   return (
@@ -263,28 +264,60 @@ export function InvestmentFitScore({ revenue, ebitda, category, location }: Inve
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="space-y-6">
-          <div className="text-center">
-            <div className={`text-3xl font-semibold ${getScoreColor(overallScore)}`}>
-              {Math.round(overallScore)}%
+          <div className="text-center bg-gradient-to-r from-background via-muted/20 to-background p-6 rounded-lg border">
+            <h4 className="font-medium text-sm text-muted-foreground mb-3">
+              Overall Investment Fit
+            </h4>
+            <div className="flex items-center justify-center gap-4 mb-3">
+              <div 
+                className={`text-4xl font-bold transition-all duration-500 ${getScoreColor(overallScore)}`}
+              >
+                {Math.round(overallScore)}%
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="text-2xl">
+                  {getScoreIcon(overallScore)}
+                </div>
+                <span className={`text-lg font-semibold ${getScoreColor(overallScore)}`}>
+                  {overallScore >= 80 ? 'Excellent Match' : 
+                   overallScore >= 70 ? 'Strong Match' :
+                   overallScore >= 50 ? 'Good Match' : 'Fair Match'}
+                </span>
+              </div>
             </div>
-            <p className="text-sm text-muted-foreground">Investment Fit Score</p>
+            <p className="text-sm text-muted-foreground">
+              Based on your investment profile and preferences
+            </p>
           </div>
 
           <div className="space-y-4">
-            <h4 className="font-medium text-sm text-foreground">Score Breakdown</h4>
+            <h4 className="font-semibold text-base text-foreground mb-4 flex items-center gap-2">
+              <BarChart3 className="h-5 w-5" />
+              Detailed Analysis
+            </h4>
             {criteria.map((criterion, index) => (
-              <div key={index} className="space-y-1">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="font-medium text-foreground">
-                    {criterion.name}
-                  </span>
-                  <span className={`font-semibold ${getScoreColor(criterion.score)}`}>
-                    {Math.round(criterion.score)}%
-                  </span>
+              <div key={index} className="group p-4 bg-card border border-border rounded-lg hover:shadow-sm transition-all duration-200">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="font-medium text-foreground">{criterion.name}</span>
+                  <div className="flex items-center gap-2">
+                    <div className={`font-bold text-lg ${getScoreColor(criterion.score)}`}>
+                      {Math.round(criterion.score)}%
+                    </div>
+                    <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">
+                      {criterion.weight}% weight
+                    </span>
+                  </div>
                 </div>
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  {criterion.details}
-                </p>
+                <div className="w-full bg-muted rounded-full h-2 mb-2">
+                  <div 
+                    className={`h-2 rounded-full transition-all duration-500 ${
+                      criterion.score >= 70 ? 'bg-emerald-500' : 
+                      criterion.score >= 50 ? 'bg-slate-400' : 'bg-muted-foreground'
+                    }`}
+                    style={{ width: `${Math.round(criterion.score)}%` }}
+                  />
+                </div>
+                <p className="text-sm text-muted-foreground">{criterion.details}</p>
               </div>
             ))}
           </div>
