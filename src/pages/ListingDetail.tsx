@@ -33,6 +33,9 @@ import { ListingBadges } from "@/components/listing-detail/ListingBadges";
 import { InvestmentThesisGenerator } from "@/components/listing-detail/InvestmentThesisGenerator";
 import { InvestmentFitScore } from "@/components/listing-detail/InvestmentFitScore";
 import { EnhancedInvestmentCalculator } from "@/components/listing-detail/EnhancedInvestmentCalculator";
+import { AdvancedComparisonMatrix } from "@/components/listing-detail/AdvancedComparisonMatrix";
+import { InteractiveCashFlowProjections } from "@/components/listing-detail/InteractiveCashFlowProjections";
+import { DueDiligenceTracker } from "@/components/listing-detail/DueDiligenceTracker";
 
 const ListingDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -361,12 +364,33 @@ const ListingDetail = () => {
               />
             </div>
 
-            {/* Enhanced Investment Calculator */}
+            {/* Advanced Analysis Tools */}
             <div className="document-section py-6">
-              <EnhancedInvestmentCalculator 
+              <AdvancedComparisonMatrix
+                currentListingId={id!}
+                currentListing={{
+                  title: listing.title,
+                  revenue: listing.revenue,
+                  ebitda: listing.ebitda,
+                  location: listing.location,
+                  category: listing.category
+                }}
+                formatCurrency={formatCurrency}
+              />
+            </div>
+
+            <div className="document-section py-6">
+              <InteractiveCashFlowProjections
                 revenue={listing.revenue}
                 ebitda={listing.ebitda}
                 formatCurrency={formatCurrency}
+              />
+            </div>
+
+            <div className="document-section py-6">
+              <DueDiligenceTracker
+                listingId={id!}
+                listingTitle={listing.title}
               />
             </div>
 
