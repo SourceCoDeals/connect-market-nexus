@@ -106,6 +106,13 @@ export const InteractiveCashFlowProjections: React.FC<InteractiveCashFlowProject
     return projections;
   }, [selectedScenario, revenue, ebitda, currentMargin, customGrowthRates, marginExpansion]);
 
+  // Helper function to calculate IRR (simplified)
+  const calculateIRR = (cashFlows: number[], terminalValue: number): number => {
+    // Simplified IRR calculation - in practice would use iterative method
+    const totalReturn = (cashFlows.reduce((sum, cf) => sum + cf, 0) + terminalValue) / revenue;
+    return Math.pow(totalReturn, 1/5) - 1;
+  };
+
   const valuation = useMemo(() => {
     const finalYear = projectionData[projectionData.length - 1];
     const terminalValue = finalYear.ebitda * exitMultiple;
@@ -133,11 +140,6 @@ export const InteractiveCashFlowProjections: React.FC<InteractiveCashFlowProject
     };
   }, [projectionData, exitMultiple, discountRate]);
 
-  const calculateIRR = (cashFlows: number[], terminalValue: number): number => {
-    // Simplified IRR calculation - in practice would use iterative method
-    const totalReturn = (cashFlows.reduce((sum, cf) => sum + cf, 0) + terminalValue) / revenue;
-    return Math.pow(totalReturn, 1/5) - 1;
-  };
 
   const formatCompactCurrency = (value: number) => {
     if (value >= 1000000) {
