@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { StickyNote } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
+import { LoadingSpinner } from '@/components/LoadingSpinner';
 
 interface PersonalNotesWidgetProps {
   listingId: string;
@@ -20,6 +21,7 @@ interface PersonalNote {
 export const PersonalNotesWidget: React.FC<PersonalNotesWidgetProps> = ({ listingId }) => {
   const [note, setNote] = useState<PersonalNote | null>(null);
   const [content, setContent] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
@@ -30,42 +32,63 @@ export const PersonalNotesWidget: React.FC<PersonalNotesWidgetProps> = ({ listin
     }
   }, [listingId, user]);
 
-  const getStorageKey = () => `personal_note_${user?.id}_${listingId}`;
-
-  const loadNote = () => {
+  const loadNote = async () => {
     if (!user) return;
     
+    setIsLoading(true);
     try {
-      const stored = localStorage.getItem(getStorageKey());
-      if (stored) {
-        const noteData = JSON.parse(stored) as PersonalNote;
-        setNote(noteData);
-        setContent(noteData.content);
+      const { data, error } = await supabase
+        .from('listing_personal_notes')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('listing_id', listingId)
+        .single();
+
+      if (error && error.code !== 'PGRST116') { // PGRST116 is "not found"
+        throw error;
+      }
+
+      if (data) {
+        setNote(data);
+        setContent(data.content || '');
       }
     } catch (error) {
       console.error('Error loading note:', error);
+      toast({
+        title: "Error loading notes",
+        description: "Could not load your personal notes.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const saveNote = async () => {
-    if (!user) return;
+    if (!user || !content.trim()) return;
     
     setIsSaving(true);
     try {
-      const now = new Date().toISOString();
-      const noteData: PersonalNote = {
-        id: note?.id || crypto.randomUUID(),
-        content,
-        created_at: note?.created_at || now,
-        updated_at: now
+      const noteData = {
+        user_id: user.id,
+        listing_id: listingId,
+        content: content.trim(),
       };
 
-      localStorage.setItem(getStorageKey(), JSON.stringify(noteData));
-      setNote(noteData);
+      const { data, error } = await supabase
+        .from('listing_personal_notes')
+        .upsert(noteData, { 
+          onConflict: 'user_id,listing_id' 
+        })
+        .select()
+        .single();
 
+      if (error) throw error;
+
+      setNote(data);
       toast({
         title: "Notes saved",
-        description: "Your personal notes have been saved successfully.",
+        description: "Your investment notes have been saved.",
       });
     } catch (error) {
       console.error('Error saving note:', error);
@@ -79,41 +102,85 @@ export const PersonalNotesWidget: React.FC<PersonalNotesWidgetProps> = ({ listin
     }
   };
 
+  const handleDelete = async () => {
+    if (!user || !note) return;
+    
+    setIsSaving(true);
+    try {
+      const { error } = await supabase
+        .from('listing_personal_notes')
+        .delete()
+        .eq('id', note.id);
+
+      if (error) throw error;
+
+      setNote(null);
+      setContent('');
+      toast({
+        title: "Notes deleted",
+        description: "Your personal notes have been removed.",
+      });
+    } catch (error) {
+      console.error('Error deleting note:', error);
+      toast({
+        title: "Error deleting notes",
+        description: "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   if (!user) return null;
 
   return (
     <Card className="border-sourceco-form bg-white">
       <CardHeader className="pb-3">
-        <CardTitle className="text-sm font-medium text-sourceco-text flex items-center gap-2">
-          <StickyNote className="h-4 w-4" />
-          Personal Investment Notes
-        </CardTitle>
+        <CardTitle className="document-label">Private Investment Notes</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div>
-          <label className="text-xs font-medium text-sourceco-text/70 mb-2 block">
-            Private Notes
-          </label>
-          <Textarea
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            placeholder="Add your private investment notes, due diligence thoughts, or follow-up items..."
-            className="text-sm min-h-[100px] resize-none"
-          />
-        </div>
-
-        <Button
-          onClick={saveNote}
-          disabled={isSaving}
-          className="w-full bg-[#d7b65c] hover:bg-[#d7b65c]/90 text-white text-xs"
-        >
-          {isSaving ? 'Saving...' : 'Save Notes'}
-        </Button>
-
-        {note && (
-          <div className="text-xs text-gray-500 text-center">
-            Last updated: {new Date(note.updated_at).toLocaleDateString()}
+        {isLoading ? (
+          <div className="py-8">
+            <LoadingSpinner size="sm" variant="inline" showMessage message="Loading notes..." />
           </div>
+        ) : (
+          <>
+            <Textarea
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              placeholder="Add your private due diligence notes, investment thesis, follow-up items..."
+              className="min-h-[120px] text-sm border-slate-200 focus:border-slate-400"
+            />
+
+            <div className="flex gap-2">
+              <Button
+                onClick={saveNote}
+                disabled={isSaving || !content.trim()}
+                className="flex-1 text-sm"
+                variant="outline"
+              >
+                {isSaving ? 'Saving...' : 'Save Notes'}
+              </Button>
+              
+              {note && (
+                <Button
+                  onClick={handleDelete}
+                  disabled={isSaving}
+                  variant="outline"
+                  className="text-sm text-red-600 hover:text-red-700"
+                >
+                  Delete
+                </Button>
+              )}
+            </div>
+
+            {note && (
+              <div className="text-xs text-slate-500 pt-2 border-t">
+                Last updated: {new Date(note.updated_at).toLocaleString()}
+              </div>
+            )}
+          </>
         )}
       </CardContent>
     </Card>

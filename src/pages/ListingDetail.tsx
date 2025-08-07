@@ -141,23 +141,21 @@ const ListingDetail = () => {
   return (
     <div className="document-content min-h-screen bg-sourceco-background">
       {/* Navigation */}
-      <div className="">
-        <div className="max-w-5xl mx-auto px-6 py-4">
-          <Link
-            to="/marketplace"
-            className="inline-flex items-center document-label hover:text-slate-700 transition-colors"
-          >
-            <ChevronLeft className="mr-1 h-3 w-3" />
-            Back to Marketplace
-          </Link>
-        </div>
+      <div className="max-w-7xl mx-auto px-8 py-4">
+        <Link
+          to="/marketplace"
+          className="inline-flex items-center document-label hover:text-slate-700 transition-colors"
+        >
+          <ChevronLeft className="mr-1 h-3 w-3" />
+          Back to Marketplace
+        </Link>
       </div>
       
       {/* Main Content - 1600px Premium Container */}
       <div className="max-w-7xl mx-auto px-8 py-8">
         <div className="grid grid-cols-12 gap-8">
-          {/* Left Column - 65% */}
-          <div className="col-span-8 space-y-0">
+          {/* Left Column - 75% */}
+          <div className="col-span-9 space-y-0">
             
             {/* Hero Image */}
             <div className="w-full h-[240px] border border-sourceco-form bg-sourceco-form overflow-hidden mb-6 rounded-lg">
@@ -399,8 +397,8 @@ const ListingDetail = () => {
             )}
           </div>
 
-          {/* Right Column - 35% Premium Sticky Sidebar */}
-          <div className="col-span-4">
+          {/* Right Column - 25% Premium Sticky Sidebar */}
+          <div className="col-span-3">
             <div className="sticky top-6 space-y-6">
               
               {/* Interested in This Deal? - Premium CTA */}
