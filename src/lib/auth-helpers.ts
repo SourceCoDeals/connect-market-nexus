@@ -37,8 +37,16 @@ export function createUserObject(profile: any): User {
       bio: profile.bio || '',
       linkedin_profile: profile.linkedin_profile || '',
       ideal_target_description: profile.ideal_target_description || '',
-      business_categories: Array.isArray(profile.business_categories) ? profile.business_categories : [],
-      target_locations: profile.target_locations || '',
+      business_categories: Array.isArray(profile.business_categories) 
+        ? profile.business_categories 
+        : typeof profile.business_categories === 'string' 
+          ? JSON.parse(profile.business_categories || '[]')
+          : [],
+      target_locations: Array.isArray(profile.target_locations)
+        ? profile.target_locations
+        : typeof profile.target_locations === 'string'
+          ? profile.target_locations === '' ? [] : [profile.target_locations]
+          : [],
       revenue_range_min: profile.revenue_range_min || null,
       revenue_range_max: profile.revenue_range_max || null,
       specific_business_search: profile.specific_business_search || '',

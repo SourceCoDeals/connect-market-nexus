@@ -14,9 +14,11 @@ import { useToast } from "@/hooks/use-toast";
 import { Textarea } from "@/components/ui/textarea";
 import { MultiCategorySelect } from "@/components/ui/category-select";
 import { MultiLocationSelect } from "@/components/ui/location-select";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@/types";
 import { STANDARDIZED_CATEGORIES } from "@/lib/financial-parser";
+import { parseCurrency } from "@/lib/currency-utils";
 
 const Profile = () => {
   const { user, updateUserProfile } = useAuth();
@@ -85,7 +87,14 @@ const Profile = () => {
     
     setIsLoading(true);
     try {
-      await updateUserProfile(formData);
+      // Normalize currency fields before sending
+      const normalizedData = {
+        ...formData,
+        revenue_range_min: formData.revenue_range_min ? parseCurrency(String(formData.revenue_range_min)) : null,
+        revenue_range_max: formData.revenue_range_max ? parseCurrency(String(formData.revenue_range_max)) : null,
+      };
+      
+      await updateUserProfile(normalizedData);
       toast({
         title: "Profile updated",
         description: "Your profile information has been successfully updated.",
@@ -480,29 +489,27 @@ const Profile = () => {
                   </div>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="revenue_range_min">Revenue Range (Min)</Label>
-                      <Input 
-                        id="revenue_range_min" 
-                        name="revenue_range_min" 
-                        type="number"
-                        value={formData.revenue_range_min || ""} 
-                        onChange={handleInputChange}
-                        placeholder="1000000"
-                      />
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="revenue_range_max">Revenue Range (Max)</Label>
-                      <Input 
-                        id="revenue_range_max" 
-                        name="revenue_range_max" 
-                        type="number"
-                        value={formData.revenue_range_max || ""} 
-                        onChange={handleInputChange}
-                        placeholder="10000000"
-                      />
-                    </div>
+                     <div className="space-y-2">
+                       <Label htmlFor="revenue_range_min">Revenue Range (Min)</Label>
+                       <CurrencyInput
+                         id="revenue_range_min"
+                         name="revenue_range_min"
+                         placeholder="Minimum revenue"
+                         value={formData.revenue_range_min || ""}
+                         onChange={(value) => setFormData(prev => ({ ...prev, revenue_range_min: value as any }))}
+                       />
+                     </div>
+                     
+                     <div className="space-y-2">
+                       <Label htmlFor="revenue_range_max">Revenue Range (Max)</Label>
+                       <CurrencyInput
+                         id="revenue_range_max"
+                         name="revenue_range_max"
+                         placeholder="Maximum revenue"
+                         value={formData.revenue_range_max || ""}
+                         onChange={(value) => setFormData(prev => ({ ...prev, revenue_range_max: value as any }))}
+                       />
+                     </div>
                   </div>
                   
                   <div className="space-y-2">
