@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useRealtimeAdmin } from "@/hooks/use-realtime-admin";
 import { EnhancedUserManagement } from "@/components/admin/EnhancedUserManagement";
+import { BulkVerificationEmailSender } from "@/components/admin/BulkVerificationEmailSender";
 
 
 
@@ -104,6 +105,9 @@ const AdminUsers = () => {
         </div>
       </div>
 
+
+      {/* Bulk Email Sender for Unverified Users */}
+      <BulkVerificationEmailSender />
 
       {/* Enhanced User Management with Analytics */}
       <EnhancedUserManagement
