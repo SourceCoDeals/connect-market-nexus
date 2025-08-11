@@ -1,4 +1,10 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
+
+const supabase = createClient(
+  Deno.env.get('SUPABASE_URL') ?? '',
+  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+);
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -30,7 +36,23 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error("Email is required");
     }
 
-    console.log(`Sending verification email with apology to: ${email}`);
+    console.log(`Sending verification email with link to: ${email}`);
+
+    // Generate email verification link via Supabase Auth
+    const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
+      type: 'signup',
+      email: email,
+      options: {
+        redirectTo: 'https://marketplace.sourcecodeals.com/'
+      }
+    });
+
+    if (linkError || !linkData.properties?.action_link) {
+      console.error('Failed to generate verification link:', linkError);
+      throw new Error('Failed to generate verification link');
+    }
+
+    const verificationLink = linkData.properties.action_link;
 
     const userName = firstName && lastName ? `${firstName} ${lastName}` : firstName || 'there';
 
@@ -50,7 +72,7 @@ const handler = async (req: Request): Promise<Response> => {
           email: email,
           name: userName
         }],
-        subject: "Email Verification - Technical Issue Resolved",
+        subject: "Email Verification Required - Quick Approval After Verification",
         replyTo: {
           email: "adam.haile@sourcecodeals.com",
           name: "Adam Haile - SourceCo"
@@ -62,16 +84,18 @@ const handler = async (req: Request): Promise<Response> => {
 
 We want to apologize for the delay in your email verification. Due to some technical problems with our email delivery system over the past few days, some verification emails were not delivered as expected.
 
-These technical issues have now been resolved, and we're personally ensuring that all affected users receive their verification emails.
+These technical issues have now been resolved. To complete your registration, please verify your email address by clicking the link below:
 
-Your email has been verified and you're now ready to proceed with the final steps to access our business marketplace.
+${verificationLink}
 
-What happens next:
-- Our team will review and approve your account within 24 hours during business days
-- You'll receive an email confirmation once your account is approved  
-- After approval, you'll have complete access to browse business listings
+Once you verify your email, your account will be approved within 5 minutes and you'll have immediate access to our business marketplace.
 
-You can log in to your account now at: https://marketplace.sourcecodeals.com/login
+What happens after verification:
+- Your account will be automatically approved within 5 minutes
+- You'll receive a confirmation email once approved
+- You can then log in and access all business listings
+
+Login after verification: https://marketplace.sourcecodeals.com/login
 
 Questions? Email us at support@sourcecodeals.com
 
