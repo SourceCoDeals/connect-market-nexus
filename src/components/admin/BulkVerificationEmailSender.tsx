@@ -2,7 +2,9 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Mail, AlertTriangle, CheckCircle } from 'lucide-react';
+import { Mail, AlertTriangle, CheckCircle, Send } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -18,6 +20,8 @@ export const BulkVerificationEmailSender = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [unverifiedUsers, setUnverifiedUsers] = useState<UnverifiedUser[]>([]);
   const [sentEmails, setSentEmails] = useState<string[]>([]);
+  const [testEmail, setTestEmail] = useState('');
+  const [isTestLoading, setIsTestLoading] = useState(false);
   const { toast } = useToast();
 
   const fetchUnverifiedUsers = async () => {
@@ -64,6 +68,43 @@ export const BulkVerificationEmailSender = () => {
     }
   };
 
+  const sendTestEmail = async () => {
+    if (!testEmail) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Please enter a test email address',
+      });
+      return;
+    }
+
+    setIsTestLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('send-verification-email-with-apology', {
+        body: {
+          email: testEmail,
+          firstName: 'Test',
+          lastName: 'User'
+        }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: 'Test email sent!',
+        description: `Verification email sent to ${testEmail}`,
+      });
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Test email failed',
+        description: error.message,
+      });
+    } finally {
+      setIsTestLoading(false);
+    }
+  };
+
   const sendBulkEmails = async () => {
     setIsLoading(true);
     let successCount = 0;
@@ -97,17 +138,48 @@ export const BulkVerificationEmailSender = () => {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Mail className="h-5 w-5" />
-          Bulk Verification Email Sender
+          Verification Email Sender
         </CardTitle>
         <CardDescription>
-          Send verification emails with apology to users who didn't receive them due to Brevo credit issues
+          Send plain text verification emails to users who didn't receive them due to technical issues
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-6">
+        {/* Test Email Section */}
+        <div className="border rounded-lg p-4 bg-blue-50">
+          <h3 className="font-medium mb-3 flex items-center gap-2">
+            <Send className="h-4 w-4" />
+            Send Test Email
+          </h3>
+          <div className="flex gap-2">
+            <div className="flex-1">
+              <Label htmlFor="testEmail">Test Email Address</Label>
+              <Input
+                id="testEmail"
+                type="email"
+                value={testEmail}
+                onChange={(e) => setTestEmail(e.target.value)}
+                placeholder="ahaile14@gmail.com"
+                className="mt-1"
+              />
+            </div>
+            <div className="flex items-end">
+              <Button 
+                onClick={sendTestEmail} 
+                disabled={isTestLoading}
+                className="flex items-center gap-2"
+              >
+                <Send className="h-4 w-4" />
+                {isTestLoading ? 'Sending...' : 'Send Test'}
+              </Button>
+            </div>
+          </div>
+        </div>
+
         <Alert>
           <AlertTriangle className="h-4 w-4" />
           <AlertDescription>
-            This will send a special verification email with an apology for the delay to all unverified users.
+            This will send a plain text email apologizing for technical issues to all unverified users.
           </AlertDescription>
         </Alert>
 
