@@ -50,7 +50,7 @@ export const BulkVerificationEmailSender = () => {
 
   const sendVerificationEmailWithApology = async (user: UnverifiedUser) => {
     try {
-      const { data, error } = await supabase.functions.invoke('send-verification-email-with-apology', {
+      const { data, error } = await supabase.functions.invoke('send-simple-verification-email', {
         body: {
           email: user.email,
           firstName: user.first_name,
@@ -80,7 +80,7 @@ export const BulkVerificationEmailSender = () => {
 
     setIsTestLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('send-verification-email-with-apology', {
+      const { data, error } = await supabase.functions.invoke('send-simple-verification-email', {
         body: {
           email: testEmail,
           firstName: 'Test',
