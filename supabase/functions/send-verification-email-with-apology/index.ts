@@ -66,25 +66,80 @@ const handler = async (req: Request): Promise<Response> => {
     console.log("=== GENERATING VERIFICATION LINK ===");
     console.log(`Attempting to generate verification link for: ${email}`);
 
-    // Generate email verification link via Supabase Auth
-    const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
-      type: 'signup',
-      email: email,
-      options: {
-        redirectTo: 'https://marketplace.sourcecodeals.com/'
+    // For existing users, we need to use a different approach
+    // First, try to get user info to see if they exist
+    const { data: userData, error: userError } = await supabase.auth.admin.getUserByEmail(email);
+    console.log("User lookup result - error:", userError);
+    console.log("User exists:", !!userData.user);
+
+    let verificationLink: string;
+
+    if (userData.user && !userData.user.email_confirmed_at) {
+      // User exists but email is not verified - use email_change type
+      console.log("User exists but not verified, generating email_change link");
+      const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
+        type: 'email_change',
+        email: email,
+        newEmail: email, // Keep same email, just verify it
+        options: {
+          redirectTo: 'https://marketplace.sourcecodeals.com/'
+        }
+      });
+      
+      if (linkError || !linkData.properties?.action_link) {
+        console.error('❌ Failed to generate email_change link:', linkError);
+        // Fallback: try recovery link
+        console.log("Trying recovery link as fallback");
+        const { data: recoveryData, error: recoveryError } = await supabase.auth.admin.generateLink({
+          type: 'recovery',
+          email: email,
+          options: {
+            redirectTo: 'https://marketplace.sourcecodeals.com/'
+          }
+        });
+        
+        if (recoveryError || !recoveryData.properties?.action_link) {
+          console.error('❌ Failed to generate recovery link:', recoveryError);
+          throw new Error('Failed to generate verification link');
+        }
+        verificationLink = recoveryData.properties.action_link;
+      } else {
+        verificationLink = linkData.properties.action_link;
       }
-    });
-
-    console.log("Link generation result - error:", linkError);
-    console.log("Link generation result - data:", linkData ? "exists" : "null");
-
-    if (linkError || !linkData.properties?.action_link) {
-      console.error('❌ Failed to generate verification link:', linkError);
-      console.error('Link data received:', JSON.stringify(linkData));
-      throw new Error('Failed to generate verification link');
+    } else if (userData.user && userData.user.email_confirmed_at) {
+      // User exists and is already verified - use recovery link to let them log in
+      console.log("User exists and verified, generating recovery link");
+      const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
+        type: 'recovery',
+        email: email,
+        options: {
+          redirectTo: 'https://marketplace.sourcecodeals.com/'
+        }
+      });
+      
+      if (linkError || !linkData.properties?.action_link) {
+        console.error('❌ Failed to generate recovery link:', linkError);
+        throw new Error('Failed to generate verification link');
+      }
+      verificationLink = linkData.properties.action_link;
+    } else {
+      // User doesn't exist - use signup
+      console.log("User doesn't exist, generating signup link");
+      const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
+        type: 'signup',
+        email: email,
+        options: {
+          redirectTo: 'https://marketplace.sourcecodeals.com/'
+        }
+      });
+      
+      if (linkError || !linkData.properties?.action_link) {
+        console.error('❌ Failed to generate signup link:', linkError);
+        throw new Error('Failed to generate verification link');
+      }
+      verificationLink = linkData.properties.action_link;
     }
 
-    const verificationLink = linkData.properties.action_link;
     console.log("✅ Verification link generated successfully");
     console.log("Verification link:", verificationLink);
 
