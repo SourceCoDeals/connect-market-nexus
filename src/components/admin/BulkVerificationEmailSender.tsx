@@ -22,6 +22,7 @@ export const BulkVerificationEmailSender = () => {
   const [sentEmails, setSentEmails] = useState<string[]>([]);
   const [testEmail, setTestEmail] = useState('');
   const [isTestLoading, setIsTestLoading] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState<{sent: number, failed: number, total: number}>({sent: 0, failed: 0, total: 0});
   const { toast } = useToast();
 
   const fetchUnverifiedUsers = async () => {
@@ -107,18 +108,22 @@ export const BulkVerificationEmailSender = () => {
 
   const sendBulkEmails = async () => {
     setIsLoading(true);
+    const remainingUsers = unverifiedUsers.filter(user => !sentEmails.includes(user.id));
+    setBulkProgress({sent: 0, failed: 0, total: remainingUsers.length});
+    
     let successCount = 0;
     let failureCount = 0;
 
-    for (const user of unverifiedUsers) {
-      if (sentEmails.includes(user.id)) continue;
-
+    for (const user of remainingUsers) {
       const success = await sendVerificationEmailWithApology(user);
       if (success) {
         successCount++;
       } else {
         failureCount++;
       }
+
+      // Update progress
+      setBulkProgress({sent: successCount, failed: failureCount, total: remainingUsers.length});
 
       // Small delay between emails to avoid rate limiting
       await new Promise(resolve => setTimeout(resolve, 500));
@@ -128,7 +133,7 @@ export const BulkVerificationEmailSender = () => {
     
     toast({
       title: 'Bulk email complete',
-      description: `Sent: ${successCount}, Failed: ${failureCount}`,
+      description: `Sent: ${successCount}, Failed: ${failureCount} out of ${remainingUsers.length} users`,
       variant: successCount > 0 ? 'default' : 'destructive',
     });
   };
@@ -179,9 +184,30 @@ export const BulkVerificationEmailSender = () => {
         <Alert>
           <AlertTriangle className="h-4 w-4" />
           <AlertDescription>
-            This will send a plain text email apologizing for technical issues to all unverified users.
+            This will send a plain text email from Adam Haile apologizing for technical issues. The verification link is the same as the normal signup flow.
           </AlertDescription>
         </Alert>
+
+        {isLoading && bulkProgress.total > 0 && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium">Sending emails...</span>
+              <span className="text-sm text-gray-600">
+                {bulkProgress.sent + bulkProgress.failed} / {bulkProgress.total}
+              </span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div 
+                className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
+                style={{ width: `${((bulkProgress.sent + bulkProgress.failed) / bulkProgress.total) * 100}%` }}
+              />
+            </div>
+            <div className="flex justify-between text-xs text-gray-500 mt-1">
+              <span>✅ Sent: {bulkProgress.sent}</span>
+              <span>❌ Failed: {bulkProgress.failed}</span>
+            </div>
+          </div>
+        )}
 
         <div className="flex gap-2">
           <Button onClick={fetchUnverifiedUsers} variant="outline">
