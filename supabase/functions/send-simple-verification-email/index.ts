@@ -33,9 +33,9 @@ const handler = async (req: Request): Promise<Response> => {
     console.log(`Name: ${firstName} ${lastName}`);
 
     console.log("=== GENERATING RECOVERY LINK ===");
-    // Use email_change type for verification - same as normal signup flow
+    // Use recovery type - works for all users and provides same verification flow
     const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
-      type: 'email_change',
+      type: 'recovery',
       email: email,
       options: {
         redirectTo: 'https://marketplace.sourcecodeals.com/'
