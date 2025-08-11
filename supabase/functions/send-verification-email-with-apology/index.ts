@@ -1,7 +1,4 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { Resend } from "npm:resend@2.0.0";
-
-const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -37,11 +34,31 @@ const handler = async (req: Request): Promise<Response> => {
 
     const userName = firstName && lastName ? `${firstName} ${lastName}` : firstName || 'there';
 
-    const emailResponse = await resend.emails.send({
-      from: "SourceCodeALS <noreply@sourcecodeals.com>",
-      to: [email],
-      subject: "🙏 Apologies + Email Verification - SourceCo Marketplace",
-      html: `
+    const emailResponse = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'api-key': Deno.env.get('BREVO_API_KEY') || '',
+      },
+      body: JSON.stringify({
+        sender: {
+          name: "Adam Haile - SourceCo",
+          email: "adam.haile@sourcecodeals.com"
+        },
+        to: [{
+          email: email,
+          name: userName
+        }],
+        subject: "🙏 Apologies + Email Verification - SourceCo Marketplace",
+        replyTo: {
+          email: "adam.haile@sourcecodeals.com",
+          name: "Adam Haile - SourceCo"
+        },
+        // CRITICAL: Disable all tracking to prevent link rewriting
+        trackClicks: "0",
+        trackOpens: "0",
+        htmlContent: `
         <!DOCTYPE html>
         <html>
           <head>
@@ -87,8 +104,8 @@ const handler = async (req: Request): Promise<Response> => {
               <div class="apology-section">
                 <h2>Our Sincere Apologies</h2>
                 <p>Dear ${userName},</p>
-                <p>We want to sincerely apologize for the delay in your email verification. Due to a temporary issue with our email service credits over the past few days, some verification emails were not delivered as expected.</p>
-                <p><strong>This issue has now been resolved</strong>, and we're personally ensuring that all affected users receive their verification emails.</p>
+                <p>We want to sincerely apologize for the delay in your email verification. Due to some technical problems with our email delivery system over the past few days, some verification emails were not delivered as expected.</p>
+                <p><strong>These technical issues have now been resolved</strong>, and we're personally ensuring that all affected users receive their verification emails.</p>
               </div>
               
               <div class="content">
@@ -146,7 +163,7 @@ const handler = async (req: Request): Promise<Response> => {
                 
                 <div class="cta-section">
                   <h4>Ready to Get Started</h4>
-                  <p>You can now log in to your account and complete your profile while waiting for approval. Thank you for your patience during this technical difficulty.</p>
+                  <p>You can now log in to your account and complete your profile while waiting for approval. Thank you for your patience during these technical difficulties.</p>
                   <a href="https://marketplace.sourcecodeals.com/login" class="button">Log In to Your Account</a>
                 </div>
                 
@@ -155,7 +172,7 @@ const handler = async (req: Request): Promise<Response> => {
                   <p>Email us at <a href="mailto:support@sourcecodeals.com">support@sourcecodeals.com</a></p>
                   <p>Visit our marketplace: <a href="https://marketplace.sourcecodeals.com">marketplace.sourcecodeals.com</a></p>
                   <br>
-                  <p style="font-style: italic;">Again, we sincerely apologize for any inconvenience this delay may have caused. We appreciate your understanding and patience.</p>
+                  <p style="font-style: italic;">Again, we sincerely apologize for any inconvenience these technical issues may have caused. We appreciate your understanding and patience.</p>
                   <p><strong>- The SourceCodeALS Team</strong></p>
                 </div>
               </div>
@@ -169,9 +186,9 @@ const handler = async (req: Request): Promise<Response> => {
 Dear ${userName},
 
 Our Sincere Apologies:
-We want to sincerely apologize for the delay in your email verification. Due to a temporary issue with our email service credits over the past few days, some verification emails were not delivered as expected.
+We want to sincerely apologize for the delay in your email verification. Due to some technical problems with our email delivery system over the past few days, some verification emails were not delivered as expected.
 
-This issue has now been resolved, and we're personally ensuring that all affected users receive their verification emails.
+These technical issues have now been resolved, and we're personally ensuring that all affected users receive their verification emails.
 
 Your Email Has Been Verified!
 Good news! We've automatically verified your email address as part of resolving this issue. You're now ready to proceed with the final steps to access our exclusive business marketplace.
@@ -188,7 +205,7 @@ Your Registration Progress:
 ⏳ Start Browsing - Access thousands of business listings and connect with sellers.
 
 Ready to Get Started:
-You can now log in to your account and complete your profile while waiting for approval. Thank you for your patience during this technical difficulty.
+You can now log in to your account and complete your profile while waiting for approval. Thank you for your patience during these technical difficulties.
 
 Log in: https://marketplace.sourcecodeals.com/login
 
@@ -196,17 +213,25 @@ Questions or Concerns? We're here to help and make this right.
 Email: support@sourcecodeals.com
 Website: https://marketplace.sourcecodeals.com
 
-Again, we sincerely apologize for any inconvenience this delay may have caused. We appreciate your understanding and patience.
+Again, we sincerely apologize for any inconvenience these technical issues may have caused. We appreciate your understanding and patience.
 
 - The SourceCodeALS Team
       `,
     });
 
-    console.log("Apology verification email sent successfully:", emailResponse);
+    if (!emailResponse.ok) {
+      const errorData = await emailResponse.json();
+      console.error("❌ Brevo API error:", errorData);
+      throw new Error(`Brevo API error: ${errorData.message || 'Unknown error'}`);
+    }
+
+    const responseData = await emailResponse.json();
+    console.log("✅ Apology verification email sent successfully:", responseData);
 
     return new Response(JSON.stringify({ 
       success: true, 
-      messageId: emailResponse.data?.id 
+      messageId: responseData.messageId,
+      emailProvider: 'brevo'
     }), {
       status: 200,
       headers: {
