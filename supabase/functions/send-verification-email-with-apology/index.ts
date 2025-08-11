@@ -36,6 +36,13 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error("Email is required");
     }
 
+    // Check if BREVO_API_KEY is available
+    const brevoApiKey = Deno.env.get('BREVO_API_KEY');
+    if (!brevoApiKey) {
+      console.error("❌ BREVO_API_KEY not found in environment");
+      throw new Error("BREVO_API_KEY not configured");
+    }
+
     console.log(`Sending verification email with link to: ${email}`);
 
     // Generate email verification link via Supabase Auth
@@ -61,7 +68,7 @@ const handler = async (req: Request): Promise<Response> => {
       headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
-        'api-key': Deno.env.get('BREVO_API_KEY') || '',
+        'api-key': brevoApiKey,
       },
       body: JSON.stringify({
         sender: {
