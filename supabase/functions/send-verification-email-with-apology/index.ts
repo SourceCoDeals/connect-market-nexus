@@ -88,14 +88,9 @@ These technical issues have now been resolved. To complete your registration, pl
 
 ${verificationLink}
 
-Once you verify your email, your account will be approved within 5 minutes and you'll have immediate access to our business marketplace.
+Once you verify your email, we'll review and approve your account. You'll receive a confirmation email once your account is approved and you can then access all business listings.
 
-What happens after verification:
-- Your account will be automatically approved within 5 minutes
-- You'll receive a confirmation email once approved
-- You can then log in and access all business listings
-
-Login after verification: https://marketplace.sourcecodeals.com/login
+Login after approval: https://marketplace.sourcecodeals.com/login
 
 Questions? Email us at support@sourcecodeals.com
 
