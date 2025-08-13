@@ -390,134 +390,16 @@ const ReactiveRequestCard = ({
                 </div>
               </div>
 
-              {/* Two-column layout: Quick Actions (left) and Agreement Status (right) */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Left Column: Quick Actions */}
-                <div className="space-y-4">
-                  <h5 className="font-medium text-sm text-muted-foreground flex items-center gap-2 mb-3">
-                    <FileText className="h-4 w-4" />
-                    Quick Actions
-                  </h5>
-                  {localUser && (
-                    <div className="bg-background/80 border border-border/50 rounded-lg p-4">
-                      <ConnectionRequestActions
-                        user={localUser}
-                        listing={request.listing}
-                        requestId={request.id}
-                        followedUp={localFollowedUp}
-                        onLocalStateUpdate={handleLocalStateUpdate}
-                      />
-                    </div>
-                  )}
-                </div>
-
-                {/* Right Column: Agreement Status */}
-                <div className="space-y-4">
-                  <h5 className="font-medium text-sm text-muted-foreground flex items-center gap-2 mb-3">
-                    <Shield className="h-4 w-4" />
-                    Agreement Status
-                  </h5>
-                  {localUser && (
-                    <div className="bg-background/80 border border-border/50 rounded-lg p-4 space-y-6">
-                      {/* NDA Status - Responsive toggle layout */}
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium">NDA Status:</span>
-                          {localUser.nda_signed ? (
-                            <Badge className="bg-green-500/10 text-green-700 border-green-500/20 shrink-0">
-                              <CheckCircle className="h-3 w-3 mr-1" />
-                              Signed
-                            </Badge>
-                          ) : localUser.nda_email_sent ? (
-                            <Badge className="bg-amber-500/10 text-amber-700 border-amber-500/20 shrink-0">
-                              <Clock className="h-3 w-3 mr-1" />
-                              Sent
-                            </Badge>
-                          ) : (
-                            <Badge variant="outline" className="shrink-0">
-                              <XCircle className="h-3 w-3 mr-1" />
-                              Not Sent
-                            </Badge>
-                          )}
-                        </div>
-                        {/* Responsive toggle row for NDA */}
-                        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                          <span className="shrink-0">Required</span>
-                          <div className="flex items-center gap-1 shrink-0">
-                            <span className="w-2 h-2 rounded-full bg-amber-400"></span>
-                            <span>Sent</span>
-                          </div>
-                          <div className="flex items-center gap-1 shrink-0">
-                            <span className="w-2 h-2 rounded-full bg-green-500"></span>
-                            <span>Signed</span>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      {/* Fee Agreement Status - Responsive toggle layout */}
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium">Fee Agreement:</span>
-                          {localUser.fee_agreement_signed ? (
-                            <Badge className="bg-green-500/10 text-green-700 border-green-500/20 shrink-0">
-                              <CheckCircle className="h-3 w-3 mr-1" />
-                              Signed
-                            </Badge>
-                          ) : localUser.fee_agreement_email_sent ? (
-                            <Badge className="bg-amber-500/10 text-amber-700 border-amber-500/20 shrink-0">
-                              <Clock className="h-3 w-3 mr-1" />
-                              Sent
-                            </Badge>
-                          ) : (
-                            <Badge variant="outline" className="shrink-0">
-                              <XCircle className="h-3 w-3 mr-1" />
-                              Not Sent
-                            </Badge>
-                          )}
-                        </div>
-                        {/* Responsive toggle row for Fee Agreement */}
-                        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                          <span className="shrink-0">Required</span>
-                          <div className="flex items-center gap-1 shrink-0">
-                            <span className="w-2 h-2 rounded-full bg-amber-400"></span>
-                            <span>Sent</span>
-                          </div>
-                          <div className="flex items-center gap-1 shrink-0">
-                            <span className="w-2 h-2 rounded-full bg-green-500"></span>
-                            <span>Signed</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Follow-Up Status - Responsive toggle layout */}
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium">Follow-Up:</span>
-                          {localFollowedUp ? (
-                            <Badge className="bg-green-500/10 text-green-700 border-green-500/20 shrink-0">
-                              <CheckCircle className="h-3 w-3 mr-1" />
-                              Followed Up
-                            </Badge>
-                          ) : (
-                            <Badge className="bg-amber-500/10 text-amber-700 border-amber-500/20 shrink-0">
-                              <Clock className="h-3 w-3 mr-1" />
-                              Pending
-                            </Badge>
-                          )}
-                        </div>
-                        {/* Responsive toggle row for Follow-Up */}
-                        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                          <span className="shrink-0">Pending</span>
-                          <div className="flex items-center gap-1 shrink-0">
-                            <span className="w-2 h-2 rounded-full bg-green-500"></span>
-                            <span>Followed Up</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
+              {/* Streamlined single component: ConnectionRequestActions handles both Quick Actions and Agreement Status */}
+              {localUser && (
+                <ConnectionRequestActions
+                  user={localUser}
+                  listing={request.listing}
+                  requestId={request.id}
+                  followedUp={localFollowedUp}
+                  onLocalStateUpdate={handleLocalStateUpdate}
+                />
+              )}
             </div>
             
             <RequestDetails

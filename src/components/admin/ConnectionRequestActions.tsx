@@ -199,72 +199,76 @@ SourceCo Team`}`;
   };
 
   return (
-    <div className="space-y-6">
-      {/* Quick Actions Section */}
-      <div className="bg-gradient-to-br from-primary/5 to-secondary/5 border border-primary/10 rounded-lg p-4">
-        <h5 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
-          <Mail className="h-4 w-4 text-primary" />
-          Quick Actions
-        </h5>
-        <div className="flex flex-wrap gap-2">
-          <Button
-            variant={localUser.fee_agreement_email_sent ? "secondary" : "default"}
-            size="sm"
-            onClick={() => setShowFeeDialog(true)}
-            className="text-xs h-8 transition-all hover:scale-105"
-          >
-            <FileText className="h-3 w-3 mr-1" />
-            {localUser.fee_agreement_signed ? "Resend Fee Agreement" : "Send Fee Agreement"}
-          </Button>
-          
-          <Button
-            variant={localUser.nda_email_sent ? "secondary" : "default"}
-            size="sm"
-            onClick={() => setShowNDADialog(true)}
-            className="text-xs h-8 transition-all hover:scale-105"
-          >
-            <Shield className="h-3 w-3 mr-1" />
-            {localUser.nda_signed ? "Resend NDA" : "Send NDA"}
-          </Button>
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
+      {/* Left Column: Quick Actions */}
+      <div className="space-y-4">
+        <div className="bg-gradient-to-br from-primary/5 to-secondary/5 border border-primary/10 rounded-lg p-4">
+          <h5 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+            <Mail className="h-4 w-4 text-primary" />
+            Quick Actions
+          </h5>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant={localUser.fee_agreement_email_sent ? "secondary" : "default"}
+              size="sm"
+              onClick={() => setShowFeeDialog(true)}
+              className="text-xs h-8 transition-all hover:scale-105"
+            >
+              <FileText className="h-3 w-3 mr-1" />
+              {localUser.fee_agreement_signed ? "Resend Fee Agreement" : "Send Fee Agreement"}
+            </Button>
+            
+            <Button
+              variant={localUser.nda_email_sent ? "secondary" : "default"}
+              size="sm"
+              onClick={() => setShowNDADialog(true)}
+              className="text-xs h-8 transition-all hover:scale-105"
+            >
+              <Shield className="h-3 w-3 mr-1" />
+              {localUser.nda_signed ? "Resend NDA" : "Send NDA"}
+            </Button>
 
-          <Button
-            variant={localFollowedUp ? "secondary" : "outline"}
-            size="sm"
-            onClick={handleFollowUp}
-            className="text-xs h-8 transition-all hover:scale-105"
-          >
-            <MessageSquare className="h-3 w-3 mr-1" />
-            Follow Up
-            <ExternalLink className="h-3 w-3 ml-1" />
-          </Button>
+            <Button
+              variant={localFollowedUp ? "secondary" : "outline"}
+              size="sm"
+              onClick={handleFollowUp}
+              className="text-xs h-8 transition-all hover:scale-105"
+            >
+              <MessageSquare className="h-3 w-3 mr-1" />
+              Follow Up
+              <ExternalLink className="h-3 w-3 ml-1" />
+            </Button>
+          </div>
         </div>
       </div>
 
-      {/* Agreement Status Section */}
-      <div className="bg-card border rounded-lg p-4">
-        <h5 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
-          <FileText className="h-4 w-4" />
-          Agreement Status
-        </h5>
-        
-        <div className="space-y-3">
-          {/* Fee Agreement */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 border border-border/50 rounded-lg bg-card/50 backdrop-blur-sm gap-3 transition-all hover:shadow-sm">
-            <div className="flex items-center gap-3">
-              <div className="p-1.5 rounded-lg bg-primary/10">
-                <FileText className="h-4 w-4 text-primary" />
+      {/* Right Column: Agreement Status */}
+      <div className="space-y-4">
+        <div className="bg-card border rounded-lg p-4">
+          <h5 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
+            <FileText className="h-4 w-4" />
+            Agreement Status
+          </h5>
+          
+          <div className="space-y-3">
+            {/* Fee Agreement */}
+            <div className="p-3 border border-border/50 rounded-lg bg-card/50 backdrop-blur-sm transition-all hover:shadow-sm">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <div className="p-1 rounded bg-primary/10">
+                    <FileText className="h-3 w-3 text-primary" />
+                  </div>
+                  <span className="text-sm font-medium text-foreground">Fee Agreement</span>
+                </div>
+                {getStatusBadge(
+                  localUser.fee_agreement_email_sent || false, 
+                  localUser.fee_agreement_signed || false, 
+                  localUser.fee_agreement_email_sent_at, 
+                  localUser.fee_agreement_signed_at
+                )}
               </div>
-              <span className="text-sm font-medium text-foreground">Fee Agreement</span>
-            </div>
-            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-              {getStatusBadge(
-                localUser.fee_agreement_email_sent || false, 
-                localUser.fee_agreement_signed || false, 
-                localUser.fee_agreement_email_sent_at, 
-                localUser.fee_agreement_signed_at
-              )}
-              <div className="flex items-center gap-4">
-                <div className="flex items-center space-x-2">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center space-x-2 shrink-0">
                   <Switch
                     id={`fee-sent-${user.id}`}
                     checked={localUser.fee_agreement_email_sent || false}
@@ -274,7 +278,7 @@ SourceCo Team`}`;
                   />
                   <Label htmlFor={`fee-sent-${user.id}`} className="text-xs font-medium">Sent</Label>
                 </div>
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-2 shrink-0">
                   <Switch
                     id={`fee-signed-${user.id}`}
                     checked={localUser.fee_agreement_signed || false}
@@ -286,25 +290,25 @@ SourceCo Team`}`;
                 </div>
               </div>
             </div>
-          </div>
 
-          {/* NDA */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 border border-border/50 rounded-lg bg-card/50 backdrop-blur-sm gap-3 transition-all hover:shadow-sm">
-            <div className="flex items-center gap-3">
-              <div className="p-1.5 rounded-lg bg-success/10">
-                <Shield className="h-4 w-4 text-success" />
+            {/* NDA */}
+            <div className="p-3 border border-border/50 rounded-lg bg-card/50 backdrop-blur-sm transition-all hover:shadow-sm">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <div className="p-1 rounded bg-success/10">
+                    <Shield className="h-3 w-3 text-success" />
+                  </div>
+                  <span className="text-sm font-medium text-foreground">NDA</span>
+                </div>
+                {getStatusBadge(
+                  localUser.nda_email_sent || false, 
+                  localUser.nda_signed || false, 
+                  localUser.nda_email_sent_at, 
+                  localUser.nda_signed_at
+                )}
               </div>
-              <span className="text-sm font-medium text-foreground">NDA</span>
-            </div>
-            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-              {getStatusBadge(
-                localUser.nda_email_sent || false, 
-                localUser.nda_signed || false, 
-                localUser.nda_email_sent_at, 
-                localUser.nda_signed_at
-              )}
-              <div className="flex items-center gap-4">
-                <div className="flex items-center space-x-2">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center space-x-2 shrink-0">
                   <Switch
                     id={`nda-sent-${user.id}`}
                     checked={localUser.nda_email_sent || false}
@@ -314,7 +318,7 @@ SourceCo Team`}`;
                   />
                   <Label htmlFor={`nda-sent-${user.id}`} className="text-xs font-medium">Sent</Label>
                 </div>
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-2 shrink-0">
                   <Switch
                     id={`nda-signed-${user.id}`}
                     checked={localUser.nda_signed || false}
@@ -326,31 +330,31 @@ SourceCo Team`}`;
                 </div>
               </div>
             </div>
-          </div>
 
-          {/* Follow-Up Status */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 border border-border/50 rounded-lg bg-card/50 backdrop-blur-sm gap-3 transition-all hover:shadow-sm">
-            <div className="flex items-center gap-3">
-              <div className="p-1.5 rounded-lg bg-secondary/10">
-                <MessageSquare className="h-4 w-4 text-secondary" />
+            {/* Follow-Up Status */}
+            <div className="p-3 border border-border/50 rounded-lg bg-card/50 backdrop-blur-sm transition-all hover:shadow-sm">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <div className="p-1 rounded bg-secondary/10">
+                    <MessageSquare className="h-3 w-3 text-secondary" />
+                  </div>
+                  <span className="text-sm font-medium text-foreground">Follow-Up</span>
+                </div>
+                <Badge 
+                  variant={localFollowedUp ? "default" : "secondary"}
+                  className={localFollowedUp 
+                    ? "text-xs bg-success/10 text-success border-success/20 hover:bg-success/20 w-fit transition-colors" 
+                    : "text-xs bg-warning/10 text-warning border-warning/20 hover:bg-warning/20 w-fit transition-colors"
+                  }
+                >
+                  {localFollowedUp ? (
+                    <CheckCheck className="h-3 w-3 mr-1" />
+                  ) : (
+                    <Clock className="h-3 w-3 mr-1" />
+                  )}
+                  {localFollowedUp ? "Completed" : "Pending"}
+                </Badge>
               </div>
-              <span className="text-sm font-medium text-foreground">Follow-Up</span>
-            </div>
-            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-              <Badge 
-                variant={localFollowedUp ? "default" : "secondary"}
-                className={localFollowedUp 
-                  ? "text-xs bg-success/10 text-success border-success/20 hover:bg-success/20 w-fit transition-colors" 
-                  : "text-xs bg-warning/10 text-warning border-warning/20 hover:bg-warning/20 w-fit transition-colors"
-                }
-              >
-                {localFollowedUp ? (
-                  <CheckCheck className="h-3 w-3 mr-1" />
-                ) : (
-                  <Clock className="h-3 w-3 mr-1" />
-                )}
-                {localFollowedUp ? "Completed" : "Pending"}
-              </Badge>
               <div className="flex items-center space-x-2">
                 <Switch
                   id={`followup-${user.id}`}
