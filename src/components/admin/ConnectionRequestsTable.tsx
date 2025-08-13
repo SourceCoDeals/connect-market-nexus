@@ -88,7 +88,7 @@ const RequestDetails = ({
 
   const handleListingClick = () => {
     if (request.listing?.id) {
-      navigate(`/marketplace/${request.listing.id}`);
+      navigate(`/listing/${request.listing.id}`);
     }
   };
 
