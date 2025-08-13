@@ -4,7 +4,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Shield, Link as LinkIcon, User, Building, FileText, Clipboard } from "lucide-react";
 import { Control } from "react-hook-form";
-import { processUrl, isValidUrlFormat } from "@/lib/url-utils";
 
 interface InternalCompanyInfoSectionProps {
   control: Control<any>;
@@ -104,17 +103,14 @@ export function InternalCompanyInfoSection({ control, dealIdentifier }: Internal
                 </FormLabel>
                 <FormControl>
                   <Input 
-                    placeholder="www.salesforce.com/deal/... or salesforce.com/..."
+                    placeholder="https://salesforce.com/deal/..."
+                    type="url"
                     {...field}
-                    onChange={(e) => {
-                      const processed = processUrl(e.target.value);
-                      field.onChange(processed);
-                    }}
                     className="border-orange-200 focus:border-orange-500"
                   />
                 </FormControl>
                 <FormDescription>
-                  Direct link to Salesforce opportunity (https:// will be added automatically)
+                  Direct link to Salesforce opportunity
                 </FormDescription>
                 <FormMessage />
               </FormItem>
@@ -132,17 +128,14 @@ export function InternalCompanyInfoSection({ control, dealIdentifier }: Internal
                 </FormLabel>
                 <FormControl>
                   <Input 
-                    placeholder="www.company.webflow.io/deal-memo/... or company.com/..."
+                    placeholder="https://company.webflow.io/deal-memo/..."
+                    type="url"
                     {...field}
-                    onChange={(e) => {
-                      const processed = processUrl(e.target.value);
-                      field.onChange(processed);
-                    }}
                     className="border-orange-200 focus:border-orange-500"
                   />
                 </FormControl>
                 <FormDescription>
-                  Link to deal memo on your website (https:// will be added automatically)
+                  Link to deal memo on your website
                 </FormDescription>
                 <FormMessage />
               </FormItem>

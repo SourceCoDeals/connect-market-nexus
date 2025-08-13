@@ -88,15 +88,6 @@ export interface Listing {
   image_url?: string | null;
   status: ListingStatus;
   
-  // Admin-only internal fields
-  deal_identifier?: string;
-  internal_company_name?: string;
-  internal_primary_owner?: string;
-  internal_salesforce_link?: string;
-  internal_deal_memo_link?: string;
-  internal_contact_info?: string;
-  internal_notes?: string;
-  
   // Computed properties (aliases for snake_case properties)
   readonly ownerNotes: string;
   readonly createdAt: string;
