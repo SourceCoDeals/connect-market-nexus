@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Send Test Email</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <h1>Sending Test Connection Approval Email</h1>
+    <p>Sending to: ahaile14@gmail.com</p>
+    <div id="status">Preparing to send...</div>
+
+    <script>
+        const { createClient } = supabase;
+        
+        const supabaseClient = createClient(
+            'https://vhzipqarkmmfuqadefep.supabase.co',
+            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZoemlwcWFya21tZnVxYWRlZmVwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY2MTcxMTMsImV4cCI6MjA2MjE5MzExM30.M653TuQcthJx8vZW4jPkUTdB67D_Dm48ItLcu_XBh2g'
+        );
+
+        async function sendTestEmail() {
+            const statusDiv = document.getElementById('status');
+            statusDiv.innerHTML = 'Sending test email...';
+            
+            try {
+                const { data, error } = await supabaseClient.functions.invoke('send-user-notification', {
+                    body: {
+                        email: 'ahaile14@gmail.com',
+                        subject: '✅ Connection Request Approved',
+                        message: `Adam,
+
+Great news! Your connection request for "Premium SaaS Company - $2M ARR" has been approved.
+
+We're now coordinating next steps and will follow up with you shortly to move this forward.
+
+If you have any questions, please reply to this email.
+
+Adam Haile
+Growth Marketing
+adam.haile@sourcecodeals.com`,
+                        type: 'connection_approved',
+                        fromEmail: 'adam.haile@sourcecodeals.com'
+                    }
+                });
+                
+                if (error) {
+                    console.error('Error sending test email:', error);
+                    statusDiv.innerHTML = `<span style="color: red;">Error: ${error.message}</span>`;
+                } else {
+                    console.log('Test email sent successfully:', data);
+                    statusDiv.innerHTML = `<span style="color: green;">✅ Test email sent successfully!</span>`;
+                }
+            } catch (error) {
+                console.error('Failed to send test email:', error);
+                statusDiv.innerHTML = `<span style="color: red;">Failed: ${error.message}</span>`;
+            }
+        }
+
+        // Send the email automatically when page loads
+        window.addEventListener('load', sendTestEmail);
+    </script>
+</body>
+</html>
