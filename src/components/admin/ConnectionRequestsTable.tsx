@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { ChevronDown, User, Building, MessageSquare, Calendar, RefreshCw, FileText, Shield, Mail, MapPin, Target, Building2, Clipboard, ExternalLink } from "lucide-react";
+import { ChevronDown, User, Building, MessageSquare, Calendar, RefreshCw, FileText, Shield, Mail, MapPin, Target, Building2, Clipboard, ExternalLink, CheckCircle, Clock, XCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { AdminConnectionRequest } from "@/types/admin";
 import { ConnectionRequestActions } from "@/components/admin/ConnectionRequestActions";
@@ -390,98 +390,78 @@ const ReactiveRequestCard = ({
                 </div>
               </div>
 
-              {/* Two-column layout for Quick Actions and Agreement Status */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Left Column: Quick Actions */}
+              {/* Two-column layout: Agreement Status (left) and Quick Actions (right) */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Left Column: Agreement Status */}
                 <div className="space-y-4">
-                  <div className="flex items-center gap-2 mb-3">
-                    <RefreshCw className="h-5 w-5 text-primary" />
-                    <h5 className="font-semibold text-base">Quick Actions</h5>
-                  </div>
-                  <div className="bg-card border rounded-lg p-4">
-                    <ConnectionRequestActions
-                      user={localUser || request.user}
-                      listing={request.listing}
-                      requestId={request.id}
-                      followedUp={localFollowedUp}
-                      onEmailSent={() => onRefresh?.()}
-                      onLocalStateUpdate={handleLocalStateUpdate}
-                    />
-                  </div>
+                  <h5 className="font-medium text-sm text-muted-foreground flex items-center gap-2 mb-3">
+                    <Shield className="h-4 w-4" />
+                    Agreement Status
+                  </h5>
+                  {localUser && (
+                    <div className="bg-background/80 border border-border/50 rounded-lg p-4 space-y-4">
+                      {/* NDA Status */}
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium">NDA Status:</span>
+                        {localUser.nda_signed ? (
+                          <Badge className="bg-green-500/10 text-green-700 border-green-500/20">
+                            <CheckCircle className="h-3 w-3 mr-1" />
+                            Signed
+                          </Badge>
+                        ) : localUser.nda_email_sent ? (
+                          <Badge className="bg-amber-500/10 text-amber-700 border-amber-500/20">
+                            <Clock className="h-3 w-3 mr-1" />
+                            Sent
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline">
+                            <XCircle className="h-3 w-3 mr-1" />
+                            Not Sent
+                          </Badge>
+                        )}
+                      </div>
+                      
+                      {/* Fee Agreement Status */}
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium">Fee Agreement:</span>
+                        {localUser.fee_agreement_signed ? (
+                          <Badge className="bg-green-500/10 text-green-700 border-green-500/20">
+                            <CheckCircle className="h-3 w-3 mr-1" />
+                            Signed
+                          </Badge>
+                        ) : localUser.fee_agreement_email_sent ? (
+                          <Badge className="bg-amber-500/10 text-amber-700 border-amber-500/20">
+                            <Clock className="h-3 w-3 mr-1" />
+                            Sent
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline">
+                            <XCircle className="h-3 w-3 mr-1" />
+                            Not Sent
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
-                {/* Right Column: Agreement Status */}
+                {/* Right Column: Quick Actions */}
                 <div className="space-y-4">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Shield className="h-5 w-5 text-primary" />
-                    <h5 className="font-semibold text-base">Agreement Status</h5>
-                  </div>
-                  <div className="bg-card border rounded-lg p-4 space-y-4">
-                    {/* NDA Status */}
-                    <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg">
-                      <div className="flex items-center gap-2">
-                        <FileText className="h-4 w-4 text-slate-600" />
-                        <span className="text-sm font-medium">NDA Agreement</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {localUser?.nda_signed ? (
-                          <Badge className="bg-green-500/10 text-green-700 border-green-500/20">
-                            ✓ Signed
-                          </Badge>
-                        ) : localUser?.nda_email_sent ? (
-                          <Badge className="bg-amber-500/10 text-amber-700 border-amber-500/20">
-                            📧 Sent
-                          </Badge>
-                        ) : (
-                          <Badge variant="outline" className="text-muted-foreground">
-                            Not Sent
-                          </Badge>
-                        )}
-                      </div>
+                  <h5 className="font-medium text-sm text-muted-foreground flex items-center gap-2 mb-3">
+                    <FileText className="h-4 w-4" />
+                    Quick Actions
+                  </h5>
+                  {localUser && (
+                    <div className="bg-background/80 border border-border/50 rounded-lg p-4">
+                      <ConnectionRequestActions
+                        user={localUser}
+                        listing={request.listing}
+                        requestId={request.id}
+                        followedUp={localFollowedUp}
+                        onLocalStateUpdate={handleLocalStateUpdate}
+                      />
                     </div>
-
-                    {/* Fee Agreement Status */}
-                    <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg">
-                      <div className="flex items-center gap-2">
-                        <FileText className="h-4 w-4 text-slate-600" />
-                        <span className="text-sm font-medium">Fee Agreement</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {localUser?.fee_agreement_signed ? (
-                          <Badge className="bg-green-500/10 text-green-700 border-green-500/20">
-                            ✓ Signed
-                          </Badge>
-                        ) : localUser?.fee_agreement_email_sent ? (
-                          <Badge className="bg-amber-500/10 text-amber-700 border-amber-500/20">
-                            📧 Sent
-                          </Badge>
-                        ) : (
-                          <Badge variant="outline" className="text-muted-foreground">
-                            Not Sent
-                          </Badge>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Follow-up Status */}
-                    <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg">
-                      <div className="flex items-center gap-2">
-                        <Mail className="h-4 w-4 text-slate-600" />
-                        <span className="text-sm font-medium">Follow-up Status</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {localFollowedUp ? (
-                          <Badge className="bg-blue-500/10 text-blue-700 border-blue-500/20">
-                            ✓ Completed
-                          </Badge>
-                        ) : (
-                          <Badge variant="outline" className="text-muted-foreground">
-                            Pending
-                          </Badge>
-                        )}
-                      </div>
-                    </div>
-                  </div>
+                  )}
                 </div>
               </div>
             </div>
