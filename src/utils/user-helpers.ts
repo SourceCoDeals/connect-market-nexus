@@ -27,6 +27,15 @@ export const createListingFromData = (data: any): Listing => {
       status: (data.status as ListingStatus) || "active",
       image_url: data.image_url || null,
       
+      // Internal admin fields
+      deal_identifier: data.deal_identifier || undefined,
+      internal_company_name: data.internal_company_name || undefined,
+      internal_primary_owner: data.internal_primary_owner || undefined,
+      internal_salesforce_link: data.internal_salesforce_link || undefined,
+      internal_deal_memo_link: data.internal_deal_memo_link || undefined,
+      internal_contact_info: data.internal_contact_info || undefined,
+      internal_notes: data.internal_notes || undefined,
+      
       // Computed properties
       get ownerNotes() {
         return this.owner_notes || "";
