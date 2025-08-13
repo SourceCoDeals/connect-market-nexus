@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { ChevronDown, User, Building, MessageSquare, Calendar, RefreshCw, FileText, Shield, Mail, MapPin, Target, Building2, Clipboard } from "lucide-react";
+import { ChevronDown, User, Building, MessageSquare, Calendar, RefreshCw, FileText, Shield, Mail, MapPin, Target, Building2, Clipboard, ExternalLink } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { AdminConnectionRequest } from "@/types/admin";
 import { ConnectionRequestActions } from "@/components/admin/ConnectionRequestActions";
 import { SmartWorkflowSuggestions } from "@/components/admin/SmartWorkflowSuggestions";
@@ -82,39 +83,68 @@ const RequestDetails = ({
   onApprove: (request: AdminConnectionRequest) => void;
   onReject: (request: AdminConnectionRequest) => void;
 }) => {
-  const localUser = request.user; // Use the user from the request directly
+  const navigate = useNavigate();
+  const localUser = request.user;
+
+  const handleListingClick = () => {
+    if (request.listing?.id) {
+      navigate(`/marketplace/${request.listing.id}`);
+    }
+  };
 
   return (
     <div className="space-y-6">
       {/* User & Listing Information Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="space-y-4">
-          <div className="flex items-center gap-2 mb-3">
-            <User className="h-5 w-5 text-primary" />
-            <h4 className="font-semibold text-base">Buyer Information</h4>
-          </div>
-          <div className="bg-card border rounded-lg p-4 space-y-3">
-            <div className="grid grid-cols-2 gap-3 text-sm">
-              <div>
-                <span className="font-medium text-muted-foreground">Name:</span>
-                <p>{localUser?.first_name} {localUser?.last_name}</p>
-              </div>
-              <div>
-                <span className="font-medium text-muted-foreground">Type:</span>
-                <p className="capitalize">{localUser?.buyer_type || 'Not specified'}</p>
-              </div>
-              <div>
-                <span className="font-medium text-muted-foreground">Email:</span>
-                <p className="break-all">{localUser?.email}</p>
-              </div>
-              <div>
-                <span className="font-medium text-muted-foreground">Company:</span>
-                <p>{localUser?.company || 'Not provided'}</p>
+        {/* Left Column: Buyer Information + Buyer Message */}
+        <div className="space-y-6">
+          {/* Buyer Information */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 mb-3">
+              <User className="h-5 w-5 text-primary" />
+              <h4 className="font-semibold text-base">Buyer Information</h4>
+            </div>
+            <div className="bg-card border rounded-lg p-4 space-y-3">
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div>
+                  <span className="font-medium text-muted-foreground">Name:</span>
+                  <p>{localUser?.first_name} {localUser?.last_name}</p>
+                </div>
+                <div>
+                  <span className="font-medium text-muted-foreground">Type:</span>
+                  <p className="capitalize">{localUser?.buyer_type || 'Not specified'}</p>
+                </div>
+                <div>
+                  <span className="font-medium text-muted-foreground">Email:</span>
+                  <p className="break-all">{localUser?.email}</p>
+                </div>
+                <div>
+                  <span className="font-medium text-muted-foreground">Company:</span>
+                  <p>{localUser?.company || 'Not provided'}</p>
+                </div>
               </div>
             </div>
           </div>
+
+          {/* Buyer Message - Now in left column */}
+          {request.user_message && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 mb-3">
+                <MessageSquare className="h-5 w-5 text-primary" />
+                <h4 className="font-semibold text-base">Buyer Message</h4>
+              </div>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <User className="h-4 w-4 text-blue-600" />
+                  <span className="text-sm font-medium text-blue-800">Message from Buyer</span>
+                </div>
+                <p className="text-sm text-blue-700 leading-relaxed">{request.user_message}</p>
+              </div>
+            </div>
+          )}
         </div>
         
+        {/* Right Column: Listing Information */}
         <div className="space-y-4">
           <div className="flex items-center gap-2 mb-3">
             <Building className="h-5 w-5 text-primary" />
@@ -124,7 +154,13 @@ const RequestDetails = ({
             <div className="grid grid-cols-1 gap-3 text-sm">
               <div>
                 <span className="font-medium text-muted-foreground">Title:</span>
-                <p className="font-medium">{request.listing?.title}</p>
+                <button
+                  onClick={handleListingClick}
+                  className="font-medium text-primary hover:text-primary/80 text-left transition-colors flex items-center gap-2 group"
+                >
+                  {request.listing?.title}
+                  <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                </button>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -169,37 +205,22 @@ const RequestDetails = ({
         </div>
       </div>
 
-      {/* Messages Section */}
-      {(request.user_message || request.admin_comment) && (
+      {/* Admin Response (if exists) */}
+      {request.admin_comment && (
         <div className="space-y-4">
           <h4 className="font-semibold text-base flex items-center gap-2">
-            <MessageSquare className="h-5 w-5 text-primary" />
-            Messages
+            <Shield className="h-5 w-5 text-primary" />
+            Admin Response
           </h4>
-          
-          {request.user_message && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <User className="h-4 w-4 text-blue-600" />
-                <span className="text-sm font-medium text-blue-800">Buyer Message</span>
-              </div>
-              <p className="text-sm text-blue-700">{request.user_message}</p>
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Shield className="h-4 w-4 text-green-600" />
+              <span className="text-sm font-medium text-green-800">Response from Admin</span>
             </div>
-          )}
-          
-          {request.admin_comment && (
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <Shield className="h-4 w-4 text-green-600" />
-                <span className="text-sm font-medium text-green-800">Admin Response</span>
-              </div>
-              <p className="text-sm text-green-700">{request.admin_comment}</p>
-            </div>
-          )}
+            <p className="text-sm text-green-700 leading-relaxed">{request.admin_comment}</p>
+          </div>
         </div>
       )}
-
-      {/* Action buttons removed from here - moved to top of expanded view */}
     </div>
   );
 };
@@ -320,12 +341,13 @@ const ReactiveRequestCard = ({
         
         <CollapsibleContent>
           <CardContent className="pt-0 px-6 pb-6">
-            {/* Quick Actions moved to top for better workflow */}
-            <div className="mb-6 p-4 bg-accent/30 rounded-lg border border-border/30">
-              <div className="flex items-center justify-between mb-4">
-                <h4 className="font-semibold text-base flex items-center gap-2">
+            {/* Quick Actions & Agreement Status in two-column layout */}
+            <div className="mb-6 p-6 bg-accent/30 rounded-lg border border-border/30">
+              {/* Header with Approve/Reject buttons */}
+              <div className="flex items-center justify-between mb-6">
+                <h4 className="font-semibold text-lg flex items-center gap-2">
                   <FileText className="h-5 w-5 text-primary" />
-                  Quick Actions
+                  Actions & Status
                 </h4>
                 {/* Approve/Reject buttons prominently placed */}
                 <div className="flex gap-3">
@@ -333,7 +355,7 @@ const ReactiveRequestCard = ({
                     <>
                       <Button
                         size="sm"
-                        className="bg-green-600 hover:bg-green-700 text-white"
+                        className="bg-green-600 hover:bg-green-700 text-white px-4 py-2"
                         onClick={() => onApprove(request)}
                       >
                         Approve
@@ -341,7 +363,7 @@ const ReactiveRequestCard = ({
                       <Button
                         variant="outline"
                         size="sm"
-                        className="border-red-500 text-red-700 hover:bg-red-500 hover:text-white"
+                        className="border-red-500 text-red-700 hover:bg-red-500 hover:text-white px-4 py-2"
                         onClick={() => onReject(request)}
                       >
                         Reject
@@ -350,7 +372,7 @@ const ReactiveRequestCard = ({
                   ) : request.status === "rejected" ? (
                     <Button
                       size="sm"
-                      className="bg-green-600 hover:bg-green-700 text-white"
+                      className="bg-green-600 hover:bg-green-700 text-white px-4 py-2"
                       onClick={() => onApprove(request)}
                     >
                       Approve
@@ -359,7 +381,7 @@ const ReactiveRequestCard = ({
                     <Button
                       variant="outline"
                       size="sm"
-                      className="border-red-500 text-red-700 hover:bg-red-500 hover:text-white"
+                      className="border-red-500 text-red-700 hover:bg-red-500 hover:text-white px-4 py-2"
                       onClick={() => onReject(request)}
                     >
                       Revoke
@@ -367,14 +389,101 @@ const ReactiveRequestCard = ({
                   )}
                 </div>
               </div>
-              <ConnectionRequestActions
-                user={localUser || request.user}
-                listing={request.listing}
-                requestId={request.id}
-                followedUp={localFollowedUp}
-                onEmailSent={() => onRefresh?.()}
-                onLocalStateUpdate={handleLocalStateUpdate}
-              />
+
+              {/* Two-column layout for Quick Actions and Agreement Status */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Left Column: Quick Actions */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <RefreshCw className="h-5 w-5 text-primary" />
+                    <h5 className="font-semibold text-base">Quick Actions</h5>
+                  </div>
+                  <div className="bg-card border rounded-lg p-4">
+                    <ConnectionRequestActions
+                      user={localUser || request.user}
+                      listing={request.listing}
+                      requestId={request.id}
+                      followedUp={localFollowedUp}
+                      onEmailSent={() => onRefresh?.()}
+                      onLocalStateUpdate={handleLocalStateUpdate}
+                    />
+                  </div>
+                </div>
+
+                {/* Right Column: Agreement Status */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Shield className="h-5 w-5 text-primary" />
+                    <h5 className="font-semibold text-base">Agreement Status</h5>
+                  </div>
+                  <div className="bg-card border rounded-lg p-4 space-y-4">
+                    {/* NDA Status */}
+                    <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg">
+                      <div className="flex items-center gap-2">
+                        <FileText className="h-4 w-4 text-slate-600" />
+                        <span className="text-sm font-medium">NDA Agreement</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {localUser?.nda_signed ? (
+                          <Badge className="bg-green-500/10 text-green-700 border-green-500/20">
+                            ✓ Signed
+                          </Badge>
+                        ) : localUser?.nda_email_sent ? (
+                          <Badge className="bg-amber-500/10 text-amber-700 border-amber-500/20">
+                            📧 Sent
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-muted-foreground">
+                            Not Sent
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Fee Agreement Status */}
+                    <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg">
+                      <div className="flex items-center gap-2">
+                        <FileText className="h-4 w-4 text-slate-600" />
+                        <span className="text-sm font-medium">Fee Agreement</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {localUser?.fee_agreement_signed ? (
+                          <Badge className="bg-green-500/10 text-green-700 border-green-500/20">
+                            ✓ Signed
+                          </Badge>
+                        ) : localUser?.fee_agreement_email_sent ? (
+                          <Badge className="bg-amber-500/10 text-amber-700 border-amber-500/20">
+                            📧 Sent
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-muted-foreground">
+                            Not Sent
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Follow-up Status */}
+                    <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg">
+                      <div className="flex items-center gap-2">
+                        <Mail className="h-4 w-4 text-slate-600" />
+                        <span className="text-sm font-medium">Follow-up Status</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {localFollowedUp ? (
+                          <Badge className="bg-blue-500/10 text-blue-700 border-blue-500/20">
+                            ✓ Completed
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-muted-foreground">
+                            Pending
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
             
             <RequestDetails
