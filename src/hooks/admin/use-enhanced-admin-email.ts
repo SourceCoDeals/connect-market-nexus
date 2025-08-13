@@ -64,6 +64,38 @@ export function useEnhancedAdminEmail() {
     }
     
     try {
+      // Get the current admin's profile for signature
+      const { data: { user } } = await supabase.auth.getUser();
+      const { data: adminProfile } = await supabase
+        .from('profiles')
+        .select('email, first_name, last_name')
+        .eq('id', user?.id)
+        .single();
+
+      // Default signature
+      let signature = `Adam Haile
+Founder & CEO, SourceCo
+adam.haile@sourcecodeals.com`;
+
+      // Use dynamic signature if admin profile found
+      if (adminProfile && adminProfile.email) {
+        if (adminProfile.email === 'bill.martin@sourcecodeals.com') {
+          signature = `Bill Martin
+Principal & SVP - Growth, SourceCo
+bill.martin@sourcecodeals.com`;
+        } else if (adminProfile.email === 'adam.haile@sourcecodeals.com') {
+          signature = `Adam Haile
+Founder & CEO, SourceCo
+adam.haile@sourcecodeals.com`;
+        } else {
+          // For other admins, use their name and email
+          const name = `${adminProfile.first_name} ${adminProfile.last_name}`.trim();
+          signature = `${name}
+SourceCo
+${adminProfile.email}`;
+        }
+      }
+
       const { data, error } = await supabase.functions.invoke('send-user-notification', {
         body: {
           email: request.user.email,
@@ -84,9 +116,7 @@ Access your connection details: https://marketplace.sourcecodeals.com/my-request
 
 Questions? Just reply to this email.
 
-Adam Haile
-Founder & CEO, SourceCo
-adam.haile@sourcecodeals.com`,
+${signature}`,
           type: 'connection_approved'
         }
       });
