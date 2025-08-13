@@ -650,6 +650,7 @@ export type Database = {
           created_at: string
           custom_sections: Json | null
           customer_concentration: number | null
+          deal_identifier: string | null
           deleted_at: string | null
           description: string
           description_html: string | null
@@ -659,6 +660,12 @@ export type Database = {
           growth_drivers: Json | null
           id: string
           image_url: string | null
+          internal_company_name: string | null
+          internal_contact_info: string | null
+          internal_deal_memo_link: string | null
+          internal_notes: string | null
+          internal_primary_owner: string | null
+          internal_salesforce_link: string | null
           investment_thesis: string | null
           key_risks: Json | null
           location: string
@@ -683,6 +690,7 @@ export type Database = {
           created_at?: string
           custom_sections?: Json | null
           customer_concentration?: number | null
+          deal_identifier?: string | null
           deleted_at?: string | null
           description: string
           description_html?: string | null
@@ -692,6 +700,12 @@ export type Database = {
           growth_drivers?: Json | null
           id?: string
           image_url?: string | null
+          internal_company_name?: string | null
+          internal_contact_info?: string | null
+          internal_deal_memo_link?: string | null
+          internal_notes?: string | null
+          internal_primary_owner?: string | null
+          internal_salesforce_link?: string | null
           investment_thesis?: string | null
           key_risks?: Json | null
           location: string
@@ -716,6 +730,7 @@ export type Database = {
           created_at?: string
           custom_sections?: Json | null
           customer_concentration?: number | null
+          deal_identifier?: string | null
           deleted_at?: string | null
           description?: string
           description_html?: string | null
@@ -725,6 +740,12 @@ export type Database = {
           growth_drivers?: Json | null
           id?: string
           image_url?: string | null
+          internal_company_name?: string | null
+          internal_contact_info?: string | null
+          internal_deal_memo_link?: string | null
+          internal_notes?: string | null
+          internal_primary_owner?: string | null
+          internal_salesforce_link?: string | null
           investment_thesis?: string | null
           key_risks?: Json | null
           location?: string
@@ -1317,6 +1338,10 @@ export type Database = {
       demote_admin_user: {
         Args: { target_user_id: string }
         Returns: boolean
+      }
+      generate_deal_identifier: {
+        Args: Record<PropertyKey, never>
+        Returns: string
       }
       get_feedback_analytics: {
         Args: { days_back?: number }

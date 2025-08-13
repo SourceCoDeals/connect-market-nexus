@@ -17,6 +17,18 @@ export interface AdminListing {
   files?: string[];
   image_url?: string | null;
   status: 'active' | 'inactive';
+  
+  // Deal identifier for tracking
+  deal_identifier?: string;
+  
+  // Admin-only internal company information
+  internal_company_name?: string;
+  internal_primary_owner?: string;
+  internal_salesforce_link?: string;
+  internal_deal_memo_link?: string;
+  internal_contact_info?: string;
+  internal_notes?: string;
+  
   // New investor-focused fields
   ownership_structure?: string;
   seller_motivation?: string;
@@ -44,6 +56,18 @@ export interface CreateListingData {
   tags?: string[];
   owner_notes?: string;
   status?: 'active' | 'inactive';
+  
+  // Deal identifier for tracking
+  deal_identifier?: string;
+  
+  // Admin-only internal company information
+  internal_company_name?: string;
+  internal_primary_owner?: string;
+  internal_salesforce_link?: string;
+  internal_deal_memo_link?: string;
+  internal_contact_info?: string;
+  internal_notes?: string;
+  
   // New investor-focused fields
   ownership_structure?: string;
   seller_motivation?: string;

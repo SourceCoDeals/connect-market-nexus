@@ -15,6 +15,7 @@ import { RichTextEditorEnhanced } from "@/components/ui/rich-text-editor-enhance
 import { LocationSelect } from "@/components/ui/location-select";
 import { STANDARDIZED_CATEGORIES } from "@/lib/financial-parser";
 import { Loader2 } from "lucide-react";
+import { InternalCompanyInfoSection } from "./InternalCompanyInfoSection";
 import {
   Form,
   FormControl,
@@ -49,6 +50,14 @@ const listingFormSchema = z.object({
   description_json: z.any().optional(),
   owner_notes: z.string().optional(),
   status: z.enum(["active", "inactive"]).default("active"),
+  
+  // Admin-only internal fields
+  internal_company_name: z.string().optional(),
+  internal_primary_owner: z.string().optional(),
+  internal_salesforce_link: z.string().optional(),
+  internal_deal_memo_link: z.string().optional(),
+  internal_contact_info: z.string().optional(),
+  internal_notes: z.string().optional(),
 });
 
 // Form-specific type that matches the Zod schema (before transformation)
@@ -63,6 +72,14 @@ type ListingFormInput = {
   description_json?: any;
   owner_notes?: string;
   status: "active" | "inactive";
+  
+  // Admin-only internal fields
+  internal_company_name?: string;
+  internal_primary_owner?: string;
+  internal_salesforce_link?: string;
+  internal_deal_memo_link?: string;
+  internal_contact_info?: string;
+  internal_notes?: string;
 };
 
 // Type after Zod transformation
@@ -87,6 +104,14 @@ const convertListingToFormInput = (listing?: AdminListing): ListingFormInput => 
     description_json: listing?.description_json || null,
     owner_notes: listing?.owner_notes || "",
     status: listing?.status || "active",
+    
+    // Admin-only internal fields
+    internal_company_name: listing?.internal_company_name || "",
+    internal_primary_owner: listing?.internal_primary_owner || "",
+    internal_salesforce_link: listing?.internal_salesforce_link || "",
+    internal_deal_memo_link: listing?.internal_deal_memo_link || "",
+    internal_contact_info: listing?.internal_contact_info || "",
+    internal_notes: listing?.internal_notes || "",
   };
 };
 
@@ -165,6 +190,14 @@ export function ListingForm({
         description_json: formData.description_json,
         owner_notes: formData.owner_notes,
         status: formData.status,
+        
+        // Admin-only internal fields
+        internal_company_name: formData.internal_company_name,
+        internal_primary_owner: formData.internal_primary_owner,
+        internal_salesforce_link: formData.internal_salesforce_link,
+        internal_deal_memo_link: formData.internal_deal_memo_link,
+        internal_contact_info: formData.internal_contact_info,
+        internal_notes: formData.internal_notes,
       };
       
       // Only pass the image if it's been changed
@@ -382,6 +415,12 @@ export function ListingForm({
             error={imageError}
           />
         </div>
+
+        {/* Admin-only Internal Company Information */}
+        <InternalCompanyInfoSection 
+          control={form.control} 
+          dealIdentifier={listing?.deal_identifier}
+        />
 
         <div className="flex flex-col sm:flex-row sm:justify-end pt-6">
           <Button 

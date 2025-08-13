@@ -5,12 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { ChevronDown, User, Building, MessageSquare, Calendar, RefreshCw, FileText, Shield, Mail, MapPin, Target, Building2 } from "lucide-react";
+import { ChevronDown, User, Building, MessageSquare, Calendar, RefreshCw, FileText, Shield, Mail, MapPin, Target, Building2, Clipboard } from "lucide-react";
 import { AdminConnectionRequest } from "@/types/admin";
 import { ConnectionRequestActions } from "@/components/admin/ConnectionRequestActions";
 import { SmartWorkflowSuggestions } from "@/components/admin/SmartWorkflowSuggestions";
 import { StatusIndicatorRow } from "./StatusIndicatorRow";
 import { WorkflowProgressIndicator } from "./WorkflowProgressIndicator";
+import { InternalCompanyInfoDisplay } from "./InternalCompanyInfoDisplay";
 
 interface ConnectionRequestsTableProps {
   requests: AdminConnectionRequest[];
@@ -135,8 +136,24 @@ const RequestDetails = ({
                   <p>{request.listing?.location}</p>
                 </div>
               </div>
+              
+              {/* Deal Identifier */}
+              {(request.listing as any)?.deal_identifier && (
+                <div className="pt-2 border-t border-border/30">
+                  <div className="flex items-center gap-2">
+                    <Clipboard className="h-4 w-4 text-orange-600" />
+                    <span className="font-medium text-muted-foreground">Deal ID:</span>
+                    <code className="text-sm font-mono bg-orange-100 dark:bg-orange-900 px-2 py-1 rounded text-orange-800 dark:text-orange-200">
+                      {(request.listing as any).deal_identifier}
+                    </code>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
+          
+          {/* Internal Company Info Display */}
+          {request.listing && <InternalCompanyInfoDisplay listing={request.listing as any} />}
         </div>
       </div>
 
