@@ -10,11 +10,9 @@ import {
   Clock, 
   ArrowRight,
   FileText,
-  Shield,
-  Send
+  Shield
 } from "lucide-react";
 import { AdminConnectionRequest } from "@/types/admin";
-import { EmailTestButton } from "./EmailTestButton";
 
 interface QuickActionsBarProps {
   requests: AdminConnectionRequest[];
@@ -115,9 +113,8 @@ export function QuickActionsBar({ requests, onBulkAction }: QuickActionsBarProps
           <div className="flex items-center gap-1">
             <CheckCircle2 className="h-3 w-3" />
             <span>{stats.total - stats.pending} processed</span>
+          </div>
         </div>
-        <EmailTestButton />
-      </div>
       </div>
     </Card>
   );

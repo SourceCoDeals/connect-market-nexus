@@ -15,6 +15,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { MobileConnectionRequests } from "@/components/admin/MobileConnectionRequests";
 import { AdminRequestsWrapper } from "@/components/admin/AdminRequestsWrapper";
 import { invalidateConnectionRequests } from "@/lib/query-client-helpers";
+import { EmailTestButton } from "@/components/admin/EmailTestButton";
 
 const AdminRequests = () => {
   const queryClient = useQueryClient();
@@ -233,6 +234,17 @@ const AdminRequests = () => {
             }
           }}
         />
+
+        {/* Edge Case Tools */}
+        <details className="group">
+          <summary className="flex items-center justify-between py-2 cursor-pointer text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+            <span>🔧 Edge Case Tools (Rarely Used)</span>
+            <span className="group-open:rotate-180 transition-transform">▼</span>
+          </summary>
+          <div className="mt-4">
+            <EmailTestButton />
+          </div>
+        </details>
       </div>
     </AdminRequestsWrapper>
   );
