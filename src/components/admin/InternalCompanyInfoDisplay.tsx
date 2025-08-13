@@ -23,12 +23,12 @@ export function InternalCompanyInfoDisplay({ listing }: InternalCompanyInfoDispl
   }
 
   return (
-    <Card className="border-orange-200 bg-orange-50/30 dark:border-orange-800 dark:bg-orange-950/20 mt-4">
-      <CardHeader>
-        <CardTitle className="text-lg flex items-center gap-2 text-orange-700 dark:text-orange-400">
-          <Shield className="h-5 w-5" />
+    <Card className="border-slate-200 bg-slate-50/30 dark:border-slate-700 dark:bg-slate-900/30 mt-4">
+      <CardHeader className="pb-4">
+        <CardTitle className="text-base flex items-center gap-2 text-slate-700 dark:text-slate-300">
+          <Shield className="h-4 w-4 text-slate-600 dark:text-slate-400" />
           Internal Company Information
-          <Badge variant="outline" className="text-xs border-orange-500 text-orange-600">
+          <Badge variant="outline" className="text-xs border-slate-300 text-slate-600 dark:border-slate-600 dark:text-slate-400">
             Admin Only
           </Badge>
         </CardTitle>
@@ -37,11 +37,11 @@ export function InternalCompanyInfoDisplay({ listing }: InternalCompanyInfoDispl
       <CardContent className="space-y-4">
         {/* Deal Identifier */}
         {listing.deal_identifier && (
-          <div className="flex items-center gap-3 p-3 bg-white dark:bg-gray-900 rounded-lg border border-orange-200 dark:border-orange-800">
-            <Clipboard className="h-5 w-5 text-orange-600 flex-shrink-0" />
+          <div className="flex items-center gap-3 p-3 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700">
+            <Clipboard className="h-5 w-5 text-slate-600 dark:text-slate-400 flex-shrink-0" />
             <div className="flex-1">
-              <div className="font-medium text-sm text-orange-700 dark:text-orange-400">Deal ID</div>
-              <code className="text-sm font-mono text-orange-800 dark:text-orange-200">
+              <div className="font-medium text-sm text-slate-700 dark:text-slate-300">Deal ID</div>
+              <code className="text-sm font-mono text-slate-800 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded">
                 {listing.deal_identifier}
               </code>
             </div>
@@ -52,20 +52,20 @@ export function InternalCompanyInfoDisplay({ listing }: InternalCompanyInfoDispl
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {listing.internal_company_name && (
             <div className="flex items-start gap-3">
-              <Building className="h-5 w-5 text-orange-600 flex-shrink-0 mt-0.5" />
+              <Building className="h-5 w-5 text-slate-600 dark:text-slate-400 flex-shrink-0 mt-0.5" />
               <div>
-                <div className="font-medium text-sm text-orange-700 dark:text-orange-400">Real Company Name</div>
-                <div className="text-sm text-gray-700 dark:text-gray-300">{listing.internal_company_name}</div>
+                <div className="font-medium text-sm text-slate-700 dark:text-slate-300">Real Company Name</div>
+                <div className="text-sm text-slate-900 dark:text-slate-100 font-medium">{listing.internal_company_name}</div>
               </div>
             </div>
           )}
 
           {listing.internal_primary_owner && (
             <div className="flex items-start gap-3">
-              <User className="h-5 w-5 text-orange-600 flex-shrink-0 mt-0.5" />
+              <User className="h-5 w-5 text-slate-600 dark:text-slate-400 flex-shrink-0 mt-0.5" />
               <div>
-                <div className="font-medium text-sm text-orange-700 dark:text-orange-400">Primary Owner</div>
-                <div className="text-sm text-gray-700 dark:text-gray-300">{listing.internal_primary_owner}</div>
+                <div className="font-medium text-sm text-slate-700 dark:text-slate-300">Primary Owner</div>
+                <div className="text-sm text-slate-900 dark:text-slate-100">{listing.internal_primary_owner}</div>
               </div>
             </div>
           )}
@@ -75,9 +75,9 @@ export function InternalCompanyInfoDisplay({ listing }: InternalCompanyInfoDispl
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {listing.internal_salesforce_link && (
             <div className="flex items-start gap-3">
-              <LinkIcon className="h-5 w-5 text-orange-600 flex-shrink-0 mt-0.5" />
+              <LinkIcon className="h-5 w-5 text-slate-600 dark:text-slate-400 flex-shrink-0 mt-0.5" />
               <div className="flex-1">
-                <div className="font-medium text-sm text-orange-700 dark:text-orange-400">Salesforce</div>
+                <div className="font-medium text-sm text-slate-700 dark:text-slate-300">Salesforce</div>
                 <Button 
                   variant="link" 
                   size="sm" 
@@ -93,9 +93,9 @@ export function InternalCompanyInfoDisplay({ listing }: InternalCompanyInfoDispl
 
           {listing.internal_deal_memo_link && (
             <div className="flex items-start gap-3">
-              <FileText className="h-5 w-5 text-orange-600 flex-shrink-0 mt-0.5" />
+              <FileText className="h-5 w-5 text-slate-600 dark:text-slate-400 flex-shrink-0 mt-0.5" />
               <div className="flex-1">
-                <div className="font-medium text-sm text-orange-700 dark:text-orange-400">Deal Memo</div>
+                <div className="font-medium text-sm text-slate-700 dark:text-slate-300">Deal Memo</div>
                 <Button 
                   variant="link" 
                   size="sm" 
@@ -113,8 +113,8 @@ export function InternalCompanyInfoDisplay({ listing }: InternalCompanyInfoDispl
         {/* Contact Info */}
         {listing.internal_contact_info && (
           <div>
-            <div className="font-medium text-sm text-orange-700 dark:text-orange-400 mb-2">Contact Information</div>
-            <div className="bg-white dark:bg-gray-900 p-3 rounded-lg border border-orange-200 dark:border-orange-800 text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+            <div className="font-medium text-sm text-slate-700 dark:text-slate-300 mb-2">Contact Information</div>
+            <div className="bg-white dark:bg-slate-900 p-3 rounded-lg border border-slate-200 dark:border-slate-700 text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap">
               {listing.internal_contact_info}
             </div>
           </div>
@@ -123,8 +123,8 @@ export function InternalCompanyInfoDisplay({ listing }: InternalCompanyInfoDispl
         {/* Internal Notes */}
         {listing.internal_notes && (
           <div>
-            <div className="font-medium text-sm text-orange-700 dark:text-orange-400 mb-2">Internal Notes</div>
-            <div className="bg-white dark:bg-gray-900 p-3 rounded-lg border border-orange-200 dark:border-orange-800 text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+            <div className="font-medium text-sm text-slate-700 dark:text-slate-300 mb-2">Internal Notes</div>
+            <div className="bg-white dark:bg-slate-900 p-3 rounded-lg border border-slate-200 dark:border-slate-700 text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap">
               {listing.internal_notes}
             </div>
           </div>

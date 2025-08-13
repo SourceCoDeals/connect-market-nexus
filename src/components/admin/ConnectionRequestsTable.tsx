@@ -137,15 +137,27 @@ const RequestDetails = ({
                 </div>
               </div>
               
-              {/* Deal Identifier */}
-              {(request.listing as any)?.deal_identifier && (
+              {/* Real Company Name and Deal Identifier */}
+              {((request.listing as any)?.internal_company_name || (request.listing as any)?.deal_identifier) && (
                 <div className="pt-2 border-t border-border/30">
-                  <div className="flex items-center gap-2">
-                    <Clipboard className="h-4 w-4 text-orange-600" />
-                    <span className="font-medium text-muted-foreground">Deal ID:</span>
-                    <code className="text-sm font-mono bg-orange-100 dark:bg-orange-900 px-2 py-1 rounded text-orange-800 dark:text-orange-200">
-                      {(request.listing as any).deal_identifier}
-                    </code>
+                  <div className="flex items-center gap-3 flex-wrap">
+                    {(request.listing as any)?.internal_company_name && (
+                      <>
+                        <Building className="h-4 w-4 text-slate-600" />
+                        <span className="font-medium text-slate-700 dark:text-slate-300">Real Company:</span>
+                        <span className="font-semibold text-foreground">{(request.listing as any).internal_company_name}</span>
+                      </>
+                    )}
+                    {(request.listing as any)?.deal_identifier && (
+                      <>
+                        {(request.listing as any)?.internal_company_name && <span className="text-border">•</span>}
+                        <Clipboard className="h-4 w-4 text-slate-600" />
+                        <span className="font-medium text-slate-700 dark:text-slate-300">Deal ID:</span>
+                        <code className="text-sm font-mono bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded text-slate-800 dark:text-slate-200">
+                          {(request.listing as any).deal_identifier}
+                        </code>
+                      </>
+                    )}
                   </div>
                 </div>
               )}
@@ -187,47 +199,7 @@ const RequestDetails = ({
         </div>
       )}
 
-      {/* Action Buttons */}
-      <div className="flex justify-end gap-3 pt-4 border-t border-border">
-        {request.status === "pending" ? (
-          <>
-            <Button
-              variant="outline"
-              size="default"
-              className="border-green-500 text-green-700 hover:bg-green-500 hover:text-white"
-              onClick={() => onApprove(request)}
-            >
-              Approve Request
-            </Button>
-            <Button
-              variant="outline"
-              size="default"
-              className="border-orange-500 text-orange-700 hover:bg-orange-500 hover:text-white"
-              onClick={() => onReject(request)}
-            >
-              Reject Request
-            </Button>
-          </>
-        ) : request.status === "rejected" ? (
-          <Button
-            variant="outline"
-            size="default"
-            className="border-green-500 text-green-700 hover:bg-green-500 hover:text-white"
-            onClick={() => onApprove(request)}
-          >
-            Approve Request
-          </Button>
-        ) : (
-          <Button
-            variant="outline"
-            size="default"
-            className="border-orange-500 text-orange-700 hover:bg-orange-500 hover:text-white"
-            onClick={() => onReject(request)}
-          >
-            Revoke Approval
-          </Button>
-        )}
-      </div>
+      {/* Action buttons removed from here - moved to top of expanded view */}
     </div>
   );
 };
@@ -292,6 +264,23 @@ const ReactiveRequestCard = ({
                       <StatusBadge status={request.status} />
                     </div>
                     
+                    {/* Real Company Name (from internal fields) - Priority display */}
+                    {(request.listing as any)?.internal_company_name && (
+                      <div className="flex items-center gap-2 text-sm font-medium text-foreground flex-wrap">
+                        <Building className="h-4 w-4 flex-shrink-0 text-slate-600" />
+                        <span className="truncate">{(request.listing as any).internal_company_name}</span>
+                        {(request.listing as any)?.deal_identifier && (
+                          <>
+                            <span className="text-border">•</span>
+                            <Clipboard className="h-3 w-3 flex-shrink-0 text-slate-500" />
+                            <code className="text-xs font-mono bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
+                              {(request.listing as any).deal_identifier}
+                            </code>
+                          </>
+                        )}
+                      </div>
+                    )}
+                    
                     <div className="flex items-center gap-2 text-sm text-muted-foreground flex-wrap">
                       <Building2 className="h-4 w-4 flex-shrink-0" />
                       <span className="truncate">{localUser?.company}</span>
@@ -303,13 +292,6 @@ const ReactiveRequestCard = ({
                     <div className="flex items-center gap-2 text-sm text-muted-foreground flex-wrap">
                       <Target className="h-4 w-4 flex-shrink-0 text-primary/60" />
                       <span className="truncate font-medium">{request.listing?.title}</span>
-                      {request.listing?.location && (
-                        <>
-                          <span className="text-border">•</span>
-                          <MapPin className="h-4 w-4 flex-shrink-0" />
-                          <span>{request.listing.location}</span>
-                        </>
-                      )}
                     </div>
                   </div>
                 </div>
@@ -338,12 +320,53 @@ const ReactiveRequestCard = ({
         
         <CollapsibleContent>
           <CardContent className="pt-0 px-6 pb-6">
-            <RequestDetails
-              request={{...request, user: localUser}}
-              onApprove={onApprove}
-              onReject={onReject}
-            />
-            <div className="border-t border-border/30 pt-6">
+            {/* Quick Actions moved to top for better workflow */}
+            <div className="mb-6 p-4 bg-accent/30 rounded-lg border border-border/30">
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="font-semibold text-base flex items-center gap-2">
+                  <FileText className="h-5 w-5 text-primary" />
+                  Quick Actions
+                </h4>
+                {/* Approve/Reject buttons prominently placed */}
+                <div className="flex gap-3">
+                  {request.status === "pending" ? (
+                    <>
+                      <Button
+                        size="sm"
+                        className="bg-green-600 hover:bg-green-700 text-white"
+                        onClick={() => onApprove(request)}
+                      >
+                        Approve
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="border-red-500 text-red-700 hover:bg-red-500 hover:text-white"
+                        onClick={() => onReject(request)}
+                      >
+                        Reject
+                      </Button>
+                    </>
+                  ) : request.status === "rejected" ? (
+                    <Button
+                      size="sm"
+                      className="bg-green-600 hover:bg-green-700 text-white"
+                      onClick={() => onApprove(request)}
+                    >
+                      Approve
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="border-red-500 text-red-700 hover:bg-red-500 hover:text-white"
+                      onClick={() => onReject(request)}
+                    >
+                      Revoke
+                    </Button>
+                  )}
+                </div>
+              </div>
               <ConnectionRequestActions
                 user={localUser || request.user}
                 listing={request.listing}
@@ -353,6 +376,12 @@ const ReactiveRequestCard = ({
                 onLocalStateUpdate={handleLocalStateUpdate}
               />
             </div>
+            
+            <RequestDetails
+              request={{...request, user: localUser}}
+              onApprove={onApprove}
+              onReject={onReject}
+            />
           </CardContent>
         </CollapsibleContent>
       </Collapsible>

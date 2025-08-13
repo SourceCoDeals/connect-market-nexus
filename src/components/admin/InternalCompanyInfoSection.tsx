@@ -13,31 +13,31 @@ interface InternalCompanyInfoSectionProps {
 
 export function InternalCompanyInfoSection({ control, dealIdentifier }: InternalCompanyInfoSectionProps) {
   return (
-    <Card className="border-orange-200 bg-orange-50/30 dark:border-orange-800 dark:bg-orange-950/20">
+    <Card className="border-slate-200 bg-slate-50/30 dark:border-slate-700 dark:bg-slate-900/30">
       <CardHeader>
-        <CardTitle className="text-lg flex items-center gap-2 text-orange-700 dark:text-orange-400">
-          <Shield className="h-5 w-5" />
+        <CardTitle className="text-lg flex items-center gap-2 text-slate-700 dark:text-slate-300">
+          <Shield className="h-5 w-5 text-slate-600 dark:text-slate-400" />
           Internal Company Information
-          <span className="text-xs bg-orange-100 dark:bg-orange-900 text-orange-600 dark:text-orange-300 px-2 py-1 rounded-full">
+          <span className="text-xs bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-2.5 py-1 rounded-full border border-slate-200 dark:border-slate-700">
             Admin Only
           </span>
         </CardTitle>
-        <p className="text-sm text-orange-600 dark:text-orange-400">
+        <p className="text-sm text-slate-600 dark:text-slate-400">
           This information is only visible to admins and helps identify the actual company behind anonymous listings.
         </p>
       </CardHeader>
       
       <CardContent className="space-y-4">
         {/* Deal Identifier - Read-only display */}
-        <div className="bg-white dark:bg-gray-900 p-3 rounded-lg border border-orange-200 dark:border-orange-800">
-          <div className="flex items-center gap-2 mb-1">
-            <Clipboard className="h-4 w-4 text-orange-600" />
-            <span className="text-sm font-medium text-orange-700 dark:text-orange-400">Deal Identifier</span>
+        <div className="bg-white dark:bg-slate-900 p-4 rounded-lg border border-slate-200 dark:border-slate-700">
+          <div className="flex items-center gap-2 mb-2">
+            <Clipboard className="h-4 w-4 text-slate-600 dark:text-slate-400" />
+            <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Deal Identifier</span>
           </div>
-          <code className="text-sm font-mono bg-orange-100 dark:bg-orange-900 px-2 py-1 rounded text-orange-800 dark:text-orange-200">
+          <code className="text-sm font-mono bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded border text-slate-800 dark:text-slate-200">
             {dealIdentifier || "Will be auto-generated"}
           </code>
-          <p className="text-xs text-orange-600 dark:text-orange-400 mt-1">
+          <p className="text-xs text-slate-600 dark:text-slate-400 mt-2">
             Unique identifier for tracking this deal across systems
           </p>
         </div>
@@ -56,7 +56,7 @@ export function InternalCompanyInfoSection({ control, dealIdentifier }: Internal
                   <Input 
                     placeholder="e.g., Acme Corporation" 
                     {...field} 
-                    className="border-orange-200 focus:border-orange-500"
+                    className="border-slate-200 focus:border-slate-400 dark:border-slate-700 dark:focus:border-slate-500"
                   />
                 </FormControl>
                 <FormDescription>
@@ -80,7 +80,7 @@ export function InternalCompanyInfoSection({ control, dealIdentifier }: Internal
                   <Input 
                     placeholder="e.g., John Smith (our team member)"
                     {...field}
-                    className="border-orange-200 focus:border-orange-500"
+                    className="border-slate-200 focus:border-slate-400 dark:border-slate-700 dark:focus:border-slate-500"
                   />
                 </FormControl>
                 <FormDescription>
@@ -114,7 +114,7 @@ export function InternalCompanyInfoSection({ control, dealIdentifier }: Internal
                         field.onChange(value);
                       }
                     }}
-                    className="border-orange-200 focus:border-orange-500"
+                    className="border-slate-200 focus:border-slate-400 dark:border-slate-700 dark:focus:border-slate-500"
                   />
                 </FormControl>
                 <FormDescription>
@@ -146,7 +146,7 @@ export function InternalCompanyInfoSection({ control, dealIdentifier }: Internal
                         field.onChange(value);
                       }
                     }}
-                    className="border-orange-200 focus:border-orange-500"
+                    className="border-slate-200 focus:border-slate-400 dark:border-slate-700 dark:focus:border-slate-500"
                   />
                 </FormControl>
                 <FormDescription>
@@ -164,13 +164,13 @@ export function InternalCompanyInfoSection({ control, dealIdentifier }: Internal
           render={({ field }) => (
             <FormItem>
               <FormLabel>Contact Information</FormLabel>
-              <FormControl>
-                <Textarea 
-                  placeholder="Key contacts, phone numbers, email addresses, etc."
-                  className="min-h-[80px] border-orange-200 focus:border-orange-500"
-                  {...field}
-                />
-              </FormControl>
+                <FormControl>
+                  <Textarea 
+                    placeholder="Key contacts, phone numbers, email addresses, etc."
+                    className="min-h-[80px] border-slate-200 focus:border-slate-400 dark:border-slate-700 dark:focus:border-slate-500"
+                    {...field}
+                  />
+                </FormControl>
               <FormDescription>
                 Important contact details for this deal
               </FormDescription>
@@ -185,13 +185,13 @@ export function InternalCompanyInfoSection({ control, dealIdentifier }: Internal
           render={({ field }) => (
             <FormItem>
               <FormLabel>Internal Notes</FormLabel>
-              <FormControl>
-                <Textarea 
-                  placeholder="Additional internal notes, context, meeting notes, etc."
-                  className="min-h-[100px] border-orange-200 focus:border-orange-500"
-                  {...field}
-                />
-              </FormControl>
+                <FormControl>
+                  <Textarea 
+                    placeholder="Additional internal notes, context, meeting notes, etc."
+                    className="min-h-[100px] border-slate-200 focus:border-slate-400 dark:border-slate-700 dark:focus:border-slate-500"
+                    {...field}
+                  />
+                </FormControl>
               <FormDescription>
                 Any additional context or notes for the team
               </FormDescription>
