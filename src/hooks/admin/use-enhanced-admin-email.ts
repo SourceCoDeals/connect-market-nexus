@@ -64,29 +64,30 @@ export function useEnhancedAdminEmail() {
     }
     
     try {
-      const { data, error } = await supabase.functions.invoke('enhanced-email-delivery', {
+      const { data, error } = await supabase.functions.invoke('send-user-notification', {
         body: {
-          type: 'connection_status',
-          recipientEmail: request.user.email,
-          recipientName: `${request.user.first_name} ${request.user.last_name}`,
-          data: {
-            status: 'approved',
-            listingName: request.listing.title,
-            subject: '✅ Your connection request has been approved!',
-            html: `
-              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-                <h2>Great news, ${request.user.first_name}!</h2>
-                <p>Your connection request for <strong>${request.listing.title}</strong> has been approved.</p>
-                <p>Please log in to your account to view the connection details.</p>
-                <a href="https://marketplace.sourcecodeals.com/my-requests" 
-                   style="display: inline-block; background-color: #007bff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; margin: 16px 0;">
-                  View Connection Details
-                </a>
-                <p>Best regards,<br>The SourceCo Team</p>
-              </div>
-            `
-          },
-          priority: 'high'
+          email: request.user.email,
+          subject: '🎉 Connection Approved - Ready to Connect!',
+          message: `${request.user.first_name},
+
+Your connection request for "${request.listing.title}" has been approved!
+
+What happens next:
+• Log in to your SourceCo dashboard
+• View seller contact details in "My Requests"
+• Reach out directly to discuss the opportunity
+• Move fast - great deals don't wait
+
+This is your moment to make it happen. The seller is expecting your outreach.
+
+Access your connection details: https://marketplace.sourcecodeals.com/my-requests
+
+Questions? Just reply to this email.
+
+Adam Haile
+Founder & CEO, SourceCo
+adam.haile@sourcecodeals.com`,
+          type: 'connection_approved'
         }
       });
       
