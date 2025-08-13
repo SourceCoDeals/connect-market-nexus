@@ -85,7 +85,7 @@ Principal & SVP - Growth, SourceCo
 bill.martin@sourcecodeals.com`;
         } else if (adminProfile.email === 'adam.haile@sourcecodeals.com') {
           signature = `Adam Haile
-Founder & CEO, SourceCo
+Growth Marketing
 adam.haile@sourcecodeals.com`;
         } else {
           // For other admins, use their name and email
@@ -99,25 +99,18 @@ ${adminProfile.email}`;
       const { data, error } = await supabase.functions.invoke('send-user-notification', {
         body: {
           email: request.user.email,
-          subject: '🎉 Connection Approved - Ready to Connect!',
+          subject: '✅ Connection Request Approved',
           message: `${request.user.first_name},
 
-Your connection request for "${request.listing.title}" has been approved!
+Great news! Your connection request for "${request.listing.title}" has been approved.
 
-What happens next:
-• Log in to your SourceCo dashboard
-• View seller contact details in "My Requests"
-• Reach out directly to discuss the opportunity
-• Move fast - great deals don't wait
+We're now coordinating next steps and will follow up with you shortly to move this forward.
 
-This is your moment to make it happen. The seller is expecting your outreach.
-
-Access your connection details: https://marketplace.sourcecodeals.com/my-requests
-
-Questions? Just reply to this email.
+If you have any questions, please reply to this email.
 
 ${signature}`,
-          type: 'connection_approved'
+          type: 'connection_approved',
+          fromEmail: adminProfile?.email || 'adam.haile@sourcecodeals.com'
         }
       });
       

@@ -11,9 +11,10 @@ interface UserNotificationRequest {
   email: string;
   subject: string;
   message: string;
-  type?: 'info' | 'success' | 'warning' | 'error';
+  type?: 'info' | 'success' | 'warning' | 'error' | 'connection_approved';
   actionUrl?: string;
   actionText?: string;
+  fromEmail?: string;
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -28,55 +29,71 @@ const handler = async (req: Request): Promise<Response> => {
       message,
       type = 'info',
       actionUrl,
-      actionText
+      actionText,
+      fromEmail
     }: UserNotificationRequest = await req.json();
 
     console.log("Sending user notification:", { email, subject, type });
 
-    const typeColors = {
-      info: '#3b82f6',
-      success: '#059669',
-      warning: '#d97706',
-      error: '#dc2626'
-    };
+    // For connection_approved emails, use plain text format
+    const isPlainText = type === 'connection_approved';
+    let htmlContent = '';
+    let textContent = message;
 
-    const typeEmojis = {
-      info: 'ℹ️',
-      success: '✅',
-      warning: '⚠️',
-      error: '❌'
-    };
-
-    const htmlContent = `
-      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-        <div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); color: white; padding: 30px; border-radius: 12px; margin-bottom: 20px;">
-          <h1 style="margin: 0; font-size: 24px; font-weight: 600;">
-            ${typeEmojis[type]} ${subject}
-          </h1>
-          <p style="margin: 10px 0 0 0; opacity: 0.9;">SourceCo Marketplace Notification</p>
+    if (isPlainText) {
+      // Simple HTML wrapper for plain text message
+      htmlContent = `
+        <div style="font-family: Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #333;">
+          <pre style="font-family: Arial, sans-serif; white-space: pre-wrap; margin: 0;">${message}</pre>
         </div>
-        
-        <div style="background: #f8fafc; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
-          <div style="background: white; padding: 20px; border-radius: 6px; border-left: 4px solid ${typeColors[type]};">
-            ${message.replace(/\n/g, "<br>")}
+      `;
+    } else {
+      // Original styled email format for other types
+      const typeColors = {
+        info: '#3b82f6',
+        success: '#059669',
+        warning: '#d97706',
+        error: '#dc2626'
+      };
+
+      const typeEmojis = {
+        info: 'ℹ️',
+        success: '✅',
+        warning: '⚠️',
+        error: '❌'
+      };
+
+      htmlContent = `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); color: white; padding: 30px; border-radius: 12px; margin-bottom: 20px;">
+            <h1 style="margin: 0; font-size: 24px; font-weight: 600;">
+              ${typeEmojis[type]} ${subject}
+            </h1>
+            <p style="margin: 10px 0 0 0; opacity: 0.9;">SourceCo Marketplace Notification</p>
+          </div>
+          
+          <div style="background: #f8fafc; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+            <div style="background: white; padding: 20px; border-radius: 6px; border-left: 4px solid ${typeColors[type]};">
+              ${message.replace(/\n/g, "<br>")}
+            </div>
+          </div>
+          
+          ${actionUrl && actionText ? `
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${actionUrl}" 
+               style="background: ${typeColors[type]}; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 500;">
+              ${actionText}
+            </a>
+          </div>
+          ` : ''}
+          
+          <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e2e8f0; color: #64748b; font-size: 14px;">
+            <p>This notification was sent from SourceCo Marketplace.</p>
+            <p>If you have any questions, contact us at <a href="mailto:adam.haile@sourcecodeals.com" style="color: #059669;">adam.haile@sourcecodeals.com</a></p>
           </div>
         </div>
-        
-        ${actionUrl && actionText ? `
-        <div style="text-align: center; margin: 30px 0;">
-          <a href="${actionUrl}" 
-             style="background: ${typeColors[type]}; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 500;">
-            ${actionText}
-          </a>
-        </div>
-        ` : ''}
-        
-        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e2e8f0; color: #64748b; font-size: 14px;">
-          <p>This notification was sent from SourceCo Marketplace.</p>
-          <p>If you have any questions, contact us at <a href="mailto:adam.haile@sourcecodeals.com" style="color: #059669;">adam.haile@sourcecodeals.com</a></p>
-        </div>
-      </div>
-    `;
+      `;
+    }
 
     const brevoApiKey = Deno.env.get("BREVO_API_KEY");
     if (!brevoApiKey) {
@@ -93,7 +110,7 @@ const handler = async (req: Request): Promise<Response> => {
       body: JSON.stringify({
         sender: {
           name: "SourceCo Marketplace",
-          email: "noreply@sourcecodeals.com"
+          email: fromEmail || "adam.haile@sourcecodeals.com"
         },
         to: [{
           email: email,
@@ -101,9 +118,12 @@ const handler = async (req: Request): Promise<Response> => {
         }],
         subject: subject,
         htmlContent: htmlContent,
+        textContent: textContent,
         replyTo: {
-          email: "adam.haile@sourcecodeals.com",
-          name: "Adam Haile - SourceCo"
+          email: fromEmail || "adam.haile@sourcecodeals.com",
+          name: fromEmail?.includes('bill.martin') ? "Bill Martin - SourceCo" : 
+                fromEmail?.includes('tomos.mughan') ? "Tomos Mughan - SourceCo" :
+                "Adam Haile - SourceCo"
         },
         // Disable click tracking to prevent broken links
         params: {
