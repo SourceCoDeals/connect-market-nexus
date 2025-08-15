@@ -63,6 +63,9 @@ export function ConnectionRequestActions({
   // Fetch all connection requests for this user
   const { data: userRequests = [], refetch: refetchUserRequests } = useUserConnectionRequests(user.id);
   const hasMultipleRequests = userRequests.length > 1;
+  
+  // Get current request for admin attribution
+  const currentRequest = userRequests.find(req => req.id === requestId);
 
   // Sync local state when bulk operations complete
   useEffect(() => {
@@ -487,6 +490,14 @@ SourceCo Team`}`;
                 />
                 <Label htmlFor={`followup-${user.id}`} className="text-xs font-medium">Followed Up</Label>
               </div>
+              {localFollowedUp && currentRequest?.followed_up_at && (
+                <div className="text-xs text-muted-foreground mt-2">
+                  {currentRequest.followedUpByAdmin 
+                    ? `(by ${currentRequest.followedUpByAdmin.first_name} ${currentRequest.followedUpByAdmin.last_name}, ${format(new Date(currentRequest.followed_up_at), 'MMM d \'at\' h:mm a')})`
+                    : `(${format(new Date(currentRequest.followed_up_at), 'MMM d \'at\' h:mm a')})`
+                  }
+                </div>
+              )}
             </div>
 
             {/* Negative Follow-Up Status */}
@@ -523,6 +534,14 @@ SourceCo Team`}`;
                 />
                 <Label htmlFor={`negative-followup-${user.id}`} className="text-xs font-medium">Rejection Notice Sent</Label>
               </div>
+              {localNegativeFollowedUp && currentRequest?.negative_followed_up_at && (
+                <div className="text-xs text-muted-foreground mt-2">
+                  {currentRequest.negativeFollowedUpByAdmin 
+                    ? `(by ${currentRequest.negativeFollowedUpByAdmin.first_name} ${currentRequest.negativeFollowedUpByAdmin.last_name}, ${format(new Date(currentRequest.negative_followed_up_at), 'MMM d \'at\' h:mm a')})`
+                    : `(${format(new Date(currentRequest.negative_followed_up_at), 'MMM d \'at\' h:mm a')})`
+                  }
+                </div>
+              )}
             </div>
           </div>
         </div>
