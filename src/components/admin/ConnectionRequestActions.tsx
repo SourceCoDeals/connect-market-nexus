@@ -61,8 +61,19 @@ export function ConnectionRequestActions({
   const [localNegativeFollowedUp, setLocalNegativeFollowedUp] = useState(negativeFollowedUp);
 
   // Fetch all connection requests for this user
-  const { data: userRequests = [] } = useUserConnectionRequests(user.id);
+  const { data: userRequests = [], refetch: refetchUserRequests } = useUserConnectionRequests(user.id);
   const hasMultipleRequests = userRequests.length > 1;
+
+  // Sync local state when bulk operations complete
+  useEffect(() => {
+    if (userRequests && requestId) {
+      const currentRequest = userRequests.find(req => req.id === requestId);
+      if (currentRequest) {
+        setLocalFollowedUp(currentRequest.followed_up || false);
+        setLocalNegativeFollowedUp(currentRequest.negative_followed_up || false);
+      }
+    }
+  }, [userRequests, requestId]);
 
   // Sync with props when they change
   useEffect(() => {

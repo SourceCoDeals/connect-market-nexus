@@ -18,7 +18,7 @@ export function useUserConnectionRequests(userId: string) {
         .from('connection_requests')
         .select('*')
         .eq('user_id', userId)
-        .eq('status', 'pending') // Only active requests
+        .in('status', ['pending', 'approved']) // Active requests that need follow-up tracking
         .order('created_at', { ascending: false });
 
       if (error) throw error;

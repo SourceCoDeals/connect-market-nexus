@@ -36,11 +36,14 @@ export const useBulkFollowup = () => {
       return Promise.all(updates);
     },
     onMutate: async ({ requestIds, isFollowedUp, followupType }) => {
+      // Cancel all relevant queries
       await queryClient.cancelQueries({ queryKey: ['connection-requests'] });
+      await queryClient.cancelQueries({ queryKey: ['user-connection-requests'] });
 
       const previousRequests = queryClient.getQueryData(['connection-requests']);
+      const previousUserRequests = queryClient.getQueryData(['user-connection-requests']);
 
-      // Optimistically update connection requests
+      // Optimistically update main connection requests
       queryClient.setQueryData(['connection-requests'], (old: any) => {
         if (!old) return old;
         return old.map((request: any) => {
@@ -63,12 +66,35 @@ export const useBulkFollowup = () => {
         });
       });
 
-      return { previousRequests };
+      // Optimistically update user-specific queries
+      queryClient.setQueriesData({ queryKey: ['user-connection-requests'] }, (old: any) => {
+        if (!old) return old;
+        return old.map((request: any) => {
+          if (requestIds.includes(request.id)) {
+            if (followupType === 'positive') {
+              return {
+                ...request,
+                followed_up: isFollowedUp,
+                followed_up_at: isFollowedUp ? new Date().toISOString() : null
+              };
+            } else {
+              return {
+                ...request,
+                negative_followed_up: isFollowedUp,
+                negative_followed_up_at: isFollowedUp ? new Date().toISOString() : null
+              };
+            }
+          }
+          return request;
+        });
+      });
+
+      return { previousRequests, previousUserRequests };
     },
     onSuccess: (data, variables) => {
-      // Invalidate all related queries
+      // Invalidate all related queries with broader patterns
       queryClient.invalidateQueries({ queryKey: ['connection-requests'] });
-      queryClient.invalidateQueries({ queryKey: createQueryKey.userConnectionRequests() });
+      queryClient.invalidateQueries({ queryKey: ['user-connection-requests'] });
       
       const count = variables.requestIds.length;
       const type = variables.followupType === 'positive' ? 'follow-up' : 'rejection notice';
@@ -79,7 +105,13 @@ export const useBulkFollowup = () => {
       });
     },
     onError: (err, variables, context) => {
-      queryClient.setQueryData(['connection-requests'], context?.previousRequests);
+      // Rollback both main and user-specific queries
+      if (context?.previousRequests) {
+        queryClient.setQueryData(['connection-requests'], context.previousRequests);
+      }
+      if (context?.previousUserRequests) {
+        queryClient.setQueryData(['user-connection-requests'], context.previousUserRequests);
+      }
       toast({
         variant: "destructive",
         title: "Bulk update failed",
