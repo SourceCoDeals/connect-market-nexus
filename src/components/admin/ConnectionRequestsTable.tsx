@@ -316,7 +316,15 @@ const ReactiveRequestCard = ({
               {localUser && (
                 <div className="border-t border-border/30 pt-4">
                   <div className="space-y-2">
-                    <StatusIndicatorRow user={localUser} followedUp={localFollowedUp} negativeFollowedUp={localNegativeFollowedUp} />
+                    <StatusIndicatorRow 
+                      user={localUser} 
+                      followedUp={localFollowedUp} 
+                      negativeFollowedUp={localNegativeFollowedUp}
+                      followedUpByAdmin={request.followedUpByAdmin}
+                      negativeFollowedUpByAdmin={request.negativeFollowedUpByAdmin}
+                      followedUpAt={request.followed_up_at}
+                      negativeFollowedUpAt={request.negative_followed_up_at}
+                    />
                     <WorkflowProgressIndicator user={localUser} followedUp={localFollowedUp} />
                   </div>
                 </div>
