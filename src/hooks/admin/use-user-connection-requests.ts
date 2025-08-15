@@ -1,0 +1,59 @@
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { AdminConnectionRequest } from '@/types/admin';
+import { createUserObject } from '@/lib/auth-helpers';
+import { createListingFromData } from '@/utils/user-helpers';
+import { createQueryKey } from '@/lib/query-keys';
+
+/**
+ * Hook for fetching all connection requests by a specific user
+ */
+export function useUserConnectionRequests(userId: string) {
+  return useQuery({
+    queryKey: createQueryKey.userConnectionRequests(userId),
+    queryFn: async () => {
+      if (!userId) return [];
+
+      const { data: requests, error } = await supabase
+        .from('connection_requests')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('status', 'pending') // Only active requests
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      const enhancedRequests = await Promise.all(requests.map(async (request) => {
+        const { data: userData, error: userError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', request.user_id)
+          .maybeSingle();
+        
+        const { data: listingData, error: listingError } = await supabase
+          .from('listings')
+          .select('*')
+          .eq('id', request.listing_id)
+          .maybeSingle();
+        
+        const user = userError || !userData ? null : createUserObject(userData);
+        const listing = listingData ? createListingFromData(listingData) : null;
+        
+        const status = request.status as "pending" | "approved" | "rejected";
+        
+        const result: AdminConnectionRequest = {
+          ...request,
+          status,
+          user,
+          listing
+        };
+
+        return result;
+      }));
+
+      return enhancedRequests;
+    },
+    enabled: !!userId,
+    staleTime: 1000 * 60 * 2,
+  });
+}

@@ -13,6 +13,8 @@ import { SmartWorkflowSuggestions } from "@/components/admin/SmartWorkflowSugges
 import { StatusIndicatorRow } from "./StatusIndicatorRow";
 import { WorkflowProgressIndicator } from "./WorkflowProgressIndicator";
 import { InternalCompanyInfoDisplay } from "./InternalCompanyInfoDisplay";
+import { BuyerDealsOverview } from "./BuyerDealsOverview";
+import { useUserConnectionRequests } from "@/hooks/admin/use-user-connection-requests";
 
 interface ConnectionRequestsTableProps {
   requests: AdminConnectionRequest[];
@@ -221,6 +223,9 @@ const ReactiveRequestCard = ({
   const [localUser, setLocalUser] = useState(request.user);
   const [localFollowedUp, setLocalFollowedUp] = useState(request.followed_up || false);
   const [localNegativeFollowedUp, setLocalNegativeFollowedUp] = useState(request.negative_followed_up || false);
+  
+  // Fetch all connection requests for this user
+  const { data: userRequests = [] } = useUserConnectionRequests(request.user?.id || '');
 
   // Sync with request changes from parent (only when actual data changes)
   useEffect(() => {
@@ -388,6 +393,12 @@ const ReactiveRequestCard = ({
               request={{...request, user: localUser}}
               onApprove={onApprove}
               onReject={onReject}
+            />
+            
+            {/* Buyer Deals Overview */}
+            <BuyerDealsOverview 
+              requests={userRequests} 
+              currentRequestId={request.id}
             />
           </CardContent>
         </CollapsibleContent>

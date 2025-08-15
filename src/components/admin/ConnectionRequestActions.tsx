@@ -18,9 +18,13 @@ import {
 import { User as UserType, Listing } from "@/types";
 import { SimpleFeeAgreementDialog } from "./SimpleFeeAgreementDialog";
 import { SimpleNDADialog } from "./SimpleNDADialog";
+import { BulkFollowupConfirmation } from "./BulkFollowupConfirmation";
+import { BuyerDealsOverview } from "./BuyerDealsOverview";
 import { useUpdateNDA, useUpdateNDAEmailSent } from "@/hooks/admin/use-nda";
 import { useUpdateFeeAgreement, useUpdateFeeAgreementEmailSent } from "@/hooks/admin/use-fee-agreement";
 import { useUpdateFollowup, useUpdateNegativeFollowup } from "@/hooks/admin/use-followup";
+import { useUserConnectionRequests } from "@/hooks/admin/use-user-connection-requests";
+import { useBulkFollowup } from "@/hooks/admin/use-bulk-followup";
 import { useToast } from "@/hooks/use-toast";
 import { useAdminSignature } from "@/hooks/admin/use-admin-signature";
 import { formatDistanceToNow } from 'date-fns';
@@ -48,11 +52,17 @@ export function ConnectionRequestActions({
   const { signature } = useAdminSignature();
   const [showFeeDialog, setShowFeeDialog] = useState(false);
   const [showNDADialog, setShowNDADialog] = useState(false);
+  const [showBulkFollowupDialog, setShowBulkFollowupDialog] = useState(false);
+  const [bulkFollowupType, setBulkFollowupType] = useState<'positive' | 'negative'>('positive');
   
   // Local state for immediate UI updates
   const [localUser, setLocalUser] = useState(user);
   const [localFollowedUp, setLocalFollowedUp] = useState(followedUp);
   const [localNegativeFollowedUp, setLocalNegativeFollowedUp] = useState(negativeFollowedUp);
+
+  // Fetch all connection requests for this user
+  const { data: userRequests = [] } = useUserConnectionRequests(user.id);
+  const hasMultipleRequests = userRequests.length > 1;
 
   // Sync with props when they change
   useEffect(() => {
@@ -73,6 +83,7 @@ export function ConnectionRequestActions({
   const updateFeeAgreementEmailSent = useUpdateFeeAgreementEmailSent();
   const updateFollowup = useUpdateFollowup();
   const updateNegativeFollowup = useUpdateNegativeFollowup();
+  const bulkFollowup = useBulkFollowup();
 
   const getStatusBadge = (sent: boolean, signed: boolean, sentAt?: string, signedAt?: string) => {
     if (signed && signedAt) {
@@ -226,7 +237,13 @@ SourceCo Team`}`;
   };
 
   const handleFollowUpToggle = (checked: boolean) => {
-    // Immediate UI update
+    if (checked && hasMultipleRequests) {
+      setBulkFollowupType('positive');
+      setShowBulkFollowupDialog(true);
+      return;
+    }
+
+    // Single request or unchecking - handle immediately
     setLocalFollowedUp(checked);
     onLocalStateUpdate?.(localUser, checked, localNegativeFollowedUp);
     
@@ -238,7 +255,13 @@ SourceCo Team`}`;
   };
 
   const handleNegativeFollowUpToggle = (checked: boolean) => {
-    // Immediate UI update
+    if (checked && hasMultipleRequests) {
+      setBulkFollowupType('negative');
+      setShowBulkFollowupDialog(true);
+      return;
+    }
+
+    // Single request or unchecking - handle immediately
     setLocalNegativeFollowedUp(checked);
     onLocalStateUpdate?.(localUser, localFollowedUp, checked);
     
@@ -246,6 +269,32 @@ SourceCo Team`}`;
       requestId,
       isFollowedUp: checked,
       notes: checked ? `Negative follow-up initiated by admin on ${new Date().toLocaleDateString()}` : undefined
+    });
+  };
+
+  const handleBulkFollowupConfirm = (excludedRequestIds: string[]) => {
+    const requestIdsToUpdate = userRequests
+      .filter(req => !excludedRequestIds.includes(req.id))
+      .map(req => req.id);
+
+    bulkFollowup.mutate({
+      requestIds: requestIdsToUpdate,
+      isFollowedUp: true,
+      followupType: bulkFollowupType
+    }, {
+      onSuccess: () => {
+        // Update local state based on current request
+        if (requestIdsToUpdate.includes(requestId || '')) {
+          if (bulkFollowupType === 'positive') {
+            setLocalFollowedUp(true);
+            onLocalStateUpdate?.(localUser, true, localNegativeFollowedUp);
+          } else {
+            setLocalNegativeFollowedUp(true);
+            onLocalStateUpdate?.(localUser, localFollowedUp, true);
+          }
+        }
+        setShowBulkFollowupDialog(false);
+      }
     });
   };
 
@@ -494,6 +543,15 @@ SourceCo Team`}`;
         onSendEmail={async () => {
           onEmailSent?.();
         }}
+      />
+
+      <BulkFollowupConfirmation
+        open={showBulkFollowupDialog}
+        onOpenChange={setShowBulkFollowupDialog}
+        requests={userRequests}
+        followupType={bulkFollowupType}
+        onConfirm={handleBulkFollowupConfirm}
+        isLoading={bulkFollowup.isPending}
       />
     </div>
   );
