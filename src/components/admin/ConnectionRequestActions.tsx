@@ -103,20 +103,19 @@ export function ConnectionRequestActions({
       return;
     }
 
-    const subject = `Next Steps: ${listing.title} Connection Request`;
+    const subject = `Moving to Owner Introduction - ${listing.title}`;
     const body = `Hi ${user.first_name},
 
-Your connection request for "${listing.title}" has been approved.
+Your "${listing.title}" connection request is moving to the introduction phase.
 
-Next Steps:
-1. Schedule a call: https://tidycal.com/tomosmughan/30-minute-meeting
-2. We'll walk you through the business details
-3. Facilitate introduction to the owner if it's a good fit
-
-Deal Overview:
+Key Financials:
 • Revenue: $${listing.revenue?.toLocaleString()}
 • EBITDA: $${listing.ebitda?.toLocaleString()}
 • Location: ${listing.location}
+
+Schedule your walkthrough call here: https://tidycal.com/tomosmughan/30-minute-meeting
+
+We'll discuss the business details, answer your questions, and set up the owner introduction.
 
 ${signature?.signature_text || `Best regards,
 SourceCo Team`}`;
