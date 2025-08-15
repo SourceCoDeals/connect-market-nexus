@@ -220,18 +220,23 @@ const ReactiveRequestCard = ({
   // Single source of truth for reactive state
   const [localUser, setLocalUser] = useState(request.user);
   const [localFollowedUp, setLocalFollowedUp] = useState(request.followed_up || false);
+  const [localNegativeFollowedUp, setLocalNegativeFollowedUp] = useState(request.negative_followed_up || false);
 
   // Sync with request changes from parent (only when actual data changes)
   useEffect(() => {
     setLocalUser(request.user);
     setLocalFollowedUp(request.followed_up || false);
-  }, [request.user?.nda_signed, request.user?.fee_agreement_signed, request.user?.nda_email_sent, request.user?.fee_agreement_email_sent, request.followed_up]);
+    setLocalNegativeFollowedUp(request.negative_followed_up || false);
+  }, [request.user?.nda_signed, request.user?.fee_agreement_signed, request.user?.nda_email_sent, request.user?.fee_agreement_email_sent, request.followed_up, request.negative_followed_up]);
 
   // Critical: This function updates the local state immediately
-  const handleLocalStateUpdate = (updatedUser: any, updatedFollowedUp?: boolean) => {
+  const handleLocalStateUpdate = (updatedUser: any, updatedFollowedUp?: boolean, updatedNegativeFollowedUp?: boolean) => {
     setLocalUser(updatedUser);
     if (updatedFollowedUp !== undefined) {
       setLocalFollowedUp(updatedFollowedUp);
+    }
+    if (updatedNegativeFollowedUp !== undefined) {
+      setLocalNegativeFollowedUp(updatedNegativeFollowedUp);
     }
   };
 
@@ -373,6 +378,7 @@ const ReactiveRequestCard = ({
                   listing={request.listing}
                   requestId={request.id}
                   followedUp={localFollowedUp}
+                  negativeFollowedUp={localNegativeFollowedUp}
                   onLocalStateUpdate={handleLocalStateUpdate}
                 />
               )}

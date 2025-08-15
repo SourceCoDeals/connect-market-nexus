@@ -20,7 +20,7 @@ import { SimpleFeeAgreementDialog } from "./SimpleFeeAgreementDialog";
 import { SimpleNDADialog } from "./SimpleNDADialog";
 import { useUpdateNDA, useUpdateNDAEmailSent } from "@/hooks/admin/use-nda";
 import { useUpdateFeeAgreement, useUpdateFeeAgreementEmailSent } from "@/hooks/admin/use-fee-agreement";
-import { useUpdateFollowup } from "@/hooks/admin/use-followup";
+import { useUpdateFollowup, useUpdateNegativeFollowup } from "@/hooks/admin/use-followup";
 import { useToast } from "@/hooks/use-toast";
 import { useAdminSignature } from "@/hooks/admin/use-admin-signature";
 import { formatDistanceToNow } from 'date-fns';
@@ -30,8 +30,9 @@ interface ConnectionRequestActionsProps {
   listing?: Listing;
   requestId?: string;
   followedUp?: boolean;
+  negativeFollowedUp?: boolean;
   onEmailSent?: () => void;
-  onLocalStateUpdate?: (updatedUser: UserType, updatedFollowedUp?: boolean) => void;
+  onLocalStateUpdate?: (updatedUser: UserType, updatedFollowedUp?: boolean, updatedNegativeFollowedUp?: boolean) => void;
 }
 
 export function ConnectionRequestActions({ 
@@ -39,6 +40,7 @@ export function ConnectionRequestActions({
   listing, 
   requestId, 
   followedUp = false, 
+  negativeFollowedUp = false,
   onEmailSent,
   onLocalStateUpdate 
 }: ConnectionRequestActionsProps) {
@@ -50,6 +52,7 @@ export function ConnectionRequestActions({
   // Local state for immediate UI updates
   const [localUser, setLocalUser] = useState(user);
   const [localFollowedUp, setLocalFollowedUp] = useState(followedUp);
+  const [localNegativeFollowedUp, setLocalNegativeFollowedUp] = useState(negativeFollowedUp);
 
   // Sync with props when they change
   useEffect(() => {
@@ -59,12 +62,17 @@ export function ConnectionRequestActions({
   useEffect(() => {
     setLocalFollowedUp(followedUp);
   }, [followedUp]);
+
+  useEffect(() => {
+    setLocalNegativeFollowedUp(negativeFollowedUp);
+  }, [negativeFollowedUp]);
   
   const updateNDA = useUpdateNDA();
   const updateNDAEmailSent = useUpdateNDAEmailSent();
   const updateFeeAgreement = useUpdateFeeAgreement();
   const updateFeeAgreementEmailSent = useUpdateFeeAgreementEmailSent();
   const updateFollowup = useUpdateFollowup();
+  const updateNegativeFollowup = useUpdateNegativeFollowup();
 
   const getStatusBadge = (sent: boolean, signed: boolean, sentAt?: string, signedAt?: string) => {
     if (signed && signedAt) {
@@ -116,6 +124,35 @@ Key Financials:
 Schedule your walkthrough call here: https://tidycal.com/tomosmughan/30-minute-meeting
 
 We'll discuss the business details, answer your questions, and set up the owner introduction.
+
+${signature?.signature_text || `Best regards,
+SourceCo Team`}`;
+
+    const mailtoLink = `mailto:${user.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    window.open(mailtoLink, '_blank');
+  };
+
+  const handleNegativeFollowUp = () => {
+    if (!listing) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Cannot generate negative follow-up email without listing information."
+      });
+      return;
+    }
+
+    const subject = `${listing.title} Update - Timeline Accelerated`;
+    const body = `Hi ${user.first_name},
+
+Quick update on "${listing.title}" - the owner has accelerated their timeline and is moving forward with a buyer currently in advanced due diligence.
+
+While this particular opportunity has progressed beyond new introductions, your profile stood out as a strong match for this type of acquisition.
+
+We'll prioritize you for similar opportunities that fit your criteria:
+• Revenue range: $${listing.revenue?.toLocaleString()} level
+• Industry: ${listing.category}
+• Location: ${listing.location}
 
 ${signature?.signature_text || `Best regards,
 SourceCo Team`}`;
@@ -191,12 +228,24 @@ SourceCo Team`}`;
   const handleFollowUpToggle = (checked: boolean) => {
     // Immediate UI update
     setLocalFollowedUp(checked);
-    onLocalStateUpdate?.(localUser, checked);
+    onLocalStateUpdate?.(localUser, checked, localNegativeFollowedUp);
     
     updateFollowup.mutate({
       requestId,
       isFollowedUp: checked,
       notes: checked ? `Follow-up initiated by admin on ${new Date().toLocaleDateString()}` : undefined
+    });
+  };
+
+  const handleNegativeFollowUpToggle = (checked: boolean) => {
+    // Immediate UI update
+    setLocalNegativeFollowedUp(checked);
+    onLocalStateUpdate?.(localUser, localFollowedUp, checked);
+    
+    updateNegativeFollowup.mutate({
+      requestId,
+      isFollowedUp: checked,
+      notes: checked ? `Negative follow-up initiated by admin on ${new Date().toLocaleDateString()}` : undefined
     });
   };
 
@@ -238,6 +287,17 @@ SourceCo Team`}`;
             >
               <MessageSquare className="h-3 w-3 mr-1" />
               Follow Up
+              <ExternalLink className="h-3 w-3 ml-1" />
+            </Button>
+
+            <Button
+              variant={localNegativeFollowedUp ? "secondary" : "outline"}
+              size="sm"
+              onClick={handleNegativeFollowUp}
+              className="text-xs h-8 transition-all hover:scale-105 border-amber-200 text-amber-700 hover:bg-amber-50"
+            >
+              <Clock className="h-3 w-3 mr-1" />
+              Timeline Accelerated
               <ExternalLink className="h-3 w-3 ml-1" />
             </Button>
           </div>
@@ -366,6 +426,42 @@ SourceCo Team`}`;
                   className="data-[state=checked]:bg-success"
                 />
                 <Label htmlFor={`followup-${user.id}`} className="text-xs font-medium">Followed Up</Label>
+              </div>
+            </div>
+
+            {/* Negative Follow-Up Status */}
+            <div className="p-3 border border-amber-200/50 rounded-lg bg-amber-50/30 backdrop-blur-sm transition-all hover:shadow-sm">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <div className="p-1 rounded bg-amber-100">
+                    <Clock className="h-3 w-3 text-amber-600" />
+                  </div>
+                  <span className="text-sm font-medium text-foreground">Timeline Accelerated</span>
+                </div>
+                <Badge 
+                  variant={localNegativeFollowedUp ? "default" : "secondary"}
+                  className={localNegativeFollowedUp 
+                    ? "text-xs bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-200 w-fit transition-colors" 
+                    : "text-xs bg-gray-100 text-gray-600 border-gray-200 hover:bg-gray-200 w-fit transition-colors"
+                  }
+                >
+                  {localNegativeFollowedUp ? (
+                    <CheckCheck className="h-3 w-3 mr-1" />
+                  ) : (
+                    <Clock className="h-3 w-3 mr-1" />
+                  )}
+                  {localNegativeFollowedUp ? "Sent" : "Pending"}
+                </Badge>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id={`negative-followup-${user.id}`}
+                  checked={localNegativeFollowedUp}
+                  onCheckedChange={handleNegativeFollowUpToggle}
+                  disabled={updateNegativeFollowup.isPending || !requestId}
+                  className="data-[state=checked]:bg-amber-600"
+                />
+                <Label htmlFor={`negative-followup-${user.id}`} className="text-xs font-medium">Timeline Accelerated</Label>
               </div>
             </div>
           </div>

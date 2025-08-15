@@ -93,6 +93,9 @@ export interface AdminConnectionRequest {
   followed_up?: boolean;
   followed_up_at?: string;
   followed_up_by?: string;
+  negative_followed_up?: boolean;
+  negative_followed_up_at?: string;
+  negative_followed_up_by?: string;
   created_at: string;
   updated_at: string;
   decision_at?: string;

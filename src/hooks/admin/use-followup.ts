@@ -8,6 +8,67 @@ interface UpdateFollowupParams {
   notes?: string;
 }
 
+interface UpdateNegativeFollowupParams {
+  requestId: string;
+  isFollowedUp: boolean;
+  notes?: string;
+}
+
+export const useUpdateNegativeFollowup = () => {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ requestId, isFollowedUp, notes }: UpdateNegativeFollowupParams) => {
+      const { data, error } = await (supabase as any).rpc('update_connection_request_negative_followup', {
+        request_id: requestId,
+        is_followed_up: isFollowedUp,
+        admin_notes: notes
+      });
+
+      if (error) throw error;
+      return data;
+    },
+    onMutate: async ({ requestId, isFollowedUp }) => {
+      await queryClient.cancelQueries({ queryKey: ['connection-requests'] });
+
+      const previousRequests = queryClient.getQueryData(['connection-requests']);
+
+      // Optimistically update connection requests
+      queryClient.setQueryData(['connection-requests'], (old: any) => {
+        if (!old) return old;
+        return old.map((request: any) => 
+          request.id === requestId 
+            ? { 
+                ...request, 
+                negative_followed_up: isFollowedUp,
+                negative_followed_up_at: isFollowedUp ? new Date().toISOString() : null 
+              }
+            : request
+        );
+      });
+
+      return { previousRequests };
+    },
+    onSuccess: () => {
+      // Invalidate to sync across all instances immediately
+      queryClient.invalidateQueries({ queryKey: ['connection-requests'] });
+      toast({
+        title: "Negative follow-up status updated",
+        description: "The negative follow-up status has been successfully updated.",
+      });
+    },
+    onError: (err, variables, context) => {
+      queryClient.setQueryData(['connection-requests'], context?.previousRequests);
+      toast({
+        variant: "destructive",
+        title: "Update failed",
+        description: "Could not update negative follow-up status",
+      });
+    },
+  });
+};
+
 export const useUpdateFollowup = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
