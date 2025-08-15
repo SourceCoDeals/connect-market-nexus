@@ -62,8 +62,14 @@ export function useConnectionRequestsQuery() {
           
           if (listingError) console.error("Error fetching listing data:", listingError);
           
+          // Debug logging for listing data
+          console.log('🔍 Raw listing data from Supabase:', listingData);
+          
           const user = userError || !userData ? null : createUserObject(userData);
           const listing = listingData ? createListingFromData(listingData) : null;
+          
+          // Debug logging for processed listing
+          console.log('🔍 Processed listing data:', listing);
           const status = request.status as "pending" | "approved" | "rejected";
           
           const result: AdminConnectionRequest = {

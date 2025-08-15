@@ -9,14 +9,29 @@ interface InternalCompanyInfoDisplayProps {
 }
 
 export function InternalCompanyInfoDisplay({ listing }: InternalCompanyInfoDisplayProps) {
+  // Debug logging
+  console.log('🔍 InternalCompanyInfoDisplay - Listing data:', {
+    id: listing?.id,
+    deal_identifier: listing?.deal_identifier,
+    internal_company_name: listing?.internal_company_name,
+    internal_primary_owner: listing?.internal_primary_owner,
+    internal_salesforce_link: listing?.internal_salesforce_link,
+    internal_deal_memo_link: listing?.internal_deal_memo_link,
+    internal_contact_info: listing?.internal_contact_info,
+    internal_notes: listing?.internal_notes,
+    allKeys: Object.keys(listing || {})
+  });
+
   // Only show if there's any internal information
-  const hasInternalInfo = listing.deal_identifier || 
-    listing.internal_company_name || 
-    listing.internal_primary_owner || 
-    listing.internal_salesforce_link || 
-    listing.internal_deal_memo_link || 
-    listing.internal_contact_info || 
-    listing.internal_notes;
+  const hasInternalInfo = listing?.deal_identifier || 
+    listing?.internal_company_name || 
+    listing?.internal_primary_owner || 
+    listing?.internal_salesforce_link || 
+    listing?.internal_deal_memo_link || 
+    listing?.internal_contact_info || 
+    listing?.internal_notes;
+
+  console.log('🔍 hasInternalInfo:', hasInternalInfo);
 
   if (!hasInternalInfo) {
     return null;

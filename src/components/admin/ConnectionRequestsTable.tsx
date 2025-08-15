@@ -7,7 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ChevronDown, User, Building, MessageSquare, Calendar, RefreshCw, FileText, Shield, Mail, MapPin, Target, Building2, Clipboard, ExternalLink, CheckCircle, Clock, XCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { AdminConnectionRequest } from "@/types/admin";
+import { AdminConnectionRequest, AdminListing } from "@/types/admin";
 import { ConnectionRequestActions } from "@/components/admin/ConnectionRequestActions";
 import { SmartWorkflowSuggestions } from "@/components/admin/SmartWorkflowSuggestions";
 import { StatusIndicatorRow } from "./StatusIndicatorRow";
@@ -201,7 +201,7 @@ const RequestDetails = ({
           </div>
           
           {/* Internal Company Info Display */}
-          {request.listing && <InternalCompanyInfoDisplay listing={request.listing as any} />}
+          {request.listing && <InternalCompanyInfoDisplay listing={request.listing as AdminListing} />}
         </div>
       </div>
 
