@@ -26,6 +26,7 @@ export const QUERY_KEYS = {
     users: ['admin', 'users'] as const,
     listings: ['admin', 'listings'] as const,
     userSavedListings: (userId?: string) => ['admin', 'user-saved-listings', userId] as const,
+    userConnectionRequests: (userId?: string) => ['admin', 'user-connection-requests', userId] as const,
     listingSavedBy: (listingId?: string) => ['admin', 'listing-saved-by', listingId] as const,
   },
   
