@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { User } from "@/types";
 import { CheckCircle, XCircle, MoreHorizontal, UserCheck, UserPlus, UserMinus, Trash2, ChevronDown, ChevronRight, ExternalLink, Mail, Building, UserIcon, Linkedin, Download } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatDistanceToNow } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
 import { UserSavedListings } from "./UserSavedListings";
@@ -13,6 +14,7 @@ import { DualFeeAgreementToggle } from "./DualFeeAgreementToggle";
 import { SimpleFeeAgreementDialog } from "./SimpleFeeAgreementDialog";
 import { DualNDAToggle } from "./DualNDAToggle";
 import { SimpleNDADialog } from "./SimpleNDADialog";
+import { UserActivityTimeline } from "./UserActivityTimeline";
 
 import { getFieldCategories, FIELD_LABELS } from '@/lib/buyer-type-fields';
 import { useEnhancedUserExport } from '@/hooks/admin/use-enhanced-user-export';
@@ -39,135 +41,148 @@ const UserDetails = ({ user }: { user: User }) => {
 
   return (
     <div className="space-y-6 p-4 bg-muted/20 rounded-lg">
-      {/* Account Information Section */}
-      <div className="space-y-3">
-        <h4 className="font-medium text-foreground flex items-center gap-2">
-          <UserIcon className="h-4 w-4" />
-          Account Information
-        </h4>
-        <div className="pl-6 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-          <div><span className="text-muted-foreground">Created:</span> {new Date(user.created_at).toLocaleString()}</div>
-          <div>
-            <span className="text-muted-foreground">Email Verified:</span> 
-            {user.email_verified ? " Yes" : " No"}
-          </div>
-          <div>
-            <span className="text-muted-foreground">Status:</span> 
-            <span className={`capitalize ml-1 ${
-              user.approval_status === "approved" ? "text-green-600" : 
-              user.approval_status === "rejected" ? "text-red-600" : 
-              "text-yellow-600"
-            }`}>
-              {user.approval_status}
-            </span>
-          </div>
-          <div>
-            <span className="text-muted-foreground">Admin:</span> {user.is_admin ? " Yes" : " No"}
-          </div>
-        </div>
-      </div>
-
-      {/* Render each field category dynamically */}
-      {Object.entries(fieldCategories).map(([categoryName, fields]) => {
-        if (fields.length === 0) return null;
+      <Tabs defaultValue="profile" className="w-full">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="profile">Profile</TabsTrigger>
+          <TabsTrigger value="saved">Saved Listings</TabsTrigger>
+          <TabsTrigger value="timeline">Activity Timeline</TabsTrigger>
+        </TabsList>
         
-        return (
-          <div key={categoryName} className="space-y-3">
+        <TabsContent value="profile" className="space-y-6 mt-6">
+          {/* Account Information Section */}
+          <div className="space-y-3">
             <h4 className="font-medium text-foreground flex items-center gap-2">
-              {categoryName === 'Contact Information' && <Mail className="h-4 w-4" />}
-              {categoryName === 'Business Profile' && <Building className="h-4 w-4" />}
-              {categoryName === 'Financial Information' && <UserIcon className="h-4 w-4" />}
-              {categoryName}
-              {categoryName === 'Financial Information' && ` (${user.buyer_type})`}
+              <UserIcon className="h-4 w-4" />
+              Account Information
             </h4>
             <div className="pl-6 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-              {fields.map((fieldKey) => {
-                const fieldLabel = FIELD_LABELS[fieldKey as keyof typeof FIELD_LABELS] || fieldKey;
-                const fieldValue = user[fieldKey as keyof User];
-                
-                // Handle special field rendering
-                if (fieldKey === 'website' && fieldValue) {
-                  return (
-                    <div key={fieldKey} className="flex items-center gap-2">
-                      <span className="text-muted-foreground">{fieldLabel}:</span>
-                      <a href={fieldValue as string} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline flex items-center gap-1">
-                        {fieldValue as string} <ExternalLink className="h-3 w-3" />
-                      </a>
-                    </div>
-                  );
-                }
-                
-                if (fieldKey === 'linkedin_profile' && fieldValue) {
-                  return (
-                    <div key={fieldKey} className="flex items-center gap-2">
-                      <span className="text-muted-foreground">{fieldLabel}:</span>
-                      <a href={fieldValue as string} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline flex items-center gap-1">
-                        <Linkedin className="h-3 w-3" />
-                        Profile
-                      </a>
-                    </div>
-                  );
-                }
-                
-                if (fieldKey === 'business_categories') {
-                  return (
-                    <div key={fieldKey} className="col-span-2">
-                      <span className="text-muted-foreground">{fieldLabel}:</span>
-                      <div className="mt-1">
-                        {fieldValue && Array.isArray(fieldValue) && fieldValue.length > 0 ? (
-                          <div className="flex flex-wrap gap-1">
-                            {fieldValue.map((cat, index) => (
-                              <span key={index} className="text-xs bg-muted px-2 py-1 rounded">
-                                {cat}
-                              </span>
-                            ))}
-                          </div>
-                        ) : '—'}
-                      </div>
-                    </div>
-                  );
-                }
-                
-                if (fieldKey === 'ideal_target_description' || fieldKey === 'specific_business_search') {
-                  return (
-                    <div key={fieldKey} className="col-span-2">
-                      <span className="text-muted-foreground">{fieldLabel}:</span>
-                      <p className="mt-1 text-xs leading-relaxed">{fieldValue as string || '—'}</p>
-                    </div>
-                  );
-                }
-                
-                if (fieldKey === 'revenue_range_min' || fieldKey === 'revenue_range_max') {
-                  const numValue = fieldValue as number;
-                  return (
-                    <div key={fieldKey}>
-                      <span className="text-muted-foreground">{fieldLabel}:</span> 
-                      {numValue ? `$${numValue.toLocaleString()}` : '—'}
-                    </div>
-                  );
-                }
-                
-                // Skip funded_by if user is not funded
-                if (fieldKey === 'funded_by' && user.is_funded !== 'yes') {
-                  return null;
-                }
-                
-                // Default field rendering
-                return (
-                  <div key={fieldKey}>
-                    <span className="text-muted-foreground">{fieldLabel}:</span> {fieldValue as string || '—'}
-                  </div>
-                );
-              })}
+              <div><span className="text-muted-foreground">Created:</span> {new Date(user.created_at).toLocaleString()}</div>
+              <div>
+                <span className="text-muted-foreground">Email Verified:</span> 
+                {user.email_verified ? " Yes" : " No"}
+              </div>
+              <div>
+                <span className="text-muted-foreground">Status:</span> 
+                <span className={`capitalize ml-1 ${
+                  user.approval_status === "approved" ? "text-green-600" : 
+                  user.approval_status === "rejected" ? "text-red-600" : 
+                  "text-yellow-600"
+                }`}>
+                  {user.approval_status}
+                </span>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Admin:</span> {user.is_admin ? " Yes" : " No"}
+              </div>
             </div>
           </div>
-        );
-      })}
 
-      {/* Saved Listings Section */}
-      <div className="space-y-3">
-        <UserSavedListings userId={user.id} />
-      </div>
+          {/* Render each field category dynamically */}
+          {Object.entries(fieldCategories).map(([categoryName, fields]) => {
+            if (fields.length === 0) return null;
+            
+            return (
+              <div key={categoryName} className="space-y-3">
+                <h4 className="font-medium text-foreground flex items-center gap-2">
+                  {categoryName === 'Contact Information' && <Mail className="h-4 w-4" />}
+                  {categoryName === 'Business Profile' && <Building className="h-4 w-4" />}
+                  {categoryName === 'Financial Information' && <UserIcon className="h-4 w-4" />}
+                  {categoryName}
+                  {categoryName === 'Financial Information' && ` (${user.buyer_type})`}
+                </h4>
+                <div className="pl-6 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                  {fields.map((fieldKey) => {
+                    const fieldLabel = FIELD_LABELS[fieldKey as keyof typeof FIELD_LABELS] || fieldKey;
+                    const fieldValue = user[fieldKey as keyof User];
+                    
+                    // Handle special field rendering
+                    if (fieldKey === 'website' && fieldValue) {
+                      return (
+                        <div key={fieldKey} className="flex items-center gap-2">
+                          <span className="text-muted-foreground">{fieldLabel}:</span>
+                          <a href={fieldValue as string} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline flex items-center gap-1">
+                            {fieldValue as string} <ExternalLink className="h-3 w-3" />
+                          </a>
+                        </div>
+                      );
+                    }
+                    
+                    if (fieldKey === 'linkedin_profile' && fieldValue) {
+                      return (
+                        <div key={fieldKey} className="flex items-center gap-2">
+                          <span className="text-muted-foreground">{fieldLabel}:</span>
+                          <a href={fieldValue as string} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline flex items-center gap-1">
+                            <Linkedin className="h-3 w-3" />
+                            Profile
+                          </a>
+                        </div>
+                      );
+                    }
+                    
+                    if (fieldKey === 'business_categories') {
+                      return (
+                        <div key={fieldKey} className="col-span-2">
+                          <span className="text-muted-foreground">{fieldLabel}:</span>
+                          <div className="mt-1">
+                            {fieldValue && Array.isArray(fieldValue) && fieldValue.length > 0 ? (
+                              <div className="flex flex-wrap gap-1">
+                                {fieldValue.map((cat, index) => (
+                                  <span key={index} className="text-xs bg-muted px-2 py-1 rounded">
+                                    {cat}
+                                  </span>
+                                ))}
+                              </div>
+                            ) : '—'}
+                          </div>
+                        </div>
+                      );
+                    }
+                    
+                    if (fieldKey === 'ideal_target_description' || fieldKey === 'specific_business_search') {
+                      return (
+                        <div key={fieldKey} className="col-span-2">
+                          <span className="text-muted-foreground">{fieldLabel}:</span>
+                          <p className="mt-1 text-xs leading-relaxed">{fieldValue as string || '—'}</p>
+                        </div>
+                      );
+                    }
+                    
+                    if (fieldKey === 'revenue_range_min' || fieldKey === 'revenue_range_max') {
+                      const numValue = fieldValue as number;
+                      return (
+                        <div key={fieldKey}>
+                          <span className="text-muted-foreground">{fieldLabel}:</span> 
+                          {numValue ? `$${numValue.toLocaleString()}` : '—'}
+                        </div>
+                      );
+                    }
+                    
+                    // Skip funded_by if user is not funded
+                    if (fieldKey === 'funded_by' && user.is_funded !== 'yes') {
+                      return null;
+                    }
+                    
+                    // Default field rendering
+                    return (
+                      <div key={fieldKey}>
+                        <span className="text-muted-foreground">{fieldLabel}:</span> {fieldValue as string || '—'}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </TabsContent>
+        
+        <TabsContent value="saved" className="mt-6">
+          <UserSavedListings userId={user.id} />
+        </TabsContent>
+        
+        <TabsContent value="timeline" className="mt-6">
+          <UserActivityTimeline userId={user.id} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
