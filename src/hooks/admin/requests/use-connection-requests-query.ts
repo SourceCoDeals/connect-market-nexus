@@ -62,8 +62,26 @@ export function useConnectionRequestsQuery() {
           
           if (listingError) console.error("Error fetching listing data:", listingError);
           
-          // Debug logging for listing data
-          console.log('🔍 Raw listing data from Supabase:', listingData);
+          // Fetch admin profiles who performed follow-ups (if available)
+          let followedUpByAdmin = null;
+          if ((request as any).followed_up_by) {
+            const { data: adminProfile } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', (request as any).followed_up_by)
+              .maybeSingle();
+            followedUpByAdmin = adminProfile ? createUserObject(adminProfile) : null;
+          }
+
+          let negativeFollowedUpByAdmin = null;
+          if ((request as any).negative_followed_up_by) {
+            const { data: adminProfileNeg } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', (request as any).negative_followed_up_by)
+              .maybeSingle();
+            negativeFollowedUpByAdmin = adminProfileNeg ? createUserObject(adminProfileNeg) : null;
+          }
           
           const user = userError || !userData ? null : createUserObject(userData);
           const listing = listingData ? createListingFromData(listingData) : null;
@@ -76,7 +94,9 @@ export function useConnectionRequestsQuery() {
             ...request,
             status,
             user,
-            listing
+            listing,
+            followedUpByAdmin,
+            negativeFollowedUpByAdmin
           };
 
           return result;

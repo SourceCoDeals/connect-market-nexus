@@ -27,7 +27,7 @@ import { useUserConnectionRequests } from "@/hooks/admin/use-user-connection-req
 import { useBulkFollowup } from "@/hooks/admin/use-bulk-followup";
 import { useToast } from "@/hooks/use-toast";
 import { useAdminSignature } from "@/hooks/admin/use-admin-signature";
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow, format } from 'date-fns';
 
 interface ConnectionRequestActionsProps {
   user: UserType;

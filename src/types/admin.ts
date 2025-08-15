@@ -101,6 +101,9 @@ export interface AdminConnectionRequest {
   decision_at?: string;
   user?: User | null;
   listing?: Listing | null;
+  // Admin profiles who performed follow-ups
+  followedUpByAdmin?: User | null;
+  negativeFollowedUpByAdmin?: User | null;
 }
 
 export interface AdminStats {

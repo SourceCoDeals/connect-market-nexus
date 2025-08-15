@@ -36,6 +36,27 @@ export function useUserConnectionRequests(userId: string) {
           .eq('id', request.listing_id)
           .maybeSingle();
         
+        // Fetch admin profiles who performed follow-ups (if available)
+        let followedUpByAdmin = null;
+        if (request.followed_up_by) {
+          const { data: adminProfile } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', request.followed_up_by)
+            .maybeSingle();
+          followedUpByAdmin = adminProfile ? createUserObject(adminProfile) : null;
+        }
+        
+        let negativeFollowedUpByAdmin = null;
+        if ((request as any).negative_followed_up_by) {
+          const { data: adminProfileNeg } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', (request as any).negative_followed_up_by)
+            .maybeSingle();
+          negativeFollowedUpByAdmin = adminProfileNeg ? createUserObject(adminProfileNeg) : null;
+        }
+        
         const user = userError || !userData ? null : createUserObject(userData);
         const listing = listingData ? createListingFromData(listingData) : null;
         
@@ -45,7 +66,9 @@ export function useUserConnectionRequests(userId: string) {
           ...request,
           status,
           user,
-          listing
+          listing,
+          followedUpByAdmin,
+          negativeFollowedUpByAdmin
         };
 
         return result;
