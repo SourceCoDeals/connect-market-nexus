@@ -173,30 +173,6 @@ const RequestDetails = ({
                 </div>
               </div>
               
-              {/* Real Company Name and Deal Identifier */}
-              {((request.listing as any)?.internal_company_name || (request.listing as any)?.deal_identifier) && (
-                <div className="pt-2 border-t border-border/30">
-                  <div className="flex items-center gap-3 flex-wrap">
-                    {(request.listing as any)?.internal_company_name && (
-                      <>
-                        <Building className="h-4 w-4 text-slate-600" />
-                        <span className="font-medium text-slate-700 dark:text-slate-300">Real Company:</span>
-                        <span className="font-semibold text-foreground">{(request.listing as any).internal_company_name}</span>
-                      </>
-                    )}
-                    {(request.listing as any)?.deal_identifier && (
-                      <>
-                        {(request.listing as any)?.internal_company_name && <span className="text-border">•</span>}
-                        <Clipboard className="h-4 w-4 text-slate-600" />
-                        <span className="font-medium text-slate-700 dark:text-slate-300">Deal ID:</span>
-                        <code className="text-sm font-mono bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded text-slate-800 dark:text-slate-200">
-                          {(request.listing as any).deal_identifier}
-                        </code>
-                      </>
-                    )}
-                  </div>
-                </div>
-              )}
             </div>
           </div>
           

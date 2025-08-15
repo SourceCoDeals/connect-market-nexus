@@ -103,17 +103,20 @@ export function ConnectionRequestActions({
       return;
     }
 
-    const subject = `${listing.title} - Let's Connect!`;
+    const subject = `Next Steps: ${listing.title} Connection Request`;
     const body = `Hi ${user.first_name},
 
-I hope this message finds you well! I wanted to follow up regarding your interest in "${listing.title}".
+Your connection request for "${listing.title}" has been approved.
 
-This is an exceptional opportunity with strong financials:
+Next Steps:
+1. Schedule a call: https://tidycal.com/tomosmughan/30-minute-meeting
+2. We'll walk you through the business details
+3. Facilitate introduction to the owner if it's a good fit
+
+Deal Overview:
 • Revenue: $${listing.revenue?.toLocaleString()}
 • EBITDA: $${listing.ebitda?.toLocaleString()}
 • Location: ${listing.location}
-
-I'd love to discuss the details further and answer any questions you might have. Would you be available for a brief call this week?
 
 ${signature?.signature_text || `Best regards,
 SourceCo Team`}`;
