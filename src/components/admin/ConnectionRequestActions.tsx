@@ -142,14 +142,14 @@ SourceCo Team`}`;
       return;
     }
 
-    const subject = `${listing.title} Update - Timeline Accelerated`;
+    const subject = `${listing.title} - Connection Request Update`;
     const body = `Hi ${user.first_name},
 
-Quick update on "${listing.title}" - the owner has accelerated their timeline and is moving forward with a buyer currently in advanced due diligence.
+Thank you for your interest in "${listing.title}". After careful review, we've decided to move forward with other candidates for this particular opportunity.
 
-While this particular opportunity has progressed beyond new introductions, your profile stood out as a strong match for this type of acquisition.
+Your profile was carefully considered, and we appreciate the time you invested in this process.
 
-We'll prioritize you for similar opportunities that fit your criteria:
+We'll keep your information on file and reach out if we have similar opportunities that match your criteria:
 • Revenue range: $${listing.revenue?.toLocaleString()} level
 • Industry: ${listing.category}
 • Location: ${listing.location}
@@ -296,8 +296,8 @@ SourceCo Team`}`;
               onClick={handleNegativeFollowUp}
               className="text-xs h-8 transition-all hover:scale-105 border-amber-200 text-amber-700 hover:bg-amber-50"
             >
-              <Clock className="h-3 w-3 mr-1" />
-              Timeline Accelerated
+              <XCircle className="h-3 w-3 mr-1" />
+              Send Rejection Notice
               <ExternalLink className="h-3 w-3 ml-1" />
             </Button>
           </div>
@@ -436,7 +436,7 @@ SourceCo Team`}`;
                   <div className="p-1 rounded bg-amber-100">
                     <Clock className="h-3 w-3 text-amber-600" />
                   </div>
-                  <span className="text-sm font-medium text-foreground">Timeline Accelerated</span>
+                  <span className="text-sm font-medium text-foreground">Rejection Notice</span>
                 </div>
                 <Badge 
                   variant={localNegativeFollowedUp ? "default" : "secondary"}
@@ -461,7 +461,7 @@ SourceCo Team`}`;
                   disabled={updateNegativeFollowup.isPending || !requestId}
                   className="data-[state=checked]:bg-amber-600"
                 />
-                <Label htmlFor={`negative-followup-${user.id}`} className="text-xs font-medium">Timeline Accelerated</Label>
+                <Label htmlFor={`negative-followup-${user.id}`} className="text-xs font-medium">Rejection Notice Sent</Label>
               </div>
             </div>
           </div>

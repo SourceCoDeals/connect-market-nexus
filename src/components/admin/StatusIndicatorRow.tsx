@@ -1,12 +1,13 @@
-import { Shield, FileText, MessageSquare, CheckCircle, Clock, Send, CheckCheck } from "lucide-react";
+import { Shield, FileText, MessageSquare, CheckCircle, Clock, Send, CheckCheck, XCircle } from "lucide-react";
 import { User } from "@/types";
 
 interface StatusIndicatorRowProps {
   user: User;
   followedUp: boolean;
+  negativeFollowedUp?: boolean;
 }
 
-export const StatusIndicatorRow = ({ user, followedUp }: StatusIndicatorRowProps) => {
+export const StatusIndicatorRow = ({ user, followedUp, negativeFollowedUp = false }: StatusIndicatorRowProps) => {
   const getStatusDisplay = (
     isSigned: boolean, 
     emailSent: boolean, 
@@ -71,6 +72,20 @@ export const StatusIndicatorRow = ({ user, followedUp }: StatusIndicatorRowProps
         'fee'
       )}
       {getStatusDisplay(followedUp, false, 'follow')}
+      
+      {/* Negative Follow-Up Indicator */}
+      <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all ${
+        negativeFollowedUp 
+          ? "bg-amber-50 border border-amber-200 hover:bg-amber-100" 
+          : "bg-gray-50 border border-gray-200 hover:bg-gray-100"
+      }`}>
+        <XCircle className={`h-4 w-4 ${negativeFollowedUp ? "text-amber-600" : "text-gray-400"}`} />
+        <span className={`text-xs font-medium ${negativeFollowedUp ? "text-amber-700" : "text-gray-500"}`}>
+          Rejection Notice
+        </span>
+        {negativeFollowedUp && <CheckCheck className="h-3 w-3 text-amber-600" />}
+        {!negativeFollowedUp && <Clock className="h-3 w-3 text-gray-400" />}
+      </div>
     </div>
   );
 };

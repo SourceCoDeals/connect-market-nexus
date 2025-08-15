@@ -311,7 +311,7 @@ const ReactiveRequestCard = ({
               {localUser && (
                 <div className="border-t border-border/30 pt-4">
                   <div className="space-y-2">
-                    <StatusIndicatorRow user={localUser} followedUp={localFollowedUp} />
+                    <StatusIndicatorRow user={localUser} followedUp={localFollowedUp} negativeFollowedUp={localNegativeFollowedUp} />
                     <WorkflowProgressIndicator user={localUser} followedUp={localFollowedUp} />
                   </div>
                 </div>
