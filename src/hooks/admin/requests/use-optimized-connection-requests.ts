@@ -44,72 +44,101 @@ export function useOptimizedConnectionRequests(options: OptimizedConnectionReque
           throw new Error('Admin authentication required');
         }
 
-        // Build the optimized query with JOINs
-        let query = supabase
+        // Use two optimized queries to avoid PostgREST foreign key hint issues
+        // First, get connection requests with basic data
+        let baseQuery = supabase
           .from('connection_requests')
-          .select(`
-            *,
-            user:profiles!user_id (
-              id, email, first_name, last_name, company, website, phone_number,
-              buyer_type, approval_status, email_verified, is_admin, created_at,
-              updated_at, business_categories, revenue_range_min, revenue_range_max,
-              onboarding_completed, fee_agreement_signed, fee_agreement_signed_at,
-              fee_agreement_email_sent, fee_agreement_email_sent_at, nda_email_sent,
-              nda_email_sent_at, nda_signed, nda_signed_at, linkedin_profile, bio,
-              ideal_target_description, target_locations, specific_business_search,
-              estimated_revenue, fund_size, investment_size, aum, is_funded,
-              funded_by, target_company_size, funding_source, needs_loan, ideal_target
-            ),
-            listing:listings!listing_id (
-              id, title, category, location, description, revenue, ebitda,
-              categories, tags, owner_notes, files, image_url, status,
-              created_at, updated_at, deal_identifier, internal_company_name,
-              internal_primary_owner, internal_salesforce_link, internal_deal_memo_link,
-              internal_contact_info, internal_notes
-            ),
-            followed_up_admin:profiles!followed_up_by (
-              id, email, first_name, last_name
-            ),
-            negative_followed_up_admin:profiles!negative_followed_up_by (
-              id, email, first_name, last_name
-            )
-          `)
+          .select('*')
           .order('created_at', { ascending: false });
 
         // Apply filters
         if (status && status !== 'all') {
-          query = query.eq('status', status);
-        }
-
-        // Apply search filter
-        if (search.trim()) {
-          query = query.or(
-            `user.first_name.ilike.%${search}%,user.last_name.ilike.%${search}%,user.email.ilike.%${search}%,user.company.ilike.%${search}%,listing.title.ilike.%${search}%`
-          );
+          baseQuery = baseQuery.eq('status', status);
         }
 
         // Apply pagination
         const from = (page - 1) * pageSize;
         const to = from + pageSize - 1;
-        query = query.range(from, to);
+        baseQuery = baseQuery.range(from, to);
 
-        const { data: requests, error, count } = await query;
+        const { data: requests, error: requestsError, count } = await baseQuery;
+        
+        if (requestsError) throw requestsError;
+        if (!requests || requests.length === 0) {
+          return {
+            data: [] as AdminConnectionRequest[],
+            count: count || 0,
+            page,
+            pageSize,
+            totalPages: Math.ceil((count || 0) / pageSize)
+          };
+        }
 
-        if (error) throw error;
+        // Extract unique IDs for batch fetching
+        const userIds = [...new Set(requests.map(r => r.user_id).filter(Boolean))];
+        const listingIds = [...new Set(requests.map(r => r.listing_id).filter(Boolean))];
+        const adminIds = [...new Set([
+          ...requests.map(r => r.followed_up_by).filter(Boolean),
+          ...requests.map(r => r.negative_followed_up_by).filter(Boolean)
+        ])];
+
+        // Batch fetch users, listings, and admin profiles
+        const [usersResult, listingsResult, adminsResult] = await Promise.all([
+          userIds.length > 0 
+            ? supabase.from('profiles').select('*').in('id', userIds)
+            : { data: [], error: null },
+          listingIds.length > 0 
+            ? supabase.from('listings').select('*').in('id', listingIds)
+            : { data: [], error: null },
+          adminIds.length > 0 
+            ? supabase.from('profiles').select('id, email, first_name, last_name').in('id', adminIds)
+            : { data: [], error: null }
+        ]);
+
+        if (usersResult.error) throw usersResult.error;
+        if (listingsResult.error) throw listingsResult.error;
+        if (adminsResult.error) throw adminsResult.error;
+
+        // Create lookup maps for efficient joining
+        const usersMap = new Map((usersResult.data || []).map(user => [user.id, user]));
+        const listingsMap = new Map((listingsResult.data || []).map(listing => [listing.id, listing]));
+        const adminsMap = new Map((adminsResult.data || []).map(admin => [admin.id, admin]));
+
+        // Apply search filter if needed (client-side for now since we need joined data)
+        let filteredRequests = requests;
+        if (search.trim()) {
+          const searchLower = search.toLowerCase();
+          filteredRequests = requests.filter(request => {
+            const user = usersMap.get(request.user_id);
+            const listing = listingsMap.get(request.listing_id);
+            
+            return (
+              user?.first_name?.toLowerCase().includes(searchLower) ||
+              user?.last_name?.toLowerCase().includes(searchLower) ||
+              user?.email?.toLowerCase().includes(searchLower) ||
+              user?.company?.toLowerCase().includes(searchLower) ||
+              listing?.title?.toLowerCase().includes(searchLower)
+            );
+          });
+        }
 
         // Transform the data to match existing AdminConnectionRequest interface
-        const enhancedRequests: AdminConnectionRequest[] = (requests || []).map((request) => {
+        const enhancedRequests: AdminConnectionRequest[] = filteredRequests.map((request) => {
+          // Get related data from maps
+          const userData = usersMap.get(request.user_id);
+          const listingData = listingsMap.get(request.listing_id);
+          const followedUpAdminData = request.followed_up_by ? adminsMap.get(request.followed_up_by) : null;
+          const negativeFollowedUpAdminData = request.negative_followed_up_by ? adminsMap.get(request.negative_followed_up_by) : null;
+          
           // Transform user data
-          const user = request.user ? createUserObject(request.user) : null;
+          const user = userData ? createUserObject(userData) : null;
           
           // Transform listing data
-          const listing = request.listing ? createListingFromData(request.listing) : null;
+          const listing = listingData ? createListingFromData(listingData) : null;
           
           // Transform admin data
-          const followedUpByAdmin = request.followed_up_admin ? 
-            createUserObject(request.followed_up_admin) : null;
-          const negativeFollowedUpByAdmin = request.negative_followed_up_admin ? 
-            createUserObject(request.negative_followed_up_admin) : null;
+          const followedUpByAdmin = followedUpAdminData ? createUserObject(followedUpAdminData) : null;
+          const negativeFollowedUpByAdmin = negativeFollowedUpAdminData ? createUserObject(negativeFollowedUpAdminData) : null;
 
           const status = request.status as "pending" | "approved" | "rejected";
 
@@ -138,10 +167,10 @@ export function useOptimizedConnectionRequests(options: OptimizedConnectionReque
 
         return {
           data: enhancedRequests,
-          count: count || 0,
+          count: search.trim() ? filteredRequests.length : (count || 0),
           page,
           pageSize,
-          totalPages: Math.ceil((count || 0) / pageSize)
+          totalPages: Math.ceil((search.trim() ? filteredRequests.length : (count || 0)) / pageSize)
         };
       } catch (error: any) {
         console.error("❌ Error fetching connection requests:", error);
