@@ -1,15 +1,10 @@
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAdmin } from "@/hooks/use-admin";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Search } from "lucide-react";
 import { AdminConnectionRequest } from "@/types/admin";
-import { ConnectionRequestsTable } from "@/components/admin/ConnectionRequestsTable";
-import { MobileConnectionRequestsTable } from "@/components/admin/MobileConnectionRequestsTable";
+import { OptimizedConnectionRequestsTable } from "@/components/admin/OptimizedConnectionRequestsTable";
 import { ConnectionRequestDialog } from "@/components/admin/ConnectionRequestDialog";
 import { ApprovalEmailDialog } from "@/components/admin/ApprovalEmailDialog";
-import { QuickActionsBar } from "@/components/admin/QuickActionsBar";
 import { toast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { MobileConnectionRequests } from "@/components/admin/MobileConnectionRequests";
@@ -21,32 +16,15 @@ const AdminRequests = () => {
   const queryClient = useQueryClient();
   const { useConnectionRequests, useConnectionRequestsMutation, sendConnectionApprovalEmail, sendConnectionRejectionEmail, sendCustomApprovalEmail } = useAdmin();
   
-  const { data: requests = [], isLoading, error, refetch } = useConnectionRequests();
+  const { data: requests = [], isLoading } = useConnectionRequests();
   const { mutate: updateRequest, isPending: isUpdating } = useConnectionRequestsMutation();
   const isMobile = useIsMobile();
   
-  const [searchQuery, setSearchQuery] = useState("");
   const [selectedRequest, setSelectedRequest] = useState<AdminConnectionRequest | null>(null);
   const [actionType, setActionType] = useState<"approve" | "reject" | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedUserForApprovalEmail, setSelectedUserForApprovalEmail] = useState<any>(null);
   const [isApprovalEmailDialogOpen, setIsApprovalEmailDialogOpen] = useState(false);
-  
-  if (error) {
-    console.error("Connection requests error:", error);
-  }
-  
-  const filteredRequests = requests.filter((request) => {
-    const searchLower = searchQuery.toLowerCase();
-    return (
-      request.user?.first_name?.toLowerCase().includes(searchLower) ||
-      request.user?.last_name?.toLowerCase().includes(searchLower) ||
-      request.user?.company?.toLowerCase().includes(searchLower) ||
-      request.user?.email?.toLowerCase().includes(searchLower) ||
-      request.listing?.title?.toLowerCase().includes(searchLower) ||
-      request.listing?.category?.toLowerCase().includes(searchLower)
-    );
-  });
   
   const handleAction = async (request: AdminConnectionRequest, action: "approve" | "reject") => {
     try {
@@ -118,12 +96,12 @@ const AdminRequests = () => {
     }
   };
 
-  // Mobile Layout
+  // Mobile Layout - fallback to basic mobile view for now
   if (isMobile) {
     return (
       <AdminRequestsWrapper>
         <MobileConnectionRequests
-          requests={filteredRequests}
+          requests={requests}
           onApprove={(request) => handleAction(request, "approve")}
           onReject={(request) => handleAction(request, "reject")}
           isLoading={isLoading}
@@ -132,7 +110,7 @@ const AdminRequests = () => {
     );
   }
 
-  // Desktop Layout
+  // Desktop Layout with Optimized Performance
   return (
     <AdminRequestsWrapper>
       <div className="space-y-4 md:space-y-6">
@@ -140,54 +118,14 @@ const AdminRequests = () => {
           <div>
             <h1 className="text-2xl md:text-3xl font-bold">Connection Requests</h1>
             <p className="text-sm md:text-base text-muted-foreground">
-              Manage buyer connection requests and workflow
+              High-performance admin dashboard for managing buyer connection requests
             </p>
           </div>
-          
-          {/* Quick Actions Bar */}
-          <QuickActionsBar 
-            requests={requests} 
-            onBulkAction={(action, requestIds) => {
-              console.log('Bulk action:', action, requestIds);
-              // TODO: Implement bulk actions
-            }} 
-          />
-          
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-            <Input
-              placeholder="Search requests..."
-              className="pl-10"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
         </div>
 
-        <div className="flex gap-3 flex-wrap">
-          <Badge variant="secondary" className="text-xs font-medium px-3 py-1.5">
-            Total: <span className="font-semibold ml-1">{requests.length}</span>
-          </Badge>
-          <Badge variant="outline" className="text-xs font-medium px-3 py-1.5 bg-amber-500/10 text-amber-700 border-amber-500/20">
-            Pending: <span className="font-semibold ml-1">{requests.filter((r) => r.status === "pending").length}</span>
-          </Badge>
-          <Badge variant="outline" className="text-xs font-medium px-3 py-1.5 bg-green-500/10 text-green-700 border-green-500/20">
-            Approved: <span className="font-semibold ml-1">{requests.filter((r) => r.status === "approved").length}</span>
-          </Badge>
-          <Badge variant="outline" className="text-xs font-medium px-3 py-1.5 bg-red-500/10 text-red-700 border-red-500/20">
-            Rejected: <span className="font-semibold ml-1">{requests.filter((r) => r.status === "rejected").length}</span>
-          </Badge>
-        </div>
-
-        {searchQuery && (
-          <div className="text-sm text-muted-foreground">
-            Found {filteredRequests.length} request{filteredRequests.length !== 1 ? 's' : ''} matching "{searchQuery}"
-          </div>
-        )}
-
+        {/* High-Performance Optimized Connection Requests Table */}
         <div className="bg-card/30 backdrop-blur-sm rounded-xl border border-border/50 overflow-hidden shadow-sm">
-          <ConnectionRequestsTable 
-            requests={filteredRequests}
+          <OptimizedConnectionRequestsTable 
             onApprove={(request) => {
               setSelectedRequest(request);
               setActionType("approve");
@@ -198,8 +136,10 @@ const AdminRequests = () => {
               setActionType("reject");
               setIsDialogOpen(true);
             }}
-            isLoading={isLoading}
-            onRefresh={() => refetch()}
+            onRefresh={() => {
+              // Invalidate cache for instant refresh
+              invalidateConnectionRequests(queryClient);
+            }}
           />
         </div>
 
