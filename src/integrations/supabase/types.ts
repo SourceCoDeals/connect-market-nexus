@@ -7,7 +7,7 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instanciate createClient with right options
+  // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "12.2.3 (519615d)"
@@ -209,6 +209,9 @@ export type Database = {
           followed_up_by: string | null
           id: string
           listing_id: string
+          negative_followed_up: boolean | null
+          negative_followed_up_at: string | null
+          negative_followed_up_by: string | null
           status: string
           updated_at: string
           user_id: string
@@ -223,6 +226,9 @@ export type Database = {
           followed_up_by?: string | null
           id?: string
           listing_id: string
+          negative_followed_up?: boolean | null
+          negative_followed_up_at?: string | null
+          negative_followed_up_by?: string | null
           status?: string
           updated_at?: string
           user_id: string
@@ -237,6 +243,9 @@ export type Database = {
           followed_up_by?: string | null
           id?: string
           listing_id?: string
+          negative_followed_up?: boolean | null
+          negative_followed_up_at?: string | null
+          negative_followed_up_by?: string | null
           status?: string
           updated_at?: string
           user_id?: string
@@ -1320,9 +1329,9 @@ export type Database = {
     Functions: {
       calculate_engagement_score: {
         Args: {
-          p_listings_viewed: number
-          p_listings_saved: number
           p_connections_requested: number
+          p_listings_saved: number
+          p_listings_viewed: number
           p_total_session_time: number
         }
         Returns: number
@@ -1346,26 +1355,26 @@ export type Database = {
       get_feedback_analytics: {
         Args: { days_back?: number }
         Returns: {
+          avg_response_time_hours: number
+          category_breakdown: Json
+          daily_trends: Json
+          priority_breakdown: Json
+          satisfaction_avg: number
+          top_users: Json
           total_feedback: number
           unread_count: number
-          avg_response_time_hours: number
-          satisfaction_avg: number
-          category_breakdown: Json
-          priority_breakdown: Json
-          daily_trends: Json
-          top_users: Json
         }[]
       }
       get_simple_marketplace_analytics: {
         Args: { days_back?: number }
         Returns: {
-          total_users: number
-          new_users: number
           active_sessions: number
-          total_page_views: number
-          total_listings: number
+          new_users: number
           pending_connections: number
           session_count: number
+          total_listings: number
+          total_page_views: number
+          total_users: number
         }[]
       }
       is_admin: {
@@ -1374,32 +1383,32 @@ export type Database = {
       }
       log_fee_agreement_email: {
         Args: {
-          target_user_id: string
-          recipient_email: string
           admin_notes?: string
+          recipient_email: string
+          target_user_id: string
         }
         Returns: boolean
       }
       log_nda_email: {
         Args: {
-          target_user_id: string
-          recipient_email: string
           admin_notes?: string
+          recipient_email: string
+          target_user_id: string
         }
         Returns: boolean
       }
       log_security_event: {
-        Args: { event_type: string; user_id?: string; metadata?: Json }
+        Args: { event_type: string; metadata?: Json; user_id?: string }
         Returns: undefined
       }
       match_deal_alerts_with_listing: {
         Args: { listing_data: Json }
         Returns: {
-          alert_id: string
-          user_id: string
-          user_email: string
-          alert_name: string
           alert_frequency: string
+          alert_id: string
+          alert_name: string
+          user_email: string
+          user_id: string
         }[]
       }
       promote_user_to_admin: {
@@ -1420,9 +1429,17 @@ export type Database = {
       }
       update_connection_request_followup: {
         Args: {
-          request_id: string
-          is_followed_up: boolean
           admin_notes?: string
+          is_followed_up: boolean
+          request_id: string
+        }
+        Returns: boolean
+      }
+      update_connection_request_negative_followup: {
+        Args: {
+          admin_notes?: string
+          is_followed_up: boolean
+          request_id: string
         }
         Returns: boolean
       }
@@ -1435,26 +1452,26 @@ export type Database = {
         Returns: undefined
       }
       update_fee_agreement_email_status: {
-        Args: { target_user_id: string; is_sent: boolean; admin_notes?: string }
+        Args: { admin_notes?: string; is_sent: boolean; target_user_id: string }
         Returns: boolean
       }
       update_fee_agreement_status: {
         Args: {
-          target_user_id: string
-          is_signed: boolean
           admin_notes?: string
+          is_signed: boolean
+          target_user_id: string
         }
         Returns: boolean
       }
       update_nda_email_status: {
-        Args: { target_user_id: string; is_sent: boolean; admin_notes?: string }
+        Args: { admin_notes?: string; is_sent: boolean; target_user_id: string }
         Returns: boolean
       }
       update_nda_status: {
         Args: {
-          target_user_id: string
-          is_signed: boolean
           admin_notes?: string
+          is_signed: boolean
+          target_user_id: string
         }
         Returns: boolean
       }
@@ -1466,8 +1483,8 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: {
           check_name: string
-          status: string
           details: string
+          status: string
         }[]
       }
     }
