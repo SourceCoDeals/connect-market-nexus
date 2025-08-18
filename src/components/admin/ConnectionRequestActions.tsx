@@ -167,8 +167,21 @@ SourceCo Team`}`;
       return;
     }
 
-    const subject = `${listing.title} — status`;
-    const body = `Thank you for your interest. ${listing.title} is currently in diligence with another party. We run off-market, non-shopped processes to keep things clean.
+    const subject = `${listing.title}: current status + next steps`;
+    const body = `Hi ${user.first_name},
+
+Appreciate your interest in ${listing.title}. It's currently in diligence with another party. Because this is an off‑market process, we don't run parallel buyers unless the seller widens the circle.
+
+In the meantime, we will:
+
+· Prioritize you for like‑for‑like, founder‑led opportunities
+· Proactively match based on your mandate details (size, sector, geography)
+· Send you weekly alerts with new deals added
+
+If the status changes post‑diligence, we'll reach out immediately.
+
+Thank you, 
+SourceCo Team • SourceCo
 
 If the status changes, we’ll reach out, and we’ll keep an eye out for like-for-like opportunities aligned with your mandate.`;
 
