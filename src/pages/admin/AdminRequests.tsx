@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAdmin } from "@/hooks/use-admin";
+import { useAdminStats } from "@/hooks/admin/use-admin-stats";
 import { AdminConnectionRequest } from "@/types/admin";
 import { OptimizedConnectionRequestsTable } from "@/components/admin/OptimizedConnectionRequestsTable";
 import { ConnectionRequestDialog } from "@/components/admin/ConnectionRequestDialog";
@@ -15,8 +16,10 @@ import { EmailTestButton } from "@/components/admin/EmailTestButton";
 const AdminRequests = () => {
   const queryClient = useQueryClient();
   const { useConnectionRequests, useConnectionRequestsMutation, sendConnectionApprovalEmail, sendConnectionRejectionEmail, sendCustomApprovalEmail } = useAdmin();
+  const { useStats } = useAdminStats();
   
   const { data: requests = [], isLoading } = useConnectionRequests();
+  const { data: stats } = useStats();
   const { mutate: updateRequest, isPending: isUpdating } = useConnectionRequestsMutation();
   const isMobile = useIsMobile();
   
@@ -140,6 +143,7 @@ const AdminRequests = () => {
               // Invalidate cache for instant refresh
               invalidateConnectionRequests(queryClient);
             }}
+            stats={stats}
           />
         </div>
 

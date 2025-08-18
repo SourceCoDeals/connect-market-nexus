@@ -20,6 +20,14 @@ interface OptimizedConnectionRequestsTableProps {
   onApprove: (request: AdminConnectionRequest) => void;
   onReject: (request: AdminConnectionRequest) => void;
   onRefresh?: () => void;
+  stats?: {
+    totalUsers: number;
+    pendingUsers: number;
+    approvedUsers: number;
+    totalListings: number;
+    pendingConnections: number;
+    approvedConnections: number;
+  };
 }
 
 // Memoized status badge for better performance
@@ -310,16 +318,18 @@ export const OptimizedConnectionRequestsTable = ({
   onApprove,
   onReject,
   onRefresh,
+  stats,
 }: OptimizedConnectionRequestsTableProps) => {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('all');
   const [expandedRequestId, setExpandedRequestId] = useState<string | null>(null);
-  const pageSize = 20; // Reasonable page size for good performance
+  const [pageSize, setPageSize] = useState(50); // Increased default page size
+  const [showAll, setShowAll] = useState(false);
 
   const { data: result, isLoading, isError } = useOptimizedConnectionRequests({
-    page,
-    pageSize,
+    page: showAll ? 1 : page,
+    pageSize: showAll ? 10000 : pageSize, // Large number for "show all"
     search,
     status: status === 'all' ? '' : status,
   });
@@ -342,6 +352,18 @@ export const OptimizedConnectionRequestsTable = ({
     setPage(1); // Reset to first page when filtering
   }, []);
 
+  const handleShowAllToggle = useCallback(() => {
+    setShowAll(prev => !prev);
+    setPage(1);
+  }, []);
+
+  const handlePageSizeChange = useCallback((newPageSize: string) => {
+    const size = parseInt(newPageSize);
+    setPageSize(size);
+    setPage(1);
+    setShowAll(false);
+  }, []);
+
   if (isLoading) {
     return <ConnectionRequestsTableSkeleton />;
   }
@@ -360,6 +382,36 @@ export const OptimizedConnectionRequestsTable = ({
 
   return (
     <div className="space-y-6">
+      {/* Stats Overview Cards */}
+      {stats && (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          <Card className="p-4">
+            <div className="text-2xl font-bold text-primary">{stats.totalUsers}</div>
+            <div className="text-sm text-muted-foreground">Total Users</div>
+          </Card>
+          <Card className="p-4">
+            <div className="text-2xl font-bold text-amber-600">{stats.pendingUsers}</div>
+            <div className="text-sm text-muted-foreground">Pending Users</div>
+          </Card>
+          <Card className="p-4">
+            <div className="text-2xl font-bold text-green-600">{stats.approvedUsers}</div>
+            <div className="text-sm text-muted-foreground">Approved Users</div>
+          </Card>
+          <Card className="p-4">
+            <div className="text-2xl font-bold text-blue-600">{stats.totalListings}</div>
+            <div className="text-sm text-muted-foreground">Total Listings</div>
+          </Card>
+          <Card className="p-4">
+            <div className="text-2xl font-bold text-orange-600">{stats.pendingConnections}</div>
+            <div className="text-sm text-muted-foreground">Pending Requests</div>
+          </Card>
+          <Card className="p-4">
+            <div className="text-2xl font-bold text-emerald-600">{stats.approvedConnections}</div>
+            <div className="text-sm text-muted-foreground">Approved Requests</div>
+          </Card>
+        </div>
+      )}
+
       {/* Search and Filter Controls */}
       <div className="flex flex-col sm:flex-row gap-4">
         <div className="relative flex-1">
@@ -382,6 +434,25 @@ export const OptimizedConnectionRequestsTable = ({
             <SelectItem value="rejected">Rejected</SelectItem>
           </SelectContent>
         </Select>
+        <div className="flex gap-2">
+          <Select value={showAll ? "all" : pageSize.toString()} onValueChange={(value) => {
+            if (value === "all") {
+              handleShowAllToggle();
+            } else {
+              handlePageSizeChange(value);
+            }
+          }}>
+            <SelectTrigger className="w-[120px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="20">20 per page</SelectItem>
+              <SelectItem value="50">50 per page</SelectItem>
+              <SelectItem value="100">100 per page</SelectItem>
+              <SelectItem value="all">Show All</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {/* Results Summary */}
@@ -390,8 +461,9 @@ export const OptimizedConnectionRequestsTable = ({
           Showing {requests.length} of {totalCount} connection requests
           {search && ` matching "${search}"`}
           {status !== 'all' && ` with status "${status}"`}
+          {showAll && " (showing all)"}
         </div>
-        {totalPages > 1 && (
+        {!showAll && totalPages > 1 && (
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
