@@ -70,7 +70,12 @@ export function ConnectionRequestActions({
   // Get current request for admin attribution
   const currentRequest = userRequests.find(req => req.id === requestId);
 
-  // Sync local state when bulk operations complete
+  // Sync with props when they change
+  useEffect(() => {
+    setLocalUser(user);
+  }, [user]);
+
+  // Only sync from userRequests when needed to prevent race conditions
   useEffect(() => {
     if (userRequests && requestId) {
       const currentRequest = userRequests.find(req => req.id === requestId);
@@ -80,19 +85,6 @@ export function ConnectionRequestActions({
       }
     }
   }, [userRequests, requestId]);
-
-  // Sync with props when they change
-  useEffect(() => {
-    setLocalUser(user);
-  }, [user]);
-
-  useEffect(() => {
-    setLocalFollowedUp(followedUp);
-  }, [followedUp]);
-
-  useEffect(() => {
-    setLocalNegativeFollowedUp(negativeFollowedUp);
-  }, [negativeFollowedUp]);
   
   const updateNDA = useUpdateNDA();
   const updateNDAEmailSent = useUpdateNDAEmailSent();
@@ -266,14 +258,23 @@ If the status changes post‑diligence, we'll reach out immediately.`;
   };
 
   const handleFollowUpToggle = (checked: boolean) => {
-    // If turning ON and multiple requests exist, show bulk dialog
-    if (checked && hasMultipleRequests && !localFollowedUp) {
+    console.log('🔍 Follow-up toggle clicked:', { 
+      checked, 
+      hasMultipleRequests, 
+      currentRequestFollowedUp: currentRequest?.followed_up,
+      localFollowedUp 
+    });
+
+    // If turning ON and multiple requests exist and current request isn't already followed up
+    if (checked && hasMultipleRequests && !currentRequest?.followed_up) {
+      console.log('🎯 Showing bulk follow-up dialog');
       setBulkFollowupType('positive');
       setShowBulkFollowupDialog(true);
       return;
     }
 
     // Single request or unchecking - handle immediately
+    console.log('🎯 Handling single follow-up toggle');
     setLocalFollowedUp(checked);
     onLocalStateUpdate?.(localUser, checked, localNegativeFollowedUp);
     
@@ -285,14 +286,23 @@ If the status changes post‑diligence, we'll reach out immediately.`;
   };
 
   const handleNegativeFollowUpToggle = (checked: boolean) => {
-    // If turning ON and multiple requests exist, show bulk dialog
-    if (checked && hasMultipleRequests && !localNegativeFollowedUp) {
+    console.log('🔍 Negative follow-up toggle clicked:', { 
+      checked, 
+      hasMultipleRequests, 
+      currentRequestNegativeFollowedUp: currentRequest?.negative_followed_up,
+      localNegativeFollowedUp 
+    });
+
+    // If turning ON and multiple requests exist and current request isn't already negative followed up
+    if (checked && hasMultipleRequests && !currentRequest?.negative_followed_up) {
+      console.log('🎯 Showing bulk negative follow-up dialog');
       setBulkFollowupType('negative');
       setShowBulkFollowupDialog(true);
       return;
     }
 
     // Single request or unchecking - handle immediately
+    console.log('🎯 Handling single negative follow-up toggle');
     setLocalNegativeFollowedUp(checked);
     onLocalStateUpdate?.(localUser, localFollowedUp, checked);
     
