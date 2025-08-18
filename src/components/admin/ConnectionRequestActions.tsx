@@ -175,13 +175,12 @@ Appreciate your interest in ${listing.title}. It's currently in diligence with a
 In the meantime, we will:
 
 · Prioritize you for like‑for‑like, founder‑led opportunities
-· Proactively match based on your mandate details (size, sector, geography)
-· Send you weekly alerts with new deals added
+· Send you weekly alerts with new matching deals added based on your mandate
 
 If the status changes post‑diligence, we'll reach out immediately.
 
 Thank you, 
-SourceCo Team • SourceCo
+[Admin Name]
 
 If the status changes, we’ll reach out, and we’ll keep an eye out for like-for-like opportunities aligned with your mandate.`;
 
