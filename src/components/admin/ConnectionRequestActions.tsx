@@ -167,20 +167,10 @@ SourceCo Team`}`;
       return;
     }
 
-    const subject = `${listing.title} - Connection Request Update`;
-    const body = `Hi ${user.first_name},
+    const subject = `${listing.title} — status`;
+    const body = `Thank you for your interest. ${listing.title} is currently in diligence with another party. We run off-market, non-shopped processes to keep things clean.
 
-Thank you for your interest in "${listing.title}". After careful review, we've decided to move forward with other candidates for this particular opportunity.
-
-Your profile was carefully considered, and we appreciate the time you invested in this process.
-
-We'll keep your information on file and reach out if we have similar opportunities that match your criteria:
-• Revenue range: $${listing.revenue?.toLocaleString()} level
-• Industry: ${listing.category}
-• Location: ${listing.location}
-
-${signature?.signature_text || `Best regards,
-SourceCo Team`}`;
+If the status changes, we’ll reach out, and we’ll keep an eye out for like-for-like opportunities aligned with your mandate.`;
 
     const mailtoLink = `mailto:${user.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     window.open(mailtoLink, '_blank');
