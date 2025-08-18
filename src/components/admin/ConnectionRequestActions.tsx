@@ -27,6 +27,8 @@ import { useUserConnectionRequests } from "@/hooks/admin/use-user-connection-req
 import { useBulkFollowup } from "@/hooks/admin/use-bulk-followup";
 import { useToast } from "@/hooks/use-toast";
 import { useAdminSignature } from "@/hooks/admin/use-admin-signature";
+import { useAuth } from "@/context/AuthContext";
+import { getAdminProfile } from "@/lib/admin-profiles";
 import { formatDistanceToNow, format } from 'date-fns';
 
 interface ConnectionRequestActionsProps {
@@ -50,6 +52,7 @@ export function ConnectionRequestActions({
 }: ConnectionRequestActionsProps) {
   const { toast } = useToast();
   const { signature } = useAdminSignature();
+  const { user: authUser } = useAuth();
   const [showFeeDialog, setShowFeeDialog] = useState(false);
   const [showNDADialog, setShowNDADialog] = useState(false);
   const [showBulkFollowupDialog, setShowBulkFollowupDialog] = useState(false);
@@ -168,7 +171,20 @@ SourceCo Team`}`;
     }
 
     const subject = `${listing.title}: current status + next steps`;
-    const body = `Hi ${user.first_name},
+
+    // Build dynamic admin display name
+    let adminDisplayName = '';
+    const adminEmail = authUser?.email || '';
+    const adminProfile = adminEmail ? getAdminProfile(adminEmail) : null;
+    if (adminProfile?.name) {
+      adminDisplayName = adminProfile.name;
+    } else if (authUser?.firstName || authUser?.lastName) {
+      adminDisplayName = [authUser?.firstName, authUser?.lastName].filter(Boolean).join(' ');
+    }
+
+    const signatureSection = adminDisplayName ? `\nThank you, \n${adminDisplayName}` : '';
+
+    const bodyBase = `Hi ${user.first_name},
 
 Appreciate your interest in ${listing.title}. It's currently in diligence with another party. Because this is an off‑market process, we don't run parallel buyers unless the seller widens the circle.
 
@@ -177,12 +193,9 @@ In the meantime, we will:
 · Prioritize you for like‑for‑like, founder‑led opportunities
 · Send you weekly alerts with new matching deals added based on your mandate
 
-If the status changes post‑diligence, we'll reach out immediately.
+If the status changes post‑diligence, we'll reach out immediately.`;
 
-Thank you, 
-[Admin Name]
-
-If the status changes, we’ll reach out, and we’ll keep an eye out for like-for-like opportunities aligned with your mandate.`;
+    const body = signatureSection ? `${bodyBase}\n\n${signatureSection}` : bodyBase;
 
     const mailtoLink = `mailto:${user.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     window.open(mailtoLink, '_blank');
