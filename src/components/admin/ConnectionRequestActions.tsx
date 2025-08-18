@@ -266,7 +266,8 @@ If the status changes post‑diligence, we'll reach out immediately.`;
   };
 
   const handleFollowUpToggle = (checked: boolean) => {
-    if (checked && hasMultipleRequests) {
+    // If turning ON and multiple requests exist, show bulk dialog
+    if (checked && hasMultipleRequests && !localFollowedUp) {
       setBulkFollowupType('positive');
       setShowBulkFollowupDialog(true);
       return;
@@ -284,7 +285,8 @@ If the status changes post‑diligence, we'll reach out immediately.`;
   };
 
   const handleNegativeFollowUpToggle = (checked: boolean) => {
-    if (checked && hasMultipleRequests) {
+    // If turning ON and multiple requests exist, show bulk dialog
+    if (checked && hasMultipleRequests && !localNegativeFollowedUp) {
       setBulkFollowupType('negative');
       setShowBulkFollowupDialog(true);
       return;
