@@ -16,7 +16,6 @@ import { InternalCompanyInfoDisplay } from "./InternalCompanyInfoDisplay";
 import { BuyerDealsOverview } from "./BuyerDealsOverview";
 import { useUserConnectionRequests } from "@/hooks/admin/use-user-connection-requests";
 import { ClickableCompanyName } from "./ClickableCompanyName";
-import { ClickableEmail, ClickablePhone, ClickableLinkedIn } from "./ClickableContact";
 
 interface ConnectionRequestsTableProps {
   requests: AdminConnectionRequest[];
@@ -301,33 +300,12 @@ const ReactiveRequestCard = ({
                       </div>
                     )}
                     
-                    {/* Buyer Company & Contact Info Row - ALL CLICKABLE */}
                     <div className="flex items-center gap-2 text-sm text-muted-foreground flex-wrap">
                       <Building2 className="h-4 w-4 flex-shrink-0" />
-                      {localUser?.company ? (
-                        <ClickableCompanyName 
-                          companyName={localUser.company}
-                          website={localUser.website}
-                          linkedinProfile={localUser.linkedin_profile}
-                          className="text-sm"
-                        />
-                      ) : (
-                        <span className="truncate">No company</span>
-                      )}
+                      <span className="truncate">{localUser?.company}</span>
                       <span className="text-border">•</span>
-                      <ClickableEmail email={localUser?.email || ''} className="text-sm" />
-                      {localUser?.phone_number && (
-                        <>
-                          <span className="text-border">•</span>
-                          <ClickablePhone phone={localUser.phone_number} className="text-sm" />
-                        </>
-                      )}
-                      {localUser?.linkedin_profile && (
-                        <>
-                          <span className="text-border">•</span>
-                          <ClickableLinkedIn linkedinProfile={localUser.linkedin_profile} className="text-sm" />
-                        </>
-                      )}
+                      <Mail className="h-4 w-4 flex-shrink-0" />
+                      <span className="truncate">{localUser?.email}</span>
                     </div>
                     
                     <div className="flex items-center gap-2 text-sm text-muted-foreground flex-wrap">
