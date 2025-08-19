@@ -29,37 +29,15 @@ export const useUpdateNegativeFollowup = () => {
       if (error) throw error;
       return data;
     },
-    onMutate: async ({ requestId, isFollowedUp }) => {
-      await queryClient.cancelQueries({ queryKey: ['connection-requests'] });
-
-      const previousRequests = queryClient.getQueryData(['connection-requests']);
-
-      // Optimistically update connection requests
-      queryClient.setQueryData(['connection-requests'], (old: any) => {
-        if (!old) return old;
-        return old.map((request: any) => 
-          request.id === requestId 
-            ? { 
-                ...request, 
-                negative_followed_up: isFollowedUp,
-                negative_followed_up_at: isFollowedUp ? new Date().toISOString() : null 
-              }
-            : request
-        );
-      });
-
-      return { previousRequests };
-    },
     onSuccess: () => {
-      // Invalidate to sync across all instances immediately
+      // Invalidate connection requests to sync with server data
       queryClient.invalidateQueries({ queryKey: ['connection-requests'] });
       toast({
         title: "Negative follow-up status updated",
         description: "The negative follow-up status has been successfully updated.",
       });
     },
-    onError: (err, variables, context) => {
-      queryClient.setQueryData(['connection-requests'], context?.previousRequests);
+    onError: () => {
       toast({
         variant: "destructive",
         title: "Update failed",
@@ -84,37 +62,15 @@ export const useUpdateFollowup = () => {
       if (error) throw error;
       return data;
     },
-    onMutate: async ({ requestId, isFollowedUp }) => {
-      await queryClient.cancelQueries({ queryKey: ['connection-requests'] });
-
-      const previousRequests = queryClient.getQueryData(['connection-requests']);
-
-      // Optimistically update connection requests
-      queryClient.setQueryData(['connection-requests'], (old: any) => {
-        if (!old) return old;
-        return old.map((request: any) => 
-          request.id === requestId 
-            ? { 
-                ...request, 
-                followed_up: isFollowedUp,
-                followed_up_at: isFollowedUp ? new Date().toISOString() : null 
-              }
-            : request
-        );
-      });
-
-      return { previousRequests };
-    },
     onSuccess: () => {
-      // Invalidate to sync across all instances immediately
+      // Invalidate connection requests to sync with server data
       queryClient.invalidateQueries({ queryKey: ['connection-requests'] });
       toast({
         title: "Follow-up status updated",
         description: "The follow-up status has been successfully updated.",
       });
     },
-    onError: (err, variables, context) => {
-      queryClient.setQueryData(['connection-requests'], context?.previousRequests);
+    onError: () => {
       toast({
         variant: "destructive",
         title: "Update failed",

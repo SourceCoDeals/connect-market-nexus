@@ -62,7 +62,6 @@ export function ConnectionRequestActions({
   const [localUser, setLocalUser] = useState(user);
   const [localFollowedUp, setLocalFollowedUp] = useState(followedUp);
   const [localNegativeFollowedUp, setLocalNegativeFollowedUp] = useState(negativeFollowedUp);
-  const [userActionInProgress, setUserActionInProgress] = useState(false);
 
   // Fetch all connection requests for this user
   const { data: userRequests = [], refetch: refetchUserRequests } = useUserConnectionRequests(user.id);
@@ -76,16 +75,16 @@ export function ConnectionRequestActions({
     setLocalUser(user);
   }, [user]);
 
-  // Only sync from userRequests when no user action is in progress
+  // Sync with server data only when userRequests data actually changes
   useEffect(() => {
-    if (userRequests && requestId && !userActionInProgress) {
+    if (userRequests && requestId) {
       const currentRequest = userRequests.find(req => req.id === requestId);
       if (currentRequest) {
         setLocalFollowedUp(currentRequest.followed_up || false);
         setLocalNegativeFollowedUp(currentRequest.negative_followed_up || false);
       }
     }
-  }, [userRequests, requestId, userActionInProgress]);
+  }, [userRequests, requestId]);
   
   const updateNDA = useUpdateNDA();
   const updateNDAEmailSent = useUpdateNDAEmailSent();
@@ -259,15 +258,10 @@ If the status changes post‑diligence, we'll reach out immediately.`;
   };
 
   const handleFollowUpToggle = (checked: boolean) => {
-    // Prevent server sync from overriding this user action
-    setUserActionInProgress(true);
-    
     // If turning ON and multiple requests exist and current request isn't already followed up
     if (checked && hasMultipleRequests && !currentRequest?.followed_up) {
       setBulkFollowupType('positive');
       setShowBulkFollowupDialog(true);
-      // Reset action flag since we're not making the mutation yet
-      setUserActionInProgress(false);
       return;
     }
 
@@ -279,24 +273,14 @@ If the status changes post‑diligence, we'll reach out immediately.`;
       requestId,
       isFollowedUp: checked,
       notes: checked ? `Follow-up initiated by admin on ${new Date().toLocaleDateString()}` : undefined
-    }, {
-      onSettled: () => {
-        // Reset the flag after mutation completes
-        setUserActionInProgress(false);
-      }
     });
   };
 
   const handleNegativeFollowUpToggle = (checked: boolean) => {
-    // Prevent server sync from overriding this user action
-    setUserActionInProgress(true);
-    
     // If turning ON and multiple requests exist and current request isn't already negative followed up
     if (checked && hasMultipleRequests && !currentRequest?.negative_followed_up) {
       setBulkFollowupType('negative');
       setShowBulkFollowupDialog(true);
-      // Reset action flag since we're not making the mutation yet
-      setUserActionInProgress(false);
       return;
     }
 
@@ -308,11 +292,6 @@ If the status changes post‑diligence, we'll reach out immediately.`;
       requestId,
       isFollowedUp: checked,
       notes: checked ? `Negative follow-up initiated by admin on ${new Date().toLocaleDateString()}` : undefined
-    }, {
-      onSettled: () => {
-        // Reset the flag after mutation completes
-        setUserActionInProgress(false);
-      }
     });
   };
 
@@ -338,8 +317,6 @@ If the status changes post‑diligence, we'll reach out immediately.`;
           }
         }
         setShowBulkFollowupDialog(false);
-        // Reset the action flag
-        setUserActionInProgress(false);
       }
     });
   };
