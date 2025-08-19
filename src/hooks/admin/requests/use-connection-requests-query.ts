@@ -32,8 +32,8 @@ export function useConnectionRequestsQuery() {
     createQueryKey.adminConnectionRequests(),
     async () => {
       try {
-        // Fetching connection requests
-        
+        console.time('fetch-connection-requests');
+
         if (!isAdminUser) {
           throw new Error('Admin authentication required');
         }
@@ -44,65 +44,63 @@ export function useConnectionRequestsQuery() {
           .order('created_at', { ascending: false });
 
         if (error) throw error;
-        
-        const enhancedRequests = await Promise.all(requests.map(async (request) => {
-          const { data: userData, error: userError } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', request.user_id)
-            .maybeSingle();
-          
-          if (userError) console.error("Error fetching user data:", userError);
-          
-          const { data: listingData, error: listingError } = await supabase
-            .from('listings')
-            .select('*')
-            .eq('id', request.listing_id)
-            .maybeSingle();
-          
-          if (listingError) console.error("Error fetching listing data:", listingError);
-          
-          // Fetch admin profiles who performed follow-ups (if available)
-          let followedUpByAdmin = null;
-          if ((request as any).followed_up_by) {
-            const { data: adminProfile } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('id', (request as any).followed_up_by)
-              .maybeSingle();
-            followedUpByAdmin = adminProfile ? createUserObject(adminProfile) : null;
-          }
 
-          let negativeFollowedUpByAdmin = null;
-          if ((request as any).negative_followed_up_by) {
-            const { data: adminProfileNeg } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('id', (request as any).negative_followed_up_by)
-              .maybeSingle();
-            negativeFollowedUpByAdmin = adminProfileNeg ? createUserObject(adminProfileNeg) : null;
-          }
-          
-          const user = userError || !userData ? null : createUserObject(userData);
+        if (!requests || requests.length === 0) {
+          console.timeEnd('fetch-connection-requests');
+          return [] as AdminConnectionRequest[];
+        }
+
+        // Collect unique IDs for batch fetching (avoid N+1 queries)
+        const userIds = Array.from(new Set(requests.map((r: any) => r.user_id).filter(Boolean)));
+        const listingIds = Array.from(new Set(requests.map((r: any) => r.listing_id).filter(Boolean)));
+        const followedIds = Array.from(new Set(requests.map((r: any) => (r as any).followed_up_by).filter(Boolean)));
+        const negativeFollowedIds = Array.from(new Set(requests.map((r: any) => (r as any).negative_followed_up_by).filter(Boolean)));
+        const profileIds = Array.from(new Set([...userIds, ...followedIds, ...negativeFollowedIds]));
+
+        // Batch fetch related data in parallel
+        const [profilesRes, listingsRes] = await Promise.all([
+          profileIds.length
+            ? supabase.from('profiles').select('*').in('id', profileIds)
+            : Promise.resolve({ data: [] as any[], error: null } as any),
+          listingIds.length
+            ? supabase.from('listings').select('*').in('id', listingIds)
+            : Promise.resolve({ data: [] as any[], error: null } as any),
+        ]);
+
+        if (profilesRes.error) console.error('Error fetching profiles batch:', profilesRes.error);
+        if (listingsRes.error) console.error('Error fetching listings batch:', listingsRes.error);
+
+        const profilesById = new Map<string, any>();
+        (profilesRes.data ?? []).forEach((p: any) => profilesById.set(p.id, p));
+
+        const listingsById = new Map<string, any>();
+        (listingsRes.data ?? []).forEach((l: any) => listingsById.set(l.id, l));
+
+        const enhancedRequests: AdminConnectionRequest[] = requests.map((request: any) => {
+          const userData = profilesById.get(request.user_id);
+          const listingData = listingsById.get(request.listing_id);
+
+          const followedAdminProfile = profilesById.get((request as any).followed_up_by);
+          const negativeFollowedAdminProfile = profilesById.get((request as any).negative_followed_up_by);
+
+          const user = userData ? createUserObject(userData) : null;
           const listing = listingData ? createListingFromData(listingData) : null;
-          
+
           // Debug logging for processed listing
           console.log('🔍 Processed listing data:', listing);
-          const status = request.status as "pending" | "approved" | "rejected";
-          
-          const result: AdminConnectionRequest = {
+          const status = request.status as 'pending' | 'approved' | 'rejected';
+
+          return {
             ...request,
             status,
             user,
             listing,
-            followedUpByAdmin,
-            negativeFollowedUpByAdmin
-          };
+            followedUpByAdmin: followedAdminProfile ? createUserObject(followedAdminProfile) : null,
+            negativeFollowedUpByAdmin: negativeFollowedAdminProfile ? createUserObject(negativeFollowedAdminProfile) : null,
+          } as AdminConnectionRequest;
+        });
 
-          return result;
-        }));
-
-        // Connection requests fetched successfully
+        console.timeEnd('fetch-connection-requests');
         return enhancedRequests;
       } catch (error: any) {
         console.error("❌ Error fetching connection requests:", error);
