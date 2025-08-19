@@ -16,6 +16,7 @@ import { InternalCompanyInfoDisplay } from "./InternalCompanyInfoDisplay";
 import { BuyerDealsOverview } from "./BuyerDealsOverview";
 import { useUserConnectionRequests } from "@/hooks/admin/use-user-connection-requests";
 import { ClickableCompanyName } from "./ClickableCompanyName";
+import { getFinancialMetricsForBuyerType, formatFinancialMetricValue } from '@/lib/buyer-financial-metrics';
 
 interface ConnectionRequestsTableProps {
   requests: AdminConnectionRequest[];
@@ -367,12 +368,26 @@ const ReactiveRequestCard = ({
                         </>
                       )}
                     </div>
-                  )}
-                  
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground flex-wrap">
-                    <Target className="h-4 w-4 flex-shrink-0 text-primary/60" />
-                    <span className="truncate font-medium">{request.listing?.title}</span>
-                  </div>
+                   )}
+
+                   {/* Financial Metrics */}
+                   {localUser && getFinancialMetricsForBuyerType(localUser).length > 0 && (
+                     <div className="flex items-center gap-2 text-sm text-muted-foreground flex-wrap">
+                       {getFinancialMetricsForBuyerType(localUser).map((metric, index) => (
+                         <div key={metric.label} className="flex items-center gap-1">
+                           {index > 0 && <span className="text-border">•</span>}
+                           <span className="text-xs">{metric.icon}</span>
+                           <span className="font-medium text-foreground">{metric.label}:</span>
+                           <span className="font-semibold text-primary">{formatFinancialMetricValue(metric.value)}</span>
+                         </div>
+                       ))}
+                     </div>
+                   )}
+                   
+                   <div className="flex items-center gap-2 text-sm text-muted-foreground flex-wrap">
+                     <Target className="h-4 w-4 flex-shrink-0 text-primary/60" />
+                     <span className="truncate font-medium">{request.listing?.title}</span>
+                   </div>
                 </div>
               </div>
               
