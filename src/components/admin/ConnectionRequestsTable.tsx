@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ChevronDown, User, Building, MessageSquare, Calendar, RefreshCw, FileText, Shield, Mail, MapPin, Target, Building2, Clipboard, ExternalLink, CheckCircle, Clock, XCircle } from "lucide-react";
@@ -234,6 +234,9 @@ const ReactiveRequestCard = ({
   onToggleExpand: (id: string) => void;
 }) => {
   // Single source of truth for reactive state
+  // State for expand/collapse
+  const isExpanded = expandedRequestId === request.id;
+  
   const [localUser, setLocalUser] = useState(request.user);
   const [localFollowedUp, setLocalFollowedUp] = useState(request.followed_up || false);
   const [localNegativeFollowedUp, setLocalNegativeFollowedUp] = useState(request.negative_followed_up || false);
@@ -423,43 +426,21 @@ const ReactiveRequestCard = ({
         </div>
       </CardHeader>
       
-      {/* Collapsible only wraps the expandable content */}
-      <Collapsible 
-        open={expandedRequestId === request.id}
-        onOpenChange={() => onToggleExpand(request.id)}
-      >
-        <CollapsibleContent>
-          <CardContent className="pt-0 px-6 pb-6">
-        
-            {/* Quick Actions & Agreement Status in two-column layout */}
-            <div className="mb-6 p-6 bg-accent/30 rounded-lg border border-border/30">
-              {/* Header with Approve/Reject buttons */}
-              <div className="flex items-center justify-between mb-6">
-                <h4 className="font-semibold text-lg flex items-center gap-2">
-                  <FileText className="h-5 w-5 text-primary" />
-                  Actions & Status
-                </h4>
-                {/* Approve/Reject buttons prominently placed */}
-                <div className="flex gap-3">
-                  {request.status === "pending" ? (
-                    <>
-                      <Button
-                        size="sm"
-                        className="bg-green-600 hover:bg-green-700 text-white px-4 py-2"
-                        onClick={() => onApprove(request)}
-                      >
-                        Approve
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="border-red-500 text-red-700 hover:bg-red-500 hover:text-white px-4 py-2"
-                        onClick={() => onReject(request)}
-                      >
-                        Reject
-                      </Button>
-                    </>
-                  ) : request.status === "rejected" ? (
+      {/* Expandable Content - Simple conditional rendering */}
+      {isExpanded && (
+        <CardContent className="pt-0 px-6 pb-6 animate-fade-in">
+          {/* Quick Actions & Agreement Status in two-column layout */}
+          <div className="mb-6 p-6 bg-accent/30 rounded-lg border border-border/30">
+            {/* Header with Approve/Reject buttons */}
+            <div className="flex items-center justify-between mb-6">
+              <h4 className="font-semibold text-lg flex items-center gap-2">
+                <FileText className="h-5 w-5 text-primary" />
+                Actions & Status
+              </h4>
+              {/* Approve/Reject buttons prominently placed */}
+              <div className="flex gap-3">
+                {request.status === "pending" ? (
+                  <>
                     <Button
                       size="sm"
                       className="bg-green-600 hover:bg-green-700 text-white px-4 py-2"
@@ -467,46 +448,62 @@ const ReactiveRequestCard = ({
                     >
                       Approve
                     </Button>
-                  ) : (
                     <Button
                       variant="outline"
                       size="sm"
                       className="border-red-500 text-red-700 hover:bg-red-500 hover:text-white px-4 py-2"
                       onClick={() => onReject(request)}
                     >
-                      Revoke
+                      Reject
                     </Button>
-                  )}
-                </div>
+                  </>
+                ) : request.status === "rejected" ? (
+                  <Button
+                    size="sm"
+                    className="bg-green-600 hover:bg-green-700 text-white px-4 py-2"
+                    onClick={() => onApprove(request)}
+                  >
+                    Approve
+                  </Button>
+                ) : (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="border-red-500 text-red-700 hover:bg-red-500 hover:text-white px-4 py-2"
+                    onClick={() => onReject(request)}
+                  >
+                    Revoke
+                  </Button>
+                )}
               </div>
-
-              {/* Streamlined single component: ConnectionRequestActions handles both Quick Actions and Agreement Status */}
-              {localUser && (
-                <ConnectionRequestActions
-                  user={localUser}
-                  listing={request.listing}
-                  requestId={request.id}
-                  followedUp={localFollowedUp}
-                  negativeFollowedUp={localNegativeFollowedUp}
-                  onLocalStateUpdate={handleLocalStateUpdate}
-                />
-              )}
             </div>
-            
-            <RequestDetails
-              request={{...request, user: localUser}}
-              onApprove={onApprove}
-              onReject={onReject}
-            />
-            
-            {/* Buyer Deals Overview */}
-            <BuyerDealsOverview 
-              requests={userRequests} 
-              currentRequestId={request.id}
-            />
-          </CardContent>
-        </CollapsibleContent>
-      </Collapsible>
+
+            {/* Streamlined single component: ConnectionRequestActions handles both Quick Actions and Agreement Status */}
+            {localUser && (
+              <ConnectionRequestActions
+                user={localUser}
+                listing={request.listing}
+                requestId={request.id}
+                followedUp={localFollowedUp}
+                negativeFollowedUp={localNegativeFollowedUp}
+                onLocalStateUpdate={handleLocalStateUpdate}
+              />
+            )}
+          </div>
+          
+          <RequestDetails
+            request={{...request, user: localUser}}
+            onApprove={onApprove}
+            onReject={onReject}
+          />
+          
+          {/* Buyer Deals Overview */}
+          <BuyerDealsOverview 
+            requests={userRequests} 
+            currentRequestId={request.id}
+          />
+        </CardContent>
+      )}
     </Card>
   );
 };
