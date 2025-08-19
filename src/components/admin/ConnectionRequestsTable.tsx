@@ -319,6 +319,7 @@ const ReactiveRequestCard = ({
                     <a 
                       href={`mailto:${localUser?.email}`}
                       className="text-primary hover:text-primary/80 transition-colors truncate"
+                      onClick={(e) => e.stopPropagation()}
                     >
                       {localUser?.email}
                     </a>
@@ -346,6 +347,7 @@ const ReactiveRequestCard = ({
                           <a 
                             href={`tel:${localUser.phone_number}`}
                             className="text-primary hover:text-primary/80 transition-colors"
+                            onClick={(e) => e.stopPropagation()}
                           >
                             {localUser.phone_number}
                           </a>
@@ -360,6 +362,7 @@ const ReactiveRequestCard = ({
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-primary hover:text-primary/80 transition-colors flex items-center gap-1"
+                            onClick={(e) => e.stopPropagation()}
                           >
                             LinkedIn
                             <ExternalLink className="h-3 w-3" />
