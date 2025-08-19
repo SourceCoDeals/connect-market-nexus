@@ -58,10 +58,12 @@ export function ConnectionRequestActions({
   const [showBulkFollowupDialog, setShowBulkFollowupDialog] = useState(false);
   const [bulkFollowupType, setBulkFollowupType] = useState<'positive' | 'negative'>('positive');
   
-  // Local state for immediate UI updates
-  const [localUser, setLocalUser] = useState(user);
-  const [localFollowedUp, setLocalFollowedUp] = useState(followedUp);
-  const [localNegativeFollowedUp, setLocalNegativeFollowedUp] = useState(negativeFollowedUp);
+  // Local state for immediate UI updates (same pattern as fee agreements)
+  const [localUser, setLocalUser] = useState({
+    ...user,
+    followed_up: followedUp,
+    negative_followed_up: negativeFollowedUp
+  });
   
   // Fetch all connection requests for this user
   const { data: userRequests = [], refetch: refetchUserRequests } = useUserConnectionRequests(user.id);
@@ -70,21 +72,14 @@ export function ConnectionRequestActions({
   // Get current request for admin attribution
   const currentRequest = userRequests.find(req => req.id === requestId);
 
-  // Sync with props when they change
+  // Sync with props when they change (same pattern as fee agreements)
   useEffect(() => {
-    setLocalUser(user);
-  }, [user]);
-
-  // Sync local toggles with server when data for this request changes
-  useEffect(() => {
-    if (userRequests && requestId) {
-      const current = userRequests.find(req => req.id === requestId);
-      if (current) {
-        setLocalFollowedUp(!!current.followed_up);
-        setLocalNegativeFollowedUp(!!current.negative_followed_up);
-      }
-    }
-  }, [userRequests, requestId]);
+    setLocalUser({
+      ...user,
+      followed_up: followedUp,
+      negative_followed_up: negativeFollowedUp
+    });
+  }, [user, followedUp, negativeFollowedUp]);
   
   const updateNDA = useUpdateNDA();
   const updateNDAEmailSent = useUpdateNDAEmailSent();
@@ -258,9 +253,13 @@ If the status changes post‑diligence, we'll reach out immediately.`;
   };
 
   const handleFollowUpToggle = (checked: boolean) => {
-    // ALWAYS update local state first (like fee agreement toggles)
-    setLocalFollowedUp(checked);
-    onLocalStateUpdate?.(localUser, checked, localNegativeFollowedUp);
+    // ALWAYS update local state first (exactly like fee agreement toggles)
+    const updatedUser = { 
+      ...localUser, 
+      followed_up: checked
+    };
+    setLocalUser(updatedUser);
+    onLocalStateUpdate?.(updatedUser, checked, localUser.negative_followed_up);
     
     // THEN check if we need bulk dialog
     if (checked && hasMultipleRequests) {
@@ -278,9 +277,13 @@ If the status changes post‑diligence, we'll reach out immediately.`;
   };
 
   const handleNegativeFollowUpToggle = (checked: boolean) => {
-    // ALWAYS update local state first (like fee agreement toggles)
-    setLocalNegativeFollowedUp(checked);
-    onLocalStateUpdate?.(localUser, localFollowedUp, checked);
+    // ALWAYS update local state first (exactly like fee agreement toggles)
+    const updatedUser = { 
+      ...localUser, 
+      negative_followed_up: checked
+    };
+    setLocalUser(updatedUser);
+    onLocalStateUpdate?.(updatedUser, localUser.followed_up, checked);
     
     // THEN check if we need bulk dialog
     if (checked && hasMultipleRequests) {
@@ -308,14 +311,16 @@ If the status changes post‑diligence, we'll reach out immediately.`;
       followupType: bulkFollowupType
     }, {
       onSuccess: () => {
-        // Update local state based on current request
+        // Update local state based on current request (using same pattern as fee agreements)
         if (requestIdsToUpdate.includes(requestId || '')) {
           if (bulkFollowupType === 'positive') {
-            setLocalFollowedUp(true);
-            onLocalStateUpdate?.(localUser, true, localNegativeFollowedUp);
+            const updatedUser = { ...localUser, followed_up: true };
+            setLocalUser(updatedUser);
+            onLocalStateUpdate?.(updatedUser, true, localUser.negative_followed_up);
           } else {
-            setLocalNegativeFollowedUp(true);
-            onLocalStateUpdate?.(localUser, localFollowedUp, true);
+            const updatedUser = { ...localUser, negative_followed_up: true };
+            setLocalUser(updatedUser);
+            onLocalStateUpdate?.(updatedUser, localUser.followed_up, true);
           }
         }
         setShowBulkFollowupDialog(false);
@@ -354,7 +359,7 @@ If the status changes post‑diligence, we'll reach out immediately.`;
             </Button>
 
             <Button
-              variant={localFollowedUp ? "secondary" : "outline"}
+              variant={localUser.followed_up ? "secondary" : "outline"}
               size="sm"
               onClick={handleFollowUp}
               className="text-xs h-8 transition-all hover:scale-105"
@@ -365,7 +370,7 @@ If the status changes post‑diligence, we'll reach out immediately.`;
             </Button>
 
             <Button
-              variant={localNegativeFollowedUp ? "secondary" : "outline"}
+              variant={localUser.negative_followed_up ? "secondary" : "outline"}
               size="sm"
               onClick={handleNegativeFollowUp}
               className="text-xs h-8 transition-all hover:scale-105 border-amber-200 text-amber-700 hover:bg-amber-50"
@@ -477,31 +482,31 @@ If the status changes post‑diligence, we'll reach out immediately.`;
                   <span className="text-sm font-medium text-foreground">Follow-Up</span>
                 </div>
                 <Badge 
-                  variant={localFollowedUp ? "default" : "secondary"}
-                  className={localFollowedUp 
+                  variant={localUser.followed_up ? "default" : "secondary"}
+                  className={localUser.followed_up 
                     ? "text-xs bg-success/10 text-success border-success/20 hover:bg-success/20 w-fit transition-colors" 
                     : "text-xs bg-warning/10 text-warning border-warning/20 hover:bg-warning/20 w-fit transition-colors"
                   }
                 >
-                  {localFollowedUp ? (
+                  {localUser.followed_up ? (
                     <CheckCheck className="h-3 w-3 mr-1" />
                   ) : (
                     <Clock className="h-3 w-3 mr-1" />
                   )}
-                  {localFollowedUp ? "Completed" : "Pending"}
+                  {localUser.followed_up ? "Completed" : "Pending"}
                 </Badge>
               </div>
               <div className="flex items-center space-x-2">
                 <Switch
                   id={`followup-${user.id}`}
-                  checked={localFollowedUp}
+                  checked={localUser.followed_up || false}
                   onCheckedChange={handleFollowUpToggle}
                   disabled={updateFollowup.isPending || !requestId}
                   className="data-[state=checked]:bg-success"
                 />
                 <Label htmlFor={`followup-${user.id}`} className="text-xs font-medium">Followed Up</Label>
               </div>
-              {localFollowedUp && currentRequest?.followed_up_at && (
+              {localUser.followed_up && currentRequest?.followed_up_at && (
                 <div className="text-xs text-muted-foreground mt-2">
                   {currentRequest.followedUpByAdmin 
                     ? `(by ${currentRequest.followedUpByAdmin.first_name} ${currentRequest.followedUpByAdmin.last_name}, ${format(new Date(currentRequest.followed_up_at), 'MMM d \'at\' h:mm a')})`
@@ -521,31 +526,31 @@ If the status changes post‑diligence, we'll reach out immediately.`;
                   <span className="text-sm font-medium text-foreground">Rejection Notice</span>
                 </div>
                 <Badge 
-                  variant={localNegativeFollowedUp ? "default" : "secondary"}
-                  className={localNegativeFollowedUp 
+                  variant={localUser.negative_followed_up ? "default" : "secondary"}
+                  className={localUser.negative_followed_up 
                     ? "text-xs bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-200 w-fit transition-colors" 
                     : "text-xs bg-gray-100 text-gray-600 border-gray-200 hover:bg-gray-200 w-fit transition-colors"
                   }
                 >
-                  {localNegativeFollowedUp ? (
+                  {localUser.negative_followed_up ? (
                     <CheckCheck className="h-3 w-3 mr-1" />
                   ) : (
                     <Clock className="h-3 w-3 mr-1" />
                   )}
-                  {localNegativeFollowedUp ? "Sent" : "Pending"}
+                  {localUser.negative_followed_up ? "Sent" : "Pending"}
                 </Badge>
               </div>
               <div className="flex items-center space-x-2">
                 <Switch
                   id={`negative-followup-${user.id}`}
-                  checked={localNegativeFollowedUp}
+                  checked={localUser.negative_followed_up || false}
                   onCheckedChange={handleNegativeFollowUpToggle}
                   disabled={updateNegativeFollowup.isPending || !requestId}
                   className="data-[state=checked]:bg-amber-600"
                 />
                 <Label htmlFor={`negative-followup-${user.id}`} className="text-xs font-medium">Rejection Notice Sent</Label>
               </div>
-              {localNegativeFollowedUp && currentRequest?.negative_followed_up_at && (
+              {localUser.negative_followed_up && currentRequest?.negative_followed_up_at && (
                 <div className="text-xs text-muted-foreground mt-2">
                   {currentRequest.negativeFollowedUpByAdmin 
                     ? `(by ${currentRequest.negativeFollowedUpByAdmin.first_name} ${currentRequest.negativeFollowedUpByAdmin.last_name}, ${format(new Date(currentRequest.negative_followed_up_at), 'MMM d \'at\' h:mm a')})`
@@ -592,9 +597,11 @@ If the status changes post‑diligence, we'll reach out immediately.`;
           if (!open) {
             // If dialog is cancelled, revert the local state
             if (bulkFollowupType === 'positive') {
-              setLocalFollowedUp(false);
+              const revertedUser = { ...localUser, followed_up: false };
+              setLocalUser(revertedUser);
             } else {
-              setLocalNegativeFollowedUp(false);
+              const revertedUser = { ...localUser, negative_followed_up: false };
+              setLocalUser(revertedUser);
             }
           }
           setShowBulkFollowupDialog(open);
