@@ -65,7 +65,6 @@ const MobileRequestCard = ({
           <a 
             href={`mailto:${request.user?.email}`}
             className="text-primary hover:text-primary/80 transition-colors truncate"
-            onClick={(e) => e.stopPropagation()}
           >
             {request.user?.email || "-"}
           </a>
@@ -105,7 +104,6 @@ const MobileRequestCard = ({
                 <a 
                   href={`tel:${request.user.phone_number}`}
                   className="text-primary hover:text-primary/80 transition-colors"
-                  onClick={(e) => e.stopPropagation()}
                 >
                   {request.user.phone_number}
                 </a>
@@ -120,7 +118,6 @@ const MobileRequestCard = ({
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-primary hover:text-primary/80 transition-colors flex items-center gap-1"
-                  onClick={(e) => e.stopPropagation()}
                 >
                   Profile
                   <ExternalLink className="h-3 w-3" />
