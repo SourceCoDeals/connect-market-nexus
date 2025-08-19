@@ -1,7 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { invalidateConnectionRequests } from '@/lib/query-client-helpers';
 
 interface UpdateFollowupParams {
   requestId: string;
@@ -21,7 +20,7 @@ export const useUpdateNegativeFollowup = () => {
 
   return useMutation({
     mutationFn: async ({ requestId, isFollowedUp, notes }: UpdateNegativeFollowupParams) => {
-      const { data, error } = await supabase.rpc('update_connection_request_negative_followup', {
+      const { data, error } = await (supabase as any).rpc('update_connection_request_negative_followup', {
         request_id: requestId,
         is_followed_up: isFollowedUp,
         admin_notes: notes
@@ -30,15 +29,37 @@ export const useUpdateNegativeFollowup = () => {
       if (error) throw error;
       return data;
     },
-    onSuccess: async () => {
-      // Invalidate all related connection request caches (user/admin variants)
-      await invalidateConnectionRequests(queryClient);
+    onMutate: async ({ requestId, isFollowedUp }) => {
+      await queryClient.cancelQueries({ queryKey: ['connection-requests'] });
+
+      const previousRequests = queryClient.getQueryData(['connection-requests']);
+
+      // Optimistically update connection requests
+      queryClient.setQueryData(['connection-requests'], (old: any) => {
+        if (!old) return old;
+        return old.map((request: any) => 
+          request.id === requestId 
+            ? { 
+                ...request, 
+                negative_followed_up: isFollowedUp,
+                negative_followed_up_at: isFollowedUp ? new Date().toISOString() : null 
+              }
+            : request
+        );
+      });
+
+      return { previousRequests };
+    },
+    onSuccess: () => {
+      // Invalidate to sync across all instances immediately
+      queryClient.invalidateQueries({ queryKey: ['connection-requests'] });
       toast({
         title: "Negative follow-up status updated",
         description: "The negative follow-up status has been successfully updated.",
       });
     },
-    onError: () => {
+    onError: (err, variables, context) => {
+      queryClient.setQueryData(['connection-requests'], context?.previousRequests);
       toast({
         variant: "destructive",
         title: "Update failed",
@@ -63,15 +84,37 @@ export const useUpdateFollowup = () => {
       if (error) throw error;
       return data;
     },
-    onSuccess: async () => {
-      // Invalidate all related connection request caches (user/admin variants)
-      await invalidateConnectionRequests(queryClient);
+    onMutate: async ({ requestId, isFollowedUp }) => {
+      await queryClient.cancelQueries({ queryKey: ['connection-requests'] });
+
+      const previousRequests = queryClient.getQueryData(['connection-requests']);
+
+      // Optimistically update connection requests
+      queryClient.setQueryData(['connection-requests'], (old: any) => {
+        if (!old) return old;
+        return old.map((request: any) => 
+          request.id === requestId 
+            ? { 
+                ...request, 
+                followed_up: isFollowedUp,
+                followed_up_at: isFollowedUp ? new Date().toISOString() : null 
+              }
+            : request
+        );
+      });
+
+      return { previousRequests };
+    },
+    onSuccess: () => {
+      // Invalidate to sync across all instances immediately
+      queryClient.invalidateQueries({ queryKey: ['connection-requests'] });
       toast({
         title: "Follow-up status updated",
         description: "The follow-up status has been successfully updated.",
       });
     },
-    onError: () => {
+    onError: (err, variables, context) => {
+      queryClient.setQueryData(['connection-requests'], context?.previousRequests);
       toast({
         variant: "destructive",
         title: "Update failed",

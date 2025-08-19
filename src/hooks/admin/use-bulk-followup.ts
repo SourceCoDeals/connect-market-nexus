@@ -24,7 +24,7 @@ export const useBulkFollowup = () => {
           if (error) throw error;
           return data;
         } else {
-          const { data, error } = await supabase.rpc('update_connection_request_negative_followup', {
+          const { data, error } = await (supabase as any).rpc('update_connection_request_negative_followup', {
             request_id: requestId,
             is_followed_up: isFollowedUp,
           });

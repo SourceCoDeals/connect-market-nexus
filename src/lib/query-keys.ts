@@ -71,6 +71,5 @@ export const createQueryKey = {
   connectionStatus: (listingId?: string) => QUERY_KEYS.connectionStatus(listingId),
   userConnectionRequests: (userId?: string) => ['user-connection-requests', userId].filter(Boolean),
   userActivity: (userId?: string) => ['user-activity', userId].filter(Boolean),
-  adminConnectionRequests: (page?: number, pageSize?: number, search?: string, status?: string) => 
-    ['admin', 'connection-requests', page, pageSize, search, status].filter(Boolean) as readonly string[],
+  adminConnectionRequests: () => QUERY_KEYS.admin.connectionRequests,
 } as const;

@@ -77,6 +77,6 @@ export function useUserConnectionRequests(userId: string) {
       return enhancedRequests;
     },
     enabled: !!userId,
-    staleTime: 0, // No stale time - always fetch fresh data
+    staleTime: 1000 * 60 * 2,
   });
 }

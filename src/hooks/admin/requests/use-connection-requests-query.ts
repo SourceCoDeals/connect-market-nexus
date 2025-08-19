@@ -87,7 +87,7 @@ export function useConnectionRequestsQuery() {
           const listing = listingData ? createListingFromData(listingData) : null;
           
           // Debug logging for processed listing
-          // Debug logging removed for performance
+          console.log('🔍 Processed listing data:', listing);
           const status = request.status as "pending" | "approved" | "rejected";
           
           const result: AdminConnectionRequest = {
@@ -102,7 +102,7 @@ export function useConnectionRequestsQuery() {
           return result;
         }));
 
-        // Connection requests fetched successfully - performance optimized
+        // Connection requests fetched successfully
         return enhancedRequests;
       } catch (error: any) {
         console.error("❌ Error fetching connection requests:", error);
