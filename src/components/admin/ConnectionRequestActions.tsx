@@ -62,6 +62,9 @@ export function ConnectionRequestActions({
   const [localUser, setLocalUser] = useState(user);
   const [localFollowedUp, setLocalFollowedUp] = useState(followedUp);
   const [localNegativeFollowedUp, setLocalNegativeFollowedUp] = useState(negativeFollowedUp);
+  
+  // Track user interactions to prevent race conditions
+  const [userActionInProgress, setUserActionInProgress] = useState(false);
 
   // Fetch all connection requests for this user
   const { data: userRequests = [], refetch: refetchUserRequests } = useUserConnectionRequests(user.id);
@@ -75,17 +78,41 @@ export function ConnectionRequestActions({
     setLocalUser(user);
   }, [user]);
 
-  // Only sync with server data on component mount to avoid race conditions
+  // Smart synchronization with server data - sync when data changes but not during user interactions
   useEffect(() => {
-    if (userRequests && requestId) {
+    console.log('🔄 useEffect triggered:', { 
+      hasUserRequests: !!userRequests, 
+      hasRequestId: !!requestId, 
+      userActionInProgress,
+      followedUpProp: followedUp,
+      negativeFollowedUpProp: negativeFollowedUp
+    });
+    
+    if (userRequests && requestId && !userActionInProgress) {
       const currentRequest = userRequests.find(req => req.id === requestId);
+      console.log('📊 Current request data:', {
+        currentRequestId: currentRequest?.id,
+        serverFollowedUp: currentRequest?.followed_up,
+        serverNegativeFollowedUp: currentRequest?.negative_followed_up,
+        localFollowedUp,
+        localNegativeFollowedUp
+      });
+      
       if (currentRequest) {
-        // Only sync if local state hasn't been modified (on mount)
-        setLocalFollowedUp(prev => prev === followedUp ? (currentRequest.followed_up || false) : prev);
-        setLocalNegativeFollowedUp(prev => prev === negativeFollowedUp ? (currentRequest.negative_followed_up || false) : prev);
+        // Only sync if not in the middle of a user action
+        const serverFollowedUp = currentRequest.followed_up || false;
+        const serverNegativeFollowedUp = currentRequest.negative_followed_up || false;
+        
+        console.log('🎯 Setting local state from server:', {
+          serverFollowedUp,
+          serverNegativeFollowedUp
+        });
+        
+        setLocalFollowedUp(serverFollowedUp);
+        setLocalNegativeFollowedUp(serverNegativeFollowedUp);
       }
     }
-  }, []); // Empty dependency array - only run on mount
+  }, [userRequests, requestId, followedUp, negativeFollowedUp, userActionInProgress]);
   
   const updateNDA = useUpdateNDA();
   const updateNDAEmailSent = useUpdateNDAEmailSent();
@@ -259,14 +286,26 @@ If the status changes post‑diligence, we'll reach out immediately.`;
   };
 
   const handleFollowUpToggle = (checked: boolean) => {
+    console.log('👤 User clicked follow-up toggle:', { 
+      checked, 
+      hasMultipleRequests, 
+      localFollowedUp, 
+      serverFollowedUp: currentRequest?.followed_up 
+    });
+    
+    // Set user action flag to prevent useEffect interference
+    setUserActionInProgress(true);
+    
     // If turning ON and multiple requests exist and current request isn't already followed up (check both local and server state)
     if (checked && hasMultipleRequests && !localFollowedUp && !currentRequest?.followed_up) {
+      console.log('🔄 Showing bulk dialog for positive follow-up');
       setBulkFollowupType('positive');
       setShowBulkFollowupDialog(true);
       return;
     }
 
     // Single request or unchecking - handle immediately
+    console.log('✅ Updating single request immediately');
     setLocalFollowedUp(checked);
     onLocalStateUpdate?.(localUser, checked, localNegativeFollowedUp);
     
@@ -274,18 +313,38 @@ If the status changes post‑diligence, we'll reach out immediately.`;
       requestId,
       isFollowedUp: checked,
       notes: checked ? `Follow-up initiated by admin on ${new Date().toLocaleDateString()}` : undefined
+    }, {
+      onSettled: () => {
+        // Clear user action flag after mutation completes
+        setTimeout(() => {
+          console.log('🔓 Clearing user action flag (positive follow-up)');
+          setUserActionInProgress(false);
+        }, 1000);
+      }
     });
   };
 
   const handleNegativeFollowUpToggle = (checked: boolean) => {
+    console.log('👤 User clicked negative follow-up toggle:', { 
+      checked, 
+      hasMultipleRequests, 
+      localNegativeFollowedUp, 
+      serverNegativeFollowedUp: currentRequest?.negative_followed_up 
+    });
+    
+    // Set user action flag to prevent useEffect interference
+    setUserActionInProgress(true);
+    
     // If turning ON and multiple requests exist and current request isn't already negative followed up (check both local and server state)
     if (checked && hasMultipleRequests && !localNegativeFollowedUp && !currentRequest?.negative_followed_up) {
+      console.log('🔄 Showing bulk dialog for negative follow-up');
       setBulkFollowupType('negative');
       setShowBulkFollowupDialog(true);
       return;
     }
 
     // Single request or unchecking - handle immediately
+    console.log('✅ Updating single negative request immediately');
     setLocalNegativeFollowedUp(checked);
     onLocalStateUpdate?.(localUser, localFollowedUp, checked);
     
@@ -293,6 +352,14 @@ If the status changes post‑diligence, we'll reach out immediately.`;
       requestId,
       isFollowedUp: checked,
       notes: checked ? `Negative follow-up initiated by admin on ${new Date().toLocaleDateString()}` : undefined
+    }, {
+      onSettled: () => {
+        // Clear user action flag after mutation completes
+        setTimeout(() => {
+          console.log('🔓 Clearing user action flag (negative follow-up)');
+          setUserActionInProgress(false);
+        }, 1000);
+      }
     });
   };
 
@@ -301,12 +368,15 @@ If the status changes post‑diligence, we'll reach out immediately.`;
       .filter(req => !excludedRequestIds.includes(req.id))
       .map(req => req.id);
 
+    console.log('🚀 Bulk follow-up confirmed:', { requestIdsToUpdate, bulkFollowupType });
+
     bulkFollowup.mutate({
       requestIds: requestIdsToUpdate,
       isFollowedUp: true,
       followupType: bulkFollowupType
     }, {
       onSuccess: () => {
+        console.log('✅ Bulk follow-up successful');
         // Update local state based on current request
         if (requestIdsToUpdate.includes(requestId || '')) {
           if (bulkFollowupType === 'positive') {
@@ -318,6 +388,19 @@ If the status changes post‑diligence, we'll reach out immediately.`;
           }
         }
         setShowBulkFollowupDialog(false);
+        
+        // Clear user action flag after bulk operation completes
+        setTimeout(() => {
+          console.log('🔓 Clearing user action flag (bulk follow-up)');
+          setUserActionInProgress(false);
+        }, 1000);
+      },
+      onError: () => {
+        // Clear user action flag on error too
+        setTimeout(() => {
+          console.log('🔓 Clearing user action flag (bulk follow-up error)');
+          setUserActionInProgress(false);
+        }, 500);
       }
     });
   };
@@ -587,7 +670,14 @@ If the status changes post‑diligence, we'll reach out immediately.`;
 
       <BulkFollowupConfirmation
         open={showBulkFollowupDialog}
-        onOpenChange={setShowBulkFollowupDialog}
+        onOpenChange={(open) => {
+          setShowBulkFollowupDialog(open);
+          // If dialog is closed without confirming, clear user action flag
+          if (!open) {
+            console.log('🔓 Clearing user action flag (bulk dialog dismissed)');
+            setUserActionInProgress(false);
+          }
+        }}
         requests={userRequests}
         followupType={bulkFollowupType}
         onConfirm={handleBulkFollowupConfirm}
