@@ -340,20 +340,18 @@ const ReactiveRequestCard = ({
             </div>
             
             {/* Clickable Arrow Area */}
-            <Collapsible 
-              open={expandedRequestId === request.id}
-              onOpenChange={() => onToggleExpand(request.id)}
+            <div 
+              className="flex items-center gap-3 cursor-pointer hover:bg-accent/20 p-2 rounded transition-colors"
+              onClick={() => onToggleExpand(request.id)}
             >
-              <CollapsibleTrigger asChild>
-                <div className="flex items-center gap-3 cursor-pointer hover:bg-accent/20 p-2 rounded transition-colors">
-                  <div className="text-xs text-muted-foreground flex items-center gap-1">
-                    <Calendar className="h-3 w-3" />
-                    {new Date(request.created_at).toLocaleDateString()}
-                  </div>
-                  <ChevronDown className="h-5 w-5 flex-shrink-0 text-muted-foreground group-hover:text-foreground transition-all duration-200 data-[state=open]:rotate-180" />
-                </div>
-              </CollapsibleTrigger>
-            </Collapsible>
+              <div className="text-xs text-muted-foreground flex items-center gap-1">
+                <Calendar className="h-3 w-3" />
+                {new Date(request.created_at).toLocaleDateString()}
+              </div>
+              <ChevronDown className={`h-5 w-5 flex-shrink-0 text-muted-foreground group-hover:text-foreground transition-all duration-200 ${
+                expandedRequestId === request.id ? 'rotate-180' : ''
+              }`} />
+            </div>
           </div>
           
           {/* Status Indicators Row - Now reactive to local state */}
