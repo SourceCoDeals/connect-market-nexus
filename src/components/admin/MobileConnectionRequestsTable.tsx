@@ -74,7 +74,7 @@ const MobileRequestCard = ({
                request.user.buyer_type.includes('Search') ? 'SF' :
                request.user.buyer_type.includes('Strategic') ? 'Corp' :
                request.user.buyer_type.includes('Individual') ? 'Individual' :
-               request.user.buyer_type.split(' ').map(word => word[0]).join('').toUpperCase()}
+               request.user.buyer_type}
             </span>
           )}
         </div>

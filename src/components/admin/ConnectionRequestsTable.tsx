@@ -329,7 +329,7 @@ const ReactiveRequestCard = ({
                            localUser.buyer_type.includes('Search') ? 'SF' :
                            localUser.buyer_type.includes('Strategic') ? 'Corp' :
                            localUser.buyer_type.includes('Individual') ? 'Individual' :
-                           localUser.buyer_type.split(' ').map(word => word[0]).join('').toUpperCase()}
+                           localUser.buyer_type}
                         </span>
                       </>
                     )}
