@@ -75,16 +75,17 @@ export function ConnectionRequestActions({
     setLocalUser(user);
   }, [user]);
 
-  // Sync with server data only when userRequests data actually changes
+  // Only sync with server data on component mount to avoid race conditions
   useEffect(() => {
     if (userRequests && requestId) {
       const currentRequest = userRequests.find(req => req.id === requestId);
       if (currentRequest) {
-        setLocalFollowedUp(currentRequest.followed_up || false);
-        setLocalNegativeFollowedUp(currentRequest.negative_followed_up || false);
+        // Only sync if local state hasn't been modified (on mount)
+        setLocalFollowedUp(prev => prev === followedUp ? (currentRequest.followed_up || false) : prev);
+        setLocalNegativeFollowedUp(prev => prev === negativeFollowedUp ? (currentRequest.negative_followed_up || false) : prev);
       }
     }
-  }, [userRequests, requestId]);
+  }, []); // Empty dependency array - only run on mount
   
   const updateNDA = useUpdateNDA();
   const updateNDAEmailSent = useUpdateNDAEmailSent();
@@ -258,8 +259,8 @@ If the status changes post‑diligence, we'll reach out immediately.`;
   };
 
   const handleFollowUpToggle = (checked: boolean) => {
-    // If turning ON and multiple requests exist and current request isn't already followed up
-    if (checked && hasMultipleRequests && !currentRequest?.followed_up) {
+    // If turning ON and multiple requests exist and current request isn't already followed up (check both local and server state)
+    if (checked && hasMultipleRequests && !localFollowedUp && !currentRequest?.followed_up) {
       setBulkFollowupType('positive');
       setShowBulkFollowupDialog(true);
       return;
@@ -277,8 +278,8 @@ If the status changes post‑diligence, we'll reach out immediately.`;
   };
 
   const handleNegativeFollowUpToggle = (checked: boolean) => {
-    // If turning ON and multiple requests exist and current request isn't already negative followed up
-    if (checked && hasMultipleRequests && !currentRequest?.negative_followed_up) {
+    // If turning ON and multiple requests exist and current request isn't already negative followed up (check both local and server state)
+    if (checked && hasMultipleRequests && !localNegativeFollowedUp && !currentRequest?.negative_followed_up) {
       setBulkFollowupType('negative');
       setShowBulkFollowupDialog(true);
       return;
