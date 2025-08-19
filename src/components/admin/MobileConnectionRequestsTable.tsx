@@ -8,6 +8,7 @@ import { AdminConnectionRequest } from '@/types/admin';
 import { MessageSquare, User, Building, MapPin, DollarSign, Clipboard } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { InternalCompanyInfoDisplay } from './InternalCompanyInfoDisplay';
+import { ClickableCompanyName } from './ClickableCompanyName';
 
 interface MobileConnectionRequestsTableProps {
   requests: AdminConnectionRequest[];
@@ -67,7 +68,12 @@ const MobileRequestCard = ({
           <div className="flex items-center gap-2 text-sm">
             <Building className="h-4 w-4 text-muted-foreground" />
             <span className="font-medium">Company:</span>
-            <span className="text-muted-foreground truncate">{request.user.company}</span>
+            <ClickableCompanyName 
+              companyName={request.user.company}
+              website={request.user.website}
+              linkedinProfile={request.user.linkedin_profile}
+              className="text-muted-foreground truncate"
+            />
           </div>
         )}
         

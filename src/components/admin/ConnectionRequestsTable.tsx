@@ -15,6 +15,7 @@ import { WorkflowProgressIndicator } from "./WorkflowProgressIndicator";
 import { InternalCompanyInfoDisplay } from "./InternalCompanyInfoDisplay";
 import { BuyerDealsOverview } from "./BuyerDealsOverview";
 import { useUserConnectionRequests } from "@/hooks/admin/use-user-connection-requests";
+import { ClickableCompanyName } from "./ClickableCompanyName";
 
 interface ConnectionRequestsTableProps {
   requests: AdminConnectionRequest[];
@@ -122,7 +123,16 @@ const RequestDetails = ({
                 </div>
                 <div>
                   <span className="font-medium text-muted-foreground">Company:</span>
-                  <p>{localUser?.company || 'Not provided'}</p>
+                  {localUser?.company ? (
+                    <ClickableCompanyName 
+                      companyName={localUser.company}
+                      website={localUser.website}
+                      linkedinProfile={localUser.linkedin_profile}
+                      className="font-medium"
+                    />
+                  ) : (
+                    <p>Not provided</p>
+                  )}
                 </div>
               </div>
             </div>
