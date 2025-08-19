@@ -9,7 +9,6 @@ import { MessageSquare, User, Building, MapPin, DollarSign, Clipboard, ExternalL
 import { Link } from 'react-router-dom';
 import { InternalCompanyInfoDisplay } from './InternalCompanyInfoDisplay';
 import { ClickableCompanyName } from './ClickableCompanyName';
-import { getFinancialMetricsForBuyerType, formatFinancialMetricValue } from '@/lib/buyer-financial-metrics';
 
 interface MobileConnectionRequestsTableProps {
   requests: AdminConnectionRequest[];
@@ -88,7 +87,6 @@ const MobileRequestCard = ({
               companyName={request.user.company}
               website={request.user.website}
               linkedinProfile={request.user.linkedin_profile}
-              email={request.user.email}
               className="text-primary hover:text-primary/80 truncate"
             />
           </div>
@@ -124,22 +122,6 @@ const MobileRequestCard = ({
                 </a>
               </div>
             )}
-          </div>
-        )}
-
-        {/* Financial Metrics */}
-        {request.user && getFinancialMetricsForBuyerType(request.user).length > 0 && (
-          <div className="border-t pt-2 space-y-1">
-            <div className="text-xs font-medium text-muted-foreground mb-1">Financial Profile:</div>
-            <div className="flex flex-wrap gap-2 text-xs">
-              {getFinancialMetricsForBuyerType(request.user).map((metric) => (
-                <div key={metric.label} className="flex items-center gap-1 bg-accent/30 px-2 py-1 rounded">
-                  <span>{metric.icon}</span>
-                  <span className="font-medium">{metric.label}:</span>
-                  <span className="font-semibold text-primary">{formatFinancialMetricValue(metric.value)}</span>
-                </div>
-              ))}
-            </div>
           </div>
         )}
         
