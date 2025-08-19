@@ -313,7 +313,26 @@ const ReactiveRequestCard = ({
                     )}
                     <span className="text-border">•</span>
                     <Mail className="h-4 w-4 flex-shrink-0" />
-                    <span className="truncate">{localUser?.email}</span>
+                    <a 
+                      href={`mailto:${localUser?.email}`}
+                      className="text-primary hover:text-primary/80 transition-colors truncate"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {localUser?.email}
+                    </a>
+                    {localUser?.buyer_type && (
+                      <>
+                        <span className="text-border">•</span>
+                        <span className="px-1.5 py-0.5 text-xs bg-muted rounded font-medium">
+                          {localUser.buyer_type.includes('Private') ? 'PE' :
+                           localUser.buyer_type.includes('Family') ? 'FO' :
+                           localUser.buyer_type.includes('Search') ? 'SF' :
+                           localUser.buyer_type.includes('Strategic') ? 'SB' :
+                           localUser.buyer_type.includes('Individual') ? 'II' :
+                           localUser.buyer_type.split(' ').map(word => word[0]).join('').toUpperCase()}
+                        </span>
+                      </>
+                    )}
                   </div>
 
                   {/* Phone and LinkedIn in preview */}

@@ -61,7 +61,22 @@ const MobileRequestCard = ({
         <div className="flex items-center gap-2 text-sm">
           <User className="h-4 w-4 text-muted-foreground" />
           <span className="font-medium">Contact:</span>
-          <span className="text-muted-foreground truncate">{request.user?.email || "-"}</span>
+          <a 
+            href={`mailto:${request.user?.email}`}
+            className="text-primary hover:text-primary/80 transition-colors truncate"
+          >
+            {request.user?.email || "-"}
+          </a>
+          {request.user?.buyer_type && (
+            <span className="ml-1 px-1.5 py-0.5 text-xs bg-muted rounded font-medium">
+              {request.user.buyer_type.includes('Private') ? 'PE' :
+               request.user.buyer_type.includes('Family') ? 'FO' :
+               request.user.buyer_type.includes('Search') ? 'SF' :
+               request.user.buyer_type.includes('Strategic') ? 'SB' :
+               request.user.buyer_type.includes('Individual') ? 'II' :
+               request.user.buyer_type.split(' ').map(word => word[0]).join('').toUpperCase()}
+            </span>
+          )}
         </div>
         
         {request.user?.company && (
