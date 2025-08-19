@@ -296,39 +296,72 @@ const ReactiveRequestCard = ({
                   </div>
                 )}
                 
-                {/* Clickable Contact Information Row */}
-                <div className="flex items-center gap-2 text-sm flex-wrap">
-                  {/* Company Name - Clickable */}
+                {/* DEBUG: Isolated Clickable Contact Information Row */}
+                <div 
+                  className="flex items-center gap-2 text-sm flex-wrap bg-purple-100 p-2 rounded border-2 border-purple-300" 
+                  style={{ pointerEvents: 'auto' }}
+                  onClick={(e) => {
+                    console.log('🟣 CONTAINER: Contact div clicked');
+                    e.stopPropagation();
+                  }}
+                >
+                  {/* Company Name - Completely Isolated */}
                   {localUser?.company && (
-                    <>
+                    <div 
+                      className="flex items-center gap-1 bg-yellow-100 p-1 rounded border-2 border-yellow-300"
+                      onClick={(e) => {
+                        console.log('🟡 WRAPPER: Company wrapper clicked');
+                        e.stopPropagation();
+                      }}
+                    >
                       <Building2 className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
                       <ClickableCompanyName 
                         companyName={localUser.company}
                         website={localUser.website}
                         linkedinProfile={localUser.linkedin_profile}
-                        className="font-medium"
+                        className="font-medium bg-blue-100 p-1 rounded border-2 border-blue-300"
                       />
                       <span className="text-border">•</span>
-                    </>
+                    </div>
                   )}
                   
-                  {/* Email - Clickable */}
-                  <ClickableEmail email={localUser?.email || ''} />
+                  {/* Email - Completely Isolated */}
+                  <div 
+                    className="bg-red-100 p-1 rounded border-2 border-red-300"
+                    onClick={(e) => {
+                      console.log('🔴 WRAPPER: Email wrapper clicked');
+                      e.stopPropagation();
+                    }}
+                  >
+                    <ClickableEmail email={localUser?.email || ''} />
+                  </div>
                   
-                  {/* Phone - Clickable if available */}
+                  {/* Phone - Completely Isolated */}
                   {localUser?.phone_number && (
-                    <>
+                    <div 
+                      className="flex items-center gap-1 bg-orange-100 p-1 rounded border-2 border-orange-300"
+                      onClick={(e) => {
+                        console.log('🟠 WRAPPER: Phone wrapper clicked');
+                        e.stopPropagation();
+                      }}
+                    >
                       <span className="text-border">•</span>
                       <ClickablePhone phone={localUser.phone_number} />
-                    </>
+                    </div>
                   )}
                   
-                  {/* LinkedIn - Clickable if available */}
+                  {/* LinkedIn - Completely Isolated */}
                   {localUser?.linkedin_profile && (
-                    <>
+                    <div 
+                      className="flex items-center gap-1 bg-cyan-100 p-1 rounded border-2 border-cyan-300"
+                      onClick={(e) => {
+                        console.log('🔵 WRAPPER: LinkedIn wrapper clicked');
+                        e.stopPropagation();
+                      }}
+                    >
                       <span className="text-border">•</span>
                       <ClickableLinkedIn linkedinUrl={localUser.linkedin_profile} />
-                    </>
+                    </div>
                   )}
                 </div>
                 
