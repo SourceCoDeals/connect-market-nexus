@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatDistanceToNow } from 'date-fns';
 import { AdminConnectionRequest } from '@/types/admin';
-import { MessageSquare, User, Building, MapPin, DollarSign, Clipboard, ExternalLink } from 'lucide-react';
+import { MessageSquare, User, Building, MapPin, DollarSign, Clipboard } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { InternalCompanyInfoDisplay } from './InternalCompanyInfoDisplay';
 import { ClickableCompanyName } from './ClickableCompanyName';
@@ -61,22 +61,7 @@ const MobileRequestCard = ({
         <div className="flex items-center gap-2 text-sm">
           <User className="h-4 w-4 text-muted-foreground" />
           <span className="font-medium">Contact:</span>
-          <a 
-            href={`mailto:${request.user?.email}`}
-            className="text-primary hover:text-primary/80 transition-colors truncate"
-          >
-            {request.user?.email || "-"}
-          </a>
-          {request.user?.buyer_type && (
-            <span className="ml-1 px-1.5 py-0.5 text-xs bg-muted rounded font-medium">
-              {request.user.buyer_type.includes('Private') ? 'PE' :
-               request.user.buyer_type.includes('Family') ? 'FO' :
-               request.user.buyer_type.includes('Search') ? 'SF' :
-               request.user.buyer_type.includes('Strategic') ? 'Corp' :
-               request.user.buyer_type.includes('Individual') ? 'Individual' :
-               request.user.buyer_type}
-            </span>
-          )}
+          <span className="text-muted-foreground truncate">{request.user?.email || "-"}</span>
         </div>
         
         {request.user?.company && (
@@ -87,41 +72,8 @@ const MobileRequestCard = ({
               companyName={request.user.company}
               website={request.user.website}
               linkedinProfile={request.user.linkedin_profile}
-              className="text-primary hover:text-primary/80 truncate"
+              className="text-muted-foreground truncate"
             />
-          </div>
-        )}
-
-        {/* Phone and LinkedIn in mobile preview */}
-        {(request.user?.phone_number || request.user?.linkedin_profile) && (
-          <div className="space-y-1">
-            {request.user?.phone_number && (
-              <div className="flex items-center gap-2 text-sm">
-                <span className="text-xs">📞</span>
-                <span className="font-medium">Phone:</span>
-                <a 
-                  href={`tel:${request.user.phone_number}`}
-                  className="text-primary hover:text-primary/80 transition-colors"
-                >
-                  {request.user.phone_number}
-                </a>
-              </div>
-            )}
-            {request.user?.linkedin_profile && (
-              <div className="flex items-center gap-2 text-sm">
-                <span className="text-xs">💼</span>
-                <span className="font-medium">LinkedIn:</span>
-                <a 
-                  href={request.user.linkedin_profile.startsWith('http') ? request.user.linkedin_profile : `https://linkedin.com/in/${request.user.linkedin_profile}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-primary hover:text-primary/80 transition-colors flex items-center gap-1"
-                >
-                  Profile
-                  <ExternalLink className="h-3 w-3" />
-                </a>
-              </div>
-            )}
           </div>
         )}
         
