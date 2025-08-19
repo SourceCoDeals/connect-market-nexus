@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatDistanceToNow } from 'date-fns';
 import { AdminConnectionRequest } from '@/types/admin';
-import { MessageSquare, User, Building, MapPin, DollarSign, Clipboard } from 'lucide-react';
+import { MessageSquare, User, Building, MapPin, DollarSign, Clipboard, ExternalLink } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { InternalCompanyInfoDisplay } from './InternalCompanyInfoDisplay';
 import { ClickableCompanyName } from './ClickableCompanyName';
@@ -72,8 +72,41 @@ const MobileRequestCard = ({
               companyName={request.user.company}
               website={request.user.website}
               linkedinProfile={request.user.linkedin_profile}
-              className="text-muted-foreground truncate"
+              className="text-primary hover:text-primary/80 truncate"
             />
+          </div>
+        )}
+
+        {/* Phone and LinkedIn in mobile preview */}
+        {(request.user?.phone_number || request.user?.linkedin_profile) && (
+          <div className="space-y-1">
+            {request.user?.phone_number && (
+              <div className="flex items-center gap-2 text-sm">
+                <span className="text-xs">📞</span>
+                <span className="font-medium">Phone:</span>
+                <a 
+                  href={`tel:${request.user.phone_number}`}
+                  className="text-primary hover:text-primary/80 transition-colors"
+                >
+                  {request.user.phone_number}
+                </a>
+              </div>
+            )}
+            {request.user?.linkedin_profile && (
+              <div className="flex items-center gap-2 text-sm">
+                <span className="text-xs">💼</span>
+                <span className="font-medium">LinkedIn:</span>
+                <a 
+                  href={request.user.linkedin_profile.startsWith('http') ? request.user.linkedin_profile : `https://linkedin.com/in/${request.user.linkedin_profile}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary hover:text-primary/80 transition-colors flex items-center gap-1"
+                >
+                  Profile
+                  <ExternalLink className="h-3 w-3" />
+                </a>
+              </div>
+            )}
           </div>
         )}
         
