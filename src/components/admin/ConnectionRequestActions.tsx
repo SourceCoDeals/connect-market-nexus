@@ -62,6 +62,7 @@ export function ConnectionRequestActions({
   const [localUser, setLocalUser] = useState(user);
   const [localFollowedUp, setLocalFollowedUp] = useState(followedUp);
   const [localNegativeFollowedUp, setLocalNegativeFollowedUp] = useState(negativeFollowedUp);
+  const [userActionInProgress, setUserActionInProgress] = useState(false);
 
   // Fetch all connection requests for this user
   const { data: userRequests = [], refetch: refetchUserRequests } = useUserConnectionRequests(user.id);
@@ -75,16 +76,16 @@ export function ConnectionRequestActions({
     setLocalUser(user);
   }, [user]);
 
-  // Only sync from userRequests when needed to prevent race conditions
+  // Only sync from userRequests when no user action is in progress
   useEffect(() => {
-    if (userRequests && requestId) {
+    if (userRequests && requestId && !userActionInProgress) {
       const currentRequest = userRequests.find(req => req.id === requestId);
       if (currentRequest) {
         setLocalFollowedUp(currentRequest.followed_up || false);
         setLocalNegativeFollowedUp(currentRequest.negative_followed_up || false);
       }
     }
-  }, [userRequests, requestId]);
+  }, [userRequests, requestId, userActionInProgress]);
   
   const updateNDA = useUpdateNDA();
   const updateNDAEmailSent = useUpdateNDAEmailSent();
@@ -258,23 +259,19 @@ If the status changes post‑diligence, we'll reach out immediately.`;
   };
 
   const handleFollowUpToggle = (checked: boolean) => {
-    console.log('🔍 Follow-up toggle clicked:', { 
-      checked, 
-      hasMultipleRequests, 
-      currentRequestFollowedUp: currentRequest?.followed_up,
-      localFollowedUp 
-    });
-
+    // Prevent server sync from overriding this user action
+    setUserActionInProgress(true);
+    
     // If turning ON and multiple requests exist and current request isn't already followed up
     if (checked && hasMultipleRequests && !currentRequest?.followed_up) {
-      console.log('🎯 Showing bulk follow-up dialog');
       setBulkFollowupType('positive');
       setShowBulkFollowupDialog(true);
+      // Reset action flag since we're not making the mutation yet
+      setUserActionInProgress(false);
       return;
     }
 
     // Single request or unchecking - handle immediately
-    console.log('🎯 Handling single follow-up toggle');
     setLocalFollowedUp(checked);
     onLocalStateUpdate?.(localUser, checked, localNegativeFollowedUp);
     
@@ -282,27 +279,28 @@ If the status changes post‑diligence, we'll reach out immediately.`;
       requestId,
       isFollowedUp: checked,
       notes: checked ? `Follow-up initiated by admin on ${new Date().toLocaleDateString()}` : undefined
+    }, {
+      onSettled: () => {
+        // Reset the flag after mutation completes
+        setUserActionInProgress(false);
+      }
     });
   };
 
   const handleNegativeFollowUpToggle = (checked: boolean) => {
-    console.log('🔍 Negative follow-up toggle clicked:', { 
-      checked, 
-      hasMultipleRequests, 
-      currentRequestNegativeFollowedUp: currentRequest?.negative_followed_up,
-      localNegativeFollowedUp 
-    });
-
+    // Prevent server sync from overriding this user action
+    setUserActionInProgress(true);
+    
     // If turning ON and multiple requests exist and current request isn't already negative followed up
     if (checked && hasMultipleRequests && !currentRequest?.negative_followed_up) {
-      console.log('🎯 Showing bulk negative follow-up dialog');
       setBulkFollowupType('negative');
       setShowBulkFollowupDialog(true);
+      // Reset action flag since we're not making the mutation yet
+      setUserActionInProgress(false);
       return;
     }
 
     // Single request or unchecking - handle immediately
-    console.log('🎯 Handling single negative follow-up toggle');
     setLocalNegativeFollowedUp(checked);
     onLocalStateUpdate?.(localUser, localFollowedUp, checked);
     
@@ -310,6 +308,11 @@ If the status changes post‑diligence, we'll reach out immediately.`;
       requestId,
       isFollowedUp: checked,
       notes: checked ? `Negative follow-up initiated by admin on ${new Date().toLocaleDateString()}` : undefined
+    }, {
+      onSettled: () => {
+        // Reset the flag after mutation completes
+        setUserActionInProgress(false);
+      }
     });
   };
 
@@ -335,6 +338,8 @@ If the status changes post‑diligence, we'll reach out immediately.`;
           }
         }
         setShowBulkFollowupDialog(false);
+        // Reset the action flag
+        setUserActionInProgress(false);
       }
     });
   };
