@@ -8,7 +8,6 @@ import { AdminConnectionRequest } from '@/types/admin';
 import { MessageSquare, User, Building, MapPin, DollarSign, Clipboard } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { InternalCompanyInfoDisplay } from './InternalCompanyInfoDisplay';
-import { ClickableCompanyName } from './ClickableCompanyName';
 
 interface MobileConnectionRequestsTableProps {
   requests: AdminConnectionRequest[];
@@ -68,12 +67,7 @@ const MobileRequestCard = ({
           <div className="flex items-center gap-2 text-sm">
             <Building className="h-4 w-4 text-muted-foreground" />
             <span className="font-medium">Company:</span>
-            <ClickableCompanyName 
-              companyName={request.user.company}
-              website={request.user.website}
-              linkedinProfile={request.user.linkedin_profile}
-              className="text-muted-foreground truncate"
-            />
+            <span className="text-muted-foreground truncate">{request.user.company}</span>
           </div>
         )}
         
@@ -103,14 +97,12 @@ const MobileRequestCard = ({
         <div className="font-medium text-sm">Interested in:</div>
         <div className="text-sm">
           {request.listing?.id ? (
-            <a 
-              href={`https://marketplace.sourcecodeals.com/listing/${request.listing.id}`}
-              target="_blank"
-              rel="noopener noreferrer"
+            <Link 
+              to={`/listing/${request.listing.id}`} 
               className="text-primary hover:underline font-medium"
             >
               {request.listing.title || "Unknown Listing"}
-            </a>
+            </Link>
           ) : (
             <span>{request.listing?.title || "Unknown Listing"}</span>
           )}

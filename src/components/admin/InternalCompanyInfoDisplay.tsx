@@ -97,10 +97,7 @@ export function InternalCompanyInfoDisplay({ listing }: InternalCompanyInfoDispl
                   variant="link" 
                   size="sm" 
                   className="p-0 h-auto text-blue-600 hover:text-blue-800 text-sm"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    window.open(listing.internal_salesforce_link, '_blank');
-                  }}
+                  onClick={() => window.open(listing.internal_salesforce_link, '_blank')}
                 >
                   Open in Salesforce
                   <ExternalLink className="h-3 w-3 ml-1" />
@@ -118,10 +115,7 @@ export function InternalCompanyInfoDisplay({ listing }: InternalCompanyInfoDispl
                   variant="link" 
                   size="sm" 
                   className="p-0 h-auto text-blue-600 hover:text-blue-800 text-sm"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    window.open(listing.internal_deal_memo_link, '_blank');
-                  }}
+                  onClick={() => window.open(listing.internal_deal_memo_link, '_blank')}
                 >
                   View Deal Memo
                   <ExternalLink className="h-3 w-3 ml-1" />
