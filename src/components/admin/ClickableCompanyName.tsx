@@ -1,10 +1,11 @@
 import { ExternalLink } from "lucide-react";
-import { processUrl } from "@/lib/url-utils";
+import { processUrl, extractDomainFromEmail } from "@/lib/url-utils";
 
 interface ClickableCompanyNameProps {
   companyName: string;
   website?: string | null;
   linkedinProfile?: string | null;
+  email?: string | null;
   className?: string;
 }
 
@@ -16,10 +17,12 @@ export const ClickableCompanyName = ({
   companyName, 
   website, 
   linkedinProfile, 
+  email,
   className = "" 
 }: ClickableCompanyNameProps) => {
-  // Priority: website first, then LinkedIn, then no link
-  const primaryUrl = website?.trim() || linkedinProfile?.trim();
+  // Priority: website first, then extract from email, then LinkedIn, then no link
+  const extractedDomain = extractDomainFromEmail(email);
+  const primaryUrl = website?.trim() || extractedDomain || linkedinProfile?.trim();
   
   if (!primaryUrl) {
     // No link available, return plain text

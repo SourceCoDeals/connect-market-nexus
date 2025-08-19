@@ -54,3 +54,28 @@ export const getUrlDisplayText = (url: string | null | undefined): string => {
   const processed = processUrl(url);
   return processed;
 };
+
+/**
+ * Extracts domain from email address to use as fallback website
+ * Example: 'john@company.com' -> 'company.com'
+ */
+export const extractDomainFromEmail = (email: string | null | undefined): string => {
+  if (!email || !email.trim()) {
+    return '';
+  }
+
+  const emailMatch = email.match(/@(.+)/);
+  if (!emailMatch || !emailMatch[1]) {
+    return '';
+  }
+
+  const domain = emailMatch[1].trim();
+  
+  // Skip common email providers
+  const commonProviders = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'icloud.com', 'aol.com'];
+  if (commonProviders.includes(domain.toLowerCase())) {
+    return '';
+  }
+
+  return domain;
+};

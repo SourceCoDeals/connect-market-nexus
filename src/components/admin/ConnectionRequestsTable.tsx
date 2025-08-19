@@ -129,6 +129,7 @@ const RequestDetails = ({
                       companyName={localUser.company}
                       website={localUser.website}
                       linkedinProfile={localUser.linkedin_profile}
+                      email={localUser.email}
                       className="font-medium"
                     />
                   ) : (
@@ -303,12 +304,13 @@ const ReactiveRequestCard = ({
                   <div className="flex items-center gap-2 text-sm text-muted-foreground flex-wrap">
                     <Building2 className="h-4 w-4 flex-shrink-0" />
                     {localUser?.company ? (
-                      <ClickableCompanyName 
-                        companyName={localUser.company}
-                        website={localUser.website}
-                        linkedinProfile={localUser.linkedin_profile}
-                        className="truncate text-primary hover:text-primary/80"
-                      />
+                    <ClickableCompanyName 
+                      companyName={localUser.company}
+                      website={localUser.website}
+                      linkedinProfile={localUser.linkedin_profile}
+                      email={localUser.email}
+                      className="truncate text-primary hover:text-primary/80"
+                    />
                     ) : (
                       <span className="truncate">No company</span>
                     )}

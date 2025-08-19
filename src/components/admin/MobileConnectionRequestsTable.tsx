@@ -88,6 +88,7 @@ const MobileRequestCard = ({
               companyName={request.user.company}
               website={request.user.website}
               linkedinProfile={request.user.linkedin_profile}
+              email={request.user.email}
               className="text-primary hover:text-primary/80 truncate"
             />
           </div>
