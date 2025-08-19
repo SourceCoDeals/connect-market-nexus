@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { ChevronDown, User, Building, MessageSquare, Calendar, Search, ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronDown, User, Building, MessageSquare, Calendar, Search } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { AdminConnectionRequest } from "@/types/admin";
 import { ConnectionRequestActions } from "@/components/admin/ConnectionRequestActions";
@@ -320,16 +320,13 @@ export const OptimizedConnectionRequestsTable = ({
   onRefresh,
   stats,
 }: OptimizedConnectionRequestsTableProps) => {
-  const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('all');
   const [expandedRequestId, setExpandedRequestId] = useState<string | null>(null);
-  const [pageSize, setPageSize] = useState(50); // Increased default page size
-  const [showAll, setShowAll] = useState(false);
 
   const { data: result, isLoading, isError } = useOptimizedConnectionRequests({
-    page: showAll ? 1 : page,
-    pageSize: showAll ? 10000 : pageSize, // Large number for "show all"
+    page: 1,
+    pageSize: 10000, // Load all requests at once
     search,
     status: status === 'all' ? '' : status,
   });
@@ -344,24 +341,10 @@ export const OptimizedConnectionRequestsTable = ({
 
   const handleSearchChange = useCallback((value: string) => {
     setSearch(value);
-    setPage(1); // Reset to first page when searching
   }, []);
 
   const handleStatusChange = useCallback((value: string) => {
     setStatus(value);
-    setPage(1); // Reset to first page when filtering
-  }, []);
-
-  const handleShowAllToggle = useCallback(() => {
-    setShowAll(prev => !prev);
-    setPage(1);
-  }, []);
-
-  const handlePageSizeChange = useCallback((newPageSize: string) => {
-    const size = parseInt(newPageSize);
-    setPageSize(size);
-    setPage(1);
-    setShowAll(false);
   }, []);
 
   if (isLoading) {
@@ -434,25 +417,6 @@ export const OptimizedConnectionRequestsTable = ({
             <SelectItem value="rejected">Rejected</SelectItem>
           </SelectContent>
         </Select>
-        <div className="flex gap-2">
-          <Select value={showAll ? "all" : pageSize.toString()} onValueChange={(value) => {
-            if (value === "all") {
-              handleShowAllToggle();
-            } else {
-              handlePageSizeChange(value);
-            }
-          }}>
-            <SelectTrigger className="w-[120px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="20">20 per page</SelectItem>
-              <SelectItem value="50">50 per page</SelectItem>
-              <SelectItem value="100">100 per page</SelectItem>
-              <SelectItem value="all">Show All</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
       </div>
 
       {/* Results Summary */}
@@ -461,33 +425,7 @@ export const OptimizedConnectionRequestsTable = ({
           Showing {requests.length} of {totalCount} connection requests
           {search && ` matching "${search}"`}
           {status !== 'all' && ` with status "${status}"`}
-          {showAll && " (showing all)"}
         </div>
-        {!showAll && totalPages > 1 && (
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setPage(p => Math.max(1, p - 1))}
-              disabled={page === 1}
-            >
-              <ChevronLeft className="h-4 w-4" />
-              Previous
-            </Button>
-            <span className="px-3 py-1 text-xs">
-              Page {page} of {totalPages}
-            </span>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-              disabled={page === totalPages}
-            >
-              Next
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
-        )}
       </div>
 
       {/* Requests List */}
@@ -508,30 +446,6 @@ export const OptimizedConnectionRequestsTable = ({
         </div>
       )}
 
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-center gap-2 pt-4">
-          <Button
-            variant="outline"
-            onClick={() => setPage(p => Math.max(1, p - 1))}
-            disabled={page === 1}
-          >
-            <ChevronLeft className="h-4 w-4 mr-2" />
-            Previous
-          </Button>
-          <span className="px-4 py-2 text-sm text-muted-foreground">
-            Page {page} of {totalPages}
-          </span>
-          <Button
-            variant="outline"
-            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-            disabled={page === totalPages}
-          >
-            Next
-            <ChevronRight className="h-4 w-4 ml-2" />
-          </Button>
-        </div>
-      )}
     </div>
   );
 };
