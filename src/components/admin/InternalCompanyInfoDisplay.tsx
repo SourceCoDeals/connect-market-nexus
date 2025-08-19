@@ -93,16 +93,15 @@ export function InternalCompanyInfoDisplay({ listing }: InternalCompanyInfoDispl
               <LinkIcon className="h-5 w-5 text-slate-600 dark:text-slate-400 flex-shrink-0 mt-0.5" />
               <div className="flex-1">
                 <div className="font-medium text-sm text-slate-700 dark:text-slate-300">Salesforce</div>
-                <a
-                  href={listing.internal_salesforce_link}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-primary hover:text-primary/80 transition-colors cursor-pointer text-sm"
-                  onClick={() => console.log('🔗 Salesforce link clicked:', listing.internal_salesforce_link)}
+                <Button 
+                  variant="link" 
+                  size="sm" 
+                  className="p-0 h-auto text-blue-600 hover:text-blue-800 text-sm"
+                  onClick={() => window.open(listing.internal_salesforce_link, '_blank')}
                 >
                   Open in Salesforce
-                  <ExternalLink className="h-3 w-3" />
-                </a>
+                  <ExternalLink className="h-3 w-3 ml-1" />
+                </Button>
               </div>
             </div>
           )}
@@ -112,16 +111,15 @@ export function InternalCompanyInfoDisplay({ listing }: InternalCompanyInfoDispl
               <FileText className="h-5 w-5 text-slate-600 dark:text-slate-400 flex-shrink-0 mt-0.5" />
               <div className="flex-1">
                 <div className="font-medium text-sm text-slate-700 dark:text-slate-300">Deal Memo</div>
-                <a
-                  href={listing.internal_deal_memo_link}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-primary hover:text-primary/80 transition-colors cursor-pointer text-sm"
-                  onClick={() => console.log('🔗 Deal memo link clicked:', listing.internal_deal_memo_link)}
+                <Button 
+                  variant="link" 
+                  size="sm" 
+                  className="p-0 h-auto text-blue-600 hover:text-blue-800 text-sm"
+                  onClick={() => window.open(listing.internal_deal_memo_link, '_blank')}
                 >
                   View Deal Memo
-                  <ExternalLink className="h-3 w-3" />
-                </a>
+                  <ExternalLink className="h-3 w-3 ml-1" />
+                </Button>
               </div>
             </div>
           )}

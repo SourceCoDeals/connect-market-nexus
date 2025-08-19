@@ -34,7 +34,7 @@ export const ClickableCompanyName = ({
       href={processedUrl}
       target="_blank"
       rel="noopener noreferrer"
-      className={`inline-flex items-center gap-1 text-primary hover:text-primary/80 transition-colors group cursor-pointer ${className}`}
+      className={`inline-flex items-center gap-1 text-primary hover:text-primary/80 transition-colors group ${className}`}
       title={`Visit ${companyName}${isLinkedIn ? ' on LinkedIn' : "'s website"}`}
     >
       <span>{companyName}</span>
