@@ -127,20 +127,25 @@ const MobileRequestCard = ({
         )}
 
         {/* Financial Metrics */}
-        {request.user && getFinancialMetricsForBuyerType(request.user).length > 0 && (
-          <div className="border-t pt-2 space-y-1">
-            <div className="text-xs font-medium text-muted-foreground mb-1">Financial Profile:</div>
-            <div className="flex flex-wrap gap-2 text-xs">
-              {getFinancialMetricsForBuyerType(request.user).map((metric) => (
-                <div key={metric.label} className="flex items-center gap-1 bg-accent/30 px-2 py-1 rounded">
-                  <span>{metric.icon}</span>
-                  <span className="font-medium">{metric.label}:</span>
-                  <span className="font-semibold text-primary">{formatFinancialMetricValue(metric.value)}</span>
-                </div>
-              ))}
+        {(() => {
+          console.log('🔍 Mobile User data for financial metrics:', request.user);
+          const metrics = request.user ? getFinancialMetricsForBuyerType(request.user) : [];
+          console.log('🔍 Mobile Generated metrics:', metrics);
+          return metrics.length > 0 ? (
+            <div className="border-t pt-2 space-y-1">
+              <div className="text-xs font-medium text-muted-foreground mb-1">Financial Profile:</div>
+              <div className="flex flex-wrap gap-2 text-xs">
+                {metrics.map((metric) => (
+                  <div key={metric.label} className="flex items-center gap-1 bg-accent/30 px-2 py-1 rounded">
+                    <span>{metric.icon}</span>
+                    <span className="font-medium">{metric.label}:</span>
+                    <span className="font-semibold text-primary">{formatFinancialMetricValue(metric.value)}</span>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
-        )}
+          ) : null;
+        })()}
         
         <div className="flex items-center gap-3 text-xs">
           <div className="flex items-center gap-1">
