@@ -34,8 +34,13 @@ export const ClickableCompanyName = ({
       href={processedUrl}
       target="_blank"
       rel="noopener noreferrer"
-      className={`inline-flex items-center gap-1 text-primary hover:text-primary/80 transition-colors group ${className}`}
+      className={`inline-flex items-center gap-1 text-primary hover:text-primary/80 transition-colors group cursor-pointer relative z-10 ${className}`}
       title={`Visit ${companyName}${isLinkedIn ? ' on LinkedIn' : "'s website"}`}
+      onClick={(e) => {
+        e.stopPropagation();
+        console.log('🔗 Company link clicked:', processedUrl);
+      }}
+      style={{ pointerEvents: 'auto' }}
     >
       <span>{companyName}</span>
       <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
