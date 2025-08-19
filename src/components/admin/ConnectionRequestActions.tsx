@@ -258,17 +258,18 @@ If the status changes post‑diligence, we'll reach out immediately.`;
   };
 
   const handleFollowUpToggle = (checked: boolean) => {
-    // If turning ON and multiple requests exist and current request isn't already followed up
-    if (checked && hasMultipleRequests && !localFollowedUp && !currentRequest?.followed_up) {
-      setBulkFollowupType('positive');
-      setShowBulkFollowupDialog(true);
-      return;
-    }
-
-    // Single request or unchecking - handle immediately
+    // ALWAYS update local state first (like fee agreement toggles)
     setLocalFollowedUp(checked);
     onLocalStateUpdate?.(localUser, checked, localNegativeFollowedUp);
-
+    
+    // THEN check if we need bulk dialog
+    if (checked && hasMultipleRequests) {
+      setBulkFollowupType('positive');
+      setShowBulkFollowupDialog(true);
+      return; // Don't mutate yet, wait for dialog
+    }
+    
+    // Single request or unchecking - mutate immediately
     updateFollowup.mutate({
       requestId,
       isFollowedUp: checked,
@@ -277,17 +278,18 @@ If the status changes post‑diligence, we'll reach out immediately.`;
   };
 
   const handleNegativeFollowUpToggle = (checked: boolean) => {
-    // If turning ON and multiple requests exist and current request isn't already negative followed up
-    if (checked && hasMultipleRequests && !localNegativeFollowedUp && !currentRequest?.negative_followed_up) {
-      setBulkFollowupType('negative');
-      setShowBulkFollowupDialog(true);
-      return;
-    }
-
-    // Single request or unchecking - handle immediately
+    // ALWAYS update local state first (like fee agreement toggles)
     setLocalNegativeFollowedUp(checked);
     onLocalStateUpdate?.(localUser, localFollowedUp, checked);
-
+    
+    // THEN check if we need bulk dialog
+    if (checked && hasMultipleRequests) {
+      setBulkFollowupType('negative');
+      setShowBulkFollowupDialog(true);
+      return; // Don't mutate yet, wait for dialog
+    }
+    
+    // Single request or unchecking - handle immediately
     updateNegativeFollowup.mutate({
       requestId,
       isFollowedUp: checked,
@@ -587,6 +589,14 @@ If the status changes post‑diligence, we'll reach out immediately.`;
       <BulkFollowupConfirmation
         open={showBulkFollowupDialog}
         onOpenChange={(open) => {
+          if (!open) {
+            // If dialog is cancelled, revert the local state
+            if (bulkFollowupType === 'positive') {
+              setLocalFollowedUp(false);
+            } else {
+              setLocalNegativeFollowedUp(false);
+            }
+          }
           setShowBulkFollowupDialog(open);
         }}
         requests={userRequests}
