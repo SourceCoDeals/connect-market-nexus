@@ -296,11 +296,11 @@ const ReactiveRequestCard = ({
                   </div>
                 )}
                 
-                {/* Contact Information Row */}
-                <div className="flex items-center gap-2 text-sm flex-wrap">
-                  {/* Company Name */}
+                {/* Contact Information Grid - Isolated Click Zones */}
+                <div className="grid grid-cols-1 gap-1 text-sm">
+                  {/* Company Name Row */}
                   {localUser?.company && (
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-2">
                       <Building2 className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
                       <ClickableCompanyName 
                         companyName={localUser.company}
@@ -308,33 +308,26 @@ const ReactiveRequestCard = ({
                         linkedinProfile={localUser.linkedin_profile}
                         className="font-medium"
                       />
-                      <span className="text-border">•</span>
                     </div>
                   )}
                   
-                  {/* Email */}
-                  {localUser?.email && (
-                    <>
-                      <span className="text-border">•</span>
+                  {/* Contact Links Row */}
+                  <div className="flex items-center gap-4 ml-6">
+                    {/* Email */}
+                    {localUser?.email && (
                       <ClickableEmail email={localUser.email} />
-                    </>
-                  )}
-                  
-                  {/* Phone */}
-                  {localUser?.phone_number && (
-                    <>
-                      <span className="text-border">•</span>
+                    )}
+                    
+                    {/* Phone */}
+                    {localUser?.phone_number && (
                       <ClickablePhone phone={localUser.phone_number} />
-                    </>
-                  )}
-                  
-                  {/* LinkedIn */}
-                  {localUser?.linkedin_profile && (
-                    <>
-                      <span className="text-border">•</span>
+                    )}
+                    
+                    {/* LinkedIn */}
+                    {localUser?.linkedin_profile && (
                       <ClickableLinkedIn linkedinUrl={localUser.linkedin_profile} />
-                    </>
-                  )}
+                    )}
+                  </div>
                 </div>
                 
                 <div className="flex items-center gap-2 text-sm text-muted-foreground flex-wrap">
