@@ -371,23 +371,18 @@ const ReactiveRequestCard = ({
                    )}
 
                    {/* Financial Metrics */}
-                   {(() => {
-                     console.log('🔍 User data for financial metrics:', localUser);
-                     const metrics = localUser ? getFinancialMetricsForBuyerType(localUser) : [];
-                     console.log('🔍 Generated metrics:', metrics);
-                     return metrics.length > 0 ? (
-                       <div className="flex items-center gap-2 text-sm text-muted-foreground flex-wrap">
-                         {metrics.map((metric, index) => (
-                           <div key={metric.label} className="flex items-center gap-1">
-                             {index > 0 && <span className="text-border">•</span>}
-                             <span className="text-xs">{metric.icon}</span>
-                             <span className="font-medium text-foreground">{metric.label}:</span>
-                             <span className="font-semibold text-primary">{formatFinancialMetricValue(metric.value)}</span>
-                           </div>
-                         ))}
-                       </div>
-                     ) : null;
-                   })()}
+                   {localUser && getFinancialMetricsForBuyerType(localUser).length > 0 && (
+                     <div className="flex items-center gap-2 text-sm text-muted-foreground flex-wrap">
+                       {getFinancialMetricsForBuyerType(localUser).map((metric, index) => (
+                         <div key={metric.label} className="flex items-center gap-1">
+                           {index > 0 && <span className="text-border">•</span>}
+                           <span className="text-xs">{metric.icon}</span>
+                           <span className="font-medium text-foreground">{metric.label}:</span>
+                           <span className="font-semibold text-primary">{formatFinancialMetricValue(metric.value)}</span>
+                         </div>
+                       ))}
+                     </div>
+                   )}
                    
                    <div className="flex items-center gap-2 text-sm text-muted-foreground flex-wrap">
                      <Target className="h-4 w-4 flex-shrink-0 text-primary/60" />

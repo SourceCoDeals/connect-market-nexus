@@ -6,70 +6,80 @@ export interface FinancialMetric {
   icon?: string;
 }
 
+// Helper function to check if a field has meaningful data
+const hasValue = (value: any): boolean => {
+  return value && 
+         value !== '' && 
+         value !== 'NA' && 
+         value !== 'null' && 
+         value !== 'undefined' &&
+         String(value).trim() !== '';
+};
+
 // Get the most relevant financial metrics for each buyer type
 export const getFinancialMetricsForBuyerType = (user: any): FinancialMetric[] => {
   if (!user?.buyer_type) return [];
 
   const metrics: FinancialMetric[] = [];
   
-  if (user.buyer_type.includes('Private')) {
+  if (user.buyer_type === 'privateEquity' || user.buyer_type.includes('privateEquity')) {
     // Private Equity - AUM, Fund Size, Check Size
-    if (user.aum) {
+    if (hasValue(user.aum)) {
       metrics.push({ label: 'AUM', value: user.aum, icon: '💰' });
     }
-    if (user.fund_size) {
+    if (hasValue(user.fund_size)) {
       metrics.push({ label: 'Fund', value: user.fund_size, icon: '🏦' });
     }
-    if (user.investment_size) {
+    if (hasValue(user.investment_size)) {
       metrics.push({ label: 'Check', value: user.investment_size, icon: '💳' });
     }
-  } else if (user.buyer_type.includes('Family')) {
+  } else if (user.buyer_type === 'familyOffice' || user.buyer_type.includes('familyOffice')) {
     // Family Office - AUM, Check Size, Fund Size
-    if (user.aum) {
+    if (hasValue(user.aum)) {
       metrics.push({ label: 'AUM', value: user.aum, icon: '💰' });
     }
-    if (user.investment_size) {
+    if (hasValue(user.investment_size)) {
       metrics.push({ label: 'Check', value: user.investment_size, icon: '💳' });
     }
-    if (user.fund_size) {
+    if (hasValue(user.fund_size)) {
       metrics.push({ label: 'Fund', value: user.fund_size, icon: '🏦' });
     }
-  } else if (user.buyer_type.includes('Strategic')) {
+  } else if (user.buyer_type === 'strategic' || user.buyer_type.includes('strategic')) {
     // Corporate - Company Revenue, Target Company Size
-    if (user.estimated_revenue) {
+    if (hasValue(user.estimated_revenue)) {
       metrics.push({ label: 'Revenue', value: user.estimated_revenue, icon: '📈' });
     }
-    if (user.target_company_size) {
+    if (hasValue(user.target_company_size)) {
       metrics.push({ label: 'Target Size', value: user.target_company_size, icon: '🎯' });
     }
-  } else if (user.buyer_type.includes('Search')) {
+  } else if (user.buyer_type === 'searchFund' || user.buyer_type.includes('searchFund')) {
     // Search Fund - Funding Status, Fund Size, Target Size
-    if (user.is_funded === 'yes' && user.funded_by) {
+    if (user.is_funded === 'yes' && hasValue(user.funded_by)) {
       metrics.push({ label: 'Funded', value: user.funded_by, icon: '✅' });
     } else if (user.is_funded === 'no') {
       metrics.push({ label: 'Status', value: 'Unfunded', icon: '🔍' });
     }
-    if (user.fund_size) {
+    if (hasValue(user.fund_size)) {
       metrics.push({ label: 'Fund', value: user.fund_size, icon: '🏦' });
     }
-    if (user.target_company_size) {
+    if (hasValue(user.target_company_size)) {
       metrics.push({ label: 'Target Size', value: user.target_company_size, icon: '🎯' });
     }
-  } else if (user.buyer_type.includes('Individual')) {
+  } else if (user.buyer_type === 'individual' || user.buyer_type.includes('individual')) {
     // Individual - Funding Source, Loan Needs, Revenue
-    if (user.funding_source) {
+    if (hasValue(user.funding_source)) {
       metrics.push({ label: 'Funding', value: user.funding_source, icon: '💳' });
     }
-    if (user.needs_loan) {
+    if (hasValue(user.needs_loan)) {
       metrics.push({ label: 'SBA/Loan', value: user.needs_loan, icon: '🏛️' });
     }
-    if (user.estimated_revenue) {
+    if (hasValue(user.estimated_revenue)) {
       metrics.push({ label: 'Revenue', value: user.estimated_revenue, icon: '📈' });
     }
   }
 
   // Add revenue range if available and not PE (since they don't have revenue ranges)
-  if (!user.buyer_type.includes('Private') && (user.revenue_range_min || user.revenue_range_max)) {
+  if (!user.buyer_type.includes('privateEquity') && (user.revenue_range_min || user.revenue_range_max)) {
     const min = user.revenue_range_min ? `$${Number(user.revenue_range_min).toLocaleString()}` : '';
     const max = user.revenue_range_max ? `$${Number(user.revenue_range_max).toLocaleString()}` : '';
     
