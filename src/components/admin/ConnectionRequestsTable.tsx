@@ -123,16 +123,18 @@ const RequestDetails = ({
                 </div>
                 <div>
                   <span className="font-medium text-muted-foreground">Company:</span>
-                  {localUser?.company ? (
-                    <ClickableCompanyName 
-                      companyName={localUser.company}
-                      website={localUser.website}
-                      linkedinProfile={localUser.linkedin_profile}
-                      className="font-medium"
-                    />
-                  ) : (
-                    <p>Not provided</p>
-                  )}
+                   {localUser?.company ? (
+                     <div onClick={(e) => e.stopPropagation()}>
+                       <ClickableCompanyName 
+                         companyName={localUser.company}
+                         website={localUser.website}
+                         linkedinProfile={localUser.linkedin_profile}
+                         className="font-medium"
+                       />
+                     </div>
+                   ) : (
+                     <p>Not provided</p>
+                   )}
                 </div>
               </div>
             </div>
@@ -166,15 +168,16 @@ const RequestDetails = ({
             <div className="grid grid-cols-1 gap-3 text-sm">
               <div>
                 <span className="font-medium text-muted-foreground">Title:</span>
-                <a
-                  href={`https://marketplace.sourcecodeals.com/listing/${request.listing?.id}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="font-medium text-primary hover:text-primary/80 transition-colors flex items-center gap-2 group"
-                >
-                  {request.listing?.title}
-                  <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
-                </a>
+                 <a
+                   href={`https://marketplace.sourcecodeals.com/listing/${request.listing?.id}`}
+                   target="_blank"
+                   rel="noopener noreferrer"
+                   className="font-medium text-primary hover:text-primary/80 transition-colors flex items-center gap-2 group"
+                   onClick={(e) => e.stopPropagation()}
+                 >
+                   {request.listing?.title}
+                   <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                 </a>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -275,43 +278,59 @@ const ReactiveRequestCard = ({
                     </AvatarFallback>
                   </Avatar>
                   
-                  <div className="space-y-2 flex-1 min-w-0">
-                    <div className="flex items-center gap-3 flex-wrap">
-                      <h3 className="font-semibold text-base text-foreground">
-                        {localUser?.first_name} {localUser?.last_name}
-                      </h3>
-                      <StatusBadge status={request.status} />
-                    </div>
-                    
-                    {/* Real Company Name (from internal fields) - Priority display */}
-                    {(request.listing as any)?.internal_company_name && (
-                      <div className="flex items-center gap-2 text-sm font-medium text-foreground flex-wrap">
-                        <Building className="h-4 w-4 flex-shrink-0 text-slate-600" />
-                        <span className="truncate">{(request.listing as any).internal_company_name}</span>
-                        {(request.listing as any)?.deal_identifier && (
-                          <>
-                            <span className="text-border">•</span>
-                            <Clipboard className="h-3 w-3 flex-shrink-0 text-slate-500" />
-                            <code className="text-xs font-mono bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
-                              {(request.listing as any).deal_identifier}
-                            </code>
-                          </>
-                        )}
-                      </div>
-                    )}
-                    
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground flex-wrap">
-                      <Building2 className="h-4 w-4 flex-shrink-0" />
-                      <span className="truncate">{localUser?.company}</span>
-                      <span className="text-border">•</span>
-                      <Mail className="h-4 w-4 flex-shrink-0" />
-                      <span className="truncate">{localUser?.email}</span>
-                    </div>
-                    
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground flex-wrap">
-                      <Target className="h-4 w-4 flex-shrink-0 text-primary/60" />
-                      <span className="truncate font-medium">{request.listing?.title}</span>
-                    </div>
+                   <div className="space-y-2 flex-1 min-w-0">
+                     <div className="flex items-center gap-3 flex-wrap">
+                       <h3 className="font-semibold text-base text-foreground">
+                         {localUser?.first_name} {localUser?.last_name}
+                       </h3>
+                       <StatusBadge status={request.status} />
+                     </div>
+                     
+                     {/* Real Company Name (from internal fields) - Priority display */}
+                     {(request.listing as any)?.internal_company_name && (
+                       <div className="flex items-center gap-2 text-sm font-medium text-foreground flex-wrap">
+                         <Building className="h-4 w-4 flex-shrink-0 text-slate-600" />
+                         <span className="truncate">{(request.listing as any).internal_company_name}</span>
+                         {(request.listing as any)?.deal_identifier && (
+                           <>
+                             <span className="text-border">•</span>
+                             <Clipboard className="h-3 w-3 flex-shrink-0 text-slate-500" />
+                             <code className="text-xs font-mono bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
+                               {(request.listing as any).deal_identifier}
+                             </code>
+                           </>
+                         )}
+                       </div>
+                     )}
+                     
+                     <div className="flex items-center gap-2 text-sm text-muted-foreground flex-wrap">
+                       <Building2 className="h-4 w-4 flex-shrink-0" />
+                       <span className="truncate">{localUser?.company}</span>
+                       <span className="text-border">•</span>
+                       <Mail className="h-4 w-4 flex-shrink-0" />
+                       <span 
+                         className="truncate cursor-pointer hover:text-foreground transition-colors"
+                         onClick={(e) => {
+                           e.stopPropagation();
+                           window.location.href = `mailto:${localUser?.email}`;
+                         }}
+                       >
+                         {localUser?.email}
+                       </span>
+                     </div>
+                     
+                     <div className="flex items-center gap-2 text-sm text-muted-foreground flex-wrap">
+                       <Target className="h-4 w-4 flex-shrink-0 text-primary/60" />
+                       <span 
+                         className="truncate font-medium cursor-pointer hover:text-foreground transition-colors"
+                         onClick={(e) => {
+                           e.stopPropagation();
+                           window.open(`/listing/${request.listing?.id}`, '_blank');
+                         }}
+                       >
+                         {request.listing?.title}
+                       </span>
+                     </div>
                   </div>
                 </div>
                 
