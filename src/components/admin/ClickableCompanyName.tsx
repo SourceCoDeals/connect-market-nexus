@@ -36,20 +36,6 @@ export const ClickableCompanyName = ({
       rel="noopener noreferrer"
       className={`inline-flex items-center gap-1 text-primary hover:text-primary/80 transition-colors group cursor-pointer ${className}`}
       title={`Visit ${companyName}${isLinkedIn ? ' on LinkedIn' : "'s website"}`}
-      onClick={(e) => {
-        console.log('🔗 Company link CLICKED:', processedUrl);
-        console.log('🔗 Event object:', e);
-        e.stopPropagation();
-        // Fallback navigation
-        if (!e.defaultPrevented) {
-          console.log('🔗 Using fallback navigation');
-          window.open(processedUrl, '_blank', 'noopener,noreferrer');
-        }
-      }}
-      onMouseDown={(e) => {
-        console.log('🔗 Company link MOUSE DOWN:', processedUrl);
-        e.stopPropagation();
-      }}
     >
       <span>{companyName}</span>
       <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
