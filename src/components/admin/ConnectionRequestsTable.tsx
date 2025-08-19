@@ -16,6 +16,7 @@ import { InternalCompanyInfoDisplay } from "./InternalCompanyInfoDisplay";
 import { BuyerDealsOverview } from "./BuyerDealsOverview";
 import { useUserConnectionRequests } from "@/hooks/admin/use-user-connection-requests";
 import { ClickableCompanyName } from "./ClickableCompanyName";
+import { ClickableEmail, ClickablePhone, ClickableLinkedIn } from "./ClickableContact";
 
 interface ConnectionRequestsTableProps {
   requests: AdminConnectionRequest[];
@@ -263,87 +264,116 @@ const ReactiveRequestCard = ({
         open={expandedRequestId === request.id}
         onOpenChange={() => onToggleExpand(request.id)}
       >
-        <CollapsibleTrigger asChild>
-          <CardHeader className="cursor-pointer p-6 hover:bg-accent/5 transition-colors">
-            <div className="space-y-4">
-              {/* Header Row */}
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-4 flex-1">
-                  <Avatar className="h-12 w-12 border-2 border-border/20">
-                    <AvatarFallback className="text-sm font-semibold bg-primary/10 text-primary">
-                      {localUser?.first_name?.[0]}{localUser?.last_name?.[0]}
-                    </AvatarFallback>
-                  </Avatar>
+        <CardHeader className="p-6">
+          <div className="space-y-4">
+            {/* Header Row */}
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-4 flex-1">
+                <Avatar className="h-12 w-12 border-2 border-border/20">
+                  <AvatarFallback className="text-sm font-semibold bg-primary/10 text-primary">
+                    {localUser?.first_name?.[0]}{localUser?.last_name?.[0]}
+                  </AvatarFallback>
+                </Avatar>
+                
+                <div className="space-y-2 flex-1 min-w-0">
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <h3 className="font-semibold text-base text-foreground">
+                      {localUser?.first_name} {localUser?.last_name}
+                    </h3>
+                    <StatusBadge status={request.status} />
+                  </div>
                   
-                  <div className="space-y-2 flex-1 min-w-0">
-                    <div className="flex items-center gap-3 flex-wrap">
-                      <h3 className="font-semibold text-base text-foreground">
-                        {localUser?.first_name} {localUser?.last_name}
-                      </h3>
-                      <StatusBadge status={request.status} />
+                  {/* Real Company Name (from internal fields) - Priority display */}
+                  {(request.listing as any)?.internal_company_name && (
+                    <div className="flex items-center gap-2 text-sm font-medium text-foreground flex-wrap">
+                      <Building className="h-4 w-4 flex-shrink-0 text-slate-600" />
+                      <span className="truncate">{(request.listing as any).internal_company_name}</span>
+                      {(request.listing as any)?.deal_identifier && (
+                        <>
+                          <span className="text-border">•</span>
+                          <Clipboard className="h-3 w-3 flex-shrink-0 text-slate-500" />
+                          <code className="text-xs font-mono bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
+                            {(request.listing as any).deal_identifier}
+                          </code>
+                        </>
+                      )}
                     </div>
-                    
-                    {/* Real Company Name (from internal fields) - Priority display */}
-                    {(request.listing as any)?.internal_company_name && (
-                      <div className="flex items-center gap-2 text-sm font-medium text-foreground flex-wrap">
-                        <Building className="h-4 w-4 flex-shrink-0 text-slate-600" />
-                        <span className="truncate">{(request.listing as any).internal_company_name}</span>
-                        {(request.listing as any)?.deal_identifier && (
-                          <>
-                            <span className="text-border">•</span>
-                            <Clipboard className="h-3 w-3 flex-shrink-0 text-slate-500" />
-                            <code className="text-xs font-mono bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
-                              {(request.listing as any).deal_identifier}
-                            </code>
-                          </>
-                        )}
-                      </div>
+                  )}
+                  
+                  {/* Clickable Contact Information Row */}
+                  <div className="flex items-center gap-2 text-sm flex-wrap">
+                    {/* Company Name - Clickable */}
+                    {localUser?.company && (
+                      <>
+                        <Building2 className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+                        <ClickableCompanyName 
+                          companyName={localUser.company}
+                          website={localUser.website}
+                          linkedinProfile={localUser.linkedin_profile}
+                          className="font-medium"
+                        />
+                        <span className="text-border">•</span>
+                      </>
                     )}
                     
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground flex-wrap">
-                      <Building2 className="h-4 w-4 flex-shrink-0" />
-                      <span className="truncate">{localUser?.company}</span>
-                      <span className="text-border">•</span>
-                      <Mail className="h-4 w-4 flex-shrink-0" />
-                      <span className="truncate">{localUser?.email}</span>
-                    </div>
+                    {/* Email - Clickable */}
+                    <ClickableEmail email={localUser?.email || ''} />
                     
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground flex-wrap">
-                      <Target className="h-4 w-4 flex-shrink-0 text-primary/60" />
-                      <span className="truncate font-medium">{request.listing?.title}</span>
-                    </div>
+                    {/* Phone - Clickable if available */}
+                    {localUser?.phone_number && (
+                      <>
+                        <span className="text-border">•</span>
+                        <ClickablePhone phone={localUser.phone_number} />
+                      </>
+                    )}
+                    
+                    {/* LinkedIn - Clickable if available */}
+                    {localUser?.linkedin_profile && (
+                      <>
+                        <span className="text-border">•</span>
+                        <ClickableLinkedIn linkedinUrl={localUser.linkedin_profile} />
+                      </>
+                    )}
+                  </div>
+                  
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground flex-wrap">
+                    <Target className="h-4 w-4 flex-shrink-0 text-primary/60" />
+                    <span className="truncate font-medium">{request.listing?.title}</span>
                   </div>
                 </div>
-                
-                <div className="flex items-center gap-3">
+              </div>
+              
+              {/* Clickable Arrow Area */}
+              <CollapsibleTrigger asChild>
+                <div className="flex items-center gap-3 cursor-pointer hover:bg-accent/20 p-2 rounded transition-colors">
                   <div className="text-xs text-muted-foreground flex items-center gap-1">
                     <Calendar className="h-3 w-3" />
                     {new Date(request.created_at).toLocaleDateString()}
                   </div>
                   <ChevronDown className="h-5 w-5 flex-shrink-0 text-muted-foreground group-hover:text-foreground transition-all duration-200 data-[state=open]:rotate-180" />
                 </div>
-              </div>
-              
-              {/* Status Indicators Row - Now reactive to local state */}
-              {localUser && (
-                <div className="border-t border-border/30 pt-4">
-                  <div className="space-y-2">
-                    <StatusIndicatorRow 
-                      user={localUser} 
-                      followedUp={localFollowedUp} 
-                      negativeFollowedUp={localNegativeFollowedUp}
-                      followedUpByAdmin={request.followedUpByAdmin}
-                      negativeFollowedUpByAdmin={request.negativeFollowedUpByAdmin}
-                      followedUpAt={request.followed_up_at}
-                      negativeFollowedUpAt={request.negative_followed_up_at}
-                    />
-                    <WorkflowProgressIndicator user={localUser} followedUp={localFollowedUp} />
-                  </div>
-                </div>
-              )}
+              </CollapsibleTrigger>
             </div>
-          </CardHeader>
-        </CollapsibleTrigger>
+            
+            {/* Status Indicators Row - Now reactive to local state */}
+            {localUser && (
+              <div className="border-t border-border/30 pt-4">
+                <div className="space-y-2">
+                  <StatusIndicatorRow 
+                    user={localUser} 
+                    followedUp={localFollowedUp} 
+                    negativeFollowedUp={localNegativeFollowedUp}
+                    followedUpByAdmin={request.followedUpByAdmin}
+                    negativeFollowedUpByAdmin={request.negativeFollowedUpByAdmin}
+                    followedUpAt={request.followed_up_at}
+                    negativeFollowedUpAt={request.negative_followed_up_at}
+                  />
+                  <WorkflowProgressIndicator user={localUser} followedUp={localFollowedUp} />
+                </div>
+              </div>
+            )}
+          </div>
+        </CardHeader>
         
         <CollapsibleContent>
           <CardContent className="pt-0 px-6 pb-6">
