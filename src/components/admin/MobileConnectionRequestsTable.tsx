@@ -104,7 +104,7 @@ const MobileRequestCard = ({
         <div className="text-sm">
           {request.listing?.id ? (
             <a 
-              href={`/listing/${request.listing.id}`}
+              href={`https://marketplace.sourcecodeals.com/listing/${request.listing.id}`}
               target="_blank"
               rel="noopener noreferrer"
               className="text-primary hover:underline font-medium"
