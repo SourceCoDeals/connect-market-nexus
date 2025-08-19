@@ -166,13 +166,15 @@ const RequestDetails = ({
             <div className="grid grid-cols-1 gap-3 text-sm">
               <div>
                 <span className="font-medium text-muted-foreground">Title:</span>
-                <button
-                  onClick={handleListingClick}
-                  className="font-medium text-primary hover:text-primary/80 text-left transition-colors flex items-center gap-2 group"
+                <a
+                  href={`/listing/${request.listing?.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-medium text-primary hover:text-primary/80 transition-colors flex items-center gap-2 group"
                 >
                   {request.listing?.title}
                   <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
-                </button>
+                </a>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>

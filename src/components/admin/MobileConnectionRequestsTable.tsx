@@ -103,12 +103,14 @@ const MobileRequestCard = ({
         <div className="font-medium text-sm">Interested in:</div>
         <div className="text-sm">
           {request.listing?.id ? (
-            <Link 
-              to={`/listing/${request.listing.id}`} 
+            <a 
+              href={`/listing/${request.listing.id}`}
+              target="_blank"
+              rel="noopener noreferrer"
               className="text-primary hover:underline font-medium"
             >
               {request.listing.title || "Unknown Listing"}
-            </Link>
+            </a>
           ) : (
             <span>{request.listing?.title || "Unknown Listing"}</span>
           )}
