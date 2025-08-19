@@ -4,7 +4,6 @@ import { AdminConnectionRequest } from "@/types/admin";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useEmailDeliveryMonitoring } from "./use-email-delivery-monitoring";
-import { formatCurrency } from "@/lib/currency-utils";
 
 /**
  * Hook for sending email notifications from admin actions
@@ -164,46 +163,20 @@ export function useAdminEmail() {
     }
     
     try {
-      const buyerFirstName = (request.user.first_name || '').trim() || request.user.email.split('@')[0];
-      const originalMessage = request.user_message
-        ? `\n\nYour original message:\n"${request.user_message}"`
+      // Include the original message for context
+      const originalMessage = request.user_message 
+        ? `\n\nYour original message:\n"${request.user_message}"\n`
         : '';
-      
-      const listingUrl = `https://marketplace.sourcecodeals.com/listing/${request.listing_id}`;
-      const listingSnapshot = [
-        'Listing snapshot',
-        `- Title: ${request.listing.title}`,
-        `- Category: ${request.listing.category}`,
-        `- Location: ${request.listing.location}`,
-        `- Financials: Revenue ${formatCurrency(Number(request.listing.revenue))} | EBITDA ${formatCurrency(Number(request.listing.ebitda))}`,
-        `- View listing: ${listingUrl}`,
-      ].join('\n');
-
-      const message = [
-        `Hi ${buyerFirstName},`,
-        '',
-        `Good news — your request to connect on "${request.listing.title}" has been approved.`,
-        '',
-        'NDA and next steps',
-        '- We need an NDA in place before sharing confidential materials.',
-        "- If your NDA is already signed: we’ll follow up shortly with full business details and next steps (including introducing you to the owner).",
-        "- If your NDA is not signed: we’ll be in touch to share the NDA so you can sign it.",
-        '',
-        listingSnapshot,
-        originalMessage,
-        '',
-        'Questions? Reply to this email.',
-        '',
-        'Best regards,',
-        'SourceCo',
-      ].filter(Boolean).join('\n');
       
       const notificationPayload = {
         email: request.user.email,
-        subject: `Connection Approved — ${request.listing.title}`,
-        message,
-        type: 'connection_approved' as const,
+        subject: "Connection Request Approved!",
+        message: `Great news! Your connection request for "${request.listing.title}" has been approved.${originalMessage}\nYou can now proceed with your due diligence process. The seller's contact information and additional details will be shared with you shortly.\n\nIf you have any questions about next steps, please contact our support team.`,
+        type: 'success',
+        actionUrl: `https://marketplace.sourcecodeals.com/listing/${request.listing_id}`,
+        actionText: 'View Listing'
       };
+      
       const { data, error } = await supabase.functions.invoke(
         "send-user-notification", 
         { 
