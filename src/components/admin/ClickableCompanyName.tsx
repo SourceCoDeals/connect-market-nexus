@@ -39,6 +39,16 @@ export const ClickableCompanyName = ({
       rel="noopener noreferrer"
       className={`inline-flex items-center gap-1 text-primary hover:text-primary/80 transition-colors group ${className}`}
       title={`Visit ${companyName}${isLinkedIn ? ' on LinkedIn' : "'s website"}`}
+      style={{
+        pointerEvents: 'auto',
+        cursor: 'pointer',
+        zIndex: 10,
+        position: 'relative'
+      }}
+      onClick={(e) => {
+        console.log('Link clicked:', processedUrl);
+        // Allow default behavior to proceed
+      }}
     >
       <span>{companyName}</span>
       <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
