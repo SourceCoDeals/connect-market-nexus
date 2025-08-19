@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { invalidateConnectionRequests } from '@/lib/query-client-helpers';
 
 interface UpdateFollowupParams {
   requestId: string;
@@ -29,9 +30,9 @@ export const useUpdateNegativeFollowup = () => {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
-      // Invalidate connection requests to sync with server data
-      queryClient.invalidateQueries({ queryKey: ['connection-requests'] });
+    onSuccess: async () => {
+      // Invalidate all related connection request caches (user/admin variants)
+      await invalidateConnectionRequests(queryClient);
       toast({
         title: "Negative follow-up status updated",
         description: "The negative follow-up status has been successfully updated.",
@@ -62,9 +63,9 @@ export const useUpdateFollowup = () => {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
-      // Invalidate connection requests to sync with server data
-      queryClient.invalidateQueries({ queryKey: ['connection-requests'] });
+    onSuccess: async () => {
+      // Invalidate all related connection request caches (user/admin variants)
+      await invalidateConnectionRequests(queryClient);
       toast({
         title: "Follow-up status updated",
         description: "The follow-up status has been successfully updated.",
