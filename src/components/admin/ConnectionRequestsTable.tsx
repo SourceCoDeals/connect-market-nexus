@@ -324,11 +324,11 @@ const ReactiveRequestCard = ({
                       <>
                         <span className="text-border">•</span>
                         <span className="px-1.5 py-0.5 text-xs bg-muted rounded font-medium">
-                          {localUser.buyer_type.includes('Private') ? 'PRIVATE' :
-                           localUser.buyer_type.includes('Family') ? 'FAMILY' :
-                           localUser.buyer_type.includes('Search') ? 'SEARCH' :
-                           localUser.buyer_type.includes('Strategic') ? 'STRATEGIC' :
-                           localUser.buyer_type.includes('Individual') ? 'INDIVIDUAL' :
+                          {localUser.buyer_type.includes('Private') ? 'PE' :
+                           localUser.buyer_type.includes('Family') ? 'FO' :
+                           localUser.buyer_type.includes('Search') ? 'SF' :
+                           localUser.buyer_type.includes('Strategic') ? 'Corp' :
+                           localUser.buyer_type.includes('Individual') ? 'Individual' :
                            localUser.buyer_type.split(' ').map(word => word[0]).join('').toUpperCase()}
                         </span>
                       </>

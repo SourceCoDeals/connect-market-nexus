@@ -69,11 +69,11 @@ const MobileRequestCard = ({
           </a>
           {request.user?.buyer_type && (
             <span className="ml-1 px-1.5 py-0.5 text-xs bg-muted rounded font-medium">
-              {request.user.buyer_type.includes('Private') ? 'PRIVATE' :
-               request.user.buyer_type.includes('Family') ? 'FAMILY' :
-               request.user.buyer_type.includes('Search') ? 'SEARCH' :
-               request.user.buyer_type.includes('Strategic') ? 'STRATEGIC' :
-               request.user.buyer_type.includes('Individual') ? 'INDIVIDUAL' :
+              {request.user.buyer_type.includes('Private') ? 'PE' :
+               request.user.buyer_type.includes('Family') ? 'FO' :
+               request.user.buyer_type.includes('Search') ? 'SF' :
+               request.user.buyer_type.includes('Strategic') ? 'Corp' :
+               request.user.buyer_type.includes('Individual') ? 'Individual' :
                request.user.buyer_type.split(' ').map(word => word[0]).join('').toUpperCase()}
             </span>
           )}
