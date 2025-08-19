@@ -304,13 +304,13 @@ const ReactiveRequestCard = ({
                   <div className="flex items-center gap-2 text-sm text-muted-foreground flex-wrap">
                     <Building2 className="h-4 w-4 flex-shrink-0" />
                     {localUser?.company ? (
-                    <ClickableCompanyName 
-                      companyName={localUser.company}
-                      website={localUser.website}
-                      linkedinProfile={localUser.linkedin_profile}
-                      email={localUser.email}
-                      className="truncate text-primary hover:text-primary/80"
-                    />
+                      <ClickableCompanyName 
+                        companyName={localUser.company}
+                        website={localUser.website}
+                        linkedinProfile={localUser.linkedin_profile}
+                        email={localUser.email}
+                        className="truncate text-primary hover:text-primary/80"
+                      />
                     ) : (
                       <span className="truncate">No company</span>
                     )}
@@ -319,7 +319,6 @@ const ReactiveRequestCard = ({
                     <a 
                       href={`mailto:${localUser?.email}`}
                       className="text-primary hover:text-primary/80 transition-colors truncate"
-                      onClick={(e) => e.stopPropagation()}
                     >
                       {localUser?.email}
                     </a>
@@ -347,7 +346,6 @@ const ReactiveRequestCard = ({
                           <a 
                             href={`tel:${localUser.phone_number}`}
                             className="text-primary hover:text-primary/80 transition-colors"
-                            onClick={(e) => e.stopPropagation()}
                           >
                             {localUser.phone_number}
                           </a>
@@ -362,7 +360,6 @@ const ReactiveRequestCard = ({
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-primary hover:text-primary/80 transition-colors flex items-center gap-1"
-                            onClick={(e) => e.stopPropagation()}
                           >
                             LinkedIn
                             <ExternalLink className="h-3 w-3" />
@@ -410,25 +407,25 @@ const ReactiveRequestCard = ({
               </div>
             </div>
               
-              {/* Status Indicators Row - Now reactive to local state */}
-              {localUser && (
-                <div className="border-t border-border/30 pt-4">
-                  <div className="space-y-2">
-                    <StatusIndicatorRow 
-                      user={localUser} 
-                      followedUp={localFollowedUp} 
-                      negativeFollowedUp={localNegativeFollowedUp}
-                      followedUpByAdmin={request.followedUpByAdmin}
-                      negativeFollowedUpByAdmin={request.negativeFollowedUpByAdmin}
-                      followedUpAt={request.followed_up_at}
-                      negativeFollowedUpAt={request.negative_followed_up_at}
-                    />
-                    <WorkflowProgressIndicator user={localUser} followedUp={localFollowedUp} />
-                  </div>
+            {/* Status Indicators Row - Now reactive to local state */}
+            {localUser && (
+              <div className="border-t border-border/30 pt-4">
+                <div className="space-y-2">
+                  <StatusIndicatorRow 
+                    user={localUser} 
+                    followedUp={localFollowedUp} 
+                    negativeFollowedUp={localNegativeFollowedUp}
+                    followedUpByAdmin={request.followedUpByAdmin}
+                    negativeFollowedUpByAdmin={request.negativeFollowedUpByAdmin}
+                    followedUpAt={request.followed_up_at}
+                    negativeFollowedUpAt={request.negative_followed_up_at}
+                  />
+                  <WorkflowProgressIndicator user={localUser} followedUp={localFollowedUp} />
                 </div>
-              )}
-            </div>
-          </CardHeader>
+              </div>
+            )}
+          </div>
+        </CardHeader>
         
         <CollapsibleContent>
           <CardContent className="pt-0 px-6 pb-6">
