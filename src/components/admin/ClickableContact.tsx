@@ -19,13 +19,9 @@ export const ClickableEmail = ({ email, className = "" }: ClickableEmailProps) =
   return (
     <a
       href={`mailto:${email}`}
-      className={`inline-flex items-center gap-1 text-primary hover:text-primary/80 transition-colors group cursor-pointer relative z-10 ${className}`}
+      className={`inline-flex items-center gap-1 text-primary hover:text-primary/80 transition-colors group cursor-pointer ${className}`}
       title={`Send email to ${email}`}
-      onClick={(e) => {
-        e.stopPropagation();
-        console.log('📧 Email clicked:', email);
-      }}
-      style={{ pointerEvents: 'auto' }}
+      onClick={() => console.log('📧 Email clicked:', email)}
     >
       <Mail className="h-3 w-3 flex-shrink-0" />
       <span className="truncate">{email}</span>
@@ -37,13 +33,9 @@ export const ClickablePhone = ({ phone, className = "" }: ClickablePhoneProps) =
   return (
     <a
       href={`tel:${phone}`}
-      className={`inline-flex items-center gap-1 text-primary hover:text-primary/80 transition-colors group cursor-pointer relative z-10 ${className}`}
+      className={`inline-flex items-center gap-1 text-primary hover:text-primary/80 transition-colors group cursor-pointer ${className}`}
       title={`Call ${phone}`}
-      onClick={(e) => {
-        e.stopPropagation();
-        console.log('📞 Phone clicked:', phone);
-      }}
-      style={{ pointerEvents: 'auto' }}
+      onClick={() => console.log('📞 Phone clicked:', phone)}
     >
       <Phone className="h-3 w-3 flex-shrink-0" />
       <span className="truncate">{phone}</span>
@@ -64,13 +56,9 @@ export const ClickableLinkedIn = ({ linkedinUrl, className = "" }: ClickableLink
       href={processLinkedInUrl(linkedinUrl)}
       target="_blank"
       rel="noopener noreferrer"
-      className={`inline-flex items-center gap-1 text-primary hover:text-primary/80 transition-colors group cursor-pointer relative z-10 ${className}`}
+      className={`inline-flex items-center gap-1 text-primary hover:text-primary/80 transition-colors group cursor-pointer ${className}`}
       title="View LinkedIn profile"
-      onClick={(e) => {
-        e.stopPropagation();
-        console.log('🔗 LinkedIn clicked:', processLinkedInUrl(linkedinUrl));
-      }}
-      style={{ pointerEvents: 'auto' }}
+      onClick={() => console.log('🔗 LinkedIn clicked:', processLinkedInUrl(linkedinUrl))}
     >
       <Linkedin className="h-3 w-3 flex-shrink-0" />
       <span className="truncate">LinkedIn</span>

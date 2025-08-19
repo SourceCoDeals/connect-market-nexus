@@ -97,12 +97,8 @@ export function InternalCompanyInfoDisplay({ listing }: InternalCompanyInfoDispl
                   href={listing.internal_salesforce_link}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-primary hover:text-primary/80 transition-colors cursor-pointer relative z-10 text-sm"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    console.log('🔗 Salesforce link clicked:', listing.internal_salesforce_link);
-                  }}
-                  style={{ pointerEvents: 'auto' }}
+                  className="inline-flex items-center gap-1 text-primary hover:text-primary/80 transition-colors cursor-pointer text-sm"
+                  onClick={() => console.log('🔗 Salesforce link clicked:', listing.internal_salesforce_link)}
                 >
                   Open in Salesforce
                   <ExternalLink className="h-3 w-3" />
@@ -120,12 +116,8 @@ export function InternalCompanyInfoDisplay({ listing }: InternalCompanyInfoDispl
                   href={listing.internal_deal_memo_link}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-primary hover:text-primary/80 transition-colors cursor-pointer relative z-10 text-sm"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    console.log('🔗 Deal memo link clicked:', listing.internal_deal_memo_link);
-                  }}
-                  style={{ pointerEvents: 'auto' }}
+                  className="inline-flex items-center gap-1 text-primary hover:text-primary/80 transition-colors cursor-pointer text-sm"
+                  onClick={() => console.log('🔗 Deal memo link clicked:', listing.internal_deal_memo_link)}
                 >
                   View Deal Memo
                   <ExternalLink className="h-3 w-3" />
