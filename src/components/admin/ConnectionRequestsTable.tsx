@@ -156,16 +156,18 @@ const RequestDetails = ({
             <div className="grid grid-cols-1 gap-3 text-sm">
               <div>
                 <span className="font-medium text-muted-foreground">Title:</span>
-                <a
-                  href={`/listing/${request.listing?.id}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={(e) => e.stopPropagation()}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (request.listing?.id) {
+                      window.open(`/listing/${request.listing.id}`, '_blank');
+                    }
+                  }}
                   className="font-medium text-primary hover:text-primary/80 text-left transition-colors flex items-center gap-2 group"
                 >
                   {request.listing?.title}
                   <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
-                </a>
+                </button>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
