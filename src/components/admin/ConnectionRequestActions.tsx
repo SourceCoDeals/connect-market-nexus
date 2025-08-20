@@ -159,6 +159,12 @@ SourceCo Team`}`;
 
     const mailtoLink = `mailto:${user.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     openMailto(mailtoLink);
+    navigator.clipboard?.writeText(mailtoLink).then(() => {
+      toast({
+        title: "Mail link copied",
+        description: "If your email client didn't open, you can paste the link.",
+      });
+    }).catch(() => {});
   };
 
   const handleNegativeFollowUp = () => {
@@ -200,6 +206,12 @@ If the status changes post‑diligence, we'll reach out immediately.`;
 
     const mailtoLink = `mailto:${user.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     openMailto(mailtoLink);
+    navigator.clipboard?.writeText(mailtoLink).then(() => {
+      toast({
+        title: "Mail link copied",
+        description: "If your email client didn't open, you can paste the link.",
+      });
+    }).catch(() => {});
   };
 
   const handleNDASignedToggle = (checked: boolean) => {
@@ -361,7 +373,7 @@ If the status changes post‑diligence, we'll reach out immediately.`;
             <Button
               variant={localFollowedUp ? "secondary" : "outline"}
               size="sm"
-              onClick={handleFollowUp}
+              onClick={(e) => { e.stopPropagation(); handleFollowUp(); }}
               className="text-xs h-8 transition-all hover:scale-105"
             >
               <MessageSquare className="h-3 w-3 mr-1" />
@@ -372,7 +384,7 @@ If the status changes post‑diligence, we'll reach out immediately.`;
             <Button
               variant={localNegativeFollowedUp ? "secondary" : "outline"}
               size="sm"
-              onClick={handleNegativeFollowUp}
+              onClick={(e) => { e.stopPropagation(); handleNegativeFollowUp(); }}
               className="text-xs h-8 transition-all hover:scale-105 border-amber-200 text-amber-700 hover:bg-amber-50"
             >
               <XCircle className="h-3 w-3 mr-1" />

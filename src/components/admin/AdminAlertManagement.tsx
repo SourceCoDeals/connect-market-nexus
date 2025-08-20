@@ -202,7 +202,8 @@ export function AdminAlertManagement() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => {
+                        onClick={(e) => {
+                          e.stopPropagation();
                           openMailto(`mailto:${alert.user_email}?subject=Regarding your deal alert: ${alert.name}`);
                         }}
                       >
