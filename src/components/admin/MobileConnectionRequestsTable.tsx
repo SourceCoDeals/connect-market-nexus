@@ -99,6 +99,8 @@ const MobileRequestCard = ({
           {request.listing?.id ? (
             <Link 
               to={`/listing/${request.listing.id}`} 
+              target="_blank"
+              rel="noopener noreferrer"
               className="text-primary hover:underline font-medium"
             >
               {request.listing.title || "Unknown Listing"}
