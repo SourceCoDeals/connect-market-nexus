@@ -30,7 +30,7 @@ import { useAdminSignature } from "@/hooks/admin/use-admin-signature";
 import { useAuth } from "@/context/AuthContext";
 import { getAdminProfile } from "@/lib/admin-profiles";
 import { formatDistanceToNow, format } from 'date-fns';
-import { openMailto } from '@/lib/mailto';
+
 
 interface ConnectionRequestActionsProps {
   user: UserType;
@@ -130,15 +130,8 @@ export function ConnectionRequestActions({
     );
   };
 
-  const handleFollowUp = () => {
-    if (!listing) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Cannot generate follow-up email without listing information."
-      });
-      return;
-    }
+  const getFollowUpMailto = () => {
+    if (!listing) return '';
 
     const subject = `Moving to Owner Introduction - ${listing.title}`;
     const body = `Hi ${user.first_name},
@@ -157,25 +150,11 @@ We'll discuss the business details, answer your questions, and set up the owner 
 ${signature?.signature_text || `Best regards,
 SourceCo Team`}`;
 
-    const mailtoLink = `mailto:${user.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    openMailto(mailtoLink);
-    navigator.clipboard?.writeText(mailtoLink).then(() => {
-      toast({
-        title: "Mail link copied",
-        description: "If your email client didn't open, you can paste the link.",
-      });
-    }).catch(() => {});
+    return `mailto:${user.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   };
 
-  const handleNegativeFollowUp = () => {
-    if (!listing) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Cannot generate negative follow-up email without listing information."
-      });
-      return;
-    }
+  const getNegativeFollowUpMailto = () => {
+    if (!listing) return '';
 
     const subject = `${listing.title}: current status + next steps`;
 
@@ -204,14 +183,7 @@ If the status changes post‑diligence, we'll reach out immediately.`;
 
     const body = signatureSection ? `${bodyBase}\n\n${signatureSection}` : bodyBase;
 
-    const mailtoLink = `mailto:${user.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    openMailto(mailtoLink);
-    navigator.clipboard?.writeText(mailtoLink).then(() => {
-      toast({
-        title: "Mail link copied",
-        description: "If your email client didn't open, you can paste the link.",
-      });
-    }).catch(() => {});
+    return `mailto:${user.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   };
 
   const handleNDASignedToggle = (checked: boolean) => {
@@ -373,23 +345,37 @@ If the status changes post‑diligence, we'll reach out immediately.`;
             <Button
               variant={localFollowedUp ? "secondary" : "outline"}
               size="sm"
-              onClick={(e) => { e.stopPropagation(); handleFollowUp(); }}
+              asChild
               className="text-xs h-8 transition-all hover:scale-105"
             >
-              <MessageSquare className="h-3 w-3 mr-1" />
-              Follow Up
-              <ExternalLink className="h-3 w-3 ml-1" />
+              <a 
+                href={getFollowUpMailto()}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <MessageSquare className="h-3 w-3 mr-1" />
+                Follow Up
+                <ExternalLink className="h-3 w-3 ml-1" />
+              </a>
             </Button>
 
             <Button
               variant={localNegativeFollowedUp ? "secondary" : "outline"}
               size="sm"
-              onClick={(e) => { e.stopPropagation(); handleNegativeFollowUp(); }}
+              asChild
               className="text-xs h-8 transition-all hover:scale-105 border-amber-200 text-amber-700 hover:bg-amber-50"
             >
-              <XCircle className="h-3 w-3 mr-1" />
-              Send Rejection Notice
-              <ExternalLink className="h-3 w-3 ml-1" />
+              <a 
+                href={getNegativeFollowUpMailto()}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <XCircle className="h-3 w-3 mr-1" />
+                Send Rejection Notice
+                <ExternalLink className="h-3 w-3 ml-1" />
+              </a>
             </Button>
           </div>
         </div>
