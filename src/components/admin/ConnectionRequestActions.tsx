@@ -30,6 +30,7 @@ import { useAdminSignature } from "@/hooks/admin/use-admin-signature";
 import { useAuth } from "@/context/AuthContext";
 import { getAdminProfile } from "@/lib/admin-profiles";
 import { formatDistanceToNow, format } from 'date-fns';
+import { openMailto } from '@/lib/mailto';
 
 interface ConnectionRequestActionsProps {
   user: UserType;
@@ -157,7 +158,7 @@ ${signature?.signature_text || `Best regards,
 SourceCo Team`}`;
 
     const mailtoLink = `mailto:${user.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    window.open(mailtoLink, '_blank');
+    openMailto(mailtoLink);
   };
 
   const handleNegativeFollowUp = () => {
@@ -198,7 +199,7 @@ If the status changes post‑diligence, we'll reach out immediately.`;
     const body = signatureSection ? `${bodyBase}\n\n${signatureSection}` : bodyBase;
 
     const mailtoLink = `mailto:${user.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    window.open(mailtoLink, '_blank');
+    openMailto(mailtoLink);
   };
 
   const handleNDASignedToggle = (checked: boolean) => {

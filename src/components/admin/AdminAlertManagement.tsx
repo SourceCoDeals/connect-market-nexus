@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Mail, Bell, Clock, MapPin, DollarSign } from 'lucide-react';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { formatCurrency } from '@/lib/currency-utils';
+import { openMailto } from '@/lib/mailto';
 
 interface DealAlertWithUser {
   id: string;
@@ -202,7 +203,7 @@ export function AdminAlertManagement() {
                         variant="outline"
                         size="sm"
                         onClick={() => {
-                          window.open(`mailto:${alert.user_email}?subject=Regarding your deal alert: ${alert.name}`, '_blank');
+                          openMailto(`mailto:${alert.user_email}?subject=Regarding your deal alert: ${alert.name}`);
                         }}
                       >
                         <Mail className="h-3 w-3" />

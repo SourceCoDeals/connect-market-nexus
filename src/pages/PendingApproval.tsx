@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation, Link } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Mail, CheckCircle, Clock, LogOut, Loader2, AlertCircle, Info } from 'lucide-react';
@@ -361,12 +361,13 @@ const PendingApproval = () => {
             </Button>
             <div className="text-xs text-center text-muted-foreground">
               Need help? Contact{" "}
-              <Link
-                to="mailto:support@sourcecodeals.com"
+              <a
+                href="mailto:support@sourcecodeals.com"
                 className="text-primary hover:underline"
               >
                 support@sourcecodeals.com
-              </Link>
+              </a>
+
             </div>
           </CardFooter>
         </Card>
