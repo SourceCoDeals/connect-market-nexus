@@ -21,7 +21,7 @@ import {
 import { AdminConnectionRequest } from "@/types/admin";
 import { useUpdateConnectionRequestStatus } from "@/hooks/admin/use-connection-request-status";
 import { useAuth } from "@/context/AuthContext";
-import { getAdminProfile } from "@/lib/admin-profiles";
+import { useAdminProfiles } from "@/hooks/admin/use-admin-profiles";
 
 interface RequestsGridViewProps {
   requests: AdminConnectionRequest[];
@@ -82,6 +82,10 @@ const BuyerCard = ({
   const [isExpanded, setIsExpanded] = useState(false);
   const { user } = useAuth();
   const updateStatus = useUpdateConnectionRequestStatus();
+  
+  // Fetch admin profiles for decision makers
+  const adminIds = [request.approved_by, request.rejected_by, request.on_hold_by];
+  const { data: adminProfiles } = useAdminProfiles(adminIds);
 
   return (
     <Card className="h-full border border-border/50 hover:border-border transition-colors">
@@ -161,9 +165,9 @@ const BuyerCard = ({
           </div>
         )}
 
-        {/* Status Toggles */}
+        {/* Final Decision */}
         <div className="space-y-3 pt-2 border-t border-border/50">
-          <div className="text-xs font-medium text-muted-foreground">Status Controls</div>
+          <div className="text-xs font-medium text-muted-foreground">Final Decision</div>
           
           <div className="space-y-3">
             {/* Approved Toggle */}
@@ -222,24 +226,24 @@ const BuyerCard = ({
           </div>
 
           {/* Admin Decision Info */}
-          {request.status !== 'pending' && (
+          {request.status !== 'pending' && adminProfiles && (
             <div className="text-xs space-y-1 pt-2 border-t border-border/50">
               <div className="font-medium text-muted-foreground">Decision Details:</div>
               {request.status === 'approved' && (
                 <div className="text-success">
-                  Approved by {request.approved_by ? (getAdminProfile(request.approved_by)?.name || `Admin (${request.approved_by})`) : 'Admin'} 
+                  Approved by {adminProfiles[request.approved_by || '']?.displayName || 'Admin'} 
                   {request.approved_at && ` on ${format(new Date(request.approved_at), 'MMM d, yyyy')}`}
                 </div>
               )}
               {request.status === 'rejected' && (
                 <div className="text-destructive">
-                  Rejected by {request.rejected_by ? (getAdminProfile(request.rejected_by)?.name || `Admin (${request.rejected_by})`) : 'Admin'}
+                  Rejected by {adminProfiles[request.rejected_by || '']?.displayName || 'Admin'}
                   {request.rejected_at && ` on ${format(new Date(request.rejected_at), 'MMM d, yyyy')}`}
                 </div>
               )}
               {request.status === 'on_hold' && (
                 <div className="text-warning">
-                  Put on hold by {request.on_hold_by ? (getAdminProfile(request.on_hold_by)?.name || `Admin (${request.on_hold_by})`) : 'Admin'}
+                  Put on hold by {adminProfiles[request.on_hold_by || '']?.displayName || 'Admin'}
                   {request.on_hold_at && ` on ${format(new Date(request.on_hold_at), 'MMM d, yyyy')}`}
                 </div>
               )}

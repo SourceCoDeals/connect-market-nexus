@@ -1345,6 +1345,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      assign_connection_request_decider: {
+        Args: {
+          p_admin_id: string
+          p_decision: string
+          p_decision_at?: string
+          p_request_id: string
+        }
+        Returns: boolean
+      }
       calculate_engagement_score: {
         Args: {
           p_connections_requested: number

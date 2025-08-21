@@ -357,11 +357,11 @@ SourceCo Team`}`;
               {/* Request Details */}
               <RequestDetails request={request} />
 
-              {/* Final Decision Actions - Less Prominent */}
+              {/* Email Actions */}
               <div className="mt-4 pt-3 border-t border-border/30">
                 <div className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1">
-                  <Shield className="h-3 w-3" />
-                  Final Decision
+                  <Mail className="h-3 w-3" />
+                  Quick Email Actions
                 </div>
                 <div className="flex items-center gap-2">
                   <Button
@@ -417,83 +417,90 @@ SourceCo Team`}`;
                       <ExternalLink className="h-3 w-3 ml-1" />
                     </a>
                   </Button>
+                </div>
+              </div>
 
-                  {/* Status Toggles */}
-                  <div className="flex items-center gap-3 ml-4 pl-3 border-l border-border/30">
-                    <div className="flex flex-col space-y-1">
-                      <div className="flex items-center space-x-1">
-                        <Switch
-                          id={`approved-${request.id}`}
-                          checked={request.status === 'approved'}
-                          onCheckedChange={(checked) => {
-                            // Mutual exclusivity: turning ON sets to approved, turning OFF sets to pending
-                            const newStatus = checked ? 'approved' : 'pending';
-                            updateConnectionRequestStatus.mutate({
-                              requestId: request.id,
-                              status: newStatus
-                            });
-                          }}
-                          disabled={updateConnectionRequestStatus.isPending}
-                          className="data-[state=checked]:bg-success"
-                        />
-                        <Label htmlFor={`approved-${request.id}`} className="text-xs">Approved</Label>
-                      </div>
-                      {request.status === 'approved' && request.approvedByAdmin && request.approved_at && (
-                        <div className="text-xs text-muted-foreground pl-6">
-                          by {request.approvedByAdmin.first_name} {request.approvedByAdmin.last_name} at {format(new Date(request.approved_at), 'PPp')}
-                        </div>
-                      )}
+              {/* Final Decision - Status Toggles */}
+              <div className="mt-4 pt-3 border-t border-border/30">
+                <div className="text-xs font-medium text-muted-foreground mb-3 flex items-center gap-1">
+                  <Shield className="h-3 w-3" />
+                  Final Decision
+                </div>
+                
+                <div className="flex items-center gap-3">
+                  <div className="flex flex-col space-y-1">
+                    <div className="flex items-center space-x-1">
+                      <Switch
+                        id={`approved-${request.id}`}
+                        checked={request.status === 'approved'}
+                        onCheckedChange={(checked) => {
+                          // Mutual exclusivity: turning ON sets to approved, turning OFF sets to pending
+                          const newStatus = checked ? 'approved' : 'pending';
+                          updateConnectionRequestStatus.mutate({
+                            requestId: request.id,
+                            status: newStatus
+                          });
+                        }}
+                        disabled={updateConnectionRequestStatus.isPending}
+                        className="data-[state=checked]:bg-success"
+                      />
+                      <Label htmlFor={`approved-${request.id}`} className="text-xs">Approved</Label>
                     </div>
-                    
-                    <div className="flex flex-col space-y-1">
-                      <div className="flex items-center space-x-1">
-                        <Switch
-                          id={`rejected-${request.id}`}
-                          checked={request.status === 'rejected'}
-                          onCheckedChange={(checked) => {
-                            // Mutual exclusivity: turning ON sets to rejected, turning OFF sets to pending
-                            const newStatus = checked ? 'rejected' : 'pending';
-                            updateConnectionRequestStatus.mutate({
-                              requestId: request.id,
-                              status: newStatus
-                            });
-                          }}
-                          disabled={updateConnectionRequestStatus.isPending}
-                          className="data-[state=checked]:bg-destructive"
-                        />
-                        <Label htmlFor={`rejected-${request.id}`} className="text-xs">Rejected</Label>
+                    {request.status === 'approved' && request.approved_by && request.approved_at && (
+                      <div className="text-xs text-muted-foreground pl-6">
+                        by Admin at {format(new Date(request.approved_at), 'PPp')}
                       </div>
-                      {request.status === 'rejected' && request.rejectedByAdmin && request.rejected_at && (
-                        <div className="text-xs text-muted-foreground pl-6">
-                          by {request.rejectedByAdmin.first_name} {request.rejectedByAdmin.last_name} at {format(new Date(request.rejected_at), 'PPp')}
-                        </div>
-                      )}
+                    )}
+                  </div>
+                  
+                  <div className="flex flex-col space-y-1">
+                    <div className="flex items-center space-x-1">
+                      <Switch
+                        id={`rejected-${request.id}`}
+                        checked={request.status === 'rejected'}
+                        onCheckedChange={(checked) => {
+                          // Mutual exclusivity: turning ON sets to rejected, turning OFF sets to pending
+                          const newStatus = checked ? 'rejected' : 'pending';
+                          updateConnectionRequestStatus.mutate({
+                            requestId: request.id,
+                            status: newStatus
+                          });
+                        }}
+                        disabled={updateConnectionRequestStatus.isPending}
+                        className="data-[state=checked]:bg-destructive"
+                      />
+                      <Label htmlFor={`rejected-${request.id}`} className="text-xs">Rejected</Label>
                     </div>
-
-                    <div className="flex flex-col space-y-1">
-                      <div className="flex items-center space-x-1">
-                        <Switch
-                          id={`on-hold-${request.id}`}
-                          checked={request.status === 'on_hold'}
-                          onCheckedChange={(checked) => {
-                            // Mutual exclusivity: turning ON sets to on_hold, turning OFF sets to pending
-                            const newStatus = checked ? 'on_hold' : 'pending';
-                            updateConnectionRequestStatus.mutate({
-                              requestId: request.id,
-                              status: newStatus
-                            });
-                          }}
-                          disabled={updateConnectionRequestStatus.isPending}
-                          className="data-[state=checked]:bg-warning"
-                        />
-                        <Label htmlFor={`on-hold-${request.id}`} className="text-xs">On Hold</Label>
+                    {request.status === 'rejected' && request.rejected_by && request.rejected_at && (
+                      <div className="text-xs text-muted-foreground pl-6">
+                        by Admin at {format(new Date(request.rejected_at), 'PPp')}
                       </div>
-                      {request.status === 'on_hold' && request.onHoldByAdmin && request.on_hold_at && (
-                        <div className="text-xs text-muted-foreground pl-6">
-                          by {request.onHoldByAdmin.first_name} {request.onHoldByAdmin.last_name} at {format(new Date(request.on_hold_at), 'PPp')}
-                        </div>
-                      )}
+                    )}
+                  </div>
+                  
+                  <div className="flex flex-col space-y-1">
+                    <div className="flex items-center space-x-1">
+                      <Switch
+                        id={`on_hold-${request.id}`}
+                        checked={request.status === 'on_hold'}
+                        onCheckedChange={(checked) => {
+                          // Mutual exclusivity: turning ON sets to on_hold, turning OFF sets to pending
+                          const newStatus = checked ? 'on_hold' : 'pending';
+                          updateConnectionRequestStatus.mutate({
+                            requestId: request.id,
+                            status: newStatus
+                          });
+                        }}
+                        disabled={updateConnectionRequestStatus.isPending}
+                        className="data-[state=checked]:bg-warning"
+                      />
+                      <Label htmlFor={`on_hold-${request.id}`} className="text-xs">On Hold</Label>
                     </div>
+                    {request.status === 'on_hold' && request.on_hold_by && request.on_hold_at && (
+                      <div className="text-xs text-muted-foreground pl-6">
+                        by Admin at {format(new Date(request.on_hold_at), 'PPp')}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
