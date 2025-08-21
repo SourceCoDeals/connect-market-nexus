@@ -26,10 +26,10 @@ import {
 import { AdminConnectionRequest } from "@/types/admin";
 import { StatusIndicatorRow } from "./StatusIndicatorRow";
 import { ConnectionRequestActions } from "./ConnectionRequestActions";
-import { useUpdateApprovalStatus, useUpdateRejectionStatus } from "@/hooks/admin/use-approval-status";
 import { useAdminSignature } from "@/hooks/admin/use-admin-signature";
 import { useAuth } from "@/context/AuthContext";
 import { getAdminProfile } from "@/lib/admin-profiles";
+import { useUpdateConnectionRequestStatus } from "@/hooks/admin/use-connection-request-status";
 
 interface ConnectionRequestsTableProps {
   requests: AdminConnectionRequest[];
@@ -83,10 +83,16 @@ const StatusBadge = ({ status }: { status: string }) => {
           className: 'bg-destructive/10 text-destructive border-destructive/20',
           icon: <XCircle className="h-3 w-3 mr-1" />
         };
-      default:
+      case 'on_hold':
         return {
           variant: 'secondary' as const,
           className: 'bg-warning/10 text-warning border-warning/20',
+          icon: <AlertTriangle className="h-3 w-3 mr-1" />
+        };
+      default:
+        return {
+          variant: 'secondary' as const,
+          className: 'bg-muted/50 text-muted-foreground border-border',
           icon: <Clock className="h-3 w-3 mr-1" />
         };
     }
@@ -94,10 +100,13 @@ const StatusBadge = ({ status }: { status: string }) => {
 
   const config = getStatusConfig(status);
   
+  const displayText = status === 'on_hold' ? 'On Hold' : 
+                     status.charAt(0).toUpperCase() + status.slice(1);
+  
   return (
     <Badge variant={config.variant} className={`text-xs ${config.className}`}>
       {config.icon}
-      {status.charAt(0).toUpperCase() + status.slice(1)}
+      {displayText}
     </Badge>
   );
 };
@@ -184,8 +193,7 @@ function ReactiveRequestCard({
 }) {
   const { signature } = useAdminSignature();
   const { user: authUser } = useAuth();
-  const updateApprovalStatus = useUpdateApprovalStatus();
-  const updateRejectionStatus = useUpdateRejectionStatus();
+  const updateConnectionRequestStatus = useUpdateConnectionRequestStatus();
 
   const getApprovalMailto = (request: AdminConnectionRequest) => {
     if (!request.listing || !request.user) return '';
@@ -239,8 +247,44 @@ Next: We'll prioritize you for similar opportunities.`;
     return `mailto:${request.user.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   };
 
+  const getOnHoldMailto = (request: AdminConnectionRequest) => {
+    if (!request.listing || !request.user) return '';
+
+    const subject = `${request.listing.title} - Update`;
+    
+    const body = `Hi ${request.user.first_name},
+
+${request.listing.title} connection request update:
+
+Status: On hold - currently evaluating another buyer for this opportunity.
+
+Next: We'll prioritize you if current discussions don't proceed.
+
+Timeline: Will update you within 2 weeks.
+
+${signature?.signature_text || `Best regards,
+SourceCo Team`}`;
+
+    return `mailto:${request.user.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  };
+
+  // Get card styling based on status
+  const getCardClassName = (status: string) => {
+    const baseClass = "border transition-colors";
+    switch (status) {
+      case 'approved':
+        return `${baseClass} border-success/30 bg-success/5`;
+      case 'rejected':  
+        return `${baseClass} border-destructive/30 bg-destructive/5`;
+      case 'on_hold':
+        return `${baseClass} border-warning/30 bg-warning/5`;
+      default:
+        return `${baseClass} border-border/50 hover:border-border`;
+    }
+  };
+
   return (
-    <Card className="border border-border/50 hover:border-border transition-colors">
+    <Card className={getCardClassName(request.status)}>
       <CardContent className="p-6">
         <div className="space-y-4">
           {/* Header */}
@@ -358,19 +402,37 @@ Next: We'll prioritize you for similar opportunities.`;
                     </a>
                   </Button>
 
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    asChild
+                    className="text-xs h-7 border-warning/30 text-warning hover:bg-warning/10"
+                  >
+                    <a 
+                      href={getOnHoldMailto(request)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <AlertTriangle className="h-3 w-3 mr-1" />
+                      On Hold
+                      <ExternalLink className="h-3 w-3 ml-1" />
+                    </a>
+                  </Button>
+
                   {/* Status Toggles */}
-                  <div className="flex items-center gap-2 ml-4">
+                  <div className="flex items-center gap-3 ml-4 pl-3 border-l border-border/30">
                     <div className="flex items-center space-x-1">
                       <Switch
                         id={`approved-${request.id}`}
                         checked={request.status === 'approved'}
                         onCheckedChange={(checked) => {
-                          updateApprovalStatus.mutate({
+                          updateConnectionRequestStatus.mutate({
                             requestId: request.id,
-                            isApproved: checked
+                            status: checked ? 'approved' : 'pending'
                           });
                         }}
-                        disabled={updateApprovalStatus.isPending}
+                        disabled={updateConnectionRequestStatus.isPending}
                         className="data-[state=checked]:bg-success"
                       />
                       <Label htmlFor={`approved-${request.id}`} className="text-xs">Approved</Label>
@@ -381,15 +443,31 @@ Next: We'll prioritize you for similar opportunities.`;
                         id={`rejected-${request.id}`}
                         checked={request.status === 'rejected'}
                         onCheckedChange={(checked) => {
-                          updateRejectionStatus.mutate({
+                          updateConnectionRequestStatus.mutate({
                             requestId: request.id,
-                            isRejected: checked
+                            status: checked ? 'rejected' : 'pending'
                           });
                         }}
-                        disabled={updateRejectionStatus.isPending}
+                        disabled={updateConnectionRequestStatus.isPending}
                         className="data-[state=checked]:bg-destructive"
                       />
                       <Label htmlFor={`rejected-${request.id}`} className="text-xs">Rejected</Label>
+                    </div>
+
+                    <div className="flex items-center space-x-1">
+                      <Switch
+                        id={`on-hold-${request.id}`}
+                        checked={request.status === 'on_hold'}
+                        onCheckedChange={(checked) => {
+                          updateConnectionRequestStatus.mutate({
+                            requestId: request.id,
+                            status: checked ? 'on_hold' : 'pending'
+                          });
+                        }}
+                        disabled={updateConnectionRequestStatus.isPending}
+                        className="data-[state=checked]:bg-warning"
+                      />
+                      <Label htmlFor={`on-hold-${request.id}`} className="text-xs">On Hold</Label>
                     </div>
                   </div>
                 </div>

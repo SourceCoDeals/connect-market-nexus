@@ -177,6 +177,9 @@ const AdminRequests = () => {
           <Badge variant="outline" className="text-xs font-medium px-3 py-1.5 bg-red-500/10 text-red-700 border-red-500/20">
             Rejected: <span className="font-semibold ml-1">{requests.filter((r) => r.status === "rejected").length}</span>
           </Badge>
+          <Badge variant="outline" className="text-xs font-medium px-3 py-1.5 bg-orange-500/10 text-orange-700 border-orange-500/20">
+            On Hold: <span className="font-semibold ml-1">{requests.filter((r) => r.status === "on_hold").length}</span>
+          </Badge>
         </div>
 
         {searchQuery && (

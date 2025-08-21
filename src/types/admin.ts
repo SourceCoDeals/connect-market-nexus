@@ -87,7 +87,7 @@ export interface AdminConnectionRequest {
   id: string;
   user_id: string;
   listing_id: string;
-  status: 'pending' | 'approved' | 'rejected';
+  status: 'pending' | 'approved' | 'rejected' | 'on_hold';
   admin_comment?: string;
   user_message?: string;
   followed_up?: boolean;
@@ -96,6 +96,12 @@ export interface AdminConnectionRequest {
   negative_followed_up?: boolean;
   negative_followed_up_at?: string;
   negative_followed_up_by?: string;
+  approved_by?: string;
+  approved_at?: string;
+  rejected_by?: string;
+  rejected_at?: string;
+  on_hold_by?: string;
+  on_hold_at?: string;
   created_at: string;
   updated_at: string;
   decision_at?: string;

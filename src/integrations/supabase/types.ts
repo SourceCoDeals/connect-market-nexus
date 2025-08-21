@@ -214,6 +214,8 @@ export type Database = {
           negative_followed_up: boolean | null
           negative_followed_up_at: string | null
           negative_followed_up_by: string | null
+          on_hold_at: string | null
+          on_hold_by: string | null
           rejected_at: string | null
           rejected_by: string | null
           status: string
@@ -235,6 +237,8 @@ export type Database = {
           negative_followed_up?: boolean | null
           negative_followed_up_at?: string | null
           negative_followed_up_by?: string | null
+          on_hold_at?: string | null
+          on_hold_by?: string | null
           rejected_at?: string | null
           rejected_by?: string | null
           status?: string
@@ -256,6 +260,8 @@ export type Database = {
           negative_followed_up?: boolean | null
           negative_followed_up_at?: string | null
           negative_followed_up_by?: string | null
+          on_hold_at?: string | null
+          on_hold_by?: string | null
           rejected_at?: string | null
           rejected_by?: string | null
           status?: string
@@ -1453,6 +1459,10 @@ export type Database = {
           is_followed_up: boolean
           request_id: string
         }
+        Returns: boolean
+      }
+      update_connection_request_status: {
+        Args: { admin_notes?: string; new_status: string; request_id: string }
         Returns: boolean
       }
       update_daily_metrics: {
