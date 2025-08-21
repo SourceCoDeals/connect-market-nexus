@@ -346,8 +346,8 @@ SourceCo Team`}`;
               user={request.user} 
               followedUp={request.followed_up || false} 
               negativeFollowedUp={request.negative_followed_up || false}
-              followedUpByAdmin={undefined}
-              negativeFollowedUpByAdmin={undefined}
+              followedUpByAdmin={request.followedUpByAdmin}
+              negativeFollowedUpByAdmin={request.negativeFollowedUpByAdmin}
               followedUpAt={request.followed_up_at}
               negativeFollowedUpAt={request.negative_followed_up_at}
             />
