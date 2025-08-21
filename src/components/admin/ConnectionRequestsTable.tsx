@@ -470,7 +470,7 @@ SourceCo Team`}`;
                        requestId={request.id}
                        currentNotes={request.admin_comment}
                        isActive={request.status === 'approved'}
-                       label="approved"
+                       label="approve"
                      />
                    </div>
                   
@@ -501,7 +501,7 @@ SourceCo Team`}`;
                        requestId={request.id}
                        currentNotes={request.admin_comment}
                        isActive={request.status === 'rejected'}
-                       label="rejected"
+                       label="reject"
                      />
                    </div>
                   
@@ -532,7 +532,7 @@ SourceCo Team`}`;
                        requestId={request.id}
                        currentNotes={request.admin_comment}
                        isActive={request.status === 'on_hold'}
-                       label="on hold"
+                       label="put on hold"
                      />
                    </div>
                  </div>
