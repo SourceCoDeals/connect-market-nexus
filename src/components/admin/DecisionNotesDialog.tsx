@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -65,6 +65,9 @@ export const DecisionNotesDialog = ({
           <DialogTitle>
             {getActionText().charAt(0).toUpperCase() + getActionText().slice(1)} Request
           </DialogTitle>
+          <DialogDescription>
+            Enter decision notes for this connection request. This information will be saved for future reference.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">

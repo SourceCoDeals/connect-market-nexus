@@ -445,75 +445,61 @@ SourceCo Team`}`;
                   Final Decision
                 </div>
                 
-                <div className="flex items-center gap-2 flex-wrap">
-                  <Button
-                    size="sm"
-                    variant={request.status === 'approved' ? "default" : "outline"}
-                    onClick={() => {
-                      if (request.status === 'approved') {
-                        // Reset to pending if already approved
-                        updateConnectionRequestWithNotes.mutate({
-                          requestId: request.id,
-                          status: 'pending'
-                        });
-                      } else {
-                        // Show dialog for approval with notes
-                        setPendingDecision({ status: 'approved', actionType: 'approved' });
-                        setShowDecisionDialog(true);
-                      }
-                    }}
-                    disabled={updateConnectionRequestWithNotes.isPending}
-                    className="text-xs h-7"
-                  >
-                    <CheckCircle className="h-3 w-3 mr-1" />
-                    {request.status === 'approved' ? 'Approved' : 'Approve'}
-                  </Button>
-                  
-                  <Button
-                    size="sm"
-                    variant={request.status === 'rejected' ? "destructive" : "outline"}
-                    onClick={() => {
-                      if (request.status === 'rejected') {
-                        // Reset to pending if already rejected
-                        updateConnectionRequestWithNotes.mutate({
-                          requestId: request.id,
-                          status: 'pending'
-                        });
-                      } else {
-                        // Show dialog for rejection with notes
-                        setPendingDecision({ status: 'rejected', actionType: 'rejected' });
-                        setShowDecisionDialog(true);
-                      }
-                    }}
-                    disabled={updateConnectionRequestWithNotes.isPending}
-                    className="text-xs h-7"
-                  >
-                    <XCircle className="h-3 w-3 mr-1" />
-                    {request.status === 'rejected' ? 'Rejected' : 'Reject'}
-                  </Button>
-
-                  <Button
-                    size="sm"
-                    variant={request.status === 'on_hold' ? "secondary" : "outline"}
-                    onClick={() => {
-                      if (request.status === 'on_hold') {
-                        // Reset to pending if already on hold
-                        updateConnectionRequestWithNotes.mutate({
-                          requestId: request.id,
-                          status: 'pending'
-                        });
-                      } else {
-                        // Show dialog for on hold with notes
-                        setPendingDecision({ status: 'on_hold', actionType: 'on_hold' });
-                        setShowDecisionDialog(true);
-                      }
-                    }}
-                    disabled={updateConnectionRequestWithNotes.isPending}
-                    className="text-xs h-7"
-                  >
-                    <AlertTriangle className="h-3 w-3 mr-1" />
-                    {request.status === 'on_hold' ? 'On Hold' : 'Put On Hold'}
-                  </Button>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm font-medium text-primary">Approved</Label>
+                    <Switch
+                      checked={request.status === 'approved'}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setPendingDecision({ status: 'approved', actionType: 'approved' });
+                          setShowDecisionDialog(true);
+                        } else {
+                          updateConnectionRequestWithNotes.mutate({
+                            requestId: request.id,
+                            status: 'pending'
+                          });
+                        }
+                      }}
+                      disabled={updateConnectionRequestWithNotes.isPending}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm font-medium text-destructive">Rejected</Label>
+                    <Switch
+                      checked={request.status === 'rejected'}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setPendingDecision({ status: 'rejected', actionType: 'rejected' });
+                          setShowDecisionDialog(true);
+                        } else {
+                          updateConnectionRequestWithNotes.mutate({
+                            requestId: request.id,
+                            status: 'pending'
+                          });
+                        }
+                      }}
+                      disabled={updateConnectionRequestWithNotes.isPending}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm font-medium text-warning">On Hold</Label>
+                    <Switch
+                      checked={request.status === 'on_hold'}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setPendingDecision({ status: 'on_hold', actionType: 'on_hold' });
+                          setShowDecisionDialog(true);
+                        } else {
+                          updateConnectionRequestWithNotes.mutate({
+                            requestId: request.id,
+                            status: 'pending'
+                          });
+                        }
+                      }}
+                      disabled={updateConnectionRequestWithNotes.isPending}
+                    />
+                  </div>
                 </div>
 
                 {/* Show decision notes and admin attribution */}
@@ -560,6 +546,7 @@ SourceCo Team`}`;
             status: pendingDecision.status,
             decisionNotes
           });
+          setShowDecisionDialog(false);
           setPendingDecision(null);
         }}
         request={request}
