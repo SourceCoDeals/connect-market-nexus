@@ -316,9 +316,10 @@ If the status changes post‑diligence, we'll reach out immediately.`;
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
-      {/* Left Column: Quick Actions */}
-      <div className="space-y-4">
+    <div className="space-y-6">
+      {/* Top: Two-column grid for Quick Actions and Agreement Status */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
+        {/* Left Column: Quick Actions */}
         <div className="bg-gradient-to-br from-primary/5 to-secondary/5 border border-primary/10 rounded-lg p-4">
           <h5 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
             <Mail className="h-4 w-4 text-primary" />
@@ -381,17 +382,9 @@ If the status changes post‑diligence, we'll reach out immediately.`;
               </a>
             </Button>
           </div>
-          </div>
         </div>
-        
-        {/* User Notes Section - Below Quick Actions */}
-        <UserNotesSection 
-          userId={user.id}
-          userName={`${user.first_name} ${user.last_name}`.trim()}
-        />
 
-      {/* Right Column: Agreement Status */}
-      <div className="space-y-4">
+        {/* Right Column: Agreement Status */}
         <div className="bg-card border rounded-lg p-4">
           <h5 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
             <FileText className="h-4 w-4" />
@@ -585,10 +578,27 @@ If the status changes post‑diligence, we'll reach out immediately.`;
                 )}
             </div>
           </div>
+
+          <BuyerDealsOverview userId={user.id} />
+
+          {/* Decision Notes */}
+          <DecisionNotesInline 
+            requestId={requestId} 
+            initialNotes={currentRequest?.admin_comment || ''}
+            userFirstName={user.first_name}
+          />
         </div>
       </div>
 
-      {/* Dialogs */}
+      {/* Bottom: Full-width General Notes Section */}
+      <UserNotesSection 
+        userId={user.id}
+        userName={`${user.first_name} ${user.last_name}`.trim()}
+      />
+    </div>
+
+    {/* Dialogs */}
+    <>
       <SimpleFeeAgreementDialog
         user={user}
         listing={listing}
@@ -624,6 +634,6 @@ If the status changes post‑diligence, we'll reach out immediately.`;
         onConfirm={handleBulkFollowupConfirm}
         isLoading={bulkFollowup.isPending}
       />
-    </div>
+    </>
   );
 }
