@@ -16,6 +16,8 @@ import { MobileConnectionRequests } from "@/components/admin/MobileConnectionReq
 import { AdminRequestsWrapper } from "@/components/admin/AdminRequestsWrapper";
 import { invalidateConnectionRequests } from "@/lib/query-client-helpers";
 import { EmailTestButton } from "@/components/admin/EmailTestButton";
+import { ListingFilterSelect } from "@/components/admin/ListingFilterSelect";
+import { RequestsGridView } from "@/components/admin/RequestsGridView";
 
 const AdminRequests = () => {
   const queryClient = useQueryClient();
@@ -26,6 +28,7 @@ const AdminRequests = () => {
   const isMobile = useIsMobile();
   
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedListingId, setSelectedListingId] = useState<string | null>(null);
   const [selectedRequest, setSelectedRequest] = useState<AdminConnectionRequest | null>(null);
   const [actionType, setActionType] = useState<"approve" | "reject" | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -38,7 +41,7 @@ const AdminRequests = () => {
   
   const filteredRequests = requests.filter((request) => {
     const searchLower = searchQuery.toLowerCase();
-    return (
+    const matchesSearch = (
       request.user?.first_name?.toLowerCase().includes(searchLower) ||
       request.user?.last_name?.toLowerCase().includes(searchLower) ||
       request.user?.company?.toLowerCase().includes(searchLower) ||
@@ -46,7 +49,16 @@ const AdminRequests = () => {
       request.listing?.title?.toLowerCase().includes(searchLower) ||
       request.listing?.category?.toLowerCase().includes(searchLower)
     );
+    
+    const matchesListing = !selectedListingId || request.listing?.id === selectedListingId;
+    
+    return matchesSearch && matchesListing;
   });
+
+  // Get selected listing details for grid view
+  const selectedListing = selectedListingId 
+    ? requests.find(r => r.listing?.id === selectedListingId)?.listing 
+    : null;
   
   const handleAction = async (request: AdminConnectionRequest, action: "approve" | "reject") => {
     try {
@@ -153,48 +165,75 @@ const AdminRequests = () => {
             }} 
           />
           
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-            <Input
-              placeholder="Search requests..."
-              className="pl-10"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+          {/* Filters */}
+          <div className="flex flex-col sm:flex-row gap-4">
+            <ListingFilterSelect
+              requests={requests}
+              selectedListingId={selectedListingId}
+              onListingChange={setSelectedListingId}
             />
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+              <Input
+                placeholder="Search requests..."
+                className="pl-10"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
           </div>
         </div>
 
         <div className="flex gap-3 flex-wrap">
           <Badge variant="secondary" className="text-xs font-medium px-3 py-1.5">
-            Total: <span className="font-semibold ml-1">{requests.length}</span>
+            {selectedListingId ? 'Filtered' : 'Total'}: <span className="font-semibold ml-1">{filteredRequests.length}</span>
           </Badge>
           <Badge variant="outline" className="text-xs font-medium px-3 py-1.5 bg-amber-500/10 text-amber-700 border-amber-500/20">
-            Pending: <span className="font-semibold ml-1">{requests.filter((r) => r.status === "pending").length}</span>
+            Pending: <span className="font-semibold ml-1">{filteredRequests.filter((r) => r.status === "pending").length}</span>
           </Badge>
           <Badge variant="outline" className="text-xs font-medium px-3 py-1.5 bg-green-500/10 text-green-700 border-green-500/20">
-            Approved: <span className="font-semibold ml-1">{requests.filter((r) => r.status === "approved").length}</span>
+            Approved: <span className="font-semibold ml-1">{filteredRequests.filter((r) => r.status === "approved").length}</span>
           </Badge>
           <Badge variant="outline" className="text-xs font-medium px-3 py-1.5 bg-red-500/10 text-red-700 border-red-500/20">
-            Rejected: <span className="font-semibold ml-1">{requests.filter((r) => r.status === "rejected").length}</span>
+            Rejected: <span className="font-semibold ml-1">{filteredRequests.filter((r) => r.status === "rejected").length}</span>
           </Badge>
           <Badge variant="outline" className="text-xs font-medium px-3 py-1.5 bg-orange-500/10 text-orange-700 border-orange-500/20">
-            On Hold: <span className="font-semibold ml-1">{requests.filter((r) => r.status === "on_hold").length}</span>
+            On Hold: <span className="font-semibold ml-1">{filteredRequests.filter((r) => r.status === "on_hold").length}</span>
           </Badge>
+          {selectedListingId && (
+            <Badge variant="outline" className="text-xs font-medium px-3 py-1.5">
+              Total: <span className="font-semibold ml-1">{requests.length}</span>
+            </Badge>
+          )}
         </div>
 
-        {searchQuery && (
+        {(searchQuery || selectedListingId) && (
           <div className="text-sm text-muted-foreground">
-            Found {filteredRequests.length} request{filteredRequests.length !== 1 ? 's' : ''} matching "{searchQuery}"
+            {selectedListingId && selectedListing && (
+              <>Showing buyers for "{selectedListing.title}" - </>
+            )}
+            Found {filteredRequests.length} request{filteredRequests.length !== 1 ? 's' : ''}
+            {searchQuery && ` matching "${searchQuery}"`}
           </div>
         )}
 
-        <div className="bg-card/30 backdrop-blur-sm rounded-xl border border-border/50 overflow-hidden shadow-sm">
-          <ConnectionRequestsTable 
+        {/* Conditional Rendering: Grid View for specific listing, Table View otherwise */}
+        {selectedListingId ? (
+          <RequestsGridView
             requests={filteredRequests}
-            isLoading={isLoading}
-            onRefresh={() => refetch()}
+            selectedListing={selectedListing ? { id: selectedListing.id, title: selectedListing.title } : null}
+            onApprove={(request) => handleAction(request, "approve")}
+            onReject={(request) => handleAction(request, "reject")}
           />
-        </div>
+        ) : (
+          <div className="bg-card/30 backdrop-blur-sm rounded-xl border border-border/50 overflow-hidden shadow-sm">
+            <ConnectionRequestsTable 
+              requests={filteredRequests}
+              isLoading={isLoading}
+              onRefresh={() => refetch()}
+            />
+          </div>
+        )}
 
         <ConnectionRequestDialog
           isOpen={isDialogOpen}
