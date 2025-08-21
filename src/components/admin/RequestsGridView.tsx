@@ -175,12 +175,10 @@ const BuyerCard = ({
                 id={`approved-${request.id}`}
                 checked={request.status === 'approved'}
                 onCheckedChange={(checked) => {
-                  if (checked) {
-                    updateStatus.mutate({
-                      requestId: request.id,
-                      status: 'approved'
-                    });
-                  }
+                  updateStatus.mutate({
+                    requestId: request.id,
+                    status: checked ? 'approved' : 'pending'
+                  });
                 }}
                 disabled={updateStatus.isPending}
               />
@@ -195,12 +193,10 @@ const BuyerCard = ({
                 id={`rejected-${request.id}`}
                 checked={request.status === 'rejected'}
                 onCheckedChange={(checked) => {
-                  if (checked) {
-                    updateStatus.mutate({
-                      requestId: request.id,
-                      status: 'rejected'
-                    });
-                  }
+                  updateStatus.mutate({
+                    requestId: request.id,
+                    status: checked ? 'rejected' : 'pending'
+                  });
                 }}
                 disabled={updateStatus.isPending}
               />
@@ -215,12 +211,10 @@ const BuyerCard = ({
                 id={`on_hold-${request.id}`}
                 checked={request.status === 'on_hold'}
                 onCheckedChange={(checked) => {
-                  if (checked) {
-                    updateStatus.mutate({
-                      requestId: request.id,
-                      status: 'on_hold'
-                    });
-                  }
+                  updateStatus.mutate({
+                    requestId: request.id,
+                    status: checked ? 'on_hold' : 'pending'
+                  });
                 }}
                 disabled={updateStatus.isPending}
               />
@@ -231,21 +225,21 @@ const BuyerCard = ({
           {request.status !== 'pending' && (
             <div className="text-xs space-y-1 pt-2 border-t border-border/50">
               <div className="font-medium text-muted-foreground">Decision Details:</div>
-              {request.status === 'approved' && request.approved_by && (
+              {request.status === 'approved' && (
                 <div className="text-success">
-                  Approved by {getAdminProfile(request.approved_by)?.name || 'Admin'} 
+                  Approved by {request.approved_by ? (getAdminProfile(request.approved_by)?.name || `Admin (${request.approved_by})`) : 'Admin'} 
                   {request.approved_at && ` on ${format(new Date(request.approved_at), 'MMM d, yyyy')}`}
                 </div>
               )}
-              {request.status === 'rejected' && request.rejected_by && (
+              {request.status === 'rejected' && (
                 <div className="text-destructive">
-                  Rejected by {getAdminProfile(request.rejected_by)?.name || 'Admin'}
+                  Rejected by {request.rejected_by ? (getAdminProfile(request.rejected_by)?.name || `Admin (${request.rejected_by})`) : 'Admin'}
                   {request.rejected_at && ` on ${format(new Date(request.rejected_at), 'MMM d, yyyy')}`}
                 </div>
               )}
-              {request.status === 'on_hold' && request.on_hold_by && (
+              {request.status === 'on_hold' && (
                 <div className="text-warning">
-                  Put on hold by {getAdminProfile(request.on_hold_by)?.name || 'Admin'}
+                  Put on hold by {request.on_hold_by ? (getAdminProfile(request.on_hold_by)?.name || `Admin (${request.on_hold_by})`) : 'Admin'}
                   {request.on_hold_at && ` on ${format(new Date(request.on_hold_at), 'MMM d, yyyy')}`}
                 </div>
               )}

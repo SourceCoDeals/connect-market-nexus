@@ -18,6 +18,7 @@ import { invalidateConnectionRequests } from "@/lib/query-client-helpers";
 import { EmailTestButton } from "@/components/admin/EmailTestButton";
 import { ListingFilterSelect } from "@/components/admin/ListingFilterSelect";
 import { RequestsGridView } from "@/components/admin/RequestsGridView";
+import { ViewSwitcher } from "@/components/admin/ViewSwitcher";
 
 const AdminRequests = () => {
   const queryClient = useQueryClient();
@@ -29,6 +30,7 @@ const AdminRequests = () => {
   
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedListingId, setSelectedListingId] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
   const [selectedRequest, setSelectedRequest] = useState<AdminConnectionRequest | null>(null);
   const [actionType, setActionType] = useState<"approve" | "reject" | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -165,7 +167,7 @@ const AdminRequests = () => {
             }} 
           />
           
-          {/* Filters */}
+          {/* Filters and View Switcher */}
           <div className="flex flex-col sm:flex-row gap-4">
             <ListingFilterSelect
               requests={requests}
@@ -181,6 +183,12 @@ const AdminRequests = () => {
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
+            {selectedListingId && (
+              <ViewSwitcher 
+                viewMode={viewMode} 
+                onViewChange={setViewMode} 
+              />
+            )}
           </div>
         </div>
 
@@ -217,8 +225,8 @@ const AdminRequests = () => {
           </div>
         )}
 
-        {/* Conditional Rendering: Grid View for specific listing, Table View otherwise */}
-        {selectedListingId ? (
+        {/* Conditional Rendering based on listing filter and view mode */}
+        {selectedListingId && viewMode === 'grid' ? (
           <RequestsGridView
             requests={filteredRequests}
             selectedListing={selectedListing ? { 
