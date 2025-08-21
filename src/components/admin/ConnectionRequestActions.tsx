@@ -594,13 +594,6 @@ If the status changes post‑diligence, we'll reach out immediately.`;
           </div>
         </div>
 
-        {/* Decision Notes */}
-        <DecisionNotesInline 
-          requestId={requestId || ''} 
-          currentNotes={currentRequest?.admin_comment || ''}
-          isActive={true}
-          label="general"
-        />
       </div>
 
       {/* Dialogs */}
