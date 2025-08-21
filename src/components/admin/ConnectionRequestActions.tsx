@@ -362,69 +362,88 @@ If the status changes post‑diligence, we'll reach out immediately.`;
             <div className="border rounded-lg p-4 space-y-4">
               <h5 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
                 <Mail className="h-4 w-4 text-primary" />
-                Quick Actions & Agreement Status
+                EMAIL ACTIONS
               </h5>
               
-              {/* Email Actions */}
-              <div className="space-y-2">
-                <h6 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Email Actions</h6>
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    variant={localFollowedUp ? "secondary" : "outline"}
-                    size="sm"
-                    asChild
-                    className="text-xs h-8"
+              {/* Top Row: Communication Actions */}
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant={localFollowedUp ? "secondary" : "outline"}
+                  size="sm"
+                  asChild
+                  className="text-xs h-8"
+                >
+                  <a 
+                    href={getFollowUpMailto()}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
                   >
-                    <a 
-                      href={getFollowUpMailto()}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <MessageSquare className="h-3 w-3 mr-1" />
-                      Follow Up
-                      <ExternalLink className="h-3 w-3 ml-1" />
-                    </a>
-                  </Button>
+                    <MessageSquare className="h-3 w-3 mr-1" />
+                    Follow Up
+                    <ExternalLink className="h-3 w-3 ml-1" />
+                  </a>
+                </Button>
 
-                  <Button
-                    variant={localNegativeFollowedUp ? "secondary" : "outline"}
-                    size="sm"
-                    asChild
-                    className="text-xs h-8"
+                <Button
+                  variant={localNegativeFollowedUp ? "secondary" : "outline"}
+                  size="sm"
+                  asChild
+                  className="text-xs h-8"
+                >
+                  <a 
+                    href={getNegativeFollowUpMailto()}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
                   >
-                    <a 
-                      href={getNegativeFollowUpMailto()}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <XCircle className="h-3 w-3 mr-1" />
-                      Send Rejection Notice
-                      <ExternalLink className="h-3 w-3 ml-1" />
-                    </a>
-                  </Button>
+                    <XCircle className="h-3 w-3 mr-1" />
+                    Send Rejection Notice
+                    <ExternalLink className="h-3 w-3 ml-1" />
+                  </a>
+                </Button>
 
-                  <Button
-                    variant={localUser.fee_agreement_email_sent ? "secondary" : "default"}
-                    size="sm"
-                    onClick={() => setShowFeeDialog(true)}
-                    className="text-xs h-8"
-                  >
-                    <FileText className="h-3 w-3 mr-1" />
-                    {localUser.fee_agreement_signed ? "Resend Fee Agreement" : "Send Fee Agreement"}
-                  </Button>
-                  
-                  <Button
-                    variant={localUser.nda_email_sent ? "secondary" : "default"}
-                    size="sm"
-                    onClick={() => setShowNDADialog(true)}
-                    className="text-xs h-8"
-                  >
-                    <Shield className="h-3 w-3 mr-1" />
-                    {localUser.nda_signed ? "Resend NDA" : "Send NDA"}
-                  </Button>
-                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-xs h-8"
+                  onClick={() => {
+                    // Placeholder for On Hold functionality
+                    toast({
+                      title: "On Hold",
+                      description: "Connection request marked as on hold."
+                    });
+                  }}
+                >
+                  <Clock className="h-3 w-3 mr-1" />
+                  On Hold
+                </Button>
+              </div>
+
+              {/* Divider */}
+              <div className="border-t my-3"></div>
+
+              {/* Bottom Row: Document Actions */}
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant={localUser.fee_agreement_email_sent ? "secondary" : "default"}
+                  size="sm"
+                  onClick={() => setShowFeeDialog(true)}
+                  className="text-xs h-8"
+                >
+                  <FileText className="h-3 w-3 mr-1" />
+                  Send Fee Agreement
+                </Button>
+                
+                <Button
+                  variant={localUser.nda_email_sent ? "secondary" : "default"}
+                  size="sm"
+                  onClick={() => setShowNDADialog(true)}
+                  className="text-xs h-8"
+                >
+                  <Shield className="h-3 w-3 mr-1" />
+                  Send NDA
+                </Button>
               </div>
 
               {/* Document Status */}
