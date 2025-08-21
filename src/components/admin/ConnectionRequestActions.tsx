@@ -106,30 +106,32 @@ export function ConnectionRequestActions({
   const updateNegativeFollowup = useUpdateNegativeFollowup();
   const bulkFollowup = useBulkFollowup();
 
-  const getStatusBadge = (sent: boolean, signed: boolean, sentAt?: string, signedAt?: string) => {
+  const getStatusIndicator = (sent: boolean, signed: boolean, sentAt?: string, signedAt?: string) => {
     if (signed && signedAt) {
       const timeAgo = formatDistanceToNow(new Date(signedAt), { addSuffix: true });
       return (
-        <Badge className="text-xs bg-success/10 text-success border-success/20 hover:bg-success/20 transition-colors" title={`Signed ${timeAgo}`}>
-          <CheckCheck className="h-3 w-3 mr-1" />
-          Signed {timeAgo}
-        </Badge>
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground" title={`Signed ${timeAgo}`}>
+          <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
+          <span className="font-medium text-foreground">Signed</span>
+          <span className="text-muted-foreground/60">{timeAgo}</span>
+        </div>
       );
     }
     if (sent && sentAt) {
       const timeAgo = formatDistanceToNow(new Date(sentAt), { addSuffix: true });
       return (
-        <Badge className="text-xs bg-info/10 text-info border-info/20 hover:bg-info/20 transition-colors" title={`Sent ${timeAgo}`}>
-          <Send className="h-3 w-3 mr-1" />
-          Sent {timeAgo}
-        </Badge>
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground" title={`Sent ${timeAgo}`}>
+          <div className="w-1.5 h-1.5 rounded-full bg-blue-500"></div>
+          <span className="font-medium text-foreground">Sent</span>
+          <span className="text-muted-foreground/60">{timeAgo}</span>
+        </div>
       );
     }
     return (
-      <Badge className="text-xs bg-warning/10 text-warning border-warning/20 hover:bg-warning/20 transition-colors">
-        <Clock className="h-3 w-3 mr-1" />
-        Required
-      </Badge>
+      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+        <div className="w-1.5 h-1.5 rounded-full bg-amber-500"></div>
+        <span className="font-medium text-foreground">Required</span>
+      </div>
     );
   };
 
@@ -457,95 +459,99 @@ If the status changes post‑diligence, we'll reach out immediately.`;
               
               <div className="space-y-3">
                 {/* Fee Agreement Row */}
-                <div className="flex items-center justify-between p-3 bg-background/50 border border-border/20 rounded-lg">
+                <div className="flex items-center justify-between py-2 px-3 rounded-md border border-border/50 bg-background/50 hover:bg-accent/20 transition-colors">
                   <div className="flex items-center gap-2">
-                    <FileText className="h-3 w-3 text-primary" />
-                    <span className="text-sm font-medium">Fee Agreement</span>
-                    {getStatusBadge(
+                    <div className="flex items-center gap-2 min-w-[100px]">
+                      <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span className="text-xs font-medium text-foreground">Fee Agreement</span>
+                    </div>
+                    {getStatusIndicator(
                       localUser.fee_agreement_email_sent || false, 
                       localUser.fee_agreement_signed || false, 
                       localUser.fee_agreement_email_sent_at, 
                       localUser.fee_agreement_signed_at
                     )}
                   </div>
-                  <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor={`fee-sent-${user.id}`} className="text-xs font-medium text-muted-foreground">Sent</Label>
                       <Switch
                         id={`fee-sent-${user.id}`}
                         checked={localUser.fee_agreement_email_sent || false}
                         onCheckedChange={handleFeeAgreementEmailSentToggle}
                         disabled={updateFeeAgreementEmailSent.isPending}
-                        className="scale-75"
+                        className="scale-90"
                       />
-                      <Label htmlFor={`fee-sent-${user.id}`} className="text-xs">Sent</Label>
                     </div>
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor={`fee-signed-${user.id}`} className="text-xs font-medium text-muted-foreground">Signed</Label>
                       <Switch
                         id={`fee-signed-${user.id}`}
                         checked={localUser.fee_agreement_signed || false}
                         onCheckedChange={handleFeeAgreementSignedToggle}
                         disabled={updateFeeAgreement.isPending}
-                        className="scale-75"
+                        className="scale-90"
                       />
-                      <Label htmlFor={`fee-signed-${user.id}`} className="text-xs">Signed</Label>
                     </div>
                   </div>
                 </div>
 
                 {/* NDA Row */}
-                <div className="flex items-center justify-between p-3 bg-background/50 border border-border/20 rounded-lg">
+                <div className="flex items-center justify-between py-2 px-3 rounded-md border border-border/50 bg-background/50 hover:bg-accent/20 transition-colors">
                   <div className="flex items-center gap-2">
-                    <Shield className="h-3 w-3 text-success" />
-                    <span className="text-sm font-medium">NDA</span>
-                    {getStatusBadge(
+                    <div className="flex items-center gap-2 min-w-[100px]">
+                      <Shield className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span className="text-xs font-medium text-foreground">NDA</span>
+                    </div>
+                    {getStatusIndicator(
                       localUser.nda_email_sent || false, 
                       localUser.nda_signed || false, 
                       localUser.nda_email_sent_at, 
                       localUser.nda_signed_at
                     )}
                   </div>
-                  <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor={`nda-sent-${user.id}`} className="text-xs font-medium text-muted-foreground">Sent</Label>
                       <Switch
                         id={`nda-sent-${user.id}`}
                         checked={localUser.nda_email_sent || false}
                         onCheckedChange={handleNDAEmailSentToggle}
                         disabled={updateNDAEmailSent.isPending}
-                        className="scale-75"
+                        className="scale-90"
                       />
-                      <Label htmlFor={`nda-sent-${user.id}`} className="text-xs">Sent</Label>
                     </div>
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor={`nda-signed-${user.id}`} className="text-xs font-medium text-muted-foreground">Signed</Label>
                       <Switch
                         id={`nda-signed-${user.id}`}
                         checked={localUser.nda_signed || false}
                         onCheckedChange={handleNDASignedToggle}
                         disabled={updateNDA.isPending}
-                        className="scale-75"
+                        className="scale-90"
                       />
-                      <Label htmlFor={`nda-signed-${user.id}`} className="text-xs">Signed</Label>
                     </div>
                   </div>
                 </div>
 
-                {/* Follow-up Row */}
-                <div className="p-3 bg-background/50 border border-border/20 rounded-lg">
+                {/* Follow-up Section */}
+                <div className="py-2 px-3 rounded-md border border-border/50 bg-background/50">
                   <div className="flex items-center gap-2 mb-3">
-                    <MessageSquare className="h-3 w-3 text-warning" />
-                    <span className="text-sm font-medium">Follow-Up</span>
+                    <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" />
+                    <span className="text-xs font-medium text-foreground">Follow-Up</span>
                   </div>
                   
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-2">
+                        <Label htmlFor={`follow-up-${user.id}`} className="text-xs font-medium text-muted-foreground">Positive</Label>
                         <Switch
                           id={`follow-up-${user.id}`}
                           checked={localFollowedUp}
                           onCheckedChange={handleFollowUpToggle}
                           disabled={updateFollowup.isPending}
-                          className="scale-75"
+                          className="scale-90"
                         />
-                        <Label htmlFor={`follow-up-${user.id}`} className="text-xs">Positive</Label>
                       </div>
                       {localFollowedUp && currentRequest?.followed_up_at && (
                         <div className="text-xs text-muted-foreground">
@@ -555,15 +561,15 @@ If the status changes post‑diligence, we'll reach out immediately.`;
                     </div>
 
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-2">
+                        <Label htmlFor={`negative-follow-up-${user.id}`} className="text-xs font-medium text-muted-foreground">Negative</Label>
                         <Switch
                           id={`negative-follow-up-${user.id}`}
                           checked={localNegativeFollowedUp}
                           onCheckedChange={handleNegativeFollowUpToggle}
                           disabled={updateNegativeFollowup.isPending}
-                          className="scale-75"
+                          className="scale-90"
                         />
-                        <Label htmlFor={`negative-follow-up-${user.id}`} className="text-xs">Negative</Label>
                       </div>
                       {localNegativeFollowedUp && currentRequest?.negative_followed_up_at && (
                         <div className="text-xs text-muted-foreground">
