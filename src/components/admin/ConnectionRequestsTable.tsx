@@ -29,8 +29,9 @@ import { ConnectionRequestActions } from "./ConnectionRequestActions";
 import { useAdminSignature } from "@/hooks/admin/use-admin-signature";
 import { useAuth } from "@/context/AuthContext";
 import { getAdminProfile } from "@/lib/admin-profiles";
-import { useUpdateConnectionRequestStatus } from "@/hooks/admin/use-connection-request-status";
+import { useUpdateConnectionRequestWithNotes } from "@/hooks/admin/use-connection-request-with-notes";
 import { useAdminProfiles } from '@/hooks/admin/use-admin-profiles';
+import { DecisionNotesDialog } from "./DecisionNotesDialog";
 
 // Helper function to format listing display name (Title/Company Name)
 const formatListingForDisplay = (title: string, companyName?: string | null): string => {
@@ -215,7 +216,9 @@ function ReactiveRequestCard({
 }) {
   const { signature } = useAdminSignature();
   const { user: authUser } = useAuth();
-  const updateConnectionRequestStatus = useUpdateConnectionRequestStatus();
+  const updateConnectionRequestWithNotes = useUpdateConnectionRequestWithNotes();
+  const [showDecisionDialog, setShowDecisionDialog] = useState(false);
+  const [pendingDecision, setPendingDecision] = useState<{status: string; actionType: "approved" | "rejected" | "on_hold"} | null>(null);
 
   const getApprovalMailto = (request: AdminConnectionRequest) => {
     if (!request.listing || !request.user) return '';
@@ -363,6 +366,7 @@ SourceCo Team`}`;
                   requestId={request.id}
                   followedUp={request.followed_up || false}
                   negativeFollowedUp={request.negative_followed_up || false}
+                  request={request}
                 />
               )}
 
@@ -434,94 +438,134 @@ SourceCo Team`}`;
                 </div>
               </div>
 
-              {/* Final Decision - Status Toggles */}
+              {/* Final Decision - Status Buttons */}
               <div className="mt-4 pt-3 border-t border-border/30">
                 <div className="text-xs font-medium text-muted-foreground mb-3 flex items-center gap-1">
                   <Shield className="h-3 w-3" />
                   Final Decision
                 </div>
                 
-                <div className="flex items-center gap-3">
-                  <div className="flex flex-col space-y-1">
-                    <div className="flex items-center space-x-1">
-                      <Switch
-                        id={`approved-${request.id}`}
-                        checked={request.status === 'approved'}
-                        onCheckedChange={(checked) => {
-                          // Mutual exclusivity: turning ON sets to approved, turning OFF sets to pending
-                          const newStatus = checked ? 'approved' : 'pending';
-                          updateConnectionRequestStatus.mutate({
-                            requestId: request.id,
-                            status: newStatus
-                          });
-                        }}
-                        disabled={updateConnectionRequestStatus.isPending}
-                        className="data-[state=checked]:bg-success"
-                      />
-                      <Label htmlFor={`approved-${request.id}`} className="text-xs">Approved</Label>
-                    </div>
-                    {request.status === 'approved' && request.approved_by && (
-                      <div className="text-xs text-muted-foreground pl-6">
-                        <DecisionDetails adminId={request.approved_by} timestamp={request.approved_at} action="approved" />
-                      </div>
-                    )}
-                  </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Button
+                    size="sm"
+                    variant={request.status === 'approved' ? "default" : "outline"}
+                    onClick={() => {
+                      if (request.status === 'approved') {
+                        // Reset to pending if already approved
+                        updateConnectionRequestWithNotes.mutate({
+                          requestId: request.id,
+                          status: 'pending'
+                        });
+                      } else {
+                        // Show dialog for approval with notes
+                        setPendingDecision({ status: 'approved', actionType: 'approved' });
+                        setShowDecisionDialog(true);
+                      }
+                    }}
+                    disabled={updateConnectionRequestWithNotes.isPending}
+                    className="text-xs h-7"
+                  >
+                    <CheckCircle className="h-3 w-3 mr-1" />
+                    {request.status === 'approved' ? 'Approved' : 'Approve'}
+                  </Button>
                   
-                  <div className="flex flex-col space-y-1">
-                    <div className="flex items-center space-x-1">
-                      <Switch
-                        id={`rejected-${request.id}`}
-                        checked={request.status === 'rejected'}
-                        onCheckedChange={(checked) => {
-                          // Mutual exclusivity: turning ON sets to rejected, turning OFF sets to pending
-                          const newStatus = checked ? 'rejected' : 'pending';
-                          updateConnectionRequestStatus.mutate({
-                            requestId: request.id,
-                            status: newStatus
-                          });
-                        }}
-                        disabled={updateConnectionRequestStatus.isPending}
-                        className="data-[state=checked]:bg-destructive"
-                      />
-                      <Label htmlFor={`rejected-${request.id}`} className="text-xs">Rejected</Label>
-                    </div>
-                    {request.status === 'rejected' && request.rejected_by && (
-                      <div className="text-xs text-muted-foreground pl-6">
-                        <DecisionDetails adminId={request.rejected_by} timestamp={request.rejected_at} action="rejected" />
-                      </div>
-                    )}
-                  </div>
-                  
-                  <div className="flex flex-col space-y-1">
-                    <div className="flex items-center space-x-1">
-                      <Switch
-                        id={`on_hold-${request.id}`}
-                        checked={request.status === 'on_hold'}
-                        onCheckedChange={(checked) => {
-                          // Mutual exclusivity: turning ON sets to on_hold, turning OFF sets to pending
-                          const newStatus = checked ? 'on_hold' : 'pending';
-                          updateConnectionRequestStatus.mutate({
-                            requestId: request.id,
-                            status: newStatus
-                          });
-                        }}
-                        disabled={updateConnectionRequestStatus.isPending}
-                        className="data-[state=checked]:bg-warning"
-                      />
-                      <Label htmlFor={`on_hold-${request.id}`} className="text-xs">On Hold</Label>
-                    </div>
-                    {request.status === 'on_hold' && request.on_hold_by && (
-                      <div className="text-xs text-muted-foreground pl-6">
-                        <DecisionDetails adminId={request.on_hold_by} timestamp={request.on_hold_at} action="put on hold" />
-                      </div>
-                    )}
-                  </div>
+                  <Button
+                    size="sm"
+                    variant={request.status === 'rejected' ? "destructive" : "outline"}
+                    onClick={() => {
+                      if (request.status === 'rejected') {
+                        // Reset to pending if already rejected
+                        updateConnectionRequestWithNotes.mutate({
+                          requestId: request.id,
+                          status: 'pending'
+                        });
+                      } else {
+                        // Show dialog for rejection with notes
+                        setPendingDecision({ status: 'rejected', actionType: 'rejected' });
+                        setShowDecisionDialog(true);
+                      }
+                    }}
+                    disabled={updateConnectionRequestWithNotes.isPending}
+                    className="text-xs h-7"
+                  >
+                    <XCircle className="h-3 w-3 mr-1" />
+                    {request.status === 'rejected' ? 'Rejected' : 'Reject'}
+                  </Button>
+
+                  <Button
+                    size="sm"
+                    variant={request.status === 'on_hold' ? "secondary" : "outline"}
+                    onClick={() => {
+                      if (request.status === 'on_hold') {
+                        // Reset to pending if already on hold
+                        updateConnectionRequestWithNotes.mutate({
+                          requestId: request.id,
+                          status: 'pending'
+                        });
+                      } else {
+                        // Show dialog for on hold with notes
+                        setPendingDecision({ status: 'on_hold', actionType: 'on_hold' });
+                        setShowDecisionDialog(true);
+                      }
+                    }}
+                    disabled={updateConnectionRequestWithNotes.isPending}
+                    className="text-xs h-7"
+                  >
+                    <AlertTriangle className="h-3 w-3 mr-1" />
+                    {request.status === 'on_hold' ? 'On Hold' : 'Put On Hold'}
+                  </Button>
                 </div>
+
+                {/* Show decision notes and admin attribution */}
+                {request.status !== 'pending' && (
+                  <div className="mt-3 p-3 bg-muted/30 rounded-lg border text-xs">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1">
+                        <div className="font-medium text-foreground mb-1">Decision Notes:</div>
+                        <p className="text-muted-foreground">
+                          {request.decision_notes || 'No notes provided'}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="mt-2 text-muted-foreground">
+                      {request.status === 'approved' && request.approved_by && (
+                        <DecisionDetails adminId={request.approved_by} timestamp={request.approved_at} action="approved" />
+                      )}
+                      {request.status === 'rejected' && request.rejected_by && (
+                        <DecisionDetails adminId={request.rejected_by} timestamp={request.rejected_at} action="rejected" />
+                      )}
+                      {request.status === 'on_hold' && request.on_hold_by && (
+                        <DecisionDetails adminId={request.on_hold_by} timestamp={request.on_hold_at} action="put on hold" />
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
         </div>
       </CardContent>
+
+      {/* Decision Notes Dialog */}
+      <DecisionNotesDialog
+        isOpen={showDecisionDialog}
+        onClose={() => {
+          setShowDecisionDialog(false);
+          setPendingDecision(null);
+        }}
+        onConfirm={async (decisionNotes: string) => {
+          if (!pendingDecision) return;
+          await updateConnectionRequestWithNotes.mutateAsync({
+            requestId: request.id,
+            status: pendingDecision.status,
+            decisionNotes
+          });
+          setPendingDecision(null);
+        }}
+        request={request}
+        actionType={pendingDecision?.actionType || null}
+        isLoading={updateConnectionRequestWithNotes.isPending}
+      />
     </Card>
   );
 }
