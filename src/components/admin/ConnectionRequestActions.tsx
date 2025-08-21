@@ -285,9 +285,18 @@ If the status changes post‑diligence, we'll reach out immediately.`;
       return;
     }
 
+    // Mutual exclusivity: if enabling positive, disable negative
+    if (checked && localNegativeFollowedUp) {
+      setLocalNegativeFollowedUp(false);
+      updateNegativeFollowup.mutate({
+        requestId,
+        isFollowedUp: false
+      });
+    }
+
     // Single request or unchecking - handle immediately
     setLocalFollowedUp(checked);
-    onLocalStateUpdate?.(localUser, checked, localNegativeFollowedUp);
+    onLocalStateUpdate?.(localUser, checked, checked ? false : localNegativeFollowedUp);
     
     updateFollowup.mutate({
       requestId,
@@ -303,9 +312,18 @@ If the status changes post‑diligence, we'll reach out immediately.`;
       return;
     }
 
+    // Mutual exclusivity: if enabling negative, disable positive
+    if (checked && localFollowedUp) {
+      setLocalFollowedUp(false);
+      updateFollowup.mutate({
+        requestId,
+        isFollowedUp: false
+      });
+    }
+
     // Single request or unchecking - handle immediately
     setLocalNegativeFollowedUp(checked);
-    onLocalStateUpdate?.(localUser, localFollowedUp, checked);
+    onLocalStateUpdate?.(localUser, checked ? false : localFollowedUp, checked);
     
     updateNegativeFollowup.mutate({
       requestId,
