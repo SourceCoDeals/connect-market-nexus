@@ -418,6 +418,7 @@ SourceCo Team`}`;
                           id={`approved-${request.id}`}
                           checked={request.status === 'approved'}
                           onCheckedChange={(checked) => {
+                            // Mutual exclusivity: turning ON sets to approved, turning OFF sets to pending
                             const newStatus = checked ? 'approved' : 'pending';
                             updateConnectionRequestStatus.mutate({
                               requestId: request.id,
@@ -442,6 +443,7 @@ SourceCo Team`}`;
                           id={`rejected-${request.id}`}
                           checked={request.status === 'rejected'}
                           onCheckedChange={(checked) => {
+                            // Mutual exclusivity: turning ON sets to rejected, turning OFF sets to pending
                             const newStatus = checked ? 'rejected' : 'pending';
                             updateConnectionRequestStatus.mutate({
                               requestId: request.id,
@@ -466,6 +468,7 @@ SourceCo Team`}`;
                           id={`on-hold-${request.id}`}
                           checked={request.status === 'on_hold'}
                           onCheckedChange={(checked) => {
+                            // Mutual exclusivity: turning ON sets to on_hold, turning OFF sets to pending
                             const newStatus = checked ? 'on_hold' : 'pending';
                             updateConnectionRequestStatus.mutate({
                               requestId: request.id,
