@@ -23,6 +23,7 @@ import { BuyerDealsOverview } from "./BuyerDealsOverview";
 import { useUpdateNDA, useUpdateNDAEmailSent } from "@/hooks/admin/use-nda";
 import { useUpdateFeeAgreement, useUpdateFeeAgreementEmailSent } from "@/hooks/admin/use-fee-agreement";
 import { useUpdateFollowup, useUpdateNegativeFollowup } from "@/hooks/admin/use-followup";
+import { useUpdateApprovalStatus, useUpdateRejectionStatus } from "@/hooks/admin/use-approval-status";
 import { useUserConnectionRequests } from "@/hooks/admin/use-user-connection-requests";
 import { useBulkFollowup } from "@/hooks/admin/use-bulk-followup";
 import { useToast } from "@/hooks/use-toast";

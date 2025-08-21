@@ -112,22 +112,8 @@ export function useConnectionRequestsMutation() {
           listing
         };
         
-        // Send email notification based on status
-        if (status === 'approved') {
-          try {
-            await sendConnectionApprovalEmail(fullRequestData);
-            // Approval email sent
-          } catch (emailError) {
-            console.error("Error sending approval email:", emailError);
-          }
-        } else if (status === 'rejected') {
-          try {
-            await sendConnectionRejectionEmail(fullRequestData);
-            // Rejection email sent
-          } catch (emailError) {
-            console.error("Error sending rejection email:", emailError);
-          }
-        }
+        // No automatic email sending - admins will use mailto links
+        // The old automatic email functionality has been removed
         
         return fullRequestData;
       } catch (error: any) {

@@ -188,16 +188,6 @@ const AdminRequests = () => {
         <div className="bg-card/30 backdrop-blur-sm rounded-xl border border-border/50 overflow-hidden shadow-sm">
           <ConnectionRequestsTable 
             requests={filteredRequests}
-            onApprove={(request) => {
-              setSelectedRequest(request);
-              setActionType("approve");
-              setIsDialogOpen(true);
-            }}
-            onReject={(request) => {
-              setSelectedRequest(request);
-              setActionType("reject");
-              setIsDialogOpen(true);
-            }}
             isLoading={isLoading}
             onRefresh={() => refetch()}
           />

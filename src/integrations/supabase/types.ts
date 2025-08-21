@@ -202,6 +202,8 @@ export type Database = {
       connection_requests: {
         Row: {
           admin_comment: string | null
+          approved_at: string | null
+          approved_by: string | null
           created_at: string
           decision_at: string | null
           followed_up: boolean | null
@@ -212,6 +214,8 @@ export type Database = {
           negative_followed_up: boolean | null
           negative_followed_up_at: string | null
           negative_followed_up_by: string | null
+          rejected_at: string | null
+          rejected_by: string | null
           status: string
           updated_at: string
           user_id: string
@@ -219,6 +223,8 @@ export type Database = {
         }
         Insert: {
           admin_comment?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
           created_at?: string
           decision_at?: string | null
           followed_up?: boolean | null
@@ -229,6 +235,8 @@ export type Database = {
           negative_followed_up?: boolean | null
           negative_followed_up_at?: string | null
           negative_followed_up_by?: string | null
+          rejected_at?: string | null
+          rejected_by?: string | null
           status?: string
           updated_at?: string
           user_id: string
@@ -236,6 +244,8 @@ export type Database = {
         }
         Update: {
           admin_comment?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
           created_at?: string
           decision_at?: string | null
           followed_up?: boolean | null
@@ -246,6 +256,8 @@ export type Database = {
           negative_followed_up?: boolean | null
           negative_followed_up_at?: string | null
           negative_followed_up_by?: string | null
+          rejected_at?: string | null
+          rejected_by?: string | null
           status?: string
           updated_at?: string
           user_id?: string

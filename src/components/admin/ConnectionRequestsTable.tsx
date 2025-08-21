@@ -1,26 +1,38 @@
-import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { useState } from "react";
+import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { ChevronDown, User, Building, MessageSquare, Calendar, RefreshCw, FileText, Shield, Mail, MapPin, Target, Building2, Clipboard, ExternalLink, CheckCircle, Clock, XCircle, AlertTriangle } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import { AdminConnectionRequest, AdminListing } from "@/types/admin";
-import { ConnectionRequestActions } from "@/components/admin/ConnectionRequestActions";
-import { SmartWorkflowSuggestions } from "@/components/admin/SmartWorkflowSuggestions";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { 
+  ChevronDown, 
+  ChevronUp, 
+  Clock, 
+  CheckCircle, 
+  XCircle, 
+  User, 
+  Building2, 
+  Mail, 
+  Phone,
+  AlertTriangle,
+  RefreshCw,
+  MessageSquare,
+  Shield,
+  ExternalLink
+} from "lucide-react";
+import { AdminConnectionRequest } from "@/types/admin";
 import { StatusIndicatorRow } from "./StatusIndicatorRow";
-import { WorkflowProgressIndicator } from "./WorkflowProgressIndicator";
-import { InternalCompanyInfoDisplay } from "./InternalCompanyInfoDisplay";
-import { BuyerDealsOverview } from "./BuyerDealsOverview";
-import { useUserConnectionRequests } from "@/hooks/admin/use-user-connection-requests";
-import { ApprovalWarningDialog } from "./ApprovalWarningDialog";
+import { ConnectionRequestActions } from "./ConnectionRequestActions";
+import { useUpdateApprovalStatus, useUpdateRejectionStatus } from "@/hooks/admin/use-approval-status";
+import { useAdminSignature } from "@/hooks/admin/use-admin-signature";
+import { useAuth } from "@/context/AuthContext";
+import { getAdminProfile } from "@/lib/admin-profiles";
 
 interface ConnectionRequestsTableProps {
   requests: AdminConnectionRequest[];
-  onApprove: (request: AdminConnectionRequest) => void;
-  onReject: (request: AdminConnectionRequest) => void;
   isLoading: boolean;
   onRefresh?: () => void;
 }
@@ -57,38 +69,40 @@ const ConnectionRequestsTableEmpty = () => (
 );
 
 const StatusBadge = ({ status }: { status: string }) => {
-  const variants = {
-    approved: "bg-green-500/10 text-green-700 border-green-500/20 dark:bg-green-500/20 dark:text-green-400 dark:border-green-500/30",
-    rejected: "bg-red-500/10 text-red-700 border-red-500/20 dark:bg-red-500/20 dark:text-red-400 dark:border-red-500/30", 
-    pending: "bg-amber-500/10 text-amber-700 border-amber-500/20 dark:bg-amber-500/20 dark:text-amber-400 dark:border-amber-500/30"
+  const getStatusConfig = (status: string) => {
+    switch (status) {
+      case 'approved':
+        return {
+          variant: 'default' as const,
+          className: 'bg-success/10 text-success border-success/20',
+          icon: <CheckCircle className="h-3 w-3 mr-1" />
+        };
+      case 'rejected':
+        return {
+          variant: 'destructive' as const,
+          className: 'bg-destructive/10 text-destructive border-destructive/20',
+          icon: <XCircle className="h-3 w-3 mr-1" />
+        };
+      default:
+        return {
+          variant: 'secondary' as const,
+          className: 'bg-warning/10 text-warning border-warning/20',
+          icon: <Clock className="h-3 w-3 mr-1" />
+        };
+    }
   };
-  
-  const icons = {
-    approved: "✓",
-    rejected: "✕",
-    pending: "⏳"
-  };
+
+  const config = getStatusConfig(status);
   
   return (
-    <Badge variant="outline" className={`text-xs font-medium px-2.5 py-1 ${variants[status as keyof typeof variants]}`}>
-      <span className="mr-1">{icons[status as keyof typeof icons]}</span>
+    <Badge variant={config.variant} className={`text-xs ${config.className}`}>
+      {config.icon}
       {status.charAt(0).toUpperCase() + status.slice(1)}
     </Badge>
   );
 };
 
-const RequestDetails = ({ 
-  request, 
-  onApprove, 
-  onReject
-}: { 
-  request: AdminConnectionRequest;
-  onApprove: (request: AdminConnectionRequest) => void;
-  onReject: (request: AdminConnectionRequest) => void;
-}) => {
-  const navigate = useNavigate();
-  const localUser = request.user;
-
+const RequestDetails = ({ request }: { request: AdminConnectionRequest }) => {
   const handleListingClick = () => {
     if (request.listing?.id) {
       window.open(`/listing/${request.listing.id}`, '_blank');
@@ -96,112 +110,62 @@ const RequestDetails = ({
   };
 
   return (
-    <div className="space-y-6">
-      {/* User & Listing Information Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Left Column: Buyer Information + Buyer Message */}
-        <div className="space-y-6">
-          {/* Buyer Information */}
-          <div className="space-y-4">
-            <div className="flex items-center gap-2 mb-3">
-              <User className="h-5 w-5 text-primary" />
-              <h4 className="font-semibold text-base">Buyer Information</h4>
-            </div>
-            <div className="bg-card border rounded-lg p-4 space-y-3">
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <div>
-                  <span className="font-medium text-muted-foreground">Name:</span>
-                  <p>{localUser?.first_name} {localUser?.last_name}</p>
-                </div>
-                <div>
-                  <span className="font-medium text-muted-foreground">Type:</span>
-                  <p className="capitalize">{localUser?.buyer_type || 'Not specified'}</p>
-                </div>
-                <div>
-                  <span className="font-medium text-muted-foreground">Email:</span>
-                  <p className="break-all">{localUser?.email}</p>
-                </div>
-                <div>
-                  <span className="font-medium text-muted-foreground">Company:</span>
-                  <p>{localUser?.company || 'Not provided'}</p>
-                </div>
-              </div>
-            </div>
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <h4 className="font-medium text-sm flex items-center gap-2">
+            <User className="h-4 w-4" />
+            Buyer Information
+          </h4>
+          <div className="text-sm space-y-1">
+            <p><span className="font-medium">Email:</span> {request.user?.email}</p>
+            <p><span className="font-medium">Company:</span> {request.user?.company || 'Not provided'}</p>
+            <p><span className="font-medium">Type:</span> {request.user?.buyer_type || 'Not specified'}</p>
           </div>
-
-          {/* Buyer Message - Now in left column */}
-          {request.user_message && (
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 mb-3">
-                <MessageSquare className="h-5 w-5 text-primary" />
-                <h4 className="font-semibold text-base">Buyer Message</h4>
-              </div>
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <User className="h-4 w-4 text-blue-600" />
-                  <span className="text-sm font-medium text-blue-800">Message from Buyer</span>
-                </div>
-                <p className="text-sm text-blue-700 leading-relaxed">{request.user_message}</p>
-              </div>
-            </div>
-          )}
         </div>
         
-        {/* Right Column: Listing Information */}
-        <div className="space-y-4">
-          <div className="flex items-center gap-2 mb-3">
-            <Building className="h-5 w-5 text-primary" />
-            <h4 className="font-semibold text-base">Listing Information</h4>
-          </div>
-          <div className="bg-card border rounded-lg p-4 space-y-3">
-            <div className="grid grid-cols-1 gap-3 text-sm">
-              <div>
-                <span className="font-medium text-muted-foreground">Title:</span>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (request.listing?.id) {
-                      window.open(`/listing/${request.listing.id}`, '_blank');
-                    }
-                  }}
-                  className="font-medium text-primary hover:text-primary/80 text-left transition-colors flex items-center gap-2 group"
-                >
-                  {request.listing?.title}
-                  <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
-                </button>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <span className="font-medium text-muted-foreground">Category:</span>
-                  <p>{request.listing?.category}</p>
-                </div>
-                <div>
-                  <span className="font-medium text-muted-foreground">Location:</span>
-                  <p>{request.listing?.location}</p>
-                </div>
-              </div>
-              
+        <div className="space-y-2">
+          <h4 className="font-medium text-sm flex items-center gap-2">
+            <Building2 className="h-4 w-4" />
+            Listing Information
+          </h4>
+          <div className="text-sm space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="font-medium">Title:</span>
+              <button
+                onClick={handleListingClick}
+                className="text-primary hover:text-primary/80 flex items-center gap-1 group"
+              >
+                {request.listing?.title}
+                <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+              </button>
             </div>
+            <p><span className="font-medium">Category:</span> {request.listing?.category}</p>
+            <p><span className="font-medium">Location:</span> {request.listing?.location}</p>
           </div>
-          
-          {/* Internal Company Info Display */}
-          {request.listing && <InternalCompanyInfoDisplay listing={request.listing as AdminListing} />}
         </div>
       </div>
 
-      {/* Admin Response (if exists) */}
+      {request.user_message && (
+        <div className="space-y-2">
+          <h4 className="font-medium text-sm flex items-center gap-2">
+            <MessageSquare className="h-4 w-4" />
+            Buyer Message
+          </h4>
+          <div className="bg-muted/50 border rounded-lg p-3">
+            <p className="text-sm">{request.user_message}</p>
+          </div>
+        </div>
+      )}
+
       {request.admin_comment && (
-        <div className="space-y-4">
-          <h4 className="font-semibold text-base flex items-center gap-2">
-            <Shield className="h-5 w-5 text-primary" />
+        <div className="space-y-2">
+          <h4 className="font-medium text-sm flex items-center gap-2">
+            <Shield className="h-4 w-4" />
             Admin Response
           </h4>
-          <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <Shield className="h-4 w-4 text-green-600" />
-              <span className="text-sm font-medium text-green-800">Response from Admin</span>
-            </div>
-            <p className="text-sm text-green-700 leading-relaxed">{request.admin_comment}</p>
+          <div className="bg-success/10 border border-success/20 rounded-lg p-3">
+            <p className="text-sm">{request.admin_comment}</p>
           </div>
         </div>
       )}
@@ -209,270 +173,244 @@ const RequestDetails = ({
   );
 };
 
-// Create a reactive request card component with local state management
-const ReactiveRequestCard = ({ 
-  request, 
-  onApprove, 
-  onReject, 
-  onRefresh, 
-  expandedRequestId, 
-  onToggleExpand,
-  onApprovalWarning
+function ReactiveRequestCard({
+  request,
+  isExpanded,
+  onToggleExpanded,
 }: {
   request: AdminConnectionRequest;
-  onApprove: (request: AdminConnectionRequest) => void;
-  onReject: (request: AdminConnectionRequest) => void;
-  onRefresh?: () => void;
-  expandedRequestId: string | null;
-  onToggleExpand: (id: string) => void;
-  onApprovalWarning: (request: AdminConnectionRequest) => void;
-}) => {
-  // Single source of truth for reactive state
-  const [localUser, setLocalUser] = useState(request.user);
-  const [localFollowedUp, setLocalFollowedUp] = useState(request.followed_up || false);
-  const [localNegativeFollowedUp, setLocalNegativeFollowedUp] = useState(request.negative_followed_up || false);
-  
-  // Fetch all connection requests for this user
-  const { data: userRequests = [] } = useUserConnectionRequests(request.user?.id || '');
+  isExpanded: boolean;
+  onToggleExpanded: () => void;
+}) {
+  const { signature } = useAdminSignature();
+  const { user: authUser } = useAuth();
+  const updateApprovalStatus = useUpdateApprovalStatus();
+  const updateRejectionStatus = useUpdateRejectionStatus();
 
-  // Sync with request changes from parent (only when actual data changes)
-  useEffect(() => {
-    setLocalUser(request.user);
-    setLocalFollowedUp(request.followed_up || false);
-    setLocalNegativeFollowedUp(request.negative_followed_up || false);
-  }, [request.user?.nda_signed, request.user?.fee_agreement_signed, request.user?.nda_email_sent, request.user?.fee_agreement_email_sent, request.followed_up, request.negative_followed_up]);
+  const getApprovalMailto = (request: AdminConnectionRequest) => {
+    if (!request.listing || !request.user) return '';
 
-  // Critical: This function updates the local state immediately
-  const handleLocalStateUpdate = (updatedUser: any, updatedFollowedUp?: boolean, updatedNegativeFollowedUp?: boolean) => {
-    setLocalUser(updatedUser);
-    if (updatedFollowedUp !== undefined) {
-      setLocalFollowedUp(updatedFollowedUp);
+    const subject = `Approved: ${request.listing.title} - Owner Introduction`;
+    
+    const body = `Hi ${request.user.first_name},
+
+Your connection request for ${request.listing.title} is approved.
+
+Next: Owner introduction call within 48 hours.
+
+Expect: Direct contact from seller or our team.
+
+Questions: Reply to this email.
+
+${signature?.signature_text || `Best regards,
+SourceCo Team`}`;
+
+    return `mailto:${request.user.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  };
+
+  const getRejectionMailto = (request: AdminConnectionRequest) => {
+    if (!request.listing || !request.user) return '';
+
+    const subject = `${request.listing.title} - Current Status`;
+
+    // Build dynamic admin display name
+    let adminDisplayName = '';
+    const adminEmail = authUser?.email || '';
+    const adminProfile = adminEmail ? getAdminProfile(adminEmail) : null;
+    if (adminProfile?.name) {
+      adminDisplayName = adminProfile.name;
+    } else if (authUser?.firstName || authUser?.lastName) {
+      adminDisplayName = [authUser?.firstName, authUser?.lastName].filter(Boolean).join(' ');
     }
-    if (updatedNegativeFollowedUp !== undefined) {
-      setLocalNegativeFollowedUp(updatedNegativeFollowedUp);
-    }
+
+    const signatureSection = adminDisplayName ? `\nThank you, \n${adminDisplayName}` : '';
+
+    const bodyBase = `Hi ${request.user.first_name},
+
+${request.listing.title} connection request update:
+
+Status: Not proceeding at this time.
+Reason: [Select: timing/fit/other buyer selected]
+
+Next: We'll prioritize you for similar opportunities.`;
+
+    const body = signatureSection ? `${bodyBase}\n\n${signatureSection}` : bodyBase;
+
+    return `mailto:${request.user.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   };
 
   return (
-    <Card className="group border border-border/30 hover:border-border/60 hover:shadow-sm transition-all duration-200 bg-card/50 hover:bg-card">
-      <Collapsible 
-        open={expandedRequestId === request.id}
-      >
-        <CardHeader className="p-6">
-          <div className="space-y-4">
-            {/* Header Row */}
-            <div className="flex items-start justify-between">
-              <div className="flex items-center gap-4 flex-1">
-                <Avatar className="h-12 w-12 border-2 border-border/20">
-                  <AvatarFallback className="text-sm font-semibold bg-primary/10 text-primary">
-                    {localUser?.first_name?.[0]}{localUser?.last_name?.[0]}
-                  </AvatarFallback>
-                </Avatar>
-                
-                <div className="space-y-2 flex-1 min-w-0">
-                  <div className="flex items-center gap-3 flex-wrap">
-                    <h3 className="font-semibold text-base text-foreground">
-                      {localUser?.first_name} {localUser?.last_name}
-                    </h3>
-                    <StatusBadge status={request.status} />
-                  </div>
-                  
-                  {/* Real Company Name (from internal fields) - Priority display */}
-                  {(request.listing as any)?.internal_company_name && (
-                    <div className="flex items-center gap-2 text-sm font-medium text-foreground flex-wrap">
-                      <Building className="h-4 w-4 flex-shrink-0 text-slate-600" />
-                      <span className="truncate">{(request.listing as any).internal_company_name}</span>
-                      {(request.listing as any)?.deal_identifier && (
-                        <>
-                          <span className="text-border">•</span>
-                          <Clipboard className="h-3 w-3 flex-shrink-0 text-slate-500" />
-                          <code className="text-xs font-mono bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
-                            {(request.listing as any).deal_identifier}
-                          </code>
-                        </>
-                      )}
-                    </div>
-                  )}
-                  
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground flex-wrap">
-                    <Building2 className="h-4 w-4 flex-shrink-0" />
-                    <span className="truncate">{localUser?.company}</span>
-                    <span className="text-border">•</span>
-                    <Mail className="h-4 w-4 flex-shrink-0" />
-                    <span className="truncate">{localUser?.email}</span>
-                  </div>
-                  
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground flex-wrap">
-                    <Target className="h-4 w-4 flex-shrink-0 text-primary/60" />
-                    <span className="truncate font-medium">{request.listing?.title}</span>
-                  </div>
-                </div>
-              </div>
-              
+    <Card className="border border-border/50 hover:border-border transition-colors">
+      <CardContent className="p-6">
+        <div className="space-y-4">
+          {/* Header */}
+          <div className="flex items-start justify-between">
+            <div className="space-y-2">
               <div className="flex items-center gap-3">
-                <div className="text-xs text-muted-foreground flex items-center gap-1">
-                  <Calendar className="h-3 w-3" />
-                  {new Date(request.created_at).toLocaleDateString()}
+                <h3 className="font-semibold">
+                  {request.user?.first_name} {request.user?.last_name}
+                </h3>
+                <StatusBadge status={request.status} />
+              </div>
+              <div className="text-sm text-muted-foreground space-y-1">
+                <div className="flex items-center gap-2">
+                  <Mail className="h-3 w-3" />
+                  {request.user?.email}
                 </div>
-                <CollapsibleTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 w-8 p-0 hover:bg-accent"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onToggleExpand(request.id);
-                    }}
-                  >
-                    <ChevronDown className="h-5 w-5 flex-shrink-0 text-muted-foreground transition-all duration-200 data-[state=open]:rotate-180" />
-                  </Button>
-                </CollapsibleTrigger>
+                <div className="flex items-center gap-2">
+                  <Building2 className="h-3 w-3" />
+                  {request.listing?.title}
+                </div>
               </div>
             </div>
-              
-              {/* Status Indicators Row - Now reactive to local state */}
-              {localUser && (
-                <div className="border-t border-border/30 pt-4">
-                  <div className="space-y-2">
-                    <StatusIndicatorRow 
-                      user={localUser} 
-                      followedUp={localFollowedUp} 
-                      negativeFollowedUp={localNegativeFollowedUp}
-                      followedUpByAdmin={request.followedUpByAdmin}
-                      negativeFollowedUpByAdmin={request.negativeFollowedUpByAdmin}
-                      followedUpAt={request.followed_up_at}
-                      negativeFollowedUpAt={request.negative_followed_up_at}
-                    />
-                    <WorkflowProgressIndicator user={localUser} followedUp={localFollowedUp} />
-                  </div>
-                </div>
-              )}
+            
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">
+                {format(new Date(request.created_at), 'MMM d, yyyy')}
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onToggleExpanded}
+                className="h-8 w-8 p-0"
+              >
+                {isExpanded ? (
+                  <ChevronUp className="h-4 w-4" />
+                ) : (
+                  <ChevronDown className="h-4 w-4" />
+                )}
+              </Button>
+            </div>
           </div>
-        </CardHeader>
-        
-        <CollapsibleContent>
-          <CardContent className="pt-0 px-6 pb-6">
-            {/* Quick Actions & Agreement Status in two-column layout */}
-            <div className="mb-6 p-6 bg-accent/30 rounded-lg border border-border/30">
-              {/* Header without approve/reject buttons */}
-              <div className="flex items-center justify-between mb-6">
-                <h4 className="font-semibold text-lg flex items-center gap-2">
-                  <FileText className="h-5 w-5 text-primary" />
-                  Actions & Status
-                </h4>
-              </div>
 
-              {/* Streamlined single component: ConnectionRequestActions handles both Quick Actions and Agreement Status */}
-              {localUser && (
+          {/* Status Indicators */}
+          {request.user && (
+            <StatusIndicatorRow 
+              user={request.user} 
+              followedUp={request.followed_up || false} 
+              negativeFollowedUp={request.negative_followed_up || false}
+              followedUpByAdmin={undefined}
+              negativeFollowedUpByAdmin={undefined}
+              followedUpAt={request.followed_up_at}
+              negativeFollowedUpAt={request.negative_followed_up_at}
+            />
+          )}
+
+          {/* Expanded Content */}
+          {isExpanded && (
+            <div className="space-y-6 pt-4 border-t border-border/50">
+              {/* Connection Request Actions */}
+              {request.user && (
                 <ConnectionRequestActions
-                  user={localUser}
+                  user={request.user}
                   listing={request.listing}
                   requestId={request.id}
-                  followedUp={localFollowedUp}
-                  negativeFollowedUp={localNegativeFollowedUp}
-                  onLocalStateUpdate={handleLocalStateUpdate}
+                  followedUp={request.followed_up || false}
+                  negativeFollowedUp={request.negative_followed_up || false}
                 />
               )}
-            </div>
-            
-            <RequestDetails
-              request={{...request, user: localUser}}
-              onApprove={onApprove}
-              onReject={onReject}
-            />
-            
-            {/* Buyer Deals Overview */}
-            <BuyerDealsOverview 
-              requests={userRequests} 
-              currentRequestId={request.id}
-            />
 
-            {/* Final Decision Section - Less Prominent */}
-            <div className="mt-6 pt-4 border-t border-border/50">
-              <div className="flex items-center gap-2 mb-3">
-                <AlertTriangle className="h-4 w-4 text-muted-foreground" />
-                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              <Separator />
+
+              {/* Request Details */}
+              <RequestDetails request={request} />
+
+              {/* Final Decision Actions - Less Prominent */}
+              <div className="mt-4 pt-3 border-t border-border/30">
+                <div className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1">
+                  <Shield className="h-3 w-3" />
                   Final Decision
-                </span>
-              </div>
-              <div className="flex gap-2">
-                {request.status === "pending" ? (
-                  <>
-                   <Button
-                     size="sm"
-                     variant="outline"
-                     onClick={() => onApprovalWarning(request)}
-                     className="text-xs border-warning/20 text-warning-foreground hover:bg-warning/10"
-                   >
-                     <CheckCircle className="h-3 w-3 mr-1" />
-                     Approve
-                   </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => onReject(request)}
-                      className="text-xs border-destructive/20 text-destructive hover:bg-destructive/10"
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    asChild
+                    className="text-xs h-7 border-success/30 text-success hover:bg-success/10"
+                  >
+                    <a 
+                      href={getApprovalMailto(request)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <CheckCircle className="h-3 w-3 mr-1" />
+                      Approve
+                      <ExternalLink className="h-3 w-3 ml-1" />
+                    </a>
+                  </Button>
+                  
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    asChild
+                    className="text-xs h-7 border-destructive/30 text-destructive hover:bg-destructive/10"
+                  >
+                    <a 
+                      href={getRejectionMailto(request)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
                     >
                       <XCircle className="h-3 w-3 mr-1" />
                       Reject
-                    </Button>
-                  </>
-                ) : request.status === "rejected" ? (
-                     <Button
-                       size="sm"
-                       variant="outline"
-                       onClick={() => onApprovalWarning(request)}
-                       className="text-xs border-warning/20 text-warning-foreground hover:bg-warning/10"
-                     >
-                       <CheckCircle className="h-3 w-3 mr-1" />
-                       Approve
-                     </Button>
-                ) : (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => onReject(request)}
-                    className="text-xs border-destructive/20 text-destructive hover:bg-destructive/10"
-                  >
-                    <XCircle className="h-3 w-3 mr-1" />
-                    Revoke
+                      <ExternalLink className="h-3 w-3 ml-1" />
+                    </a>
                   </Button>
-                )}
+
+                  {/* Status Toggles */}
+                  <div className="flex items-center gap-2 ml-4">
+                    <div className="flex items-center space-x-1">
+                      <Switch
+                        id={`approved-${request.id}`}
+                        checked={request.status === 'approved'}
+                        onCheckedChange={(checked) => {
+                          updateApprovalStatus.mutate({
+                            requestId: request.id,
+                            isApproved: checked
+                          });
+                        }}
+                        disabled={updateApprovalStatus.isPending}
+                        className="data-[state=checked]:bg-success"
+                      />
+                      <Label htmlFor={`approved-${request.id}`} className="text-xs">Approved</Label>
+                    </div>
+                    
+                    <div className="flex items-center space-x-1">
+                      <Switch
+                        id={`rejected-${request.id}`}
+                        checked={request.status === 'rejected'}
+                        onCheckedChange={(checked) => {
+                          updateRejectionStatus.mutate({
+                            requestId: request.id,
+                            isRejected: checked
+                          });
+                        }}
+                        disabled={updateRejectionStatus.isPending}
+                        className="data-[state=checked]:bg-destructive"
+                      />
+                      <Label htmlFor={`rejected-${request.id}`} className="text-xs">Rejected</Label>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
-          </CardContent>
-        </CollapsibleContent>
-      </Collapsible>
+          )}
+        </div>
+      </CardContent>
     </Card>
   );
-};
+}
 
-export const ConnectionRequestsTable = ({
+export function ConnectionRequestsTable({
   requests,
-  onApprove,
-  onReject,
   isLoading,
   onRefresh,
-}: ConnectionRequestsTableProps) => {
-  const [expandedRequestId, setExpandedRequestId] = useState<string | null>(null);
-  const [approvalDialog, setApprovalDialog] = useState<{
-    open: boolean;
-    request: AdminConnectionRequest | null;
-  }>({ open: false, request: null });
-  
-  const toggleExpand = (requestId: string) => {
-    setExpandedRequestId(expandedRequestId === requestId ? null : requestId);
-  };
+}: ConnectionRequestsTableProps) {
+  const [expandedRequest, setExpandedRequest] = useState<string | null>(null);
 
-  const handleApprovalWarning = (request: AdminConnectionRequest) => {
-    setApprovalDialog({ open: true, request });
-  };
-
-  const handleConfirmApproval = () => {
-    if (approvalDialog.request) {
-      onApprove(approvalDialog.request);
-      setApprovalDialog({ open: false, request: null });
-    }
+  const toggleExpanded = (requestId: string) => {
+    setExpandedRequest(expandedRequest === requestId ? null : requestId);
   };
 
   if (isLoading) {
@@ -484,11 +422,11 @@ export const ConnectionRequestsTable = ({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex justify-between items-center">
         <div>
           <h3 className="text-xl font-semibold">Connection Requests</h3>
-          <p className="text-sm text-muted-foreground mt-1">Manage buyer connection requests and agreements</p>
+          <p className="text-sm text-muted-foreground mt-1">Manage buyer connection requests and send manual emails</p>
         </div>
         {onRefresh && (
           <Button variant="outline" size="sm" onClick={onRefresh}>
@@ -500,26 +438,14 @@ export const ConnectionRequestsTable = ({
       
       <div className="space-y-3">
         {requests.map((request) => (
-           <ReactiveRequestCard
-             key={request.id}
-             request={request}
-             onApprove={onApprove}
-             onReject={onReject}
-             onRefresh={onRefresh}
-             expandedRequestId={expandedRequestId}
-             onToggleExpand={toggleExpand}
-             onApprovalWarning={handleApprovalWarning}
-           />
+          <ReactiveRequestCard
+            key={request.id}
+            request={request}
+            isExpanded={expandedRequest === request.id}
+            onToggleExpanded={() => toggleExpanded(request.id)}
+          />
         ))}
       </div>
-      
-      <ApprovalWarningDialog
-        open={approvalDialog.open}
-        onOpenChange={(open) => setApprovalDialog({ open, request: null })}
-        request={approvalDialog.request}
-        onConfirm={handleConfirmApproval}
-        isLoading={false}
-      />
     </div>
   );
-};
+}
