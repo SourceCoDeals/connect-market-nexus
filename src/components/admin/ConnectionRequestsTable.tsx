@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { ChevronDown, User, Building, MessageSquare, Calendar, RefreshCw, FileText, Shield, Mail, MapPin, Target, Building2, Clipboard, ExternalLink, CheckCircle, Clock, XCircle } from "lucide-react";
+import { ChevronDown, User, Building, MessageSquare, Calendar, RefreshCw, FileText, Shield, Mail, MapPin, Target, Building2, Clipboard, ExternalLink, CheckCircle, Clock, XCircle, AlertTriangle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { AdminConnectionRequest, AdminListing } from "@/types/admin";
 import { ConnectionRequestActions } from "@/components/admin/ConnectionRequestActions";
@@ -15,6 +15,7 @@ import { WorkflowProgressIndicator } from "./WorkflowProgressIndicator";
 import { InternalCompanyInfoDisplay } from "./InternalCompanyInfoDisplay";
 import { BuyerDealsOverview } from "./BuyerDealsOverview";
 import { useUserConnectionRequests } from "@/hooks/admin/use-user-connection-requests";
+import { ApprovalWarningDialog } from "./ApprovalWarningDialog";
 
 interface ConnectionRequestsTableProps {
   requests: AdminConnectionRequest[];
@@ -215,7 +216,8 @@ const ReactiveRequestCard = ({
   onReject, 
   onRefresh, 
   expandedRequestId, 
-  onToggleExpand 
+  onToggleExpand,
+  onApprovalWarning
 }: {
   request: AdminConnectionRequest;
   onApprove: (request: AdminConnectionRequest) => void;
@@ -223,6 +225,7 @@ const ReactiveRequestCard = ({
   onRefresh?: () => void;
   expandedRequestId: string | null;
   onToggleExpand: (id: string) => void;
+  onApprovalWarning: (request: AdminConnectionRequest) => void;
 }) => {
   // Single source of truth for reactive state
   const [localUser, setLocalUser] = useState(request.user);
@@ -351,51 +354,12 @@ const ReactiveRequestCard = ({
           <CardContent className="pt-0 px-6 pb-6">
             {/* Quick Actions & Agreement Status in two-column layout */}
             <div className="mb-6 p-6 bg-accent/30 rounded-lg border border-border/30">
-              {/* Header with Approve/Reject buttons */}
+              {/* Header without approve/reject buttons */}
               <div className="flex items-center justify-between mb-6">
                 <h4 className="font-semibold text-lg flex items-center gap-2">
                   <FileText className="h-5 w-5 text-primary" />
                   Actions & Status
                 </h4>
-                {/* Approve/Reject buttons prominently placed */}
-                <div className="flex gap-3">
-                  {request.status === "pending" ? (
-                    <>
-                      <Button
-                        size="sm"
-                        className="bg-green-600 hover:bg-green-700 text-white px-4 py-2"
-                        onClick={() => onApprove(request)}
-                      >
-                        Approve
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="border-red-500 text-red-700 hover:bg-red-500 hover:text-white px-4 py-2"
-                        onClick={() => onReject(request)}
-                      >
-                        Reject
-                      </Button>
-                    </>
-                  ) : request.status === "rejected" ? (
-                    <Button
-                      size="sm"
-                      className="bg-green-600 hover:bg-green-700 text-white px-4 py-2"
-                      onClick={() => onApprove(request)}
-                    >
-                      Approve
-                    </Button>
-                  ) : (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="border-red-500 text-red-700 hover:bg-red-500 hover:text-white px-4 py-2"
-                      onClick={() => onReject(request)}
-                    >
-                      Revoke
-                    </Button>
-                  )}
-                </div>
               </div>
 
               {/* Streamlined single component: ConnectionRequestActions handles both Quick Actions and Agreement Status */}
@@ -422,6 +386,60 @@ const ReactiveRequestCard = ({
               requests={userRequests} 
               currentRequestId={request.id}
             />
+
+            {/* Final Decision Section - Less Prominent */}
+            <div className="mt-6 pt-4 border-t border-border/50">
+              <div className="flex items-center gap-2 mb-3">
+                <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  Final Decision
+                </span>
+              </div>
+              <div className="flex gap-2">
+                {request.status === "pending" ? (
+                  <>
+                   <Button
+                     size="sm"
+                     variant="outline"
+                     onClick={() => onApprovalWarning(request)}
+                     className="text-xs border-warning/20 text-warning-foreground hover:bg-warning/10"
+                   >
+                     <CheckCircle className="h-3 w-3 mr-1" />
+                     Approve
+                   </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => onReject(request)}
+                      className="text-xs border-destructive/20 text-destructive hover:bg-destructive/10"
+                    >
+                      <XCircle className="h-3 w-3 mr-1" />
+                      Reject
+                    </Button>
+                  </>
+                ) : request.status === "rejected" ? (
+                     <Button
+                       size="sm"
+                       variant="outline"
+                       onClick={() => onApprovalWarning(request)}
+                       className="text-xs border-warning/20 text-warning-foreground hover:bg-warning/10"
+                     >
+                       <CheckCircle className="h-3 w-3 mr-1" />
+                       Approve
+                     </Button>
+                ) : (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => onReject(request)}
+                    className="text-xs border-destructive/20 text-destructive hover:bg-destructive/10"
+                  >
+                    <XCircle className="h-3 w-3 mr-1" />
+                    Revoke
+                  </Button>
+                )}
+              </div>
+            </div>
           </CardContent>
         </CollapsibleContent>
       </Collapsible>
@@ -437,9 +455,24 @@ export const ConnectionRequestsTable = ({
   onRefresh,
 }: ConnectionRequestsTableProps) => {
   const [expandedRequestId, setExpandedRequestId] = useState<string | null>(null);
+  const [approvalDialog, setApprovalDialog] = useState<{
+    open: boolean;
+    request: AdminConnectionRequest | null;
+  }>({ open: false, request: null });
   
   const toggleExpand = (requestId: string) => {
     setExpandedRequestId(expandedRequestId === requestId ? null : requestId);
+  };
+
+  const handleApprovalWarning = (request: AdminConnectionRequest) => {
+    setApprovalDialog({ open: true, request });
+  };
+
+  const handleConfirmApproval = () => {
+    if (approvalDialog.request) {
+      onApprove(approvalDialog.request);
+      setApprovalDialog({ open: false, request: null });
+    }
   };
 
   if (isLoading) {
@@ -467,17 +500,26 @@ export const ConnectionRequestsTable = ({
       
       <div className="space-y-3">
         {requests.map((request) => (
-          <ReactiveRequestCard
-            key={request.id}
-            request={request}
-            onApprove={onApprove}
-            onReject={onReject}
-            onRefresh={onRefresh}
-            expandedRequestId={expandedRequestId}
-            onToggleExpand={toggleExpand}
-          />
+           <ReactiveRequestCard
+             key={request.id}
+             request={request}
+             onApprove={onApprove}
+             onReject={onReject}
+             onRefresh={onRefresh}
+             expandedRequestId={expandedRequestId}
+             onToggleExpand={toggleExpand}
+             onApprovalWarning={handleApprovalWarning}
+           />
         ))}
       </div>
+      
+      <ApprovalWarningDialog
+        open={approvalDialog.open}
+        onOpenChange={(open) => setApprovalDialog({ open, request: null })}
+        request={approvalDialog.request}
+        onConfirm={handleConfirmApproval}
+        isLoading={false}
+      />
     </div>
   );
 };
