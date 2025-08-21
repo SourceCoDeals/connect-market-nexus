@@ -37,12 +37,12 @@ export function ListingFilterSelect({ requests, selectedListingId, onListingChan
   return (
     <div className="flex items-center gap-2">
       <Building2 className="h-4 w-4 text-muted-foreground" />
-      <Select value={selectedListingId || ""} onValueChange={(value) => onListingChange(value || null)}>
+      <Select value={selectedListingId || "all"} onValueChange={(value) => onListingChange(value === "all" ? null : value)}>
         <SelectTrigger className="w-[280px]">
           <SelectValue placeholder="Filter by Deal" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="">
+          <SelectItem value="all">
             <div className="flex items-center justify-between w-full">
               <span>All Deals</span>
               <Badge variant="secondary" className="ml-2">
