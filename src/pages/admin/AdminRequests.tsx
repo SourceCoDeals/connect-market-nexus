@@ -221,7 +221,11 @@ const AdminRequests = () => {
         {selectedListingId ? (
           <RequestsGridView
             requests={filteredRequests}
-            selectedListing={selectedListing ? { id: selectedListing.id, title: selectedListing.title } : null}
+            selectedListing={selectedListing ? { 
+              id: selectedListing.id, 
+              title: selectedListing.title, 
+              internal_company_name: selectedListing.internal_company_name 
+            } : null}
             onApprove={(request) => handleAction(request, "approve")}
             onReject={(request) => handleAction(request, "reject")}
           />

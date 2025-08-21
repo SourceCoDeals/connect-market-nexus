@@ -20,10 +20,18 @@ import { AdminConnectionRequest } from "@/types/admin";
 
 interface RequestsGridViewProps {
   requests: AdminConnectionRequest[];
-  selectedListing: { id: string; title: string } | null;
+  selectedListing: { id: string; title: string; internal_company_name?: string | null } | null;
   onApprove: (request: AdminConnectionRequest) => void;
   onReject: (request: AdminConnectionRequest) => void;
 }
+
+// Helper function to format listing display name
+const formatListingDisplayName = (title: string, companyName?: string | null): string => {
+  if (companyName && companyName.trim()) {
+    return `${title}/${companyName}`;
+  }
+  return title;
+};
 
 const StatusBadge = ({ status }: { status: string }) => {
   const getStatusConfig = (status: string) => {
@@ -181,7 +189,7 @@ export function RequestsGridView({ requests, selectedListing, onApprove, onRejec
           </h3>
           <p className="text-sm text-muted-foreground text-center">
             {selectedListing 
-              ? `No connection requests found for "${selectedListing.title}"`
+              ? `No connection requests found for "${formatListingDisplayName(selectedListing.title, selectedListing.internal_company_name)}"`
               : "No connection requests match your search criteria"
             }
           </p>
@@ -198,7 +206,7 @@ export function RequestsGridView({ requests, selectedListing, onApprove, onRejec
           <div className="flex items-center gap-3">
             <Building2 className="h-5 w-5 text-primary" />
             <div>
-              <h2 className="font-semibold text-lg">{selectedListing.title}</h2>
+              <h2 className="font-semibold text-lg">{formatListingDisplayName(selectedListing.title, selectedListing.internal_company_name)}</h2>
               <p className="text-sm text-muted-foreground">
                 {requests.length} buyer{requests.length !== 1 ? 's' : ''} interested in this deal
               </p>

@@ -9,6 +9,14 @@ interface ListingFilterSelectProps {
   onListingChange: (listingId: string | null) => void;
 }
 
+// Helper function to format listing display name
+const formatListingDisplayName = (title: string, companyName?: string | null): string => {
+  if (companyName && companyName.trim()) {
+    return `${title}/${companyName}`;
+  }
+  return title;
+};
+
 export function ListingFilterSelect({ requests, selectedListingId, onListingChange }: ListingFilterSelectProps) {
   // Extract unique listings from requests with counts
   const getUniqueListings = () => {
@@ -23,6 +31,8 @@ export function ListingFilterSelect({ requests, selectedListingId, onListingChan
           listingMap.set(request.listing.id, {
             id: request.listing.id,
             title: request.listing.title,
+            internal_company_name: request.listing.internal_company_name,
+            displayName: formatListingDisplayName(request.listing.title, request.listing.internal_company_name),
             count: 1
           });
         }
@@ -53,7 +63,7 @@ export function ListingFilterSelect({ requests, selectedListingId, onListingChan
           {uniqueListings.map((listing) => (
             <SelectItem key={listing.id} value={listing.id}>
               <div className="flex items-center justify-between w-full">
-                <span className="truncate max-w-[200px]">{listing.title}</span>
+                <span className="truncate max-w-[200px]">{listing.displayName}</span>
                 <Badge variant="outline" className="ml-2">
                   {listing.count}
                 </Badge>
