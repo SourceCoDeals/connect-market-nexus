@@ -31,6 +31,14 @@ import { useAuth } from "@/context/AuthContext";
 import { getAdminProfile } from "@/lib/admin-profiles";
 import { useUpdateConnectionRequestStatus } from "@/hooks/admin/use-connection-request-status";
 
+// Helper function to format listing display name (Title/Company Name)
+const formatListingForDisplay = (title: string, companyName?: string | null): string => {
+  if (companyName && companyName.trim()) {
+    return `${title}/${companyName}`;
+  }
+  return title;
+};
+
 interface ConnectionRequestsTableProps {
   requests: AdminConnectionRequest[];
   isLoading: boolean;
@@ -293,7 +301,7 @@ SourceCo Team`}`;
                 </div>
                 <div className="flex items-center gap-2">
                   <Building2 className="h-3 w-3" />
-                  {request.listing?.title}
+                  {formatListingForDisplay(request.listing?.title || "", request.listing?.internal_company_name)}
                 </div>
               </div>
             </div>
