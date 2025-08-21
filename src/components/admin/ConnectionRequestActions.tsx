@@ -354,141 +354,113 @@ If the status changes post‑diligence, we'll reach out immediately.`;
 
   return (
     <>
-      <div className="space-y-6">
-        {/* Two-column layout: Email Actions & Document Status | Buyer Information */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left Column: Premium Email Actions & Document Management */}
-          <div className="lg:col-span-2 space-y-6">
+      <div className="space-y-4">
+        {/* Compact two-column layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          {/* Left Column: Actions & Status */}
+          <div className="lg:col-span-2 space-y-4">
             
-            {/* Email Actions Card */}
-            <div className="bg-card border border-border/60 rounded-xl p-6 shadow-sm">
-              <div className="mb-6">
-                <h3 className="text-lg font-semibold text-card-foreground flex items-center gap-3">
-                  <div className="p-2 bg-primary/10 rounded-lg">
-                    <Mail className="h-5 w-5 text-primary" />
-                  </div>
-                  Email Actions
+            {/* Compact Actions Card */}
+            <div className="bg-card border border-border/40 rounded-lg p-4 shadow-sm">
+              <div className="mb-4">
+                <h3 className="text-sm font-semibold text-card-foreground flex items-center gap-2">
+                  <Mail className="h-4 w-4 text-primary" />
+                  Actions
                 </h3>
-                <p className="text-sm text-muted-foreground mt-1">Send communications and manage follow-ups</p>
               </div>
               
-              {/* Communication Actions Group */}
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                  <div className="h-px bg-border flex-1"></div>
-                  <span className="px-2">Communication</span>
-                  <div className="h-px bg-border flex-1"></div>
-                </div>
+              {/* Compact Action Grid */}
+              <div className="grid grid-cols-3 gap-2 mb-4">
+                <Button
+                  variant={localFollowedUp ? "default" : "outline"}
+                  size="sm"
+                  asChild
+                  className="h-8 text-xs px-2"
+                >
+                  <a 
+                    href={getFollowUpMailto()}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <MessageSquare className="h-3 w-3 mr-1" />
+                    Follow Up
+                  </a>
+                </Button>
+
+                <Button
+                  variant={localNegativeFollowedUp ? "default" : "outline"}
+                  size="sm"
+                  asChild
+                  className="h-8 text-xs px-2"
+                >
+                  <a 
+                    href={getNegativeFollowUpMailto()}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <XCircle className="h-3 w-3 mr-1" />
+                    Reject
+                  </a>
+                </Button>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  asChild
+                  className="h-8 text-xs px-2"
+                >
+                  <a 
+                    href={`mailto:${user.email}?subject=${encodeURIComponent('Connection Request On Hold')}&body=${encodeURIComponent(`Hi ${user.first_name},\n\nYour connection request is currently on hold. We'll update you as soon as there's any change.\n\nBest regards,\nSourceCo Team`)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <Clock className="h-3 w-3 mr-1" />
+                    Hold
+                  </a>
+                </Button>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  variant={localUser.fee_agreement_email_sent ? "secondary" : "default"}
+                  size="sm"
+                  onClick={() => setShowFeeDialog(true)}
+                  className="h-8 text-xs"
+                >
+                  <FileText className="h-3 w-3 mr-1" />
+                  Fee Agreement
+                </Button>
                 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <Button
-                    variant={localFollowedUp ? "secondary" : "outline"}
-                    size="sm"
-                    asChild
-                    className="h-10 font-medium transition-all duration-200 hover:scale-105"
-                  >
-                    <a 
-                      href={getFollowUpMailto()}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <MessageSquare className="h-4 w-4 mr-2" />
-                      Follow Up
-                      <ExternalLink className="h-3 w-3 ml-2 opacity-60" />
-                    </a>
-                  </Button>
-
-                  <Button
-                    variant={localNegativeFollowedUp ? "secondary" : "outline"}
-                    size="sm"
-                    asChild
-                    className="h-10 font-medium transition-all duration-200 hover:scale-105"
-                  >
-                    <a 
-                      href={getNegativeFollowUpMailto()}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <XCircle className="h-4 w-4 mr-2" />
-                      Reject
-                      <ExternalLink className="h-3 w-3 ml-2 opacity-60" />
-                    </a>
-                  </Button>
-
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    asChild
-                    className="h-10 font-medium transition-all duration-200 hover:scale-105"
-                  >
-                    <a 
-                      href={`mailto:${user.email}?subject=${encodeURIComponent('Connection Request On Hold')}&body=${encodeURIComponent(`Hi ${user.first_name},\n\nYour connection request is currently on hold. We'll update you as soon as there's any change.\n\nBest regards,\nSourceCo Team`)}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <Clock className="h-4 w-4 mr-2" />
-                      On Hold
-                      <ExternalLink className="h-3 w-3 ml-2 opacity-60" />
-                    </a>
-                  </Button>
-                </div>
-
-                {/* Document Actions Group */}
-                <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                  <div className="h-px bg-border flex-1"></div>
-                  <span className="px-2">Documents</span>
-                  <div className="h-px bg-border flex-1"></div>
-                </div>
-                
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <Button
-                    variant={localUser.fee_agreement_email_sent ? "secondary" : "default"}
-                    size="sm"
-                    onClick={() => setShowFeeDialog(true)}
-                    className="h-10 font-medium transition-all duration-200 hover:scale-105"
-                  >
-                    <FileText className="h-4 w-4 mr-2" />
-                    Send Fee Agreement
-                  </Button>
-                  
-                  <Button
-                    variant={localUser.nda_email_sent ? "secondary" : "default"}
-                    size="sm"
-                    onClick={() => setShowNDADialog(true)}
-                    className="h-10 font-medium transition-all duration-200 hover:scale-105"
-                  >
-                    <Shield className="h-4 w-4 mr-2" />
-                    Send NDA
-                  </Button>
-                </div>
+                <Button
+                  variant={localUser.nda_email_sent ? "secondary" : "default"}
+                  size="sm"
+                  onClick={() => setShowNDADialog(true)}
+                  className="h-8 text-xs"
+                >
+                  <Shield className="h-3 w-3 mr-1" />
+                  NDA
+                </Button>
               </div>
             </div>
 
-            {/* Document Status Card */}
-            <div className="bg-card border border-border/60 rounded-xl p-6 shadow-sm">
-              <div className="mb-6">
-                <h3 className="text-lg font-semibold text-card-foreground flex items-center gap-3">
-                  <div className="p-2 bg-success/10 rounded-lg">
-                    <CheckCircle className="h-5 w-5 text-success" />
-                  </div>
-                  Document Status
+            {/* Document & Status Management */}
+            <div className="bg-card border border-border/40 rounded-lg p-4 shadow-sm">
+              <div className="mb-4">
+                <h3 className="text-sm font-semibold text-card-foreground flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4 text-success" />
+                  Status
                 </h3>
-                <p className="text-sm text-muted-foreground mt-1">Track document delivery and completion</p>
               </div>
               
-              <div className="space-y-4">
-                {/* Fee Agreement Status */}
-                <div className="bg-background/50 border border-border/40 rounded-lg p-4 transition-all duration-200 hover:border-border/80">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-3">
-                      <div className="p-1.5 bg-primary/10 rounded-md">
-                        <FileText className="h-4 w-4 text-primary" />
-                      </div>
-                      <span className="font-medium text-card-foreground">Fee Agreement</span>
-                    </div>
+              <div className="space-y-3">
+                {/* Fee Agreement Row */}
+                <div className="flex items-center justify-between p-3 bg-background/50 border border-border/20 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <FileText className="h-3 w-3 text-primary" />
+                    <span className="text-sm font-medium">Fee Agreement</span>
                     {getStatusBadge(
                       localUser.fee_agreement_email_sent || false, 
                       localUser.fee_agreement_signed || false, 
@@ -496,39 +468,35 @@ If the status changes post‑diligence, we'll reach out immediately.`;
                       localUser.fee_agreement_signed_at
                     )}
                   </div>
-                  <div className="flex items-center gap-6">
-                    <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-1.5">
                       <Switch
                         id={`fee-sent-${user.id}`}
                         checked={localUser.fee_agreement_email_sent || false}
                         onCheckedChange={handleFeeAgreementEmailSentToggle}
                         disabled={updateFeeAgreementEmailSent.isPending}
-                        className="data-[state=checked]:bg-info scale-110"
+                        className="scale-75"
                       />
-                      <Label htmlFor={`fee-sent-${user.id}`} className="text-sm font-medium text-card-foreground">Sent</Label>
+                      <Label htmlFor={`fee-sent-${user.id}`} className="text-xs">Sent</Label>
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-1.5">
                       <Switch
                         id={`fee-signed-${user.id}`}
                         checked={localUser.fee_agreement_signed || false}
                         onCheckedChange={handleFeeAgreementSignedToggle}
                         disabled={updateFeeAgreement.isPending}
-                        className="data-[state=checked]:bg-success scale-110"
+                        className="scale-75"
                       />
-                      <Label htmlFor={`fee-signed-${user.id}`} className="text-sm font-medium text-card-foreground">Signed</Label>
+                      <Label htmlFor={`fee-signed-${user.id}`} className="text-xs">Signed</Label>
                     </div>
                   </div>
                 </div>
 
-                {/* NDA Status */}
-                <div className="bg-background/50 border border-border/40 rounded-lg p-4 transition-all duration-200 hover:border-border/80">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-3">
-                      <div className="p-1.5 bg-success/10 rounded-md">
-                        <Shield className="h-4 w-4 text-success" />
-                      </div>
-                      <span className="font-medium text-card-foreground">NDA</span>
-                    </div>
+                {/* NDA Row */}
+                <div className="flex items-center justify-between p-3 bg-background/50 border border-border/20 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <Shield className="h-3 w-3 text-success" />
+                    <span className="text-sm font-medium">NDA</span>
                     {getStatusBadge(
                       localUser.nda_email_sent || false, 
                       localUser.nda_signed || false, 
@@ -536,76 +504,72 @@ If the status changes post‑diligence, we'll reach out immediately.`;
                       localUser.nda_signed_at
                     )}
                   </div>
-                  <div className="flex items-center gap-6">
-                    <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-1.5">
                       <Switch
                         id={`nda-sent-${user.id}`}
                         checked={localUser.nda_email_sent || false}
                         onCheckedChange={handleNDAEmailSentToggle}
                         disabled={updateNDAEmailSent.isPending}
-                        className="data-[state=checked]:bg-info scale-110"
+                        className="scale-75"
                       />
-                      <Label htmlFor={`nda-sent-${user.id}`} className="text-sm font-medium text-card-foreground">Sent</Label>
+                      <Label htmlFor={`nda-sent-${user.id}`} className="text-xs">Sent</Label>
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-1.5">
                       <Switch
                         id={`nda-signed-${user.id}`}
                         checked={localUser.nda_signed || false}
                         onCheckedChange={handleNDASignedToggle}
                         disabled={updateNDA.isPending}
-                        className="data-[state=checked]:bg-success scale-110"
+                        className="scale-75"
                       />
-                      <Label htmlFor={`nda-signed-${user.id}`} className="text-sm font-medium text-card-foreground">Signed</Label>
+                      <Label htmlFor={`nda-signed-${user.id}`} className="text-xs">Signed</Label>
                     </div>
                   </div>
                 </div>
 
-                {/* Follow-up Status */}
-                <div className="bg-background/50 border border-border/40 rounded-lg p-4 transition-all duration-200 hover:border-border/80">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="p-1.5 bg-warning/10 rounded-md">
-                      <MessageSquare className="h-4 w-4 text-warning" />
-                    </div>
-                    <span className="font-medium text-card-foreground">Follow-Up Status</span>
+                {/* Follow-up Row */}
+                <div className="p-3 bg-background/50 border border-border/20 rounded-lg">
+                  <div className="flex items-center gap-2 mb-3">
+                    <MessageSquare className="h-3 w-3 text-warning" />
+                    <span className="text-sm font-medium">Follow-Up</span>
                   </div>
                   
-                  <div className="space-y-3">
-                    {/* Positive Follow-up */}
+                  <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-1.5">
                         <Switch
                           id={`follow-up-${user.id}`}
                           checked={localFollowedUp}
                           onCheckedChange={handleFollowUpToggle}
                           disabled={updateFollowup.isPending}
-                          className="data-[state=checked]:bg-info scale-110"
+                          className="scale-75"
                         />
-                        <Label htmlFor={`follow-up-${user.id}`} className="text-sm font-medium text-card-foreground">Positive</Label>
+                        <Label htmlFor={`follow-up-${user.id}`} className="text-xs">Positive</Label>
                       </div>
-                       {localFollowedUp && currentRequest?.followed_up_at && (
-                         <div className="text-xs text-muted-foreground font-medium">
-                           By <span className="text-card-foreground">{getAdminName(currentRequest.followedUpByAdmin)}</span> {formatDistanceToNow(new Date(currentRequest.followed_up_at), { addSuffix: true })}
-                         </div>
-                       )}
+                      {localFollowedUp && currentRequest?.followed_up_at && (
+                        <div className="text-xs text-muted-foreground">
+                          {getAdminName(currentRequest.followedUpByAdmin)} {formatDistanceToNow(new Date(currentRequest.followed_up_at), { addSuffix: true })}
+                        </div>
+                      )}
                     </div>
 
-                    {/* Negative Follow-up */}
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-1.5">
                         <Switch
                           id={`negative-follow-up-${user.id}`}
                           checked={localNegativeFollowedUp}
                           onCheckedChange={handleNegativeFollowUpToggle}
                           disabled={updateNegativeFollowup.isPending}
-                          className="data-[state=checked]:bg-warning scale-110"
+                          className="scale-75"
                         />
-                        <Label htmlFor={`negative-follow-up-${user.id}`} className="text-sm font-medium text-card-foreground">Negative</Label>
+                        <Label htmlFor={`negative-follow-up-${user.id}`} className="text-xs">Negative</Label>
                       </div>
-                       {localNegativeFollowedUp && currentRequest?.negative_followed_up_at && (
-                         <div className="text-xs text-muted-foreground font-medium">
-                           By <span className="text-card-foreground">{getAdminName(currentRequest.negativeFollowedUpByAdmin)}</span> {formatDistanceToNow(new Date(currentRequest.negative_followed_up_at), { addSuffix: true })}
-                         </div>
-                       )}
+                      {localNegativeFollowedUp && currentRequest?.negative_followed_up_at && (
+                        <div className="text-xs text-muted-foreground">
+                          {getAdminName(currentRequest.negativeFollowedUpByAdmin)} {formatDistanceToNow(new Date(currentRequest.negative_followed_up_at), { addSuffix: true })}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
