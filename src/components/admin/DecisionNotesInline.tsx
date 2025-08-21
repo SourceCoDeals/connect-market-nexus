@@ -25,8 +25,7 @@ export function DecisionNotesInline({
     setNoteText(currentNotes);
   }, [currentNotes]);
 
-  // Always show if there are existing notes, even if not active
-  if (!isActive && !currentNotes?.trim()) return null;
+  if (!isActive) return null;
 
   const handleSave = async () => {
     await updateNotes.mutateAsync({ requestId, notes: noteText.trim() });
@@ -39,11 +38,11 @@ export function DecisionNotesInline({
   };
 
   return (
-    <div className={`mt-2 p-2 rounded border ${isActive ? 'bg-muted/30' : 'bg-muted/20 border-dashed'}`}>
+    <div className="mt-2 p-2 bg-muted/30 rounded border">
       {isEditing ? (
         <div className="space-y-2">
           <Textarea
-            placeholder={isActive ? `Add a note for this ${label} decision...` : `This note will be saved when you ${label} this request...`}
+            placeholder={`Add a note for this ${label} decision...`}
             value={noteText}
             onChange={(e) => setNoteText(e.target.value)}
             className="text-xs min-h-[50px] resize-none"
@@ -75,9 +74,7 @@ export function DecisionNotesInline({
             {currentNotes ? (
               <p className="text-xs text-foreground mb-1">{currentNotes}</p>
             ) : (
-              <p className="text-xs text-muted-foreground italic">
-                {isActive ? "No decision note" : `Add a note for when you ${label} this request`}
-              </p>
+              <p className="text-xs text-muted-foreground italic">No decision note</p>
             )}
           </div>
           <Button
