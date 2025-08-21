@@ -398,7 +398,7 @@ If the status changes post‑diligence, we'll reach out immediately.`;
                     onClick={(e) => e.stopPropagation()}
                   >
                     <XCircle className="h-3 w-3 mr-1" />
-                    Send Rejection Notice
+                    Reject
                     <ExternalLink className="h-3 w-3 ml-1" />
                   </a>
                 </Button>
@@ -406,17 +406,19 @@ If the status changes post‑diligence, we'll reach out immediately.`;
                 <Button
                   variant="outline"
                   size="sm"
+                  asChild
                   className="text-xs h-8"
-                  onClick={() => {
-                    // Placeholder for On Hold functionality
-                    toast({
-                      title: "On Hold",
-                      description: "Connection request marked as on hold."
-                    });
-                  }}
                 >
-                  <Clock className="h-3 w-3 mr-1" />
-                  On Hold
+                  <a 
+                    href={`mailto:${user.email}?subject=${encodeURIComponent('Connection Request On Hold')}&body=${encodeURIComponent(`Hi ${user.first_name},\n\nYour connection request is currently on hold. We'll update you as soon as there's any change.\n\nBest regards,\nSourceCo Team`)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <Clock className="h-3 w-3 mr-1" />
+                    On Hold
+                    <ExternalLink className="h-3 w-3 ml-1" />
+                  </a>
                 </Button>
               </div>
 

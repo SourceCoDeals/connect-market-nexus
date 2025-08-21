@@ -372,68 +372,6 @@ SourceCo Team`}`;
               {/* Request Details */}
               <RequestDetails request={request} />
 
-              {/* Email Actions */}
-              <div className="mt-4 pt-3 border-t border-border/30">
-                <div className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1">
-                  <Mail className="h-3 w-3" />
-                  Quick Email Actions
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    asChild
-                    className="text-xs h-7 border-success/30 text-success hover:bg-success/10"
-                  >
-                    <a 
-                      href={getApprovalMailto(request)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <CheckCircle className="h-3 w-3 mr-1" />
-                      Approve
-                      <ExternalLink className="h-3 w-3 ml-1" />
-                    </a>
-                  </Button>
-                  
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    asChild
-                    className="text-xs h-7 border-destructive/30 text-destructive hover:bg-destructive/10"
-                  >
-                    <a 
-                      href={getRejectionMailto(request)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <XCircle className="h-3 w-3 mr-1" />
-                      Reject
-                      <ExternalLink className="h-3 w-3 ml-1" />
-                    </a>
-                  </Button>
-
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    asChild
-                    className="text-xs h-7 border-warning/30 text-warning hover:bg-warning/10"
-                  >
-                    <a 
-                      href={getOnHoldMailto(request)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <AlertTriangle className="h-3 w-3 mr-1" />
-                      On Hold
-                      <ExternalLink className="h-3 w-3 ml-1" />
-                    </a>
-                  </Button>
-                </div>
-              </div>
 
               {/* Final Decision - Status Toggles */}
               <div className="mt-4 pt-3 border-t border-border/30">
