@@ -39,56 +39,41 @@ export function BuyerDealsOverview({ requests, currentRequestId }: BuyerDealsOve
   };
 
   return (
-    <Card className="border-blue-200 bg-blue-50/50">
-      <CardHeader className="pb-3">
-        <CardTitle className="text-sm font-medium text-blue-900 flex items-center gap-2">
+    <div className="border rounded-lg">
+      <div className="p-3 border-b">
+        <h6 className="text-sm font-medium text-foreground flex items-center gap-2">
           <Building className="h-4 w-4" />
           Other Active Interests ({otherRequests.length})
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3 pt-0">
-        {otherRequests.map((request) => (
-          <div 
-            key={request.id}
-            className="flex items-start gap-3 p-3 bg-white border border-blue-100 rounded-lg hover:border-blue-200 transition-colors"
-          >
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-2">
-                <h4 className="font-medium text-sm text-foreground truncate">
+        </h6>
+      </div>
+      <div className="max-h-48 overflow-y-auto">
+        <div className="divide-y">
+          {otherRequests.map((request, index) => (
+            <div key={request.id} className="p-3 hover:bg-muted/30 transition-colors">
+              <div className="flex items-center justify-between gap-2 mb-1">
+                <h4 className="font-medium text-xs text-foreground truncate">
                   {request.listing?.title || 'Unknown Listing'}
                 </h4>
                 <Badge 
                   variant="outline" 
-                  className={`text-xs flex items-center gap-1 ${getStatusColor(request.status)}`}
+                  className={`text-xs shrink-0 ${getStatusColor(request.status)}`}
                 >
                   {getStatusIcon(request.status)}
                   {request.status}
                 </Badge>
               </div>
               
-              <div className="flex items-center gap-4 text-xs text-muted-foreground mb-1">
-                <div className="flex items-center gap-1">
-                  <DollarSign className="h-3 w-3" />
-                  ${request.listing?.revenue?.toLocaleString() || 'N/A'}
-                </div>
-                <div className="flex items-center gap-1">
-                  <MapPin className="h-3 w-3" />
-                  {request.listing?.location || 'N/A'}
-                </div>
-              </div>
-              
-              <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                <Clock className="h-3 w-3" />
-                {formatDistanceToNow(new Date(request.created_at), { addSuffix: true })}
+              <div className="text-xs text-muted-foreground">
+                ${request.listing?.revenue?.toLocaleString() || 'N/A'} • {request.listing?.location || 'N/A'}
               </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
         
-        <div className="text-xs text-blue-700 bg-blue-100 px-3 py-2 rounded-lg">
+        <div className="text-xs text-muted-foreground bg-muted/30 px-3 py-2 border-t">
           💡 Follow-up actions will apply to all active requests from this buyer
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
