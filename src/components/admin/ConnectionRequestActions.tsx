@@ -467,31 +467,49 @@ If the status changes post‑diligence, we'll reach out immediately.`;
                 </div>
 
                 {/* Follow-up Status */}
-                <div className="flex items-center justify-between p-2 border rounded">
+                <div className="p-2 border rounded space-y-2">
                   <div className="flex items-center gap-2">
                     <MessageSquare className="h-3 w-3 text-warning" />
                     <span className="text-sm font-medium">Follow-Up</span>
                   </div>
-                  <div className="flex items-center gap-4">
-                    <div className="flex items-center space-x-2">
-                      <Switch
-                        id={`follow-up-${user.id}`}
-                        checked={localFollowedUp}
-                        onCheckedChange={handleFollowUpToggle}
-                        disabled={updateFollowup.isPending}
-                        className="data-[state=checked]:bg-info"
-                      />
-                      <Label htmlFor={`follow-up-${user.id}`} className="text-xs">Positive</Label>
+                  
+                  <div className="space-y-2">
+                    {/* Positive Follow-up */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <Switch
+                          id={`follow-up-${user.id}`}
+                          checked={localFollowedUp}
+                          onCheckedChange={handleFollowUpToggle}
+                          disabled={updateFollowup.isPending}
+                          className="data-[state=checked]:bg-info"
+                        />
+                        <Label htmlFor={`follow-up-${user.id}`} className="text-xs">Positive</Label>
+                      </div>
+                      {localFollowedUp && currentRequest?.followed_up_at && (
+                        <span className="text-xs text-muted-foreground">
+                          By {currentRequest.followed_up_by || 'Admin'} {formatDistanceToNow(new Date(currentRequest.followed_up_at), { addSuffix: true })}
+                        </span>
+                      )}
                     </div>
-                    <div className="flex items-center space-x-2">
-                      <Switch
-                        id={`negative-follow-up-${user.id}`}
-                        checked={localNegativeFollowedUp}
-                        onCheckedChange={handleNegativeFollowUpToggle}
-                        disabled={updateNegativeFollowup.isPending}
-                        className="data-[state=checked]:bg-warning"
-                      />
-                      <Label htmlFor={`negative-follow-up-${user.id}`} className="text-xs">Negative</Label>
+
+                    {/* Negative Follow-up */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <Switch
+                          id={`negative-follow-up-${user.id}`}
+                          checked={localNegativeFollowedUp}
+                          onCheckedChange={handleNegativeFollowUpToggle}
+                          disabled={updateNegativeFollowup.isPending}
+                          className="data-[state=checked]:bg-warning"
+                        />
+                        <Label htmlFor={`negative-follow-up-${user.id}`} className="text-xs">Negative</Label>
+                      </div>
+                      {localNegativeFollowedUp && currentRequest?.negative_followed_up_at && (
+                        <span className="text-xs text-muted-foreground">
+                          By {currentRequest.negative_followed_up_by || 'Admin'} {formatDistanceToNow(new Date(currentRequest.negative_followed_up_at), { addSuffix: true })}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
