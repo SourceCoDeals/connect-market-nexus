@@ -7,3 +7,4 @@ export * from './use-admin-email';
 export * from './use-admin-categories';
 export * from './use-fee-agreement';
 export * from './use-nda';
+export * from './use-simple-connection-request';

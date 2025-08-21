@@ -1500,8 +1500,16 @@ export type Database = {
         }
         Returns: boolean
       }
+      update_connection_request_notes: {
+        Args: { notes: string; request_id: string }
+        Returns: boolean
+      }
       update_connection_request_status: {
         Args: { admin_notes?: string; new_status: string; request_id: string }
+        Returns: boolean
+      }
+      update_connection_request_status_simple: {
+        Args: { new_status: string; request_id: string }
         Returns: boolean
       }
       update_connection_request_status_with_notes: {
