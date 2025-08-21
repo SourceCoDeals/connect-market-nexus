@@ -534,54 +534,69 @@ If the status changes post‑diligence, we'll reach out immediately.`;
                   </div>
                 </div>
 
-                {/* Follow-up Section */}
-                <div className="py-2 px-3 rounded-md border border-border/50 bg-background/50">
-                  <div className="flex items-center gap-2 mb-3">
-                    <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" />
-                    <span className="text-xs font-medium text-foreground">Follow-Up</span>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Label htmlFor={`follow-up-${user.id}`} className="text-xs font-medium text-muted-foreground">Positive</Label>
-                        <Switch
-                          id={`follow-up-${user.id}`}
-                          checked={localFollowedUp}
-                          onCheckedChange={handleFollowUpToggle}
-                          disabled={updateFollowup.isPending}
-                          className="scale-90"
-                        />
-                      </div>
-                      {localFollowedUp && currentRequest?.followed_up_at && (
-                        <div className="text-xs text-muted-foreground">
-                          {getAdminName(currentRequest.followedUpByAdmin)} {formatDistanceToNow(new Date(currentRequest.followed_up_at), { addSuffix: true })}
-                        </div>
-                      )}
+                {/* Follow-up Row */}
+                <div className="flex items-center justify-between py-2 px-3 rounded-md border border-border/50 bg-background/50 hover:bg-accent/20 transition-colors">
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 min-w-[100px]">
+                      <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span className="text-xs font-medium text-foreground">Follow-up</span>
                     </div>
-
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Label htmlFor={`negative-follow-up-${user.id}`} className="text-xs font-medium text-muted-foreground">Negative</Label>
-                        <Switch
-                          id={`negative-follow-up-${user.id}`}
-                          checked={localNegativeFollowedUp}
-                          onCheckedChange={handleNegativeFollowUpToggle}
-                          disabled={updateNegativeFollowup.isPending}
-                          className="scale-90"
-                        />
+                    {/* Follow-up Status Indicator */}
+                    {localFollowedUp ? (
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
+                        <span className="font-medium text-foreground">Positive</span>
+                        {currentRequest?.followed_up_at && (
+                          <span className="text-muted-foreground/60">
+                            {formatDistanceToNow(new Date(currentRequest.followed_up_at), { addSuffix: true })}
+                            {currentRequest.followedUpByAdmin && ` by ${getAdminName(currentRequest.followedUpByAdmin)}`}
+                          </span>
+                        )}
                       </div>
-                      {localNegativeFollowedUp && currentRequest?.negative_followed_up_at && (
-                        <div className="text-xs text-muted-foreground">
-                          {getAdminName(currentRequest.negativeFollowedUpByAdmin)} {formatDistanceToNow(new Date(currentRequest.negative_followed_up_at), { addSuffix: true })}
-                        </div>
-                      )}
-                    </div>
+                    ) : localNegativeFollowedUp ? (
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <div className="w-1.5 h-1.5 rounded-full bg-destructive"></div>
+                        <span className="font-medium text-foreground">Negative</span>
+                        {currentRequest?.negative_followed_up_at && (
+                          <span className="text-muted-foreground/60">
+                            {formatDistanceToNow(new Date(currentRequest.negative_followed_up_at), { addSuffix: true })}
+                            {currentRequest.negativeFollowedUpByAdmin && ` by ${getAdminName(currentRequest.negativeFollowedUpByAdmin)}`}
+                          </span>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <div className="w-1.5 h-1.5 rounded-full bg-amber-500"></div>
+                        <span className="font-medium text-foreground">Required</span>
+                      </div>
+                    )}
                   </div>
-                </div>
-              </div>
-            </div>
-          </div>
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor={`positive-followup-${user.id}`} className="text-xs font-medium text-muted-foreground">Positive</Label>
+                      <Switch
+                        id={`positive-followup-${user.id}`}
+                        checked={localFollowedUp}
+                        onCheckedChange={handleFollowUpToggle}
+                        disabled={updateFollowup.isPending}
+                        className="scale-90"
+                      />
+                    </div>
+                     <div className="flex items-center gap-2">
+                       <Label htmlFor={`negative-followup-${user.id}`} className="text-xs font-medium text-muted-foreground">Negative</Label>
+                       <Switch
+                         id={`negative-followup-${user.id}`}
+                         checked={localNegativeFollowedUp}
+                         onCheckedChange={handleNegativeFollowUpToggle}
+                         disabled={updateNegativeFollowup.isPending}
+                         className="scale-90"
+                       />
+                     </div>
+                   </div>
+                 </div>
+               </div>
+             </div>
+           </div>
 
           {/* Right Column: Buyer Information */}
           <div className="space-y-4">
