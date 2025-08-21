@@ -541,35 +541,47 @@ If the status changes post‑diligence, we'll reach out immediately.`;
                       <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" />
                       <span className="text-xs font-medium text-foreground">Follow-up</span>
                     </div>
-                    {/* Follow-up Status Indicator */}
-                    {localFollowedUp ? (
-                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
-                        <span className="font-medium text-foreground">Positive</span>
-                        {currentRequest?.followed_up_at && (
-                          <span className="text-muted-foreground/60">
-                            {formatDistanceToNow(new Date(currentRequest.followed_up_at), { addSuffix: true })}
-                            {currentRequest.followedUpByAdmin && ` by ${getAdminName(currentRequest.followedUpByAdmin)}`}
-                          </span>
-                        )}
-                      </div>
-                    ) : localNegativeFollowedUp ? (
-                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                        <div className="w-1.5 h-1.5 rounded-full bg-destructive"></div>
-                        <span className="font-medium text-foreground">Negative</span>
-                        {currentRequest?.negative_followed_up_at && (
-                          <span className="text-muted-foreground/60">
-                            {formatDistanceToNow(new Date(currentRequest.negative_followed_up_at), { addSuffix: true })}
-                            {currentRequest.negativeFollowedUpByAdmin && ` by ${getAdminName(currentRequest.negativeFollowedUpByAdmin)}`}
-                          </span>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                        <div className="w-1.5 h-1.5 rounded-full bg-amber-500"></div>
-                        <span className="font-medium text-foreground">Required</span>
-                      </div>
-                    )}
+                     {/* Follow-up Status Indicator */}
+                     {localFollowedUp ? (
+                       <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                         <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
+                         <span className="font-medium text-foreground">Positive</span>
+                         {currentRequest?.followed_up_at && (
+                           <div className="flex flex-col ml-2 text-muted-foreground/60">
+                             <span>
+                               {formatDistanceToNow(new Date(currentRequest.followed_up_at), { addSuffix: true })}
+                             </span>
+                             {currentRequest.followedUpByAdmin && (
+                               <span className="font-medium">
+                                 by {getAdminName(currentRequest.followedUpByAdmin)}
+                               </span>
+                             )}
+                           </div>
+                         )}
+                       </div>
+                     ) : localNegativeFollowedUp ? (
+                       <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                         <div className="w-1.5 h-1.5 rounded-full bg-destructive"></div>
+                         <span className="font-medium text-foreground">Negative</span>
+                         {currentRequest?.negative_followed_up_at && (
+                           <div className="flex flex-col ml-2 text-muted-foreground/60">
+                             <span>
+                               {formatDistanceToNow(new Date(currentRequest.negative_followed_up_at), { addSuffix: true })}
+                             </span>
+                             {currentRequest.negativeFollowedUpByAdmin && (
+                               <span className="font-medium">
+                                 by {getAdminName(currentRequest.negativeFollowedUpByAdmin)}
+                               </span>
+                             )}
+                           </div>
+                         )}
+                       </div>
+                     ) : (
+                       <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                         <div className="w-1.5 h-1.5 rounded-full bg-amber-500"></div>
+                         <span className="font-medium text-foreground">Required</span>
+                       </div>
+                     )}
                   </div>
                   <div className="flex items-center gap-4">
                     <div className="flex items-center gap-2">
