@@ -133,6 +133,31 @@ export function ConnectionRequestActions({
     );
   };
 
+  const getAdminName = (adminId?: string, adminEmail?: string) => {
+    if (!adminId && !adminEmail) return 'Admin';
+    
+    // Try to get admin profile by email first
+    if (adminEmail) {
+      const adminProfile = getAdminProfile(adminEmail);
+      if (adminProfile?.name) {
+        return adminProfile.name;
+      }
+    }
+    
+    // Fallback to current auth user if it's them
+    if (authUser?.email) {
+      const currentAdminProfile = getAdminProfile(authUser.email);
+      if (currentAdminProfile?.name) {
+        return currentAdminProfile.name;
+      }
+      if (authUser?.firstName || authUser?.lastName) {
+        return [authUser?.firstName, authUser?.lastName].filter(Boolean).join(' ');
+      }
+    }
+    
+    return 'Admin';
+  };
+
   const getFollowUpMailto = () => {
     if (!listing) return '';
 
@@ -488,7 +513,7 @@ If the status changes post‑diligence, we'll reach out immediately.`;
                       </div>
                       {localFollowedUp && currentRequest?.followed_up_at && (
                         <span className="text-xs text-muted-foreground">
-                          By {currentRequest.followed_up_by || 'Admin'} {formatDistanceToNow(new Date(currentRequest.followed_up_at), { addSuffix: true })}
+                          By {getAdminName(currentRequest.followed_up_by, currentRequest.followedUpByAdmin?.email)} {formatDistanceToNow(new Date(currentRequest.followed_up_at), { addSuffix: true })}
                         </span>
                       )}
                     </div>
@@ -507,7 +532,7 @@ If the status changes post‑diligence, we'll reach out immediately.`;
                       </div>
                       {localNegativeFollowedUp && currentRequest?.negative_followed_up_at && (
                         <span className="text-xs text-muted-foreground">
-                          By {currentRequest.negative_followed_up_by || 'Admin'} {formatDistanceToNow(new Date(currentRequest.negative_followed_up_at), { addSuffix: true })}
+                          By {getAdminName(currentRequest.negative_followed_up_by, currentRequest.negativeFollowedUpByAdmin?.email)} {formatDistanceToNow(new Date(currentRequest.negative_followed_up_at), { addSuffix: true })}
                         </span>
                       )}
                     </div>
