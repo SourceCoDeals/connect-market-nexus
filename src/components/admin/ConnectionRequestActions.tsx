@@ -384,12 +384,6 @@ If the status changes post‑diligence, we'll reach out immediately.`;
           </div>
         </div>
         
-        {/* User Notes Section - Below Quick Actions */}
-        <UserNotesSection 
-          userId={user.id}
-          userName={`${user.first_name} ${user.last_name}`.trim()}
-        />
-
       {/* Right Column: Agreement Status */}
       <div className="space-y-4">
         <div className="bg-card border rounded-lg p-4">
@@ -586,6 +580,14 @@ If the status changes post‑diligence, we'll reach out immediately.`;
             </div>
           </div>
         </div>
+      </div>
+
+      {/* General Notes Section - Full Width Below */}
+      <div className="col-span-full mt-6">
+        <UserNotesSection 
+          userId={user.id}
+          userName={`${user.first_name} ${user.last_name}`.trim()}
+        />
       </div>
 
       {/* Dialogs */}
