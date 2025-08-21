@@ -31,10 +31,6 @@ import { useAdminSignature } from "@/hooks/admin/use-admin-signature";
 import { useAuth } from "@/context/AuthContext";
 import { getAdminProfile } from "@/lib/admin-profiles";
 import { formatDistanceToNow, format } from 'date-fns';
-import { UserNotesSection } from "./UserNotesSection";
-import { DecisionNotesDialog } from "./DecisionNotesDialog";
-import { useUpdateConnectionRequestWithNotes } from "@/hooks/admin/use-connection-request-with-notes";
-import { AdminConnectionRequest } from "@/types/admin";
 
 
 interface ConnectionRequestActionsProps {
@@ -43,7 +39,6 @@ interface ConnectionRequestActionsProps {
   requestId?: string;
   followedUp?: boolean;
   negativeFollowedUp?: boolean;
-  request?: AdminConnectionRequest;
   onEmailSent?: () => void;
   onLocalStateUpdate?: (updatedUser: UserType, updatedFollowedUp?: boolean, updatedNegativeFollowedUp?: boolean) => void;
 }
@@ -54,7 +49,6 @@ export function ConnectionRequestActions({
   requestId, 
   followedUp = false, 
   negativeFollowedUp = false,
-  request,
   onEmailSent,
   onLocalStateUpdate 
 }: ConnectionRequestActionsProps) {
@@ -64,8 +58,6 @@ export function ConnectionRequestActions({
   const [showFeeDialog, setShowFeeDialog] = useState(false);
   const [showNDADialog, setShowNDADialog] = useState(false);
   const [showBulkFollowupDialog, setShowBulkFollowupDialog] = useState(false);
-  const [showDecisionDialog, setShowDecisionDialog] = useState(false);
-  const [pendingStatusChange, setPendingStatusChange] = useState<{status: string; actionType: "approved" | "rejected" | "on_hold"} | null>(null);
   const [bulkFollowupType, setBulkFollowupType] = useState<'positive' | 'negative'>('positive');
   
   // Local state for immediate UI updates
@@ -110,7 +102,6 @@ export function ConnectionRequestActions({
   const updateFeeAgreementEmailSent = useUpdateFeeAgreementEmailSent();
   const updateFollowup = useUpdateFollowup();
   const updateNegativeFollowup = useUpdateNegativeFollowup();
-  const updateConnectionRequestWithNotes = useUpdateConnectionRequestWithNotes();
   const bulkFollowup = useBulkFollowup();
 
   const getStatusBadge = (sent: boolean, signed: boolean, sentAt?: string, signedAt?: string) => {
@@ -322,23 +313,6 @@ If the status changes post‑diligence, we'll reach out immediately.`;
     });
   };
 
-  const handleStatusChange = (status: string, actionType: "approved" | "rejected" | "on_hold") => {
-    setPendingStatusChange({ status, actionType });
-    setShowDecisionDialog(true);
-  };
-
-  const handleDecisionConfirm = async (decisionNotes: string) => {
-    if (!pendingStatusChange || !requestId) return;
-
-    await updateConnectionRequestWithNotes.mutateAsync({
-      requestId,
-      status: pendingStatusChange.status,
-      decisionNotes
-    });
-
-    setPendingStatusChange(null);
-  };
-
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
       {/* Left Column: Quick Actions */}
@@ -405,12 +379,6 @@ If the status changes post‑diligence, we'll reach out immediately.`;
               </a>
             </Button>
           </div>
-
-          {/* User Notes Section */}
-          <UserNotesSection 
-            userId={user.id} 
-            userName={`${user.first_name} ${user.last_name}`}
-          />
         </div>
       </div>
 
@@ -629,18 +597,6 @@ If the status changes post‑diligence, we'll reach out immediately.`;
         followupType={bulkFollowupType}
         onConfirm={handleBulkFollowupConfirm}
         isLoading={bulkFollowup.isPending}
-      />
-
-      <DecisionNotesDialog
-        isOpen={showDecisionDialog}
-        onClose={() => {
-          setShowDecisionDialog(false);
-          setPendingStatusChange(null);
-        }}
-        onConfirm={handleDecisionConfirm}
-        request={request}
-        actionType={pendingStatusChange?.actionType || null}
-        isLoading={updateConnectionRequestWithNotes.isPending}
       />
     </div>
   );

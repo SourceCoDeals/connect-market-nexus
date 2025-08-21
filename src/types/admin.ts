@@ -90,7 +90,6 @@ export interface AdminConnectionRequest {
   status: 'pending' | 'approved' | 'rejected' | 'on_hold';
   admin_comment?: string;
   user_message?: string;
-  decision_notes?: string;
   followed_up?: boolean;
   followed_up_at?: string;
   followed_up_by?: string;

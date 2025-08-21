@@ -206,7 +206,6 @@ export type Database = {
           approved_by: string | null
           created_at: string
           decision_at: string | null
-          decision_notes: string | null
           followed_up: boolean | null
           followed_up_at: string | null
           followed_up_by: string | null
@@ -230,7 +229,6 @@ export type Database = {
           approved_by?: string | null
           created_at?: string
           decision_at?: string | null
-          decision_notes?: string | null
           followed_up?: boolean | null
           followed_up_at?: string | null
           followed_up_by?: string | null
@@ -254,7 +252,6 @@ export type Database = {
           approved_by?: string | null
           created_at?: string
           decision_at?: string | null
-          decision_notes?: string | null
           followed_up?: boolean | null
           followed_up_at?: string | null
           followed_up_by?: string | null
@@ -1277,33 +1274,6 @@ export type Database = {
         }
         Relationships: []
       }
-      user_notes: {
-        Row: {
-          admin_id: string
-          created_at: string
-          id: string
-          note_text: string
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          admin_id: string
-          created_at?: string
-          id?: string
-          note_text: string
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          admin_id?: string
-          created_at?: string
-          id?: string
-          note_text?: string
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
       user_sessions: {
         Row: {
           browser: string | null
@@ -1500,24 +1470,8 @@ export type Database = {
         }
         Returns: boolean
       }
-      update_connection_request_notes: {
-        Args: { notes: string; request_id: string }
-        Returns: boolean
-      }
       update_connection_request_status: {
         Args: { admin_notes?: string; new_status: string; request_id: string }
-        Returns: boolean
-      }
-      update_connection_request_status_simple: {
-        Args: { new_status: string; request_id: string }
-        Returns: boolean
-      }
-      update_connection_request_status_with_notes: {
-        Args: {
-          decision_notes?: string
-          new_status: string
-          request_id: string
-        }
         Returns: boolean
       }
       update_daily_metrics: {
