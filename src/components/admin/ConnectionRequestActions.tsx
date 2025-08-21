@@ -525,7 +525,7 @@ If the status changes post‑diligence, we'll reach out immediately.`;
                 {requestId && (
                   <DecisionNotesInline
                     requestId={requestId}
-                    currentNotes={currentRequest?.decision_notes || ''}
+                    currentNotes={currentRequest?.admin_comment || ''}
                     isActive={localFollowedUp}
                     label="follow-up"
                   />
@@ -578,7 +578,7 @@ If the status changes post‑diligence, we'll reach out immediately.`;
                 {requestId && (
                   <DecisionNotesInline
                     requestId={requestId}
-                    currentNotes={currentRequest?.decision_notes || ''}
+                    currentNotes={currentRequest?.admin_comment || ''}
                     isActive={localNegativeFollowedUp}
                     label="rejection"
                   />
