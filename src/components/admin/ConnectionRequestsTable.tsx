@@ -268,23 +268,13 @@ SourceCo Team`}`;
     return `mailto:${request.user.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   };
 
-  // Get card styling based on status
-  const getCardClassName = (status: string) => {
-    const baseClass = "border transition-colors";
-    switch (status) {
-      case 'approved':
-        return `${baseClass} border-success/30 bg-success/5`;
-      case 'rejected':  
-        return `${baseClass} border-destructive/30 bg-destructive/5`;
-      case 'on_hold':
-        return `${baseClass} border-warning/30 bg-warning/5`;
-      default:
-        return `${baseClass} border-border/50 hover:border-border`;
-    }
+  // Simplified card styling without status-based colors
+  const getCardClassName = () => {
+    return "border border-border/50 hover:border-border transition-colors";
   };
 
   return (
-    <Card className={getCardClassName(request.status)}>
+    <Card className={getCardClassName()}>
       <CardContent className="p-6">
         <div className="space-y-4">
           {/* Header */}
@@ -428,9 +418,10 @@ SourceCo Team`}`;
                           id={`approved-${request.id}`}
                           checked={request.status === 'approved'}
                           onCheckedChange={(checked) => {
+                            const newStatus = checked ? 'approved' : 'pending';
                             updateConnectionRequestStatus.mutate({
                               requestId: request.id,
-                              status: checked ? 'approved' : 'pending'
+                              status: newStatus
                             });
                           }}
                           disabled={updateConnectionRequestStatus.isPending}
@@ -451,9 +442,10 @@ SourceCo Team`}`;
                           id={`rejected-${request.id}`}
                           checked={request.status === 'rejected'}
                           onCheckedChange={(checked) => {
+                            const newStatus = checked ? 'rejected' : 'pending';
                             updateConnectionRequestStatus.mutate({
                               requestId: request.id,
-                              status: checked ? 'rejected' : 'pending'
+                              status: newStatus
                             });
                           }}
                           disabled={updateConnectionRequestStatus.isPending}
@@ -474,9 +466,10 @@ SourceCo Team`}`;
                           id={`on-hold-${request.id}`}
                           checked={request.status === 'on_hold'}
                           onCheckedChange={(checked) => {
+                            const newStatus = checked ? 'on_hold' : 'pending';
                             updateConnectionRequestStatus.mutate({
                               requestId: request.id,
-                              status: checked ? 'on_hold' : 'pending'
+                              status: newStatus
                             });
                           }}
                           disabled={updateConnectionRequestStatus.isPending}
