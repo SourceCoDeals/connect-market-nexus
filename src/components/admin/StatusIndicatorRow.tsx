@@ -98,13 +98,8 @@ export const StatusIndicatorRow = ({
       }>
         <MessageSquare className={`h-4 w-4 ${followedUp ? "text-success" : "text-warning"}`} />
         <span className={`text-xs font-medium ${followedUp ? "text-success" : "text-warning"}`}>
-          Follow-up
+          {followedUp && followedUpByAdmin ? `Follow-up - ${followedUpByAdmin.first_name}` : 'Follow-up'}
         </span>
-        {followedUp && followedUpByAdmin && (
-          <span className="text-xs text-success/70">
-            by {followedUpByAdmin.first_name}
-          </span>
-        )}
         {followedUp ? <CheckCheck className="h-3 w-3 text-success" /> : <Clock className="h-3 w-3 text-warning" />}
       </div>
       
@@ -122,13 +117,8 @@ export const StatusIndicatorRow = ({
       }>
         <XCircle className={`h-4 w-4 ${negativeFollowedUp ? "text-amber-600" : "text-gray-400"}`} />
         <span className={`text-xs font-medium ${negativeFollowedUp ? "text-amber-700" : "text-gray-500"}`}>
-          Rejection Notice
+          {negativeFollowedUp && negativeFollowedUpByAdmin ? `Rejection Notice - ${negativeFollowedUpByAdmin.first_name}` : 'Rejection Notice'}
         </span>
-        {negativeFollowedUp && negativeFollowedUpByAdmin && (
-          <span className="text-xs text-amber-600/70">
-            by {negativeFollowedUpByAdmin.first_name}
-          </span>
-        )}
         {negativeFollowedUp && <CheckCheck className="h-3 w-3 text-amber-600" />}
         {!negativeFollowedUp && <Clock className="h-3 w-3 text-gray-400" />}
       </div>
