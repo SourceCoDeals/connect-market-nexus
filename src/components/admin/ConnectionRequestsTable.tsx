@@ -422,52 +422,73 @@ SourceCo Team`}`;
 
                   {/* Status Toggles */}
                   <div className="flex items-center gap-3 ml-4 pl-3 border-l border-border/30">
-                    <div className="flex items-center space-x-1">
-                      <Switch
-                        id={`approved-${request.id}`}
-                        checked={request.status === 'approved'}
-                        onCheckedChange={(checked) => {
-                          updateConnectionRequestStatus.mutate({
-                            requestId: request.id,
-                            status: checked ? 'approved' : 'pending'
-                          });
-                        }}
-                        disabled={updateConnectionRequestStatus.isPending}
-                        className="data-[state=checked]:bg-success"
-                      />
-                      <Label htmlFor={`approved-${request.id}`} className="text-xs">Approved</Label>
+                    <div className="flex flex-col space-y-1">
+                      <div className="flex items-center space-x-1">
+                        <Switch
+                          id={`approved-${request.id}`}
+                          checked={request.status === 'approved'}
+                          onCheckedChange={(checked) => {
+                            updateConnectionRequestStatus.mutate({
+                              requestId: request.id,
+                              status: checked ? 'approved' : 'pending'
+                            });
+                          }}
+                          disabled={updateConnectionRequestStatus.isPending}
+                          className="data-[state=checked]:bg-success"
+                        />
+                        <Label htmlFor={`approved-${request.id}`} className="text-xs">Approved</Label>
+                      </div>
+                      {request.status === 'approved' && request.approvedByAdmin && request.approved_at && (
+                        <div className="text-xs text-muted-foreground pl-6">
+                          by {request.approvedByAdmin.first_name} {request.approvedByAdmin.last_name} at {format(new Date(request.approved_at), 'PPp')}
+                        </div>
+                      )}
                     </div>
                     
-                    <div className="flex items-center space-x-1">
-                      <Switch
-                        id={`rejected-${request.id}`}
-                        checked={request.status === 'rejected'}
-                        onCheckedChange={(checked) => {
-                          updateConnectionRequestStatus.mutate({
-                            requestId: request.id,
-                            status: checked ? 'rejected' : 'pending'
-                          });
-                        }}
-                        disabled={updateConnectionRequestStatus.isPending}
-                        className="data-[state=checked]:bg-destructive"
-                      />
-                      <Label htmlFor={`rejected-${request.id}`} className="text-xs">Rejected</Label>
+                    <div className="flex flex-col space-y-1">
+                      <div className="flex items-center space-x-1">
+                        <Switch
+                          id={`rejected-${request.id}`}
+                          checked={request.status === 'rejected'}
+                          onCheckedChange={(checked) => {
+                            updateConnectionRequestStatus.mutate({
+                              requestId: request.id,
+                              status: checked ? 'rejected' : 'pending'
+                            });
+                          }}
+                          disabled={updateConnectionRequestStatus.isPending}
+                          className="data-[state=checked]:bg-destructive"
+                        />
+                        <Label htmlFor={`rejected-${request.id}`} className="text-xs">Rejected</Label>
+                      </div>
+                      {request.status === 'rejected' && request.rejectedByAdmin && request.rejected_at && (
+                        <div className="text-xs text-muted-foreground pl-6">
+                          by {request.rejectedByAdmin.first_name} {request.rejectedByAdmin.last_name} at {format(new Date(request.rejected_at), 'PPp')}
+                        </div>
+                      )}
                     </div>
 
-                    <div className="flex items-center space-x-1">
-                      <Switch
-                        id={`on-hold-${request.id}`}
-                        checked={request.status === 'on_hold'}
-                        onCheckedChange={(checked) => {
-                          updateConnectionRequestStatus.mutate({
-                            requestId: request.id,
-                            status: checked ? 'on_hold' : 'pending'
-                          });
-                        }}
-                        disabled={updateConnectionRequestStatus.isPending}
-                        className="data-[state=checked]:bg-warning"
-                      />
-                      <Label htmlFor={`on-hold-${request.id}`} className="text-xs">On Hold</Label>
+                    <div className="flex flex-col space-y-1">
+                      <div className="flex items-center space-x-1">
+                        <Switch
+                          id={`on-hold-${request.id}`}
+                          checked={request.status === 'on_hold'}
+                          onCheckedChange={(checked) => {
+                            updateConnectionRequestStatus.mutate({
+                              requestId: request.id,
+                              status: checked ? 'on_hold' : 'pending'
+                            });
+                          }}
+                          disabled={updateConnectionRequestStatus.isPending}
+                          className="data-[state=checked]:bg-warning"
+                        />
+                        <Label htmlFor={`on-hold-${request.id}`} className="text-xs">On Hold</Label>
+                      </div>
+                      {request.status === 'on_hold' && request.onHoldByAdmin && request.on_hold_at && (
+                        <div className="text-xs text-muted-foreground pl-6">
+                          by {request.onHoldByAdmin.first_name} {request.onHoldByAdmin.last_name} at {format(new Date(request.on_hold_at), 'PPp')}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

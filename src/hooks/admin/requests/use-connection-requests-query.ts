@@ -55,7 +55,10 @@ export function useConnectionRequestsQuery() {
         const listingIds = Array.from(new Set(requests.map((r: any) => r.listing_id).filter(Boolean)));
         const followedIds = Array.from(new Set(requests.map((r: any) => (r as any).followed_up_by).filter(Boolean)));
         const negativeFollowedIds = Array.from(new Set(requests.map((r: any) => (r as any).negative_followed_up_by).filter(Boolean)));
-        const profileIds = Array.from(new Set([...userIds, ...followedIds, ...negativeFollowedIds]));
+        const approvedIds = Array.from(new Set(requests.map((r: any) => (r as any).approved_by).filter(Boolean)));
+        const rejectedIds = Array.from(new Set(requests.map((r: any) => (r as any).rejected_by).filter(Boolean)));
+        const onHoldIds = Array.from(new Set(requests.map((r: any) => (r as any).on_hold_by).filter(Boolean)));
+        const profileIds = Array.from(new Set([...userIds, ...followedIds, ...negativeFollowedIds, ...approvedIds, ...rejectedIds, ...onHoldIds]));
 
         // Batch fetch related data in parallel
         const [profilesRes, listingsRes] = await Promise.all([
@@ -82,13 +85,16 @@ export function useConnectionRequestsQuery() {
 
           const followedAdminProfile = profilesById.get((request as any).followed_up_by);
           const negativeFollowedAdminProfile = profilesById.get((request as any).negative_followed_up_by);
+          const approvedAdminProfile = profilesById.get((request as any).approved_by);
+          const rejectedAdminProfile = profilesById.get((request as any).rejected_by);
+          const onHoldAdminProfile = profilesById.get((request as any).on_hold_by);
 
           const user = userData ? createUserObject(userData) : null;
           const listing = listingData ? createListingFromData(listingData) : null;
 
           // Debug logging for processed listing
           console.log('🔍 Processed listing data:', listing);
-          const status = request.status as 'pending' | 'approved' | 'rejected';
+          const status = request.status as 'pending' | 'approved' | 'rejected' | 'on_hold';
 
           return {
             ...request,
@@ -97,6 +103,9 @@ export function useConnectionRequestsQuery() {
             listing,
             followedUpByAdmin: followedAdminProfile ? createUserObject(followedAdminProfile) : null,
             negativeFollowedUpByAdmin: negativeFollowedAdminProfile ? createUserObject(negativeFollowedAdminProfile) : null,
+            approvedByAdmin: approvedAdminProfile ? createUserObject(approvedAdminProfile) : null,
+            rejectedByAdmin: rejectedAdminProfile ? createUserObject(rejectedAdminProfile) : null,
+            onHoldByAdmin: onHoldAdminProfile ? createUserObject(onHoldAdminProfile) : null,
           } as AdminConnectionRequest;
         });
 

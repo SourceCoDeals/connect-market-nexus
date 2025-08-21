@@ -110,6 +110,9 @@ export interface AdminConnectionRequest {
   // Admin profiles who performed follow-ups
   followedUpByAdmin?: User | null;
   negativeFollowedUpByAdmin?: User | null;
+  approvedByAdmin?: User | null;
+  rejectedByAdmin?: User | null;
+  onHoldByAdmin?: User | null;
 }
 
 export interface AdminStats {
