@@ -3,6 +3,8 @@ import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { 
   User, 
   Building2, 
@@ -17,12 +19,13 @@ import {
   ExternalLink
 } from "lucide-react";
 import { AdminConnectionRequest } from "@/types/admin";
+import { useUpdateConnectionRequestStatus } from "@/hooks/admin/use-connection-request-status";
+import { useAuth } from "@/context/AuthContext";
+import { getAdminProfile } from "@/lib/admin-profiles";
 
 interface RequestsGridViewProps {
   requests: AdminConnectionRequest[];
   selectedListing: { id: string; title: string; internal_company_name?: string | null } | null;
-  onApprove: (request: AdminConnectionRequest) => void;
-  onReject: (request: AdminConnectionRequest) => void;
 }
 
 // Helper function to format listing display name for buyer cards (Title/Company Name)
@@ -72,15 +75,13 @@ const StatusBadge = ({ status }: { status: string }) => {
 };
 
 const BuyerCard = ({ 
-  request, 
-  onApprove, 
-  onReject 
+  request
 }: { 
   request: AdminConnectionRequest;
-  onApprove: (request: AdminConnectionRequest) => void;
-  onReject: (request: AdminConnectionRequest) => void;
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
+  const { user } = useAuth();
+  const updateStatus = useUpdateConnectionRequestStatus();
 
   return (
     <Card className="h-full border border-border/50 hover:border-border transition-colors">
@@ -115,13 +116,11 @@ const BuyerCard = ({
       <CardContent className="pt-0 space-y-3">
         {/* Listing Info */}
         {request.listing && (
-          <div className="bg-primary/10 border border-primary/20 rounded p-2 mb-3">
-            <div className="flex items-center gap-2 text-xs">
-              <Building2 className="h-3 w-3 text-primary" />
-              <span className="font-medium text-primary truncate">
-                {formatListingForBuyerCard(request.listing.title, request.listing.internal_company_name)}
-              </span>
-            </div>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Building2 className="h-3 w-3" />
+            <span className="truncate">
+              {formatListingForBuyerCard(request.listing.title, request.listing.internal_company_name)}
+            </span>
           </div>
         )}
 
@@ -162,35 +161,103 @@ const BuyerCard = ({
           </div>
         )}
 
-        {/* Actions */}
-        {request.status === 'pending' && (
-          <div className="flex gap-2 pt-2 border-t border-border/50">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onApprove(request)}
-              className="flex-1 text-xs h-7 border-success/30 text-success hover:bg-success/10"
-            >
-              <CheckCircle className="h-3 w-3 mr-1" />
-              Approve
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onReject(request)}
-              className="flex-1 text-xs h-7 border-destructive/30 text-destructive hover:bg-destructive/10"
-            >
-              <XCircle className="h-3 w-3 mr-1" />
-              Reject
-            </Button>
+        {/* Status Toggles */}
+        <div className="space-y-3 pt-2 border-t border-border/50">
+          <div className="text-xs font-medium text-muted-foreground">Status Controls</div>
+          
+          <div className="space-y-3">
+            {/* Approved Toggle */}
+            <div className="flex items-center justify-between">
+              <Label htmlFor={`approved-${request.id}`} className="text-xs text-success">
+                Approved
+              </Label>
+              <Switch
+                id={`approved-${request.id}`}
+                checked={request.status === 'approved'}
+                onCheckedChange={(checked) => {
+                  if (checked) {
+                    updateStatus.mutate({
+                      requestId: request.id,
+                      status: 'approved'
+                    });
+                  }
+                }}
+                disabled={updateStatus.isPending}
+              />
+            </div>
+
+            {/* Rejected Toggle */}
+            <div className="flex items-center justify-between">
+              <Label htmlFor={`rejected-${request.id}`} className="text-xs text-destructive">
+                Rejected
+              </Label>
+              <Switch
+                id={`rejected-${request.id}`}
+                checked={request.status === 'rejected'}
+                onCheckedChange={(checked) => {
+                  if (checked) {
+                    updateStatus.mutate({
+                      requestId: request.id,
+                      status: 'rejected'
+                    });
+                  }
+                }}
+                disabled={updateStatus.isPending}
+              />
+            </div>
+
+            {/* On Hold Toggle */}
+            <div className="flex items-center justify-between">
+              <Label htmlFor={`on_hold-${request.id}`} className="text-xs text-warning">
+                On Hold
+              </Label>
+              <Switch
+                id={`on_hold-${request.id}`}
+                checked={request.status === 'on_hold'}
+                onCheckedChange={(checked) => {
+                  if (checked) {
+                    updateStatus.mutate({
+                      requestId: request.id,
+                      status: 'on_hold'
+                    });
+                  }
+                }}
+                disabled={updateStatus.isPending}
+              />
+            </div>
           </div>
-        )}
+
+          {/* Admin Decision Info */}
+          {request.status !== 'pending' && (
+            <div className="text-xs space-y-1 pt-2 border-t border-border/50">
+              <div className="font-medium text-muted-foreground">Decision Details:</div>
+              {request.status === 'approved' && request.approved_by && (
+                <div className="text-success">
+                  Approved by {getAdminProfile(request.approved_by)?.name || 'Admin'} 
+                  {request.approved_at && ` on ${format(new Date(request.approved_at), 'MMM d, yyyy')}`}
+                </div>
+              )}
+              {request.status === 'rejected' && request.rejected_by && (
+                <div className="text-destructive">
+                  Rejected by {getAdminProfile(request.rejected_by)?.name || 'Admin'}
+                  {request.rejected_at && ` on ${format(new Date(request.rejected_at), 'MMM d, yyyy')}`}
+                </div>
+              )}
+              {request.status === 'on_hold' && request.on_hold_by && (
+                <div className="text-warning">
+                  Put on hold by {getAdminProfile(request.on_hold_by)?.name || 'Admin'}
+                  {request.on_hold_at && ` on ${format(new Date(request.on_hold_at), 'MMM d, yyyy')}`}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </CardContent>
     </Card>
   );
 };
 
-export function RequestsGridView({ requests, selectedListing, onApprove, onReject }: RequestsGridViewProps) {
+export function RequestsGridView({ requests, selectedListing }: RequestsGridViewProps) {
   if (requests.length === 0) {
     return (
       <Card>
@@ -233,8 +300,6 @@ export function RequestsGridView({ requests, selectedListing, onApprove, onRejec
           <BuyerCard
             key={request.id}
             request={request}
-            onApprove={onApprove}
-            onReject={onReject}
           />
         ))}
       </div>

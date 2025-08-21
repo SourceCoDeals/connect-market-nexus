@@ -226,8 +226,6 @@ const AdminRequests = () => {
               title: selectedListing.title, 
               internal_company_name: selectedListing.internal_company_name 
             } : null}
-            onApprove={(request) => handleAction(request, "approve")}
-            onReject={(request) => handleAction(request, "reject")}
           />
         ) : (
           <div className="bg-card/30 backdrop-blur-sm rounded-xl border border-border/50 overflow-hidden shadow-sm">
