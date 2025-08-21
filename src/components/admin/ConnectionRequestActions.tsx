@@ -563,20 +563,22 @@ If the status changes post‑diligence, we'll reach out immediately.`;
                      {/* Timestamp and Admin Name */}
                      {((localFollowedUp && currentRequest?.followed_up_at) || (localNegativeFollowedUp && currentRequest?.negative_followed_up_at)) && (
                        <div className="text-xs text-muted-foreground/60 text-right">
-                         <div>
-                           {localFollowedUp && currentRequest?.followed_up_at && (
-                             formatDistanceToNow(new Date(currentRequest.followed_up_at), { addSuffix: true })
-                           )}
-                           {localNegativeFollowedUp && currentRequest?.negative_followed_up_at && (
-                             formatDistanceToNow(new Date(currentRequest.negative_followed_up_at), { addSuffix: true })
-                           )}
-                         </div>
-                         <div className="font-medium">
-                           by {localFollowedUp && currentRequest?.followedUpByAdmin ? 
-                               getAdminName(currentRequest.followedUpByAdmin) : 
-                               localNegativeFollowedUp && currentRequest?.negativeFollowedUpByAdmin ?
-                               getAdminName(currentRequest.negativeFollowedUpByAdmin) : ''}
-                         </div>
+                         {localFollowedUp && currentRequest?.followed_up_at && (
+                           <>
+                             {formatDistanceToNow(new Date(currentRequest.followed_up_at), { addSuffix: true })}
+                             {currentRequest.followedUpByAdmin && (
+                               <span className="font-medium"> by {getAdminName(currentRequest.followedUpByAdmin)}</span>
+                             )}
+                           </>
+                         )}
+                         {localNegativeFollowedUp && currentRequest?.negative_followed_up_at && (
+                           <>
+                             {formatDistanceToNow(new Date(currentRequest.negative_followed_up_at), { addSuffix: true })}
+                             {currentRequest.negativeFollowedUpByAdmin && (
+                               <span className="font-medium"> by {getAdminName(currentRequest.negativeFollowedUpByAdmin)}</span>
+                             )}
+                           </>
+                         )}
                        </div>
                      )}
                      {/* Toggle Controls */}
