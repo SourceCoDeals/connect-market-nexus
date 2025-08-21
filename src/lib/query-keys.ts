@@ -28,6 +28,7 @@ export const QUERY_KEYS = {
     userSavedListings: (userId?: string) => ['admin', 'user-saved-listings', userId] as const,
     userConnectionRequests: (userId?: string) => ['admin', 'user-connection-requests', userId] as const,
     listingSavedBy: (listingId?: string) => ['admin', 'listing-saved-by', listingId] as const,
+    userNotes: (userId?: string) => ['admin', 'user-notes', userId] as const,
   },
   
   // Analytics
@@ -61,6 +62,12 @@ export const INVALIDATION_PATTERNS = {
   userProfile: (userId?: string) => [
     { queryKey: QUERY_KEYS.userProfile(userId) },
     { queryKey: QUERY_KEYS.admin.users },
+  ],
+  
+  // Invalidate user notes
+  userNotes: (userId?: string) => [
+    { queryKey: QUERY_KEYS.admin.userNotes(userId) },
+    { queryKey: ['admin', 'user-notes'] },
   ],
 } as const;
 
