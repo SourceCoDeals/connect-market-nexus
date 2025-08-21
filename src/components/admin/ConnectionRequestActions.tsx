@@ -104,6 +104,8 @@ export function ConnectionRequestActions({
   const updateFeeAgreementEmailSent = useUpdateFeeAgreementEmailSent();
   const updateFollowup = useUpdateFollowup();
   const updateNegativeFollowup = useUpdateNegativeFollowup();
+  const updateApprovalStatus = useUpdateApprovalStatus();
+  const updateRejectionStatus = useUpdateRejectionStatus();
   const bulkFollowup = useBulkFollowup();
 
   const getStatusBadge = (sent: boolean, signed: boolean, sentAt?: string, signedAt?: string) => {
@@ -137,21 +139,7 @@ export function ConnectionRequestActions({
     if (!listing) return '';
 
     const subject = `Moving to Owner Introduction - ${listing.title}`;
-    const body = `Hi ${user.first_name},
-
-Your "${listing.title}" connection request is moving to the introduction phase.
-
-Key Financials:
-• Revenue: $${listing.revenue?.toLocaleString()}
-• EBITDA: $${listing.ebitda?.toLocaleString()}
-• Location: ${listing.location}
-
-Schedule your walkthrough call here: https://tidycal.com/tomosmughan/30-minute-meeting
-
-We'll discuss the business details, answer your questions, and set up the owner introduction.
-
-${signature?.signature_text || `Best regards,
-SourceCo Team`}`;
+    const body = `Hi ${user.first_name},\n\nYour "${listing.title}" connection request is moving to the introduction phase.\n\nKey Financials:\n• Revenue: $${listing.revenue?.toLocaleString()}\n• EBITDA: $${listing.ebitda?.toLocaleString()}\n• Location: ${listing.location}\n\nSchedule your walkthrough call here: https://tidycal.com/tomosmughan/30-minute-meeting\n\nWe'll discuss the business details, answer your questions, and set up the owner introduction.\n\n${signature?.signature_text || `Best regards,\nSourceCo Team`}`;
 
     return `mailto:${user.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   };
@@ -171,20 +159,11 @@ SourceCo Team`}`;
       adminDisplayName = [authUser?.firstName, authUser?.lastName].filter(Boolean).join(' ');
     }
 
-    const signatureSection = adminDisplayName ? `\nThank you, \n${adminDisplayName}` : '';
+    const signatureSection = adminDisplayName ? `\\nThank you, \\n${adminDisplayName}` : '';
 
-    const bodyBase = `Hi ${user.first_name},
+    const bodyBase = `Hi ${user.first_name},\n\nAppreciate your interest in ${listing.title}. It's currently in diligence with another party. Because this is an off‑market process, we don't run parallel buyers unless the seller widens the circle.\n\nIn the meantime, we will:\n\n· Prioritize you for like‑for‑like, founder‑led opportunities\n· Send you weekly alerts with new matching deals added based on your mandate\n\nIf the status changes post‑diligence, we'll reach out immediately.`;
 
-Appreciate your interest in ${listing.title}. It's currently in diligence with another party. Because this is an off‑market process, we don't run parallel buyers unless the seller widens the circle.
-
-In the meantime, we will:
-
-· Prioritize you for like‑for‑like, founder‑led opportunities
-· Send you weekly alerts with new matching deals added based on your mandate
-
-If the status changes post‑diligence, we'll reach out immediately.`;
-
-    const body = signatureSection ? `${bodyBase}\n\n${signatureSection}` : bodyBase;
+    const body = signatureSection ? `${bodyBase}\\n\\n${signatureSection}` : bodyBase;
 
     return `mailto:${user.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   };
@@ -317,302 +296,266 @@ If the status changes post‑diligence, we'll reach out immediately.`;
 
   return (
     <>
-      <div className="space-y-6">
-        {/* Top: Two-column grid for Quick Actions and Agreement Status */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
-          {/* Left Column: Quick Actions */}
-          <div className="bg-gradient-to-br from-primary/5 to-secondary/5 border border-primary/10 rounded-lg p-4">
-            <h5 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
-              <Mail className="h-4 w-4 text-primary" />
-              Quick Actions
-            </h5>
-            <div className="flex flex-wrap gap-2">
-              <Button
-                variant={localUser.fee_agreement_email_sent ? "secondary" : "default"}
-                size="sm"
-                onClick={() => setShowFeeDialog(true)}
-                className="text-xs h-8 transition-all hover:scale-105"
-              >
-                <FileText className="h-3 w-3 mr-1" />
-                {localUser.fee_agreement_signed ? "Resend Fee Agreement" : "Send Fee Agreement"}
-              </Button>
-              
-              <Button
-                variant={localUser.nda_email_sent ? "secondary" : "default"}
-                size="sm"
-                onClick={() => setShowNDADialog(true)}
-                className="text-xs h-8 transition-all hover:scale-105"
-              >
-                <Shield className="h-3 w-3 mr-1" />
-                {localUser.nda_signed ? "Resend NDA" : "Send NDA"}
-              </Button>
+      <div className="space-y-4">
+        {/* Quick Actions */}
+        <div className="border border-border/30 rounded-lg p-3">
+          <h5 className="text-xs font-medium text-muted-foreground mb-2">Quick Actions</h5>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant={localUser.fee_agreement_email_sent ? "secondary" : "default"}
+              size="sm"
+              onClick={() => setShowFeeDialog(true)}
+              className="text-xs h-7"
+            >
+              <FileText className="h-3 w-3 mr-1" />
+              Fee Agreement
+            </Button>
+            
+            <Button
+              variant={localUser.nda_email_sent ? "secondary" : "default"}
+              size="sm"
+              onClick={() => setShowNDADialog(true)}
+              className="text-xs h-7"
+            >
+              <Shield className="h-3 w-3 mr-1" />
+              NDA
+            </Button>
 
-              <Button
-                variant={localFollowedUp ? "secondary" : "outline"}
-                size="sm"
-                asChild
-                className="text-xs h-8 transition-all hover:scale-105"
+            <Button
+              variant="outline"
+              size="sm"
+              asChild
+              className="text-xs h-7"
+            >
+              <a 
+                href={getFollowUpMailto()}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
               >
-                <a 
-                  href={getFollowUpMailto()}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <MessageSquare className="h-3 w-3 mr-1" />
-                  Follow Up
-                  <ExternalLink className="h-3 w-3 ml-1" />
-                </a>
-              </Button>
+                <MessageSquare className="h-3 w-3 mr-1" />
+                Follow Up
+                <ExternalLink className="h-3 w-3 ml-1" />
+              </a>
+            </Button>
 
-              <Button
-                variant={localNegativeFollowedUp ? "secondary" : "outline"}
-                size="sm"
-                asChild
-                className="text-xs h-8 transition-all hover:scale-105 border-amber-200 text-amber-700 hover:bg-amber-50"
+            <Button
+              variant="outline"
+              size="sm"
+              asChild
+              className="text-xs h-7 text-amber-700 border-amber-200 hover:bg-amber-50"
+            >
+              <a 
+                href={getNegativeFollowUpMailto()}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
               >
-                <a 
-                  href={getNegativeFollowUpMailto()}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <XCircle className="h-3 w-3 mr-1" />
-                  Send Rejection Notice
-                  <ExternalLink className="h-3 w-3 ml-1" />
-                </a>
-              </Button>
+                <XCircle className="h-3 w-3 mr-1" />
+                Rejection Notice
+                <ExternalLink className="h-3 w-3 ml-1" />
+              </a>
+            </Button>
+          </div>
+        </div>
+
+        {/* Grid: Agreement Status + General Notes */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          {/* Left: Agreement Status */}
+          <div className="lg:col-span-2 space-y-3">
+            <h5 className="text-xs font-medium text-muted-foreground">Agreement Status</h5>
+            
+            {/* Fee Agreement - Horizontal Layout */}
+            <div className="flex items-center justify-between p-2 border border-border/30 rounded">
+              <div className="flex items-center gap-2">
+                <FileText className="h-3 w-3 text-muted-foreground" />
+                <span className="text-xs font-medium">Fee Agreement</span>
+                {getStatusBadge(
+                  localUser.fee_agreement_email_sent || false, 
+                  localUser.fee_agreement_signed || false, 
+                  localUser.fee_agreement_email_sent_at, 
+                  localUser.fee_agreement_signed_at
+                )}
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-1">
+                  <Switch
+                    id={`fee-sent-${user.id}`}
+                    checked={localUser.fee_agreement_email_sent || false}
+                    onCheckedChange={handleFeeAgreementEmailSentToggle}
+                    disabled={updateFeeAgreementEmailSent.isPending}
+                    className="scale-75"
+                  />
+                  <Label htmlFor={`fee-sent-${user.id}`} className="text-xs">Sent</Label>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Switch
+                    id={`fee-signed-${user.id}`}
+                    checked={localUser.fee_agreement_signed || false}
+                    onCheckedChange={handleFeeAgreementSignedToggle}
+                    disabled={updateFeeAgreement.isPending}
+                    className="scale-75"
+                  />
+                  <Label htmlFor={`fee-signed-${user.id}`} className="text-xs">Signed</Label>
+                </div>
+              </div>
+            </div>
+
+            {/* NDA - Horizontal Layout */}
+            <div className="flex items-center justify-between p-2 border border-border/30 rounded">
+              <div className="flex items-center gap-2">
+                <Shield className="h-3 w-3 text-muted-foreground" />
+                <span className="text-xs font-medium">NDA</span>
+                {getStatusBadge(
+                  localUser.nda_email_sent || false, 
+                  localUser.nda_signed || false, 
+                  localUser.nda_email_sent_at, 
+                  localUser.nda_signed_at
+                )}
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-1">
+                  <Switch
+                    id={`nda-sent-${user.id}`}
+                    checked={localUser.nda_email_sent || false}
+                    onCheckedChange={handleNDAEmailSentToggle}
+                    disabled={updateNDAEmailSent.isPending}
+                    className="scale-75"
+                  />
+                  <Label htmlFor={`nda-sent-${user.id}`} className="text-xs">Sent</Label>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Switch
+                    id={`nda-signed-${user.id}`}
+                    checked={localUser.nda_signed || false}
+                    onCheckedChange={handleNDASignedToggle}
+                    disabled={updateNDA.isPending}
+                    className="scale-75"
+                  />
+                  <Label htmlFor={`nda-signed-${user.id}`} className="text-xs">Signed</Label>
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* Right Column: Agreement Status */}
-          <div className="bg-card border rounded-lg p-4">
-            <h5 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
-              <FileText className="h-4 w-4" />
-              Agreement Status
-            </h5>
-            
-            <div className="space-y-3">
-              {/* Fee Agreement */}
-              <div className="p-3 border border-border/50 rounded-lg bg-card/50 backdrop-blur-sm transition-all hover:shadow-sm">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <div className="p-1 rounded bg-primary/10">
-                      <FileText className="h-3 w-3 text-primary" />
-                    </div>
-                    <span className="text-sm font-medium text-foreground">Fee Agreement</span>
-                  </div>
-                  {getStatusBadge(
-                    localUser.fee_agreement_email_sent || false, 
-                    localUser.fee_agreement_signed || false, 
-                    localUser.fee_agreement_email_sent_at, 
-                    localUser.fee_agreement_signed_at
-                  )}
-                </div>
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center space-x-2 shrink-0">
-                    <Switch
-                      id={`fee-sent-${user.id}`}
-                      checked={localUser.fee_agreement_email_sent || false}
-                      onCheckedChange={handleFeeAgreementEmailSentToggle}
-                      disabled={updateFeeAgreementEmailSent.isPending}
-                      className="data-[state=checked]:bg-info"
-                    />
-                    <Label htmlFor={`fee-sent-${user.id}`} className="text-xs font-medium">Sent</Label>
-                  </div>
-                  <div className="flex items-center space-x-2 shrink-0">
-                    <Switch
-                      id={`fee-signed-${user.id}`}
-                      checked={localUser.fee_agreement_signed || false}
-                      onCheckedChange={handleFeeAgreementSignedToggle}
-                      disabled={updateFeeAgreement.isPending}
-                      className="data-[state=checked]:bg-success"
-                    />
-                    <Label htmlFor={`fee-signed-${user.id}`} className="text-xs font-medium">Signed</Label>
-                  </div>
-                </div>
-              </div>
-
-              {/* NDA */}
-              <div className="p-3 border border-border/50 rounded-lg bg-card/50 backdrop-blur-sm transition-all hover:shadow-sm">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <div className="p-1 rounded bg-success/10">
-                      <Shield className="h-3 w-3 text-success" />
-                    </div>
-                    <span className="text-sm font-medium text-foreground">NDA</span>
-                  </div>
-                  {getStatusBadge(
-                    localUser.nda_email_sent || false, 
-                    localUser.nda_signed || false, 
-                    localUser.nda_email_sent_at, 
-                    localUser.nda_signed_at
-                  )}
-                </div>
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center space-x-2 shrink-0">
-                    <Switch
-                      id={`nda-sent-${user.id}`}
-                      checked={localUser.nda_email_sent || false}
-                      onCheckedChange={handleNDAEmailSentToggle}
-                      disabled={updateNDAEmailSent.isPending}
-                      className="data-[state=checked]:bg-info"
-                    />
-                    <Label htmlFor={`nda-sent-${user.id}`} className="text-xs font-medium">Sent</Label>
-                  </div>
-                  <div className="flex items-center space-x-2 shrink-0">
-                    <Switch
-                      id={`nda-signed-${user.id}`}
-                      checked={localUser.nda_signed || false}
-                      onCheckedChange={handleNDASignedToggle}
-                      disabled={updateNDA.isPending}
-                      className="data-[state=checked]:bg-success"
-                    />
-                    <Label htmlFor={`nda-signed-${user.id}`} className="text-xs font-medium">Signed</Label>
-                  </div>
-                </div>
-              </div>
-
-              {/* Follow-Up Status */}
-              <div className="p-3 border border-border/50 rounded-lg bg-card/50 backdrop-blur-sm transition-all hover:shadow-sm">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <div className="p-1 rounded bg-secondary/10">
-                      <MessageSquare className="h-3 w-3 text-secondary" />
-                    </div>
-                    <span className="text-sm font-medium text-foreground">Follow-Up</span>
-                  </div>
-                  <Badge 
-                    variant={localFollowedUp ? "default" : "secondary"}
-                    className={localFollowedUp 
-                      ? "text-xs bg-success/10 text-success border-success/20 hover:bg-success/20 w-fit transition-colors" 
-                      : "text-xs bg-warning/10 text-warning border-warning/20 hover:bg-warning/20 w-fit transition-colors"
-                    }
-                  >
-                    {localFollowedUp ? (
-                      <CheckCheck className="h-3 w-3 mr-1" />
-                    ) : (
-                      <Clock className="h-3 w-3 mr-1" />
-                    )}
-                    {localFollowedUp ? "Completed" : "Pending"}
-                  </Badge>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Switch
-                      id={`followup-${user.id}`}
-                      checked={localFollowedUp}
-                      onCheckedChange={handleFollowUpToggle}
-                      disabled={updateFollowup.isPending || !requestId}
-                      className="data-[state=checked]:bg-success"
-                    />
-                    <Label htmlFor={`followup-${user.id}`} className="text-xs font-medium">Followed Up</Label>
-                  </div>
-                  {localFollowedUp && currentRequest?.followed_up_at && (
-                    <div className="text-xs text-muted-foreground mt-2">
-                      {currentRequest.followedUpByAdmin 
-                        ? `(by ${currentRequest.followedUpByAdmin.first_name} ${currentRequest.followedUpByAdmin.last_name}, ${format(new Date(currentRequest.followed_up_at), 'MMM d \'at\' h:mm a')})`
-                        : `(${format(new Date(currentRequest.followed_up_at), 'MMM d \'at\' h:mm a')})`
-                      }
-                    </div>
-                  )}
-                  {/* Decision Notes for Follow-Up */}
-                  {requestId && (
-                    <DecisionNotesInline
-                      requestId={requestId}
-                      currentNotes={currentRequest?.admin_comment || ''}
-                      isActive={localFollowedUp}
-                      label="follow-up"
-                    />
-                  )}
-              </div>
-
-              {/* Negative Follow-Up Status */}
-              <div className="p-3 border border-amber-200/50 rounded-lg bg-amber-50/30 backdrop-blur-sm transition-all hover:shadow-sm">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <div className="p-1 rounded bg-amber-100">
-                      <Clock className="h-3 w-3 text-amber-600" />
-                    </div>
-                    <span className="text-sm font-medium text-foreground">Rejection Notice</span>
-                  </div>
-                  <Badge 
-                    variant={localNegativeFollowedUp ? "default" : "secondary"}
-                    className={localNegativeFollowedUp 
-                      ? "text-xs bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-200 w-fit transition-colors" 
-                      : "text-xs bg-gray-100 text-gray-600 border-gray-200 hover:bg-gray-200 w-fit transition-colors"
-                    }
-                  >
-                    {localNegativeFollowedUp ? (
-                      <CheckCheck className="h-3 w-3 mr-1" />
-                    ) : (
-                      <Clock className="h-3 w-3 mr-1" />
-                    )}
-                    {localNegativeFollowedUp ? "Sent" : "Pending"}
-                  </Badge>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Switch
-                      id={`negative-followup-${user.id}`}
-                      checked={localNegativeFollowedUp}
-                      onCheckedChange={handleNegativeFollowUpToggle}
-                      disabled={updateNegativeFollowup.isPending || !requestId}
-                      className="data-[state=checked]:bg-amber-600"
-                    />
-                    <Label htmlFor={`negative-followup-${user.id}`} className="text-xs font-medium">Rejection Notice Sent</Label>
-                  </div>
-                  {localNegativeFollowedUp && currentRequest?.negative_followed_up_at && (
-                    <div className="text-xs text-muted-foreground mt-2">
-                      {currentRequest.negativeFollowedUpByAdmin 
-                        ? `(by ${currentRequest.negativeFollowedUpByAdmin.first_name} ${currentRequest.negativeFollowedUpByAdmin.last_name}, ${format(new Date(currentRequest.negative_followed_up_at), 'MMM d \'at\' h:mm a')})`
-                        : `(${format(new Date(currentRequest.negative_followed_up_at), 'MMM d \'at\' h:mm a')})`
-                      }
-                    </div>
-                  )}
-                  {/* Decision Notes for Rejection */}
-                  {requestId && (
-                    <DecisionNotesInline
-                      requestId={requestId}
-                      currentNotes={currentRequest?.admin_comment || ''}
-                      isActive={localNegativeFollowedUp}
-                      label="rejection"
-                    />
-                  )}
-              </div>
-            </div>
-
-            <BuyerDealsOverview 
-              requests={userRequests}
-              currentRequestId={requestId}
-            />
-
-            {/* Decision Notes */}
-            <DecisionNotesInline 
-              requestId={requestId || ''} 
-              currentNotes={currentRequest?.admin_comment || ''}
-              isActive={true}
-              label="general"
+          {/* Right: General Notes (Constrained Width) */}
+          <div className="lg:col-span-1">
+            <UserNotesSection 
+              userId={localUser.id} 
+              userName={`${localUser.first_name} ${localUser.last_name}`}
             />
           </div>
         </div>
 
-        {/* Bottom: Full-width General Notes Section */}
-        <UserNotesSection 
-          userId={user.id}
-          userName={`${user.first_name} ${user.last_name}`.trim()}
-        />
+        {/* Other Active Interests */}
+        {userRequests.length > 1 && (
+          <BuyerDealsOverview
+            requests={userRequests}
+            currentRequestId={requestId}
+          />
+        )}
+
+        {/* Follow-Up Status */}
+        <div className="border border-border/30 rounded p-3">
+          <h5 className="text-xs font-medium text-muted-foreground mb-2">Follow-Up Status</h5>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                <MessageSquare className="h-3 w-3 text-muted-foreground" />
+                <span className="text-xs font-medium">Follow-Up</span>
+                <Badge 
+                  variant={localFollowedUp ? "default" : "secondary"}
+                  className="text-xs h-4"
+                >
+                  {localFollowedUp ? "Completed" : "Pending"}
+                </Badge>
+              </div>
+              <div className="flex items-center gap-2">
+                <XCircle className="h-3 w-3 text-muted-foreground" />
+                <span className="text-xs font-medium">Rejection Notice</span>
+                <Badge 
+                  variant={localNegativeFollowedUp ? "default" : "secondary"}
+                  className="text-xs h-4"
+                >
+                  {localNegativeFollowedUp ? "Sent" : "Pending"}
+                </Badge>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1">
+                <Switch
+                  id={`followup-${user.id}`}
+                  checked={localFollowedUp}
+                  onCheckedChange={handleFollowUpToggle}
+                  disabled={updateFollowup.isPending}
+                  className="scale-75"
+                />
+                <Label htmlFor={`followup-${user.id}`} className="text-xs">Follow-Up</Label>
+              </div>
+              <div className="flex items-center gap-1">
+                <Switch
+                  id={`negative-followup-${user.id}`}
+                  checked={localNegativeFollowedUp}
+                  onCheckedChange={handleNegativeFollowUpToggle}
+                  disabled={updateNegativeFollowup.isPending}
+                  className="scale-75"
+                />
+                <Label htmlFor={`negative-followup-${user.id}`} className="text-xs">Rejection</Label>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Final Decision Section */}
+        <div className="border border-border/30 rounded p-3">
+          <h5 className="text-xs font-medium text-muted-foreground mb-2">Final Decision</h5>
+          <div className="flex items-center gap-2 mb-2">
+            <Button
+              variant={currentRequest?.status === 'approved' ? "default" : "outline"}
+              size="sm"
+              onClick={() => {
+                updateApprovalStatus.mutate({
+                  requestId: requestId || '',
+                  isApproved: true
+                });
+              }}
+              className="text-xs h-7 text-success border-success hover:bg-success/10"
+            >
+              <CheckCircle className="h-3 w-3 mr-1" />
+              Approve
+            </Button>
+            <Button
+              variant={currentRequest?.status === 'rejected' ? "default" : "outline"}
+              size="sm"
+              onClick={() => {
+                updateRejectionStatus.mutate({
+                  requestId: requestId || '',
+                  isRejected: true
+                });
+              }}
+              className="text-xs h-7 text-destructive border-destructive hover:bg-destructive/10"
+            >
+              <XCircle className="h-3 w-3 mr-1" />
+              Reject
+            </Button>
+          </div>
+          <DecisionNotesInline
+            requestId={requestId || ''}
+            currentNotes={currentRequest?.decision_notes || ''}
+            isActive={currentRequest?.status === 'approved' || currentRequest?.status === 'rejected'}
+            label={currentRequest?.status || 'pending'}
+          />
+        </div>
       </div>
 
-      {/* Dialogs */}
       <SimpleFeeAgreementDialog
-        user={user}
-        listing={listing}
+        user={localUser}
         isOpen={showFeeDialog}
         onClose={() => {
           setShowFeeDialog(false);
           onEmailSent?.();
         }}
         onSendEmail={async () => {
-          // Placeholder - implement if needed for this component
           console.log('Fee agreement email sent');
         }}
       />
@@ -623,8 +566,7 @@ If the status changes post‑diligence, we'll reach out immediately.`;
           setShowNDADialog(open);
           if (!open) onEmailSent?.();
         }}
-        user={user}
-        listing={listing}
+        user={localUser}
         onSendEmail={async () => {
           onEmailSent?.();
         }}
@@ -636,7 +578,6 @@ If the status changes post‑diligence, we'll reach out immediately.`;
         requests={userRequests}
         followupType={bulkFollowupType}
         onConfirm={handleBulkFollowupConfirm}
-        isLoading={bulkFollowup.isPending}
       />
     </>
   );
