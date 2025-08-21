@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import { createQueryKey } from '@/lib/query-keys';
+import { useAuth } from '@/context/AuthContext';
 
 export interface UserNote {
   id: string;
@@ -17,26 +17,34 @@ export interface UserNote {
 // Hook to fetch user notes
 export function useUserNotes(userId: string) {
   return useQuery({
-    queryKey: createQueryKey.userNotes(userId),
+    queryKey: ['user-notes', userId],
     queryFn: async () => {
       if (!userId) return [];
       
       const { data: notes, error } = await supabase
         .from('user_notes')
-        .select(`
-          *,
-          admin:profiles!user_notes_admin_id_fkey(first_name, last_name, email)
-        `)
+        .select('*')
         .eq('user_id', userId)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
 
-      return notes.map(note => ({
-        ...note,
-        admin_name: note.admin ? `${note.admin.first_name} ${note.admin.last_name}`.trim() : 'Unknown Admin',
-        admin_email: note.admin?.email || ''
+      // Fetch admin details for each note
+      const notesWithAdmins = await Promise.all(notes.map(async (note) => {
+        const { data: adminProfile } = await supabase
+          .from('profiles')
+          .select('first_name, last_name, email')
+          .eq('id', note.admin_id)
+          .single();
+
+        return {
+          ...note,
+          admin_name: adminProfile ? `${adminProfile.first_name} ${adminProfile.last_name}`.trim() : 'Unknown Admin',
+          admin_email: adminProfile?.email || ''
+        };
       }));
+
+      return notesWithAdmins;
     },
     enabled: !!userId,
     staleTime: 1000 * 60 * 5
@@ -46,15 +54,19 @@ export function useUserNotes(userId: string) {
 // Hook to create user note
 export function useCreateUserNote() {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   
   return useMutation({
     mutationFn: async ({ userId, noteText }: { userId: string; noteText: string }) => {
+      if (!user?.id) throw new Error('Admin user not authenticated');
+      
       const { data, error } = await supabase
         .from('user_notes')
-        .insert([{
+        .insert({
           user_id: userId,
+          admin_id: user.id,
           note_text: noteText
-        }])
+        })
         .select()
         .single();
 
@@ -62,7 +74,7 @@ export function useCreateUserNote() {
       return data;
     },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: createQueryKey.userNotes(variables.userId) });
+      queryClient.invalidateQueries({ queryKey: ['user-notes', variables.userId] });
       toast({
         title: "Note added",
         description: "User note has been saved successfully."
@@ -95,7 +107,7 @@ export function useUpdateUserNote() {
       return data;
     },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: createQueryKey.userNotes(variables.userId) });
+      queryClient.invalidateQueries({ queryKey: ['user-notes', variables.userId] });
       toast({
         title: "Note updated",
         description: "User note has been updated successfully."
@@ -140,56 +152,6 @@ export function useUpdateDecisionNotes() {
         description: "Failed to save decision note. Please try again.",
         variant: "destructive"
       });
-    }
-  });
-}
-
-// Hook to copy notes from previous requests for the same user
-export function useCopyUserNotes() {
-  const queryClient = useQueryClient();
-  
-  return useMutation({
-    mutationFn: async ({ userId }: { userId: string }) => {
-      // Get the most recent note for this user
-      const { data: existingNotes, error } = await supabase
-        .from('user_notes')
-        .select('note_text, admin_id')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false })
-        .limit(1);
-
-      if (error) throw error;
-      
-      if (existingNotes.length > 0) {
-        const latestNote = existingNotes[0];
-        const copyText = `[Copied from previous] ${latestNote.note_text}`;
-        
-        const { data, error: insertError } = await supabase
-          .from('user_notes')
-          .insert([{
-            user_id: userId,
-            note_text: copyText
-          }])
-          .select()
-          .single();
-
-        if (insertError) throw insertError;
-        return data;
-      }
-      
-      return null;
-    },
-    onSuccess: (data, variables) => {
-      if (data) {
-        queryClient.invalidateQueries({ queryKey: createQueryKey.userNotes(variables.userId) });
-        toast({
-          title: "Note copied",
-          description: "Previous note has been copied for this new request."
-        });
-      }
-    },
-    onError: (error) => {
-      console.error('Error copying note:', error);
     }
   });
 }

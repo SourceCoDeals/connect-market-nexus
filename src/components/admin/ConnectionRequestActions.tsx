@@ -15,6 +15,8 @@ import {
   Send,
   CheckCheck
 } from "lucide-react";
+import { UserNotesSection } from "./UserNotesSection";
+import { DecisionNotesInline } from "./DecisionNotesInline";
 import { User as UserType, Listing } from "@/types";
 import { SimpleFeeAgreementDialog } from "./SimpleFeeAgreementDialog";
 import { SimpleNDADialog } from "./SimpleNDADialog";
@@ -379,8 +381,14 @@ If the status changes post‑diligence, we'll reach out immediately.`;
               </a>
             </Button>
           </div>
+          </div>
         </div>
-      </div>
+        
+        {/* User Notes Section - Below Quick Actions */}
+        <UserNotesSection 
+          userId={user.id}
+          userName={`${user.first_name} ${user.last_name}`.trim()}
+        />
 
       {/* Right Column: Agreement Status */}
       <div className="space-y-4">
@@ -494,25 +502,34 @@ If the status changes post‑diligence, we'll reach out immediately.`;
                   )}
                   {localFollowedUp ? "Completed" : "Pending"}
                 </Badge>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id={`followup-${user.id}`}
-                  checked={localFollowedUp}
-                  onCheckedChange={handleFollowUpToggle}
-                  disabled={updateFollowup.isPending || !requestId}
-                  className="data-[state=checked]:bg-success"
-                />
-                <Label htmlFor={`followup-${user.id}`} className="text-xs font-medium">Followed Up</Label>
-              </div>
-              {localFollowedUp && currentRequest?.followed_up_at && (
-                <div className="text-xs text-muted-foreground mt-2">
-                  {currentRequest.followedUpByAdmin 
-                    ? `(by ${currentRequest.followedUpByAdmin.first_name} ${currentRequest.followedUpByAdmin.last_name}, ${format(new Date(currentRequest.followed_up_at), 'MMM d \'at\' h:mm a')})`
-                    : `(${format(new Date(currentRequest.followed_up_at), 'MMM d \'at\' h:mm a')})`
-                  }
                 </div>
-              )}
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id={`followup-${user.id}`}
+                    checked={localFollowedUp}
+                    onCheckedChange={handleFollowUpToggle}
+                    disabled={updateFollowup.isPending || !requestId}
+                    className="data-[state=checked]:bg-success"
+                  />
+                  <Label htmlFor={`followup-${user.id}`} className="text-xs font-medium">Followed Up</Label>
+                </div>
+                {localFollowedUp && currentRequest?.followed_up_at && (
+                  <div className="text-xs text-muted-foreground mt-2">
+                    {currentRequest.followedUpByAdmin 
+                      ? `(by ${currentRequest.followedUpByAdmin.first_name} ${currentRequest.followedUpByAdmin.last_name}, ${format(new Date(currentRequest.followed_up_at), 'MMM d \'at\' h:mm a')})`
+                      : `(${format(new Date(currentRequest.followed_up_at), 'MMM d \'at\' h:mm a')})`
+                    }
+                  </div>
+                )}
+                {/* Decision Notes for Follow-Up */}
+                {requestId && (
+                  <DecisionNotesInline
+                    requestId={requestId}
+                    currentNotes={currentRequest?.decision_notes || ''}
+                    isActive={localFollowedUp}
+                    label="follow-up"
+                  />
+                )}
             </div>
 
             {/* Negative Follow-Up Status */}
@@ -538,25 +555,34 @@ If the status changes post‑diligence, we'll reach out immediately.`;
                   )}
                   {localNegativeFollowedUp ? "Sent" : "Pending"}
                 </Badge>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id={`negative-followup-${user.id}`}
-                  checked={localNegativeFollowedUp}
-                  onCheckedChange={handleNegativeFollowUpToggle}
-                  disabled={updateNegativeFollowup.isPending || !requestId}
-                  className="data-[state=checked]:bg-amber-600"
-                />
-                <Label htmlFor={`negative-followup-${user.id}`} className="text-xs font-medium">Rejection Notice Sent</Label>
-              </div>
-              {localNegativeFollowedUp && currentRequest?.negative_followed_up_at && (
-                <div className="text-xs text-muted-foreground mt-2">
-                  {currentRequest.negativeFollowedUpByAdmin 
-                    ? `(by ${currentRequest.negativeFollowedUpByAdmin.first_name} ${currentRequest.negativeFollowedUpByAdmin.last_name}, ${format(new Date(currentRequest.negative_followed_up_at), 'MMM d \'at\' h:mm a')})`
-                    : `(${format(new Date(currentRequest.negative_followed_up_at), 'MMM d \'at\' h:mm a')})`
-                  }
                 </div>
-              )}
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id={`negative-followup-${user.id}`}
+                    checked={localNegativeFollowedUp}
+                    onCheckedChange={handleNegativeFollowUpToggle}
+                    disabled={updateNegativeFollowup.isPending || !requestId}
+                    className="data-[state=checked]:bg-amber-600"
+                  />
+                  <Label htmlFor={`negative-followup-${user.id}`} className="text-xs font-medium">Rejection Notice Sent</Label>
+                </div>
+                {localNegativeFollowedUp && currentRequest?.negative_followed_up_at && (
+                  <div className="text-xs text-muted-foreground mt-2">
+                    {currentRequest.negativeFollowedUpByAdmin 
+                      ? `(by ${currentRequest.negativeFollowedUpByAdmin.first_name} ${currentRequest.negativeFollowedUpByAdmin.last_name}, ${format(new Date(currentRequest.negative_followed_up_at), 'MMM d \'at\' h:mm a')})`
+                      : `(${format(new Date(currentRequest.negative_followed_up_at), 'MMM d \'at\' h:mm a')})`
+                    }
+                  </div>
+                )}
+                {/* Decision Notes for Rejection */}
+                {requestId && (
+                  <DecisionNotesInline
+                    requestId={requestId}
+                    currentNotes={currentRequest?.decision_notes || ''}
+                    isActive={localNegativeFollowedUp}
+                    label="rejection"
+                  />
+                )}
             </div>
           </div>
         </div>
