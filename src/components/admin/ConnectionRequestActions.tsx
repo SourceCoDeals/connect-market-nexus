@@ -133,25 +133,19 @@ export function ConnectionRequestActions({
     );
   };
 
-  const getAdminName = (adminId?: string, adminEmail?: string) => {
-    if (!adminId && !adminEmail) return 'Admin';
+  const getAdminName = (adminProfile?: { first_name?: string; last_name?: string; email?: string }) => {
+    if (!adminProfile) return 'Admin';
     
-    // Try to get admin profile by email first
-    if (adminEmail) {
-      const adminProfile = getAdminProfile(adminEmail);
-      if (adminProfile?.name) {
-        return adminProfile.name;
-      }
+    // Prioritize database profile data (first_name + last_name)
+    if (adminProfile.first_name || adminProfile.last_name) {
+      return [adminProfile.first_name, adminProfile.last_name].filter(Boolean).join(' ');
     }
     
-    // Fallback to current auth user if it's them
-    if (authUser?.email) {
-      const currentAdminProfile = getAdminProfile(authUser.email);
-      if (currentAdminProfile?.name) {
-        return currentAdminProfile.name;
-      }
-      if (authUser?.firstName || authUser?.lastName) {
-        return [authUser?.firstName, authUser?.lastName].filter(Boolean).join(' ');
+    // Fall back to hardcoded admin profiles if email is available but no name in database
+    if (adminProfile.email) {
+      const staticProfile = getAdminProfile(adminProfile.email);
+      if (staticProfile?.name) {
+        return staticProfile.name;
       }
     }
     
@@ -529,11 +523,11 @@ If the status changes post‑diligence, we'll reach out immediately.`;
                         />
                         <Label htmlFor={`follow-up-${user.id}`} className="text-xs">Positive</Label>
                       </div>
-                      {localFollowedUp && currentRequest?.followed_up_at && (
-                        <span className="text-xs text-muted-foreground">
-                          By {getAdminName(currentRequest.followed_up_by, currentRequest.followedUpByAdmin?.email)} {formatDistanceToNow(new Date(currentRequest.followed_up_at), { addSuffix: true })}
-                        </span>
-                      )}
+                       {localFollowedUp && currentRequest?.followed_up_at && (
+                         <span className="text-xs text-muted-foreground">
+                           By {getAdminName(currentRequest.followedUpByAdmin)} {formatDistanceToNow(new Date(currentRequest.followed_up_at), { addSuffix: true })}
+                         </span>
+                       )}
                     </div>
 
                     {/* Negative Follow-up */}
@@ -548,11 +542,11 @@ If the status changes post‑diligence, we'll reach out immediately.`;
                         />
                         <Label htmlFor={`negative-follow-up-${user.id}`} className="text-xs">Negative</Label>
                       </div>
-                      {localNegativeFollowedUp && currentRequest?.negative_followed_up_at && (
-                        <span className="text-xs text-muted-foreground">
-                          By {getAdminName(currentRequest.negative_followed_up_by, currentRequest.negativeFollowedUpByAdmin?.email)} {formatDistanceToNow(new Date(currentRequest.negative_followed_up_at), { addSuffix: true })}
-                        </span>
-                      )}
+                       {localNegativeFollowedUp && currentRequest?.negative_followed_up_at && (
+                         <span className="text-xs text-muted-foreground">
+                           By {getAdminName(currentRequest.negativeFollowedUpByAdmin)} {formatDistanceToNow(new Date(currentRequest.negative_followed_up_at), { addSuffix: true })}
+                         </span>
+                       )}
                     </div>
                   </div>
                 </div>
