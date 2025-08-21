@@ -30,6 +30,7 @@ import { useAdminSignature } from "@/hooks/admin/use-admin-signature";
 import { useAuth } from "@/context/AuthContext";
 import { getAdminProfile } from "@/lib/admin-profiles";
 import { useUpdateConnectionRequestStatus } from "@/hooks/admin/use-connection-request-status";
+import { useAdminProfiles } from '@/hooks/admin/use-admin-profiles';
 
 // Helper function to format listing display name (Title/Company Name)
 const formatListingForDisplay = (title: string, companyName?: string | null): string => {
@@ -38,6 +39,19 @@ const formatListingForDisplay = (title: string, companyName?: string | null): st
   }
   return title;
 };
+
+// Decision Details Component
+function DecisionDetails({ adminId, timestamp, action }: { adminId: string; timestamp: string | null; action: string }) {
+  const { data: adminProfiles } = useAdminProfiles([adminId]);
+  const admin = adminProfiles?.[adminId];
+  
+  return (
+    <span>
+      {action} by {admin?.displayName || 'Unknown Admin'}
+      {timestamp && ` on ${format(new Date(timestamp), 'MMM d, yyyy h:mm a')}`}
+    </span>
+  );
+}
 
 interface ConnectionRequestsTableProps {
   requests: AdminConnectionRequest[];
@@ -446,9 +460,9 @@ SourceCo Team`}`;
                       />
                       <Label htmlFor={`approved-${request.id}`} className="text-xs">Approved</Label>
                     </div>
-                    {request.status === 'approved' && request.approved_by && request.approved_at && (
+                    {request.status === 'approved' && request.approved_by && (
                       <div className="text-xs text-muted-foreground pl-6">
-                        by Admin at {format(new Date(request.approved_at), 'PPp')}
+                        <DecisionDetails adminId={request.approved_by} timestamp={request.approved_at} action="approved" />
                       </div>
                     )}
                   </div>
@@ -471,9 +485,9 @@ SourceCo Team`}`;
                       />
                       <Label htmlFor={`rejected-${request.id}`} className="text-xs">Rejected</Label>
                     </div>
-                    {request.status === 'rejected' && request.rejected_by && request.rejected_at && (
+                    {request.status === 'rejected' && request.rejected_by && (
                       <div className="text-xs text-muted-foreground pl-6">
-                        by Admin at {format(new Date(request.rejected_at), 'PPp')}
+                        <DecisionDetails adminId={request.rejected_by} timestamp={request.rejected_at} action="rejected" />
                       </div>
                     )}
                   </div>
@@ -496,9 +510,9 @@ SourceCo Team`}`;
                       />
                       <Label htmlFor={`on_hold-${request.id}`} className="text-xs">On Hold</Label>
                     </div>
-                    {request.status === 'on_hold' && request.on_hold_by && request.on_hold_at && (
+                    {request.status === 'on_hold' && request.on_hold_by && (
                       <div className="text-xs text-muted-foreground pl-6">
-                        by Admin at {format(new Date(request.on_hold_at), 'PPp')}
+                        <DecisionDetails adminId={request.on_hold_by} timestamp={request.on_hold_at} action="put on hold" />
                       </div>
                     )}
                   </div>

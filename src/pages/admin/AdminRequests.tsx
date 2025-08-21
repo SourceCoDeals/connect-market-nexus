@@ -19,6 +19,7 @@ import { EmailTestButton } from "@/components/admin/EmailTestButton";
 import { ListingFilterSelect } from "@/components/admin/ListingFilterSelect";
 import { RequestsGridView } from "@/components/admin/RequestsGridView";
 import { ViewSwitcher } from "@/components/admin/ViewSwitcher";
+import { HistoricalDecisionsPanel } from "@/components/admin/HistoricalDecisionsPanel";
 
 const AdminRequests = () => {
   const queryClient = useQueryClient();
@@ -276,6 +277,11 @@ const AdminRequests = () => {
             }
           }}
         />
+
+        {/* Historical Data Management */}
+        <div className="mb-6">
+          <HistoricalDecisionsPanel />
+        </div>
 
         {/* Edge Case Tools */}
         <details className="group">

@@ -23,31 +23,18 @@ export function useConnectionRequestsMutation() {
       adminComment,
     }: {
       requestId: string;
-      status: 'approved' | 'rejected';
+      status: 'approved' | 'rejected' | 'on_hold' | 'pending';
       adminComment?: string;
     }) => {
       try {
-        // Updating request status
-        
-        // Update the request status
-        const { data, error } = await supabase
-          .from('connection_requests')
-          .update({ 
-            status, 
-            admin_comment: adminComment,
-            updated_at: new Date().toISOString(),
-            decision_at: new Date().toISOString() // Add decision timestamp
-          })
-          .eq('id', requestId)
-          .select();
+        // Use the standardized SQL function for status updates
+        const { data: updateResult, error: updateError } = await supabase.rpc('update_connection_request_status', {
+          request_id: requestId,
+          new_status: status,
+          admin_notes: adminComment || null
+        });
 
-        if (error) throw error;
-        
-        if (!data || data.length === 0) {
-          throw new Error('Update successful but no data returned');
-        }
-        
-        // Update successful
+        if (updateError) throw updateError;
         
         // Get complete request data for email notification
         const { data: requestData, error: requestError } = await supabase
