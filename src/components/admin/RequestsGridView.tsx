@@ -25,8 +25,8 @@ interface RequestsGridViewProps {
   onReject: (request: AdminConnectionRequest) => void;
 }
 
-// Helper function to format listing display name
-const formatListingDisplayName = (title: string, companyName?: string | null): string => {
+// Helper function to format listing display name for buyer cards (Title/Company Name)
+const formatListingForBuyerCard = (title: string, companyName?: string | null): string => {
   if (companyName && companyName.trim()) {
     return `${title}/${companyName}`;
   }
@@ -113,6 +113,18 @@ const BuyerCard = ({
       </CardHeader>
       
       <CardContent className="pt-0 space-y-3">
+        {/* Listing Info */}
+        {request.listing && (
+          <div className="bg-primary/10 border border-primary/20 rounded p-2 mb-3">
+            <div className="flex items-center gap-2 text-xs">
+              <Building2 className="h-3 w-3 text-primary" />
+              <span className="font-medium text-primary truncate">
+                {formatListingForBuyerCard(request.listing.title, request.listing.internal_company_name)}
+              </span>
+            </div>
+          </div>
+        )}
+
         {/* Basic Info */}
         <div className="space-y-2">
           <div className="flex items-center gap-2 text-xs">
@@ -189,7 +201,7 @@ export function RequestsGridView({ requests, selectedListing, onApprove, onRejec
           </h3>
           <p className="text-sm text-muted-foreground text-center">
             {selectedListing 
-              ? `No connection requests found for "${formatListingDisplayName(selectedListing.title, selectedListing.internal_company_name)}"`
+              ? `No connection requests found for "${formatListingForBuyerCard(selectedListing.title, selectedListing.internal_company_name)}"`
               : "No connection requests match your search criteria"
             }
           </p>
@@ -206,7 +218,7 @@ export function RequestsGridView({ requests, selectedListing, onApprove, onRejec
           <div className="flex items-center gap-3">
             <Building2 className="h-5 w-5 text-primary" />
             <div>
-              <h2 className="font-semibold text-lg">{formatListingDisplayName(selectedListing.title, selectedListing.internal_company_name)}</h2>
+              <h2 className="font-semibold text-lg">{formatListingForBuyerCard(selectedListing.title, selectedListing.internal_company_name)}</h2>
               <p className="text-sm text-muted-foreground">
                 {requests.length} buyer{requests.length !== 1 ? 's' : ''} interested in this deal
               </p>

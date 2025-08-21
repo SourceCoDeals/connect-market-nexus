@@ -9,32 +9,35 @@ interface ListingFilterSelectProps {
   onListingChange: (listingId: string | null) => void;
 }
 
-// Helper function to format listing display name
-const formatListingDisplayName = (title: string, companyName?: string | null): string => {
+// Helper function to format listing display name for dropdown (Company Name - Title)
+const formatListingForDropdown = (title: string, companyName?: string | null): string => {
   if (companyName && companyName.trim()) {
-    return `${title}/${companyName}`;
+    return `${companyName} - ${title}`;
   }
-  return title;
+  return ""; // Return empty if no company name (won't show in dropdown)
 };
 
 export function ListingFilterSelect({ requests, selectedListingId, onListingChange }: ListingFilterSelectProps) {
-  // Extract unique listings from requests with counts
+  // Extract unique listings from requests with counts (only show those with company names)
   const getUniqueListings = () => {
     const listingMap = new Map();
     
     requests.forEach(request => {
-      if (request.listing?.id) {
+      if (request.listing?.id && request.listing.internal_company_name?.trim()) {
         const existing = listingMap.get(request.listing.id);
         if (existing) {
           existing.count++;
         } else {
-          listingMap.set(request.listing.id, {
-            id: request.listing.id,
-            title: request.listing.title,
-            internal_company_name: request.listing.internal_company_name,
-            displayName: formatListingDisplayName(request.listing.title, request.listing.internal_company_name),
-            count: 1
-          });
+          const displayName = formatListingForDropdown(request.listing.title, request.listing.internal_company_name);
+          if (displayName) { // Only add if we have a proper display name
+            listingMap.set(request.listing.id, {
+              id: request.listing.id,
+              title: request.listing.title,
+              internal_company_name: request.listing.internal_company_name,
+              displayName,
+              count: 1
+            });
+          }
         }
       }
     });
