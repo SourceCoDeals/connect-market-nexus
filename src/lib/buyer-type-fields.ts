@@ -46,6 +46,14 @@ export const BUYER_TYPE_FIELD_MAPPINGS = {
     'needs_loan',
     'ideal_target',
   ],
+  independentSponsor: [
+    'investment_size',
+    'target_deal_size_min',
+    'target_deal_size_max',
+    'geographic_focus',
+    'industry_expertise',
+    'deal_structure_preference',
+  ],
   admin: [
     // Admin users have no specific buyer fields
   ],
@@ -63,8 +71,8 @@ export const getRelevantFieldsForBuyerType = (buyerType: BuyerType | 'admin'): s
   return [
     ...BUYER_TYPE_FIELD_MAPPINGS.basic,
     ...BUYER_TYPE_FIELD_MAPPINGS.profile,
-    // Add revenue ranges for all except privateEquity and admin
-    ...(buyerType !== 'privateEquity' ? BUYER_TYPE_FIELD_MAPPINGS.revenue : []),
+    // Add revenue ranges for all except privateEquity, independentSponsor, and admin
+    ...(buyerType !== 'privateEquity' && buyerType !== 'independentSponsor' ? BUYER_TYPE_FIELD_MAPPINGS.revenue : []),
     ...buyerSpecificFields,
   ];
 };
@@ -106,6 +114,11 @@ export const FIELD_LABELS = {
   funding_source: 'Funding Source',
   needs_loan: 'SBA/Bank Loan',
   ideal_target: 'Ideal Target',
+  target_deal_size_min: 'Min Deal Size',
+  target_deal_size_max: 'Max Deal Size',
+  geographic_focus: 'Geographic Focus',
+  industry_expertise: 'Industry Expertise',
+  deal_structure_preference: 'Deal Structure Preference',
 } as const;
 
 // Get field categories for organization
@@ -125,7 +138,7 @@ export const getFieldCategories = (buyerType: BuyerType | 'admin') => {
     ),
     'Business Profile': [
       ...BUYER_TYPE_FIELD_MAPPINGS.profile,
-      ...(buyerType !== 'privateEquity' ? BUYER_TYPE_FIELD_MAPPINGS.revenue : []),
+      ...(buyerType !== 'privateEquity' && buyerType !== 'independentSponsor' ? BUYER_TYPE_FIELD_MAPPINGS.revenue : []),
     ],
     'Financial Information': getBuyerSpecificFields(buyerType),
   };

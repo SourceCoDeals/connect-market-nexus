@@ -1,7 +1,7 @@
 
 export type UserRole = 'admin' | 'buyer';
 
-export type BuyerType = 'corporate' | 'privateEquity' | 'familyOffice' | 'searchFund' | 'individual';
+export type BuyerType = 'corporate' | 'privateEquity' | 'familyOffice' | 'searchFund' | 'individual' | 'independentSponsor';
 
 export type ApprovalStatus = 'pending' | 'approved' | 'rejected';
 
@@ -44,6 +44,13 @@ export interface User {
   revenue_range_max?: number;
   specific_business_search?: string;
   onboarding_completed?: boolean;
+  
+  // Independent sponsor specific fields
+  target_deal_size_min?: number;
+  target_deal_size_max?: number;
+  geographic_focus?: string[];
+  industry_expertise?: string[];
+  deal_structure_preference?: string;
   
   // Fee agreement tracking
   fee_agreement_signed?: boolean;
