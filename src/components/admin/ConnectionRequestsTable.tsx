@@ -33,6 +33,7 @@ import { useAuth } from "@/context/AuthContext";
 import { getAdminProfile } from "@/lib/admin-profiles";
 import { useUpdateConnectionRequestStatus } from "@/hooks/admin/use-connection-request-status";
 import { useAdminProfiles } from '@/hooks/admin/use-admin-profiles';
+import { EnhancedBuyerProfile } from './EnhancedBuyerProfile';
 
 // Helper function to format listing display name (Title/Company Name)
 const formatListingForDisplay = (title: string, companyName?: string | null): string => {
@@ -146,27 +147,8 @@ const RequestDetails = ({ request }: { request: AdminConnectionRequest }) => {
     <div className="space-y-4">
       {/* Buyer & Listing Information - Clean inline layout */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Buyer Information */}
-        <div className="space-y-3">
-          <div className="flex items-center gap-2 pb-1 border-b border-border/40">
-            <User className="h-3.5 w-3.5 text-muted-foreground" />
-            <span className="text-xs font-semibold text-card-foreground">Buyer Information</span>
-          </div>
-          <div className="space-y-2 pl-1">
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-muted-foreground">Email</span>
-              <span className="text-xs font-medium text-foreground">{request.user?.email}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-muted-foreground">Company</span>
-              <span className="text-xs font-medium text-foreground">{request.user?.company || 'Not provided'}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-muted-foreground">Type</span>
-              <span className="text-xs font-medium text-foreground">{request.user?.buyer_type || 'Not specified'}</span>
-            </div>
-          </div>
-        </div>
+        {/* Enhanced Buyer Information */}
+        <EnhancedBuyerProfile user={request.user} />
         
         {/* Listing Information */}
         <div className="space-y-3">
@@ -432,31 +414,8 @@ function ReactiveRequestCard({
               <div className="hidden md:block">
                 {/* Top Section: Buyer & Listing Info Grid */}
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
-                  {/* Buyer Information */}
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2 pb-1 border-b border-border/40">
-                      <User className="h-3.5 w-3.5 text-muted-foreground" />
-                      <span className="text-xs font-semibold text-card-foreground">Buyer Information</span>
-                    </div>
-                    <div className="space-y-2.5 pl-1">
-                      <div className="space-y-1">
-                        <span className="text-xs text-muted-foreground">Email</span>
-                        <div className="text-xs font-medium text-foreground">{request.user?.email}</div>
-                      </div>
-                      <div className="space-y-1">
-                        <span className="text-xs text-muted-foreground">Company</span>
-                        <div className="text-xs font-medium text-foreground">{request.user?.company || 'Not provided'}</div>
-                      </div>
-                      <div className="space-y-1">
-                        <span className="text-xs text-muted-foreground">Type</span>
-                        <div className="text-xs font-medium text-foreground">{request.user?.buyer_type || 'Not specified'}</div>
-                      </div>
-                      <div className="space-y-1">
-                        <span className="text-xs text-muted-foreground">Investment Size</span>
-                        <div className="text-xs font-medium text-foreground">{request.user?.investment_size || 'Not specified'}</div>
-                      </div>
-                    </div>
-                  </div>
+                  {/* Enhanced Buyer Information */}
+                  <EnhancedBuyerProfile user={request.user} />
 
                   {/* Listing Information */}
                   <div className="space-y-3">
