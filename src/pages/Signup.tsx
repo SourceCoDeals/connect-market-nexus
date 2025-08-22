@@ -45,6 +45,10 @@ const buyerTypeOptions = [
   { value: "independentSponsor", label: "Independent Sponsor", description: "Investment professionals sourcing deals without permanent capital" },
 ];
 
+// Debug logging to verify buyer type options are loaded
+console.log('🔍 SIGNUP DEBUG - buyerTypeOptions loaded:', buyerTypeOptions.length, 'options');
+console.log('🔍 SIGNUP DEBUG - includes independentSponsor:', buyerTypeOptions.some(opt => opt.value === 'independentSponsor'));
+
 const Signup = () => {
   const { signup, isLoading } = useAuth();
   const navigate = useNavigate();
@@ -451,19 +455,30 @@ const Signup = () => {
 
             <div className="space-y-4">
               <Label htmlFor="buyerType">Buyer Type *</Label>
-              <Select value={formData.buyerType} onValueChange={handleBuyerTypeChange} required>
+              <Select 
+                key={`buyer-select-${Date.now()}`}
+                value={formData.buyerType} 
+                onValueChange={(value) => {
+                  console.log('🔍 SIGNUP DEBUG - Buyer type changed to:', value);
+                  handleBuyerTypeChange(value);
+                }} 
+                required
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Select your buyer type" />
                 </SelectTrigger>
                 <SelectContent>
-                  {buyerTypeOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      <div>
-                        <div className="font-medium">{option.label}</div>
-                        <div className="text-xs text-muted-foreground">{option.description}</div>
-                      </div>
-                    </SelectItem>
-                  ))}
+                  {buyerTypeOptions.map((option) => {
+                    console.log('🔍 SIGNUP DEBUG - Rendering option:', option.value, option.label);
+                    return (
+                      <SelectItem key={option.value} value={option.value}>
+                        <div>
+                          <div className="font-medium">{option.label}</div>
+                          <div className="text-xs text-muted-foreground">{option.description}</div>
+                        </div>
+                      </SelectItem>
+                    );
+                  })}
                 </SelectContent>
               </Select>
             </div>
