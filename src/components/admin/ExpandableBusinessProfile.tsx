@@ -34,89 +34,6 @@ const getEmailDomainStatus = (email?: string | null) => {
   return { status: 'company', color: 'text-green-500' };
 };
 
-const CredibilitySection: React.FC<{ user: User }> = ({ user }) => {
-  const emailStatus = getEmailDomainStatus(user.email);
-  const hasLinkedIn = !!user.linkedin_profile;
-  const hasWebsite = !!user.website;
-  const dataCompleteness = getDataCompleteness(user as any);
-  
-  return (
-    <div className="space-y-2">
-      <div className="flex items-center gap-2">
-        <TrendingUp className="h-3 w-3 text-muted-foreground" />
-        <span className="text-xs font-medium text-muted-foreground">Credibility Assessment</span>
-      </div>
-      
-      <div className="grid grid-cols-2 gap-2 text-xs">
-        <div className="flex items-center justify-between">
-          <span className="text-muted-foreground">Email:</span>
-          <div className="flex items-center gap-1">
-            <Mail className="h-3 w-3" />
-            <span className={emailStatus.color}>
-              {emailStatus.status === 'company' ? 'Company' : 
-               emailStatus.status === 'personal' ? 'Personal' : 'Missing'}
-            </span>
-          </div>
-        </div>
-        
-        <div className="flex items-center justify-between">
-          <span className="text-muted-foreground">Data:</span>
-          <Badge variant={dataCompleteness >= 80 ? "default" : dataCompleteness >= 60 ? "secondary" : "destructive"} className="text-xs">
-            {Math.round(dataCompleteness)}%
-          </Badge>
-        </div>
-        
-        <div className="flex items-center justify-between">
-          <span className="text-muted-foreground">LinkedIn:</span>
-          <div className="flex items-center gap-1">
-            {hasLinkedIn ? (
-              <>
-                <Check className="h-3 w-3 text-green-500" />
-                <a 
-                  href={user.linkedin_profile!} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="text-blue-500 hover:underline"
-                >
-                  View
-                </a>
-              </>
-            ) : (
-              <>
-                <X className="h-3 w-3 text-red-500" />
-                <span className="text-red-500">Missing</span>
-              </>
-            )}
-          </div>
-        </div>
-        
-        <div className="flex items-center justify-between">
-          <span className="text-muted-foreground">Website:</span>
-          <div className="flex items-center gap-1">
-            {hasWebsite ? (
-              <>
-                <Check className="h-3 w-3 text-green-500" />
-                <a 
-                  href={processUrl(user.website!)} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="text-blue-500 hover:underline flex items-center gap-1"
-                >
-                  Visit <ExternalLink className="h-3 w-3" />
-                </a>
-              </>
-            ) : (
-              <>
-                <X className="h-3 w-3 text-red-500" />
-                <span className="text-red-500">Missing</span>
-              </>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
 
 export const ExpandableBusinessProfile: React.FC<ExpandableBusinessProfileProps> = ({
   user,
@@ -226,8 +143,6 @@ export const ExpandableBusinessProfile: React.FC<ExpandableBusinessProfileProps>
               </div>
             )}
 
-            {/* Credibility Assessment */}
-            <CredibilitySection user={user} />
           </div>
         </CollapsibleContent>
       </Collapsible>

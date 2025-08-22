@@ -135,10 +135,23 @@ export const BuyerProfileHoverCard: React.FC<BuyerProfileHoverCardProps> = ({
         <div className="space-y-3">
           {/* Header */}
           <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <h4 className="font-semibold text-sm">
-                {user.first_name} {user.last_name}
-              </h4>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <h4 className="font-semibold text-sm">
+                  {user.first_name} {user.last_name}
+                </h4>
+                {user.linkedin_profile && (
+                  <a 
+                    href={user.linkedin_profile} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-blue-500 hover:text-blue-600 transition-colors"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
+                )}
+              </div>
               <Badge variant="outline" className="text-xs">
                 {tierInfo.badge}
               </Badge>
