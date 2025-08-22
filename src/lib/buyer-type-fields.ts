@@ -71,7 +71,7 @@ export const getRelevantFieldsForBuyerType = (buyerType: BuyerType | 'admin'): s
   return [
     ...BUYER_TYPE_FIELD_MAPPINGS.basic,
     ...BUYER_TYPE_FIELD_MAPPINGS.profile,
-    // Add revenue ranges for all except privateEquity, independentSponsor, and admin
+    // Add revenue ranges for all except privateEquity and independentSponsor
     ...(buyerType !== 'privateEquity' && buyerType !== 'independentSponsor' ? BUYER_TYPE_FIELD_MAPPINGS.revenue : []),
     ...buyerSpecificFields,
   ];
