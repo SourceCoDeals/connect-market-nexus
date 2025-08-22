@@ -21,7 +21,8 @@ import {
   RefreshCw,
   MessageSquare,
   Shield,
-  ExternalLink
+  ExternalLink,
+  Settings
 } from "lucide-react";
 import { AdminConnectionRequest } from "@/types/admin";
 import { StatusIndicatorRow } from "./StatusIndicatorRow";
@@ -237,77 +238,11 @@ function ReactiveRequestCard({
   const { user: authUser } = useAuth();
   const updateConnectionRequestStatus = useUpdateConnectionRequestStatus();
 
-  const getApprovalMailto = (request: AdminConnectionRequest) => {
-    if (!request.listing || !request.user) return '';
-
-    const subject = `Approved: ${request.listing.title} - Owner Introduction`;
-    
-    const body = `Hi ${request.user.first_name},
-
-Your connection request for ${request.listing.title} is approved.
-
-Next: Owner introduction call within 48 hours.
-
-Expect: Direct contact from seller or our team.
-
-Questions: Reply to this email.
-
-${signature?.signature_text || `Best regards,
-SourceCo Team`}`;
-
-    return `mailto:${request.user.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-  };
-
-  const getRejectionMailto = (request: AdminConnectionRequest) => {
-    if (!request.listing || !request.user) return '';
-
-    const subject = `${request.listing.title} - Current Status`;
-
-    // Build dynamic admin display name
-    let adminDisplayName = '';
-    const adminEmail = authUser?.email || '';
-    const adminProfile = adminEmail ? getAdminProfile(adminEmail) : null;
-    if (adminProfile?.name) {
-      adminDisplayName = adminProfile.name;
-    } else if (authUser?.firstName || authUser?.lastName) {
-      adminDisplayName = [authUser?.firstName, authUser?.lastName].filter(Boolean).join(' ');
-    }
-
-    const signatureSection = adminDisplayName ? `\nThank you, \n${adminDisplayName}` : '';
-
-    const bodyBase = `Hi ${request.user.first_name},
-
-${request.listing.title} connection request update:
-
-Status: Not proceeding at this time.
-Reason: [Select: timing/fit/other buyer selected]
-
-Next: We'll prioritize you for similar opportunities.`;
-
-    const body = signatureSection ? `${bodyBase}\n\n${signatureSection}` : bodyBase;
-
-    return `mailto:${request.user.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-  };
-
-  const getOnHoldMailto = (request: AdminConnectionRequest) => {
-    if (!request.listing || !request.user) return '';
-
-    const subject = `${request.listing.title} - Update`;
-    
-    const body = `Hi ${request.user.first_name},
-
-${request.listing.title} connection request update:
-
-Status: On hold - currently evaluating another buyer for this opportunity.
-
-Next: We'll prioritize you if current discussions don't proceed.
-
-Timeline: Will update you within 2 weeks.
-
-${signature?.signature_text || `Best regards,
-SourceCo Team`}`;
-
-    return `mailto:${request.user.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  const handleStatusChange = (id: string, status: 'approved' | 'rejected' | 'on_hold' | 'pending') => {
+    updateConnectionRequestStatus.mutate({
+      requestId: id,
+      status
+    });
   };
 
   // Simplified card styling without status-based colors
@@ -388,127 +323,285 @@ SourceCo Team`}`;
 
               <Separator />
 
-              {/* Request Details */}
-              <RequestDetails request={request} />
+              {/* Mobile Layout (< 768px) */}
+              <div className="block md:hidden">
+                <RequestDetails request={request} />
 
-
-              {/* Final Decision - Refined Status Management */}
-              <div className="mt-6 pt-4 border-t border-border/40">
-                <div className="flex items-center gap-2 pb-3 border-b border-border/30">
-                  <Shield className="h-3.5 w-3.5 text-muted-foreground" />
-                  <span className="text-xs font-semibold text-card-foreground">Final Decision</span>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-                  {/* Approved */}
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between p-3 rounded-md border border-border/40 bg-background/50 hover:bg-accent/10 transition-colors">
-                      <div className="flex items-center gap-2">
-                        <div className={`w-2 h-2 rounded-full ${request.status === 'approved' ? 'bg-emerald-500' : 'bg-border'}`}></div>
-                        <span className="text-xs font-medium text-foreground">Approved</span>
-                      </div>
-                      <Switch
-                        id={`approved-${request.id}`}
-                        checked={request.status === 'approved'}
-                        onCheckedChange={(checked) => {
-                          const newStatus = checked ? 'approved' : 'pending';
-                          updateConnectionRequestStatus.mutate({
-                            requestId: request.id,
-                            status: newStatus
-                          });
-                        }}
-                        disabled={updateConnectionRequestStatus.isPending}
-                        className="scale-90 data-[state=checked]:bg-emerald-500"
-                      />
-                    </div>
-                    {request.status === 'approved' && request.approved_by && (
-                      <div className="text-xs text-muted-foreground/70 px-1">
-                        <DecisionDetails adminId={request.approved_by} timestamp={request.approved_at} action="approved" />
-                      </div>
-                    )}
-                    <DecisionNotesInline 
-                      requestId={request.id}
-                      currentNotes={request.admin_comment}
-                      isActive={request.status === 'approved'}
-                      label="approve"
-                    />
+                {/* Final Decision - Mobile */}
+                <div className="mt-6 pt-4 border-t border-border/40">
+                  <div className="flex items-center gap-2 pb-3 border-b border-border/30">
+                    <Shield className="h-3.5 w-3.5 text-muted-foreground" />
+                    <span className="text-xs font-semibold text-card-foreground">Final Decision</span>
                   </div>
                   
-                  {/* Rejected */}
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between p-3 rounded-md border border-border/40 bg-background/50 hover:bg-accent/10 transition-colors">
-                      <div className="flex items-center gap-2">
-                        <div className={`w-2 h-2 rounded-full ${request.status === 'rejected' ? 'bg-destructive' : 'bg-border'}`}></div>
-                        <span className="text-xs font-medium text-foreground">Rejected</span>
+                  <div className="grid grid-cols-1 gap-4 mt-4">
+                    {/* Approved */}
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between p-3 rounded-md border border-border/40 bg-background/50 hover:bg-accent/10 transition-colors">
+                        <div className="flex items-center gap-2">
+                          <div className={`w-2 h-2 rounded-full ${request.status === 'approved' ? 'bg-emerald-500' : 'bg-border'}`}></div>
+                          <span className="text-xs font-medium text-foreground">Approved</span>
+                        </div>
+                        <Switch
+                          id={`approved-${request.id}`}
+                          checked={request.status === 'approved'}
+                          onCheckedChange={(checked) => {
+                            handleStatusChange(request.id, checked ? 'approved' : 'pending');
+                          }}
+                          disabled={updateConnectionRequestStatus.isPending}
+                          className="scale-90 data-[state=checked]:bg-emerald-500"
+                        />
                       </div>
-                      <Switch
-                        id={`rejected-${request.id}`}
-                        checked={request.status === 'rejected'}
-                        onCheckedChange={(checked) => {
-                          const newStatus = checked ? 'rejected' : 'pending';
-                          updateConnectionRequestStatus.mutate({
-                            requestId: request.id,
-                            status: newStatus
-                          });
-                        }}
-                        disabled={updateConnectionRequestStatus.isPending}
-                        className="scale-90 data-[state=checked]:bg-destructive"
+                      {request.status === 'approved' && request.approved_by && (
+                        <div className="text-xs text-muted-foreground/70 px-1">
+                          <DecisionDetails adminId={request.approved_by} timestamp={request.approved_at} action="approved" />
+                        </div>
+                      )}
+                      <DecisionNotesInline 
+                        requestId={request.id}
+                        currentNotes={request.admin_comment}
+                        isActive={request.status === 'approved'}
+                        label="approve"
                       />
                     </div>
-                    {request.status === 'rejected' && request.rejected_by && (
-                      <div className="text-xs text-muted-foreground/70 px-1">
-                        <DecisionDetails adminId={request.rejected_by} timestamp={request.rejected_at} action="rejected" />
+                    
+                    {/* Rejected */}
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between p-3 rounded-md border border-border/40 bg-background/50 hover:bg-accent/10 transition-colors">
+                        <div className="flex items-center gap-2">
+                          <div className={`w-2 h-2 rounded-full ${request.status === 'rejected' ? 'bg-destructive' : 'bg-border'}`}></div>
+                          <span className="text-xs font-medium text-foreground">Rejected</span>
+                        </div>
+                        <Switch
+                          id={`rejected-${request.id}`}
+                          checked={request.status === 'rejected'}
+                          onCheckedChange={(checked) => {
+                            handleStatusChange(request.id, checked ? 'rejected' : 'pending');
+                          }}
+                          disabled={updateConnectionRequestStatus.isPending}
+                          className="scale-90 data-[state=checked]:bg-destructive"
+                        />
                       </div>
-                    )}
-                    <DecisionNotesInline 
-                      requestId={request.id}
-                      currentNotes={request.admin_comment}
-                      isActive={request.status === 'rejected'}
-                      label="reject"
-                    />
-                  </div>
-                  
-                  {/* On Hold */}
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between p-3 rounded-md border border-border/40 bg-background/50 hover:bg-accent/10 transition-colors">
-                      <div className="flex items-center gap-2">
-                        <div className={`w-2 h-2 rounded-full ${request.status === 'on_hold' ? 'bg-amber-500' : 'bg-border'}`}></div>
-                        <span className="text-xs font-medium text-foreground">On Hold</span>
-                      </div>
-                      <Switch
-                        id={`on_hold-${request.id}`}
-                        checked={request.status === 'on_hold'}
-                        onCheckedChange={(checked) => {
-                          const newStatus = checked ? 'on_hold' : 'pending';
-                          updateConnectionRequestStatus.mutate({
-                            requestId: request.id,
-                            status: newStatus
-                          });
-                        }}
-                        disabled={updateConnectionRequestStatus.isPending}
-                        className="scale-90 data-[state=checked]:bg-amber-500"
+                      {request.status === 'rejected' && request.rejected_by && (
+                        <div className="text-xs text-muted-foreground/70 px-1">
+                          <DecisionDetails adminId={request.rejected_by} timestamp={request.rejected_at} action="rejected" />
+                        </div>
+                      )}
+                      <DecisionNotesInline 
+                        requestId={request.id}
+                        currentNotes={request.admin_comment}
+                        isActive={request.status === 'rejected'}
+                        label="reject"
                       />
                     </div>
-                    {request.status === 'on_hold' && request.on_hold_by && (
-                      <div className="text-xs text-muted-foreground/70 px-1">
-                        <DecisionDetails adminId={request.on_hold_by} timestamp={request.on_hold_at} action="put on hold" />
+                    
+                    {/* On Hold */}
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between p-3 rounded-md border border-border/40 bg-background/50 hover:bg-accent/10 transition-colors">
+                        <div className="flex items-center gap-2">
+                          <div className={`w-2 h-2 rounded-full ${request.status === 'on_hold' ? 'bg-amber-500' : 'bg-border'}`}></div>
+                          <span className="text-xs font-medium text-foreground">On Hold</span>
+                        </div>
+                        <Switch
+                          id={`on_hold-${request.id}`}
+                          checked={request.status === 'on_hold'}
+                          onCheckedChange={(checked) => {
+                            handleStatusChange(request.id, checked ? 'on_hold' : 'pending');
+                          }}
+                          disabled={updateConnectionRequestStatus.isPending}
+                          className="scale-90 data-[state=checked]:bg-amber-500"
+                        />
                       </div>
-                    )}
-                    <DecisionNotesInline 
-                      requestId={request.id}
-                      currentNotes={request.admin_comment}
-                      isActive={request.status === 'on_hold'}
-                      label="put on hold"
-                    />
+                      {request.status === 'on_hold' && request.on_hold_by && (
+                        <div className="text-xs text-muted-foreground/70 px-1">
+                          <DecisionDetails adminId={request.on_hold_by} timestamp={request.on_hold_at} action="put on hold" />
+                        </div>
+                      )}
+                      <DecisionNotesInline 
+                        requestId={request.id}
+                        currentNotes={request.admin_comment}
+                        isActive={request.status === 'on_hold'}
+                        label="put on hold"
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
-             </div>
-           )}
-         </div>
-       </CardContent>
-      </Card>
-    );
+
+              {/* Desktop/Tablet Layout (>= 768px) */}
+              <div className="hidden md:block">
+                {/* Top Section: Buyer & Listing Info Grid */}
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+                  {/* Buyer Information */}
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2 pb-1 border-b border-border/40">
+                      <User className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span className="text-xs font-semibold text-card-foreground">Buyer Information</span>
+                    </div>
+                    <div className="space-y-2.5 pl-1">
+                      <div className="space-y-1">
+                        <span className="text-xs text-muted-foreground">Email</span>
+                        <div className="text-xs font-medium text-foreground">{request.user?.email}</div>
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-xs text-muted-foreground">Company</span>
+                        <div className="text-xs font-medium text-foreground">{request.user?.company || 'Not provided'}</div>
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-xs text-muted-foreground">Type</span>
+                        <div className="text-xs font-medium text-foreground">{request.user?.buyer_type || 'Not specified'}</div>
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-xs text-muted-foreground">Investment Range</span>
+                        <div className="text-xs font-medium text-foreground">{request.user?.investment_range || 'Not specified'}</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Listing Information */}
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2 pb-1 border-b border-border/40">
+                      <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span className="text-xs font-semibold text-card-foreground">Listing Information</span>
+                    </div>
+                    <div className="space-y-2.5 pl-1">
+                      <div className="space-y-1">
+                        <span className="text-xs text-muted-foreground">Title</span>
+                        <button
+                          onClick={() => {
+                            if (request.listing?.id) {
+                              window.open(`/listing/${request.listing.id}`, '_blank');
+                            }
+                          }}
+                          className="text-xs font-medium text-primary hover:text-primary/80 flex items-center gap-1 group transition-all"
+                        >
+                          {request.listing?.title}
+                          <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </button>
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-xs text-muted-foreground">Category</span>
+                        <div className="text-xs font-medium text-foreground">{request.listing?.category}</div>
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-xs text-muted-foreground">Location</span>
+                        <div className="text-xs font-medium text-foreground">{request.listing?.location}</div>
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-xs text-muted-foreground">Revenue</span>
+                        <div className="text-xs font-medium text-foreground">${request.listing?.revenue?.toLocaleString() || 'N/A'}</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Buyer Message - Compact Sidebar Format */}
+                  {request.user_message && (
+                    <div className="space-y-3 lg:col-span-1 md:col-span-2">
+                      <div className="flex items-center gap-2 pb-1 border-b border-border/40">
+                        <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" />
+                        <span className="text-xs font-semibold text-card-foreground">Buyer Message</span>
+                      </div>
+                      <div className="border border-border/40 rounded-md p-3 bg-background/50 max-h-32 overflow-y-auto">
+                        <p className="text-xs text-foreground leading-relaxed whitespace-pre-wrap">{request.user_message}</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Bottom Section: Final Decision - Full Width */}
+                <div className="pt-4 border-t border-border/40">
+                  <div className="flex items-center gap-2 pb-3 border-b border-border/30">
+                    <Shield className="h-3.5 w-3.5 text-muted-foreground" />
+                    <span className="text-xs font-semibold text-card-foreground">Final Decision</span>
+                  </div>
+                  
+                  <div className="space-y-4 mt-4">
+                    {/* Status Controls - Horizontal Layout */}
+                    <div className="flex items-center gap-8">
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2">
+                          <div className={`w-2 h-2 rounded-full ${request.status === 'approved' ? 'bg-emerald-500' : 'bg-border'}`}></div>
+                          <span className="text-xs font-medium text-foreground">Approved</span>
+                          <Switch
+                            id={`approved-desktop-${request.id}`}
+                            checked={request.status === 'approved'}
+                            onCheckedChange={(checked) => {
+                              handleStatusChange(request.id, checked ? 'approved' : 'pending');
+                            }}
+                            disabled={updateConnectionRequestStatus.isPending}
+                            className="scale-90 data-[state=checked]:bg-emerald-500"
+                          />
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2">
+                          <div className={`w-2 h-2 rounded-full ${request.status === 'rejected' ? 'bg-destructive' : 'bg-border'}`}></div>
+                          <span className="text-xs font-medium text-foreground">Rejected</span>
+                          <Switch
+                            id={`rejected-desktop-${request.id}`}
+                            checked={request.status === 'rejected'}
+                            onCheckedChange={(checked) => {
+                              handleStatusChange(request.id, checked ? 'rejected' : 'pending');
+                            }}
+                            disabled={updateConnectionRequestStatus.isPending}
+                            className="scale-90 data-[state=checked]:bg-destructive"
+                          />
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2">
+                          <div className={`w-2 h-2 rounded-full ${request.status === 'on_hold' ? 'bg-amber-500' : 'bg-border'}`}></div>
+                          <span className="text-xs font-medium text-foreground">On Hold</span>
+                          <Switch
+                            id={`on_hold-desktop-${request.id}`}
+                            checked={request.status === 'on_hold'}
+                            onCheckedChange={(checked) => {
+                              handleStatusChange(request.id, checked ? 'on_hold' : 'pending');
+                            }}
+                            disabled={updateConnectionRequestStatus.isPending}
+                            className="scale-90 data-[state=checked]:bg-amber-500"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Decision Notes and Details - Side by Side */}
+                    <div className="grid lg:grid-cols-2 gap-6">
+                      <div>
+                        <DecisionNotesInline 
+                          requestId={request.id}
+                          currentNotes={request.admin_comment}
+                          isActive={request.status !== 'pending'}
+                          label={request.status === 'approved' ? 'Approval' : 
+                                 request.status === 'rejected' ? 'Rejection' : 'Hold'}
+                        />
+                      </div>
+                      
+                      {request.status !== 'pending' && (
+                        <div className="text-xs text-muted-foreground/70">
+                          {request.status === 'approved' && request.approved_by && (
+                            <DecisionDetails adminId={request.approved_by} timestamp={request.approved_at} action="approved" />
+                          )}
+                          {request.status === 'rejected' && request.rejected_by && (
+                            <DecisionDetails adminId={request.rejected_by} timestamp={request.rejected_at} action="rejected" />
+                          )}
+                          {request.status === 'on_hold' && request.on_hold_by && (
+                            <DecisionDetails adminId={request.on_hold_by} timestamp={request.on_hold_at} action="put on hold" />
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
 }
 
 export function ConnectionRequestsTable({
