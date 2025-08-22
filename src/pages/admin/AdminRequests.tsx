@@ -10,6 +10,9 @@ import { MobileConnectionRequestsTable } from "@/components/admin/MobileConnecti
 import { ConnectionRequestDialog } from "@/components/admin/ConnectionRequestDialog";
 import { ApprovalEmailDialog } from "@/components/admin/ApprovalEmailDialog";
 import { QuickActionsBar } from "@/components/admin/QuickActionsBar";
+import { PipelineMetricsCard } from "@/components/admin/PipelineMetricsCard";
+import { PipelineFilters } from "@/components/admin/PipelineFilters";
+import { usePipelineFilters } from "@/hooks/admin/use-pipeline-filters";
 import { toast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { MobileConnectionRequests } from "@/components/admin/MobileConnectionRequests";
@@ -37,12 +40,24 @@ const AdminRequests = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedUserForApprovalEmail, setSelectedUserForApprovalEmail] = useState<any>(null);
   const [isApprovalEmailDialogOpen, setIsApprovalEmailDialogOpen] = useState(false);
+
+  // Pipeline filtering and sorting
+  const {
+    statusFilter,
+    buyerTypeFilter,
+    sortOption,
+    filteredAndSortedRequests: pipelineFilteredRequests,
+    setStatusFilter,
+    setBuyerTypeFilter,
+    setSortOption,
+  } = usePipelineFilters(requests);
   
   if (error) {
     console.error("Connection requests error:", error);
   }
   
-  const filteredRequests = requests.filter((request) => {
+  // Apply search and listing filters to pipeline-filtered requests
+  const filteredRequests = pipelineFilteredRequests.filter((request) => {
     const searchLower = searchQuery.toLowerCase();
     const matchesSearch = (
       request.user?.first_name?.toLowerCase().includes(searchLower) ||
@@ -159,6 +174,20 @@ const AdminRequests = () => {
             </p>
           </div>
           
+          {/* Pipeline Metrics */}
+          <PipelineMetricsCard requests={requests} />
+          
+          {/* Pipeline Filters */}
+          <PipelineFilters 
+            requests={requests}
+            statusFilter={statusFilter}
+            buyerTypeFilter={buyerTypeFilter}
+            sortOption={sortOption}
+            onStatusFilterChange={setStatusFilter}
+            onBuyerTypeFilterChange={setBuyerTypeFilter}
+            onSortChange={setSortOption}
+          />
+
           {/* Quick Actions Bar */}
           <QuickActionsBar 
             requests={requests} 
@@ -193,25 +222,24 @@ const AdminRequests = () => {
           </div>
         </div>
 
+        {/* Result Summary */}
         <div className="flex gap-3 flex-wrap">
           <Badge variant="secondary" className="text-xs font-medium px-3 py-1.5">
-            {selectedListingId ? 'Filtered' : 'Total'}: <span className="font-semibold ml-1">{filteredRequests.length}</span>
+            Showing: <span className="font-semibold ml-1">{filteredRequests.length}</span>
           </Badge>
-          <Badge variant="outline" className="text-xs font-medium px-3 py-1.5 bg-amber-500/10 text-amber-700 border-amber-500/20">
-            Pending: <span className="font-semibold ml-1">{filteredRequests.filter((r) => r.status === "pending").length}</span>
-          </Badge>
-          <Badge variant="outline" className="text-xs font-medium px-3 py-1.5 bg-green-500/10 text-green-700 border-green-500/20">
-            Approved: <span className="font-semibold ml-1">{filteredRequests.filter((r) => r.status === "approved").length}</span>
-          </Badge>
-          <Badge variant="outline" className="text-xs font-medium px-3 py-1.5 bg-red-500/10 text-red-700 border-red-500/20">
-            Rejected: <span className="font-semibold ml-1">{filteredRequests.filter((r) => r.status === "rejected").length}</span>
-          </Badge>
-          <Badge variant="outline" className="text-xs font-medium px-3 py-1.5 bg-orange-500/10 text-orange-700 border-orange-500/20">
-            On Hold: <span className="font-semibold ml-1">{filteredRequests.filter((r) => r.status === "on_hold").length}</span>
-          </Badge>
-          {selectedListingId && (
+          {(statusFilter !== 'all' || buyerTypeFilter !== 'all' || searchQuery || selectedListingId) && (
             <Badge variant="outline" className="text-xs font-medium px-3 py-1.5">
-              Total: <span className="font-semibold ml-1">{requests.length}</span>
+              of {requests.length} total
+            </Badge>
+          )}
+          {statusFilter !== 'all' && (
+            <Badge variant="outline" className="text-xs font-medium px-3 py-1.5 bg-primary/10 text-primary border-primary/20">
+              Status: {statusFilter}
+            </Badge>
+          )}
+          {buyerTypeFilter !== 'all' && (
+            <Badge variant="outline" className="text-xs font-medium px-3 py-1.5 bg-secondary/10 text-secondary-foreground border-secondary/20">
+              Type: {buyerTypeFilter === 'privateEquity' ? 'PE' : buyerTypeFilter}
             </Badge>
           )}
         </div>
