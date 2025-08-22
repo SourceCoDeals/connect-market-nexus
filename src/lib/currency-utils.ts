@@ -48,9 +48,21 @@ export function parseCurrency(value: string | number): number {
 }
 
 /**
- * Format a number as currency
+ * Format a number as currency with smart millions formatting
  */
 export function formatCurrency(value: number): string {
+  // For large values, show in millions format
+  if (value >= 1000000) {
+    const millions = value / 1000000;
+    if (millions >= 1000) {
+      // Show as billions for very large numbers
+      const billions = millions / 1000;
+      return `$${billions.toFixed(billions >= 10 ? 0 : 1)}B`;
+    }
+    return `$${millions.toFixed(millions >= 100 ? 0 : millions >= 10 ? 0 : 1)}M`;
+  }
+  
+  // For smaller values, use standard formatting
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",
@@ -64,6 +76,62 @@ export function formatCurrency(value: number): string {
  */
 export function formatNumber(value: number): string {
   return new Intl.NumberFormat("en-US").format(value);
+}
+
+/**
+ * Format investment size ranges that are typically in millions
+ * Handles cases like "5-100" -> "$5M-$100M"
+ */
+export function formatInvestmentSize(value: string): string {
+  if (!value || !value.trim()) {
+    return 'Not specified';
+  }
+
+  // Check if it's a range (contains dash or hyphen)
+  if (value.includes('-') || value.includes('–')) {
+    const [min, max] = value.split(/[-–]/).map(part => part.trim());
+    
+    // Parse each part and assume millions if no suffix
+    const minParsed = parseCurrency(min);
+    const maxParsed = parseCurrency(max);
+    
+    // If values are small (likely missing M suffix), multiply by million
+    const minValue = minParsed < 1000 ? minParsed * 1000000 : minParsed;
+    const maxValue = maxParsed < 1000 ? maxParsed * 1000000 : maxParsed;
+    
+    return `${formatCurrency(minValue)}-${formatCurrency(maxValue)}`;
+  }
+  
+  // Single value
+  const parsed = parseCurrency(value);
+  const finalValue = parsed < 1000 ? parsed * 1000000 : parsed;
+  return formatCurrency(finalValue);
+}
+
+/**
+ * Format revenue ranges with better readability
+ */
+export function formatRevenueRange(min?: string | number | null, max?: string | number | null): string {
+  if (!min && !max) return 'Not specified';
+  
+  const formatSingleValue = (val: string | number | null | undefined): string => {
+    if (!val) return 'Any';
+    const parsed = typeof val === 'number' ? val : parseCurrency(val);
+    return formatCurrency(parsed);
+  };
+  
+  const minFormatted = formatSingleValue(min);
+  const maxFormatted = formatSingleValue(max);
+  
+  if (min && max) {
+    return `${minFormatted}-${maxFormatted}`;
+  } else if (min) {
+    return `${minFormatted}+`;
+  } else if (max) {
+    return `Up to ${maxFormatted}`;
+  }
+  
+  return 'Not specified';
 }
 
 /**

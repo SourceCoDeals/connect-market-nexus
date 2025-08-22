@@ -1,5 +1,6 @@
 import { BuyerType, User } from '@/types';
-import { parseCurrency, formatCurrency } from './currency-utils';
+import { parseCurrency, formatCurrency, formatInvestmentSize, formatRevenueRange } from './currency-utils';
+import { processUrl } from './url-utils';
 
 // Buyer tier system (1-5, where 1 is highest priority)
 export type BuyerTier = 1 | 2 | 3 | 4 | 5;
@@ -80,7 +81,7 @@ export function getPrimaryMetrics(user: User | null): BuyerMetric[] {
       label: 'Company',
       value: user.company,
       isClickable: hasWebsite,
-      href: hasWebsite ? user.website : undefined,
+      href: hasWebsite ? processUrl(user.website) : undefined,
       completeness: 'complete'
     });
   }
@@ -122,7 +123,7 @@ export function getPrimaryMetrics(user: User | null): BuyerMetric[] {
       } else if (user.investment_size) {
         metrics.push({
           label: 'Investment Size',
-          value: user.investment_size,
+          value: formatInvestmentSize(user.investment_size),
           isPrimary: true,
           completeness: 'partial'
         });
@@ -151,16 +152,14 @@ export function getPrimaryMetrics(user: User | null): BuyerMetric[] {
       if (user.investment_size) {
         metrics.push({
           label: 'Investment Size',
-          value: user.investment_size,
+          value: formatInvestmentSize(user.investment_size),
           completeness: 'complete'
         });
       }
       if (user.revenue_range_min || user.revenue_range_max) {
-        const min = user.revenue_range_min || 'Any';
-        const max = user.revenue_range_max || 'Any';
         metrics.push({
           label: 'Revenue Target',
-          value: `${min} - ${max}`,
+          value: formatRevenueRange(user.revenue_range_min, user.revenue_range_max),
           completeness: 'complete'
         });
       }
@@ -178,11 +177,9 @@ export function getPrimaryMetrics(user: User | null): BuyerMetric[] {
         });
       }
       if (user.revenue_range_min || user.revenue_range_max) {
-        const min = user.revenue_range_min || 'Any';
-        const max = user.revenue_range_max || 'Any';
         metrics.push({
           label: 'Target Range',
-          value: `${min} - ${max}`,
+          value: formatRevenueRange(user.revenue_range_min, user.revenue_range_max),
           completeness: 'complete'
         });
       }
@@ -232,11 +229,9 @@ export function getPrimaryMetrics(user: User | null): BuyerMetric[] {
         });
       }
       if (user.revenue_range_min || user.revenue_range_max) {
-        const min = user.revenue_range_min || 'Any';
-        const max = user.revenue_range_max || 'Any';
         metrics.push({
           label: 'Target Range',
-          value: `${min} - ${max}`,
+          value: formatRevenueRange(user.revenue_range_min, user.revenue_range_max),
           completeness: 'complete'
         });
       }
@@ -313,11 +308,17 @@ export function handleMissingData(value: string | null | undefined, label: strin
 /**
  * Format financial range for display
  */
-export function formatFinancialRange(min?: string | null, max?: string | null): string {
+export function formatFinancialRange(min?: string | number | null, max?: string | number | null): string {
   if (!min && !max) return 'Not specified';
   
-  const minFormatted = min ? formatCurrency(parseCurrency(min)) : 'Any';
-  const maxFormatted = max ? formatCurrency(parseCurrency(max)) : 'Any';
+  const formatValue = (val: string | number | null | undefined) => {
+    if (!val) return 'Any';
+    const parsed = typeof val === 'number' ? val : parseCurrency(val);
+    return formatCurrency(parsed);
+  };
+  
+  const minFormatted = formatValue(min);
+  const maxFormatted = formatValue(max);
   
   if (min && max) {
     return `${minFormatted} - ${maxFormatted}`;

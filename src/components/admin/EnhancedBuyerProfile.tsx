@@ -2,6 +2,7 @@ import React from 'react';
 import { User, ExternalLink, Linkedin, Trophy, CheckCircle, AlertCircle, XCircle } from 'lucide-react';
 import { User as UserType } from '@/types';
 import { getBuyerTier, getPrimaryMetrics, getDataCompleteness, BuyerMetric } from '@/lib/buyer-metrics';
+import { formatInvestmentSize } from '@/lib/currency-utils';
 import { Badge } from '@/components/ui/badge';
 
 interface EnhancedBuyerProfileProps {
@@ -114,7 +115,7 @@ export const EnhancedBuyerProfile: React.FC<EnhancedBuyerProfileProps> = ({
         {!metrics.some(m => m.label === 'Investment Size') && user.investment_size && (
           <div className="flex items-center justify-between py-0.5">
             <span className="text-xs text-muted-foreground">Investment Size</span>
-            <span className="text-xs font-medium text-foreground">{user.investment_size}</span>
+            <span className="text-xs font-medium text-foreground">{formatInvestmentSize(user.investment_size)}</span>
           </div>
         )}
 
