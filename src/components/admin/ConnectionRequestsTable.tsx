@@ -33,6 +33,8 @@ import { useAuth } from "@/context/AuthContext";
 import { getAdminProfile } from "@/lib/admin-profiles";
 import { useUpdateConnectionRequestStatus } from "@/hooks/admin/use-connection-request-status";
 import { useAdminProfiles } from '@/hooks/admin/use-admin-profiles';
+import { BuyerProfileHoverCard } from "./BuyerProfileHoverCard";
+import { ExpandableBusinessProfile } from "./ExpandableBusinessProfile";
 import { EnhancedBuyerProfile } from './EnhancedBuyerProfile';
 import { getBuyerTier } from '@/lib/buyer-metrics';
 import { processUrl } from '@/lib/url-utils';
@@ -203,8 +205,11 @@ const RequestDetails = ({ request }: { request: AdminConnectionRequest }) => {
     <div className="space-y-4">
       {/* Buyer & Listing Information - Clean inline layout */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Enhanced Buyer Information */}
-        <EnhancedBuyerProfile user={request.user} />
+         {/* Enhanced Buyer Information */}
+         <div className="space-y-3">
+           <EnhancedBuyerProfile user={request.user} />
+           <ExpandableBusinessProfile user={request.user as any} />
+         </div>
         
         {/* Listing Information */}
         <div className="space-y-3">
@@ -296,9 +301,11 @@ function ReactiveRequestCard({
           <div className="flex items-start justify-between">
             <div className="space-y-2">
               <div className="flex items-center gap-3 flex-wrap">
-                <h3 className="font-semibold">
-                  {request.user?.first_name} {request.user?.last_name}
-                </h3>
+                <BuyerProfileHoverCard user={request.user as any}>
+                  <h3 className="font-semibold cursor-pointer hover:text-primary transition-colors">
+                    {request.user?.first_name} {request.user?.last_name}
+                  </h3>
+                </BuyerProfileHoverCard>
                 <CleanTierDisplay user={request.user} />
                 <StatusBadge status={request.status} />
               </div>
@@ -324,9 +331,9 @@ function ReactiveRequestCard({
                          target="_blank"
                          rel="noopener noreferrer"
                          className="text-primary hover:text-primary/80 transition-colors text-xs"
-                       >
-                         {request.user?.company_name || 'Company'}
-                       </a>
+                        >
+                          {request.user?.company || 'Company'}
+                        </a>
                      )}
                    </div>
                  </div>
@@ -494,8 +501,11 @@ function ReactiveRequestCard({
               <div className="hidden md:block">
                 {/* Top Section: Buyer & Listing Info Grid */}
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
-                  {/* Enhanced Buyer Information */}
-                  <EnhancedBuyerProfile user={request.user} />
+                   {/* Enhanced Buyer Information */}
+                   <div className="space-y-3">
+                     <EnhancedBuyerProfile user={request.user} />
+                     <ExpandableBusinessProfile user={request.user as any} />
+                   </div>
 
                   {/* Listing Information */}
                   <div className="space-y-3">
