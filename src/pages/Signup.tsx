@@ -230,12 +230,18 @@ const Signup = () => {
               errors.push("Funding source is required");
             }
             break;
-          case "independentSponsor":
+           case "independentSponsor":
             if (!formData.investmentSize) {
               errors.push("Investment size is required");
             }
             if (!formData.dealStructurePreference) {
               errors.push("Deal structure preference is required");
+            }
+            if (!formData.geographicFocus || formData.geographicFocus.length < 10) {
+              errors.push("Geographic focus description is required (minimum 10 characters)");
+            }
+            if (!formData.industryExpertise || formData.industryExpertise.length < 10) {
+              errors.push("Industry expertise description is required (minimum 10 characters)");
             }
             break;
         }
@@ -251,12 +257,12 @@ const Signup = () => {
             (formData.businessCategories.length === 1 && !formData.businessCategories.includes('All Industries') && formData.businessCategories.length < 2)) {
           errors.push("Please select at least 2 business categories, or choose 'All Industries'");
         }
-        // Website and LinkedIn validation (strongly encouraged)
+        // Website and LinkedIn validation (required)
         if (!formData.website.trim()) {
-          errors.push("Website is strongly recommended for better credibility");
+          errors.push("Website is required");
         }
         if (!formData.linkedinProfile.trim()) {
-          errors.push("LinkedIn profile is strongly recommended for professional verification");
+          errors.push("LinkedIn profile is required");
         }
           if (formData.targetLocations.length === 0) {
           errors.push("Please select at least one target location");

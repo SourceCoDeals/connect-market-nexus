@@ -48,7 +48,8 @@ export function EnhancedUserManagement({
       privateEquity: ['fund_size', 'investment_size'],
       familyOffice: ['fund_size', 'aum'],
       searchFund: ['is_funded', 'target_company_size'],
-      individual: ['funding_source']
+      individual: ['funding_source'],
+      independentSponsor: ['investment_size', 'geographic_focus', 'industry_expertise', 'deal_structure_preference']
     };
 
     const allFields = [
@@ -318,6 +319,7 @@ export function EnhancedUserManagement({
                     <SelectItem value="familyOffice">Family Office</SelectItem>
                     <SelectItem value="searchFund">Search Fund</SelectItem>
                     <SelectItem value="individual">Individual</SelectItem>
+                    <SelectItem value="independentSponsor">Independent Sponsor</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

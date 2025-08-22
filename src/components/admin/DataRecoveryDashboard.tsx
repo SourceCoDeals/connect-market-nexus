@@ -62,7 +62,8 @@ The Marketplace Team`);
       privateEquity: ['fund_size', 'investment_size'],
       familyOffice: ['fund_size', 'aum'],
       searchFund: ['is_funded', 'target_company_size'],
-      individual: ['funding_source', 'needs_loan', 'ideal_target']
+      individual: ['funding_source', 'needs_loan', 'ideal_target'],
+      independentSponsor: ['investment_size', 'geographic_focus', 'industry_expertise', 'deal_structure_preference']
     };
 
     const usersWithMissingData: MissingDataUser[] = [];
@@ -204,7 +205,10 @@ The Marketplace Team`);
       target_company_size: 'Target Company Size',
       funding_source: 'Funding Source',
       needs_loan: 'Loan Requirements',
-      ideal_target: 'Ideal Target Description'
+      ideal_target: 'Ideal Target Description',
+      geographic_focus: 'Geographic Focus',
+      industry_expertise: 'Industry Expertise',
+      deal_structure_preference: 'Deal Structure Preference'
     };
     return fieldMap[field] || field;
   };

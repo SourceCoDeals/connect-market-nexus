@@ -44,6 +44,12 @@ export function UserProfileCompletion({ user }: UserProfileCompletionProps) {
     ],
     individual: [
       { key: 'funding_source', label: 'Funding Source', icon: CheckCircle2, category: 'financial' }
+    ],
+    independentSponsor: [
+      { key: 'investment_size', label: 'Investment Size', icon: CheckCircle2, category: 'financial' },
+      { key: 'geographic_focus', label: 'Geographic Focus', icon: CheckCircle2, category: 'profile' },
+      { key: 'industry_expertise', label: 'Industry Expertise', icon: CheckCircle2, category: 'profile' },
+      { key: 'deal_structure_preference', label: 'Deal Structure Preference', icon: CheckCircle2, category: 'profile' }
     ]
   };
 
