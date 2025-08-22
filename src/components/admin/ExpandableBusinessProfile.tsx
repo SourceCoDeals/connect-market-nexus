@@ -18,6 +18,8 @@ import {
 } from "lucide-react";
 import { BusinessCategoriesDisplay } from "./BuyerProfileHoverCard";
 import { formatFinancialRange, getPrimaryMetrics, getDataCompleteness, getBuyerTier } from "@/lib/buyer-metrics";
+import { processUrl } from "@/lib/url-utils";
+import { formatCurrency } from "@/lib/currency-utils";
 
 interface ExpandableBusinessProfileProps {
   user: User | null | undefined;
@@ -95,7 +97,7 @@ const CredibilitySection: React.FC<{ user: User }> = ({ user }) => {
               <>
                 <Check className="h-3 w-3 text-green-500" />
                 <a 
-                  href={user.website!} 
+                  href={processUrl(user.website!)} 
                   target="_blank" 
                   rel="noopener noreferrer"
                   className="text-blue-500 hover:underline flex items-center gap-1"

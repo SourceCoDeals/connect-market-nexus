@@ -2,6 +2,22 @@ import { BuyerType, User } from '@/types';
 import { parseCurrency, formatCurrency, formatInvestmentSize, formatRevenueRange } from './currency-utils';
 import { processUrl } from './url-utils';
 
+/**
+ * Format financial values that are entered as raw numbers but represent millions
+ * Users enter "46" to mean "$46M" based on placeholder text
+ */
+function formatFinancialMillions(value: string | number): string {
+  if (!value) return '';
+  
+  const numericValue = typeof value === 'number' ? value : parseFloat(value.toString());
+  if (isNaN(numericValue)) return '';
+  
+  // If the value is less than 1000, assume it's in millions
+  // If it's 1000 or more, it's likely already the full amount
+  const finalValue = numericValue < 1000 ? numericValue * 1000000 : numericValue;
+  return formatCurrency(finalValue);
+}
+
 // Buyer tier system (1-5, where 1 is highest priority)
 export type BuyerTier = 1 | 2 | 3 | 4 | 5;
 
@@ -105,18 +121,16 @@ export function getPrimaryMetrics(user: User | null): BuyerMetric[] {
     case 'privateEquity':
       // Priority: AUM → Fund Size → Investment Size
       if (user.aum) {
-        const aumValue = parseCurrency(user.aum);
         metrics.push({
           label: 'AUM',
-          value: formatCurrency(aumValue),
+          value: formatFinancialMillions(user.aum),
           isPrimary: true,
           completeness: 'complete'
         });
       } else if (user.fund_size) {
-        const fundValue = parseCurrency(user.fund_size);
         metrics.push({
           label: 'Fund Size',
-          value: formatCurrency(fundValue),
+          value: formatFinancialMillions(user.fund_size),
           isPrimary: true,
           completeness: 'complete'
         });
@@ -133,18 +147,16 @@ export function getPrimaryMetrics(user: User | null): BuyerMetric[] {
     case 'familyOffice':
       // Show AUM → Investment Size → Revenue Targets
       if (user.aum) {
-        const aumValue = parseCurrency(user.aum);
         metrics.push({
           label: 'AUM',
-          value: formatCurrency(aumValue),
+          value: formatFinancialMillions(user.aum),
           isPrimary: true,
           completeness: 'complete'
         });
       } else if (user.fund_size) {
-        const fundValue = parseCurrency(user.fund_size);
         metrics.push({
           label: 'Fund Size',
-          value: formatCurrency(fundValue),
+          value: formatFinancialMillions(user.fund_size),
           isPrimary: true,
           completeness: 'complete'
         });
@@ -168,10 +180,9 @@ export function getPrimaryMetrics(user: User | null): BuyerMetric[] {
     case 'corporate':
       // Display Company Revenue → Target Range → Company Link
       if (user.estimated_revenue) {
-        const revenueValue = parseCurrency(user.estimated_revenue);
         metrics.push({
           label: 'Company Revenue',
-          value: formatCurrency(revenueValue),
+          value: formatFinancialMillions(user.estimated_revenue),
           isPrimary: true,
           completeness: 'complete'
         });
