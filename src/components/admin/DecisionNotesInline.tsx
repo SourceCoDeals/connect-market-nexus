@@ -38,54 +38,56 @@ export function DecisionNotesInline({
   };
 
   return (
-    <div className="mt-2 p-2 bg-muted/30 rounded border">
+    <div className="border border-border/30 rounded-md bg-background/30">
       {isEditing ? (
-        <div className="space-y-2">
+        <div className="p-3 space-y-3">
           <Textarea
             placeholder={`Add a note for this ${label} decision...`}
             value={noteText}
             onChange={(e) => setNoteText(e.target.value)}
-            className="text-xs min-h-[50px] resize-none"
+            className="text-xs min-h-[60px] resize-none border-border/40 bg-background focus:border-primary/40"
           />
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-2">
             <Button
               size="sm"
               onClick={handleSave}
               disabled={updateNotes.isPending}
-              className="text-xs h-6 px-2"
+              className="text-xs h-7 px-3"
             >
-              <Save className="h-3 w-3 mr-1" />
+              <Save className="h-3 w-3 mr-1.5" />
               Save
             </Button>
             <Button
               size="sm"
               variant="outline"
               onClick={handleCancel}
-              className="text-xs h-6 px-2"
+              className="text-xs h-7 px-3"
             >
-              <X className="h-3 w-3 mr-1" />
+              <X className="h-3 w-3 mr-1.5" />
               Cancel
             </Button>
           </div>
         </div>
       ) : (
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex-1">
-            {currentNotes ? (
-              <p className="text-xs text-foreground mb-1">{currentNotes}</p>
-            ) : (
-              <p className="text-xs text-muted-foreground italic">No decision note</p>
-            )}
+        <div className="p-3">
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex-1 min-w-0">
+              {currentNotes ? (
+                <p className="text-xs text-foreground leading-relaxed">{currentNotes}</p>
+              ) : (
+                <p className="text-xs text-muted-foreground/60 italic">Add decision note...</p>
+              )}
+            </div>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setIsEditing(true)}
+              className="text-xs h-6 w-6 p-0 shrink-0 hover:bg-accent/50 transition-colors"
+              title="Edit decision note"
+            >
+              <Edit3 className="h-3 w-3" />
+            </Button>
           </div>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => setIsEditing(true)}
-            className="text-xs h-5 w-5 p-0 shrink-0"
-            title="Edit decision note"
-          >
-            <Edit3 className="h-3 w-3" />
-          </Button>
         </div>
       )}
     </div>
