@@ -494,31 +494,30 @@ function ReactiveRequestCard({
                     </div>
                   </div>
 
-                  {/* Buyer Message - Compact Sidebar Format */}
-                  {request.user_message && (
-                    <div className="space-y-3 lg:col-span-1 md:col-span-2">
-                      <div className="flex items-center gap-2 pb-1 border-b border-border/40">
-                        <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" />
-                        <span className="text-xs font-semibold text-card-foreground">Buyer Message</span>
+                  {/* Buyer Message & Final Decision - Combined Right Column */}
+                  <div className="space-y-4 lg:col-span-1 md:col-span-2">
+                    {/* Buyer Message Section */}
+                    {request.user_message && (
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-2 pb-1 border-b border-border/40">
+                          <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" />
+                          <span className="text-xs font-semibold text-card-foreground">Buyer Message</span>
+                        </div>
+                        <div className="border border-border/40 rounded-md p-3 bg-background/50 max-h-32 overflow-y-auto">
+                          <p className="text-xs text-foreground leading-relaxed whitespace-pre-wrap">{request.user_message}</p>
+                        </div>
                       </div>
-                      <div className="border border-border/40 rounded-md p-3 bg-background/50 max-h-32 overflow-y-auto">
-                        <p className="text-xs text-foreground leading-relaxed whitespace-pre-wrap">{request.user_message}</p>
-                      </div>
-                    </div>
-                  )}
-                </div>
+                    )}
 
-                {/* Bottom Section: Final Decision - Full Width */}
-                <div className="pt-4 border-t border-border/40">
-                  <div className="flex items-center gap-2 pb-3 border-b border-border/30">
-                    <Shield className="h-3.5 w-3.5 text-muted-foreground" />
-                    <span className="text-xs font-semibold text-card-foreground">Final Decision</span>
-                  </div>
-                  
-                  <div className="space-y-4 mt-4">
-                    {/* Status Controls - Horizontal Layout */}
-                    <div className="flex items-center gap-8">
-                      <div className="flex items-center gap-3">
+                    {/* Final Decision Section - Now integrated in right column */}
+                    <div className="space-y-4 pt-4 border-t border-border/40">
+                      <div className="flex items-center gap-2 pb-2 border-b border-border/30">
+                        <Shield className="h-3.5 w-3.5 text-muted-foreground" />
+                        <span className="text-xs font-semibold text-card-foreground">Final Decision</span>
+                      </div>
+                      
+                      {/* Status Controls - Compact Horizontal Layout */}
+                      <div className="flex items-center gap-4 flex-wrap">
                         <div className="flex items-center gap-2">
                           <div className={`w-2 h-2 rounded-full ${request.status === 'approved' ? 'bg-emerald-500' : 'bg-border'}`}></div>
                           <span className="text-xs font-medium text-foreground">Approved</span>
@@ -529,12 +528,10 @@ function ReactiveRequestCard({
                               handleStatusChange(request.id, checked ? 'approved' : 'pending');
                             }}
                             disabled={updateConnectionRequestStatus.isPending}
-                            className="scale-90 data-[state=checked]:bg-emerald-500"
+                            className="scale-75 data-[state=checked]:bg-emerald-500"
                           />
                         </div>
-                      </div>
-                      
-                      <div className="flex items-center gap-3">
+                        
                         <div className="flex items-center gap-2">
                           <div className={`w-2 h-2 rounded-full ${request.status === 'rejected' ? 'bg-destructive' : 'bg-border'}`}></div>
                           <span className="text-xs font-medium text-foreground">Rejected</span>
@@ -545,12 +542,10 @@ function ReactiveRequestCard({
                               handleStatusChange(request.id, checked ? 'rejected' : 'pending');
                             }}
                             disabled={updateConnectionRequestStatus.isPending}
-                            className="scale-90 data-[state=checked]:bg-destructive"
+                            className="scale-75 data-[state=checked]:bg-destructive"
                           />
                         </div>
-                      </div>
-                      
-                      <div className="flex items-center gap-3">
+                        
                         <div className="flex items-center gap-2">
                           <div className={`w-2 h-2 rounded-full ${request.status === 'on_hold' ? 'bg-amber-500' : 'bg-border'}`}></div>
                           <span className="text-xs font-medium text-foreground">On Hold</span>
@@ -561,15 +556,13 @@ function ReactiveRequestCard({
                               handleStatusChange(request.id, checked ? 'on_hold' : 'pending');
                             }}
                             disabled={updateConnectionRequestStatus.isPending}
-                            className="scale-90 data-[state=checked]:bg-amber-500"
+                            className="scale-75 data-[state=checked]:bg-amber-500"
                           />
                         </div>
                       </div>
-                    </div>
 
-                    {/* Decision Notes and Details - Side by Side */}
-                    <div className="grid lg:grid-cols-2 gap-6">
-                      <div>
+                      {/* Decision Notes - Full Width in Right Column */}
+                      <div className="space-y-3">
                         <DecisionNotesInline 
                           requestId={request.id}
                           currentNotes={request.admin_comment}
@@ -577,21 +570,21 @@ function ReactiveRequestCard({
                           label={request.status === 'approved' ? 'Approval' : 
                                  request.status === 'rejected' ? 'Rejection' : 'Hold'}
                         />
+                        
+                        {request.status !== 'pending' && (
+                          <div className="text-xs text-muted-foreground/70">
+                            {request.status === 'approved' && request.approved_by && (
+                              <DecisionDetails adminId={request.approved_by} timestamp={request.approved_at} action="approved" />
+                            )}
+                            {request.status === 'rejected' && request.rejected_by && (
+                              <DecisionDetails adminId={request.rejected_by} timestamp={request.rejected_at} action="rejected" />
+                            )}
+                            {request.status === 'on_hold' && request.on_hold_by && (
+                              <DecisionDetails adminId={request.on_hold_by} timestamp={request.on_hold_at} action="put on hold" />
+                            )}
+                          </div>
+                        )}
                       </div>
-                      
-                      {request.status !== 'pending' && (
-                        <div className="text-xs text-muted-foreground/70">
-                          {request.status === 'approved' && request.approved_by && (
-                            <DecisionDetails adminId={request.approved_by} timestamp={request.approved_at} action="approved" />
-                          )}
-                          {request.status === 'rejected' && request.rejected_by && (
-                            <DecisionDetails adminId={request.rejected_by} timestamp={request.rejected_at} action="rejected" />
-                          )}
-                          {request.status === 'on_hold' && request.on_hold_by && (
-                            <DecisionDetails adminId={request.on_hold_by} timestamp={request.on_hold_at} action="put on hold" />
-                          )}
-                        </div>
-                      )}
                     </div>
                   </div>
                 </div>
