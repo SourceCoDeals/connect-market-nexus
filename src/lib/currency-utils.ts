@@ -109,22 +109,37 @@ export function formatInvestmentSize(value: string): string {
 }
 
 /**
- * Format revenue ranges with better readability
+ * Format revenue ranges with better readability in millions format
  */
 export function formatRevenueRange(min?: string | number | null, max?: string | number | null): string {
   if (!min && !max) return 'Not specified';
   
   const formatSingleValue = (val: string | number | null | undefined): string => {
     if (!val) return 'Any';
-    const parsed = typeof val === 'number' ? val : parseCurrency(val);
-    return formatCurrency(parsed);
+    const numericValue = typeof val === 'number' ? val : parseFloat(val.toString().replace(/,/g, ''));
+    if (isNaN(numericValue)) return 'Any';
+    
+    // If the value is 1,000,000 or more, it's likely already the full amount - convert to millions
+    if (numericValue >= 1000000) {
+      const millions = numericValue / 1000000;
+      return `$${millions.toFixed(millions % 1 === 0 ? 0 : 1)}M`;
+    }
+    
+    // If the value is less than 1000, assume it's in millions already
+    if (numericValue < 1000) {
+      return `$${numericValue.toFixed(numericValue % 1 === 0 ? 0 : 1)}M`;
+    }
+    
+    // For values between 1000-999999, treat as thousands and convert to millions
+    const millions = numericValue / 1000;
+    return `$${millions.toFixed(millions % 1 === 0 ? 0 : 1)}M`;
   };
   
   const minFormatted = formatSingleValue(min);
   const maxFormatted = formatSingleValue(max);
   
   if (min && max) {
-    return `${minFormatted}-${maxFormatted}`;
+    return `${minFormatted} - ${maxFormatted}`;
   } else if (min) {
     return `${minFormatted}+`;
   } else if (max) {
