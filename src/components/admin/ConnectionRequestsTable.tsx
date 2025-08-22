@@ -315,15 +315,29 @@ function ReactiveRequestCard({
                          rel="noopener noreferrer"
                          className="text-primary hover:text-primary/80 transition-colors text-xs"
                        >
-                         Website
+                         {request.user?.company_name || 'Company'}
                        </a>
                      )}
                    </div>
                  </div>
-                 <div className="flex items-center gap-2">
-                   <Building2 className="h-3 w-3" />
-                   {formatEnhancedCompanyName(request.listing?.title || "", request.listing?.internal_company_name)}
-                 </div>
+                  <div className="flex items-center gap-2">
+                    <Building2 className="h-3 w-3" />
+                    <div className="flex items-center gap-2">
+                      {formatEnhancedCompanyName(request.listing?.title || "", request.listing?.internal_company_name)}
+                      <span className="text-muted-foreground/60">•</span>
+                      <button
+                        onClick={() => {
+                          if (request.listing?.id) {
+                            window.open(`/listing/${request.listing.id}`, '_blank');
+                          }
+                        }}
+                        className="text-primary hover:text-primary/80 transition-colors text-xs flex items-center gap-1 group"
+                      >
+                        View Listing
+                        <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      </button>
+                    </div>
+                  </div>
                </div>
             </div>
             
