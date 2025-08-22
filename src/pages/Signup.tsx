@@ -770,6 +770,34 @@ const Signup = () => {
                     </SelectContent>
                   </Select>
                 </div>
+                <div className="space-y-2">
+                  <Label htmlFor="geographicFocus">Geographic Focus</Label>
+                  <Textarea
+                    id="geographicFocus"
+                    name="geographicFocus"
+                    placeholder="Describe your geographic focus and investment criteria (minimum 10 characters)..."
+                    rows={2}
+                    value={formData.geographicFocus.join(', ')}
+                    onChange={(e) => setFormData(prev => ({ 
+                      ...prev, 
+                      geographicFocus: e.target.value.split(',').map(s => s.trim()).filter(s => s) 
+                    }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="industryExpertise">Industry Expertise</Label>
+                  <Textarea
+                    id="industryExpertise"
+                    name="industryExpertise"
+                    placeholder="Describe your industry expertise and sector focus (minimum 10 characters)..."
+                    rows={2}
+                    value={formData.industryExpertise.join(', ')}
+                    onChange={(e) => setFormData(prev => ({ 
+                      ...prev, 
+                      industryExpertise: e.target.value.split(',').map(s => s.trim()).filter(s => s) 
+                    }))}
+                  />
+                </div>
               </div>
             )}
           </div>
