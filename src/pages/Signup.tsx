@@ -26,6 +26,7 @@ const steps = [
 
 import { STANDARDIZED_CATEGORIES } from "@/lib/financial-parser";
 import { MultiCategorySelect } from "@/components/ui/category-select";
+import { CurrencyInputEnhanced } from "@/components/ui/currency-input-enhanced";
 
 const buyerTypeOptions = [
   { value: "corporate", label: "Corporate", description: "Operating companies looking to acquire complementary businesses" },
