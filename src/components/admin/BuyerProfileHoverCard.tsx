@@ -6,8 +6,8 @@ import {
   HoverCardTrigger,
 } from "@/components/ui/hover-card";
 import { Badge } from "@/components/ui/badge";
-import { Building2, Target, DollarSign } from "lucide-react";
-import { getBuyerTier, formatFinancialRange } from "@/lib/buyer-metrics";
+import { Building2, Target, DollarSign, ExternalLink, Check, X, Mail } from "lucide-react";
+import { getBuyerTier, formatFinancialRange, getPrimaryMetrics, getDataCompleteness } from "@/lib/buyer-metrics";
 
 interface BuyerProfileHoverCardProps {
   user: User | null | undefined;
@@ -51,6 +51,51 @@ const formatInvestmentSize = (investmentSize?: string | null) => {
   return investmentSize.replace(/\$/g, '').replace(/,/g, '');
 };
 
+const getEmailDomainStatus = (email?: string | null) => {
+  if (!email) return { status: 'missing', indicator: 'amber' };
+  if (email.includes('@gmail.com') || email.includes('@yahoo.com') || email.includes('@hotmail.com')) {
+    return { status: 'personal', indicator: 'red' };
+  }
+  return { status: 'company', indicator: 'green' };
+};
+
+const CredibilityIndicators: React.FC<{ user: User }> = ({ user }) => {
+  const emailStatus = getEmailDomainStatus(user.email);
+  const hasLinkedIn = !!user.linkedin_profile;
+  const hasWebsite = !!user.website;
+  const dataCompleteness = getDataCompleteness(user as any);
+  
+  return (
+    <div className="flex items-center gap-2 text-xs">
+      {/* Email Domain Indicator */}
+      <div className="flex items-center gap-1">
+        <Mail className="h-3 w-3" />
+        <div className={`w-2 h-2 rounded-full ${
+          emailStatus.indicator === 'green' ? 'bg-green-500' : 
+          emailStatus.indicator === 'red' ? 'bg-red-500' : 'bg-amber-500'
+        }`} />
+      </div>
+      
+      {/* LinkedIn Status */}
+      <div className="flex items-center gap-1">
+        <span className="text-muted-foreground">LI</span>
+        {hasLinkedIn ? <Check className="h-3 w-3 text-green-500" /> : <X className="h-3 w-3 text-red-500" />}
+      </div>
+      
+      {/* Website Status */}
+      <div className="flex items-center gap-1">
+        <ExternalLink className="h-3 w-3" />
+        {hasWebsite ? <Check className="h-3 w-3 text-green-500" /> : <X className="h-3 w-3 text-red-500" />}
+      </div>
+      
+      {/* Data Completeness */}
+      <Badge variant="outline" className="text-xs">
+        {Math.round(dataCompleteness)}% complete
+      </Badge>
+    </div>
+  );
+};
+
 export const BuyerProfileHoverCard: React.FC<BuyerProfileHoverCardProps> = ({
   user,
   children,
@@ -62,6 +107,7 @@ export const BuyerProfileHoverCard: React.FC<BuyerProfileHoverCardProps> = ({
   const tierInfo = getBuyerTier(user as any); // Type conversion for buyer-metrics compatibility
   const investmentSize = formatInvestmentSize(user.investment_size);
   const revenueRange = formatFinancialRange(user.revenue_range_min, user.revenue_range_max);
+  const primaryMetrics = getPrimaryMetrics(user as any);
   
   // Truncate description for hover preview
   const truncateText = (text: string, maxLength = 200) => {
@@ -88,7 +134,7 @@ export const BuyerProfileHoverCard: React.FC<BuyerProfileHoverCardProps> = ({
       >
         <div className="space-y-3">
           {/* Header */}
-          <div className="space-y-1">
+          <div className="space-y-2">
             <div className="flex items-center gap-2">
               <h4 className="font-semibold text-sm">
                 {user.first_name} {user.last_name}
@@ -104,15 +150,26 @@ export const BuyerProfileHoverCard: React.FC<BuyerProfileHoverCardProps> = ({
                   <span>{user.company}</span>
                 </>
               )}
-              {investmentSize && (
-                <>
-                  {user.company && <span>•</span>}
-                  <DollarSign className="h-3 w-3" />
-                  <span>{investmentSize}</span>
-                </>
-              )}
             </div>
+            
+            {/* Credibility Indicators */}
+            <CredibilityIndicators user={user} />
           </div>
+
+          {/* Primary Financial Metrics */}
+          {primaryMetrics.length > 0 && (
+            <div className="space-y-2">
+              <span className="text-xs font-medium text-muted-foreground">Financial Profile</span>
+              <div className="grid grid-cols-1 gap-1">
+                {primaryMetrics.slice(0, 2).map((metric, index) => (
+                  <div key={index} className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">{metric.label}:</span>
+                    <span className="font-medium">{metric.value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Business Description */}
           {businessDescription && (
