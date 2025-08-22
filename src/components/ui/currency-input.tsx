@@ -53,6 +53,9 @@ export const CurrencyInput = React.forwardRef<HTMLInputElement, CurrencyInputPro
         const formatted = formatNumber(numericValue);
         setDisplayValue(formatted);
         onChange?.(formatted);
+      } else {
+        setDisplayValue('');
+        onChange?.('');
       }
       
       onBlur?.(e);

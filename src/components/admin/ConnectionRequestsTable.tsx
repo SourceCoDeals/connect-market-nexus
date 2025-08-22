@@ -80,6 +80,7 @@ const getBuyerTypeAbbreviation = (buyerType: string): string => {
     case 'searchFund': return 'SF';
     case 'corporate': return 'Corp';
     case 'individual': return 'Individual';
+    case 'independentSponsor': return 'IS';
     default: return 'Buyer';
   }
 };

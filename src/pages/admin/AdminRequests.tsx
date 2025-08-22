@@ -184,8 +184,8 @@ const AdminRequests = () => {
             buyerTypeFilter={buyerTypeFilter}
             sortOption={sortOption}
             onStatusFilterChange={setStatusFilter}
-            onBuyerTypeFilterChange={setBuyerTypeFilter}
-            onSortChange={setSortOption}
+            onBuyerTypeFilterChange={(filter) => setBuyerTypeFilter(filter)}
+            onSortChange={(sort) => setSortOption(sort)}
           />
 
           {/* Quick Actions Bar */}

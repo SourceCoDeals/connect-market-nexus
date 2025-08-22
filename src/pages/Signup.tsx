@@ -28,11 +28,12 @@ import { STANDARDIZED_CATEGORIES } from "@/lib/financial-parser";
 import { MultiCategorySelect } from "@/components/ui/category-select";
 
 const buyerTypeOptions = [
-  { value: "corporate", label: "Corporate" },
-  { value: "privateEquity", label: "Private Equity" },
-  { value: "familyOffice", label: "Family Office" },
-  { value: "searchFund", label: "Search Fund" },
-  { value: "individual", label: "Individual" },
+  { value: "corporate", label: "Corporate", description: "Operating companies looking to acquire complementary businesses" },
+  { value: "privateEquity", label: "Private Equity", description: "Professional investment firms managing institutional capital" },
+  { value: "familyOffice", label: "Family Office", description: "Private wealth management entities making direct investments" },
+  { value: "searchFund", label: "Search Fund", description: "Entrepreneurs seeking to acquire and operate a single company" },
+  { value: "individual", label: "Individual", description: "Individual investors using personal capital or SBA financing" },
+  { value: "independentSponsor", label: "Independent Sponsor", description: "Investment professionals sourcing deals without permanent capital" },
 ];
 
 const Signup = () => {
@@ -71,6 +72,12 @@ const Signup = () => {
     revenueRangeMin: string;
     revenueRangeMax: string;
     specificBusinessSearch: string;
+    // Independent sponsor specific fields
+    targetDealSizeMin: string;
+    targetDealSizeMax: string;
+    geographicFocus: string[];
+    industryExpertise: string[];
+    dealStructurePreference: string;
   }>({
     email: "",
     password: "",
@@ -100,6 +107,12 @@ const Signup = () => {
     revenueRangeMin: "",
     revenueRangeMax: "",
     specificBusinessSearch: "",
+    // Independent sponsor specific fields
+    targetDealSizeMin: "",
+    targetDealSizeMax: "",
+    geographicFocus: [],
+    industryExpertise: [],
+    dealStructurePreference: "",
   });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -127,6 +140,12 @@ const Signup = () => {
       fundingSource: "",
       needsLoan: "",
       idealTarget: "",
+      // Reset independent sponsor fields
+      targetDealSizeMin: "",
+      targetDealSizeMax: "",
+      geographicFocus: [],
+      industryExpertise: [],
+      dealStructurePreference: "",
     }));
   };
 
@@ -211,18 +230,35 @@ const Signup = () => {
               errors.push("Funding source is required");
             }
             break;
+          case "independentSponsor":
+            if (!formData.investmentSize) {
+              errors.push("Investment size is required");
+            }
+            if (!formData.dealStructurePreference) {
+              errors.push("Deal structure preference is required");
+            }
+            break;
         }
         break;
       }
       case 3: {
-        // Buyer profile validation
-        if (!formData.idealTargetDescription.trim()) {
-          errors.push("Please describe your ideal targets");
+        // Enhanced validation
+        if (!formData.idealTargetDescription.trim() || formData.idealTargetDescription.length < 50) {
+          errors.push("Please provide at least 50 characters describing your ideal targets");
         }
-        if (formData.businessCategories.length === 0) {
-          errors.push("Please select at least one business category");
+        // Business categories validation - at least 1 OR "All Industries"
+        if (formData.businessCategories.length === 0 || 
+            (formData.businessCategories.length === 1 && !formData.businessCategories.includes('All Industries') && formData.businessCategories.length < 2)) {
+          errors.push("Please select at least 2 business categories, or choose 'All Industries'");
         }
-        if (formData.targetLocations.length === 0) {
+        // Website and LinkedIn validation (strongly encouraged)
+        if (!formData.website.trim()) {
+          errors.push("Website is strongly recommended for better credibility");
+        }
+        if (!formData.linkedinProfile.trim()) {
+          errors.push("LinkedIn profile is strongly recommended for professional verification");
+        }
+          if (formData.targetLocations.length === 0) {
           errors.push("Please select at least one target location");
         }
         if (formData.revenueRangeMin && formData.revenueRangeMax) {
@@ -230,6 +266,16 @@ const Signup = () => {
           const max = parseCurrency(formData.revenueRangeMax);
           if (min >= max) {
             errors.push("Maximum revenue must be greater than minimum revenue");
+          }
+        }
+        // Independent sponsor specific validation
+        if (formData.buyerType === 'independentSponsor') {
+          if (formData.targetDealSizeMin && formData.targetDealSizeMax) {
+            const min = parseCurrency(formData.targetDealSizeMin);
+            const max = parseCurrency(formData.targetDealSizeMax);
+            if (min >= max) {
+              errors.push("Maximum deal size must be greater than minimum deal size");
+            }
           }
         }
         break;
@@ -283,7 +329,12 @@ const Signup = () => {
         targetLocations,
         revenueRangeMin,
         revenueRangeMax,
-        specificBusinessSearch
+        specificBusinessSearch,
+        targetDealSizeMin,
+        targetDealSizeMax,
+        geographicFocus,
+        industryExpertise,
+        dealStructurePreference
       } = formData;
       
       const signupData: Partial<User> = {
@@ -312,6 +363,12 @@ const Signup = () => {
         funding_source: fundingSource,
         needs_loan: needsLoan,
         ideal_target: idealTarget,
+        // Independent sponsor specific fields
+        target_deal_size_min: targetDealSizeMin ? parseCurrency(targetDealSizeMin) : undefined,
+        target_deal_size_max: targetDealSizeMax ? parseCurrency(targetDealSizeMax) : undefined,
+        geographic_focus: geographicFocus,
+        industry_expertise: industryExpertise,
+        deal_structure_preference: dealStructurePreference,
       };
       
       await signup(signupData, formData.password);
@@ -492,7 +549,10 @@ const Signup = () => {
                 <SelectContent>
                   {buyerTypeOptions.map((option) => (
                     <SelectItem key={option.value} value={option.value}>
-                      {option.label}
+                      <div className="space-y-1">
+                        <div className="font-medium">{option.label}</div>
+                        <div className="text-xs text-muted-foreground">{option.description}</div>
+                      </div>
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -665,6 +725,47 @@ const Signup = () => {
                 </div>
               </div>
             )}
+            
+            {formData.buyerType === "independentSponsor" && (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="investmentSize">Investment Size</Label>
+                  <Select
+                    value={formData.investmentSize}
+                    onValueChange={(value) => setFormData((prev) => ({ ...prev, investmentSize: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select investment size" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Under $1M">Under $1M</SelectItem>
+                      <SelectItem value="$1M - $5M">$1M - $5M</SelectItem>
+                      <SelectItem value="$5M - $10M">$5M - $10M</SelectItem>
+                      <SelectItem value="$10M - $25M">$10M - $25M</SelectItem>
+                      <SelectItem value="Over $25M">Over $25M</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="dealStructurePreference">Deal Structure Preference</Label>
+                  <Select
+                    value={formData.dealStructurePreference}
+                    onValueChange={(value) => setFormData((prev) => ({ ...prev, dealStructurePreference: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select deal structure" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="equity">Equity Purchase</SelectItem>
+                      <SelectItem value="asset">Asset Purchase</SelectItem>
+                      <SelectItem value="majority">Majority Stake</SelectItem>
+                      <SelectItem value="minority">Minority Investment</SelectItem>
+                      <SelectItem value="flexible">Flexible</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            )}
           </div>
         );
       case 3:
@@ -716,8 +817,39 @@ const Signup = () => {
               />
             </div>
 
-            {/* Only show revenue range if buyer type is not Private Equity */}
-            {formData.buyerType !== "privateEquity" && (
+            {/* Independent sponsor deal size ranges */}
+            {formData.buyerType === "independentSponsor" && (
+              <div className="space-y-4">
+                <Label className="text-base font-medium">
+                  What is your target deal size range?
+                </Label>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="targetDealSizeMin">$ Minimum Deal Size</Label>
+                    <CurrencyInput
+                      id="targetDealSizeMin"
+                      name="targetDealSizeMin"
+                      placeholder="1,000,000"
+                      value={formData.targetDealSizeMin}
+                      onChange={(val) => setFormData(prev => ({ ...prev, targetDealSizeMin: val }))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="targetDealSizeMax">$ Maximum Deal Size</Label>
+                    <CurrencyInput
+                      id="targetDealSizeMax"
+                      name="targetDealSizeMax"
+                      placeholder="10,000,000"
+                      value={formData.targetDealSizeMax}
+                      onChange={(val) => setFormData(prev => ({ ...prev, targetDealSizeMax: val }))}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Only show revenue range if buyer type is not Private Equity or Independent Sponsor */}
+            {formData.buyerType !== "privateEquity" && formData.buyerType !== "independentSponsor" && (
               <div className="space-y-4">
                 <Label className="text-base font-medium">
                   What is the revenue range you're looking for in a potential acquisition?

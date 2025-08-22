@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { AdminConnectionRequest } from '@/types/admin';
 
 export type StatusFilter = 'all' | 'pending' | 'approved' | 'rejected' | 'on_hold';
-export type BuyerTypeFilter = 'all' | 'privateEquity' | 'familyOffice' | 'searchFund' | 'corporate' | 'individual';
+export type BuyerTypeFilter = 'all' | 'privateEquity' | 'familyOffice' | 'searchFund' | 'corporate' | 'individual' | 'independentSponsor';
 export type SortOption = 'newest' | 'oldest' | 'buyer_priority' | 'deal_size' | 'approval_date';
 
 export function usePipelineFilters(requests: AdminConnectionRequest[]) {
@@ -13,7 +13,8 @@ export function usePipelineFilters(requests: AdminConnectionRequest[]) {
   // Buyer type priority mapping (higher number = higher priority)
   const getBuyerPriority = (buyerType: string | undefined): number => {
     switch (buyerType) {
-      case 'privateEquity': return 5;
+      case 'privateEquity': return 6;
+      case 'independentSponsor': return 5;
       case 'familyOffice': return 4;
       case 'searchFund': return 3;
       case 'corporate': return 2;

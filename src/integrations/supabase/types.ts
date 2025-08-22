@@ -941,6 +941,7 @@ export type Database = {
           company: string | null
           company_name: string | null
           created_at: string
+          deal_structure_preference: string | null
           deleted_at: string | null
           email: string
           email_verified: boolean
@@ -953,9 +954,11 @@ export type Database = {
           fund_size: string | null
           funded_by: string | null
           funding_source: string | null
+          geographic_focus: Json | null
           id: string
           ideal_target: string | null
           ideal_target_description: string | null
+          industry_expertise: Json | null
           investment_size: string | null
           is_admin: boolean | null
           is_funded: string | null
@@ -972,6 +975,8 @@ export type Database = {
           revenue_range_min: number | null
           specific_business_search: string | null
           target_company_size: string | null
+          target_deal_size_max: number | null
+          target_deal_size_min: number | null
           target_locations: Json | null
           updated_at: string
           website: string | null
@@ -985,6 +990,7 @@ export type Database = {
           company?: string | null
           company_name?: string | null
           created_at?: string
+          deal_structure_preference?: string | null
           deleted_at?: string | null
           email: string
           email_verified?: boolean
@@ -997,9 +1003,11 @@ export type Database = {
           fund_size?: string | null
           funded_by?: string | null
           funding_source?: string | null
+          geographic_focus?: Json | null
           id: string
           ideal_target?: string | null
           ideal_target_description?: string | null
+          industry_expertise?: Json | null
           investment_size?: string | null
           is_admin?: boolean | null
           is_funded?: string | null
@@ -1016,6 +1024,8 @@ export type Database = {
           revenue_range_min?: number | null
           specific_business_search?: string | null
           target_company_size?: string | null
+          target_deal_size_max?: number | null
+          target_deal_size_min?: number | null
           target_locations?: Json | null
           updated_at?: string
           website?: string | null
@@ -1029,6 +1039,7 @@ export type Database = {
           company?: string | null
           company_name?: string | null
           created_at?: string
+          deal_structure_preference?: string | null
           deleted_at?: string | null
           email?: string
           email_verified?: boolean
@@ -1041,9 +1052,11 @@ export type Database = {
           fund_size?: string | null
           funded_by?: string | null
           funding_source?: string | null
+          geographic_focus?: Json | null
           id?: string
           ideal_target?: string | null
           ideal_target_description?: string | null
+          industry_expertise?: Json | null
           investment_size?: string | null
           is_admin?: boolean | null
           is_funded?: string | null
@@ -1060,6 +1073,8 @@ export type Database = {
           revenue_range_min?: number | null
           specific_business_search?: string | null
           target_company_size?: string | null
+          target_deal_size_max?: number | null
+          target_deal_size_min?: number | null
           target_locations?: Json | null
           updated_at?: string
           website?: string | null
