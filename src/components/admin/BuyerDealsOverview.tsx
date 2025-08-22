@@ -35,10 +35,21 @@ export function BuyerDealsOverview({ requests, currentRequestId }: BuyerDealsOve
       <div className="max-h-48 overflow-y-auto">
         <div className="divide-y divide-border/10">
           {otherRequests.map((request) => (
-            <div key={request.id} className="p-3 hover:bg-muted/30 transition-colors">
+            <a 
+              key={request.id} 
+              href={`/listing/${request.listing_id}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block p-3 hover:bg-muted/30 transition-colors"
+            >
               <div className="flex items-start justify-between gap-2 mb-1">
                 <h4 className="font-medium text-xs text-foreground leading-relaxed flex-1">
                   {request.listing?.title || 'Unknown Listing'}
+                  {request.listing?.internal_company_name && (
+                    <>
+                      /<span className="font-bold">{request.listing.internal_company_name}</span>
+                    </>
+                  )}
                 </h4>
                 <div className="flex items-center gap-1.5 text-xs text-muted-foreground/60 shrink-0">
                   {getStatusIndicator(request.status)}
@@ -49,7 +60,7 @@ export function BuyerDealsOverview({ requests, currentRequestId }: BuyerDealsOve
               <div className="text-xs text-muted-foreground/60">
                 ${request.listing?.revenue?.toLocaleString() || 'N/A'} • {request.listing?.location || 'N/A'}
               </div>
-            </div>
+            </a>
           ))}
         </div>
         
