@@ -452,8 +452,8 @@ function ReactiveRequestCard({
                         <div className="text-xs font-medium text-foreground">{request.user?.buyer_type || 'Not specified'}</div>
                       </div>
                       <div className="space-y-1">
-                        <span className="text-xs text-muted-foreground">Investment Range</span>
-                        <div className="text-xs font-medium text-foreground">{request.user?.investment_range || 'Not specified'}</div>
+                        <span className="text-xs text-muted-foreground">Investment Size</span>
+                        <div className="text-xs font-medium text-foreground">{request.user?.investment_size || 'Not specified'}</div>
                       </div>
                     </div>
                   </div>
