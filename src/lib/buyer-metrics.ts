@@ -5,17 +5,28 @@ import { processUrl } from './url-utils';
 /**
  * Format financial values that are entered as raw numbers but represent millions
  * Users enter "46" to mean "$46M" based on placeholder text
+ * Also handles cases where values are already in millions (like 5,000,000 -> $5M)
  */
 function formatFinancialMillions(value: string | number): string {
   if (!value) return '';
   
-  const numericValue = typeof value === 'number' ? value : parseFloat(value.toString());
+  const numericValue = typeof value === 'number' ? value : parseFloat(value.toString().replace(/,/g, ''));
   if (isNaN(numericValue)) return '';
   
-  // If the value is less than 1000, assume it's in millions
-  // If it's 1000 or more, it's likely already the full amount
-  const finalValue = numericValue < 1000 ? numericValue * 1000000 : numericValue;
-  return formatCurrency(finalValue);
+  // If the value is 1,000,000 or more, it's likely already the full amount - convert to millions
+  if (numericValue >= 1000000) {
+    const millions = numericValue / 1000000;
+    return `$${millions.toFixed(millions % 1 === 0 ? 0 : 1)}M`;
+  }
+  
+  // If the value is less than 1000, assume it's in millions already
+  if (numericValue < 1000) {
+    return `$${numericValue.toFixed(numericValue % 1 === 0 ? 0 : 1)}M`;
+  }
+  
+  // For values between 1000-999999, treat as thousands and convert to millions
+  const millions = numericValue / 1000;
+  return `$${millions.toFixed(millions % 1 === 0 ? 0 : 1)}M`;
 }
 
 // Buyer tier system (1-5, where 1 is highest priority)
@@ -137,7 +148,7 @@ export function getPrimaryMetrics(user: User | null): BuyerMetric[] {
       } else if (user.investment_size) {
         metrics.push({
           label: 'Investment Size',
-          value: formatInvestmentSize(user.investment_size),
+          value: formatFinancialMillions(user.investment_size),
           isPrimary: true,
           completeness: 'partial'
         });
@@ -164,7 +175,7 @@ export function getPrimaryMetrics(user: User | null): BuyerMetric[] {
       if (user.investment_size) {
         metrics.push({
           label: 'Investment Size',
-          value: formatInvestmentSize(user.investment_size),
+          value: formatFinancialMillions(user.investment_size),
           completeness: 'complete'
         });
       }
