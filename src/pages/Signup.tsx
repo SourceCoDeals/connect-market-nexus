@@ -512,30 +512,32 @@ const Signup = () => {
 
             <Separator className="my-6" />
             <div className="text-sm text-muted-foreground mb-4">
-              <strong>Professional Profile (Strongly encouraged)</strong>
+              <strong>Professional Profile (Required)</strong>
               <p className="text-xs mt-1">
-                Owners tell us this is extremely important in helping them see how their business aligns with your unique investment criteria.
+                Owners require this information to evaluate your investment criteria and determine fit.
               </p>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="website">Website</Label>
+              <Label htmlFor="website">Website *</Label>
               <Input
                 id="website"
                 name="website"
                 placeholder="https://www.example.com"
                 value={formData.website}
                 onChange={handleInputChange}
+                required
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="linkedinProfile">LinkedIn Profile</Label>
+              <Label htmlFor="linkedinProfile">LinkedIn Profile *</Label>
               <Input
                 id="linkedinProfile"
                 name="linkedinProfile"
                 placeholder="https://linkedin.com/in/yourprofile"
                 value={formData.linkedinProfile}
                 onChange={handleInputChange}
+                required
               />
             </div>
           </div>
