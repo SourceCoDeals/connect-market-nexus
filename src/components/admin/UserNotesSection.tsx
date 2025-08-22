@@ -56,145 +56,130 @@ export function UserNotesSection({ userId, userName }: UserNotesSectionProps) {
   };
 
   return (
-    <Card className="bg-gradient-to-br from-card/50 to-muted/20 border border-border/50">
-      <CardContent className="p-4">
-        {/* Header with notes count */}
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <div className="p-1 rounded bg-primary/10">
-              <FileText className="h-3 w-3 text-primary" />
-            </div>
-            <h6 className="text-sm font-medium text-foreground">
-              General Notes - {userName} {notes.length > 0 && `(${notes.length})`}
-            </h6>
-          </div>
+    <div className="border border-border/20 rounded-lg bg-background/50">
+      <div className="p-3 border-b border-border/10">
+        <div className="flex items-center justify-between">
+          <h6 className="text-sm font-medium text-foreground flex items-center gap-2">
+            <FileText className="h-4 w-4 text-muted-foreground" />
+            General Notes {notes.length > 0 && `(${notes.length})`}
+          </h6>
           <Button
             size="sm"
-            variant="outline"
+            variant="ghost"
             onClick={() => setIsCreating(true)}
             disabled={isCreating}
-            className="text-xs h-7 px-3 transition-all hover:scale-105"
+            className="text-xs h-6 px-2 hover:bg-muted/50 transition-colors"
           >
-            <Plus className="h-3 w-3 mr-1" />
-            Add Note
+            <Plus className="h-3 w-3" />
           </Button>
         </div>
+      </div>
 
-        {/* Create new note - Always visible when creating */}
-        {isCreating && (
-          <div className="mb-3 p-3 border rounded-lg bg-muted/50 backdrop-blur-sm">
-            <Textarea
-              placeholder="Add a general note about this user..."
-              value={newNoteText}
-              onChange={(e) => setNewNoteText(e.target.value)}
-              className="text-xs min-h-[60px] resize-none mb-2 bg-background/80"
-            />
-            <div className="flex items-center gap-1">
-              <Button
-                size="sm"
-                onClick={handleCreateNote}
-                disabled={createNote.isPending || !newNoteText.trim()}
-                className="text-xs h-6 px-2"
-              >
-                <Save className="h-3 w-3 mr-1" />
-                Save
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => {
-                  setIsCreating(false);
-                  setNewNoteText('');
-                }}
-                className="text-xs h-6 px-2"
-              >
-                <X className="h-3 w-3 mr-1" />
-                Cancel
-              </Button>
-            </div>
+      {/* Create new note */}
+      {isCreating && (
+        <div className="p-3 border-b border-border/10 bg-muted/20">
+          <Textarea
+            placeholder="Add a note about this user..."
+            value={newNoteText}
+            onChange={(e) => setNewNoteText(e.target.value)}
+            className="text-xs min-h-[50px] resize-none mb-2 border-border/20"
+          />
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              onClick={handleCreateNote}
+              disabled={createNote.isPending || !newNoteText.trim()}
+              className="text-xs h-6 px-3"
+            >
+              Save
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => {
+                setIsCreating(false);
+                setNewNoteText('');
+              }}
+              className="text-xs h-6 px-2"
+            >
+              Cancel
+            </Button>
           </div>
-        )}
-
-        {/* Notes list with fixed height and scrolling */}
-        <div className="max-h-[300px] overflow-hidden">
-          <ScrollArea className="h-full">
-            <div className="space-y-2 pr-2">
-              {isLoading ? (
-                <div className="text-xs text-muted-foreground italic p-2">Loading notes...</div>
-              ) : notes.length === 0 ? (
-                <div className="text-xs text-muted-foreground italic p-2 text-center bg-muted/30 rounded border border-dashed">
-                  No notes yet. Add one above to get started.
-                </div>
-              ) : (
-                notes
-                  .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-                  .map((note, index) => {
-                    const isRecent = Date.now() - new Date(note.created_at).getTime() < 24 * 60 * 60 * 1000;
-                    return (
-                      <div 
-                        key={note.id} 
-                        className={`p-2 border rounded-lg bg-background/80 backdrop-blur-sm transition-all hover:shadow-sm ${
-                          isRecent ? 'border-primary/20 bg-primary/5' : 'border-border/50'
-                        }`}
-                      >
-                        {editingNoteId === note.id ? (
-                          <div className="space-y-2">
-                            <Textarea
-                              value={editNoteText}
-                              onChange={(e) => setEditNoteText(e.target.value)}
-                              className="text-xs min-h-[60px] resize-none bg-background"
-                            />
-                            <div className="flex items-center gap-1">
-                              <Button
-                                size="sm"
-                                onClick={() => handleUpdateNote(note.id)}
-                                disabled={updateNote.isPending || !editNoteText.trim()}
-                                className="text-xs h-5 px-2"
-                              >
-                                <Save className="h-2 w-2 mr-1" />
-                                Save
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={cancelEditing}
-                                className="text-xs h-5 px-2"
-                              >
-                                <X className="h-2 w-2 mr-1" />
-                                Cancel
-                              </Button>
-                            </div>
-                          </div>
-                        ) : (
-                          <div>
-                            <div className="flex items-start justify-between gap-2 mb-1">
-                              <p className="text-xs text-foreground flex-1 leading-relaxed">{note.note_text}</p>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => startEditing(note)}
-                                className="text-xs h-4 w-4 p-0 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-muted"
-                                title="Edit note"
-                              >
-                                <Edit className="h-2 w-2" />
-                              </Button>
-                            </div>
-                            <div className={`text-xs ${isRecent ? 'text-primary/80' : 'text-muted-foreground'} flex items-center gap-1`}>
-                              <span className="font-medium">{note.admin_name}</span>
-                              <span>•</span>
-                              <span>{formatDistanceToNow(new Date(note.created_at), { addSuffix: true })}</span>
-                              {isRecent && <span className="text-primary text-[10px] font-medium ml-1">NEW</span>}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })
-              )}
-            </div>
-          </ScrollArea>
         </div>
-      </CardContent>
-    </Card>
+      )}
+
+      {/* Notes list */}
+      <div className="max-h-48 overflow-y-auto">
+        <div className="divide-y divide-border/10">
+          {isLoading ? (
+            <div className="text-xs text-muted-foreground p-3">Loading notes...</div>
+          ) : notes.length === 0 ? (
+            <div className="text-xs text-muted-foreground/60 p-3 text-center">
+              No notes yet
+            </div>
+          ) : (
+            notes
+              .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+              .map((note) => {
+                const isRecent = Date.now() - new Date(note.created_at).getTime() < 24 * 60 * 60 * 1000;
+                return (
+                  <div 
+                    key={note.id} 
+                    className="group p-3 hover:bg-muted/30 transition-colors"
+                  >
+                    {editingNoteId === note.id ? (
+                      <div className="space-y-2">
+                        <Textarea
+                          value={editNoteText}
+                          onChange={(e) => setEditNoteText(e.target.value)}
+                          className="text-xs min-h-[40px] resize-none border-border/20"
+                        />
+                        <div className="flex items-center gap-2">
+                          <Button
+                            size="sm"
+                            onClick={() => handleUpdateNote(note.id)}
+                            disabled={updateNote.isPending || !editNoteText.trim()}
+                            className="text-xs h-6 px-2"
+                          >
+                            Save
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={cancelEditing}
+                            className="text-xs h-6 px-2"
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex items-start justify-between gap-2 mb-1">
+                          <p className="text-xs text-foreground leading-relaxed flex-1">{note.note_text}</p>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => startEditing(note)}
+                            className="h-4 w-4 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <Edit className="h-3 w-3" />
+                          </Button>
+                        </div>
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground/60">
+                          <span className="font-medium">{note.admin_name}</span>
+                          <span>•</span>
+                          <span>{formatDistanceToNow(new Date(note.created_at), { addSuffix: true })}</span>
+                          {isRecent && <span className="text-primary text-[10px] font-medium ml-1">NEW</span>}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                );
+              })
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
