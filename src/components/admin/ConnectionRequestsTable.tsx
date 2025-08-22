@@ -45,19 +45,29 @@ const formatListingForDisplay = (title: string, companyName?: string | null): st
   return title;
 };
 
-// Enhanced company name formatting with real company in bold
-const formatEnhancedCompanyName = (title: string, companyName?: string | null) => {
-  if (companyName && companyName.trim()) {
-    const parts = title.split('/');
-    const realCompany = companyName.trim();
-    
+// Enhanced company name formatting with real company in bold and clickable listing
+const formatEnhancedCompanyName = (title: string, companyName?: string | null, listingId?: string) => {
+  const content = companyName && companyName.trim() ? (
+    <span>
+      {title.split('/')[0]}/<span className="font-semibold">{companyName.trim()}</span>
+    </span>
+  ) : (
+    <span>{title}</span>
+  );
+
+  if (listingId) {
     return (
-      <span>
-        {parts[0]}/<span className="font-semibold">{realCompany}</span>
-      </span>
+      <button
+        onClick={() => window.open(`/listing/${listingId}`, '_blank')}
+        className="text-left hover:text-primary transition-colors group"
+      >
+        {content}
+        <ExternalLink className="h-3 w-3 ml-1 inline opacity-0 group-hover:opacity-100 transition-opacity" />
+      </button>
     );
   }
-  return <span>{title}</span>;
+
+  return content;
 };
 
 // Buyer type abbreviations
@@ -322,21 +332,7 @@ function ReactiveRequestCard({
                  </div>
                   <div className="flex items-center gap-2">
                     <Building2 className="h-3 w-3" />
-                    <div className="flex items-center gap-2">
-                      {formatEnhancedCompanyName(request.listing?.title || "", request.listing?.internal_company_name)}
-                      <span className="text-muted-foreground/60">•</span>
-                      <button
-                        onClick={() => {
-                          if (request.listing?.id) {
-                            window.open(`/listing/${request.listing.id}`, '_blank');
-                          }
-                        }}
-                        className="text-primary hover:text-primary/80 transition-colors text-xs flex items-center gap-1 group"
-                      >
-                        View Listing
-                        <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
-                      </button>
-                    </div>
+                    {formatEnhancedCompanyName(request.listing?.title || "", request.listing?.internal_company_name, request.listing?.id)}
                   </div>
                </div>
             </div>
