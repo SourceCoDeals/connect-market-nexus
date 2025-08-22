@@ -34,6 +34,8 @@ import { getAdminProfile } from "@/lib/admin-profiles";
 import { useUpdateConnectionRequestStatus } from "@/hooks/admin/use-connection-request-status";
 import { useAdminProfiles } from '@/hooks/admin/use-admin-profiles';
 import { EnhancedBuyerProfile } from './EnhancedBuyerProfile';
+import { getBuyerTier } from '@/lib/buyer-metrics';
+import { processUrl } from '@/lib/url-utils';
 
 // Helper function to format listing display name (Title/Company Name)
 const formatListingForDisplay = (title: string, companyName?: string | null): string => {
@@ -41,6 +43,45 @@ const formatListingForDisplay = (title: string, companyName?: string | null): st
     return `${title}/${companyName}`;
   }
   return title;
+};
+
+// Enhanced company name formatting with real company in bold
+const formatEnhancedCompanyName = (title: string, companyName?: string | null) => {
+  if (companyName && companyName.trim()) {
+    const parts = title.split('/');
+    const realCompany = companyName.trim();
+    
+    return (
+      <span>
+        {parts[0]}/<span className="font-semibold">{realCompany}</span>
+      </span>
+    );
+  }
+  return <span>{title}</span>;
+};
+
+// Tier Badge Component
+const TierBadge = ({ user }: { user: any }) => {
+  const tierInfo = getBuyerTier(user);
+  
+  const getTierColor = (tier: number) => {
+    switch (tier) {
+      case 5: return 'text-emerald-700 bg-emerald-50 border-emerald-200';
+      case 4: return 'text-blue-700 bg-blue-50 border-blue-200';
+      case 3: return 'text-amber-700 bg-amber-50 border-amber-200';
+      case 2: return 'text-orange-700 bg-orange-50 border-orange-200';
+      default: return 'text-gray-700 bg-gray-50 border-gray-200';
+    }
+  };
+  
+  return (
+    <Badge 
+      variant="outline" 
+      className={`text-xs ${getTierColor(tierInfo.tier)} px-2 py-0.5`}
+    >
+      {tierInfo.badge} {user?.buyer_type || 'Buyer'}
+    </Badge>
+  );
 };
 
 // Decision Details Component
@@ -239,20 +280,41 @@ function ReactiveRequestCard({
           {/* Header */}
           <div className="flex items-start justify-between">
             <div className="space-y-2">
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 flex-wrap">
                 <h3 className="font-semibold">
                   {request.user?.first_name} {request.user?.last_name}
                 </h3>
+                <TierBadge user={request.user} />
                 <StatusBadge status={request.status} />
               </div>
               <div className="text-sm text-muted-foreground space-y-1">
                 <div className="flex items-center gap-2">
                   <Mail className="h-3 w-3" />
-                  {request.user?.email}
+                  <a 
+                    href={`mailto:${request.user?.email}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hover:text-primary transition-colors flex items-center gap-1 group"
+                  >
+                    {request.user?.email}
+                    <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </a>
                 </div>
                 <div className="flex items-center gap-2">
                   <Building2 className="h-3 w-3" />
-                  {formatListingForDisplay(request.listing?.title || "", request.listing?.internal_company_name)}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {formatEnhancedCompanyName(request.listing?.title || "", request.listing?.internal_company_name)}
+                    {request.user?.website && (
+                      <a
+                        href={processUrl(request.user.website)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary hover:text-primary/80 transition-colors ml-1"
+                      >
+                        <ExternalLink className="h-3 w-3" />
+                      </a>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
