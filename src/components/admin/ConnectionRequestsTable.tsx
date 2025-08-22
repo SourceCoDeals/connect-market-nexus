@@ -60,27 +60,32 @@ const formatEnhancedCompanyName = (title: string, companyName?: string | null) =
   return <span>{title}</span>;
 };
 
-// Tier Badge Component
-const TierBadge = ({ user }: { user: any }) => {
+// Buyer type abbreviations
+const getBuyerTypeAbbreviation = (buyerType: string): string => {
+  switch (buyerType) {
+    case 'privateEquity': return 'PE';
+    case 'familyOffice': return 'FO';
+    case 'searchFund': return 'SF';
+    case 'corporate': return 'Corp';
+    case 'individual': return 'Individual';
+    default: return 'Buyer';
+  }
+};
+
+// Clean Tier Display Component (Apple/Stripe style)
+const CleanTierDisplay = ({ user }: { user: any }) => {
   const tierInfo = getBuyerTier(user);
-  
-  const getTierColor = (tier: number) => {
-    switch (tier) {
-      case 5: return 'text-emerald-700 bg-emerald-50 border-emerald-200';
-      case 4: return 'text-blue-700 bg-blue-50 border-blue-200';
-      case 3: return 'text-amber-700 bg-amber-50 border-amber-200';
-      case 2: return 'text-orange-700 bg-orange-50 border-orange-200';
-      default: return 'text-gray-700 bg-gray-50 border-gray-200';
-    }
-  };
+  const buyerTypeAbbrev = getBuyerTypeAbbreviation(user?.buyer_type || '');
   
   return (
-    <Badge 
-      variant="outline" 
-      className={`text-xs ${getTierColor(tierInfo.tier)} px-2 py-0.5`}
-    >
-      {tierInfo.badge} {user?.buyer_type || 'Buyer'}
-    </Badge>
+    <div className="flex items-center gap-1.5">
+      <span className={`text-xs font-medium ${tierInfo.color} px-1.5 py-0.5 rounded-sm bg-background border border-current/20`}>
+        {tierInfo.badge}
+      </span>
+      <span className="text-xs font-medium text-muted-foreground">
+        {buyerTypeAbbrev}
+      </span>
+    </div>
   );
 };
 
@@ -284,39 +289,42 @@ function ReactiveRequestCard({
                 <h3 className="font-semibold">
                   {request.user?.first_name} {request.user?.last_name}
                 </h3>
-                <TierBadge user={request.user} />
+                <CleanTierDisplay user={request.user} />
                 <StatusBadge status={request.status} />
               </div>
-              <div className="text-sm text-muted-foreground space-y-1">
-                <div className="flex items-center gap-2">
-                  <Mail className="h-3 w-3" />
-                  <a 
-                    href={`mailto:${request.user?.email}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="hover:text-primary transition-colors flex items-center gap-1 group"
-                  >
-                    {request.user?.email}
-                    <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
-                  </a>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Building2 className="h-3 w-3" />
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {formatEnhancedCompanyName(request.listing?.title || "", request.listing?.internal_company_name)}
-                    {request.user?.website && (
-                      <a
-                        href={processUrl(request.user.website)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-primary hover:text-primary/80 transition-colors ml-1"
-                      >
-                        <ExternalLink className="h-3 w-3" />
-                      </a>
-                    )}
-                  </div>
-                </div>
-              </div>
+               <div className="text-sm text-muted-foreground space-y-1">
+                 <div className="flex items-center gap-2">
+                   <Mail className="h-3 w-3" />
+                   <div className="flex items-center gap-2">
+                     <a 
+                       href={`mailto:${request.user?.email}`}
+                       target="_blank"
+                       rel="noopener noreferrer"
+                       className="hover:text-primary transition-colors flex items-center gap-1 group"
+                     >
+                       {request.user?.email}
+                       <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                     </a>
+                     {request.user?.website && (
+                       <span className="text-muted-foreground/60">•</span>
+                     )}
+                     {request.user?.website && (
+                       <a
+                         href={processUrl(request.user.website)}
+                         target="_blank"
+                         rel="noopener noreferrer"
+                         className="text-primary hover:text-primary/80 transition-colors text-xs"
+                       >
+                         Website
+                       </a>
+                     )}
+                   </div>
+                 </div>
+                 <div className="flex items-center gap-2">
+                   <Building2 className="h-3 w-3" />
+                   {formatEnhancedCompanyName(request.listing?.title || "", request.listing?.internal_company_name)}
+                 </div>
+               </div>
             </div>
             
             <div className="flex items-center gap-2">
