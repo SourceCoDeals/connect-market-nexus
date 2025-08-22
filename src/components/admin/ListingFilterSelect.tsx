@@ -14,30 +14,28 @@ const formatListingForDropdown = (title: string, companyName?: string | null): s
   if (companyName && companyName.trim()) {
     return `${companyName} - ${title}`;
   }
-  return ""; // Return empty if no company name (won't show in dropdown)
+  return title; // Show just the title if no company name
 };
 
 export function ListingFilterSelect({ requests, selectedListingId, onListingChange }: ListingFilterSelectProps) {
-  // Extract unique listings from requests with counts (only show those with company names)
+  // Extract unique listings from requests with counts (show all listings regardless of company name)
   const getUniqueListings = () => {
     const listingMap = new Map();
     
     requests.forEach(request => {
-      if (request.listing?.id && request.listing.internal_company_name?.trim()) {
+      if (request.listing?.id && request.listing?.title) {
         const existing = listingMap.get(request.listing.id);
         if (existing) {
           existing.count++;
         } else {
           const displayName = formatListingForDropdown(request.listing.title, request.listing.internal_company_name);
-          if (displayName) { // Only add if we have a proper display name
-            listingMap.set(request.listing.id, {
-              id: request.listing.id,
-              title: request.listing.title,
-              internal_company_name: request.listing.internal_company_name,
-              displayName,
-              count: 1
-            });
-          }
+          listingMap.set(request.listing.id, {
+            id: request.listing.id,
+            title: request.listing.title,
+            internal_company_name: request.listing.internal_company_name,
+            displayName,
+            count: 1
+          });
         }
       }
     });
