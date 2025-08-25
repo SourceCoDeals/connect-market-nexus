@@ -49,7 +49,9 @@ export function EnhancedUserManagement({
       familyOffice: ['fund_size', 'aum'],
       searchFund: ['is_funded', 'target_company_size'],
       individual: ['funding_source'],
-      independentSponsor: ['investment_size', 'target_deal_size_min', 'target_deal_size_max', 'geographic_focus', 'industry_expertise', 'deal_structure_preference']
+      independentSponsor: ['investment_size', 'target_deal_size_min', 'target_deal_size_max', 'geographic_focus', 'industry_expertise', 'deal_structure_preference'],
+      advisor: ['on_behalf_of_buyer', 'buyer_role', 'mandate_blurb'],
+      businessOwner: ['owner_intent', 'owner_timeline']
     };
 
     const allFields = [
@@ -317,7 +319,7 @@ export function EnhancedUserManagement({
                 <Label>Buyer Type</Label>
                 <Select value={buyerTypeFilter} onValueChange={setBuyerTypeFilter}>
                   <SelectTrigger>
-                    <SelectValue />
+                    <SelectValue placeholder="Select buyer type" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Types</SelectItem>
@@ -327,6 +329,8 @@ export function EnhancedUserManagement({
                     <SelectItem value="searchFund">Search Fund</SelectItem>
                     <SelectItem value="individual">Individual</SelectItem>
                     <SelectItem value="independentSponsor">Independent Sponsor</SelectItem>
+                    <SelectItem value="advisor">Advisor / Banker</SelectItem>
+                    <SelectItem value="businessOwner">Business Owner</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

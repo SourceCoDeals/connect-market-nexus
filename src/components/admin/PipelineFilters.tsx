@@ -31,7 +31,7 @@ import {
 import { AdminConnectionRequest } from "@/types/admin";
 
 export type StatusFilter = 'all' | 'pending' | 'approved' | 'rejected' | 'on_hold';
-export type BuyerTypeFilter = 'all' | 'privateEquity' | 'familyOffice' | 'searchFund' | 'corporate' | 'individual' | 'independentSponsor';
+export type BuyerTypeFilter = 'all' | 'privateEquity' | 'familyOffice' | 'searchFund' | 'corporate' | 'individual' | 'independentSponsor' | 'advisor' | 'businessOwner';
 export type SortOption = 'newest' | 'oldest' | 'buyer_priority' | 'deal_size' | 'approval_date';
 
 interface PipelineFiltersProps {
@@ -72,6 +72,8 @@ export function PipelineFilters({
     corporate: requests.filter(r => r.user?.buyer_type === 'corporate').length,
     individual: requests.filter(r => r.user?.buyer_type === 'individual').length,
     independentSponsor: requests.filter(r => r.user?.buyer_type === 'independentSponsor').length,
+    advisor: requests.filter(r => r.user?.buyer_type === 'advisor').length,
+    businessOwner: requests.filter(r => r.user?.buyer_type === 'businessOwner').length,
   };
 
   const statusOptions = [
@@ -90,6 +92,8 @@ export function PipelineFilters({
     { value: 'corporate', label: 'Corporate', count: buyerTypeCounts.corporate },
     { value: 'individual', label: 'Individual', count: buyerTypeCounts.individual },
     { value: 'independentSponsor', label: 'Independent Sponsor', count: buyerTypeCounts.independentSponsor },
+    { value: 'advisor', label: 'Advisor / Banker', count: buyerTypeCounts.advisor },
+    { value: 'businessOwner', label: 'Business Owner', count: buyerTypeCounts.businessOwner },
   ] as const;
 
   const sortOptions = [

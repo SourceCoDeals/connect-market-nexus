@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { AdminConnectionRequest } from '@/types/admin';
 
 export type StatusFilter = 'all' | 'pending' | 'approved' | 'rejected' | 'on_hold';
-export type BuyerTypeFilter = 'all' | 'privateEquity' | 'familyOffice' | 'searchFund' | 'corporate' | 'individual' | 'independentSponsor';
+export type BuyerTypeFilter = 'all' | 'privateEquity' | 'familyOffice' | 'searchFund' | 'corporate' | 'individual' | 'independentSponsor' | 'advisor' | 'businessOwner';
 export type SortOption = 'newest' | 'oldest' | 'buyer_priority' | 'deal_size' | 'approval_date';
 
 export function usePipelineFilters(requests: AdminConnectionRequest[]) {
@@ -16,9 +16,10 @@ export function usePipelineFilters(requests: AdminConnectionRequest[]) {
       case 'privateEquity': return 6;
       case 'independentSponsor': return 5;
       case 'familyOffice': return 4;
-      case 'searchFund': return 3;
-      case 'corporate': return 2;
+      case 'corporate': return 3;
+      case 'businessOwner': return 2;
       case 'individual': return 1;
+      case 'advisor': return 1;
       default: return 0;
     }
   };

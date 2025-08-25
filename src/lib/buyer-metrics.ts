@@ -78,11 +78,20 @@ export function getBuyerTier(user: User | null): BuyerTierInfo {
       }
       return { tier: 2, badge: '2', color: 'text-blue-600', description: 'Family Office' };
       
+    case 'independentSponsor':
+      return { tier: 2, badge: '2', color: 'text-purple-600', description: 'Independent Sponsor' };
+      
     case 'corporate':
       return { tier: 3, badge: '3', color: 'text-amber-600', description: 'Corporate' };
       
+    case 'advisor':
+      return { tier: 4, badge: '4', color: 'text-teal-600', description: 'Advisor/Banker' };
+      
     case 'searchFund':
       return { tier: 4, badge: '4', color: 'text-orange-600', description: 'Search Fund' };
+      
+    case 'businessOwner':
+      return { tier: 5, badge: '5', color: 'text-gray-600', description: 'Business Owner' };
       
     case 'individual':
       return { tier: 5, badge: '5', color: 'text-gray-600', description: 'Individual' };
@@ -188,6 +197,38 @@ export function getPrimaryMetrics(user: User | null): BuyerMetric[] {
       }
       break;
 
+    case 'independentSponsor':
+      if (user.committed_equity_band) {
+        metrics.push({
+          label: 'Committed Equity',
+          value: user.committed_equity_band,
+          isPrimary: true,
+          completeness: 'complete'
+        });
+      }
+      if (Array.isArray(user.equity_source) && user.equity_source.length > 0) {
+        metrics.push({
+          label: 'Equity Sources',
+          value: user.equity_source.join(', '),
+          completeness: 'complete'
+        });
+      }
+      if (user.target_deal_size_min || user.target_deal_size_max) {
+        metrics.push({
+          label: 'Target Deal Size',
+          value: formatFinancialRange(user.target_deal_size_min || 0, user.target_deal_size_max || 0),
+          completeness: 'complete'
+        });
+      }
+      if (user.backers_summary) {
+        metrics.push({
+          label: 'Backers',
+          value: user.backers_summary,
+          completeness: 'partial'
+        });
+      }
+      break;
+
     case 'corporate':
       // Display Company Revenue → Target Range → Company Link
       if (user.estimated_revenue) {
@@ -203,6 +244,40 @@ export function getPrimaryMetrics(user: User | null): BuyerMetric[] {
           label: 'Target Range',
           value: formatRevenueRange(user.revenue_range_min, user.revenue_range_max),
           completeness: 'complete'
+        });
+      }
+      break;
+
+    case 'advisor':
+      if (user.on_behalf_of_buyer) {
+        metrics.push({
+          label: 'On Behalf Of',
+          value: user.on_behalf_of_buyer,
+          isPrimary: true,
+          completeness: 'complete'
+        });
+      }
+      if (user.buyer_role) {
+        metrics.push({
+          label: 'Role',
+          value: user.buyer_role,
+          completeness: 'complete'
+        });
+      }
+      if (user.buyer_org_url) {
+        metrics.push({
+          label: 'Org Website',
+          value: 'Visit',
+          isClickable: true,
+          href: processUrl(user.buyer_org_url),
+          completeness: 'complete'
+        });
+      }
+      if (user.mandate_blurb) {
+        metrics.push({
+          label: 'Mandate',
+          value: user.mandate_blurb,
+          completeness: 'partial'
         });
       }
       break;
@@ -228,6 +303,31 @@ export function getPrimaryMetrics(user: User | null): BuyerMetric[] {
         metrics.push({
           label: 'Target Size',
           value: user.target_company_size,
+          completeness: 'complete'
+        });
+      }
+      break;
+
+    case 'businessOwner':
+      if (user.owner_intent) {
+        metrics.push({
+          label: 'Intent',
+          value: user.owner_intent,
+          isPrimary: true,
+          completeness: 'complete'
+        });
+      }
+      if (user.owner_timeline) {
+        metrics.push({
+          label: 'Timeline',
+          value: user.owner_timeline,
+          completeness: 'complete'
+        });
+      }
+      if (user.revenue_range_min || user.revenue_range_max) {
+        metrics.push({
+          label: 'Target Range',
+          value: formatRevenueRange(user.revenue_range_min, user.revenue_range_max),
           completeness: 'complete'
         });
       }
@@ -303,9 +403,24 @@ export function getDataCompleteness(user: User | null): number {
       if (user.estimated_revenue) score += 2;
       total += 2;
       break;
+    case 'independentSponsor':
+      if (user.committed_equity_band || (Array.isArray(user.equity_source) && user.equity_source.length > 0)) score += 2;
+      if (user.target_deal_size_min || user.target_deal_size_max) score += 1;
+      total += 3;
+      break;
+    case 'advisor':
+      if (user.on_behalf_of_buyer && user.buyer_role) score += 2;
+      if (user.buyer_org_url) score += 1;
+      total += 3;
+      break;
     case 'searchFund':
       if (user.is_funded) score += 2;
       if (user.target_company_size) score += 1;
+      total += 3;
+      break;
+    case 'businessOwner':
+      if (user.owner_intent) score += 2;
+      if (user.owner_timeline) score += 1;
       total += 3;
       break;
     case 'individual':
