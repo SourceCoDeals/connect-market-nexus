@@ -51,31 +51,19 @@ export interface CustomInvestmentThesis {
 
 // Standardized geographic regions
 export const STANDARDIZED_LOCATIONS = [
+  'All Locations',
+  'North America',
   'United States',
-  'Northeast US',
-  'Southeast US', 
-  'Southwest US',
-  'West Coast US',
-  'Northwest US',
-  'Pacific Northwest US',
+  'Canada',
+  'Northeast US', 
+  'Southeast US',
   'Midwest US',
-  'Mountain West US',
-  'Great Lakes Region',
-  'California',
-  'Texas',
-  'New York',
-  'Florida',
-  'Eastern Canada',
-  'Western Canada',
-  'Ontario',
-  'Quebec',
-  'British Columbia',
-  'United Kingdom',
-  'Western Europe',
-  'Eastern Europe',
+  'Southwest US',
+  'Western US',
+  'Europe',
+  'United Kingdom', 
   'Asia Pacific',
-  'Australia/New Zealand',
-  'International'
+  'Global/International'
 ] as const;
 
 export type StandardizedLocation = typeof STANDARDIZED_LOCATIONS[number];
@@ -579,45 +567,39 @@ export function mapToStandardizedLocation(location: string): StandardizedLocatio
   if (/southeast|south east|florida|georgia|carolina|virginia|tennessee|kentucky|alabama|mississippi|louisiana|arkansas/i.test(lowerLocation)) {
     return 'Southeast US';
   }
-  if (/southwest|south west|texas|arizona|new mexico|nevada|utah|colorado/i.test(lowerLocation)) {
+  if (/southwest|south west|texas|arizona|new mexico|oklahoma/i.test(lowerLocation)) {
     return 'Southwest US';
   }
-  if (/west coast|california|oregon|washington|seattle|san francisco|los angeles|portland/i.test(lowerLocation)) {
-    return 'West Coast US';
+  if (/west|western|california|oregon|washington|seattle|san francisco|los angeles|portland|nevada|utah|colorado/i.test(lowerLocation)) {
+    return 'Western US';
   }
   if (/midwest|illinois|indiana|ohio|michigan|wisconsin|minnesota|iowa|missouri|kansas|nebraska|north dakota|south dakota/i.test(lowerLocation)) {
     return 'Midwest US';
   }
-  if (/mountain|montana|wyoming|idaho/i.test(lowerLocation)) {
-    return 'Mountain West US';
-  }
   
-  // Canada
-  if (/ontario|quebec|atlantic|maritime|toronto|montreal|ottawa/i.test(lowerLocation)) {
-    return 'Eastern Canada';
+  // North America
+  if (/united states|usa|america/i.test(lowerLocation)) {
+    return 'United States';
   }
-  if (/alberta|british columbia|saskatchewan|manitoba|calgary|vancouver|edmonton/i.test(lowerLocation)) {
-    return 'Western Canada';
+  if (/canada|canadian/i.test(lowerLocation)) {
+    return 'Canada';
+  }
+  if (/north america|north american/i.test(lowerLocation)) {
+    return 'North America';
   }
   
   // International
   if (/united kingdom|uk|england|scotland|wales|london|manchester|birmingham/i.test(lowerLocation)) {
     return 'United Kingdom';
   }
-  if (/germany|france|netherlands|belgium|spain|italy|switzerland|austria|denmark|sweden|norway/i.test(lowerLocation)) {
-    return 'Western Europe';
+  if (/europe|european|germany|france|netherlands|belgium|spain|italy|switzerland|austria|denmark|sweden|norway|poland|czech|hungary/i.test(lowerLocation)) {
+    return 'Europe';
   }
-  if (/poland|czech|hungary|romania|bulgaria|croatia|slovenia|slovakia/i.test(lowerLocation)) {
-    return 'Eastern Europe';
-  }
-  if (/australia|new zealand|sydney|melbourne|auckland/i.test(lowerLocation)) {
-    return 'Australia/New Zealand';
-  }
-  if (/asia|japan|china|singapore|hong kong|south korea|taiwan|india/i.test(lowerLocation)) {
+  if (/asia|asian|japan|china|singapore|hong kong|south korea|taiwan|india|pacific/i.test(lowerLocation)) {
     return 'Asia Pacific';
   }
   
-  return 'International';
+  return 'Global/International';
 }
 
 /**

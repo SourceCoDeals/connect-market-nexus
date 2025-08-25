@@ -90,7 +90,7 @@ export function EnhancedMultiCategorySelect({
       {/* Main Selection */}
       <MultiSelect
         options={options}
-        selected={[]} // Hide selected items from the dropdown
+        selected={value}
         onSelectedChange={onValueChange}
         placeholder={value.length > 0 ? `${value.length} industries selected` : placeholder}
         className={className}
@@ -128,8 +128,15 @@ export function EnhancedMultiCategorySelect({
           <div className="text-sm font-medium text-muted-foreground">Selected ({value.length}):</div>
           <div className="flex flex-wrap gap-1">
             {value.map((category) => (
-              <Badge key={category} variant="secondary" className="text-xs">
+              <Badge key={category} variant="secondary" className="text-xs cursor-pointer hover:bg-secondary/80">
                 {category}
+                <button
+                  onClick={() => onValueChange(value.filter(v => v !== category))}
+                  className="ml-1 hover:text-destructive"
+                  aria-label={`Remove ${category}`}
+                >
+                  ×
+                </button>
               </Badge>
             ))}
           </div>
