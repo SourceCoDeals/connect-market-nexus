@@ -64,6 +64,21 @@ export function createUserObject(profile: any): User {
       nda_email_sent: Boolean(profile.nda_email_sent),
       nda_email_sent_at: profile.nda_email_sent_at || null,
       
+      // Independent Sponsor specific fields
+      target_deal_size_min: profile.target_deal_size_min || null,
+      target_deal_size_max: profile.target_deal_size_max || null,
+      geographic_focus: Array.isArray(profile.geographic_focus) 
+        ? profile.geographic_focus 
+        : typeof profile.geographic_focus === 'string'
+          ? profile.geographic_focus === '' ? [] : [profile.geographic_focus]
+          : [],
+      industry_expertise: Array.isArray(profile.industry_expertise)
+        ? profile.industry_expertise
+        : typeof profile.industry_expertise === 'string'
+          ? profile.industry_expertise === '' ? [] : [profile.industry_expertise]
+          : [],
+      deal_structure_preference: profile.deal_structure_preference || '',
+      
       get firstName() { return this.first_name; },
       get lastName() { return this.last_name; },
       get phoneNumber() { return this.phone_number; },

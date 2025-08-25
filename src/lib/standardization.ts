@@ -41,6 +41,35 @@ export const toStandardLocation = (value?: string) => {
     return 'all';
   }
   
+  // Handle common location synonyms and mappings
+  const synonyms: Record<string, string> = {
+    'northwest': 'Western US',
+    'pacific northwest': 'Western US',
+    'northeast': 'Northeast US', 
+    'new england': 'Northeast US',
+    'southeast': 'Southeast US',
+    'southern us': 'Southeast US',
+    'midwest': 'Midwest US',
+    'midwestern us': 'Midwest US',
+    'southwest': 'Southwest US',
+    'southwestern us': 'Southwest US',
+    'western': 'Western US',
+    'west coast': 'Western US',
+    'east coast': 'Northeast US',
+    'north america': 'North America',
+    'usa': 'United States',
+    'us': 'United States',
+    'uk': 'United Kingdom',
+    'britain': 'United Kingdom',
+    'great britain': 'United Kingdom'
+  };
+  
+  // Check synonyms first
+  const lowerValue = v.toLowerCase();
+  if (synonyms[lowerValue]) {
+    return synonyms[lowerValue];
+  }
+  
   return LOCATION_MAP.get(canonicalize(v)) ?? v;
 };
 

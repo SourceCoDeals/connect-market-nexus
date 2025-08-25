@@ -147,12 +147,31 @@ const UserDetails = ({ user }: { user: User }) => {
                       );
                     }
                     
-                    if (fieldKey === 'revenue_range_min' || fieldKey === 'revenue_range_max') {
+                    if (fieldKey === 'revenue_range_min' || fieldKey === 'revenue_range_max' || fieldKey === 'target_deal_size_min' || fieldKey === 'target_deal_size_max') {
                       const numValue = fieldValue as number;
                       return (
                         <div key={fieldKey}>
                           <span className="text-muted-foreground">{fieldLabel}:</span> 
                           {numValue ? `$${numValue.toLocaleString()}` : '—'}
+                        </div>
+                      );
+                    }
+                    
+                    if (fieldKey === 'geographic_focus' || fieldKey === 'industry_expertise') {
+                      return (
+                        <div key={fieldKey} className="col-span-2">
+                          <span className="text-muted-foreground">{fieldLabel}:</span>
+                          <div className="mt-1">
+                            {fieldValue && Array.isArray(fieldValue) && fieldValue.length > 0 ? (
+                              <div className="flex flex-wrap gap-1">
+                                {fieldValue.map((item, index) => (
+                                  <span key={index} className="text-xs bg-muted px-2 py-1 rounded">
+                                    {item}
+                                  </span>
+                                ))}
+                              </div>
+                            ) : '—'}
+                          </div>
                         </div>
                       );
                     }

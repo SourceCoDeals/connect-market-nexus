@@ -49,7 +49,7 @@ export function EnhancedUserManagement({
       familyOffice: ['fund_size', 'aum'],
       searchFund: ['is_funded', 'target_company_size'],
       individual: ['funding_source'],
-      independentSponsor: ['investment_size', 'geographic_focus', 'industry_expertise', 'deal_structure_preference']
+      independentSponsor: ['investment_size', 'target_deal_size_min', 'target_deal_size_max', 'geographic_focus', 'industry_expertise', 'deal_structure_preference']
     };
 
     const allFields = [
@@ -171,6 +171,13 @@ export function EnhancedUserManagement({
       'Revenue Range Min': user.revenue_range_min || '',
       'Revenue Range Max': user.revenue_range_max || '',
       'Specific Business Search': user.specific_business_search || '',
+      
+      // Independent Sponsor Fields
+      'Target Deal Size Min': user.target_deal_size_min || '',
+      'Target Deal Size Max': user.target_deal_size_max || '',
+      'Geographic Focus': Array.isArray(user.geographic_focus) ? user.geographic_focus.join(';') : '',
+      'Industry Expertise': Array.isArray(user.industry_expertise) ? user.industry_expertise.join(';') : '',
+      'Deal Structure Preference': user.deal_structure_preference || '',
       
       // Metadata
       'Profile Completion': `${calculateProfileCompletion(user)}%`,
