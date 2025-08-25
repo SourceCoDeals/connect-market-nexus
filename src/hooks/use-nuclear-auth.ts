@@ -122,15 +122,44 @@ export function useNuclearAuth() {
     }
   };
 
-  const signup = async (signupData: { email: string; password: string; metadata: any }) => {
-    if (!signupData.email) throw new Error("Email is required");
+  const signup = async (userData: Partial<AppUser>, password: string) => {
+    if (!userData.email) throw new Error("Email is required");
     
     const { data, error } = await supabase.auth.signUp({
-      email: signupData.email,
-      password: signupData.password,
+      email: userData.email,
+      password,
       options: {
         emailRedirectTo: `${window.location.origin}/auth/callback`,
-        data: signupData.metadata
+        data: {
+          first_name: userData.first_name || '',
+          last_name: userData.last_name || '',
+          company: userData.company || '',
+          website: userData.website || '',
+          phone_number: userData.phone_number || '',
+          buyer_type: userData.buyer_type || 'corporate',
+          linkedin_profile: userData.linkedin_profile || '',
+          ideal_target_description: userData.ideal_target_description || '',
+          business_categories: Array.isArray(userData.business_categories) ? userData.business_categories : [],
+          target_locations: Array.isArray(userData.target_locations) ? (userData.target_locations as any) : [],
+          revenue_range_min: typeof userData.revenue_range_min === 'number' 
+            ? userData.revenue_range_min 
+            : parseCurrency(String(userData.revenue_range_min ?? '')),
+          revenue_range_max: typeof userData.revenue_range_max === 'number' 
+            ? userData.revenue_range_max 
+            : parseCurrency(String(userData.revenue_range_max ?? '')),
+          specific_business_search: userData.specific_business_search || '',
+          // Additional fields for different buyer types
+          estimated_revenue: userData.estimated_revenue || '',
+          fund_size: userData.fund_size || '',
+          investment_size: userData.investment_size || '',
+          aum: userData.aum || '',
+          is_funded: userData.is_funded || '',
+          funded_by: userData.funded_by || '',
+          target_company_size: userData.target_company_size || '',
+          funding_source: userData.funding_source || '',
+          needs_loan: userData.needs_loan || '',
+          ideal_target: userData.ideal_target || '',
+        }
       }
     });
     
@@ -142,10 +171,10 @@ export function useNuclearAuth() {
     if (data.user) {
       try {
         const adminNotificationPayload = {
-          first_name: signupData.metadata.first_name || '',
-          last_name: signupData.metadata.last_name || '',
-          email: signupData.email,
-          company: signupData.metadata.company || ''
+          first_name: userData.first_name || '',
+          last_name: userData.last_name || '',
+          email: userData.email,
+          company: userData.company || ''
         };
         
         await supabase.functions.invoke('admin-notification', {

@@ -963,7 +963,7 @@ export type Database = {
           is_admin: boolean | null
           is_funded: string | null
           last_name: string
-          linkedin_profile: string
+          linkedin_profile: string | null
           nda_email_sent: boolean | null
           nda_email_sent_at: string | null
           nda_signed: boolean | null
@@ -979,7 +979,7 @@ export type Database = {
           target_deal_size_min: number | null
           target_locations: Json | null
           updated_at: string
-          website: string
+          website: string | null
         }
         Insert: {
           approval_status?: string
@@ -1012,7 +1012,7 @@ export type Database = {
           is_admin?: boolean | null
           is_funded?: string | null
           last_name: string
-          linkedin_profile: string
+          linkedin_profile?: string | null
           nda_email_sent?: boolean | null
           nda_email_sent_at?: string | null
           nda_signed?: boolean | null
@@ -1028,7 +1028,7 @@ export type Database = {
           target_deal_size_min?: number | null
           target_locations?: Json | null
           updated_at?: string
-          website: string
+          website?: string | null
         }
         Update: {
           approval_status?: string
@@ -1061,7 +1061,7 @@ export type Database = {
           is_admin?: boolean | null
           is_funded?: string | null
           last_name?: string
-          linkedin_profile?: string
+          linkedin_profile?: string | null
           nda_email_sent?: boolean | null
           nda_email_sent_at?: string | null
           nda_signed?: boolean | null
@@ -1077,7 +1077,7 @@ export type Database = {
           target_deal_size_min?: number | null
           target_locations?: Json | null
           updated_at?: string
-          website?: string
+          website?: string | null
         }
         Relationships: []
       }

@@ -7,7 +7,7 @@ interface AuthContextType {
   user: AppUser | null;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
-  signup: (signupData: { email: string; password: string; metadata: any }) => Promise<void>;
+  signup: (userData: Partial<AppUser>, password: string) => Promise<void>;
   updateUserProfile: (data: Partial<AppUser>) => Promise<void>;
   refreshUserProfile: () => Promise<void>;
   isLoading: boolean;
