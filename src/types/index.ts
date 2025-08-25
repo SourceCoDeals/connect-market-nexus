@@ -1,7 +1,7 @@
 
 export type UserRole = 'admin' | 'buyer';
 
-export type BuyerType = 'corporate' | 'privateEquity' | 'familyOffice' | 'searchFund' | 'individual' | 'independentSponsor';
+export type BuyerType = 'corporate' | 'privateEquity' | 'familyOffice' | 'searchFund' | 'individual' | 'independentSponsor' | 'advisor' | 'businessOwner';
 
 export type ApprovalStatus = 'pending' | 'approved' | 'rejected';
 
@@ -51,6 +51,53 @@ export interface User {
   geographic_focus?: string[];
   industry_expertise?: string[];
   deal_structure_preference?: string;
+  
+  // New common fields
+  job_title?: string;
+  
+  // Private Equity fields
+  portfolio_company_addon?: string;
+  deploying_capital_now?: string;
+  
+  // Corporate Development fields
+  owning_business_unit?: string;
+  deal_size_band?: string;
+  integration_plan?: string[];
+  corpdev_intent?: string;
+  
+  // Family Office fields
+  discretion_type?: string;
+  permanent_capital?: boolean;
+  operating_company_targets?: string[];
+  
+  // Independent Sponsor fields (enhanced)
+  committed_equity_band?: string;
+  equity_source?: string[];
+  flex_subXm_ebitda?: boolean;
+  backers_summary?: string;
+  deployment_timing?: string;
+  
+  // Search Fund fields (redesigned)
+  search_type?: string;
+  acq_equity_band?: string;
+  financing_plan?: string[];
+  flex_sub2m_ebitda?: boolean;
+  anchor_investors_summary?: string;
+  search_stage?: string;
+  
+  // Advisor/Banker fields
+  on_behalf_of_buyer?: string;
+  buyer_role?: string;
+  buyer_org_url?: string;
+  mandate_blurb?: string;
+  
+  // Business Owner fields
+  owner_intent?: string;
+  owner_timeline?: string;
+  
+  // Individual Investor fields (enhanced)
+  max_equity_today_band?: string;
+  uses_bank_finance?: string;
   
   // Fee agreement tracking
   fee_agreement_signed?: boolean;

@@ -30,7 +30,7 @@ export const signupFormSchema = z.object({
   firstName: z.string().min(1, 'First name is required'),
   lastName: z.string().min(1, 'Last name is required'),
   company: z.string().min(1, 'Company is required'),
-  buyerType: z.enum(['corporate', 'privateEquity', 'familyOffice', 'searchFund', 'individual']),
+  buyerType: z.enum(['corporate', 'privateEquity', 'familyOffice', 'searchFund', 'individual', 'independentSponsor', 'advisor', 'businessOwner']),
   website: z.string().url('Please enter a valid website URL').optional().or(z.literal('')),
   phone_number: z.string().optional(),
   linkedinProfile: z.string().url('Please enter a valid LinkedIn URL').optional().or(z.literal('')),
@@ -40,20 +40,66 @@ export const signupFormSchema = z.object({
   revenueRangeMin: z.string().optional(),
   revenueRangeMax: z.string().optional(),
   specificBusinessSearch: z.string().optional(),
-  // Corporate fields
+  // New common fields
+  jobTitle: z.string().optional(),
+  
+  // Corporate/PE fields
   estimatedRevenue: z.string().optional(),
-  // Private Equity / Family Office fields
   fundSize: z.string().optional(),
   investmentSize: z.string().optional(),
   aum: z.string().optional(),
-  // Search Fund fields
+  
+  // Private Equity fields
+  portfolioCompanyAddon: z.string().optional(),
+  deployingCapitalNow: z.string().optional(),
+  
+  // Corporate Development fields
+  owningBusinessUnit: z.string().optional(),
+  dealSizeBand: z.string().optional(),
+  integrationPlan: z.array(z.string()).optional(),
+  corpdevIntent: z.string().optional(),
+  
+  // Family Office fields
+  discretionType: z.string().optional(),
+  permanentCapital: z.boolean().optional(),
+  operatingCompanyTargets: z.array(z.string()).optional(),
+  
+  // Independent Sponsor fields
+  committedEquityBand: z.string().optional(),
+  equitySource: z.array(z.string()).optional(),
+  flexSubXmEbitda: z.boolean().optional(),
+  backersSummary: z.string().optional(),
+  deploymentTiming: z.string().optional(),
+  
+  // Search Fund fields (redesigned)
+  searchType: z.string().optional(),
+  acqEquityBand: z.string().optional(),
+  financingPlan: z.array(z.string()).optional(),
+  flexSub2mEbitda: z.boolean().optional(),
+  anchorInvestorsSummary: z.string().optional(),
+  searchStage: z.string().optional(),
+  
+  // Legacy Search Fund fields (keep for compatibility)
   isFunded: z.string().optional(),
   fundedBy: z.string().optional(),
   targetCompanySize: z.string().optional(),
-  // Individual fields
+  
+  // Advisor/Banker fields
+  onBehalfOfBuyer: z.string().optional(),
+  buyerRole: z.string().optional(),
+  buyerOrgUrl: z.string().optional(),
+  mandateBlurb: z.string().optional(),
+  
+  // Business Owner fields
+  ownerIntent: z.string().optional(),
+  ownerTimeline: z.string().optional(),
+  
+  // Individual fields (enhanced)
   fundingSource: z.string().optional(),
   needsLoan: z.string().optional(),
-  idealTarget: z.string().optional()
+  idealTarget: z.string().optional(),
+  maxEquityTodayBand: z.string().optional(),
+  usesBankFinance: z.string().optional()
 }).refine((data) => {
   // Conditional validation for Search Fund
   if (data.buyerType === 'searchFund') {

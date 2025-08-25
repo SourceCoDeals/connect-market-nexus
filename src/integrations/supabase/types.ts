@@ -985,24 +985,39 @@ export type Database = {
       }
       profiles: {
         Row: {
+          acq_equity_band: string | null
+          anchor_investors_summary: string | null
           approval_status: string
           aum: string | null
+          backers_summary: string | null
           bio: string | null
           business_categories: Json | null
+          buyer_org_url: string | null
+          buyer_role: string | null
           buyer_type: string | null
+          committed_equity_band: string | null
           company: string | null
           company_name: string | null
+          corpdev_intent: string | null
           created_at: string
+          deal_size_band: string | null
           deal_structure_preference: string | null
           deleted_at: string | null
+          deploying_capital_now: string | null
+          deployment_timing: string | null
+          discretion_type: string | null
           email: string
           email_verified: boolean
+          equity_source: Json | null
           estimated_revenue: string | null
           fee_agreement_email_sent: boolean | null
           fee_agreement_email_sent_at: string | null
           fee_agreement_signed: boolean | null
           fee_agreement_signed_at: string | null
+          financing_plan: Json | null
           first_name: string
+          flex_sub2m_ebitda: boolean | null
+          flex_subxm_ebitda: boolean | null
           fund_size: string | null
           funded_by: string | null
           funding_source: string | null
@@ -1011,47 +1026,76 @@ export type Database = {
           ideal_target: string | null
           ideal_target_description: string | null
           industry_expertise: Json | null
+          integration_plan: Json | null
           investment_size: string | null
           is_admin: boolean | null
           is_funded: string | null
+          job_title: string | null
           last_name: string
           linkedin_profile: string
+          mandate_blurb: string | null
+          max_equity_today_band: string | null
           nda_email_sent: boolean | null
           nda_email_sent_at: string | null
           nda_signed: boolean | null
           nda_signed_at: string | null
           needs_loan: string | null
+          on_behalf_of_buyer: string | null
           onboarding_completed: boolean | null
+          operating_company_targets: Json | null
+          owner_intent: string | null
+          owner_timeline: string | null
+          owning_business_unit: string | null
+          permanent_capital: boolean | null
           phone_number: string | null
+          portfolio_company_addon: string | null
           revenue_range_max: string | null
           revenue_range_min: string | null
+          search_stage: string | null
+          search_type: string | null
           specific_business_search: string | null
           target_company_size: string | null
           target_deal_size_max: number | null
           target_deal_size_min: number | null
           target_locations: Json | null
           updated_at: string
+          uses_bank_finance: string | null
           website: string
         }
         Insert: {
+          acq_equity_band?: string | null
+          anchor_investors_summary?: string | null
           approval_status?: string
           aum?: string | null
+          backers_summary?: string | null
           bio?: string | null
           business_categories?: Json | null
+          buyer_org_url?: string | null
+          buyer_role?: string | null
           buyer_type?: string | null
+          committed_equity_band?: string | null
           company?: string | null
           company_name?: string | null
+          corpdev_intent?: string | null
           created_at?: string
+          deal_size_band?: string | null
           deal_structure_preference?: string | null
           deleted_at?: string | null
+          deploying_capital_now?: string | null
+          deployment_timing?: string | null
+          discretion_type?: string | null
           email: string
           email_verified?: boolean
+          equity_source?: Json | null
           estimated_revenue?: string | null
           fee_agreement_email_sent?: boolean | null
           fee_agreement_email_sent_at?: string | null
           fee_agreement_signed?: boolean | null
           fee_agreement_signed_at?: string | null
+          financing_plan?: Json | null
           first_name: string
+          flex_sub2m_ebitda?: boolean | null
+          flex_subxm_ebitda?: boolean | null
           fund_size?: string | null
           funded_by?: string | null
           funding_source?: string | null
@@ -1060,47 +1104,76 @@ export type Database = {
           ideal_target?: string | null
           ideal_target_description?: string | null
           industry_expertise?: Json | null
+          integration_plan?: Json | null
           investment_size?: string | null
           is_admin?: boolean | null
           is_funded?: string | null
+          job_title?: string | null
           last_name: string
           linkedin_profile: string
+          mandate_blurb?: string | null
+          max_equity_today_band?: string | null
           nda_email_sent?: boolean | null
           nda_email_sent_at?: string | null
           nda_signed?: boolean | null
           nda_signed_at?: string | null
           needs_loan?: string | null
+          on_behalf_of_buyer?: string | null
           onboarding_completed?: boolean | null
+          operating_company_targets?: Json | null
+          owner_intent?: string | null
+          owner_timeline?: string | null
+          owning_business_unit?: string | null
+          permanent_capital?: boolean | null
           phone_number?: string | null
+          portfolio_company_addon?: string | null
           revenue_range_max?: string | null
           revenue_range_min?: string | null
+          search_stage?: string | null
+          search_type?: string | null
           specific_business_search?: string | null
           target_company_size?: string | null
           target_deal_size_max?: number | null
           target_deal_size_min?: number | null
           target_locations?: Json | null
           updated_at?: string
+          uses_bank_finance?: string | null
           website: string
         }
         Update: {
+          acq_equity_band?: string | null
+          anchor_investors_summary?: string | null
           approval_status?: string
           aum?: string | null
+          backers_summary?: string | null
           bio?: string | null
           business_categories?: Json | null
+          buyer_org_url?: string | null
+          buyer_role?: string | null
           buyer_type?: string | null
+          committed_equity_band?: string | null
           company?: string | null
           company_name?: string | null
+          corpdev_intent?: string | null
           created_at?: string
+          deal_size_band?: string | null
           deal_structure_preference?: string | null
           deleted_at?: string | null
+          deploying_capital_now?: string | null
+          deployment_timing?: string | null
+          discretion_type?: string | null
           email?: string
           email_verified?: boolean
+          equity_source?: Json | null
           estimated_revenue?: string | null
           fee_agreement_email_sent?: boolean | null
           fee_agreement_email_sent_at?: string | null
           fee_agreement_signed?: boolean | null
           fee_agreement_signed_at?: string | null
+          financing_plan?: Json | null
           first_name?: string
+          flex_sub2m_ebitda?: boolean | null
+          flex_subxm_ebitda?: boolean | null
           fund_size?: string | null
           funded_by?: string | null
           funding_source?: string | null
@@ -1109,26 +1182,40 @@ export type Database = {
           ideal_target?: string | null
           ideal_target_description?: string | null
           industry_expertise?: Json | null
+          integration_plan?: Json | null
           investment_size?: string | null
           is_admin?: boolean | null
           is_funded?: string | null
+          job_title?: string | null
           last_name?: string
           linkedin_profile?: string
+          mandate_blurb?: string | null
+          max_equity_today_band?: string | null
           nda_email_sent?: boolean | null
           nda_email_sent_at?: string | null
           nda_signed?: boolean | null
           nda_signed_at?: string | null
           needs_loan?: string | null
+          on_behalf_of_buyer?: string | null
           onboarding_completed?: boolean | null
+          operating_company_targets?: Json | null
+          owner_intent?: string | null
+          owner_timeline?: string | null
+          owning_business_unit?: string | null
+          permanent_capital?: boolean | null
           phone_number?: string | null
+          portfolio_company_addon?: string | null
           revenue_range_max?: string | null
           revenue_range_min?: string | null
+          search_stage?: string | null
+          search_type?: string | null
           specific_business_search?: string | null
           target_company_size?: string | null
           target_deal_size_max?: number | null
           target_deal_size_min?: number | null
           target_locations?: Json | null
           updated_at?: string
+          uses_bank_finance?: string | null
           website?: string
         }
         Relationships: []
