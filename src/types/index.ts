@@ -40,8 +40,8 @@ export interface User {
   ideal_target_description?: string;
   business_categories?: string[];
   target_locations?: string[] | string;
-  revenue_range_min?: number;
-  revenue_range_max?: number;
+  revenue_range_min?: string;
+  revenue_range_max?: string;
   specific_business_search?: string;
   onboarding_completed?: boolean;
   

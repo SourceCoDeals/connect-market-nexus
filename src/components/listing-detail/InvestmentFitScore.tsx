@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatCurrency, calculateLocationMatchScore, calculateIndustryMatchScore } from '@/lib/financial-parser';
+import { parseCurrency } from '@/lib/currency-utils';
 import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -85,8 +86,8 @@ export function InvestmentFitScore({ revenue, ebitda, category, location }: Inve
     let revenueDetails = '';
     
     if (user.revenue_range_min || user.revenue_range_max) {
-      const minRange = user.revenue_range_min || 0;
-      const maxRange = user.revenue_range_max || Infinity;
+      const minRange = user.revenue_range_min ? parseCurrency(String(user.revenue_range_min)) : 0;
+      const maxRange = user.revenue_range_max ? parseCurrency(String(user.revenue_range_max)) : Infinity;
       
       if (revenue >= minRange && revenue <= maxRange) {
         revenueScore = 100;

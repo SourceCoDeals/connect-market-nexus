@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { parseCurrency } from '@/lib/currency-utils';
 
 export interface UserScore {
   user_id: string;
@@ -121,7 +122,7 @@ export function usePredictiveUserIntelligence(daysBack: number = 30) {
         const conversionProbability = viewsScore + savesScore + connectionsScore + sessionScore;
 
         // Calculate lifetime value prediction
-        const revenueRange = (user.revenue_range_max || 1000000) - (user.revenue_range_min || 0);
+        const revenueRange = (user.revenue_range_max ? parseCurrency(String(user.revenue_range_max)) : 1000000) - (user.revenue_range_min ? parseCurrency(String(user.revenue_range_min)) : 0);
         const engagementMultiplier = engagementLevel === 'power_user' ? 1.5 : 
                                    engagementLevel === 'serious_buyer' ? 1.2 : 
                                    engagementLevel === 'browser' ? 0.8 : 0.3;

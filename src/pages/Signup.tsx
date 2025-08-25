@@ -268,9 +268,9 @@ const Signup = () => {
           errors.push("Please select at least one target location");
         }
         if (formData.revenueRangeMin && formData.revenueRangeMax) {
-          const min = parseCurrency(formData.revenueRangeMin);
-          const max = parseCurrency(formData.revenueRangeMax);
-          if (min >= max) {
+          const minIdx = REVENUE_RANGES.findIndex(r => r.value === formData.revenueRangeMin);
+          const maxIdx = REVENUE_RANGES.findIndex(r => r.value === formData.revenueRangeMax);
+          if (minIdx !== -1 && maxIdx !== -1 && minIdx >= maxIdx) {
             errors.push("Maximum revenue must be greater than minimum revenue");
           }
         }
@@ -362,8 +362,8 @@ const Signup = () => {
         ideal_target_description: idealTargetDescription,
         business_categories: businessCategories,
         target_locations: targetLocations as any,
-        revenue_range_min: revenueRangeMin ? parseFloat(revenueRangeMin.replace(/[^0-9.]/g, "")) : undefined,
-        revenue_range_max: revenueRangeMax ? parseFloat(revenueRangeMax.replace(/[^0-9.]/g, "")) : undefined,
+        revenue_range_min: revenueRangeMin || undefined,
+        revenue_range_max: revenueRangeMax || undefined,
         specific_business_search: specificBusinessSearch,
         // Buyer-specific fields
         estimated_revenue: estimatedRevenue,

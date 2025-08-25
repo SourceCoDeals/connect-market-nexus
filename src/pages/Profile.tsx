@@ -91,8 +91,8 @@ const Profile = () => {
       // Normalize currency fields and standardize categories/locations before sending
       const normalizedData = {
         ...formData,
-        revenue_range_min: formData.revenue_range_min ? parseCurrency(String(formData.revenue_range_min)) : null,
-        revenue_range_max: formData.revenue_range_max ? parseCurrency(String(formData.revenue_range_max)) : null,
+        revenue_range_min: formData.revenue_range_min || null,
+        revenue_range_max: formData.revenue_range_max || null,
         // Standardize business categories and target locations
         business_categories: formData.business_categories ? standardizeCategories(formData.business_categories as any) : [],
         target_locations: formData.target_locations ? standardizeLocations(formData.target_locations as any) : [],

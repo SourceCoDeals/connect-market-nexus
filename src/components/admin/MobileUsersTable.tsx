@@ -12,6 +12,7 @@ import { DualNDAToggle } from "./DualNDAToggle";
 import { SimpleNDADialog } from "./SimpleNDADialog";
 import { useLogFeeAgreementEmail } from '@/hooks/admin/use-fee-agreement';
 import { supabase } from '@/integrations/supabase/client';
+import { formatFinancialRange } from '@/lib/buyer-metrics';
 
 interface MobileUsersTableProps {
   users: User[];
@@ -268,14 +269,8 @@ const MobileUserCard = ({
           
           {(user.revenue_range_min || user.revenue_range_max) && (
             <div className="text-sm">
-              <span className="font-medium">Revenue Range:</span> 
-              {user.revenue_range_min && user.revenue_range_max 
-                ? ` $${user.revenue_range_min.toLocaleString()} - $${user.revenue_range_max.toLocaleString()}`
-                : user.revenue_range_min 
-                ? ` $${user.revenue_range_min.toLocaleString()}+`
-                : user.revenue_range_max
-                ? ` Up to $${user.revenue_range_max.toLocaleString()}`
-                : "—"}
+              <span className="font-medium">Revenue Range:</span>{" "}
+              {formatFinancialRange(user.revenue_range_min as any, user.revenue_range_max as any)}
             </div>
           )}
         </div>

@@ -142,12 +142,8 @@ export function useNuclearAuth() {
           ideal_target_description: userData.ideal_target_description || '',
           business_categories: Array.isArray(userData.business_categories) ? standardizeCategories(userData.business_categories) : [],
           target_locations: Array.isArray(userData.target_locations) ? standardizeLocations(userData.target_locations as any) : [],
-          revenue_range_min: typeof userData.revenue_range_min === 'number' 
-            ? userData.revenue_range_min 
-            : parseCurrency(String(userData.revenue_range_min ?? '')),
-          revenue_range_max: typeof userData.revenue_range_max === 'number' 
-            ? userData.revenue_range_max 
-            : parseCurrency(String(userData.revenue_range_max ?? '')),
+          revenue_range_min: (userData.revenue_range_min as any) || '', 
+          revenue_range_max: (userData.revenue_range_max as any) || '',
           specific_business_search: userData.specific_business_search || '',
           // Additional fields for different buyer types
           estimated_revenue: userData.estimated_revenue || '',
