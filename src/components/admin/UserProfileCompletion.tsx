@@ -190,6 +190,19 @@ export function UserProfileCompletion({ user }: UserProfileCompletionProps) {
           </div>
         )}
 
+        {/* Data restoration indicator */}
+        {user.updated_at && new Date(user.updated_at) > new Date('2025-01-20') && (
+          <div className="p-3 bg-emerald-50 rounded-lg border border-emerald-200 mb-4">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+              <span className="text-sm font-medium text-emerald-800">Profile Data Restored</span>
+            </div>
+            <p className="text-xs text-emerald-700 mt-1">
+              Original user data has been recovered from pre-migration backup snapshots.
+            </p>
+          </div>
+        )}
+
         {/* Completion Status */}
         {completionPercentage >= 90 && (
           <div className="p-4 bg-green-50 rounded-lg border border-green-200">

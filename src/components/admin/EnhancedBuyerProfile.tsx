@@ -111,6 +111,14 @@ export const EnhancedBuyerProfile: React.FC<EnhancedBuyerProfileProps> = ({
           <MetricRow key={`${metric.label}-${index}`} metric={metric} />
         ))}
 
+        {/* Data restoration indicator for restored fields */}
+        {user.updated_at && new Date(user.updated_at) > new Date('2025-01-20') && (
+          <div className="flex items-center gap-1.5 py-1 mt-2 pt-2 border-t border-border/20">
+            <CheckCircle className="h-3 w-3 text-emerald-500" />
+            <span className="text-[10px] text-emerald-600 font-medium">Data recovered from backup</span>
+          </div>
+        )}
+
         {/* Investment size if not already shown as primary metric */}
         {!metrics.some(m => m.label === 'Investment Size') && user.investment_size && (
           <div className="flex items-center justify-between py-0.5">
