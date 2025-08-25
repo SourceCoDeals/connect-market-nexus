@@ -66,13 +66,24 @@ export function EnhancedMultiLocationSelect({
   ];
 
   const handleQuickSelect = (locations: string[]) => {
-    // Remove "United States" if selecting all US regions to avoid redundancy
-    let newSelection = [...new Set([...value, ...locations])];
-    if (newSelection.includes('United States') && 
-        ['Northeast US', 'Southeast US', 'Midwest US', 'Southwest US', 'Western US'].some(region => newSelection.includes(region))) {
-      newSelection = newSelection.filter(loc => loc !== 'United States');
-    }
-    onValueChange(newSelection);
+    // Smart selection logic to prevent redundancy
+    let newSelection = [...value];
+    
+    locations.forEach(location => {
+      if (location === 'United States' || location === 'Canada') {
+        // Remove North America if selecting specific countries
+        newSelection = newSelection.filter(v => v !== 'North America');
+      } else if (location === 'North America') {
+        // Remove US/Canada if selecting North America
+        newSelection = newSelection.filter(v => !['United States', 'Canada'].includes(v));
+      }
+      
+      if (!newSelection.includes(location)) {
+        newSelection.push(location);
+      }
+    });
+    
+    onValueChange([...new Set(newSelection)]);
   };
 
   return (

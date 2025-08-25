@@ -256,8 +256,8 @@ const Signup = () => {
       }
       case 3: {
         // Enhanced validation
-        if (!formData.idealTargetDescription.trim() || formData.idealTargetDescription.length < 50) {
-          errors.push("Please provide at least 50 characters describing your ideal targets");
+        if (!formData.idealTargetDescription.trim() || formData.idealTargetDescription.length < 10) {
+          errors.push("Please provide at least 10 characters describing your ideal targets");
         }
         // Business categories validation
         if (formData.businessCategories.length === 0) {
@@ -295,6 +295,9 @@ const Signup = () => {
   const handleNext = () => {
     if (validateStep()) {
       setCurrentStep((prev) => Math.min(prev + 1, steps.length - 1));
+    } else {
+      // Scroll to top to show validation errors
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
@@ -305,7 +308,11 @@ const Signup = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!validateStep()) return;
+    if (!validateStep()) {
+      // Scroll to top to show validation errors
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
     
     setIsSubmitting(true);
     

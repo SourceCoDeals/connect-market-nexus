@@ -61,42 +61,14 @@ export function MultiSelect({
           aria-expanded={open}
           className={cn("w-full justify-between", className)}
         >
-          <div className="flex flex-wrap gap-1">
+          <div className="flex items-center min-w-0">
             {selected.length > 0 ? (
-              selected.map((item) => {
-                const option = options.find((opt) => opt.value === item);
-                return (
-                  <Badge
-                    variant="secondary"
-                    key={item}
-                    className="mr-1 mb-1"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleUnselect(item);
-                    }}
-                  >
-                    {option?.label}
-                    <button
-                      className="ml-1 ring-offset-background rounded-full outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          handleUnselect(item);
-                        }
-                      }}
-                      onMouseDown={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                      }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleUnselect(item);
-                      }}
-                    >
-                      <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
-                    </button>
-                  </Badge>
-                );
-              })
+              <span className="text-sm truncate">
+                {selected.length === 1 
+                  ? options.find(opt => opt.value === selected[0])?.label 
+                  : `${selected.length} selected`
+                }
+              </span>
             ) : (
               <span className="text-muted-foreground">{placeholder}</span>
             )}
