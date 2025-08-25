@@ -106,6 +106,7 @@ export function EnhancedMultiLocationSelect({
           {quickSelectOptions.map((option) => (
             <Button
               key={option.label}
+              type="button"
               variant="outline"
               size="sm"
               onClick={() => handleQuickSelect(option.locations)}
@@ -129,7 +130,7 @@ export function EnhancedMultiLocationSelect({
       {/* Region Definitions Toggle */}
       <Collapsible open={showDescriptions} onOpenChange={setShowDescriptions}>
         <CollapsibleTrigger asChild>
-          <Button variant="ghost" size="sm" className="w-full justify-between text-xs">
+          <Button type="button" variant="ghost" size="sm" className="w-full justify-between text-xs">
             <span className="flex items-center gap-1">
               <Info className="h-3 w-3" />
               Region Definitions & Coverage
@@ -161,6 +162,7 @@ export function EnhancedMultiLocationSelect({
               <Badge key={location} variant="secondary" className="text-xs cursor-pointer hover:bg-secondary/80">
                 {location}
                 <button
+                  type="button"
                   onClick={() => onValueChange(value.filter(v => v !== location))}
                   className="ml-1 hover:text-destructive"
                   aria-label={`Remove ${location}`}

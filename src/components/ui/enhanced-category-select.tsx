@@ -76,6 +76,7 @@ export function EnhancedMultiCategorySelect({
           {quickSelectOptions.map((option) => (
             <Button
               key={option.label}
+              type="button"
               variant="outline"
               size="sm"
               onClick={() => handleQuickSelect(option.categories)}
@@ -99,7 +100,7 @@ export function EnhancedMultiCategorySelect({
       {/* Industry Descriptions Toggle */}
       <Collapsible open={showDescriptions} onOpenChange={setShowDescriptions}>
         <CollapsibleTrigger asChild>
-          <Button variant="ghost" size="sm" className="w-full justify-between text-xs">
+          <Button type="button" variant="ghost" size="sm" className="w-full justify-between text-xs">
             <span className="flex items-center gap-1">
               <Info className="h-3 w-3" />
               Industry Examples & Descriptions
@@ -131,6 +132,7 @@ export function EnhancedMultiCategorySelect({
               <Badge key={category} variant="secondary" className="text-xs cursor-pointer hover:bg-secondary/80">
                 {category}
                 <button
+                  type="button"
                   onClick={() => onValueChange(value.filter(v => v !== category))}
                   className="ml-1 hover:text-destructive"
                   aria-label={`Remove ${category}`}
