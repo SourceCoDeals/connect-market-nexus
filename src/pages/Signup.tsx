@@ -379,9 +379,9 @@ const Signup = () => {
         // Independent sponsor specific fields
         target_deal_size_min: targetDealSizeMin ? parseCurrency(targetDealSizeMin) : undefined,
         target_deal_size_max: targetDealSizeMax ? parseCurrency(targetDealSizeMax) : undefined,
-        geographic_focus: geographicFocus ? [geographicFocus] : undefined,
-        industry_expertise: industryExpertise ? [industryExpertise] : undefined,
-        deal_structure_preference: dealStructurePreference,
+        geographic_focus: Array.isArray(targetLocations) ? targetLocations : [],
+        industry_expertise: industryExpertise ? [industryExpertise] : [],
+        deal_structure_preference: dealStructurePreference || '',
       };
       
       await signup(signupData, formData.password);

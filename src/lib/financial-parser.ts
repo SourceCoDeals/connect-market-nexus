@@ -51,7 +51,6 @@ export interface CustomInvestmentThesis {
 
 // Standardized geographic regions
 export const STANDARDIZED_LOCATIONS = [
-  'All Locations',
   'North America',
   'United States',
   'Canada',
@@ -70,7 +69,6 @@ export type StandardizedLocation = typeof STANDARDIZED_LOCATIONS[number];
 
 // Standardized business categories
 export const STANDARDIZED_CATEGORIES = [
-  'All Industries',
   'Technology & Software',
   'Healthcare & Medical',
   'Finance & Insurance',

@@ -39,7 +39,7 @@ export function EnhancedMultiCategorySelect({
   ];
 
   const allOtherCategories = STANDARDIZED_CATEGORIES.filter(
-    cat => !popularCategories.includes(cat) && cat !== 'All Industries'
+    cat => !popularCategories.includes(cat)
   );
 
   const options = STANDARDIZED_CATEGORIES.map(category => ({

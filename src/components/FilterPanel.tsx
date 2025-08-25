@@ -128,12 +128,12 @@ const FilterPanel = ({
         {/* Category select */}
         <div className="space-y-2">
           <Label htmlFor="category">Category</Label>
-          <Select value={category || 'all'} onValueChange={setCategory}>
+          <Select value={category || ''} onValueChange={setCategory}>
             <SelectTrigger id="category">
               <SelectValue placeholder="All categories" />
             </SelectTrigger>
             <SelectContent className="z-50 bg-background">
-              <SelectItem value="all">All categories</SelectItem>
+              <SelectItem value="">All categories</SelectItem>
               {allCategories.map((cat) => (
                 <SelectItem key={cat} value={cat}>{cat}</SelectItem>
               ))}
@@ -144,12 +144,12 @@ const FilterPanel = ({
         {/* Location select */}
         <div className="space-y-2">
           <Label htmlFor="location">Location</Label>
-          <Select value={location || 'all'} onValueChange={setLocation}>
+          <Select value={location || ''} onValueChange={setLocation}>
             <SelectTrigger id="location">
               <SelectValue placeholder="All locations" />
             </SelectTrigger>
             <SelectContent className="z-50 bg-background">
-              <SelectItem value="all">All locations</SelectItem>
+              <SelectItem value="">All locations</SelectItem>
               {STANDARDIZED_LOCATIONS.map((loc) => (
                 <SelectItem key={loc} value={loc}>{loc}</SelectItem>
               ))}
