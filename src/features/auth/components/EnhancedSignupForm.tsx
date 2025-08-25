@@ -236,8 +236,8 @@ export const EnhancedSignupForm: React.FC = () => {
               <Label>Integration Plan (Optional)</Label>
               <MultiSelect
                 options={INTEGRATION_PLAN_OPTIONS.map(opt => ({ value: opt.value, label: opt.label }))}
-                value={watch('integrationPlan') || []}
-                onValueChange={(value) => setValue('integrationPlan', value)}
+                selected={watch('integrationPlan') || []}
+                onSelectedChange={(selected) => setValue('integrationPlan', selected)}
                 placeholder="Select integration approaches"
               />
               <p className="text-sm text-muted-foreground mt-1">
@@ -310,11 +310,10 @@ export const EnhancedSignupForm: React.FC = () => {
               <Label>Operating Company Targets (Optional)</Label>
               <MultiSelect
                 options={[]}
-                value={watch('operatingCompanyTargets') || []}
-                onValueChange={(value) => setValue('operatingCompanyTargets', value)}
+                selected={watch('operatingCompanyTargets') || []}
+                onSelectedChange={(selected) => setValue('operatingCompanyTargets', selected)}
                 placeholder="Add operating companies this would add onto"
-                allowCustomValues={true}
-                maxItems={3}
+                maxSelected={3}
               />
               <p className="text-sm text-muted-foreground mt-1">
                 If you have an operating company this would add onto, name it (max 3).
@@ -375,8 +374,8 @@ export const EnhancedSignupForm: React.FC = () => {
               <Label>Source of Equity *</Label>
               <MultiSelect
                 options={EQUITY_SOURCE_OPTIONS.map(opt => ({ value: opt.value, label: opt.label }))}
-                value={watch('equitySource') || []}
-                onValueChange={(value) => setValue('equitySource', value)}
+                selected={watch('equitySource') || []}
+                onSelectedChange={(selected) => setValue('equitySource', selected)}
                 placeholder="Select all that apply"
               />
               <p className="text-sm text-muted-foreground mt-1">
@@ -468,8 +467,8 @@ export const EnhancedSignupForm: React.FC = () => {
               <Label>Financing Plan *</Label>
               <MultiSelect
                 options={FINANCING_PLAN_OPTIONS.map(opt => ({ value: opt.value, label: opt.label }))}
-                value={watch('financingPlan') || []}
-                onValueChange={(value) => setValue('financingPlan', value)}
+                selected={watch('financingPlan') || []}
+                onSelectedChange={(selected) => setValue('financingPlan', selected)}
                 placeholder="Select all that apply"
               />
               <p className="text-sm text-muted-foreground mt-1">

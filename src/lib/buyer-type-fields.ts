@@ -10,6 +10,7 @@ export const BUYER_TYPE_FIELD_MAPPINGS = {
     'company',
     'website',
     'linkedin_profile',
+    'job_title',
   ],
   profile: [
     'ideal_target_description',
@@ -25,20 +26,36 @@ export const BUYER_TYPE_FIELD_MAPPINGS = {
   // Buyer-specific fields based on actual signup form
   corporate: [
     'estimated_revenue',
+    'owning_business_unit',
+    'deal_size_band',
+    'integration_plan',
+    'corpdev_intent',
   ],
   privateEquity: [
     'fund_size',
     'investment_size', 
     'aum',
+    'portfolio_company_addon',
+    'deploying_capital_now',
   ],
   familyOffice: [
     'fund_size',
     'investment_size',
     'aum',
+    'discretion_type',
+    'permanent_capital',
+    'operating_company_targets',
   ],
   searchFund: [
+    'search_type',
+    'acq_equity_band',
+    'financing_plan',
+    'flex_sub2m_ebitda',
+    'anchor_investors_summary',
+    'search_stage',
+    // Legacy fields for compatibility
     'is_funded',
-    'funded_by', // Only if is_funded = 'yes'
+    'funded_by',
     'target_company_size',
   ],
   individual: [
