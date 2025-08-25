@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { FilterOptions, Listing, ListingStatus } from '@/types';
 import { withPerformanceMonitoring } from '@/lib/performance-monitor';
 import { useAuth } from '@/context/AuthContext';
+import { toStandardCategory, toStandardLocation } from '@/lib/standardization';
 
 // Fetch listings with filters and pagination
 export const useListings = (filters: FilterOptions = {}) => {
@@ -42,14 +43,31 @@ export const useListings = (filters: FilterOptions = {}) => {
           
           // Apply filters if provided - only apply filters that have actual values
           if (filters.category) {
-            // Check both the old category field and new categories array
-            query = query.or(`category.eq.${filters.category},categories.cs.{${filters.category}}`);
-            // Added category filter
+            // Apply standardization before querying - check both standardized and original values
+            const standardizedCategory = toStandardCategory(filters.category);
+            const categoryQueries = [`category.eq.${filters.category}`, `categories.cs.{${filters.category}}`];
+            
+            // If standardized version is different, also search for that
+            if (standardizedCategory !== filters.category) {
+              categoryQueries.push(`category.eq.${standardizedCategory}`, `categories.cs.{${standardizedCategory}}`);
+            }
+            
+            query = query.or(categoryQueries.join(','));
+            // Added category filter with standardization
           }
           
           if (filters.location) {
-            query = query.eq('location', filters.location);
-            // Added location filter
+            // Apply standardization before querying - check both standardized and original values
+            const standardizedLocation = toStandardLocation(filters.location);
+            const locationQueries = [`location.eq.${filters.location}`];
+            
+            // If standardized version is different, also search for that
+            if (standardizedLocation !== filters.location) {
+              locationQueries.push(`location.eq.${standardizedLocation}`);
+            }
+            
+            query = query.or(locationQueries.join(','));
+            // Added location filter with standardization
           }
           
           if (filters.search) {

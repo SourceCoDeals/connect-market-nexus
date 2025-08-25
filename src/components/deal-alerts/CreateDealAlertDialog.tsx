@@ -13,6 +13,7 @@ import { AlertSuccessOnboarding } from './AlertSuccessOnboarding';
 import { useAuth } from '@/context/AuthContext';
 import { MultiCategorySelect } from '@/components/ui/category-select';
 import { MultiLocationSelect } from '@/components/ui/location-select';
+import { STANDARDIZED_CATEGORIES, STANDARDIZED_LOCATIONS } from '@/lib/financial-parser';
 
 const REVENUE_RANGES = [
   { label: 'Under $1M', min: 0, max: 1000000 },
@@ -49,8 +50,10 @@ export function CreateDealAlertDialog({ trigger }: CreateDealAlertDialogProps) {
   const { data: metadata } = useListingMetadata();
   const { user } = useAuth();
   
-  const categories = metadata?.categories || [];
-  const locations = metadata?.locations || [];
+  // Use standardized constants instead of dynamic metadata for deal alerts
+  // This ensures consistency and reliability across all alerts
+  const categories = STANDARDIZED_CATEGORIES;
+  const locations = STANDARDIZED_LOCATIONS;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
