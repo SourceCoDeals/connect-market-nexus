@@ -16,8 +16,8 @@ const initialState: PaginationState = {
   page: 1,
   perPage: 20,
   search: '',
-  category: '',
-  location: '',
+  category: 'all',
+  location: 'all',
 };
 
 export function useSimplePagination() {
@@ -57,8 +57,8 @@ export function useSimplePagination() {
       ...prev, 
       page: 1, 
       search: '', 
-      category: '', 
-      location: '', 
+      category: 'all', 
+      location: 'all', 
       revenueMin: undefined, 
       revenueMax: undefined, 
       ebitdaMin: undefined, 
