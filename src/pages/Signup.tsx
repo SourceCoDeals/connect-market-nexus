@@ -845,7 +845,6 @@ const Signup = () => {
                 rows={3}
                 value={formData.idealTargetDescription}
                 onChange={(e) => setFormData(prev => ({ ...prev, idealTargetDescription: e.target.value }))}
-                required
               />
             </div>
 
