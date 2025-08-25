@@ -28,24 +28,37 @@ export function EnhancedMultiLocationSelect({
 
   // Group locations for better organization
   const usRegions = [
-    'Northeast US',
-    'Southeast US', 
-    'Midwest US',
-    'Southwest US',
+    'United States',
+    'Northeast US', 
+    'Southeast US',
+    'Southwest US', 
     'West Coast US',
-    'Mountain West US'
+    'Northwest US',
+    'Pacific Northwest US',
+    'Midwest US',
+    'Mountain West US',
+    'Great Lakes Region'
+  ];
+
+  const usStates = [
+    'California',
+    'Texas', 
+    'New York',
+    'Florida'
   ];
 
   const canadaRegions = [
     'Eastern Canada',
-    'Western Canada'
+    'Western Canada',
+    'Ontario',
+    'Quebec', 
+    'British Columbia'
   ];
 
   const broadRegions = [
-    'United States',
     'United Kingdom',
     'Western Europe',
-    'Eastern Europe',
+    'Eastern Europe', 
     'Asia Pacific',
     'Australia/New Zealand',
     'International'
@@ -58,16 +71,24 @@ export function EnhancedMultiLocationSelect({
 
   const quickSelectOptions = [
     {
-      label: 'All US',
-      locations: ['United States']
+      label: 'North America',
+      locations: ['United States', 'Eastern Canada', 'Western Canada']
     },
     {
       label: 'US Regions',
-      locations: usRegions
+      locations: usRegions.slice(1) // Exclude 'United States' as it's already broad
     },
     {
-      label: 'North America',
-      locations: ['United States', 'Eastern Canada', 'Western Canada']
+      label: 'Major US States',
+      locations: usStates
+    },
+    {
+      label: 'Major Markets',
+      locations: ['Northeast US', 'West Coast US', 'California', 'Texas', 'Southeast US']
+    },
+    {
+      label: 'International',
+      locations: ['United Kingdom', 'Western Europe', 'Asia Pacific']
     }
   ];
 
@@ -123,9 +144,9 @@ export function EnhancedMultiLocationSelect({
       {/* Main Selection */}
       <MultiSelect
         options={options}
-        selected={value}
+        selected={[]} // Hide selected items from the dropdown
         onSelectedChange={onValueChange}
-        placeholder={placeholder}
+        placeholder={value.length > 0 ? `${value.length} locations selected` : placeholder}
         className={className}
       />
 

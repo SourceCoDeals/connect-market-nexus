@@ -201,6 +201,14 @@ const Signup = () => {
         if (!formData.phoneNumber) {
           errors.push("Phone number is required");
         }
+        // Website validation - optional but validate format if provided
+        if (formData.website && !formData.website.match(/^https?:\/\/.+/)) {
+          errors.push("Please enter a valid website URL (must start with http:// or https://)");
+        }
+        // LinkedIn validation - optional but validate format if provided
+        if (formData.linkedinProfile && !formData.linkedinProfile.match(/^https?:\/\/(www\.)?linkedin\.com\/.+/)) {
+          errors.push("Please enter a valid LinkedIn URL");
+        }
         break;
       }
       case 2: {
@@ -251,19 +259,12 @@ const Signup = () => {
         if (!formData.idealTargetDescription.trim() || formData.idealTargetDescription.length < 50) {
           errors.push("Please provide at least 50 characters describing your ideal targets");
         }
-        // Business categories validation - at least 1 OR "All Industries"
-        if (formData.businessCategories.length === 0 || 
-            (formData.businessCategories.length === 1 && !formData.businessCategories.includes('All Industries') && formData.businessCategories.length < 2)) {
-          errors.push("Please select at least 2 business categories, or choose 'All Industries'");
+        // Business categories validation
+        if (formData.businessCategories.length === 0) {
+          errors.push("Please select at least one business category");
         }
-        // Website and LinkedIn validation (required)
-        if (!formData.website.trim()) {
-          errors.push("Website is required");
-        }
-        if (!formData.linkedinProfile.trim()) {
-          errors.push("LinkedIn profile is required");
-        }
-          if (formData.targetLocations.length === 0) {
+        // Target locations validation  
+        if (formData.targetLocations.length === 0) {
           errors.push("Please select at least one target location");
         }
         if (formData.revenueRangeMin && formData.revenueRangeMax) {

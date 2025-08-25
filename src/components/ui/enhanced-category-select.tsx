@@ -90,9 +90,9 @@ export function EnhancedMultiCategorySelect({
       {/* Main Selection */}
       <MultiSelect
         options={options}
-        selected={value}
+        selected={[]} // Hide selected items from the dropdown
         onSelectedChange={onValueChange}
-        placeholder={placeholder}
+        placeholder={value.length > 0 ? `${value.length} industries selected` : placeholder}
         className={className}
       />
 
