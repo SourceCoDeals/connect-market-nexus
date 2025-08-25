@@ -1023,8 +1023,8 @@ export type Database = {
           needs_loan: string | null
           onboarding_completed: boolean | null
           phone_number: string | null
-          revenue_range_max: number | null
-          revenue_range_min: number | null
+          revenue_range_max: string | null
+          revenue_range_min: string | null
           specific_business_search: string | null
           target_company_size: string | null
           target_deal_size_max: number | null
@@ -1072,8 +1072,8 @@ export type Database = {
           needs_loan?: string | null
           onboarding_completed?: boolean | null
           phone_number?: string | null
-          revenue_range_max?: number | null
-          revenue_range_min?: number | null
+          revenue_range_max?: string | null
+          revenue_range_min?: string | null
           specific_business_search?: string | null
           target_company_size?: string | null
           target_deal_size_max?: number | null
@@ -1121,8 +1121,8 @@ export type Database = {
           needs_loan?: string | null
           onboarding_completed?: boolean | null
           phone_number?: string | null
-          revenue_range_max?: number | null
-          revenue_range_min?: number | null
+          revenue_range_max?: string | null
+          revenue_range_min?: string | null
           specific_business_search?: string | null
           target_company_size?: string | null
           target_deal_size_max?: number | null
