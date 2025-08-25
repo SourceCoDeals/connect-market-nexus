@@ -17,11 +17,11 @@ async function fetchListings(state: PaginationState) {
     query = query.or(`title.ilike.%${state.search}%,description.ilike.%${state.search}%,category.ilike.%${state.search}%`);
   }
   
-  if (state.category && state.category !== '' && state.category !== 'all') {
+  if (state.category && state.category !== 'all') {
     query = query.eq('category', state.category);
   }
   
-  if (state.location && state.location !== '' && state.location !== 'all') {
+  if (state.location && state.location !== 'all') {
     query = query.eq('location', state.location);
   }
   

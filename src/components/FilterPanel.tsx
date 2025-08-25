@@ -54,8 +54,8 @@ const FilterPanel = ({
   locations = []
 }: FilterPanelProps) => {
   const [searchTerm, setSearchTerm] = useState("");
-  const [category, setCategory] = useState<string>('');
-  const [location, setLocation] = useState<string>('');
+  const [category, setCategory] = useState<string>('all');
+  const [location, setLocation] = useState<string>('all');
   const [revenueRange, setRevenueRange] = useState<string>('any');
   const [ebitdaRange, setEbitdaRange] = useState<string>('any');
   const { trackSearch } = useAnalyticsTracking();
@@ -67,8 +67,8 @@ const FilterPanel = ({
     const filters: FilterOptions = {};
     
     if (searchTerm) filters.search = searchTerm;
-    if (category && category !== '' && category !== 'all') filters.category = category;
-    if (location && location !== '' && location !== 'all') filters.location = location;
+    if (category && category !== 'all') filters.category = category;
+    if (location && location !== 'all') filters.location = location;
     
     // Apply revenue range filter
     if (revenueRange !== 'any') {
@@ -99,8 +99,8 @@ const FilterPanel = ({
 
   const handleResetFilters = () => {
     setSearchTerm("");
-    setCategory('');
-    setLocation('');
+    setCategory('all');
+    setLocation('all');
     setRevenueRange('any');
     setEbitdaRange('any');
   };
@@ -128,12 +128,12 @@ const FilterPanel = ({
         {/* Category select */}
         <div className="space-y-2">
           <Label htmlFor="category">Category</Label>
-          <Select value={category || ''} onValueChange={setCategory}>
+          <Select value={category} onValueChange={setCategory}>
             <SelectTrigger id="category">
               <SelectValue placeholder="All categories" />
             </SelectTrigger>
             <SelectContent className="z-50 bg-background">
-              <SelectItem value="">All categories</SelectItem>
+              <SelectItem value="all">All categories</SelectItem>
               {allCategories.map((cat) => (
                 <SelectItem key={cat} value={cat}>{cat}</SelectItem>
               ))}
@@ -144,12 +144,12 @@ const FilterPanel = ({
         {/* Location select */}
         <div className="space-y-2">
           <Label htmlFor="location">Location</Label>
-          <Select value={location || ''} onValueChange={setLocation}>
+          <Select value={location} onValueChange={setLocation}>
             <SelectTrigger id="location">
               <SelectValue placeholder="All locations" />
             </SelectTrigger>
             <SelectContent className="z-50 bg-background">
-              <SelectItem value="">All locations</SelectItem>
+              <SelectItem value="all">All locations</SelectItem>
               {STANDARDIZED_LOCATIONS.map((loc) => (
                 <SelectItem key={loc} value={loc}>{loc}</SelectItem>
               ))}
