@@ -162,8 +162,8 @@ export function useNuclearAuth() {
           // Independent sponsor specific fields
           target_deal_size_min: userData.target_deal_size_min,
           target_deal_size_max: userData.target_deal_size_max,
-          geographic_focus: userData.geographic_focus,
-          industry_expertise: userData.industry_expertise,
+          geographic_focus: Array.isArray(userData.geographic_focus) ? JSON.stringify(userData.geographic_focus) : userData.geographic_focus,
+          industry_expertise: Array.isArray(userData.industry_expertise) ? JSON.stringify(userData.industry_expertise) : userData.industry_expertise,
           deal_structure_preference: userData.deal_structure_preference || '',
         }
       }

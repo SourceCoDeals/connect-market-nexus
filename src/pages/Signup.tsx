@@ -379,7 +379,7 @@ const Signup = () => {
         // Independent sponsor specific fields
         target_deal_size_min: targetDealSizeMin ? parseCurrency(targetDealSizeMin) : undefined,
         target_deal_size_max: targetDealSizeMax ? parseCurrency(targetDealSizeMax) : undefined,
-        geographic_focus: Array.isArray(targetLocations) ? targetLocations : [],
+        geographic_focus: geographicFocus ? [geographicFocus] : targetLocations || [],
         industry_expertise: industryExpertise ? [industryExpertise] : [],
         deal_structure_preference: dealStructurePreference || '',
       };

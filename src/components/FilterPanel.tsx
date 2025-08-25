@@ -16,10 +16,21 @@ import { toStandardCategory, toStandardLocation } from "@/lib/standardization";
 // Filter panel props
 export interface FilterPanelProps {
   onFilterChange: (filters: FilterOptions) => void;
+  onResetFilters: () => void;
   totalListings: number;
   filteredCount: number;
   categories?: string[];
   locations?: string[];
+  // Current filter values (controlled component)
+  currentFilters: {
+    search: string;
+    category: string;
+    location: string;
+    revenueMin?: number;
+    revenueMax?: number;
+    ebitdaMin?: number;
+    ebitdaMax?: number;
+  };
 }
 
 // Categories now sourced from standardized constants
@@ -48,62 +59,91 @@ const EBITDA_RANGES = [
 
 const FilterPanel = ({
   onFilterChange,
+  onResetFilters,
   totalListings,
   filteredCount,
   categories = [],
-  locations = []
+  locations = [],
+  currentFilters
 }: FilterPanelProps) => {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [category, setCategory] = useState<string>('all');
-  const [location, setLocation] = useState<string>('all');
-  const [revenueRange, setRevenueRange] = useState<string>('any');
-  const [ebitdaRange, setEbitdaRange] = useState<string>('any');
   const { trackSearch } = useAnalyticsTracking();
+
+  // Helper function to get current revenue range label
+  const getCurrentRevenueRange = () => {
+    if (!currentFilters.revenueMin && !currentFilters.revenueMax) return 'Any';
+    const range = REVENUE_RANGES.find(r => {
+      if (!r.value) return false;
+      const minMatch = r.value.min === currentFilters.revenueMin || (r.value.min === null && !currentFilters.revenueMin);
+      const maxMatch = r.value.max === currentFilters.revenueMax || (r.value.max === null && !currentFilters.revenueMax);
+      return minMatch && maxMatch;
+    });
+    return range?.label || 'Any';
+  };
+
+  // Helper function to get current EBITDA range label
+  const getCurrentEbitdaRange = () => {
+    if (!currentFilters.ebitdaMin && !currentFilters.ebitdaMax) return 'Any';
+    const range = EBITDA_RANGES.find(r => {
+      if (!r.value) return false;
+      const minMatch = r.value.min === currentFilters.ebitdaMin || (r.value.min === null && !currentFilters.ebitdaMin);
+      const maxMatch = r.value.max === currentFilters.ebitdaMax || (r.value.max === null && !currentFilters.ebitdaMax);
+      return minMatch && maxMatch;
+    });
+    return range?.label || 'Any';
+  };
 
   const allCategories = STANDARDIZED_CATEGORIES;
 
-  // Update filters when any filter value changes
-  useEffect(() => {
-    const filters: FilterOptions = {};
-    
-    if (searchTerm) filters.search = searchTerm;
-    if (category && category !== 'all') filters.category = category;
-    if (location && location !== 'all') filters.location = location;
-    
-    // Apply revenue range filter
-    if (revenueRange !== 'any') {
-      const range = REVENUE_RANGES.find(r => r.label === revenueRange);
-      if (range?.value) {
-        if (range.value.min !== null) filters.revenueMin = range.value.min;
-        if (range.value.max !== null) filters.revenueMax = range.value.max;
-      }
-    }
-    
-    // Apply EBITDA range filter
-    if (ebitdaRange !== 'any') {
-      const range = EBITDA_RANGES.find(r => r.label === ebitdaRange);
-      if (range?.value) {
-        if (range.value.min !== null) filters.ebitdaMin = range.value.min;
-        if (range.value.max !== null) filters.ebitdaMax = range.value.max;
-      }
-    }
-    
-    // Filter change triggered
-    console.log('🎯 [FILTER PANEL] Calling onFilterChange with filters:', filters);
-    onFilterChange(filters);
+  // Helper functions to handle filter changes
+  const handleSearchChange = (value: string) => {
+    console.log('🎯 [FILTER PANEL] Search change:', value);
+    onFilterChange({ search: value });
     
     // Track search analytics when search term is used
-    if (searchTerm.trim()) {
-      trackSearch(searchTerm, filters, filteredCount, filteredCount === 0);
+    if (value.trim()) {
+      trackSearch(value, { search: value, category: currentFilters.category, location: currentFilters.location }, filteredCount, filteredCount === 0);
     }
-  }, [searchTerm, category, location, revenueRange, ebitdaRange, filteredCount, trackSearch]); // Removed onFilterChange from deps
+  };
+
+  const handleCategoryChange = (value: string) => {
+    console.log('🎯 [FILTER PANEL] Category change:', value);
+    onFilterChange({ category: value });
+  };
+
+  const handleLocationChange = (value: string) => {
+    console.log('🎯 [FILTER PANEL] Location change:', value);
+    onFilterChange({ location: value });
+  };
+
+  const handleRevenueRangeChange = (rangeLabel: string) => {
+    console.log('🎯 [FILTER PANEL] Revenue range change:', rangeLabel);
+    const range = REVENUE_RANGES.find(r => r.label === rangeLabel);
+    if (range?.value) {
+      onFilterChange({ 
+        revenueMin: range.value.min || undefined, 
+        revenueMax: range.value.max || undefined 
+      });
+    } else {
+      onFilterChange({ revenueMin: undefined, revenueMax: undefined });
+    }
+  };
+
+  const handleEbitdaRangeChange = (rangeLabel: string) => {
+    console.log('🎯 [FILTER PANEL] EBITDA range change:', rangeLabel);
+    const range = EBITDA_RANGES.find(r => r.label === rangeLabel);
+    if (range?.value) {
+      onFilterChange({ 
+        ebitdaMin: range.value.min || undefined, 
+        ebitdaMax: range.value.max || undefined 
+      });
+    } else {
+      onFilterChange({ ebitdaMin: undefined, ebitdaMax: undefined });
+    }
+  };
 
   const handleResetFilters = () => {
-    setSearchTerm("");
-    setCategory('all');
-    setLocation('all');
-    setRevenueRange('any');
-    setEbitdaRange('any');
+    console.log('🧹 [FILTER PANEL] Reset button clicked - calling parent resetFilters');
+    onResetFilters();
   };
 
   return (
@@ -121,15 +161,15 @@ const FilterPanel = ({
           <Input
             id="search"
             placeholder="Search listings..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            value={currentFilters.search}
+            onChange={(e) => handleSearchChange(e.target.value)}
           />
         </div>
         
         {/* Category select */}
         <div className="space-y-2">
           <Label htmlFor="category">Category</Label>
-          <Select value={category} onValueChange={setCategory}>
+          <Select value={currentFilters.category} onValueChange={handleCategoryChange}>
             <SelectTrigger id="category">
               <SelectValue placeholder="All categories" />
             </SelectTrigger>
@@ -145,7 +185,7 @@ const FilterPanel = ({
         {/* Location select */}
         <div className="space-y-2">
           <Label htmlFor="location">Location</Label>
-          <Select value={location} onValueChange={setLocation}>
+          <Select value={currentFilters.location} onValueChange={handleLocationChange}>
             <SelectTrigger id="location">
               <SelectValue placeholder="All locations" />
             </SelectTrigger>
@@ -164,7 +204,7 @@ const FilterPanel = ({
             <DollarSign className="h-4 w-4" />
             Annual Revenue
           </Label>
-          <Select value={revenueRange} onValueChange={setRevenueRange}>
+          <Select value={getCurrentRevenueRange()} onValueChange={handleRevenueRangeChange}>
             <SelectTrigger>
               <SelectValue placeholder="Any revenue" />
             </SelectTrigger>
@@ -184,7 +224,7 @@ const FilterPanel = ({
             <DollarSign className="h-4 w-4" />
             Annual EBITDA
           </Label>
-          <Select value={ebitdaRange} onValueChange={setEbitdaRange}>
+          <Select value={getCurrentEbitdaRange()} onValueChange={handleEbitdaRangeChange}>
             <SelectTrigger>
               <SelectValue placeholder="Any EBITDA" />
             </SelectTrigger>

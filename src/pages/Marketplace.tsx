@@ -199,10 +199,20 @@ const Marketplace = () => {
             <div className="col-span-1">
               <FilterPanel
                 onFilterChange={pagination.setFilters}
+                onResetFilters={pagination.resetFilters}
                 totalListings={totalItems}
                 filteredCount={totalItems}
                 categories={categories}
                 locations={locations}
+                currentFilters={{
+                  search: pagination.state.search,
+                  category: pagination.state.category,
+                  location: pagination.state.location,
+                  revenueMin: pagination.state.revenueMin,
+                  revenueMax: pagination.state.revenueMax,
+                  ebitdaMin: pagination.state.ebitdaMin,
+                  ebitdaMax: pagination.state.ebitdaMax,
+                }}
               />
             </div>
             
