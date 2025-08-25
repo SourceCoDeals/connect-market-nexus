@@ -13,6 +13,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { useRealtimeAdmin } from "@/hooks/use-realtime-admin";
 import { EnhancedUserManagement } from "@/components/admin/EnhancedUserManagement";
 import { BulkVerificationEmailSender } from "@/components/admin/BulkVerificationEmailSender";
+import { ProfileDataInspector } from "@/components/admin/ProfileDataInspector";
 
 
 
@@ -154,14 +155,16 @@ const AdminUsers = () => {
       <DeleteDialog />
 
       {/* Edge Case Tools - Placed at bottom since rarely used */}
-      <div className="mt-8 border-t pt-6">
+      <div className="mt-8 border-t pt-6 space-y-4">
         <details className="group">
           <summary className="flex items-center justify-between cursor-pointer text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
             <span>🔧 Edge Case Tools (Rarely Used)</span>
             <span className="group-open:rotate-180 transition-transform">▼</span>
           </summary>
-          <div className="mt-4">
+          <div className="mt-4 space-y-4">
             <BulkVerificationEmailSender />
+            {/* New: Profile Data Inspector (compares current vs raw snapshots) */}
+            <ProfileDataInspector />
           </div>
         </details>
       </div>

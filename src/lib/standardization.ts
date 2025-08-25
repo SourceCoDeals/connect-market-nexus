@@ -1,3 +1,4 @@
+
 import { STANDARDIZED_CATEGORIES, STANDARDIZED_LOCATIONS } from '@/lib/financial-parser';
 
 // Create canonical keys for robust matching (case, punctuation, & vs and)
@@ -19,6 +20,20 @@ const buildMap = (values: string[]) => {
 
 const CATEGORY_MAP = buildMap([...STANDARDIZED_CATEGORIES]);
 const LOCATION_MAP = buildMap([...STANDARDIZED_LOCATIONS]);
+
+// Dedupe while preserving order
+const dedupePreserveOrder = (arr: string[] = []) => {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const item of arr) {
+    const key = item ?? '';
+    if (!seen.has(key)) {
+      seen.add(key);
+      result.push(item);
+    }
+  }
+  return result;
+};
 
 export const toStandardCategory = (value?: string) => {
   if (!value) return '';
@@ -73,7 +88,14 @@ export const toStandardLocation = (value?: string) => {
   return LOCATION_MAP.get(canonicalize(v)) ?? v;
 };
 
-export const standardizeCategories = (values: string[] = []) => values.map(toStandardCategory);
-export const standardizeLocations = (values: string[] = []) => values.map(toStandardLocation);
+export const standardizeCategories = (values: string[] = []) => {
+  const mapped = values.map(toStandardCategory).filter(Boolean) as string[];
+  return dedupePreserveOrder(mapped);
+};
+
+export const standardizeLocations = (values: string[] = []) => {
+  const mapped = values.map(toStandardLocation).filter(Boolean) as string[];
+  return dedupePreserveOrder(mapped);
+};
 
 export const toCanonical = canonicalize;
