@@ -5,6 +5,7 @@ import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
+import { formatFinancialRange } from '@/lib/buyer-metrics';
 
 interface InvestmentFitScoreProps {
   revenue: number;
@@ -308,14 +309,7 @@ export function InvestmentFitScore({ revenue, ebitda, category, location }: Inve
             <div className="flex justify-between">
               <span className="text-slate-500">Revenue Range:</span> 
               <span className="text-slate-900 text-right max-w-[60%]">
-                {user.revenue_range_min && user.revenue_range_max 
-                  ? `$${user.revenue_range_min.toLocaleString()} - $${user.revenue_range_max.toLocaleString()}`
-                  : user.revenue_range_min 
-                    ? `Min $${user.revenue_range_min.toLocaleString()}`
-                    : user.revenue_range_max 
-                      ? `Max $${user.revenue_range_max.toLocaleString()}`
-                      : "Not set"
-                }
+                {formatFinancialRange(user.revenue_range_min as any, user.revenue_range_max as any)}
               </span>
             </div>
             <div className="flex justify-between">

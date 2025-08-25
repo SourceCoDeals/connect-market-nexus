@@ -335,10 +335,15 @@ export function formatFinancialRange(min?: string | number | null, max?: string 
   
   const formatValue = (val: string | number | null | undefined) => {
     if (!val) return 'Any';
+    if (typeof val === 'string') {
+      // If it's already a labeled range token like "$5M - $10M", "Under $1M", or "Over $50M", show it as-is
+      if (/under\s*\$|over\s*\$|\$\s*\d|m|b|\s-\s/i.test(val)) {
+        return val;
+      }
+    }
     const parsed = typeof val === 'number' ? val : parseCurrency(val);
     return formatCurrency(parsed);
   };
-  
   const minFormatted = formatValue(min);
   const maxFormatted = formatValue(max);
   
