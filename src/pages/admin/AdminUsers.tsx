@@ -14,6 +14,7 @@ import { useRealtimeAdmin } from "@/hooks/use-realtime-admin";
 import { EnhancedUserManagement } from "@/components/admin/EnhancedUserManagement";
 import { BulkVerificationEmailSender } from "@/components/admin/BulkVerificationEmailSender";
 import { ProfileDataInspector } from "@/components/admin/ProfileDataInspector";
+import { ProfileDataRecovery } from "@/components/admin/ProfileDataRecovery";
 
 
 
@@ -165,6 +166,8 @@ const AdminUsers = () => {
             <BulkVerificationEmailSender />
             {/* New: Profile Data Inspector (compares current vs raw snapshots) */}
             <ProfileDataInspector />
+            {/* New: Profile Data Recovery (restore over-standardized data) */}
+            <ProfileDataRecovery />
           </div>
         </details>
       </div>

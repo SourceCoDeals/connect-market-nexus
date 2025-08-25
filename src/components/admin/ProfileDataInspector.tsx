@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
+import { AlertTriangle } from 'lucide-react';
 
 const toArray = (v: any): string[] => {
   if (!v) return [];
@@ -29,6 +30,18 @@ const toArray = (v: any): string[] => {
 
 const arrKey = (arr: string[]) => JSON.stringify([...arr]);
 
+const isSignificantLoss = (current: string[], raw: string[]): boolean => {
+  if (raw.length === 0) return false;
+  if (current.length === 1 && raw.length > 1) {
+    // Over-standardization: multiple diverse categories → single category
+    const singleCat = current[0]?.toLowerCase();
+    if (singleCat === 'technology & software' || singleCat === 'technology and software') {
+      return true; // Likely over-standardized
+    }
+  }
+  return false;
+};
+
 export const ProfileDataInspector: React.FC = () => {
   const { data, isLoading, error } = useProfilesHistory();
 
@@ -37,12 +50,16 @@ export const ProfileDataInspector: React.FC = () => {
     let total = rows.length;
     let catDiff = 0;
     let locDiff = 0;
+    let significantLoss = 0;
 
     rows.forEach(r => {
       const currentCats = toArray(r.business_categories_current);
       const rawCats = toArray(r.raw_business_categories);
       if (rawCats.length > 0 && arrKey(currentCats) !== arrKey(rawCats)) {
         catDiff++;
+        if (isSignificantLoss(currentCats, rawCats)) {
+          significantLoss++;
+        }
       }
 
       const currentLocs = toArray(r.target_locations_current);
@@ -55,7 +72,7 @@ export const ProfileDataInspector: React.FC = () => {
       }
     });
 
-    return { total, catDiff, locDiff };
+    return { total, catDiff, locDiff, significantLoss };
   }, [data]);
 
   if (isLoading) {
@@ -113,6 +130,12 @@ export const ProfileDataInspector: React.FC = () => {
           <Badge variant="outline" className="text-amber-600 border-amber-600/30">
             Location diffs: {stats.locDiff}
           </Badge>
+          {stats.significantLoss > 0 && (
+            <Badge variant="outline" className="text-red-600 border-red-600/30">
+              <AlertTriangle className="h-3 w-3 mr-1" />
+              Over-standardized: {stats.significantLoss}
+            </Badge>
+          )}
         </div>
       </div>
 
@@ -136,14 +159,22 @@ export const ProfileDataInspector: React.FC = () => {
 
               const catsMismatch = rawCats.length > 0 && arrKey(currentCats) !== arrKey(rawCats);
               const locsMismatch = rawLocs.length > 0 && arrKey(currentLocs) !== arrKey(rawLocs);
+              const significantCatLoss = isSignificantLoss(currentCats, rawCats);
 
               return (
                 <TableRow key={r.id || r.email || Math.random()}>
-                  <TableCell className="whitespace-nowrap">{r.email || '—'}</TableCell>
+                  <TableCell className="whitespace-nowrap">
+                    <div className="flex items-center gap-2">
+                      {r.email || '—'}
+                      {significantCatLoss && (
+                        <AlertTriangle className="h-3 w-3 text-red-500" />
+                      )}
+                    </div>
+                  </TableCell>
                   <TableCell className="whitespace-nowrap">{r.buyer_type || '—'}</TableCell>
                   <TableCell>
                     <div className="text-xs">
-                      <div className={catsMismatch ? 'text-foreground' : 'text-muted-foreground'}>
+                      <div className={significantCatLoss ? 'text-red-600 font-medium' : catsMismatch ? 'text-foreground' : 'text-muted-foreground'}>
                         {currentCats.length ? currentCats.join(', ') : '—'}
                       </div>
                       <div className="text-muted-foreground/70">→ {rawCats.length ? rawCats.join(', ') : '—'}</div>

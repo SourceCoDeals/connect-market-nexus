@@ -204,7 +204,12 @@ const MobileUserCard = ({
           <div className="text-sm">
             <span className="font-medium">Buyer Type:</span>{" "}
             <Badge variant="outline" className="capitalize text-xs ml-1">
-              {user.buyer_type}
+              {user.buyer_type === 'independentSponsor' ? 'IS' :
+               user.buyer_type === 'privateEquity' ? 'PE' :
+               user.buyer_type === 'familyOffice' ? 'FO' :
+               user.buyer_type === 'searchFund' ? 'SF' :
+               user.buyer_type === 'corporate' ? 'Corp' :
+               user.buyer_type}
             </Badge>
           </div>
         )}
@@ -246,7 +251,18 @@ const MobileUserCard = ({
           
           {user.target_locations && (
             <div className="text-sm">
-              <span className="font-medium">Target Locations:</span> {user.target_locations}
+              <span className="font-medium">Target Locations:</span>{" "}
+              {Array.isArray(user.target_locations) ? (
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {user.target_locations.map((loc, index) => (
+                    <Badge key={index} variant="secondary" className="text-xs">
+                      {loc}
+                    </Badge>
+                  ))}
+                </div>
+              ) : (
+                user.target_locations
+              )}
             </div>
           )}
           

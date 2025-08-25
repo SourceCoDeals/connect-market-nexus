@@ -138,6 +138,26 @@ const UserDetails = ({ user }: { user: User }) => {
                       );
                     }
                     
+                    if (fieldKey === 'target_locations') {
+                      const locationsToDisplay = Array.isArray(fieldValue) ? fieldValue : (fieldValue ? [fieldValue] : []);
+                      return (
+                        <div key={fieldKey} className="col-span-2">
+                          <span className="text-muted-foreground">{fieldLabel}:</span>
+                          <div className="mt-1">
+                            {locationsToDisplay.length > 0 ? (
+                              <div className="flex flex-wrap gap-1">
+                                {locationsToDisplay.map((loc, index) => (
+                                  <span key={index} className="text-xs bg-muted px-2 py-1 rounded">
+                                    {loc}
+                                  </span>
+                                ))}
+                              </div>
+                            ) : '—'}
+                          </div>
+                        </div>
+                      );
+                    }
+                    
                     if (fieldKey === 'ideal_target_description' || fieldKey === 'specific_business_search') {
                       return (
                         <div key={fieldKey} className="col-span-2">
@@ -576,6 +596,7 @@ export function UsersTable({
                     {user.buyer_type === 'privateEquity' ? 'PE' :
                      user.buyer_type === 'familyOffice' ? 'FO' :
                      user.buyer_type === 'searchFund' ? 'SF' :
+                     user.buyer_type === 'independentSponsor' ? 'IS' :
                      user.buyer_type === 'corporate' ? 'Corp' :
                      user.buyer_type === 'individual' ? 'Indiv' : '—'}
                   </div>
