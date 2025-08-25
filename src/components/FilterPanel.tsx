@@ -54,8 +54,8 @@ const FilterPanel = ({
   locations = []
 }: FilterPanelProps) => {
   const [searchTerm, setSearchTerm] = useState("");
-  const [category, setCategory] = useState<string | undefined>(undefined);
-  const [location, setLocation] = useState<string | undefined>(undefined);
+  const [category, setCategory] = useState<string>('');
+  const [location, setLocation] = useState<string>('');
   const [revenueRange, setRevenueRange] = useState<string>('any');
   const [ebitdaRange, setEbitdaRange] = useState<string>('any');
   const { trackSearch } = useAnalyticsTracking();
@@ -67,8 +67,8 @@ const FilterPanel = ({
     const filters: FilterOptions = {};
     
     if (searchTerm) filters.search = searchTerm;
-    if (category && category !== "all") filters.category = category;
-    if (location && location !== "all") filters.location = location;
+    if (category && category !== '' && category !== 'all') filters.category = category;
+    if (location && location !== '' && location !== 'all') filters.location = location;
     
     // Apply revenue range filter
     if (revenueRange !== 'any') {
@@ -99,8 +99,8 @@ const FilterPanel = ({
 
   const handleResetFilters = () => {
     setSearchTerm("");
-    setCategory(undefined);
-    setLocation(undefined);
+    setCategory('');
+    setLocation('');
     setRevenueRange('any');
     setEbitdaRange('any');
   };
@@ -128,7 +128,7 @@ const FilterPanel = ({
         {/* Category select */}
         <div className="space-y-2">
           <Label htmlFor="category">Category</Label>
-          <Select value={category} onValueChange={(value) => setCategory(toStandardCategory(value))}>
+          <Select value={category || 'all'} onValueChange={setCategory}>
             <SelectTrigger id="category">
               <SelectValue placeholder="All categories" />
             </SelectTrigger>
@@ -144,7 +144,7 @@ const FilterPanel = ({
         {/* Location select */}
         <div className="space-y-2">
           <Label htmlFor="location">Location</Label>
-          <Select value={location} onValueChange={(value) => setLocation(toStandardLocation(value))}>
+          <Select value={location || 'all'} onValueChange={setLocation}>
             <SelectTrigger id="location">
               <SelectValue placeholder="All locations" />
             </SelectTrigger>

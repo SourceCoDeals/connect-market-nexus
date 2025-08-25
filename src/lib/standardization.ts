@@ -23,12 +23,24 @@ const LOCATION_MAP = buildMap([...STANDARDIZED_LOCATIONS]);
 export const toStandardCategory = (value?: string) => {
   if (!value) return '';
   const v = value.trim();
+  
+  // Handle special "all" values without standardization
+  if (v.toLowerCase() === 'all' || v.toLowerCase() === 'all categories') {
+    return 'all';
+  }
+  
   return CATEGORY_MAP.get(canonicalize(v)) ?? v;
 };
 
 export const toStandardLocation = (value?: string) => {
   if (!value) return '';
   const v = value.trim();
+  
+  // Handle special "all" values without standardization
+  if (v.toLowerCase() === 'all' || v.toLowerCase() === 'all locations') {
+    return 'all';
+  }
+  
   return LOCATION_MAP.get(canonicalize(v)) ?? v;
 };
 
