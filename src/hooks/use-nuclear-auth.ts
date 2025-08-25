@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { User as AppUser } from '@/types';
 import { createUserObject } from '@/lib/auth-helpers';
 import { parseCurrency } from '@/lib/currency-utils';
+import { toStandardCategory, toStandardLocation, standardizeCategories, standardizeLocations } from '@/lib/standardization';
 
 // Ultra-simple auth state - no caching, no localStorage interference, no managers
 export function useNuclearAuth() {
@@ -139,8 +140,8 @@ export function useNuclearAuth() {
           buyer_type: userData.buyer_type || 'corporate',
           linkedin_profile: userData.linkedin_profile || '',
           ideal_target_description: userData.ideal_target_description || '',
-          business_categories: Array.isArray(userData.business_categories) ? userData.business_categories : [],
-          target_locations: Array.isArray(userData.target_locations) ? (userData.target_locations as any) : [],
+          business_categories: Array.isArray(userData.business_categories) ? standardizeCategories(userData.business_categories) : [],
+          target_locations: Array.isArray(userData.target_locations) ? standardizeLocations(userData.target_locations as any) : [],
           revenue_range_min: typeof userData.revenue_range_min === 'number' 
             ? userData.revenue_range_min 
             : parseCurrency(String(userData.revenue_range_min ?? '')),
@@ -159,11 +160,11 @@ export function useNuclearAuth() {
           funding_source: userData.funding_source || '',
           needs_loan: userData.needs_loan || '',
           ideal_target: userData.ideal_target || '',
-          // Independent sponsor specific fields
-          target_deal_size_min: userData.target_deal_size_min,
-          target_deal_size_max: userData.target_deal_size_max,
-          geographic_focus: Array.isArray(userData.geographic_focus) ? JSON.stringify(userData.geographic_focus) : userData.geographic_focus,
-          industry_expertise: Array.isArray(userData.industry_expertise) ? JSON.stringify(userData.industry_expertise) : userData.industry_expertise,
+          // Independent sponsor specific fields with proper standardization
+          target_deal_size_min: typeof userData.target_deal_size_min === 'number' ? userData.target_deal_size_min : (userData.target_deal_size_min ? Number(userData.target_deal_size_min) : null),
+          target_deal_size_max: typeof userData.target_deal_size_max === 'number' ? userData.target_deal_size_max : (userData.target_deal_size_max ? Number(userData.target_deal_size_max) : null),
+          geographic_focus: Array.isArray(userData.geographic_focus) ? standardizeLocations(userData.geographic_focus) : [],
+          industry_expertise: Array.isArray(userData.industry_expertise) ? standardizeCategories(userData.industry_expertise) : [],
           deal_structure_preference: userData.deal_structure_preference || '',
         }
       }
