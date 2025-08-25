@@ -75,8 +75,8 @@ const Signup = () => {
     // Independent sponsor specific fields
     targetDealSizeMin: string;
     targetDealSizeMax: string;
-    geographicFocus: string[];
-    industryExpertise: string[];
+    geographicFocus: string;
+    industryExpertise: string;
     dealStructurePreference: string;
   }>({
     email: "",
@@ -110,8 +110,8 @@ const Signup = () => {
     // Independent sponsor specific fields
     targetDealSizeMin: "",
     targetDealSizeMax: "",
-    geographicFocus: [],
-    industryExpertise: [],
+    geographicFocus: "",
+    industryExpertise: "",
     dealStructurePreference: "",
   });
 
@@ -143,8 +143,8 @@ const Signup = () => {
       // Reset independent sponsor fields
       targetDealSizeMin: "",
       targetDealSizeMax: "",
-      geographicFocus: [],
-      industryExpertise: [],
+      geographicFocus: "",
+      industryExpertise: "",
       dealStructurePreference: "",
     }));
   };
@@ -237,10 +237,10 @@ const Signup = () => {
             if (!formData.dealStructurePreference) {
               errors.push("Deal structure preference is required");
             }
-            if (!formData.geographicFocus || formData.geographicFocus.length < 10) {
+            if (!formData.geographicFocus || formData.geographicFocus.trim().length < 10) {
               errors.push("Geographic focus description is required (minimum 10 characters)");
             }
-            if (!formData.industryExpertise || formData.industryExpertise.length < 10) {
+            if (!formData.industryExpertise || formData.industryExpertise.trim().length < 10) {
               errors.push("Industry expertise description is required (minimum 10 characters)");
             }
             break;
@@ -372,8 +372,8 @@ const Signup = () => {
         // Independent sponsor specific fields
         target_deal_size_min: targetDealSizeMin ? parseCurrency(targetDealSizeMin) : undefined,
         target_deal_size_max: targetDealSizeMax ? parseCurrency(targetDealSizeMax) : undefined,
-        geographic_focus: geographicFocus,
-        industry_expertise: industryExpertise,
+        geographic_focus: geographicFocus ? [geographicFocus] : undefined,
+        industry_expertise: industryExpertise ? [industryExpertise] : undefined,
         deal_structure_preference: dealStructurePreference,
       };
       
@@ -752,24 +752,48 @@ const Signup = () => {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="dealStructurePreference">Deal Structure Preference</Label>
-                  <Select
-                    value={formData.dealStructurePreference}
-                    onValueChange={(value) => setFormData((prev) => ({ ...prev, dealStructurePreference: value }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select deal structure" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="equity">Equity Purchase</SelectItem>
-                      <SelectItem value="asset">Asset Purchase</SelectItem>
-                      <SelectItem value="majority">Majority Stake</SelectItem>
-                      <SelectItem value="minority">Minority Investment</SelectItem>
-                      <SelectItem value="flexible">Flexible</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                 <div className="space-y-2">
+                   <Label htmlFor="dealStructurePreference">Deal Structure Preference</Label>
+                   <Select
+                     value={formData.dealStructurePreference}
+                     onValueChange={(value) => setFormData((prev) => ({ ...prev, dealStructurePreference: value }))}
+                   >
+                     <SelectTrigger>
+                       <SelectValue placeholder="Select deal structure" />
+                     </SelectTrigger>
+                     <SelectContent>
+                       <SelectItem value="equity">Equity Purchase</SelectItem>
+                       <SelectItem value="asset">Asset Purchase</SelectItem>
+                       <SelectItem value="majority">Majority Stake</SelectItem>
+                       <SelectItem value="minority">Minority Investment</SelectItem>
+                       <SelectItem value="flexible">Flexible</SelectItem>
+                     </SelectContent>
+                   </Select>
+                 </div>
+                 <div className="space-y-2">
+                   <Label htmlFor="geographicFocus">Geographic Focus</Label>
+                   <Textarea
+                     id="geographicFocus"
+                     name="geographicFocus"
+                     placeholder="Describe your geographic focus (e.g., Southeast US, California, National...)"
+                     rows={2}
+                     value={formData.geographicFocus}
+                     onChange={(e) => setFormData((prev) => ({ ...prev, geographicFocus: e.target.value }))}
+                     required
+                   />
+                 </div>
+                 <div className="space-y-2">
+                   <Label htmlFor="industryExpertise">Industry Expertise</Label>
+                   <Textarea
+                     id="industryExpertise"
+                     name="industryExpertise"
+                     placeholder="Describe your industry expertise and focus areas..."
+                     rows={2}
+                     value={formData.industryExpertise}
+                     onChange={(e) => setFormData((prev) => ({ ...prev, industryExpertise: e.target.value }))}
+                     required
+                   />
+                 </div>
               </div>
             )}
           </div>
