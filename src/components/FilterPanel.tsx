@@ -10,6 +10,8 @@ import { Slider } from "@/components/ui/slider";
 import { Filter, DollarSign, Bell } from "lucide-react";
 import { useAnalyticsTracking } from "@/hooks/use-analytics-tracking";
 import { CreateDealAlertDialog } from "./deal-alerts/CreateDealAlertDialog";
+import { STANDARDIZED_CATEGORIES, STANDARDIZED_LOCATIONS } from "@/lib/financial-parser";
+import { toStandardCategory, toStandardLocation } from "@/lib/standardization";
 
 // Filter panel props
 export interface FilterPanelProps {
@@ -20,29 +22,7 @@ export interface FilterPanelProps {
   locations?: string[];
 }
 
-// All available categories from our database
-const ALL_CATEGORIES = [
-  'Technology',
-  'E-commerce',
-  'SaaS',
-  'Manufacturing',
-  'Retail',
-  'Healthcare',
-  'Food & Beverage',
-  'Service',
-  'Consumer Services',
-  'Consumer & Retail',
-  'Consumer Multi-Site',
-  'Industrials',
-  'Vehicle Aftermarket Products & Services',
-  'Digital Media',
-  'Business Services',
-  'Marketing & Info Services',
-  'HR services',
-  'Financial Services',
-  'Asset & Wealth Management',
-  'Other'
-];
+// Categories now sourced from standardized constants
 
 // Revenue range options (in millions)
 const REVENUE_RANGES = [
@@ -80,8 +60,7 @@ const FilterPanel = ({
   const [ebitdaRange, setEbitdaRange] = useState<string>('any');
   const { trackSearch } = useAnalyticsTracking();
 
-  // Merge categories from database with our complete list
-  const allCategories = [...new Set([...ALL_CATEGORIES, ...categories])].sort();
+  const allCategories = STANDARDIZED_CATEGORIES;
 
   // Update filters when any filter value changes
   useEffect(() => {
@@ -149,11 +128,11 @@ const FilterPanel = ({
         {/* Category select */}
         <div className="space-y-2">
           <Label htmlFor="category">Category</Label>
-          <Select value={category} onValueChange={(value) => setCategory(value)}>
+          <Select value={category} onValueChange={(value) => setCategory(toStandardCategory(value))}>
             <SelectTrigger id="category">
               <SelectValue placeholder="All categories" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="z-50 bg-background">
               <SelectItem value="all">All categories</SelectItem>
               {allCategories.map((cat) => (
                 <SelectItem key={cat} value={cat}>{cat}</SelectItem>
@@ -165,13 +144,13 @@ const FilterPanel = ({
         {/* Location select */}
         <div className="space-y-2">
           <Label htmlFor="location">Location</Label>
-          <Select value={location} onValueChange={(value) => setLocation(value)}>
+          <Select value={location} onValueChange={(value) => setLocation(toStandardLocation(value))}>
             <SelectTrigger id="location">
               <SelectValue placeholder="All locations" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="z-50 bg-background">
               <SelectItem value="all">All locations</SelectItem>
-              {locations.map((loc) => (
+              {STANDARDIZED_LOCATIONS.map((loc) => (
                 <SelectItem key={loc} value={loc}>{loc}</SelectItem>
               ))}
             </SelectContent>
