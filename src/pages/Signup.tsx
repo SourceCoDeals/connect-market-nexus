@@ -45,9 +45,18 @@ const buyerTypeOptions = [
   { value: "independentSponsor", label: "Independent Sponsor", description: "Investment professionals sourcing deals without permanent capital" },
 ];
 
-// Debug logging to verify buyer type options are loaded
-console.log('🔍 SIGNUP DEBUG - buyerTypeOptions loaded:', buyerTypeOptions.length, 'options');
-console.log('🔍 SIGNUP DEBUG - includes independentSponsor:', buyerTypeOptions.some(opt => opt.value === 'independentSponsor'));
+// AGGRESSIVE DEBUG: Force component visibility
+console.log('🚨 EMERGENCY DEBUG - SIGNUP COMPONENT LOADING AT:', new Date().toISOString());
+console.log('🚨 EMERGENCY DEBUG - buyerTypeOptions:', JSON.stringify(buyerTypeOptions, null, 2));
+console.log('🚨 EMERGENCY DEBUG - independentSponsor exists:', buyerTypeOptions.find(opt => opt.value === 'independentSponsor'));
+console.log('🚨 EMERGENCY DEBUG - total options count:', buyerTypeOptions.length);
+
+// Alert to force visibility in case console is not visible
+if (typeof window !== 'undefined') {
+  setTimeout(() => {
+    console.log('🚨 EMERGENCY DEBUG - DELAYED CHECK - Component should be visible now');
+  }, 1000);
+}
 
 const Signup = () => {
   const { signup, isLoading } = useAuth();
