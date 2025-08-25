@@ -12,9 +12,6 @@ import { BuyerType, User } from "@/types";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
-import { MultiSelect } from "@/components/ui/multi-select";
-import { MultiLocationSelect } from "@/components/ui/location-select";
-import { CurrencyInput } from "@/components/ui/currency-input";
 import { parseCurrency } from "@/lib/currency-utils";
 
 const steps = [
@@ -26,6 +23,8 @@ const steps = [
 
 import { STANDARDIZED_CATEGORIES } from "@/lib/financial-parser";
 import { MultiCategorySelect } from "@/components/ui/category-select";
+import { MultiLocationSelect } from "@/components/ui/location-select";
+import { REVENUE_RANGES, FUND_AUM_RANGES, INVESTMENT_RANGES, DEAL_SIZE_RANGES } from "@/lib/currency-ranges";
 
 const buyerTypeOptions = [
   { value: "corporate", label: "Corporate", description: "Operating companies looking to acquire complementary businesses" },
@@ -236,9 +235,6 @@ const Signup = () => {
             }
             if (!formData.dealStructurePreference) {
               errors.push("Deal structure preference is required");
-            }
-            if (!formData.geographicFocus || formData.geographicFocus.trim().length < 10) {
-              errors.push("Geographic focus description is required (minimum 10 characters)");
             }
             if (!formData.industryExpertise || formData.industryExpertise.trim().length < 10) {
               errors.push("Industry expertise description is required (minimum 10 characters)");
@@ -569,14 +565,21 @@ const Signup = () => {
             {formData.buyerType === "corporate" && (
               <div className="space-y-2">
                 <Label htmlFor="estimatedRevenue">Estimated Revenue</Label>
-                <CurrencyInput
-                  id="estimatedRevenue"
-                  name="estimatedRevenue"
-                  placeholder="$1,000,000"
+                <Select
                   value={formData.estimatedRevenue}
-                  onChange={(val) => setFormData((prev) => ({ ...prev, estimatedRevenue: val }))}
-                  required
-                />
+                  onValueChange={(value) => setFormData((prev) => ({ ...prev, estimatedRevenue: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select revenue range" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {REVENUE_RANGES.map((range) => (
+                      <SelectItem key={range.value} value={range.value}>
+                        {range.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             )}
             
@@ -584,14 +587,21 @@ const Signup = () => {
               <div className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="fundSize">Fund Size</Label>
-                  <CurrencyInput
-                    id="fundSize"
-                    name="fundSize"
-                    placeholder="$10,000,000"
+                  <Select
                     value={formData.fundSize}
-                    onChange={(val) => setFormData((prev) => ({ ...prev, fundSize: val }))}
-                    required
-                  />
+                    onValueChange={(value) => setFormData((prev) => ({ ...prev, fundSize: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select fund size" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {FUND_AUM_RANGES.map((range) => (
+                        <SelectItem key={range.value} value={range.value}>
+                          {range.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="investmentSize">Investment Size</Label>
@@ -603,23 +613,31 @@ const Signup = () => {
                       <SelectValue placeholder="Select investment size" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Under $1M">Under $1M</SelectItem>
-                      <SelectItem value="$1M - $5M">$1M - $5M</SelectItem>
-                      <SelectItem value="$5M - $10M">$5M - $10M</SelectItem>
-                      <SelectItem value="$10M - $25M">$10M - $25M</SelectItem>
-                      <SelectItem value="Over $25M">Over $25M</SelectItem>
+                      {INVESTMENT_RANGES.map((range) => (
+                        <SelectItem key={range.value} value={range.value}>
+                          {range.label}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="aum">Assets Under Management</Label>
-                  <CurrencyInput
-                    id="aum"
-                    name="aum"
-                    placeholder="$100,000,000"
+                  <Select
                     value={formData.aum}
-                    onChange={(val) => setFormData((prev) => ({ ...prev, aum: val }))}
-                  />
+                    onValueChange={(value) => setFormData((prev) => ({ ...prev, aum: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select AUM range" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {FUND_AUM_RANGES.map((range) => (
+                        <SelectItem key={range.value} value={range.value}>
+                          {range.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
             )}
@@ -744,11 +762,11 @@ const Signup = () => {
                       <SelectValue placeholder="Select investment size" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Under $1M">Under $1M</SelectItem>
-                      <SelectItem value="$1M - $5M">$1M - $5M</SelectItem>
-                      <SelectItem value="$5M - $10M">$5M - $10M</SelectItem>
-                      <SelectItem value="$10M - $25M">$10M - $25M</SelectItem>
-                      <SelectItem value="Over $25M">Over $25M</SelectItem>
+                      {INVESTMENT_RANGES.map((range) => (
+                        <SelectItem key={range.value} value={range.value}>
+                          {range.label}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -769,18 +787,6 @@ const Signup = () => {
                        <SelectItem value="flexible">Flexible</SelectItem>
                      </SelectContent>
                    </Select>
-                 </div>
-                 <div className="space-y-2">
-                   <Label htmlFor="geographicFocus">Geographic Focus</Label>
-                   <Textarea
-                     id="geographicFocus"
-                     name="geographicFocus"
-                     placeholder="Describe your geographic focus (e.g., Southeast US, California, National...)"
-                     rows={2}
-                     value={formData.geographicFocus}
-                     onChange={(e) => setFormData((prev) => ({ ...prev, geographicFocus: e.target.value }))}
-                     required
-                   />
                  </div>
                  <div className="space-y-2">
                    <Label htmlFor="industryExpertise">Industry Expertise</Label>
@@ -840,7 +846,7 @@ const Signup = () => {
                 What locations are you considering purchasing in?
               </Label>
               <MultiLocationSelect
-                value={formData.targetLocations}
+                value={Array.isArray(formData.targetLocations) ? formData.targetLocations : []}
                 onValueChange={(selected) => setFormData(prev => ({ ...prev, targetLocations: selected }))}
                 placeholder="Select target locations..."
                 className="w-full"
@@ -855,24 +861,40 @@ const Signup = () => {
                 </Label>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="targetDealSizeMin">$ Minimum Deal Size</Label>
-                    <CurrencyInput
-                      id="targetDealSizeMin"
-                      name="targetDealSizeMin"
-                      placeholder="1,000,000"
+                    <Label htmlFor="targetDealSizeMin">Minimum Deal Size</Label>
+                    <Select
                       value={formData.targetDealSizeMin}
-                      onChange={(val) => setFormData(prev => ({ ...prev, targetDealSizeMin: val }))}
-                    />
+                      onValueChange={(value) => setFormData(prev => ({ ...prev, targetDealSizeMin: value }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select minimum" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {DEAL_SIZE_RANGES.map((range) => (
+                          <SelectItem key={range.value} value={range.value}>
+                            {range.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="targetDealSizeMax">$ Maximum Deal Size</Label>
-                    <CurrencyInput
-                      id="targetDealSizeMax"
-                      name="targetDealSizeMax"
-                      placeholder="10,000,000"
+                    <Label htmlFor="targetDealSizeMax">Maximum Deal Size</Label>
+                    <Select
                       value={formData.targetDealSizeMax}
-                      onChange={(val) => setFormData(prev => ({ ...prev, targetDealSizeMax: val }))}
-                    />
+                      onValueChange={(value) => setFormData(prev => ({ ...prev, targetDealSizeMax: value }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select maximum" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {DEAL_SIZE_RANGES.map((range) => (
+                          <SelectItem key={range.value} value={range.value}>
+                            {range.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
               </div>
@@ -886,24 +908,40 @@ const Signup = () => {
                 </Label>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="revenueRangeMin">$ Minimum</Label>
-                    <CurrencyInput
-                      id="revenueRangeMin"
-                      name="revenueRangeMin"
-                      placeholder="500,000"
+                    <Label htmlFor="revenueRangeMin">Minimum Revenue</Label>
+                    <Select
                       value={formData.revenueRangeMin}
-                      onChange={(val) => setFormData(prev => ({ ...prev, revenueRangeMin: val }))}
-                    />
+                      onValueChange={(value) => setFormData(prev => ({ ...prev, revenueRangeMin: value }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select minimum" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {REVENUE_RANGES.map((range) => (
+                          <SelectItem key={range.value} value={range.value}>
+                            {range.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="revenueRangeMax">$ Maximum</Label>
-                    <CurrencyInput
-                      id="revenueRangeMax"
-                      name="revenueRangeMax"
-                      placeholder="5,000,000"
+                    <Label htmlFor="revenueRangeMax">Maximum Revenue</Label>
+                    <Select
                       value={formData.revenueRangeMax}
-                      onChange={(val) => setFormData(prev => ({ ...prev, revenueRangeMax: val }))}
-                    />
+                      onValueChange={(value) => setFormData(prev => ({ ...prev, revenueRangeMax: value }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select maximum" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {REVENUE_RANGES.map((range) => (
+                          <SelectItem key={range.value} value={range.value}>
+                            {range.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
               </div>

@@ -50,7 +50,6 @@ export const BUYER_TYPE_FIELD_MAPPINGS = {
     'investment_size',
     'target_deal_size_min',
     'target_deal_size_max',
-    'geographic_focus',
     'industry_expertise',
     'deal_structure_preference',
   ],
@@ -116,7 +115,6 @@ export const FIELD_LABELS = {
   ideal_target: 'Ideal Target',
   target_deal_size_min: 'Min Deal Size',
   target_deal_size_max: 'Max Deal Size',
-  geographic_focus: 'Geographic Focus',
   industry_expertise: 'Industry Expertise',
   deal_structure_preference: 'Deal Structure Preference',
 } as const;
