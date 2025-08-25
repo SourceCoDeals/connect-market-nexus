@@ -177,21 +177,12 @@ const UserDetails = ({ user }: { user: User }) => {
                       );
                     }
                     
-                    if (fieldKey === 'geographic_focus' || fieldKey === 'industry_expertise') {
+                    if (fieldKey === 'industry_expertise') {
+                      // Handle both array and text formats for industry_expertise
+                      const displayValue = Array.isArray(fieldValue) ? fieldValue.join(', ') : (fieldValue as string || '—');
                       return (
                         <div key={fieldKey} className="col-span-2">
-                          <span className="text-muted-foreground">{fieldLabel}:</span>
-                          <div className="mt-1">
-                            {fieldValue && Array.isArray(fieldValue) && fieldValue.length > 0 ? (
-                              <div className="flex flex-wrap gap-1">
-                                {fieldValue.map((item, index) => (
-                                  <span key={index} className="text-xs bg-muted px-2 py-1 rounded">
-                                    {item}
-                                  </span>
-                                ))}
-                              </div>
-                            ) : '—'}
-                          </div>
+                          <span className="text-muted-foreground">{fieldLabel}:</span> {displayValue}
                         </div>
                       );
                     }

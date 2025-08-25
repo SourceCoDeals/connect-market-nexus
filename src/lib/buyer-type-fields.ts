@@ -50,7 +50,6 @@ export const BUYER_TYPE_FIELD_MAPPINGS = {
     'investment_size',
     'target_deal_size_min',
     'target_deal_size_max',
-    'geographic_focus',
     'industry_expertise',
     'deal_structure_preference',
   ],
