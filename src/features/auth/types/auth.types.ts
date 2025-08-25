@@ -37,8 +37,8 @@ export const signupFormSchema = z.object({
   idealTargetDescription: z.string().optional(),
   businessCategories: z.array(z.string()).optional(),
   targetLocations: z.string().optional(),
-  revenueRangeMin: z.number().optional(),
-  revenueRangeMax: z.number().optional(),
+  revenueRangeMin: z.string().optional(),
+  revenueRangeMax: z.string().optional(),
   specificBusinessSearch: z.string().optional(),
   // Corporate fields
   estimatedRevenue: z.string().optional(),

@@ -10,6 +10,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { signupFormSchema, type SignupFormData, SIGNUP_FLOW_STATES } from '../types/auth.types';
 import { useProtectedAuth } from '../hooks/useProtectedAuth';
+import { REVENUE_RANGES } from '@/lib/currency-ranges';
 import { Loader2, Info } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { BuyerType } from '@/types';
@@ -399,27 +400,37 @@ export const ProtectedSignupForm: React.FC = () => {
         {/* Investment Criteria */}
         {watchedBuyerType !== 'privateEquity' && (
           <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-foreground">Investment Criteria</h3>
+            <h3 className="text-lg font-semibold text-foreground">Target Company Revenue Range</h3>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="revenueRangeMin">Min Revenue ($)</Label>
-                <Input
-                  id="revenueRangeMin"
-                  type="number"
-                  {...register('revenueRangeMin', { valueAsNumber: true })}
-                  placeholder="1000000"
-                  disabled={isSigningUp}
-                />
+                <Label htmlFor="revenueRangeMin">Min Revenue</Label>
+                <Select onValueChange={(value) => setValue('revenueRangeMin', value)} disabled={isSigningUp}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select minimum" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {REVENUE_RANGES.map((range) => (
+                      <SelectItem key={range.value} value={range.value}>
+                        {range.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div>
-                <Label htmlFor="revenueRangeMax">Max Revenue ($)</Label>
-                <Input
-                  id="revenueRangeMax"
-                  type="number"
-                  {...register('revenueRangeMax', { valueAsNumber: true })}
-                  placeholder="10000000"
-                  disabled={isSigningUp}
-                />
+                <Label htmlFor="revenueRangeMax">Max Revenue</Label>
+                <Select onValueChange={(value) => setValue('revenueRangeMax', value)} disabled={isSigningUp}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select maximum" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {REVENUE_RANGES.map((range) => (
+                      <SelectItem key={range.value} value={range.value}>
+                        {range.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 

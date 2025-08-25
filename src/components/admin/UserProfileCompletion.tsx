@@ -2,92 +2,63 @@ import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { User } from '@/types';
-import { CheckCircle2, AlertCircle, Mail, Phone, Building2, Globe, Linkedin } from 'lucide-react';
+import { CheckCircle2, AlertCircle } from 'lucide-react';
+import { getRelevantFieldsForBuyerType, getFieldCategories, FIELD_LABELS } from '@/lib/buyer-type-fields';
 
 interface UserProfileCompletionProps {
   user: User;
 }
 
 export function UserProfileCompletion({ user }: UserProfileCompletionProps) {
-  // Define required fields and their descriptions
-  const requiredFields = [
-    { key: 'first_name', label: 'First Name', icon: CheckCircle2, category: 'basic' },
-    { key: 'last_name', label: 'Last Name', icon: CheckCircle2, category: 'basic' },
-    { key: 'email', label: 'Email', icon: Mail, category: 'basic' },
-    { key: 'phone_number', label: 'Phone Number', icon: Phone, category: 'contact' },
-    { key: 'company', label: 'Company', icon: Building2, category: 'business' },
-    { key: 'website', label: 'Website', icon: Globe, category: 'contact' },
-    { key: 'linkedin_profile', label: 'LinkedIn Profile', icon: Linkedin, category: 'contact' },
-    { key: 'ideal_target_description', label: 'Ideal Target Description', icon: CheckCircle2, category: 'profile' },
-    { key: 'business_categories', label: 'Business Categories', icon: CheckCircle2, category: 'profile' },
-    { key: 'target_locations', label: 'Target Locations', icon: CheckCircle2, category: 'profile' },
-  ];
-
-  // Buyer-type specific fields
-  const buyerSpecificFields = {
-    corporate: [
-      { key: 'estimated_revenue', label: 'Estimated Revenue', icon: CheckCircle2, category: 'financial' }
-    ],
-    privateEquity: [
-      { key: 'fund_size', label: 'Fund Size', icon: CheckCircle2, category: 'financial' },
-      { key: 'investment_size', label: 'Investment Size', icon: CheckCircle2, category: 'financial' }
-    ],
-    familyOffice: [
-      { key: 'fund_size', label: 'Fund Size', icon: CheckCircle2, category: 'financial' },
-      { key: 'aum', label: 'Assets Under Management', icon: CheckCircle2, category: 'financial' }
-    ],
-    searchFund: [
-      { key: 'is_funded', label: 'Funding Status', icon: CheckCircle2, category: 'financial' },
-      { key: 'target_company_size', label: 'Target Company Size', icon: CheckCircle2, category: 'financial' }
-    ],
-    individual: [
-      { key: 'funding_source', label: 'Funding Source', icon: CheckCircle2, category: 'financial' }
-    ],
-    independentSponsor: [
-      { key: 'investment_size', label: 'Investment Size', icon: CheckCircle2, category: 'financial' },
-      { key: 'geographic_focus', label: 'Geographic Focus', icon: CheckCircle2, category: 'profile' },
-      { key: 'industry_expertise', label: 'Industry Expertise', icon: CheckCircle2, category: 'profile' },
-      { key: 'deal_structure_preference', label: 'Deal Structure Preference', icon: CheckCircle2, category: 'profile' }
-    ]
-  };
-
-  // Get all applicable fields for this user
-  const allFields = [
-    ...requiredFields,
-    ...(buyerSpecificFields[user.buyer_type as keyof typeof buyerSpecificFields] || [])
-  ];
+  // Get standardized field definitions for this user's buyer type
+  const relevantFields = getRelevantFieldsForBuyerType(user.buyer_type || 'individual');
+  const fieldCategories = getFieldCategories(user.buyer_type || 'individual');
+  
+  // Optional fields that don't count against completion
+  const optionalFields = ['website', 'linkedin_profile'];
+  
+  // Filter out optional fields for completion calculation
+  const requiredFieldsForCompletion = relevantFields.filter(field => !optionalFields.includes(field));
 
   // Check field completion
-  const fieldStatus = allFields.map(field => {
-    const value = user[field.key as keyof User];
+  const fieldStatus = relevantFields.map(field => {
+    const value = user[field as keyof User];
     let isComplete = false;
+    const isRequired = !optionalFields.includes(field);
 
-    if (field.key === 'business_categories') {
+    if (field === 'business_categories' || field === 'target_locations') {
       isComplete = Array.isArray(value) && value.length > 0;
     } else {
       isComplete = value !== null && value !== undefined && value !== '';
     }
 
     return {
-      ...field,
+      key: field,
+      label: FIELD_LABELS[field as keyof typeof FIELD_LABELS] || field,
       isComplete,
+      isRequired,
       value
     };
   });
 
-  // Calculate completion stats
-  const completedFields = fieldStatus.filter(field => field.isComplete);
-  const completionPercentage = Math.round((completedFields.length / allFields.length) * 100);
-  const missingFields = fieldStatus.filter(field => !field.isComplete);
+  // Calculate completion stats (only for required fields)
+  const requiredFieldStatus = fieldStatus.filter(field => field.isRequired);
+  const completedRequiredFields = requiredFieldStatus.filter(field => field.isComplete);
+  const completionPercentage = requiredFieldStatus.length > 0 
+    ? Math.round((completedRequiredFields.length / requiredFieldStatus.length) * 100)
+    : 100;
+  
+  const missingRequiredFields = requiredFieldStatus.filter(field => !field.isComplete);
 
-  // Group fields by category
-  const fieldsByCategory = fieldStatus.reduce((acc, field) => {
-    if (!acc[field.category]) {
-      acc[field.category] = [];
+  // Group fields by category for display
+  const fieldsByCategory = Object.entries(fieldCategories).reduce((acc, [categoryName, categoryFields]) => {
+    const categoryFieldStatus = fieldStatus.filter(field => 
+      (categoryFields as string[]).includes(field.key)
+    );
+    if (categoryFieldStatus.length > 0) {
+      acc[categoryName] = categoryFieldStatus;
     }
-    acc[field.category].push(field);
     return acc;
   }, {} as Record<string, typeof fieldStatus>);
 
@@ -127,7 +98,7 @@ export function UserProfileCompletion({ user }: UserProfileCompletionProps) {
           <div className="flex justify-between text-sm">
             <span>Overall Progress</span>
             <span className={getCompletionColor(completionPercentage)}>
-              {completedFields.length} of {allFields.length} fields
+              {completedRequiredFields.length} of {requiredFieldStatus.length} required fields
             </span>
           </div>
           <Progress value={completionPercentage} className="h-2" />
@@ -136,15 +107,16 @@ export function UserProfileCompletion({ user }: UserProfileCompletionProps) {
         {/* Fields by Category */}
         <div className="space-y-4">
           {Object.entries(fieldsByCategory).map(([category, fields]) => {
-            const categoryCompletion = Math.round(
-              (fields.filter(f => f.isComplete).length / fields.length) * 100
-            );
+            const requiredFieldsInCategory = fields.filter(f => f.isRequired);
+            const categoryCompletion = requiredFieldsInCategory.length > 0
+              ? Math.round((requiredFieldsInCategory.filter(f => f.isComplete).length / requiredFieldsInCategory.length) * 100)
+              : 100;
             
             return (
               <div key={category} className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <h4 className="text-sm font-medium capitalize">
-                    {category.replace(/([A-Z])/g, ' $1').trim()} Information
+                  <h4 className="text-sm font-medium">
+                    {category}
                   </h4>
                   <span className={`text-xs ${getCompletionColor(categoryCompletion)}`}>
                     {categoryCompletion}%
@@ -161,6 +133,7 @@ export function UserProfileCompletion({ user }: UserProfileCompletionProps) {
                       )}
                       <span className={field.isComplete ? 'text-green-700' : 'text-red-700'}>
                         {field.label}
+                        {!field.isRequired && <span className="text-muted-foreground"> (optional)</span>}
                       </span>
                     </div>
                   ))}
@@ -170,23 +143,22 @@ export function UserProfileCompletion({ user }: UserProfileCompletionProps) {
           })}
         </div>
 
-        {/* Missing Fields Summary */}
-        {missingFields.length > 0 && (
+        {/* Missing Required Fields Summary */}
+        {missingRequiredFields.length > 0 && (
           <div className="space-y-3 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
             <div className="flex items-center gap-2">
               <AlertCircle className="h-5 w-5 text-yellow-600" />
-              <h4 className="font-medium text-yellow-800">Missing Information</h4>
+              <h4 className="font-medium text-yellow-800">Missing Required Information</h4>
             </div>
             
             <div className="text-sm text-yellow-700">
-              <p className="mb-2">The following fields are incomplete:</p>
+              <p className="mb-2">The following required fields are incomplete:</p>
               <ul className="list-disc list-inside space-y-1">
-                {missingFields.map(field => (
+                {missingRequiredFields.map(field => (
                   <li key={field.key}>{field.label}</li>
                 ))}
               </ul>
             </div>
-
           </div>
         )}
 
