@@ -14,7 +14,7 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import MainLayout from "@/components/MainLayout";
 import AdminLayout from "@/components/admin/AdminLayout";
 import Login from "@/pages/Login";
-import Signup from "@/pages/Signup";
+import { ProtectedSignupForm } from "@/features/auth";
 import SignupSuccess from "@/pages/SignupSuccess";
 import ForgotPassword from "@/pages/ForgotPassword";
 import ResetPassword from "@/pages/ResetPassword";
@@ -71,7 +71,7 @@ function App() {
           <Routes>
             {/* Authentication routes - no protection needed */}
             <Route path="/login" element={<Login />} />
-            <Route path="/signup" element={<Signup />} />
+            <Route path="/signup" element={<ProtectedSignupForm />} />
             <Route path="/signup-success" element={<SignupSuccess />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
