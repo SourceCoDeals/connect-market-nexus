@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { PaginationState } from './use-simple-pagination';
 import { Listing, ListingStatus } from '@/types';
 import { useEffect } from 'react';
+import { expandLocations } from '@/lib/location-hierarchy';
 
 async function fetchListings(state: PaginationState) {
   console.log('🔍 Fetching listings for state:', state);
@@ -18,11 +19,14 @@ async function fetchListings(state: PaginationState) {
   }
   
   if (state.category && state.category !== 'all') {
-    query = query.eq('category', state.category);
+    // Support both single category field and categories array
+    query = query.or(`category.eq.${state.category},categories.cs.{${state.category}}`);
   }
   
   if (state.location && state.location !== 'all') {
-    query = query.eq('location', state.location);
+    // Use location hierarchy expansion for better filtering
+    const expandedLocations = expandLocations([state.location]);
+    query = query.in('location', expandedLocations);
   }
   
   if (state.revenueMin !== undefined) {
