@@ -265,7 +265,7 @@ export const useListing = (id: string | undefined) => {
   });
 };
 
-// Get listing metadata for filters (categories, locations)
+// Get listing metadata for filters (categories, locations) using standardized constants
 export const useListingMetadata = () => {
   const { user, authChecked } = useAuth();
   
@@ -274,48 +274,26 @@ export const useListingMetadata = () => {
     queryFn: async () => {
       return withPerformanceMonitoring('listing-metadata-query', async () => {
         try {
-          // Fetching listing metadata
-
-          // Simple auth check for metadata
-          if (!user || !user.email_verified) {
-            throw new Error('Authentication required for metadata');
-          }
+          // Use standardized constants directly for consistent filtering
+          // This ensures all filter options are always available and properly standardized
+          const { STANDARDIZED_CATEGORIES, STANDARDIZED_LOCATIONS } = await import('@/lib/financial-parser');
           
-          const { data, error } = await supabase
-            .from('listings')
-            .select('category, categories, location')
-            .eq('status', 'active')
-            .is('deleted_at', null);
-          
-          if (error) {
-            console.error('❌ Error fetching listing metadata:', error);
-            throw error;
-          }
-          
-          // Metadata raw data
-          
-          const allCategories = new Set<string>();
-          data.forEach(item => {
-            if (item.category) allCategories.add(item.category);
-            if (item.categories) {
-              item.categories.forEach((cat: string) => allCategories.add(cat));
-            }
-          });
-          
-          const categories = Array.from(allCategories).filter(Boolean).sort();
-          const locations = [...new Set(data.map(item => item.location))].filter(Boolean).sort();
-          
-          // Fetched metadata successfully
-          
-          return { categories, locations };
+          return { 
+            categories: STANDARDIZED_CATEGORIES, 
+            locations: STANDARDIZED_LOCATIONS 
+          };
         } catch (error: any) {
           console.error('💥 Error in useListingMetadata:', error);
-          return { categories: [], locations: [] };
+          // Fallback to hardcoded arrays if import fails
+          return { 
+            categories: ['Technology', 'Healthcare', 'Manufacturing', 'Retail', 'Financial Services'], 
+            locations: ['United States', 'Canada', 'United Kingdom', 'Germany', 'France'] 
+          };
         }
       });
     },
-    enabled: !!(user && user.email_verified && (user.approval_status === 'approved' || user.is_admin)), // Remove authChecked dependency
-    staleTime: 1000 * 60 * 5,
+    enabled: !!(user && user.email_verified && (user.approval_status === 'approved' || user.is_admin)),
+    staleTime: 1000 * 60 * 60, // 1 hour - these are static constants
     refetchOnWindowFocus: false,
     retry: 1,
   });

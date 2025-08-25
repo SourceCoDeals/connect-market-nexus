@@ -8,6 +8,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { MultiSelect } from '@/components/ui/multi-select';
+import { toStandardLocation } from '@/lib/standardization';
 
 interface LocationSelectProps {
   value?: string;
@@ -29,8 +30,12 @@ export function LocationSelect({
   placeholder = "Select location...",
   className 
 }: LocationSelectProps) {
+  const handleValueChange = (selectedValue: string) => {
+    onValueChange(toStandardLocation(selectedValue));
+  };
+
   return (
-    <Select value={value} onValueChange={onValueChange}>
+    <Select value={value} onValueChange={handleValueChange}>
       <SelectTrigger className={className}>
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
@@ -56,11 +61,16 @@ export function MultiLocationSelect({
     label: location
   }));
 
+  const handleValueChange = (selectedValues: string[]) => {
+    const standardizedValues = selectedValues.map(toStandardLocation);
+    onValueChange(standardizedValues);
+  };
+
   return (
     <MultiSelect
       options={options}
       selected={value}
-      onSelectedChange={onValueChange}
+      onSelectedChange={handleValueChange}
       placeholder={placeholder}
       className={className}
     />

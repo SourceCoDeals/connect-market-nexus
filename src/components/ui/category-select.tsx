@@ -8,6 +8,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { MultiSelect } from '@/components/ui/multi-select';
+import { toStandardCategory } from '@/lib/standardization';
 
 interface CategorySelectProps {
   value?: string;
@@ -29,8 +30,12 @@ export function CategorySelect({
   placeholder = "Select category...",
   className 
 }: CategorySelectProps) {
+  const handleValueChange = (selectedValue: string) => {
+    onValueChange(toStandardCategory(selectedValue));
+  };
+
   return (
-    <Select value={value} onValueChange={onValueChange}>
+    <Select value={value} onValueChange={handleValueChange}>
       <SelectTrigger className={className}>
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
@@ -56,11 +61,16 @@ export function MultiCategorySelect({
     label: category
   }));
 
+  const handleValueChange = (selectedValues: string[]) => {
+    const standardizedValues = selectedValues.map(toStandardCategory);
+    onValueChange(standardizedValues);
+  };
+
   return (
     <MultiSelect
       options={options}
       selected={value}
-      onSelectedChange={onValueChange}
+      onSelectedChange={handleValueChange}
       placeholder={placeholder}
       className={className}
     />
