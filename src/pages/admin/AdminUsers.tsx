@@ -15,6 +15,7 @@ import { EnhancedUserManagement } from "@/components/admin/EnhancedUserManagemen
 import { BulkVerificationEmailSender } from "@/components/admin/BulkVerificationEmailSender";
 import { ProfileDataInspector } from "@/components/admin/ProfileDataInspector";
 import { ProfileDataRecovery } from "@/components/admin/ProfileDataRecovery";
+import { AutomatedDataRestoration } from "@/components/admin/AutomatedDataRestoration";
 
 
 
@@ -163,6 +164,8 @@ const AdminUsers = () => {
             <span className="group-open:rotate-180 transition-transform">▼</span>
           </summary>
           <div className="mt-4 space-y-4">
+            {/* NEW: Automated Data Restoration (smart fix for over-standardized data) */}
+            <AutomatedDataRestoration />
             <BulkVerificationEmailSender />
             {/* New: Profile Data Inspector (compares current vs raw snapshots) */}
             <ProfileDataInspector />

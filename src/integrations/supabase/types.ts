@@ -1593,6 +1593,19 @@ export type Database = {
           user_id: string
         }[]
       }
+      preview_profile_data_restoration: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          current_categories: Json
+          current_locations: Json
+          email: string
+          issue_type: string
+          profile_id: string
+          raw_categories: Json
+          raw_locations: Json
+          restoration_needed: string
+        }[]
+      }
       promote_user_to_admin: {
         Args: { target_user_id: string }
         Returns: boolean
@@ -1600,6 +1613,16 @@ export type Database = {
       refresh_analytics_views: {
         Args: Record<PropertyKey, never>
         Returns: undefined
+      }
+      restore_profile_data_automated: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          details: string
+          new_value: Json
+          old_value: Json
+          profile_id: string
+          restoration_type: string
+        }[]
       }
       soft_delete_listing: {
         Args: { listing_id: string }
