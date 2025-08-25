@@ -17,8 +17,8 @@ const buildMap = (values: string[]) => {
   return map;
 };
 
-const CATEGORY_MAP = buildMap(STANDARDIZED_CATEGORIES);
-const LOCATION_MAP = buildMap(STANDARDIZED_LOCATIONS);
+const CATEGORY_MAP = buildMap([...STANDARDIZED_CATEGORIES]);
+const LOCATION_MAP = buildMap([...STANDARDIZED_LOCATIONS]);
 
 export const toStandardCategory = (value?: string) => {
   if (!value) return '';
