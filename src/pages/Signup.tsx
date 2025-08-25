@@ -24,6 +24,9 @@ const steps = [
 import { STANDARDIZED_CATEGORIES } from "@/lib/financial-parser";
 import { MultiCategorySelect } from "@/components/ui/category-select";
 import { MultiLocationSelect } from "@/components/ui/location-select";
+import { EnhancedMultiCategorySelect } from "@/components/ui/enhanced-category-select";
+import { EnhancedMultiLocationSelect } from "@/components/ui/enhanced-location-select";
+import { FIELD_HELPERS } from "@/lib/field-helpers";
 import { REVENUE_RANGES, FUND_AUM_RANGES, INVESTMENT_RANGES, DEAL_SIZE_RANGES } from "@/lib/currency-ranges";
 
 const buyerTypeOptions = [
@@ -604,13 +607,16 @@ const Signup = () => {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="investmentSize">Investment Size</Label>
+                  <Label htmlFor="investmentSize">{FIELD_HELPERS.investmentSize.label}</Label>
+                  <p className="text-xs text-muted-foreground">
+                    {FIELD_HELPERS.investmentSize.description}
+                  </p>
                   <Select
                     value={formData.investmentSize}
                     onValueChange={(value) => setFormData((prev) => ({ ...prev, investmentSize: value }))}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select investment size" />
+                      <SelectValue placeholder={FIELD_HELPERS.investmentSize.placeholder} />
                     </SelectTrigger>
                     <SelectContent>
                       {INVESTMENT_RANGES.map((range) => (
@@ -753,13 +759,16 @@ const Signup = () => {
             {formData.buyerType === "independentSponsor" && (
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="investmentSize">Investment Size</Label>
+                  <Label htmlFor="investmentSize">{FIELD_HELPERS.investmentSize.label}</Label>
+                  <p className="text-xs text-muted-foreground">
+                    {FIELD_HELPERS.investmentSize.description}
+                  </p>
                   <Select
                     value={formData.investmentSize}
                     onValueChange={(value) => setFormData((prev) => ({ ...prev, investmentSize: value }))}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select investment size" />
+                      <SelectValue placeholder={FIELD_HELPERS.investmentSize.placeholder} />
                     </SelectTrigger>
                     <SelectContent>
                       {INVESTMENT_RANGES.map((range) => (
@@ -816,12 +825,15 @@ const Signup = () => {
 
             <div className="space-y-2">
               <Label htmlFor="idealTargetDescription">
-                Please describe your ideal targets in 2-3 sentences
+                {FIELD_HELPERS.idealTargetDescription.label}
               </Label>
+              <p className="text-xs text-muted-foreground">
+                {FIELD_HELPERS.idealTargetDescription.description}
+              </p>
               <Textarea
                 id="idealTargetDescription"
                 name="idealTargetDescription"
-                placeholder="I'm looking for profitable service businesses in the healthcare sector with stable customer bases and growth potential..."
+                placeholder={FIELD_HELPERS.idealTargetDescription.placeholder}
                 rows={3}
                 value={formData.idealTargetDescription}
                 onChange={(e) => setFormData(prev => ({ ...prev, idealTargetDescription: e.target.value }))}
@@ -831,24 +843,30 @@ const Signup = () => {
 
             <div className="space-y-4">
               <Label className="text-base font-medium">
-                What kind of businesses are you looking to buy?
+                {FIELD_HELPERS.businessCategories.label}
               </Label>
-              <MultiCategorySelect
+              <p className="text-xs text-muted-foreground">
+                {FIELD_HELPERS.businessCategories.description}
+              </p>
+              <EnhancedMultiCategorySelect
                 value={formData.businessCategories}
                 onValueChange={(selected) => setFormData(prev => ({ ...prev, businessCategories: selected }))}
-                placeholder="Select industries..."
+                placeholder={FIELD_HELPERS.businessCategories.placeholder}
                 className="w-full"
               />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="targetLocations">
-                What locations are you considering purchasing in?
+                {FIELD_HELPERS.targetLocations.label}
               </Label>
-              <MultiLocationSelect
+              <p className="text-xs text-muted-foreground">
+                {FIELD_HELPERS.targetLocations.description}
+              </p>
+              <EnhancedMultiLocationSelect
                 value={Array.isArray(formData.targetLocations) ? formData.targetLocations : []}
                 onValueChange={(selected) => setFormData(prev => ({ ...prev, targetLocations: selected }))}
-                placeholder="Select target locations..."
+                placeholder={FIELD_HELPERS.targetLocations.placeholder}
                 className="w-full"
               />
             </div>
@@ -857,11 +875,14 @@ const Signup = () => {
             {formData.buyerType === "independentSponsor" && (
               <div className="space-y-4">
                 <Label className="text-base font-medium">
-                  What is your target deal size range?
+                  {FIELD_HELPERS.targetDealSize.label}
                 </Label>
+                <p className="text-xs text-muted-foreground">
+                  {FIELD_HELPERS.targetDealSize.description}
+                </p>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="targetDealSizeMin">Minimum Deal Size</Label>
+                    <Label htmlFor="targetDealSizeMin">{FIELD_HELPERS.targetDealSize.minLabel}</Label>
                     <Select
                       value={formData.targetDealSizeMin}
                       onValueChange={(value) => setFormData(prev => ({ ...prev, targetDealSizeMin: value }))}
@@ -879,7 +900,7 @@ const Signup = () => {
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="targetDealSizeMax">Maximum Deal Size</Label>
+                    <Label htmlFor="targetDealSizeMax">{FIELD_HELPERS.targetDealSize.maxLabel}</Label>
                     <Select
                       value={formData.targetDealSizeMax}
                       onValueChange={(value) => setFormData(prev => ({ ...prev, targetDealSizeMax: value }))}
@@ -904,11 +925,14 @@ const Signup = () => {
             {formData.buyerType !== "privateEquity" && formData.buyerType !== "independentSponsor" && (
               <div className="space-y-4">
                 <Label className="text-base font-medium">
-                  What is the revenue range you're looking for in a potential acquisition?
+                  {FIELD_HELPERS.revenueRange.label}
                 </Label>
+                <p className="text-xs text-muted-foreground">
+                  {FIELD_HELPERS.revenueRange.description}
+                </p>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="revenueRangeMin">Minimum Revenue</Label>
+                    <Label htmlFor="revenueRangeMin">{FIELD_HELPERS.revenueRange.minLabel}</Label>
                     <Select
                       value={formData.revenueRangeMin}
                       onValueChange={(value) => setFormData(prev => ({ ...prev, revenueRangeMin: value }))}
@@ -926,7 +950,7 @@ const Signup = () => {
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="revenueRangeMax">Maximum Revenue</Label>
+                    <Label htmlFor="revenueRangeMax">{FIELD_HELPERS.revenueRange.maxLabel}</Label>
                     <Select
                       value={formData.revenueRangeMax}
                       onValueChange={(value) => setFormData(prev => ({ ...prev, revenueRangeMax: value }))}
@@ -949,15 +973,15 @@ const Signup = () => {
 
             <div className="space-y-2">
               <Label htmlFor="specificBusinessSearch">
-                Know exactly what business you're looking for? Tell us!
+                {FIELD_HELPERS.specificBusinessSearch.label}
               </Label>
               <p className="text-xs text-muted-foreground">
-                This will help expedite your search so we can send hyper-targeted deals your way.
+                {FIELD_HELPERS.specificBusinessSearch.description}
               </p>
               <Textarea
                 id="specificBusinessSearch"
                 name="specificBusinessSearch"
-                placeholder="I'm looking for a non-union HVAC business with $2-5M EBITDA, established customer contracts..."
+                placeholder={FIELD_HELPERS.specificBusinessSearch.placeholder}
                 rows={3}
                 value={formData.specificBusinessSearch}
                 onChange={(e) => setFormData(prev => ({ ...prev, specificBusinessSearch: e.target.value }))}
