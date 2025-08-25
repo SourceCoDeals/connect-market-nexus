@@ -1547,6 +1547,14 @@ export type Database = {
           unread_count: number
         }[]
       }
+      get_latest_profile_snapshot: {
+        Args: { p_profile_id: string }
+        Returns: {
+          raw_business_categories: Json
+          raw_payload: Json
+          raw_target_locations: Json
+        }[]
+      }
       get_simple_marketplace_analytics: {
         Args: { days_back?: number }
         Returns: {
