@@ -17,7 +17,7 @@ interface CurrencyInputEnhancedProps {
 // Format number with commas
 const formatNumberWithCommas = (value: string): string => {
   // Remove all non-digit characters except decimal point
-  const cleaned = value.replace(/[^\\d.]/g, '');
+  const cleaned = value.replace(/[^\d.]/g, '');
   const parts = cleaned.split('.');
   
   // Add commas to the integer part
@@ -28,7 +28,7 @@ const formatNumberWithCommas = (value: string): string => {
 
 // Parse formatted number back to numeric value
 const parseFormattedNumber = (value: string): number => {
-  const cleaned = value.replace(/[^\\d.]/g, '');
+  const cleaned = value.replace(/[^\d.]/g, '');
   return parseFloat(cleaned) || 0;
 };
 
@@ -51,7 +51,7 @@ export const CurrencyInputEnhanced: React.FC<CurrencyInputEnhancedProps> = ({
   useEffect(() => {
     if (!isFocused) {
       const stringValue = typeof value === 'number' ? value.toString() : (value || '');
-      if (stringValue && !isNaN(Number(stringValue.replace(/[^\\d.]/g, '')))) {
+      if (stringValue && !isNaN(Number(stringValue.replace(/[^\d.]/g, '')))) {
         setDisplayValue(formatNumberWithCommas(stringValue));
       } else {
         setDisplayValue(stringValue);
