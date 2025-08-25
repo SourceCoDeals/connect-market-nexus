@@ -28,14 +28,36 @@ import { EnhancedMultiCategorySelect } from "@/components/ui/enhanced-category-s
 import { EnhancedMultiLocationSelect } from "@/components/ui/enhanced-location-select";
 import { FIELD_HELPERS } from "@/lib/field-helpers";
 import { REVENUE_RANGES, FUND_AUM_RANGES, INVESTMENT_RANGES, DEAL_SIZE_RANGES } from "@/lib/currency-ranges";
+import { 
+  DEPLOYING_CAPITAL_OPTIONS,
+  DEAL_SIZE_BAND_OPTIONS, 
+  INTEGRATION_PLAN_OPTIONS, 
+  CORPDEV_INTENT_OPTIONS,
+  DISCRETION_TYPE_OPTIONS,
+  COMMITTED_EQUITY_BAND_OPTIONS,
+  EQUITY_SOURCE_OPTIONS,
+  DEPLOYMENT_TIMING_OPTIONS,
+  SEARCH_TYPE_OPTIONS,
+  ACQ_EQUITY_BAND_OPTIONS,
+  FINANCING_PLAN_OPTIONS,
+  SEARCH_STAGE_OPTIONS,
+  ON_BEHALF_OPTIONS,
+  BUYER_ROLE_OPTIONS,
+  OWNER_TIMELINE_OPTIONS,
+  INDIVIDUAL_FUNDING_SOURCE_OPTIONS,
+  USES_BANK_FINANCE_OPTIONS,
+  MAX_EQUITY_TODAY_OPTIONS
+} from "@/lib/signup-field-options";
 
 const buyerTypeOptions = [
-  { value: "corporate", label: "Corporate", description: "Operating companies looking to acquire complementary businesses" },
-  { value: "privateEquity", label: "Private Equity", description: "Professional investment firms managing institutional capital" },
-  { value: "familyOffice", label: "Family Office", description: "Private wealth management entities making direct investments" },
-  { value: "searchFund", label: "Search Fund", description: "Entrepreneurs seeking to acquire and operate a single company" },
-  { value: "individual", label: "Individual", description: "Individual investors using personal capital or SBA financing" },
-  { value: "independentSponsor", label: "Independent Sponsor", description: "Investment professionals sourcing deals without permanent capital" },
+  { value: "corporate", label: "Corporate Development (Strategic)", description: "Corporate buyers seeking strategic acquisitions" },
+  { value: "privateEquity", label: "Private Equity", description: "Investment funds focused on acquiring and growing companies" },
+  { value: "familyOffice", label: "Family Office", description: "Private wealth management offices making direct investments" },
+  { value: "searchFund", label: "Search Fund", description: "Entrepreneur-led acquisition vehicles" },
+  { value: "individual", label: "Individual Investor", description: "High-net-worth individuals making personal investments" },
+  { value: "independentSponsor", label: "Independent Sponsor", description: "Deal-by-deal investment professionals" },
+  { value: "advisor", label: "Advisor / Banker", description: "Investment bankers and M&A advisors" },
+  { value: "businessOwner", label: "Business Owner", description: "Current business owners exploring opportunities" },
 ];
 
 const Signup = () => {
@@ -55,6 +77,7 @@ const Signup = () => {
     website: string;
     linkedinProfile: string;
     phoneNumber: string;
+    jobTitle?: string;
     buyerType: BuyerType | "";
     // Buyer type specific fields - flattened for proper mapping
     estimatedRevenue: string;
@@ -80,6 +103,35 @@ const Signup = () => {
     geographicFocus: string;
     industryExpertise: string;
     dealStructurePreference: string;
+    // New comprehensive signup fields
+    portfolioCompanyAddon?: string;
+    deployingCapitalNow?: string;
+    owningBusinessUnit?: string;
+    dealSizeBand?: string;
+    integrationPlan?: string[];
+    corpdevIntent?: string;
+    discretionType?: string;
+    permanentCapital?: boolean;
+    operatingCompanyTargets?: string[];
+    committedEquityBand?: string;
+    equitySource?: string[];
+    flexSubxmEbitda?: boolean;
+    backersSummary?: string;
+    deploymentTiming?: string;
+    searchType?: string;
+    acqEquityBand?: string;
+    financingPlan?: string[];
+    flexSub2mEbitda?: boolean;
+    anchorInvestorsSummary?: string;
+    searchStage?: string;
+    onBehalfOfBuyer?: string;
+    buyerRole?: string;
+    buyerOrgUrl?: string;
+    mandateBlurb?: string;
+    ownerIntent?: string;
+    ownerTimeline?: string;
+    usesBank?: string;
+    maxEquityToday?: string;
   }>({
     email: "",
     password: "",
@@ -90,6 +142,7 @@ const Signup = () => {
     website: "",
     linkedinProfile: "",
     phoneNumber: "",
+    jobTitle: "",
     buyerType: "",
     // Buyer type specific fields
     estimatedRevenue: "",
@@ -115,6 +168,35 @@ const Signup = () => {
     geographicFocus: "",
     industryExpertise: "",
     dealStructurePreference: "",
+    // New comprehensive signup fields
+    portfolioCompanyAddon: "",
+    deployingCapitalNow: "",
+    owningBusinessUnit: "",
+    dealSizeBand: "",
+    integrationPlan: [],
+    corpdevIntent: "",
+    discretionType: "",
+    permanentCapital: false,
+    operatingCompanyTargets: [],
+    committedEquityBand: "",
+    equitySource: [],
+    flexSubxmEbitda: false,
+    backersSummary: "",
+    deploymentTiming: "",
+    searchType: "",
+    acqEquityBand: "",
+    financingPlan: [],
+    flexSub2mEbitda: false,
+    anchorInvestorsSummary: "",
+    searchStage: "",
+    onBehalfOfBuyer: "",
+    buyerRole: "",
+    buyerOrgUrl: "",
+    mandateBlurb: "",
+    ownerIntent: "",
+    ownerTimeline: "",
+    usesBank: "",
+    maxEquityToday: "",
   });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -223,32 +305,75 @@ const Signup = () => {
             if (!formData.estimatedRevenue) {
               errors.push("Estimated revenue is required");
             }
+            if (!formData.dealSizeBand) {
+              errors.push("Deal size (EV) is required");
+            }
             break;
           case "privateEquity":
+            if (!formData.fundSize) {
+              errors.push("Fund size is required");
+            }
+            if (!formData.deployingCapitalNow) {
+              errors.push("Deploying capital status is required");
+            }
+            break;
           case "familyOffice":
             if (!formData.fundSize) {
               errors.push("Fund size is required");
             }
+            if (!formData.discretionType) {
+              errors.push("Decision authority is required");
+            }
             break;
           case "searchFund":
-            if (!formData.isFunded) {
-              errors.push("Please specify if you're funded");
+            if (!formData.searchType) {
+              errors.push("Search type is required");
+            }
+            if (!formData.acqEquityBand) {
+              errors.push("Equity available for acquisition is required");
+            }
+            if (!formData.financingPlan || formData.financingPlan.length === 0) {
+              errors.push("At least one financing plan option is required");
+            }
+            if (formData.flexSub2mEbitda === undefined) {
+              errors.push("Please specify if you're flexible on size");
             }
             break;
           case "individual":
             if (!formData.fundingSource) {
               errors.push("Funding source is required");
             }
+            if (!formData.usesBank) {
+              errors.push("Please specify if you'll use SBA/bank financing");
+            }
             break;
-           case "independentSponsor":
-            if (!formData.investmentSize) {
-              errors.push("Investment size is required");
+          case "independentSponsor":
+            if (!formData.committedEquityBand) {
+              errors.push("Committed equity amount is required");
             }
-            if (!formData.dealStructurePreference) {
-              errors.push("Deal structure preference is required");
+            if (!formData.equitySource || formData.equitySource.length === 0) {
+              errors.push("At least one equity source is required");
             }
-            if (!formData.industryExpertise || formData.industryExpertise.trim().length < 10) {
-              errors.push("Industry expertise description is required (minimum 10 characters)");
+            if (formData.flexSubxmEbitda === undefined) {
+              errors.push("Please specify if you're flexible on size");
+            }
+            break;
+          case "advisor":
+            if (!formData.onBehalfOfBuyer) {
+              errors.push("Please specify if you're representing a buyer");
+            }
+            if (formData.onBehalfOfBuyer === "yes") {
+              if (!formData.buyerRole) {
+                errors.push("Buyer role is required");
+              }
+              if (!formData.buyerOrgUrl) {
+                errors.push("Buyer organization website is required");
+              }
+            }
+            break;
+          case "businessOwner":
+            if (!formData.ownerIntent) {
+              errors.push("Please describe why you're here");
             }
             break;
         }
@@ -427,7 +552,8 @@ const Signup = () => {
         return (
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">Work Email</Label>
+              <p className="text-xs text-muted-foreground">Please provide your work email address (personal emails accepted if needed)</p>
               <Input
                 id="email"
                 name="email"
@@ -516,6 +642,17 @@ const Signup = () => {
                 required
               />
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="jobTitle">Job Title <span className="text-xs text-muted-foreground">(optional)</span></Label>
+              <p className="text-xs text-muted-foreground">Helps quick triage: Analyst/Associate vs Partner/M&A Director</p>
+              <Input
+                id="jobTitle"
+                name="jobTitle"
+                placeholder="Partner, Director, Analyst, etc."
+                value={formData.jobTitle || ""}
+                onChange={handleInputChange}
+              />
+            </div>
 
             <Separator className="my-6" />
             <div className="text-sm text-muted-foreground mb-4">
@@ -574,27 +711,106 @@ const Signup = () => {
             
             {/* Conditional fields based on buyer type */}
             {formData.buyerType === "corporate" && (
-              <div className="space-y-2">
-                <Label htmlFor="estimatedRevenue">Estimated Revenue</Label>
-                <Select
-                  value={formData.estimatedRevenue}
-                  onValueChange={(value) => setFormData((prev) => ({ ...prev, estimatedRevenue: value }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select revenue range" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {REVENUE_RANGES.map((range) => (
-                      <SelectItem key={range.value} value={range.value}>
-                        {range.label}
-                      </SelectItem>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="estimatedRevenue">Estimated Revenue</Label>
+                  <Select
+                    value={formData.estimatedRevenue}
+                    onValueChange={(value) => setFormData((prev) => ({ ...prev, estimatedRevenue: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select revenue range" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {REVENUE_RANGES.map((range) => (
+                        <SelectItem key={range.value} value={range.value}>
+                          {range.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="owningBusinessUnit">Owning business unit / brand <span className="text-xs text-muted-foreground">(optional)</span></Label>
+                  <p className="text-xs text-muted-foreground">Which business unit or brand would this acquisition fall under?</p>
+                  <Input
+                    id="owningBusinessUnit"
+                    name="owningBusinessUnit"
+                    placeholder="e.g., Digital Services Division"
+                    value={formData.owningBusinessUnit || ""}
+                    onChange={handleInputChange}
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="dealSizeBand">Deal size (EV) <span className="text-red-500">*</span></Label>
+                  <p className="text-xs text-muted-foreground">Enterprise value range you're targeting</p>
+                  <Select
+                    value={formData.dealSizeBand || ""}
+                    onValueChange={(value) => setFormData((prev) => ({ ...prev, dealSizeBand: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select deal size range" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {DEAL_SIZE_BAND_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label>Integration plan <span className="text-xs text-muted-foreground">(optional - select all that apply)</span></Label>
+                  <p className="text-xs text-muted-foreground">How would you integrate this acquisition?</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {INTEGRATION_PLAN_OPTIONS.map((option) => (
+                      <div key={option.value} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`integration-${option.value}`}
+                          checked={(formData.integrationPlan || []).includes(option.value)}
+                          onCheckedChange={(checked) => {
+                            const current = formData.integrationPlan || [];
+                            const updated = checked 
+                              ? [...current, option.value]
+                              : current.filter(item => item !== option.value);
+                            setFormData(prev => ({ ...prev, integrationPlan: updated }));
+                          }}
+                        />
+                        <Label htmlFor={`integration-${option.value}`} className="text-xs">
+                          {option.label}
+                        </Label>
+                      </div>
                     ))}
-                  </SelectContent>
-                </Select>
+                  </div>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="corpdevIntent">Speed/intent <span className="text-xs text-muted-foreground">(optional)</span></Label>
+                  <p className="text-xs text-muted-foreground">Current acquisition timeline and urgency</p>
+                  <Select
+                    value={formData.corpdevIntent || ""}
+                    onValueChange={(value) => setFormData((prev) => ({ ...prev, corpdevIntent: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select your current approach" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CORPDEV_INTENT_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             )}
             
-            {(formData.buyerType === "privateEquity" || formData.buyerType === "familyOffice") && (
+            {formData.buyerType === "privateEquity" && (
               <div className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="fundSize">Fund Size</Label>
@@ -653,119 +869,61 @@ const Signup = () => {
                     </SelectContent>
                   </Select>
                 </div>
-              </div>
-            )}
-            
-            {formData.buyerType === "searchFund" && (
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="isFunded">Are you funded?</Label>
-                  <Select
-                    onValueChange={(value) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        isFunded: value,
-                      }))
-                    }
-                    value={formData.isFunded}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select option" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="yes">Yes</SelectItem>
-                      <SelectItem value="no">No</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                {formData.isFunded === "yes" && (
-                  <div className="space-y-2">
-                    <Label htmlFor="fundedBy">Who is your funder?</Label>
-                    <Input
-                      id="fundedBy"
-                      name="fundedBy"
-                      placeholder="Investor name"
-                      value={formData.fundedBy}
-                      onChange={handleBuyerSpecificChange}
-                    />
-                  </div>
-                )}
                 
                 <div className="space-y-2">
-                  <Label htmlFor="targetCompanySize">Target Company Size</Label>
-                  <Select
-                    value={formData.targetCompanySize}
-                    onValueChange={(value) => setFormData((prev) => ({ ...prev, targetCompanySize: value }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select target size" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="small">Small (under $5M revenue)</SelectItem>
-                      <SelectItem value="medium">Medium ($5M-$50M revenue)</SelectItem>
-                      <SelectItem value="large">Large (over $50M revenue)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            )}
-            
-            {formData.buyerType === "individual" && (
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="fundingSource">Funding Source</Label>
-                  <Select
-                    value={formData.fundingSource}
-                    onValueChange={(value) => setFormData((prev) => ({ ...prev, fundingSource: value }))}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select funding source" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="personal">Personal Funds</SelectItem>
-                      <SelectItem value="investors">External Investors</SelectItem>
-                      <SelectItem value="bank_loan">Bank Loan</SelectItem>
-                      <SelectItem value="sba_loan">SBA Loan</SelectItem>
-                      <SelectItem value="combination">Combination</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="needsLoan">SBA/Bank loan?</Label>
-                  <Select
-                    onValueChange={(value) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        needsLoan: value,
-                      }))
-                    }
-                    value={formData.needsLoan}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select option" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="yes">Yes</SelectItem>
-                      <SelectItem value="no">No</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="idealTarget">Ideal Target</Label>
+                  <Label htmlFor="portfolioCompanyAddon">Which portfolio company would this be an add-on to (if any)? <span className="text-xs text-muted-foreground">(optional)</span></Label>
+                  <p className="text-xs text-muted-foreground">Name the existing portfolio company for potential add-on acquisitions</p>
                   <Input
-                    id="idealTarget"
-                    name="idealTarget"
-                    placeholder="Description of ideal acquisition"
-                    value={formData.idealTarget}
-                    onChange={handleBuyerSpecificChange}
+                    id="portfolioCompanyAddon"
+                    name="portfolioCompanyAddon"
+                    placeholder="e.g., ABC Manufacturing Co."
+                    value={formData.portfolioCompanyAddon || ""}
+                    onChange={handleInputChange}
                   />
                 </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="deployingCapitalNow">Deploying capital now? <span className="text-red-500">*</span></Label>
+                  <p className="text-xs text-muted-foreground">Current capital deployment status</p>
+                  <Select
+                    value={formData.deployingCapitalNow || ""}
+                    onValueChange={(value) => setFormData((prev) => ({ ...prev, deployingCapitalNow: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select deployment status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {DEPLOYING_CAPITAL_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             )}
             
-            {formData.buyerType === "independentSponsor" && (
+            {formData.buyerType === "familyOffice" && (
               <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="fundSize">Fund Size</Label>
+                  <Select
+                    value={formData.fundSize}
+                    onValueChange={(value) => setFormData((prev) => ({ ...prev, fundSize: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select fund size" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {FUND_AUM_RANGES.map((range) => (
+                        <SelectItem key={range.value} value={range.value}>
+                          {range.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
                 <div className="space-y-2">
                   <Label htmlFor="investmentSize">{FIELD_HELPERS.investmentSize.label}</Label>
                   <p className="text-xs text-muted-foreground">
@@ -787,36 +945,458 @@ const Signup = () => {
                     </SelectContent>
                   </Select>
                 </div>
-                 <div className="space-y-2">
-                   <Label htmlFor="dealStructurePreference">Deal Structure Preference</Label>
-                   <Select
-                     value={formData.dealStructurePreference}
-                     onValueChange={(value) => setFormData((prev) => ({ ...prev, dealStructurePreference: value }))}
-                   >
-                     <SelectTrigger>
-                       <SelectValue placeholder="Select deal structure" />
-                     </SelectTrigger>
-                     <SelectContent>
-                       <SelectItem value="equity">Equity Purchase</SelectItem>
-                       <SelectItem value="asset">Asset Purchase</SelectItem>
-                       <SelectItem value="majority">Majority Stake</SelectItem>
-                       <SelectItem value="minority">Minority Investment</SelectItem>
-                       <SelectItem value="flexible">Flexible</SelectItem>
-                     </SelectContent>
-                   </Select>
-                 </div>
-                 <div className="space-y-2">
-                   <Label htmlFor="industryExpertise">Industry Expertise</Label>
-                   <Textarea
-                     id="industryExpertise"
-                     name="industryExpertise"
-                     placeholder="Describe your industry expertise and focus areas..."
-                     rows={2}
-                     value={formData.industryExpertise}
-                     onChange={(e) => setFormData((prev) => ({ ...prev, industryExpertise: e.target.value }))}
-                     required
-                   />
-                 </div>
+                <div className="space-y-2">
+                  <Label htmlFor="aum">Assets Under Management</Label>
+                  <Select
+                    value={formData.aum}
+                    onValueChange={(value) => setFormData((prev) => ({ ...prev, aum: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select AUM range" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {FUND_AUM_RANGES.map((range) => (
+                        <SelectItem key={range.value} value={range.value}>
+                          {range.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="discretionType">Decision authority <span className="text-red-500">*</span></Label>
+                  <p className="text-xs text-muted-foreground">Your decision-making authority level</p>
+                  <Select
+                    value={formData.discretionType || ""}
+                    onValueChange={(value) => setFormData((prev) => ({ ...prev, discretionType: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select authority type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {DISCRETION_TYPE_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-2">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="permanentCapital"
+                      checked={formData.permanentCapital || false}
+                      onCheckedChange={(checked) => setFormData(prev => ({ ...prev, permanentCapital: checked as boolean }))}
+                    />
+                    <Label htmlFor="permanentCapital" className="text-sm">
+                      Permanent capital <span className="text-xs text-muted-foreground">(optional)</span>
+                    </Label>
+                  </div>
+                  <p className="text-xs text-muted-foreground">Check if you have permanent capital available</p>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label>If you have an operating company this would add onto, name it <span className="text-xs text-muted-foreground">(optional - max 3)</span></Label>
+                  <p className="text-xs text-muted-foreground">List operating companies for potential add-on opportunities</p>
+                  <Input
+                    placeholder="Enter company names, separated by commas"
+                    value={(formData.operatingCompanyTargets || []).join(', ')}
+                    onChange={(e) => {
+                      const companies = e.target.value.split(',').map(s => s.trim()).filter(s => s).slice(0, 3);
+                      setFormData(prev => ({ ...prev, operatingCompanyTargets: companies }));
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+            
+            {formData.buyerType === "searchFund" && (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="searchType">Search type <span className="text-red-500">*</span></Label>
+                  <p className="text-xs text-muted-foreground">Type of search fund structure</p>
+                  <Select
+                    value={formData.searchType || ""}
+                    onValueChange={(value) => setFormData((prev) => ({ ...prev, searchType: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select search type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {SEARCH_TYPE_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="acqEquityBand">Equity available for the acquisition at close <span className="text-red-500">*</span></Label>
+                  <p className="text-xs text-muted-foreground">Amount of equity capital you can deploy at closing</p>
+                  <Select
+                    value={formData.acqEquityBand || ""}
+                    onValueChange={(value) => setFormData((prev) => ({ ...prev, acqEquityBand: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select equity amount" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ACQ_EQUITY_BAND_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label>Financing plan (select all that apply) <span className="text-red-500">*</span></Label>
+                  <p className="text-xs text-muted-foreground">Choose all financing sources you plan to use</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {FINANCING_PLAN_OPTIONS.map((option) => (
+                      <div key={option.value} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`financing-${option.value}`}
+                          checked={(formData.financingPlan || []).includes(option.value)}
+                          onCheckedChange={(checked) => {
+                            const current = formData.financingPlan || [];
+                            const updated = checked 
+                              ? [...current, option.value]
+                              : current.filter(item => item !== option.value);
+                            setFormData(prev => ({ ...prev, financingPlan: updated }));
+                          }}
+                        />
+                        <Label htmlFor={`financing-${option.value}`} className="text-xs">
+                          {option.label}
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                
+                <div className="space-y-2">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="flexSub2mEbitda"
+                      checked={formData.flexSub2mEbitda || false}
+                      onCheckedChange={(checked) => setFormData(prev => ({ ...prev, flexSub2mEbitda: checked as boolean }))}
+                    />
+                    <Label htmlFor="flexSub2mEbitda" className="text-sm">
+                      Flexible on size? (can pursue &lt; $2M EBITDA) <span className="text-red-500">*</span>
+                    </Label>
+                  </div>
+                  <p className="text-xs text-muted-foreground">Check if willing to consider smaller deals below $2M EBITDA</p>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="anchorInvestorsSummary">Anchor investors / committed backers (one line, optional)</Label>
+                  <p className="text-xs text-muted-foreground">List your committed investors or backers</p>
+                  <Input
+                    id="anchorInvestorsSummary"
+                    name="anchorInvestorsSummary"
+                    placeholder="e.g., XYZ Capital; ABC Family Office"
+                    value={formData.anchorInvestorsSummary || ""}
+                    onChange={handleInputChange}
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="searchStage">Stage of search <span className="text-xs text-muted-foreground">(optional)</span></Label>
+                  <p className="text-xs text-muted-foreground">Current stage of your search process</p>
+                  <Select
+                    value={formData.searchStage || ""}
+                    onValueChange={(value) => setFormData((prev) => ({ ...prev, searchStage: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select search stage" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {SEARCH_STAGE_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            )}
+            
+            {formData.buyerType === "individual" && (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="fundingSource">Funding source <span className="text-red-500">*</span></Label>
+                  <p className="text-xs text-muted-foreground">Primary source of acquisition funding</p>
+                  <Select
+                    value={formData.fundingSource}
+                    onValueChange={(value) => setFormData((prev) => ({ ...prev, fundingSource: value }))}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select funding source" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {INDIVIDUAL_FUNDING_SOURCE_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="usesBank">Will you use SBA/bank financing? <span className="text-red-500">*</span></Label>
+                  <p className="text-xs text-muted-foreground">Planning to use debt financing for acquisition</p>
+                  <Select
+                    value={formData.usesBank || ""}
+                    onValueChange={(value) => setFormData((prev) => ({ ...prev, usesBank: value }))}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select option" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {USES_BANK_FINANCE_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="maxEquityToday">Max equity you can commit today <span className="text-xs text-muted-foreground">(optional)</span></Label>
+                  <p className="text-xs text-muted-foreground">Maximum equity investment you can make today</p>
+                  <Select
+                    value={formData.maxEquityToday || ""}
+                    onValueChange={(value) => setFormData((prev) => ({ ...prev, maxEquityToday: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select equity range" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {MAX_EQUITY_TODAY_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            )}
+            
+            {formData.buyerType === "independentSponsor" && (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="committedEquityBand">Committed equity available today <span className="text-red-500">*</span></Label>
+                  <p className="text-xs text-muted-foreground">Amount of equity capital you have committed and available now</p>
+                  <Select
+                    value={formData.committedEquityBand || ""}
+                    onValueChange={(value) => setFormData((prev) => ({ ...prev, committedEquityBand: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select equity amount" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {COMMITTED_EQUITY_BAND_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label>Source of equity <span className="text-red-500">* (select all that apply)</span></Label>
+                  <p className="text-xs text-muted-foreground">Choose all sources of your equity capital</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {EQUITY_SOURCE_OPTIONS.map((option) => (
+                      <div key={option.value} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`equity-source-${option.value}`}
+                          checked={(formData.equitySource || []).includes(option.value)}
+                          onCheckedChange={(checked) => {
+                            const current = formData.equitySource || [];
+                            const updated = checked 
+                              ? [...current, option.value]
+                              : current.filter(item => item !== option.value);
+                            setFormData(prev => ({ ...prev, equitySource: updated }));
+                          }}
+                        />
+                        <Label htmlFor={`equity-source-${option.value}`} className="text-xs">
+                          {option.label}
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                
+                <div className="space-y-2">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="flexSubxmEbitda"
+                      checked={formData.flexSubxmEbitda || false}
+                      onCheckedChange={(checked) => setFormData(prev => ({ ...prev, flexSubxmEbitda: checked as boolean }))}
+                    />
+                    <Label htmlFor="flexSubxmEbitda" className="text-sm">
+                      Flexible on size? <span className="text-red-500">*</span>
+                    </Label>
+                  </div>
+                  <p className="text-xs text-muted-foreground">Check if willing to consider smaller deals below typical thresholds</p>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="backersSummary">Representative backers (one line) <span className="text-xs text-muted-foreground">(optional)</span></Label>
+                  <p className="text-xs text-muted-foreground">List your key backers or funding sources</p>
+                  <Input
+                    id="backersSummary"
+                    name="backersSummary"
+                    placeholder="e.g., Smith Capital; Oak Family Office"
+                    value={formData.backersSummary || ""}
+                    onChange={handleInputChange}
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="deploymentTiming">Readiness window <span className="text-xs text-muted-foreground">(optional)</span></Label>
+                  <p className="text-xs text-muted-foreground">Timeline for deploying capital</p>
+                  <Select
+                    value={formData.deploymentTiming || ""}
+                    onValueChange={(value) => setFormData((prev) => ({ ...prev, deploymentTiming: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select deployment timing" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {DEPLOYMENT_TIMING_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            )}
+            
+            {formData.buyerType === "advisor" && (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="onBehalfOfBuyer">Are you inquiring on behalf of a capitalized buyer with discretion? <span className="text-red-500">*</span></Label>
+                  <p className="text-xs text-muted-foreground">Representing a buyer with committed capital and decision authority</p>
+                  <Select
+                    value={formData.onBehalfOfBuyer || ""}
+                    onValueChange={(value) => setFormData((prev) => ({ ...prev, onBehalfOfBuyer: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select option" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ON_BEHALF_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                {formData.onBehalfOfBuyer === "yes" && (
+                  <>
+                    <div className="space-y-2">
+                      <Label htmlFor="buyerRole">Buyer role <span className="text-red-500">*</span></Label>
+                      <p className="text-xs text-muted-foreground">Type of buyer you're representing</p>
+                      <Select
+                        value={formData.buyerRole || ""}
+                        onValueChange={(value) => setFormData((prev) => ({ ...prev, buyerRole: value }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select buyer type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {BUYER_ROLE_OPTIONS.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="buyerOrgUrl">Buyer organization website <span className="text-red-500">*</span></Label>
+                      <p className="text-xs text-muted-foreground">Website of the organization you're representing</p>
+                      <Input
+                        id="buyerOrgUrl"
+                        name="buyerOrgUrl"
+                        type="url"
+                        placeholder="https://www.buyercompany.com"
+                        value={formData.buyerOrgUrl || ""}
+                        onChange={handleInputChange}
+                      />
+                    </div>
+                  </>
+                )}
+                
+                <div className="space-y-2">
+                  <Label htmlFor="mandateBlurb">Mandate in one line (≤140 chars) <span className="text-xs text-muted-foreground">(optional)</span></Label>
+                  <p className="text-xs text-muted-foreground">Brief description of your client's acquisition mandate</p>
+                  <Input
+                    id="mandateBlurb"
+                    name="mandateBlurb"
+                    placeholder="e.g., Lower middle market tech services add-ons for PE portfolio"
+                    maxLength={140}
+                    value={formData.mandateBlurb || ""}
+                    onChange={handleInputChange}
+                  />
+                  <p className="text-xs text-muted-foreground">{(formData.mandateBlurb || "").length}/140 characters</p>
+                </div>
+              </div>
+            )}
+            
+            {formData.buyerType === "businessOwner" && (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="ownerIntent">Why are you here? (≤140 chars) <span className="text-red-500">*</span></Label>
+                  <p className="text-xs text-muted-foreground">Brief description of your purpose (e.g., "Valuation", "Open to intros")</p>
+                  <Input
+                    id="ownerIntent"
+                    name="ownerIntent"
+                    placeholder='e.g., "Valuation", "Open to intros"'
+                    maxLength={140}
+                    value={formData.ownerIntent || ""}
+                    onChange={handleInputChange}
+                  />
+                  <p className="text-xs text-muted-foreground">{(formData.ownerIntent || "").length}/140 characters</p>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="ownerTimeline">Timeline <span className="text-xs text-muted-foreground">(optional)</span></Label>
+                  <p className="text-xs text-muted-foreground">Expected timeline for any potential transaction</p>
+                  <Select
+                    value={formData.ownerTimeline || ""}
+                    onValueChange={(value) => setFormData((prev) => ({ ...prev, ownerTimeline: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select timeline" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {OWNER_TIMELINE_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             )}
           </div>
