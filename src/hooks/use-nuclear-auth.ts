@@ -159,6 +159,12 @@ export function useNuclearAuth() {
           funding_source: userData.funding_source || '',
           needs_loan: userData.needs_loan || '',
           ideal_target: userData.ideal_target || '',
+          // Independent sponsor specific fields
+          target_deal_size_min: userData.target_deal_size_min,
+          target_deal_size_max: userData.target_deal_size_max,
+          geographic_focus: userData.geographic_focus,
+          industry_expertise: userData.industry_expertise,
+          deal_structure_preference: userData.deal_structure_preference || '',
         }
       }
     });

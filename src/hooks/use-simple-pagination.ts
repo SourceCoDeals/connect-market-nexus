@@ -36,20 +36,27 @@ export function useSimplePagination() {
   }, []);
 
   const setFilters = useCallback((filters: Partial<PaginationState>) => {
-    console.log('🔍 [PAGINATION] Setting filters:', filters);
+    console.log('🔍 [PAGINATION] Received filters:', filters);
+    console.log('🔍 [PAGINATION] Current state before update:', state);
+    
     // Only reset page to 1 if filters actually contain filter values (not pagination changes)
     const hasActualFilters = Object.keys(filters).some(key => 
       key !== 'page' && key !== 'perPage' && filters[key as keyof PaginationState] !== undefined
     );
-    setState(prev => ({ 
-      ...prev, 
-      page: hasActualFilters ? 1 : prev.page, // Only reset page if actual filters changed
+    
+    const newState = { 
+      ...state, 
+      page: hasActualFilters ? 1 : state.page, // Only reset page if actual filters changed
       ...filters 
-    }));
+    };
+    
+    console.log('🎯 [PAGINATION] Setting new state:', newState);
+    setState(newState);
+    
     if (hasActualFilters) {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
-  }, []);
+  }, [state]);
 
   const resetFilters = useCallback(() => {
     console.log('🧹 [PAGINATION] Resetting filters');
