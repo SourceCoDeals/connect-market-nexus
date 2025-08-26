@@ -120,6 +120,19 @@ export function createUserObject(profile: any): User {
       backers_summary: profile.backers_summary || '',
       anchor_investors_summary: profile.anchor_investors_summary || '',
       
+      // Missing fields that weren't being mapped
+      deal_intent: profile.deal_intent || '',
+      exclusions: Array.isArray(profile.exclusions) 
+        ? profile.exclusions 
+        : typeof profile.exclusions === 'string' && profile.exclusions
+          ? profile.exclusions.split(',').map(s => s.trim()).filter(s => s)
+          : [],
+      include_keywords: Array.isArray(profile.include_keywords) 
+        ? profile.include_keywords 
+        : typeof profile.include_keywords === 'string' && profile.include_keywords
+          ? profile.include_keywords.split(',').map(s => s.trim()).filter(s => s)
+          : [],
+      
       get firstName() { return this.first_name; },
       get lastName() { return this.last_name; },
       get phoneNumber() { return this.phone_number; },
