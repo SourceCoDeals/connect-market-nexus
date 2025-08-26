@@ -20,9 +20,24 @@ import { EnhancedCurrencyInput } from "@/components/ui/enhanced-currency-input";
 import { MultiSelect } from "@/components/ui/multi-select";
 import { Switch } from "@/components/ui/switch";
 import { 
+  DEPLOYING_CAPITAL_OPTIONS,
+  DEAL_SIZE_BAND_OPTIONS,
+  INTEGRATION_PLAN_OPTIONS,
+  CORPDEV_INTENT_OPTIONS,
+  DISCRETION_TYPE_OPTIONS,
   COMMITTED_EQUITY_BAND_OPTIONS, 
   EQUITY_SOURCE_OPTIONS, 
-  DEPLOYMENT_TIMING_OPTIONS 
+  DEPLOYMENT_TIMING_OPTIONS,
+  SEARCH_TYPE_OPTIONS,
+  ACQ_EQUITY_BAND_OPTIONS,
+  FINANCING_PLAN_OPTIONS,
+  SEARCH_STAGE_OPTIONS,
+  ON_BEHALF_OPTIONS,
+  BUYER_ROLE_OPTIONS,
+  OWNER_TIMELINE_OPTIONS,
+  INDIVIDUAL_FUNDING_SOURCE_OPTIONS,
+  USES_BANK_FINANCE_OPTIONS,
+  MAX_EQUITY_TODAY_OPTIONS
 } from "@/lib/signup-field-options";
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@/types";
@@ -521,88 +536,139 @@ const Profile = () => {
                    </div>
 
                    {/* Buyer-specific additional fields */}
-                   {formData.buyer_type === "privateEquity" && (
-                     <>
-                       <div className="space-y-2">
-                         <Label htmlFor="deploying_capital_now">Capital Deployment Status</Label>
-                         <Input 
-                           id="deploying_capital_now" 
-                           name="deploying_capital_now" 
-                           value={formData.deploying_capital_now || ""} 
-                           onChange={handleInputChange}
-                           placeholder="e.g., Actively deploying"
-                         />
-                       </div>
-                       <div className="space-y-2">
-                         <Label htmlFor="portfolio_company_addon">Portfolio Company Add-on Interest</Label>
-                         <Input 
-                           id="portfolio_company_addon" 
-                           name="portfolio_company_addon" 
-                           value={formData.portfolio_company_addon || ""} 
-                           onChange={handleInputChange}
-                           placeholder="e.g., Yes, seeking add-ons for portfolio companies"
-                         />
-                       </div>
-                     </>
-                   )}
+                    {formData.buyer_type === "privateEquity" && (
+                      <>
+                        <div className="space-y-2">
+                          <Label htmlFor="deploying_capital_now">Capital Deployment Status</Label>
+                          <Select 
+                            value={formData.deploying_capital_now || ""} 
+                            onValueChange={(value) => handleSelectChange(value, "deploying_capital_now")}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select deployment status" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {DEPLOYING_CAPITAL_OPTIONS.map(option => (
+                                <SelectItem key={option.value} value={option.value}>
+                                  {option.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="portfolio_company_addon">Portfolio Company Add-on (Optional)</Label>
+                          <Input 
+                            id="portfolio_company_addon" 
+                            name="portfolio_company_addon" 
+                            value={formData.portfolio_company_addon || ""} 
+                            onChange={handleInputChange}
+                            placeholder="Which portfolio company would this be an add-on to?"
+                          />
+                        </div>
+                      </>
+                    )}
 
-                   {formData.buyer_type === "corporate" && (
-                     <>
-                       <div className="space-y-2">
-                         <Label htmlFor="owning_business_unit">Business Unit</Label>
-                         <Input 
-                           id="owning_business_unit" 
-                           name="owning_business_unit" 
-                           value={formData.owning_business_unit || ""} 
-                           onChange={handleInputChange}
-                           placeholder="e.g., Strategic Development"
-                         />
-                       </div>
-                       <div className="space-y-2">
-                         <Label htmlFor="deal_size_band">Deal Size Band</Label>
-                         <Input 
-                           id="deal_size_band" 
-                           name="deal_size_band" 
-                           value={formData.deal_size_band || ""} 
-                           onChange={handleInputChange}
-                           placeholder="e.g., $10M-$50M"
-                         />
-                       </div>
-                       <div className="space-y-2">
-                         <Label htmlFor="corpdev_intent">Corporate Development Intent</Label>
-                         <Input 
-                           id="corpdev_intent" 
-                           name="corpdev_intent" 
-                           value={formData.corpdev_intent || ""} 
-                           onChange={handleInputChange}
-                           placeholder="e.g., Strategic synergies"
-                         />
-                       </div>
-                       <div className="space-y-2">
-                         <Label htmlFor="buyer_org_url">Organization URL</Label>
-                         <Input 
-                           id="buyer_org_url" 
-                           name="buyer_org_url" 
-                           value={formData.buyer_org_url || ""} 
-                           onChange={handleInputChange}
-                           placeholder="https://company.com"
-                         />
-                       </div>
-                     </>
-                   )}
+                    {formData.buyer_type === "corporate" && (
+                      <>
+                        <div className="space-y-2">
+                          <Label htmlFor="owning_business_unit">Owning Business Unit / Brand (Optional)</Label>
+                          <Input 
+                            id="owning_business_unit" 
+                            name="owning_business_unit" 
+                            value={formData.owning_business_unit || ""} 
+                            onChange={handleInputChange}
+                            placeholder="Which business unit would own this acquisition?"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="deal_size_band">Deal Size (EV)</Label>
+                          <Select 
+                            value={formData.deal_size_band || ""} 
+                            onValueChange={(value) => handleSelectChange(value, "deal_size_band")}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select deal size range" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {DEAL_SIZE_BAND_OPTIONS.map(option => (
+                                <SelectItem key={option.value} value={option.value}>
+                                  {option.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="integration_plan">Integration Plan (Optional)</Label>
+                          <MultiSelect
+                            options={INTEGRATION_PLAN_OPTIONS.map(opt => ({ value: opt.value, label: opt.label }))}
+                            selected={Array.isArray(formData.integration_plan) ? formData.integration_plan : (formData.integration_plan ? [formData.integration_plan] : [])}
+                            onSelectedChange={(values) => handleSelectChange(values, "integration_plan")}
+                            placeholder="Select integration approaches"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="corpdev_intent">Speed/Intent (Optional)</Label>
+                          <Select 
+                            value={formData.corpdev_intent || ""} 
+                            onValueChange={(value) => handleSelectChange(value, "corpdev_intent")}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select your current intent" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {CORPDEV_INTENT_OPTIONS.map(option => (
+                                <SelectItem key={option.value} value={option.value}>
+                                  {option.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="buyer_org_url">Organization URL</Label>
+                          <Input 
+                            id="buyer_org_url" 
+                            name="buyer_org_url" 
+                            value={formData.buyer_org_url || ""} 
+                            onChange={handleInputChange}
+                            placeholder="https://company.com"
+                          />
+                        </div>
+                      </>
+                    )}
 
-                   {formData.buyer_type === "familyOffice" && (
-                     <div className="space-y-2">
-                       <Label htmlFor="discretion_type">Investment Discretion</Label>
-                       <Input 
-                         id="discretion_type" 
-                         name="discretion_type" 
-                         value={formData.discretion_type || ""} 
-                         onChange={handleInputChange}
-                         placeholder="e.g., Full discretion"
-                       />
-                     </div>
-                   )}
+                    {formData.buyer_type === "familyOffice" && (
+                      <>
+                        <div className="space-y-2">
+                          <Label htmlFor="discretion_type">Decision Authority</Label>
+                          <Select 
+                            value={formData.discretion_type || ""} 
+                            onValueChange={(value) => handleSelectChange(value, "discretion_type")}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select decision authority" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {DISCRETION_TYPE_OPTIONS.map(option => (
+                                <SelectItem key={option.value} value={option.value}>
+                                  {option.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Switch
+                            id="permanent_capital"
+                            checked={formData.permanent_capital || false}
+                            onCheckedChange={(checked) => handleSelectChange(checked, "permanent_capital")}
+                          />
+                          <Label htmlFor="permanent_capital">Permanent Capital</Label>
+                        </div>
+                      </>
+                    )}
 
                     {formData.buyer_type === "independentSponsor" && (
                       <>
@@ -684,43 +750,84 @@ const Profile = () => {
                    {formData.buyer_type === "searchFund" && (
                      <>
                        <div className="space-y-2">
-                         <Label htmlFor="search_type">Search Fund Type</Label>
-                         <Input 
-                           id="search_type" 
-                           name="search_type" 
+                         <Label htmlFor="search_type">Search Type</Label>
+                         <Select 
                            value={formData.search_type || ""} 
-                           onChange={handleInputChange}
-                           placeholder="e.g., Traditional"
-                         />
+                           onValueChange={(value) => handleSelectChange(value, "search_type")}
+                         >
+                           <SelectTrigger>
+                             <SelectValue placeholder="Select search type" />
+                           </SelectTrigger>
+                           <SelectContent>
+                             {SEARCH_TYPE_OPTIONS.map(option => (
+                               <SelectItem key={option.value} value={option.value}>
+                                 {option.label}
+                               </SelectItem>
+                             ))}
+                           </SelectContent>
+                         </Select>
                        </div>
                        <div className="space-y-2">
-                         <Label htmlFor="acq_equity_band">Acquisition Equity</Label>
-                         <Input 
-                           id="acq_equity_band" 
-                           name="acq_equity_band" 
+                         <Label htmlFor="acq_equity_band">Equity Available for Acquisition at Close</Label>
+                         <Select 
                            value={formData.acq_equity_band || ""} 
-                           onChange={handleInputChange}
-                           placeholder="e.g., $2M-$8M"
-                         />
+                           onValueChange={(value) => handleSelectChange(value, "acq_equity_band")}
+                         >
+                           <SelectTrigger>
+                             <SelectValue placeholder="Select equity available" />
+                           </SelectTrigger>
+                           <SelectContent>
+                             {ACQ_EQUITY_BAND_OPTIONS.map(option => (
+                               <SelectItem key={option.value} value={option.value}>
+                                 {option.label}
+                               </SelectItem>
+                             ))}
+                           </SelectContent>
+                         </Select>
                        </div>
                        <div className="space-y-2">
-                         <Label htmlFor="search_stage">Search Stage</Label>
-                         <Input 
-                           id="search_stage" 
-                           name="search_stage" 
+                         <Label htmlFor="financing_plan">Financing Plan</Label>
+                         <MultiSelect
+                           options={FINANCING_PLAN_OPTIONS.map(opt => ({ value: opt.value, label: opt.label }))}
+                           selected={Array.isArray(formData.financing_plan) ? formData.financing_plan : (formData.financing_plan ? [formData.financing_plan] : [])}
+                           onSelectedChange={(values) => handleSelectChange(values, "financing_plan")}
+                           placeholder="Select all that apply"
+                         />
+                       </div>
+                       <div className="flex items-center space-x-2">
+                         <Switch
+                           id="flex_sub2m_ebitda"
+                           checked={formData.flex_sub2m_ebitda || false}
+                           onCheckedChange={(checked) => handleSelectChange(checked, "flex_sub2m_ebitda")}
+                         />
+                         <Label htmlFor="flex_sub2m_ebitda">Flexible on size? (can pursue less than $2M EBITDA)</Label>
+                       </div>
+                       <div className="space-y-2">
+                         <Label htmlFor="search_stage">Stage of Search (Optional)</Label>
+                         <Select 
                            value={formData.search_stage || ""} 
-                           onChange={handleInputChange}
-                           placeholder="e.g., Active searching"
-                         />
+                           onValueChange={(value) => handleSelectChange(value, "search_stage")}
+                         >
+                           <SelectTrigger>
+                             <SelectValue placeholder="Select current stage" />
+                           </SelectTrigger>
+                           <SelectContent>
+                             {SEARCH_STAGE_OPTIONS.map(option => (
+                               <SelectItem key={option.value} value={option.value}>
+                                 {option.label}
+                               </SelectItem>
+                             ))}
+                           </SelectContent>
+                         </Select>
                        </div>
                        <div className="space-y-2">
-                         <Label htmlFor="anchor_investors_summary">Anchor Investors</Label>
+                         <Label htmlFor="anchor_investors_summary">Anchor Investors / Committed Backers (Optional)</Label>
                          <Input 
                            id="anchor_investors_summary" 
                            name="anchor_investors_summary" 
                            value={formData.anchor_investors_summary || ""} 
                            onChange={handleInputChange}
-                           placeholder="e.g., Stanford GSB, Wharton"
+                           placeholder="e.g., XYZ Capital; ABC Family Office"
                          />
                        </div>
                      </>
@@ -729,33 +836,64 @@ const Profile = () => {
                    {formData.buyer_type === "advisor" && (
                      <>
                        <div className="space-y-2">
-                         <Label htmlFor="on_behalf_of_buyer">On Behalf of Buyer</Label>
-                         <Input 
-                           id="on_behalf_of_buyer" 
-                           name="on_behalf_of_buyer" 
+                         <Label htmlFor="on_behalf_of_buyer">Are you inquiring on behalf of a capitalized buyer with discretion?</Label>
+                         <Select 
                            value={formData.on_behalf_of_buyer || ""} 
-                           onChange={handleInputChange}
-                           placeholder="e.g., Yes, representing buyer"
-                         />
+                           onValueChange={(value) => handleSelectChange(value, "on_behalf_of_buyer")}
+                         >
+                           <SelectTrigger>
+                             <SelectValue placeholder="Select yes or no" />
+                           </SelectTrigger>
+                           <SelectContent>
+                             {ON_BEHALF_OPTIONS.map(option => (
+                               <SelectItem key={option.value} value={option.value}>
+                                 {option.label}
+                               </SelectItem>
+                             ))}
+                           </SelectContent>
+                         </Select>
                        </div>
+                       {formData.on_behalf_of_buyer === "yes" && (
+                         <>
+                           <div className="space-y-2">
+                             <Label htmlFor="buyer_role">Buyer Role</Label>
+                             <Select 
+                               value={formData.buyer_role || ""} 
+                               onValueChange={(value) => handleSelectChange(value, "buyer_role")}
+                             >
+                               <SelectTrigger>
+                                 <SelectValue placeholder="Select buyer role" />
+                               </SelectTrigger>
+                               <SelectContent>
+                                 {BUYER_ROLE_OPTIONS.map(option => (
+                                   <SelectItem key={option.value} value={option.value}>
+                                     {option.label}
+                                   </SelectItem>
+                                 ))}
+                               </SelectContent>
+                             </Select>
+                           </div>
+                           <div className="space-y-2">
+                             <Label htmlFor="buyer_org_url">Buyer Organization Website</Label>
+                             <Input 
+                               id="buyer_org_url" 
+                               name="buyer_org_url" 
+                               value={formData.buyer_org_url || ""} 
+                               onChange={handleInputChange}
+                               placeholder="https://example.com"
+                             />
+                           </div>
+                         </>
+                       )}
                        <div className="space-y-2">
-                         <Label htmlFor="buyer_role">Buyer Role</Label>
-                         <Input 
-                           id="buyer_role" 
-                           name="buyer_role" 
-                           value={formData.buyer_role || ""} 
-                           onChange={handleInputChange}
-                           placeholder="e.g., Investment banker"
-                         />
-                       </div>
-                       <div className="space-y-2">
-                         <Label htmlFor="mandate_blurb">Mandate Description</Label>
-                         <Input 
+                         <Label htmlFor="mandate_blurb">Mandate in One Line (≤140 chars, Optional)</Label>
+                         <Textarea 
                            id="mandate_blurb" 
                            name="mandate_blurb" 
                            value={formData.mandate_blurb || ""} 
                            onChange={handleInputChange}
-                           placeholder="Brief mandate description"
+                           placeholder="Brief description of your mandate or focus"
+                           maxLength={140}
                          />
                        </div>
                      </>
@@ -764,24 +902,33 @@ const Profile = () => {
                    {formData.buyer_type === "businessOwner" && (
                      <>
                        <div className="space-y-2">
-                         <Label htmlFor="owner_intent">Owner Intent</Label>
-                         <Input 
+                         <Label htmlFor="owner_intent">Why are you here? (≤140 chars)</Label>
+                         <Textarea 
                            id="owner_intent" 
                            name="owner_intent" 
                            value={formData.owner_intent || ""} 
                            onChange={handleInputChange}
-                           placeholder="e.g., Roll-up strategy"
+                           placeholder="e.g., Valuation, Open to intros"
+                           maxLength={140}
                          />
                        </div>
                        <div className="space-y-2">
-                         <Label htmlFor="owner_timeline">Owner Timeline</Label>
-                         <Input 
-                           id="owner_timeline" 
-                           name="owner_timeline" 
+                         <Label htmlFor="owner_timeline">Timeline (Optional)</Label>
+                         <Select 
                            value={formData.owner_timeline || ""} 
-                           onChange={handleInputChange}
-                           placeholder="e.g., 12-18 months"
-                         />
+                           onValueChange={(value) => handleSelectChange(value, "owner_timeline")}
+                         >
+                           <SelectTrigger>
+                             <SelectValue placeholder="Select timeline" />
+                           </SelectTrigger>
+                           <SelectContent>
+                             {OWNER_TIMELINE_OPTIONS.map(option => (
+                               <SelectItem key={option.value} value={option.value}>
+                                 {option.label}
+                               </SelectItem>
+                             ))}
+                           </SelectContent>
+                         </Select>
                        </div>
                      </>
                    )}
@@ -789,24 +936,58 @@ const Profile = () => {
                    {formData.buyer_type === "individual" && (
                      <>
                        <div className="space-y-2">
-                         <Label htmlFor="uses_bank_finance">Uses Bank Finance</Label>
-                         <Input 
-                           id="uses_bank_finance" 
-                           name="uses_bank_finance" 
-                           value={formData.uses_bank_finance || ""} 
-                           onChange={handleInputChange}
-                           placeholder="e.g., Yes, SBA loans"
-                         />
+                         <Label htmlFor="funding_source">Funding Source</Label>
+                         <Select 
+                           value={formData.funding_source || ""} 
+                           onValueChange={(value) => handleSelectChange(value, "funding_source")}
+                         >
+                           <SelectTrigger>
+                             <SelectValue placeholder="Select funding source" />
+                           </SelectTrigger>
+                           <SelectContent>
+                             {INDIVIDUAL_FUNDING_SOURCE_OPTIONS.map(option => (
+                               <SelectItem key={option.value} value={option.value}>
+                                 {option.label}
+                               </SelectItem>
+                             ))}
+                           </SelectContent>
+                         </Select>
                        </div>
                        <div className="space-y-2">
-                         <Label htmlFor="max_equity_today_band">Max Equity Today</Label>
-                         <Input 
-                           id="max_equity_today_band" 
-                           name="max_equity_today_band" 
+                         <Label htmlFor="uses_bank_finance">Will you use SBA/bank financing?</Label>
+                         <Select 
+                           value={formData.uses_bank_finance || ""} 
+                           onValueChange={(value) => handleSelectChange(value, "uses_bank_finance")}
+                         >
+                           <SelectTrigger>
+                             <SelectValue placeholder="Select yes, no, or not sure" />
+                           </SelectTrigger>
+                           <SelectContent>
+                             {USES_BANK_FINANCE_OPTIONS.map(option => (
+                               <SelectItem key={option.value} value={option.value}>
+                                 {option.label}
+                               </SelectItem>
+                             ))}
+                           </SelectContent>
+                         </Select>
+                       </div>
+                       <div className="space-y-2">
+                         <Label htmlFor="max_equity_today_band">Max Equity You Can Commit Today (Optional)</Label>
+                         <Select 
                            value={formData.max_equity_today_band || ""} 
-                           onChange={handleInputChange}
-                           placeholder="e.g., $2M-$5M"
-                         />
+                           onValueChange={(value) => handleSelectChange(value, "max_equity_today_band")}
+                         >
+                           <SelectTrigger>
+                             <SelectValue placeholder="Select equity range" />
+                           </SelectTrigger>
+                           <SelectContent>
+                             {MAX_EQUITY_TODAY_OPTIONS.map(option => (
+                               <SelectItem key={option.value} value={option.value}>
+                                 {option.label}
+                               </SelectItem>
+                             ))}
+                           </SelectContent>
+                         </Select>
                        </div>
                      </>
                    )}
