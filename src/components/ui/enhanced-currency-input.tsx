@@ -1,0 +1,136 @@
+import React, { useState, useEffect } from "react";
+import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
+
+interface EnhancedCurrencyInputProps extends Omit<React.ComponentProps<"input">, "onChange" | "value"> {
+  value?: string;
+  onChange?: (value: string) => void;
+  currencyMode?: 'millions' | 'thousands' | 'auto';
+  fieldType?: 'fund' | 'revenue' | 'aum' | 'dealSize' | 'general';
+  showSuffix?: boolean;
+}
+
+const formatCurrency = (value: string, mode: 'millions' | 'thousands' | 'auto'): string => {
+  // Remove all non-digit characters
+  const digits = value.replace(/\D/g, '');
+  if (!digits) return '';
+  
+  const num = parseInt(digits);
+  
+  // Add commas as thousand separators
+  return num.toLocaleString();
+};
+
+const getSuffix = (mode: 'millions' | 'thousands' | 'auto', fieldType: string): string => {
+  if (fieldType === 'fund' || fieldType === 'aum') return '$M';
+  if (fieldType === 'revenue') return '$M'; 
+  if (fieldType === 'dealSize') return '$M';
+  return '$M'; // Default to millions for financial fields
+};
+
+const getPlaceholder = (fieldType: string): string => {
+  switch (fieldType) {
+    case 'fund':
+      return '100-500 (millions)';
+    case 'aum':
+      return '250-1,000 (millions)';
+    case 'revenue':
+      return '10-50 (millions)';
+    case 'dealSize':
+      return '5-25 (millions)';
+    default:
+      return '1-10 (millions)';
+  }
+};
+
+export const EnhancedCurrencyInput = React.forwardRef<HTMLInputElement, EnhancedCurrencyInputProps>(
+  ({ 
+    className, 
+    value = "", 
+    onChange, 
+    onBlur, 
+    currencyMode = 'millions', 
+    fieldType = 'general',
+    showSuffix = true,
+    placeholder,
+    ...props 
+  }, ref) => {
+    const [displayValue, setDisplayValue] = useState<string>("");
+    const [isFocused, setIsFocused] = useState(false);
+
+    // Update display value when prop value changes
+    useEffect(() => {
+      if (!isFocused) {
+        const stringValue = String(value);
+        if (stringValue && stringValue !== '0') {
+          setDisplayValue(formatCurrency(stringValue, currencyMode));
+        } else {
+          setDisplayValue(stringValue);
+        }
+      }
+    }, [value, isFocused, currencyMode]);
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const inputValue = e.target.value;
+      
+      // Allow raw input while typing
+      setDisplayValue(inputValue);
+      
+      // Call onChange with the raw input value
+      onChange?.(inputValue);
+    };
+
+    const handleFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+      setIsFocused(true);
+      // Show raw number for editing (remove formatting)
+      const digits = displayValue.replace(/\D/g, '');
+      if (digits) {
+        setDisplayValue(digits);
+      }
+      props.onFocus?.(e);
+    };
+
+    const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+      setIsFocused(false);
+      
+      // Format the value when losing focus
+      const digits = displayValue.replace(/\D/g, '');
+      if (digits) {
+        const formatted = formatCurrency(digits, currencyMode);
+        setDisplayValue(formatted);
+        onChange?.(displayValue); // Keep the user's input format
+      } else {
+        setDisplayValue('');
+        onChange?.('');
+      }
+      
+      onBlur?.(e);
+    };
+
+    const suffix = showSuffix ? getSuffix(currencyMode, fieldType) : '';
+    const defaultPlaceholder = placeholder || getPlaceholder(fieldType);
+
+    return (
+      <div className="relative">
+        <Input
+          {...props}
+          ref={ref}
+          type="text"
+          value={displayValue}
+          onChange={handleChange}
+          onFocus={handleFocus}
+          onBlur={handleBlur}
+          className={cn(showSuffix && "pr-10", className)}
+          placeholder={defaultPlaceholder}
+        />
+        {showSuffix && suffix && (
+          <div className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground pointer-events-none">
+            {suffix}
+          </div>
+        )}
+      </div>
+    );
+  }
+);
+
+EnhancedCurrencyInput.displayName = "EnhancedCurrencyInput";

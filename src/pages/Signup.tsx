@@ -26,6 +26,7 @@ import { MultiCategorySelect } from "@/components/ui/category-select";
 import { MultiLocationSelect } from "@/components/ui/location-select";
 import { EnhancedMultiCategorySelect } from "@/components/ui/enhanced-category-select";
 import { EnhancedMultiLocationSelect } from "@/components/ui/enhanced-location-select";
+import { EnhancedCurrencyInput } from "@/components/ui/enhanced-currency-input";
 import { FIELD_HELPERS } from "@/lib/field-helpers";
 import { REVENUE_RANGES, FUND_AUM_RANGES, INVESTMENT_RANGES, DEAL_SIZE_RANGES } from "@/lib/currency-ranges";
 import { InvestmentSizeSelect } from "@/components/ui/investment-size-select";
