@@ -1492,39 +1492,27 @@ const Signup = () => {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="targetDealSizeMin">{FIELD_HELPERS.targetDealSize.minLabel}</Label>
-                    <Select
+                    <EnhancedCurrencyInput
+                      id="targetDealSizeMin"
+                      name="targetDealSizeMin"
                       value={formData.targetDealSizeMin}
-                      onValueChange={(value) => setFormData(prev => ({ ...prev, targetDealSizeMin: value }))}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select minimum" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {DEAL_SIZE_RANGES.map((range) => (
-                          <SelectItem key={range.value} value={range.value}>
-                            {range.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      onChange={(value) => setFormData(prev => ({ ...prev, targetDealSizeMin: value }))}
+                      fieldType="dealSize"
+                      currencyMode="millions"
+                      placeholder="5-10 (millions)"
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="targetDealSizeMax">{FIELD_HELPERS.targetDealSize.maxLabel}</Label>
-                    <Select
+                    <EnhancedCurrencyInput
+                      id="targetDealSizeMax"
+                      name="targetDealSizeMax"
                       value={formData.targetDealSizeMax}
-                      onValueChange={(value) => setFormData(prev => ({ ...prev, targetDealSizeMax: value }))}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select maximum" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {DEAL_SIZE_RANGES.map((range) => (
-                          <SelectItem key={range.value} value={range.value}>
-                            {range.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      onChange={(value) => setFormData(prev => ({ ...prev, targetDealSizeMax: value }))}
+                      fieldType="dealSize"
+                      currencyMode="millions"
+                      placeholder="15-25 (millions)"
+                    />
                   </div>
                 </div>
               </div>

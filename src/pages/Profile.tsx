@@ -16,6 +16,7 @@ import { MultiCategorySelect } from "@/components/ui/category-select";
 import { MultiLocationSelect } from "@/components/ui/location-select";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { InvestmentSizeSelect } from "@/components/ui/investment-size-select";
+import { EnhancedCurrencyInput } from "@/components/ui/enhanced-currency-input";
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@/types";
 import { STANDARDIZED_CATEGORIES, STANDARDIZED_LOCATIONS } from "@/lib/financial-parser";
@@ -373,22 +374,24 @@ const Profile = () => {
                       <>
                         <div className="space-y-2">
                           <Label htmlFor="fund_size">Fund Size</Label>
-                          <Input 
+                          <EnhancedCurrencyInput
                             id="fund_size" 
                             name="fund_size" 
                             value={formData.fund_size || ""} 
-                            onChange={handleInputChange}
-                            placeholder="e.g. $100M-$500M"
+                            onChange={(value) => handleInputChange({ target: { name: 'fund_size', value } } as any)}
+                            fieldType="fund"
+                            currencyMode="millions"
                           />
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor="aum">Assets Under Management</Label>
-                          <Input 
+                          <EnhancedCurrencyInput
                             id="aum" 
                             name="aum" 
                             value={formData.aum || ""} 
-                            onChange={handleInputChange}
-                            placeholder="e.g. $500M"
+                            onChange={(value) => handleInputChange({ target: { name: 'aum', value } } as any)}
+                            fieldType="aum"
+                            currencyMode="millions"
                           />
                         </div>
                       </>
@@ -397,12 +400,13 @@ const Profile = () => {
                     {formData.buyer_type === "corporate" && (
                       <div className="space-y-2">
                         <Label htmlFor="estimated_revenue">Your Company Revenue</Label>
-                        <Input 
+                        <EnhancedCurrencyInput
                           id="estimated_revenue" 
                           name="estimated_revenue" 
                           value={formData.estimated_revenue || ""} 
-                          onChange={handleInputChange}
-                          placeholder="e.g. $10M-$50M"
+                          onChange={(value) => handleInputChange({ target: { name: 'estimated_revenue', value } } as any)}
+                          fieldType="revenue"
+                          currencyMode="millions"
                         />
                       </div>
                     )}
