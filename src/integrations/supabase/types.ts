@@ -1027,7 +1027,7 @@ export type Database = {
           ideal_target_description: string | null
           industry_expertise: Json | null
           integration_plan: Json | null
-          investment_size: string | null
+          investment_size: Json | null
           is_admin: boolean | null
           is_funded: string | null
           job_title: string | null
@@ -1105,7 +1105,7 @@ export type Database = {
           ideal_target_description?: string | null
           industry_expertise?: Json | null
           integration_plan?: Json | null
-          investment_size?: string | null
+          investment_size?: Json | null
           is_admin?: boolean | null
           is_funded?: string | null
           job_title?: string | null
@@ -1183,7 +1183,7 @@ export type Database = {
           ideal_target_description?: string | null
           industry_expertise?: Json | null
           integration_plan?: Json | null
-          investment_size?: string | null
+          investment_size?: Json | null
           is_admin?: boolean | null
           is_funded?: string | null
           job_title?: string | null
