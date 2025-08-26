@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -5,6 +6,7 @@ import { User as AppUser } from '@/types';
 import { createUserObject } from '@/lib/auth-helpers';
 import { parseCurrency } from '@/lib/currency-utils';
 import { toStandardCategory, toStandardLocation, standardizeCategories, standardizeLocations } from '@/lib/standardization';
+import { processUrl } from '@/lib/url-utils';
 
 // Ultra-simple auth state - no caching, no localStorage interference, no managers
 export function useNuclearAuth() {
@@ -125,7 +127,13 @@ export function useNuclearAuth() {
 
   const signup = async (userData: Partial<AppUser>, password: string) => {
     if (!userData.email) throw new Error("Email is required");
-    
+
+    // Normalize website if present (allow example.com or www.example.com)
+    const websiteNormalized =
+      userData.website && userData.website.trim() !== ''
+        ? processUrl(userData.website)
+        : '';
+
     const { data, error } = await supabase.auth.signUp({
       email: userData.email,
       password,
@@ -135,7 +143,7 @@ export function useNuclearAuth() {
           first_name: userData.first_name || '',
           last_name: userData.last_name || '',
           company: userData.company || '',
-          website: userData.website || '',
+          website: websiteNormalized,
           phone_number: userData.phone_number || '',
           buyer_type: userData.buyer_type || 'corporate',
           linkedin_profile: userData.linkedin_profile || '',
@@ -150,7 +158,12 @@ export function useNuclearAuth() {
           // Additional fields for different buyer types
           estimated_revenue: userData.estimated_revenue || '',
           fund_size: userData.fund_size || '',
-          investment_size: Array.isArray(userData.investment_size) ? userData.investment_size : (userData.investment_size ? [userData.investment_size] : []),
+          // Ensure investment_size is an array (no stringification)
+          investment_size: Array.isArray(userData.investment_size)
+            ? userData.investment_size
+            : userData.investment_size
+              ? [userData.investment_size as any]
+              : [],
           aum: userData.aum || '',
           is_funded: userData.is_funded || '',
           funded_by: userData.funded_by || '',
@@ -232,11 +245,34 @@ export function useNuclearAuth() {
   const updateUserProfile = async (data: Partial<AppUser>) => {
     if (!user) throw new Error("No user logged in");
 
-    // Handle investment_size conversion for database
+    // Normalize website if provided
+    const normalizedWebsite =
+      data.website && data.website.trim() !== '' ? processUrl(data.website) : undefined;
+
+    // Ensure investment_size is sent as proper JSON/array (not stringified)
     const { investment_size, ...restData } = data;
-    const dbPayload = {
+
+    let preparedInvestmentSize: any = undefined;
+    if (Array.isArray(investment_size)) {
+      preparedInvestmentSize = investment_size;
+    } else if (typeof investment_size === 'string' && investment_size.trim() !== '') {
+      // If it looks like a JSON array, try to parse; otherwise wrap as array
+      const trimmed = investment_size.trim();
+      if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+        try {
+          preparedInvestmentSize = JSON.parse(trimmed);
+        } catch {
+          preparedInvestmentSize = [trimmed];
+        }
+      } else {
+        preparedInvestmentSize = [trimmed];
+      }
+    }
+
+    const dbPayload: Record<string, any> = {
       ...restData,
-      investment_size: Array.isArray(investment_size) ? JSON.stringify(investment_size) : investment_size
+      ...(normalizedWebsite !== undefined ? { website: normalizedWebsite } : {}),
+      ...(preparedInvestmentSize !== undefined ? { investment_size: preparedInvestmentSize } : {}),
     };
 
     const { error } = await supabase
