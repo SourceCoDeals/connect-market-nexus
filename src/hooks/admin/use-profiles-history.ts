@@ -20,11 +20,8 @@ export function useProfilesHistory() {
   return useQuery({
     queryKey: ['profiles-with-history'],
     queryFn: async (): Promise<ProfileHistoryRow[]> => {
-      const { data, error } = await supabase
-        .from('profiles_with_history')
-        .select('*');
+      const { data, error } = await supabase.rpc('get_profiles_with_history');
       if (error) throw error;
-      console.log('profiles_with_history data:', data?.length || 0);
       return (data as unknown as ProfileHistoryRow[]) || [];
     },
     staleTime: 5 * 60 * 1000,

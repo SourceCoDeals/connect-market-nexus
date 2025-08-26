@@ -501,13 +501,6 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "engagement_scores_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: true
-            referencedRelation: "profiles_with_history"
-            referencedColumns: ["id"]
-          },
         ]
       }
       fee_agreement_logs: {
@@ -974,13 +967,6 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "profile_data_snapshots_profile_id_fkey"
-            columns: ["profile_id"]
-            isOneToOne: false
-            referencedRelation: "profiles_with_history"
-            referencedColumns: ["id"]
-          },
         ]
       }
       profiles: {
@@ -1313,13 +1299,6 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "saved_listings_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles_with_history"
-            referencedColumns: ["id"]
-          },
         ]
       }
       search_analytics: {
@@ -1395,13 +1374,6 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "user_activity_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles_with_history"
             referencedColumns: ["id"]
           },
         ]
@@ -1488,24 +1460,10 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "user_notes_admin_id_fkey"
-            columns: ["admin_id"]
-            isOneToOne: false
-            referencedRelation: "profiles_with_history"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "user_notes_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "user_notes_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles_with_history"
             referencedColumns: ["id"]
           },
         ]
@@ -1578,22 +1536,7 @@ export type Database = {
       }
     }
     Views: {
-      profiles_with_history: {
-        Row: {
-          business_categories_current: Json | null
-          business_categories_dedup: Json | null
-          buyer_type: string | null
-          email: string | null
-          id: string | null
-          raw_business_categories: Json | null
-          raw_target_locations: Json | null
-          snapshot_created_at: string | null
-          snapshot_type: string | null
-          target_locations_current: Json | null
-          target_locations_dedup: Json | null
-        }
-        Relationships: []
-      }
+      [_ in never]: never
     }
     Functions: {
       assign_connection_request_decider: {
@@ -1649,6 +1592,22 @@ export type Database = {
           raw_business_categories: Json
           raw_payload: Json
           raw_target_locations: Json
+        }[]
+      }
+      get_profiles_with_history: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          business_categories_current: Json
+          business_categories_dedup: Json
+          buyer_type: string
+          email: string
+          id: string
+          raw_business_categories: Json
+          raw_target_locations: Json
+          snapshot_created_at: string
+          snapshot_type: string
+          target_locations_current: Json
+          target_locations_dedup: Json
         }[]
       }
       get_simple_marketplace_analytics: {
