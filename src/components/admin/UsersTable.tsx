@@ -17,6 +17,7 @@ import { SimpleNDADialog } from "./SimpleNDADialog";
 import { UserActivityTimeline } from "./UserActivityTimeline";
 
 import { getFieldCategories, FIELD_LABELS } from '@/lib/buyer-type-fields';
+import { formatFieldValue } from '@/lib/field-formatting';
 import { useEnhancedUserExport } from '@/hooks/admin/use-enhanced-user-export';
 import { useLogFeeAgreementEmail } from '@/hooks/admin/use-fee-agreement';
 import { useLogNDAEmail } from '@/hooks/admin/use-nda';
@@ -192,10 +193,19 @@ const UserDetails = ({ user }: { user: User }) => {
                       return null;
                     }
                     
-                    // Default field rendering
+                    // Handle Independent Sponsor specific fields with proper formatting
+                    if (['committed_equity_band', 'equity_source', 'deployment_timing', 'flex_subxm_ebitda'].includes(fieldKey)) {
+                      return (
+                        <div key={fieldKey}>
+                          <span className="text-muted-foreground">{fieldLabel}:</span> {formatFieldValue(fieldKey, fieldValue)}
+                        </div>
+                      );
+                    }
+                    
+                    // Default field rendering with formatting
                     return (
                       <div key={fieldKey}>
-                        <span className="text-muted-foreground">{fieldLabel}:</span> {fieldValue as string || '—'}
+                        <span className="text-muted-foreground">{fieldLabel}:</span> {formatFieldValue(fieldKey, fieldValue)}
                       </div>
                     );
                   })}

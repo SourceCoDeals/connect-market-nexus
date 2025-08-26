@@ -68,7 +68,7 @@ export const BUYER_TYPE_FIELD_MAPPINGS = {
   independentSponsor: [
     'committed_equity_band',
     'equity_source',
-    'flex_subXm_ebitda',
+    'flex_subxm_ebitda',
     'backers_summary',
     'deployment_timing',
   ],
@@ -148,7 +148,7 @@ export const FIELD_LABELS = {
   operating_company_targets: 'Operating Companies',
   committed_equity_band: 'Committed Equity',
   equity_source: 'Equity Source',
-  flex_subXm_ebitda: 'Flexible on Size',
+  flex_subxm_ebitda: 'Flexible on Size (<$1M EBITDA)',
   backers_summary: 'Backers',
   deployment_timing: 'Readiness Window',
   search_type: 'Search Type',

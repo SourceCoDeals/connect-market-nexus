@@ -87,7 +87,7 @@ const Profile = () => {
     deal_structure_preference: user?.deal_structure_preference || "",
     permanent_capital: user?.permanent_capital || false,
     operating_company_targets: user?.operating_company_targets || [],
-    flex_subXm_ebitda: user?.flex_subXm_ebitda || false,
+    flex_subxm_ebitda: user?.flex_subxm_ebitda || false,
     search_type: user?.search_type || "",
     acq_equity_band: user?.acq_equity_band || "",
     financing_plan: user?.financing_plan || [],
@@ -134,11 +134,10 @@ const Profile = () => {
     setIsLoading(true);
     try {
       // Normalize currency fields and standardize categories/locations before sending
-      const { flex_subXm_ebitda, ...restForm } = formData as any;
       const normalizedData = {
-        ...restForm,
-        // Correct DB column name
-        flex_subxm_ebitda: flex_subXm_ebitda ?? null,
+        ...formData,
+        // Ensure correct DB column names
+        flex_subxm_ebitda: formData.flex_subxm_ebitda ?? null,
         revenue_range_min: formData.revenue_range_min || null,
         revenue_range_max: formData.revenue_range_max || null,
         // Standardize business categories and target locations
@@ -652,11 +651,11 @@ const Profile = () => {
 
                         <div className="flex items-center space-x-2">
                           <Switch
-                            id="flex_subXm_ebitda"
-                            checked={formData.flex_subXm_ebitda || false}
-                            onCheckedChange={(checked) => handleSelectChange(checked, "flex_subXm_ebitda")}
+                            id="flex_subxm_ebitda"
+                            checked={formData.flex_subxm_ebitda || false}
+                            onCheckedChange={(checked) => handleSelectChange(checked, "flex_subxm_ebitda")}
                           />
-                          <Label htmlFor="flex_subXm_ebitda">Flexible on sub-$1M EBITDA targets</Label>
+                          <Label htmlFor="flex_subxm_ebitda">Flexible on sub-$1M EBITDA targets</Label>
                         </div>
                         
                         <div className="space-y-2">

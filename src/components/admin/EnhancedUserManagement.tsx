@@ -10,6 +10,7 @@ import { User } from '@/types';
 import { Search, Filter, Download, Users, UserCheck, AlertCircle, Database, Activity } from 'lucide-react';
 import { DataRecoveryDashboard } from './DataRecoveryDashboard';
 import { FormValidationMonitor } from './FormValidationMonitor';
+import { formatFieldValueForExport } from '@/lib/field-formatting';
 
 interface EnhancedUserManagementProps {
   users: User[];
@@ -148,18 +149,18 @@ export function EnhancedUserManagement({
       'Is Admin': user.is_admin ? 'Yes' : 'No',
       'Onboarding Complete': user.onboarding_completed ? 'Yes' : 'No',
       
-      // Financial Details - ALL FIELDS
-      'Estimated Revenue': user.estimated_revenue || '',
-      'Fund Size': user.fund_size || '',
-      'Investment Size': Array.isArray(user.investment_size) ? user.investment_size.join(', ') : user.investment_size || '',
-      'AUM': user.aum || '',
-      'Target Company Size': user.target_company_size || '',
+      // Financial Details - ALL FIELDS (with proper formatting)
+      'Estimated Revenue': formatFieldValueForExport('estimated_revenue', user.estimated_revenue),
+      'Fund Size': formatFieldValueForExport('fund_size', user.fund_size),
+      'Investment Size': formatFieldValueForExport('investment_size', user.investment_size),
+      'AUM': formatFieldValueForExport('aum', user.aum),
+      'Target Company Size': formatFieldValueForExport('target_company_size', user.target_company_size),
       
-      // Funding & Financing - ALL FIELDS  
-      'Funding Source': user.funding_source || '',
-      'Is Funded': user.is_funded || '',
-      'Funded By': user.funded_by || '',
-      'Needs Loan': user.needs_loan || '',
+      // Funding & Financing - ALL FIELDS (with proper formatting)  
+      'Funding Source': formatFieldValueForExport('funding_source', user.funding_source),
+      'Is Funded': formatFieldValueForExport('is_funded', user.is_funded),
+      'Funded By': formatFieldValueForExport('funded_by', user.funded_by),
+      'Needs Loan': formatFieldValueForExport('needs_loan', user.needs_loan),
       
       // Business Profile
       'Company Name': user.company_name || '',
@@ -174,12 +175,45 @@ export function EnhancedUserManagement({
       'Revenue Range Max': user.revenue_range_max || '',
       'Specific Business Search': user.specific_business_search || '',
       
-      // Independent Sponsor Fields
-      'Target Deal Size Min': user.target_deal_size_min || '',
-      'Target Deal Size Max': user.target_deal_size_max || '',
-      'Geographic Focus': Array.isArray(user.geographic_focus) ? user.geographic_focus.join(';') : '',
-      'Industry Expertise': Array.isArray(user.industry_expertise) ? user.industry_expertise.join(';') : '',
-      'Deal Structure Preference': user.deal_structure_preference || '',
+      // Independent Sponsor Fields (with proper formatting)
+      'Target Deal Size Min': formatFieldValueForExport('target_deal_size_min', user.target_deal_size_min),
+      'Target Deal Size Max': formatFieldValueForExport('target_deal_size_max', user.target_deal_size_max),
+      'Geographic Focus': formatFieldValueForExport('geographic_focus', user.geographic_focus),
+      'Industry Expertise': formatFieldValueForExport('industry_expertise', user.industry_expertise),
+      'Deal Structure Preference': formatFieldValueForExport('deal_structure_preference', user.deal_structure_preference),
+      'Committed Equity Band': formatFieldValueForExport('committed_equity_band', user.committed_equity_band),
+      'Equity Source': formatFieldValueForExport('equity_source', user.equity_source),
+      'Deployment Timing': formatFieldValueForExport('deployment_timing', user.deployment_timing),
+      'Flexible on Size (<$1M EBITDA)': formatFieldValueForExport('flex_subxm_ebitda', user.flex_subxm_ebitda),
+      
+      // Corporate Development Fields (with proper formatting)
+      'Deal Size Band': formatFieldValueForExport('deal_size_band', user.deal_size_band),
+      'Corp Dev Intent': formatFieldValueForExport('corpdev_intent', user.corpdev_intent),
+      'Integration Plan': formatFieldValueForExport('integration_plan', user.integration_plan),
+      'Deploying Capital Now': formatFieldValueForExport('deploying_capital_now', user.deploying_capital_now),
+      
+      // Private Equity Fields (with proper formatting)
+      'Permanent Capital': formatFieldValueForExport('permanent_capital', user.permanent_capital),
+      
+      // Family Office Fields (with proper formatting)
+      'Discretion Type': formatFieldValueForExport('discretion_type', user.discretion_type),
+      
+      // Search Fund Fields (with proper formatting)
+      'Search Type': formatFieldValueForExport('search_type', user.search_type),
+      'Acq Equity Band': formatFieldValueForExport('acq_equity_band', user.acq_equity_band),
+      'Financing Plan': formatFieldValueForExport('financing_plan', user.financing_plan),
+      'Search Stage': formatFieldValueForExport('search_stage', user.search_stage),
+      
+      // Individual Investor Fields (with proper formatting)
+      'Uses Bank Finance': formatFieldValueForExport('uses_bank_finance', user.uses_bank_finance),
+      'Max Equity Today Band': formatFieldValueForExport('max_equity_today_band', user.max_equity_today_band),
+      
+      // Advisor/Banker Fields (with proper formatting)
+      'On Behalf of Buyer': formatFieldValueForExport('on_behalf_of_buyer', user.on_behalf_of_buyer),
+      'Buyer Role': formatFieldValueForExport('buyer_role', user.buyer_role),
+      
+      // Business Owner Fields (with proper formatting)
+      'Owner Timeline': formatFieldValueForExport('owner_timeline', user.owner_timeline),
       
       // Metadata
       'Profile Completion': `${calculateProfileCompletion(user)}%`,

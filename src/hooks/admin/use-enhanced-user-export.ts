@@ -1,5 +1,6 @@
 import { User } from '@/types';
 import { getRelevantFieldsForBuyerType, FIELD_LABELS } from '@/lib/buyer-type-fields';
+import { formatFieldValueForExport } from '@/lib/field-formatting';
 
 export const useEnhancedUserExport = () => {
   const exportUsersToCSV = (users: User[]) => {
@@ -55,10 +56,9 @@ export const useEnhancedUserExport = () => {
         
         if (!isRelevant) {
           row.push('—'); // Not applicable for this buyer type
-        } else if (field === 'business_categories' || field === 'investment_size') {
-          row.push(Array.isArray(value) ? value.join(', ') : String(value || '—'));
         } else {
-          row.push(String(value || '—'));
+          // Use the new formatting utility for consistent display
+          row.push(formatFieldValueForExport(field, value));
         }
       });
 
