@@ -118,6 +118,10 @@ const Profile = () => {
     portfolio_company_addon: user?.portfolio_company_addon || "",
     backers_summary: user?.backers_summary || "",
     anchor_investors_summary: user?.anchor_investors_summary || "",
+    // New Step 4 fields
+    deal_intent: user?.deal_intent || "",
+    exclusions: user?.exclusions || [],
+    include_keywords: user?.include_keywords || [],
   });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {

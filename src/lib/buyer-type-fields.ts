@@ -17,6 +17,9 @@ export const BUYER_TYPE_FIELD_MAPPINGS = {
     'business_categories',
     'target_locations',
     'specific_business_search',
+    'deal_intent',
+    'exclusions',
+    'include_keywords',
   ],
   // Revenue ranges shown for all except privateEquity in signup
   revenue: [
@@ -176,6 +179,9 @@ export const FIELD_LABELS = {
   geographic_focus: 'Geographic Focus',
   industry_expertise: 'Industry Expertise',
   deal_structure_preference: 'Deal Structure Preference',
+  deal_intent: 'Deal Intent',
+  exclusions: 'Hard Exclusions',
+  include_keywords: 'Keywords',
 } as const;
 
 // Get field categories for organization

@@ -1000,6 +1000,7 @@ export type Database = {
           company_name: string | null
           corpdev_intent: string | null
           created_at: string
+          deal_intent: string | null
           deal_size_band: string | null
           deal_structure_preference: string | null
           deleted_at: string | null
@@ -1010,6 +1011,7 @@ export type Database = {
           email_verified: boolean
           equity_source: Json | null
           estimated_revenue: string | null
+          exclusions: Json | null
           fee_agreement_email_sent: boolean | null
           fee_agreement_email_sent_at: string | null
           fee_agreement_signed: boolean | null
@@ -1025,6 +1027,7 @@ export type Database = {
           id: string
           ideal_target: string | null
           ideal_target_description: string | null
+          include_keywords: Json | null
           industry_expertise: Json | null
           integration_plan: Json | null
           investment_size: Json | null
@@ -1078,6 +1081,7 @@ export type Database = {
           company_name?: string | null
           corpdev_intent?: string | null
           created_at?: string
+          deal_intent?: string | null
           deal_size_band?: string | null
           deal_structure_preference?: string | null
           deleted_at?: string | null
@@ -1088,6 +1092,7 @@ export type Database = {
           email_verified?: boolean
           equity_source?: Json | null
           estimated_revenue?: string | null
+          exclusions?: Json | null
           fee_agreement_email_sent?: boolean | null
           fee_agreement_email_sent_at?: string | null
           fee_agreement_signed?: boolean | null
@@ -1103,6 +1108,7 @@ export type Database = {
           id: string
           ideal_target?: string | null
           ideal_target_description?: string | null
+          include_keywords?: Json | null
           industry_expertise?: Json | null
           integration_plan?: Json | null
           investment_size?: Json | null
@@ -1156,6 +1162,7 @@ export type Database = {
           company_name?: string | null
           corpdev_intent?: string | null
           created_at?: string
+          deal_intent?: string | null
           deal_size_band?: string | null
           deal_structure_preference?: string | null
           deleted_at?: string | null
@@ -1166,6 +1173,7 @@ export type Database = {
           email_verified?: boolean
           equity_source?: Json | null
           estimated_revenue?: string | null
+          exclusions?: Json | null
           fee_agreement_email_sent?: boolean | null
           fee_agreement_email_sent_at?: string | null
           fee_agreement_signed?: boolean | null
@@ -1181,6 +1189,7 @@ export type Database = {
           id?: string
           ideal_target?: string | null
           ideal_target_description?: string | null
+          include_keywords?: Json | null
           industry_expertise?: Json | null
           integration_plan?: Json | null
           investment_size?: Json | null

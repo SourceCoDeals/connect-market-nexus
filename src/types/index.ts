@@ -102,6 +102,11 @@ export interface User {
   max_equity_today_band?: string;
   uses_bank_finance?: string;
   
+  // New Step 4 fields
+  deal_intent?: string;
+  exclusions?: string[];
+  include_keywords?: string[];
+  
   // Fee agreement tracking
   fee_agreement_signed?: boolean;
   fee_agreement_signed_at?: string;

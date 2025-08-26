@@ -30,7 +30,8 @@ import {
   OWNER_TIMELINE_OPTIONS,
   INDIVIDUAL_FUNDING_SOURCE_OPTIONS,
   USES_BANK_FINANCE_OPTIONS,
-  MAX_EQUITY_TODAY_OPTIONS
+  MAX_EQUITY_TODAY_OPTIONS,
+  DEAL_INTENT_OPTIONS
 } from '@/lib/signup-field-options';
 
 export const EnhancedSignupForm: React.FC = () => {
@@ -128,7 +129,12 @@ export const EnhancedSignupForm: React.FC = () => {
         
         // Individual fields
         max_equity_today_band: data.maxEquityTodayBand,
-        uses_bank_finance: data.usesBankFinance
+        uses_bank_finance: data.usesBankFinance,
+        
+        // New Step 4 fields
+        deal_intent: data.dealIntent,
+        exclusions: data.exclusions,
+        include_keywords: data.includeKeywords
       };
 
       await signup(userData, data.password);
@@ -865,7 +871,73 @@ export const EnhancedSignupForm: React.FC = () => {
               />
             </div>
 
-            {/* Business categories and other profile fields remain the same */}
+            <div>
+              <Label htmlFor="specificBusinessSearch">Specific Business Requirements</Label>
+              <Textarea
+                id="specificBusinessSearch"
+                placeholder="1–2 must-haves only (e.g., non-union, 60% recurring)"
+                rows={2}
+                {...form.register('specificBusinessSearch')}
+              />
+              <p className="text-sm text-muted-foreground mt-1">
+                Hint: "1–2 must-haves only (e.g., non-union, 60% recurring)."
+              </p>
+            </div>
+
+            {/* New Step 4 fields */}
+            <div>
+              <Label htmlFor="dealIntent">Deal Intent</Label>
+              <div className="space-y-2">
+                {DEAL_INTENT_OPTIONS.map(option => (
+                  <div key={option.value} className="flex items-center space-x-2">
+                    <input
+                      type="radio"
+                      id={`dealIntent-${option.value}`}
+                      value={option.value}
+                      {...form.register('dealIntent')}
+                      className="h-4 w-4"
+                    />
+                    <Label htmlFor={`dealIntent-${option.value}`} className="text-sm font-normal">
+                      {option.label}
+                    </Label>
+                  </div>
+                ))}
+              </div>
+              <p className="text-sm text-muted-foreground mt-1">
+                What type of deals are you primarily focused on pursuing?
+              </p>
+            </div>
+
+            <div>
+              <Label htmlFor="exclusions">Hard Exclusions</Label>
+              <Textarea
+                id="exclusions"
+                placeholder="e.g., unionized, DTC, heavy CapEx"
+                rows={2}
+                value={watch('exclusions') ? watch('exclusions')?.join(', ') : ''}
+                onChange={(e) => setValue('exclusions', e.target.value.split(',').map(s => s.trim()).filter(s => s))}
+              />
+              <p className="text-sm text-muted-foreground mt-1">
+                e.g., unionized, DTC, heavy CapEx.
+              </p>
+            </div>
+
+            <div>
+              <Label htmlFor="includeKeywords">Keywords (optional)</Label>
+              <Textarea
+                id="includeKeywords"
+                placeholder="e.g., route-based, B2B services"
+                rows={2}
+                value={watch('includeKeywords') ? watch('includeKeywords')?.join(', ') : ''}
+                onChange={(e) => {
+                  const keywords = e.target.value.split(',').map(s => s.trim()).filter(s => s);
+                  setValue('includeKeywords', keywords.slice(0, 5)); // max 5
+                }}
+              />
+              <p className="text-sm text-muted-foreground mt-1">
+                2–5 keywords you care about (e.g., 'route-based', 'B2B services').
+              </p>
+            </div>
           </div>
         );
 

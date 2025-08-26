@@ -99,7 +99,12 @@ export const signupFormSchema = z.object({
   needsLoan: z.string().optional(),
   idealTarget: z.string().optional(),
   maxEquityTodayBand: z.string().optional(),
-  usesBankFinance: z.string().optional()
+  usesBankFinance: z.string().optional(),
+  
+  // New Step 4 fields
+  dealIntent: z.string().optional(),
+  exclusions: z.array(z.string()).optional(),
+  includeKeywords: z.array(z.string()).optional()
 }).refine((data) => {
   // Conditional validation for Search Fund
   if (data.buyerType === 'searchFund') {

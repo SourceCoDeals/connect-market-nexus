@@ -172,3 +172,10 @@ export const MAX_EQUITY_TODAY_OPTIONS = [
   { value: '1_2m', label: '$1–2M' },
   { value: '2m_plus', label: '$2M+' }
 ] as const;
+
+// New Step 4 fields
+export const DEAL_INTENT_OPTIONS = [
+  { value: 'primarily_addons', label: 'Primarily add-ons' },
+  { value: 'platform_and_addons', label: 'Platform and add-ons' },
+  { value: 'platform_only', label: 'Platform only' }
+] as const;
