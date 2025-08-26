@@ -58,6 +58,42 @@ const Profile = () => {
     funding_source: user?.funding_source || "",
     needs_loan: user?.needs_loan || "",
     ideal_target: user?.ideal_target || "",
+    // Missing job_title field  
+    job_title: user?.job_title || "",
+    // All comprehensive buyer-specific fields
+    deploying_capital_now: user?.deploying_capital_now || "",
+    owning_business_unit: user?.owning_business_unit || "",
+    deal_size_band: user?.deal_size_band || "",
+    buyer_org_url: user?.buyer_org_url || "",
+    integration_plan: user?.integration_plan || [],
+    corpdev_intent: user?.corpdev_intent || "",
+    discretion_type: user?.discretion_type || "",
+    committed_equity_band: user?.committed_equity_band || "",
+    equity_source: user?.equity_source || [],
+    deployment_timing: user?.deployment_timing || "",
+    target_deal_size_min: user?.target_deal_size_min || null,
+    target_deal_size_max: user?.target_deal_size_max || null,
+    geographic_focus: user?.geographic_focus || [],
+    industry_expertise: user?.industry_expertise || [],
+    deal_structure_preference: user?.deal_structure_preference || "",
+    permanent_capital: user?.permanent_capital || false,
+    operating_company_targets: user?.operating_company_targets || [],
+    flex_subXm_ebitda: user?.flex_subXm_ebitda || false,
+    search_type: user?.search_type || "",
+    acq_equity_band: user?.acq_equity_band || "",
+    financing_plan: user?.financing_plan || [],
+    search_stage: user?.search_stage || "",
+    flex_sub2m_ebitda: user?.flex_sub2m_ebitda || false,
+    on_behalf_of_buyer: user?.on_behalf_of_buyer || "",
+    buyer_role: user?.buyer_role || "",
+    owner_timeline: user?.owner_timeline || "",
+    owner_intent: user?.owner_intent || "",
+    uses_bank_finance: user?.uses_bank_finance || "",
+    max_equity_today_band: user?.max_equity_today_band || "",
+    mandate_blurb: user?.mandate_blurb || "",
+    portfolio_company_addon: user?.portfolio_company_addon || "",
+    backers_summary: user?.backers_summary || "",
+    anchor_investors_summary: user?.anchor_investors_summary || "",
   });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -222,6 +258,9 @@ const Profile = () => {
                         <SelectItem value="familyOffice">Family Office</SelectItem>
                         <SelectItem value="searchFund">Search Fund</SelectItem>
                         <SelectItem value="individual">Individual</SelectItem>
+                        <SelectItem value="independentSponsor">Independent Sponsor</SelectItem>
+                        <SelectItem value="advisor">Advisor / Banker</SelectItem>
+                        <SelectItem value="businessOwner">Business Owner</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -277,15 +316,26 @@ const Profile = () => {
                     />
                   </div>
                   
-                  <div className="space-y-2">
-                    <Label htmlFor="phone_number">Phone Number</Label>
-                    <Input 
-                      id="phone_number" 
-                      name="phone_number" 
-                      value={formData.phone_number} 
-                      onChange={handleInputChange}
-                    />
-                  </div>
+                   <div className="space-y-2">
+                     <Label htmlFor="phone_number">Phone Number</Label>
+                     <Input 
+                       id="phone_number" 
+                       name="phone_number" 
+                       value={formData.phone_number} 
+                       onChange={handleInputChange}
+                     />
+                   </div>
+                   
+                   <div className="space-y-2">
+                     <Label htmlFor="job_title">Job Title</Label>
+                     <Input 
+                       id="job_title" 
+                       name="job_title" 
+                       value={formData.job_title || ""} 
+                       onChange={handleInputChange}
+                       placeholder="e.g., Partner, VP Business Development, Investment Associate"
+                     />
+                   </div>
                   
                    <div className="space-y-2">
                      <Label htmlFor="target_locations">Target Locations</Label>
@@ -463,13 +513,272 @@ const Profile = () => {
                           />
                         </div>
                       </>
-                     )}
-                  </div>
-                </div>
-                
-                <Separator />
-                
-                <div className="space-y-6">
+                      )}
+                   </div>
+
+                   {/* Buyer-specific additional fields */}
+                   {formData.buyer_type === "privateEquity" && (
+                     <>
+                       <div className="space-y-2">
+                         <Label htmlFor="deploying_capital_now">Capital Deployment Status</Label>
+                         <Input 
+                           id="deploying_capital_now" 
+                           name="deploying_capital_now" 
+                           value={formData.deploying_capital_now || ""} 
+                           onChange={handleInputChange}
+                           placeholder="e.g., Actively deploying"
+                         />
+                       </div>
+                       <div className="space-y-2">
+                         <Label htmlFor="portfolio_company_addon">Portfolio Company Add-on Interest</Label>
+                         <Input 
+                           id="portfolio_company_addon" 
+                           name="portfolio_company_addon" 
+                           value={formData.portfolio_company_addon || ""} 
+                           onChange={handleInputChange}
+                           placeholder="e.g., Yes, seeking add-ons for portfolio companies"
+                         />
+                       </div>
+                     </>
+                   )}
+
+                   {formData.buyer_type === "corporate" && (
+                     <>
+                       <div className="space-y-2">
+                         <Label htmlFor="owning_business_unit">Business Unit</Label>
+                         <Input 
+                           id="owning_business_unit" 
+                           name="owning_business_unit" 
+                           value={formData.owning_business_unit || ""} 
+                           onChange={handleInputChange}
+                           placeholder="e.g., Strategic Development"
+                         />
+                       </div>
+                       <div className="space-y-2">
+                         <Label htmlFor="deal_size_band">Deal Size Band</Label>
+                         <Input 
+                           id="deal_size_band" 
+                           name="deal_size_band" 
+                           value={formData.deal_size_band || ""} 
+                           onChange={handleInputChange}
+                           placeholder="e.g., $10M-$50M"
+                         />
+                       </div>
+                       <div className="space-y-2">
+                         <Label htmlFor="corpdev_intent">Corporate Development Intent</Label>
+                         <Input 
+                           id="corpdev_intent" 
+                           name="corpdev_intent" 
+                           value={formData.corpdev_intent || ""} 
+                           onChange={handleInputChange}
+                           placeholder="e.g., Strategic synergies"
+                         />
+                       </div>
+                       <div className="space-y-2">
+                         <Label htmlFor="buyer_org_url">Organization URL</Label>
+                         <Input 
+                           id="buyer_org_url" 
+                           name="buyer_org_url" 
+                           value={formData.buyer_org_url || ""} 
+                           onChange={handleInputChange}
+                           placeholder="https://company.com"
+                         />
+                       </div>
+                     </>
+                   )}
+
+                   {formData.buyer_type === "familyOffice" && (
+                     <div className="space-y-2">
+                       <Label htmlFor="discretion_type">Investment Discretion</Label>
+                       <Input 
+                         id="discretion_type" 
+                         name="discretion_type" 
+                         value={formData.discretion_type || ""} 
+                         onChange={handleInputChange}
+                         placeholder="e.g., Full discretion"
+                       />
+                     </div>
+                   )}
+
+                   {formData.buyer_type === "independentSponsor" && (
+                     <>
+                       <div className="space-y-2">
+                         <Label htmlFor="committed_equity_band">Committed Equity</Label>
+                         <Input 
+                           id="committed_equity_band" 
+                           name="committed_equity_band" 
+                           value={formData.committed_equity_band || ""} 
+                           onChange={handleInputChange}
+                           placeholder="e.g., $5M-$15M"
+                         />
+                       </div>
+                       <div className="space-y-2">
+                         <Label htmlFor="deployment_timing">Deployment Timing</Label>
+                         <Input 
+                           id="deployment_timing" 
+                           name="deployment_timing" 
+                           value={formData.deployment_timing || ""} 
+                           onChange={handleInputChange}
+                           placeholder="e.g., 6-12 months"
+                         />
+                       </div>
+                       <div className="space-y-2">
+                         <Label htmlFor="backers_summary">Backers Summary</Label>
+                         <Input 
+                           id="backers_summary" 
+                           name="backers_summary" 
+                           value={formData.backers_summary || ""} 
+                           onChange={handleInputChange}
+                           placeholder="e.g., Smith Capital; Oak Family Office"
+                         />
+                       </div>
+                       <div className="space-y-2">
+                         <Label htmlFor="deal_structure_preference">Deal Structure Preference</Label>
+                         <Input 
+                           id="deal_structure_preference" 
+                           name="deal_structure_preference" 
+                           value={formData.deal_structure_preference || ""} 
+                           onChange={handleInputChange}
+                           placeholder="e.g., Majority control"
+                         />
+                       </div>
+                     </>
+                   )}
+
+                   {formData.buyer_type === "searchFund" && (
+                     <>
+                       <div className="space-y-2">
+                         <Label htmlFor="search_type">Search Fund Type</Label>
+                         <Input 
+                           id="search_type" 
+                           name="search_type" 
+                           value={formData.search_type || ""} 
+                           onChange={handleInputChange}
+                           placeholder="e.g., Traditional"
+                         />
+                       </div>
+                       <div className="space-y-2">
+                         <Label htmlFor="acq_equity_band">Acquisition Equity</Label>
+                         <Input 
+                           id="acq_equity_band" 
+                           name="acq_equity_band" 
+                           value={formData.acq_equity_band || ""} 
+                           onChange={handleInputChange}
+                           placeholder="e.g., $2M-$8M"
+                         />
+                       </div>
+                       <div className="space-y-2">
+                         <Label htmlFor="search_stage">Search Stage</Label>
+                         <Input 
+                           id="search_stage" 
+                           name="search_stage" 
+                           value={formData.search_stage || ""} 
+                           onChange={handleInputChange}
+                           placeholder="e.g., Active searching"
+                         />
+                       </div>
+                       <div className="space-y-2">
+                         <Label htmlFor="anchor_investors_summary">Anchor Investors</Label>
+                         <Input 
+                           id="anchor_investors_summary" 
+                           name="anchor_investors_summary" 
+                           value={formData.anchor_investors_summary || ""} 
+                           onChange={handleInputChange}
+                           placeholder="e.g., Stanford GSB, Wharton"
+                         />
+                       </div>
+                     </>
+                   )}
+
+                   {formData.buyer_type === "advisor" && (
+                     <>
+                       <div className="space-y-2">
+                         <Label htmlFor="on_behalf_of_buyer">On Behalf of Buyer</Label>
+                         <Input 
+                           id="on_behalf_of_buyer" 
+                           name="on_behalf_of_buyer" 
+                           value={formData.on_behalf_of_buyer || ""} 
+                           onChange={handleInputChange}
+                           placeholder="e.g., Yes, representing buyer"
+                         />
+                       </div>
+                       <div className="space-y-2">
+                         <Label htmlFor="buyer_role">Buyer Role</Label>
+                         <Input 
+                           id="buyer_role" 
+                           name="buyer_role" 
+                           value={formData.buyer_role || ""} 
+                           onChange={handleInputChange}
+                           placeholder="e.g., Investment banker"
+                         />
+                       </div>
+                       <div className="space-y-2">
+                         <Label htmlFor="mandate_blurb">Mandate Description</Label>
+                         <Input 
+                           id="mandate_blurb" 
+                           name="mandate_blurb" 
+                           value={formData.mandate_blurb || ""} 
+                           onChange={handleInputChange}
+                           placeholder="Brief mandate description"
+                         />
+                       </div>
+                     </>
+                   )}
+
+                   {formData.buyer_type === "businessOwner" && (
+                     <>
+                       <div className="space-y-2">
+                         <Label htmlFor="owner_intent">Owner Intent</Label>
+                         <Input 
+                           id="owner_intent" 
+                           name="owner_intent" 
+                           value={formData.owner_intent || ""} 
+                           onChange={handleInputChange}
+                           placeholder="e.g., Roll-up strategy"
+                         />
+                       </div>
+                       <div className="space-y-2">
+                         <Label htmlFor="owner_timeline">Owner Timeline</Label>
+                         <Input 
+                           id="owner_timeline" 
+                           name="owner_timeline" 
+                           value={formData.owner_timeline || ""} 
+                           onChange={handleInputChange}
+                           placeholder="e.g., 12-18 months"
+                         />
+                       </div>
+                     </>
+                   )}
+
+                   {formData.buyer_type === "individual" && (
+                     <>
+                       <div className="space-y-2">
+                         <Label htmlFor="uses_bank_finance">Uses Bank Finance</Label>
+                         <Input 
+                           id="uses_bank_finance" 
+                           name="uses_bank_finance" 
+                           value={formData.uses_bank_finance || ""} 
+                           onChange={handleInputChange}
+                           placeholder="e.g., Yes, SBA loans"
+                         />
+                       </div>
+                       <div className="space-y-2">
+                         <Label htmlFor="max_equity_today_band">Max Equity Today</Label>
+                         <Input 
+                           id="max_equity_today_band" 
+                           name="max_equity_today_band" 
+                           value={formData.max_equity_today_band || ""} 
+                           onChange={handleInputChange}
+                           placeholder="e.g., $2M-$5M"
+                         />
+                       </div>
+                     </>
+                   )}
+                 </div>
+                 
+                 <Separator />
+                 
+                 <div className="space-y-6">
                   <div className="space-y-2">
                     <Label htmlFor="ideal_target_description">Ideal Target Description</Label>
                     <Textarea 

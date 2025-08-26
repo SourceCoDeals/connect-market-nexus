@@ -490,6 +490,8 @@ const Signup = () => {
         revenue_range_min: revenueRangeMin || undefined,
         revenue_range_max: revenueRangeMax || undefined,
         specific_business_search: specificBusinessSearch,
+        // Missing job_title field
+        job_title: formData.jobTitle || '',
         // Buyer-specific fields
         estimated_revenue: estimatedRevenue,
         fund_size: fundSize,
@@ -501,12 +503,49 @@ const Signup = () => {
         funding_source: fundingSource,
         needs_loan: needsLoan,
         ideal_target: idealTarget,
-        // Independent sponsor specific fields
+        // All new buyer-specific fields from form
+        // Private Equity
+        deploying_capital_now: formData.deployingCapitalNow || '',
+        // Corporate Development
+        owning_business_unit: formData.owningBusinessUnit || '',
+        deal_size_band: formData.dealSizeBand || '',
+        buyer_org_url: formData.buyerOrgUrl || '',
+        integration_plan: formData.integrationPlan || [],
+        corpdev_intent: formData.corpdevIntent || '',
+        // Family Office
+        discretion_type: formData.discretionType || '',
+        // Independent Sponsor
+        committed_equity_band: formData.committedEquityBand || '',
+        equity_source: formData.equitySource || [],
+        deployment_timing: formData.deploymentTiming || '',
         target_deal_size_min: targetDealSizeMin ? parseCurrency(targetDealSizeMin) : undefined,
         target_deal_size_max: targetDealSizeMax ? parseCurrency(targetDealSizeMax) : undefined,
         geographic_focus: geographicFocus ? [geographicFocus] : targetLocations || [],
         industry_expertise: industryExpertise ? [industryExpertise] : [],
         deal_structure_preference: dealStructurePreference || '',
+        permanent_capital: formData.permanentCapital || false,
+        operating_company_targets: formData.operatingCompanyTargets || [],
+        flex_subXm_ebitda: formData.flexSubxmEbitda || false,
+        // Search Fund
+        search_type: formData.searchType || '',
+        acq_equity_band: formData.acqEquityBand || '',
+        financing_plan: formData.financingPlan || [],
+        search_stage: formData.searchStage || '',
+        flex_sub2m_ebitda: formData.flexSub2mEbitda || false,
+        // Advisor/Banker
+        on_behalf_of_buyer: formData.onBehalfOfBuyer || '',
+        buyer_role: formData.buyerRole || '',
+        // Business Owner
+        owner_timeline: formData.ownerTimeline || '',
+        owner_intent: formData.ownerIntent || '',
+        // Individual Investor
+        uses_bank_finance: formData.usesBank || '',
+        max_equity_today_band: formData.maxEquityToday || '',
+        // Additional fields from comprehensive form
+        mandate_blurb: formData.mandateBlurb || '',
+        portfolio_company_addon: formData.portfolioCompanyAddon || '',
+        backers_summary: formData.backersSummary || '',
+        anchor_investors_summary: formData.anchorInvestorsSummary || '',
       };
       
       await signup(signupData, formData.password);

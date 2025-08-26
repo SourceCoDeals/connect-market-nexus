@@ -145,6 +145,8 @@ export function useNuclearAuth() {
           revenue_range_min: (userData.revenue_range_min as any) || '', 
           revenue_range_max: (userData.revenue_range_max as any) || '',
           specific_business_search: userData.specific_business_search || '',
+          // Missing job_title field
+          job_title: userData.job_title || '',
           // Additional fields for different buyer types
           estimated_revenue: userData.estimated_revenue || '',
           fund_size: userData.fund_size || '',
@@ -156,12 +158,49 @@ export function useNuclearAuth() {
           funding_source: userData.funding_source || '',
           needs_loan: userData.needs_loan || '',
           ideal_target: userData.ideal_target || '',
-          // Independent sponsor specific fields with proper standardization
+          // All comprehensive buyer-specific fields
+          // Private Equity
+          deploying_capital_now: userData.deploying_capital_now || '',
+          // Corporate Development
+          owning_business_unit: userData.owning_business_unit || '',
+          deal_size_band: userData.deal_size_band || '',
+          buyer_org_url: userData.buyer_org_url || '',
+          integration_plan: Array.isArray(userData.integration_plan) ? userData.integration_plan : [],
+          corpdev_intent: userData.corpdev_intent || '',
+          // Family Office
+          discretion_type: userData.discretion_type || '',
+          // Independent Sponsor
+          committed_equity_band: userData.committed_equity_band || '',
+          equity_source: Array.isArray(userData.equity_source) ? userData.equity_source : [],
+          deployment_timing: userData.deployment_timing || '',
           target_deal_size_min: typeof userData.target_deal_size_min === 'number' ? userData.target_deal_size_min : (userData.target_deal_size_min ? Number(userData.target_deal_size_min) : null),
           target_deal_size_max: typeof userData.target_deal_size_max === 'number' ? userData.target_deal_size_max : (userData.target_deal_size_max ? Number(userData.target_deal_size_max) : null),
           geographic_focus: Array.isArray(userData.geographic_focus) ? standardizeLocations(userData.geographic_focus) : [],
           industry_expertise: Array.isArray(userData.industry_expertise) ? standardizeCategories(userData.industry_expertise) : [],
           deal_structure_preference: userData.deal_structure_preference || '',
+          permanent_capital: userData.permanent_capital || null,
+          operating_company_targets: Array.isArray(userData.operating_company_targets) ? userData.operating_company_targets : [],
+          flex_subxm_ebitda: userData.flex_subXm_ebitda || null,
+          // Search Fund
+          search_type: userData.search_type || '',
+          acq_equity_band: userData.acq_equity_band || '',
+          financing_plan: Array.isArray(userData.financing_plan) ? userData.financing_plan : [],
+          search_stage: userData.search_stage || '',
+          flex_sub2m_ebitda: userData.flex_sub2m_ebitda || null,
+          // Advisor/Banker
+          on_behalf_of_buyer: userData.on_behalf_of_buyer || '',
+          buyer_role: userData.buyer_role || '',
+          // Business Owner
+          owner_timeline: userData.owner_timeline || '',
+          owner_intent: userData.owner_intent || '',
+          // Individual Investor
+          uses_bank_finance: userData.uses_bank_finance || '',
+          max_equity_today_band: userData.max_equity_today_band || '',
+          // Additional comprehensive fields
+          mandate_blurb: userData.mandate_blurb || '',
+          portfolio_company_addon: userData.portfolio_company_addon || '',
+          backers_summary: userData.backers_summary || '',
+          anchor_investors_summary: userData.anchor_investors_summary || '',
         }
       }
     });
