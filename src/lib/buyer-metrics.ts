@@ -115,6 +115,15 @@ export function getPrimaryMetrics(user: User | null): BuyerMetric[] {
   const buyerType = user.buyer_type as BuyerType;
   const metrics: BuyerMetric[] = [];
 
+  // Job title (always show if available)
+  if (user.job_title) {
+    metrics.push({
+      label: 'Job Title',
+      value: user.job_title,
+      completeness: 'complete'
+    });
+  }
+
   // Company name and website (always show if available)
   if (user.company) {
     const hasWebsite = user.website && user.website.trim() !== '';
