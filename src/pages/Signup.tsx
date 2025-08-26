@@ -552,8 +552,8 @@ const Signup = () => {
         return (
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Work Email</Label>
-              <p className="text-xs text-muted-foreground">Please provide your work email address (personal emails accepted if needed)</p>
+               <Label htmlFor="email">Work Email</Label>
+               <p className="text-xs text-muted-foreground">Please provide your work email address</p>
               <Input
                 id="email"
                 name="email"
@@ -643,12 +643,11 @@ const Signup = () => {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="jobTitle">Job Title <span className="text-xs text-muted-foreground">(optional)</span></Label>
-              <p className="text-xs text-muted-foreground">Helps quick triage: Analyst/Associate vs Partner/M&A Director</p>
-              <Input
-                id="jobTitle"
-                name="jobTitle"
-                placeholder="Partner, Director, Analyst, etc."
+               <Label htmlFor="jobTitle">Job Title <span className="text-xs text-muted-foreground">(optional)</span></Label>
+               <Input
+                 id="jobTitle"
+                 name="jobTitle"
+                 placeholder="e.g., Partner, VP Business Development, Investment Associate"
                 value={formData.jobTitle || ""}
                 onChange={handleInputChange}
               />
