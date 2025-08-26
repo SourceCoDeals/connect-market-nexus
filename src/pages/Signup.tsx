@@ -28,6 +28,7 @@ import { EnhancedMultiCategorySelect } from "@/components/ui/enhanced-category-s
 import { EnhancedMultiLocationSelect } from "@/components/ui/enhanced-location-select";
 import { FIELD_HELPERS } from "@/lib/field-helpers";
 import { REVENUE_RANGES, FUND_AUM_RANGES, INVESTMENT_RANGES, DEAL_SIZE_RANGES } from "@/lib/currency-ranges";
+import { InvestmentSizeSelect } from "@/components/ui/investment-size-select";
 import { 
   DEPLOYING_CAPITAL_OPTIONS,
   DEAL_SIZE_BAND_OPTIONS, 
@@ -82,7 +83,7 @@ const Signup = () => {
     // Buyer type specific fields - flattened for proper mapping
     estimatedRevenue: string;
     fundSize: string;
-    investmentSize: string;
+    investmentSize: string[];
     aum: string;
     isFunded: string;
     fundedBy: string;
@@ -147,7 +148,7 @@ const Signup = () => {
     // Buyer type specific fields
     estimatedRevenue: "",
     fundSize: "",
-    investmentSize: "",
+    investmentSize: [],
     aum: "",
     isFunded: "",
     fundedBy: "",
@@ -495,7 +496,7 @@ const Signup = () => {
         // Buyer-specific fields
         estimated_revenue: estimatedRevenue,
         fund_size: fundSize,
-        investment_size: investmentSize,
+        investment_size: investmentSize || [],
         aum: aum,
         is_funded: isFunded,
         funded_by: fundedBy,

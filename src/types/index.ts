@@ -26,7 +26,7 @@ export interface User {
   company_name?: string;
   estimated_revenue?: string;
   fund_size?: string;
-  investment_size?: string;
+  investment_size?: string | string[];
   aum?: string;
   is_funded?: string;
   funded_by?: string;

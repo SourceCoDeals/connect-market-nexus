@@ -26,7 +26,7 @@ export function createUserObject(profile: any): User {
       company_name: profile.company_name || profile.company || '',
       estimated_revenue: profile.estimated_revenue || '',
       fund_size: profile.fund_size || '',
-      investment_size: profile.investment_size || '',
+      investment_size: Array.isArray(profile.investment_size) ? profile.investment_size : (profile.investment_size ? [profile.investment_size] : []),
       aum: profile.aum || '',
       is_funded: profile.is_funded || '',
       funded_by: profile.funded_by || '',

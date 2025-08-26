@@ -150,7 +150,7 @@ export function useNuclearAuth() {
           // Additional fields for different buyer types
           estimated_revenue: userData.estimated_revenue || '',
           fund_size: userData.fund_size || '',
-          investment_size: userData.investment_size || '',
+          investment_size: Array.isArray(userData.investment_size) ? userData.investment_size : (userData.investment_size ? [userData.investment_size] : []),
           aum: userData.aum || '',
           is_funded: userData.is_funded || '',
           funded_by: userData.funded_by || '',
