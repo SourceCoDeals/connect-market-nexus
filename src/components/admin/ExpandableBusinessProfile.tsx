@@ -53,7 +53,9 @@ export const ExpandableBusinessProfile: React.FC<ExpandableBusinessProfileProps>
   if (!hasBusinessInfo) return null;
 
   const revenueRange = formatFinancialRange(user.revenue_range_min, user.revenue_range_max);
-  const investmentSize = user.investment_size?.replace(/\$/g, '').replace(/,/g, '');
+  const investmentSize = Array.isArray(user.investment_size) 
+    ? user.investment_size.join(', ') 
+    : user.investment_size?.replace(/\$/g, '').replace(/,/g, '') || '';
   const primaryMetrics = getPrimaryMetrics(user as any);
   const tierInfo = getBuyerTier(user as any);
 

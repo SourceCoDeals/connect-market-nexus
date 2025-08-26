@@ -55,8 +55,8 @@ export const useEnhancedUserExport = () => {
         
         if (!isRelevant) {
           row.push('—'); // Not applicable for this buyer type
-        } else if (field === 'business_categories') {
-          row.push(Array.isArray(value) ? value.join(', ') : '—');
+        } else if (field === 'business_categories' || field === 'investment_size') {
+          row.push(Array.isArray(value) ? value.join(', ') : String(value || '—'));
         } else {
           row.push(String(value || '—'));
         }

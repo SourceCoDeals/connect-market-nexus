@@ -151,7 +151,7 @@ export function EnhancedUserManagement({
       // Financial Details - ALL FIELDS
       'Estimated Revenue': user.estimated_revenue || '',
       'Fund Size': user.fund_size || '',
-      'Investment Size': user.investment_size || '',
+      'Investment Size': Array.isArray(user.investment_size) ? user.investment_size.join(', ') : user.investment_size || '',
       'AUM': user.aum || '',
       'Target Company Size': user.target_company_size || '',
       

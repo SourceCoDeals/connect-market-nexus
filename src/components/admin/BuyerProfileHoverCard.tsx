@@ -105,7 +105,9 @@ export const BuyerProfileHoverCard: React.FC<BuyerProfileHoverCardProps> = ({
   }
 
   const tierInfo = getBuyerTier(user as any); // Type conversion for buyer-metrics compatibility
-  const investmentSize = formatInvestmentSize(user.investment_size);
+  const investmentSize = Array.isArray(user.investment_size) 
+    ? user.investment_size.join(', ') 
+    : formatInvestmentSize(user.investment_size);
   const revenueRange = formatFinancialRange(user.revenue_range_min, user.revenue_range_max);
   const primaryMetrics = getPrimaryMetrics(user as any);
   

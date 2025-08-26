@@ -187,7 +187,7 @@ export function InvestmentFitScore({ revenue, ebitda, category, location }: Inve
     if (user.investment_size) {
       const investmentSize = Array.isArray(user.investment_size) 
         ? user.investment_size.join(' ').toLowerCase() 
-        : user.investment_size.toLowerCase();
+        : (typeof user.investment_size === 'string' ? user.investment_size.toLowerCase() : '');
       
       if (investmentSize.includes('small') || investmentSize.includes('<5m')) {
         sizeScore = revenue < 10000000 ? 100 : revenue < 25000000 ? 75 : 50;
@@ -328,7 +328,9 @@ export function InvestmentFitScore({ revenue, ebitda, category, location }: Inve
             </div>
             <div className="flex justify-between">
               <span className="text-slate-500">Investment Size:</span> 
-              <span className="text-slate-900 text-right">{user.investment_size || 'Not set'}</span>
+              <span className="text-slate-900 text-right">
+                {Array.isArray(user.investment_size) ? user.investment_size.join(', ') : user.investment_size || 'Not set'}
+              </span>
             </div>
           </div>
 
