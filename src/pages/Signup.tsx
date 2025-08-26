@@ -15,6 +15,7 @@ import { Separator } from "@/components/ui/separator";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ChipInput } from "@/components/ui/chip-input";
 import { parseCurrency } from "@/lib/currency-utils";
+import { processUrl, isValidUrlFormat } from "@/lib/url-utils";
 
 const steps = [
   "Account Information",
@@ -297,8 +298,8 @@ const Signup = () => {
           errors.push("Phone number is required");
         }
         // Website validation - optional but validate format if provided
-        if (formData.website && !formData.website.match(/^https?:\/\/.+/)) {
-          errors.push("Please enter a valid website URL (must start with http:// or https://)");
+        if (formData.website && !isValidUrlFormat(formData.website)) {
+          errors.push("Please enter a valid website URL (e.g., example.com or www.example.com)");
         }
         // LinkedIn validation - optional but validate format if provided
         if (formData.linkedinProfile && !formData.linkedinProfile.match(/^https?:\/\/(www\.)?linkedin\.com\/.+/)) {
@@ -493,7 +494,7 @@ const Signup = () => {
         last_name: lastName,
         email: email,
         company: company,
-        website: website,
+        website: processUrl(website),
         linkedin_profile: linkedinProfile,
         phone_number: phoneNumber,
         buyer_type: buyerType as BuyerType,
