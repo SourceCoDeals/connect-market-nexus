@@ -12,6 +12,8 @@ import { BuyerType, User } from "@/types";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { ChipInput } from "@/components/ui/chip-input";
 import { parseCurrency } from "@/lib/currency-utils";
 
 const steps = [
@@ -48,7 +50,8 @@ import {
   OWNER_TIMELINE_OPTIONS,
   INDIVIDUAL_FUNDING_SOURCE_OPTIONS,
   USES_BANK_FINANCE_OPTIONS,
-  MAX_EQUITY_TODAY_OPTIONS
+  MAX_EQUITY_TODAY_OPTIONS,
+  DEAL_INTENT_OPTIONS
 } from "@/lib/signup-field-options";
 
 const buyerTypeOptions = [
@@ -134,6 +137,10 @@ const Signup = () => {
     ownerTimeline?: string;
     usesBank?: string;
     maxEquityToday?: string;
+    // New Step 4 fields
+    dealIntent?: string;
+    exclusions?: string[];
+    includeKeywords?: string[];
   }>({
     email: "",
     password: "",
@@ -199,6 +206,10 @@ const Signup = () => {
     ownerTimeline: "",
     usesBank: "",
     maxEquityToday: "",
+    // New Step 4 fields
+    dealIntent: "",
+    exclusions: [],
+    includeKeywords: [],
   });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -548,6 +559,10 @@ const Signup = () => {
         portfolio_company_addon: formData.portfolioCompanyAddon || '',
         backers_summary: formData.backersSummary || '',
         anchor_investors_summary: formData.anchorInvestorsSummary || '',
+        // New Step 4 fields
+        deal_intent: formData.dealIntent || '',
+        exclusions: formData.exclusions || [],
+        include_keywords: formData.includeKeywords || [],
       };
       
       await signup(signupData, formData.password);
@@ -1537,6 +1552,62 @@ const Signup = () => {
                 rows={3}
                 value={formData.specificBusinessSearch}
                 onChange={(e) => setFormData(prev => ({ ...prev, specificBusinessSearch: e.target.value }))}
+              />
+            </div>
+
+            {/* Deal Intent */}
+            <div className="space-y-2">
+              <Label className="text-base font-medium">
+                {FIELD_HELPERS.dealIntent.label}
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                {FIELD_HELPERS.dealIntent.description}
+              </p>
+              <RadioGroup
+                value={formData.dealIntent || ""}
+                onValueChange={(value) => setFormData(prev => ({ ...prev, dealIntent: value }))}
+                className="space-y-2"
+              >
+                {DEAL_INTENT_OPTIONS.map((option) => (
+                  <div key={option.value} className="flex items-center space-x-2">
+                    <RadioGroupItem value={option.value} id={option.value} />
+                    <Label htmlFor={option.value} className="font-normal cursor-pointer">
+                      {option.label}
+                    </Label>
+                  </div>
+                ))}
+              </RadioGroup>
+            </div>
+
+            {/* Hard Exclusions */}
+            <div className="space-y-2">
+              <Label className="text-base font-medium">
+                {FIELD_HELPERS.exclusions.label}
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                {FIELD_HELPERS.exclusions.description}
+              </p>
+              <ChipInput
+                value={formData.exclusions || []}
+                onChange={(value) => setFormData(prev => ({ ...prev, exclusions: value }))}
+                placeholder={FIELD_HELPERS.exclusions.placeholder}
+                maxChips={20}
+              />
+            </div>
+
+            {/* Include Keywords */}
+            <div className="space-y-2">
+              <Label className="text-base font-medium">
+                {FIELD_HELPERS.includeKeywords.label}
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                {FIELD_HELPERS.includeKeywords.description}
+              </p>
+              <ChipInput
+                value={formData.includeKeywords || []}
+                onChange={(value) => setFormData(prev => ({ ...prev, includeKeywords: value }))}
+                placeholder={FIELD_HELPERS.includeKeywords.placeholder}
+                maxChips={5}
               />
             </div>
           </div>

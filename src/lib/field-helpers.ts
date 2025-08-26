@@ -47,6 +47,25 @@ export const FIELD_HELPERS = {
     label: "Specific Business Requirements",
     description: "Looking for something very specific? Tell us exactly what you want - this helps us prioritize and send you hyper-targeted deals.",
     placeholder: "I'm looking for a non-union HVAC business with $2-5M EBITDA, established customer contracts..."
+  },
+
+  // New fields for Step 4
+  dealIntent: {
+    label: "Deal Intent",
+    description: "What's your primary goal with acquisitions? This helps us understand your investment strategy.",
+    placeholder: ""
+  },
+
+  exclusions: {
+    label: "Hard Exclusions",
+    description: "Industries, business types, or characteristics you want to avoid completely. We'll filter these out.",
+    placeholder: "Enter exclusions (press Enter or comma to add)..."
+  },
+
+  includeKeywords: {
+    label: "Include Keywords",
+    description: "Specific keywords or business types you want to prioritize (max 5). We'll boost deals matching these.",
+    placeholder: "Enter keywords (press Enter or comma to add)..."
   }
 } as const;
 
