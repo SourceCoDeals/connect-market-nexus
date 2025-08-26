@@ -55,6 +55,8 @@ export const EnhancedSignupForm: React.FC = () => {
 
   const onSubmit = async (data: SignupFormData) => {
     try {
+      console.log('Form submission data:', data);
+      
       // Transform data to match User interface
       const userData = {
         email: data.email,
@@ -636,7 +638,20 @@ export const EnhancedSignupForm: React.FC = () => {
             </div>
 
             <div>
-              <Label htmlFor="usesBankFinance">Will you use SBA/bank financing? *</Label>
+              <Label htmlFor="needsLoan">Do you need a loan? *</Label>
+              <Select onValueChange={(value) => setValue('needsLoan', value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select yes or no" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="yes">Yes</SelectItem>
+                  <SelectItem value="no">No</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label htmlFor="usesBankFinance">Will you use SBA/bank financing?</Label>
               <Select onValueChange={(value) => setValue('usesBankFinance', value)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select yes, no, or not sure" />
@@ -668,7 +683,7 @@ export const EnhancedSignupForm: React.FC = () => {
             </div>
 
             <div>
-              <Label htmlFor="idealTarget">Ideal Target</Label>
+              <Label htmlFor="idealTarget">Ideal Target *</Label>
               <Textarea
                 id="idealTarget"
                 placeholder="Describe your ideal acquisition target"
@@ -885,11 +900,6 @@ export const EnhancedSignupForm: React.FC = () => {
             </div>
 
             {/* New Step 4 fields */}
-            {(() => {
-              console.log('Step 4 fields rendering...');
-              console.log('DEAL_INTENT_OPTIONS:', DEAL_INTENT_OPTIONS);
-              return null;
-            })()}
             
             <div>
               <Label htmlFor="dealIntent">Deal Intent</Label>
@@ -959,7 +969,31 @@ export const EnhancedSignupForm: React.FC = () => {
       case 1:
         return watch('firstName') && watch('lastName') && watch('company');
       case 2:
-        return watch('buyerType');
+        const type = watch('buyerType');
+        if (!type) return false;
+        
+        // Check buyer-specific required fields
+        switch (type) {
+          case 'searchFund':
+            return watch('searchType') && 
+                   watch('acqEquityBand') && 
+                   watch('financingPlan')?.length > 0 &&
+                   watch('flexSub2mEbitda') !== undefined;
+          case 'privateEquity':
+            return watch('deployingCapitalNow');
+          case 'corporate':
+            return watch('dealSizeBand');
+          case 'familyOffice':
+            return watch('discretionType');
+          case 'independentSponsor':
+            return watch('committedEquityBand') && 
+                   watch('equitySource')?.length > 0 &&
+                   watch('flexSubXmEbitda') !== undefined;
+          case 'individual':
+            return watch('fundingSource') && watch('needsLoan') && watch('idealTarget');
+          default:
+            return true;
+        }
       default:
         return true;
     }

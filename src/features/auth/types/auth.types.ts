@@ -106,16 +106,43 @@ export const signupFormSchema = z.object({
   exclusions: z.array(z.string()).optional(),
   includeKeywords: z.array(z.string()).optional()
 }).refine((data) => {
-  // Conditional validation for Search Fund
+  // Conditional validation for Search Fund (new fields)
   if (data.buyerType === 'searchFund') {
-    if (!data.isFunded) return false;
-    if (data.isFunded === 'yes' && !data.fundedBy) return false;
-    if (!data.targetCompanySize) return false;
+    if (!data.searchType) return false;
+    if (!data.acqEquityBand) return false;
+    if (!data.financingPlan || data.financingPlan.length === 0) return false;
+    // flexSub2mEbitda is required - can be true or false but must be set
+    if (data.flexSub2mEbitda === undefined) return false;
   }
+  
+  // Conditional validation for Private Equity
+  if (data.buyerType === 'privateEquity') {
+    if (!data.deployingCapitalNow) return false;
+  }
+  
+  // Conditional validation for Corporate Development
+  if (data.buyerType === 'corporate') {
+    if (!data.dealSizeBand) return false;
+  }
+  
+  // Conditional validation for Family Office
+  if (data.buyerType === 'familyOffice') {
+    if (!data.discretionType) return false;
+  }
+  
+  // Conditional validation for Independent Sponsor
+  if (data.buyerType === 'independentSponsor') {
+    if (!data.committedEquityBand) return false;
+    if (!data.equitySource || data.equitySource.length === 0) return false;
+    // flexSubXmEbitda is required - can be true or false but must be set
+    if (data.flexSubXmEbitda === undefined) return false;
+  }
+  
   // Conditional validation for Individual
   if (data.buyerType === 'individual') {
     if (!data.fundingSource || !data.needsLoan || !data.idealTarget) return false;
   }
+  
   return true;
 }, {
   message: "Please complete all required fields for your buyer type",
