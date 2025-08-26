@@ -994,13 +994,10 @@ const Signup = () => {
                 <div className="space-y-2">
                   <Label>If you have an operating company this would add onto, name it <span className="text-xs text-muted-foreground">(optional - max 3)</span></Label>
                   <p className="text-xs text-muted-foreground">List operating companies for potential add-on opportunities</p>
-                  <Input
-                    placeholder="Enter company names, separated by commas"
-                    value={(formData.operatingCompanyTargets || []).join(', ')}
-                    onChange={(e) => {
-                      const companies = e.target.value.split(',').map(s => s.trim()).filter(s => s).slice(0, 3);
-                      setFormData(prev => ({ ...prev, operatingCompanyTargets: companies }));
-                    }}
+                  <ChipInput
+                    value={formData.operatingCompanyTargets || []}
+                    onChange={(companies) => setFormData(prev => ({ ...prev, operatingCompanyTargets: companies.slice(0, 3) }))}
+                    placeholder="Enter company name and press Enter"
                   />
                 </div>
               </div>
@@ -1460,31 +1457,38 @@ const Signup = () => {
                 <p className="text-xs text-muted-foreground">
                   {FIELD_HELPERS.targetDealSize.description}
                 </p>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="targetDealSizeMin">{FIELD_HELPERS.targetDealSize.minLabel}</Label>
-                    <EnhancedCurrencyInput
-                      id="targetDealSizeMin"
-                      name="targetDealSizeMin"
-                      value={formData.targetDealSizeMin}
-                      onChange={(value) => setFormData(prev => ({ ...prev, targetDealSizeMin: value }))}
-                      fieldType="dealSize"
-                      currencyMode="millions"
-                      placeholder="5-10 (millions)"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="targetDealSizeMax">{FIELD_HELPERS.targetDealSize.maxLabel}</Label>
-                    <EnhancedCurrencyInput
-                      id="targetDealSizeMax"
-                      name="targetDealSizeMax"
-                      value={formData.targetDealSizeMax}
-                      onChange={(value) => setFormData(prev => ({ ...prev, targetDealSizeMax: value }))}
-                      fieldType="dealSize"
-                      currencyMode="millions"
-                      placeholder="15-25 (millions)"
-                    />
-                  </div>
+                <div className="space-y-2">
+                  <Label htmlFor="targetDealSizeRange">Target Deal Size Range</Label>
+                  <Select
+                    value={formData.targetDealSizeMin && formData.targetDealSizeMax 
+                      ? `${formData.targetDealSizeMin}-${formData.targetDealSizeMax}`
+                      : ""}
+                    onValueChange={(value) => {
+                      const range = DEAL_SIZE_RANGES.find(r => r.value === value);
+                      if (range) {
+                        // Parse range like "$1M - $5M" into min and max
+                        const parts = range.value.split(' - ');
+                        const min = parts[0]?.replace(/[^0-9]/g, '') || "";
+                        const max = parts[1]?.replace(/[^0-9]/g, '') || "";
+                        setFormData(prev => ({ 
+                          ...prev, 
+                          targetDealSizeMin: min ? `${min}000000` : "",
+                          targetDealSizeMax: max ? `${max}000000` : ""
+                        }));
+                      }
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select deal size range" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {DEAL_SIZE_RANGES.map((range) => (
+                        <SelectItem key={range.value} value={range.value}>
+                          {range.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
             )}

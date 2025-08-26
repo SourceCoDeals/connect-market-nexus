@@ -42,6 +42,7 @@ import {
   MAX_EQUITY_TODAY_OPTIONS,
   DEAL_INTENT_OPTIONS
 } from "@/lib/signup-field-options";
+import { DEAL_SIZE_RANGES } from "@/lib/currency-ranges";
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@/types";
 import { STANDARDIZED_CATEGORIES, STANDARDIZED_LOCATIONS } from "@/lib/financial-parser";
@@ -750,6 +751,46 @@ const Profile = () => {
                             onChange={handleInputChange}
                             placeholder="e.g., Majority control"
                           />
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <Label htmlFor="target_deal_size">Target Deal Size Range</Label>
+                          <Select 
+                            value={formData.target_deal_size_min && formData.target_deal_size_max 
+                              ? DEAL_SIZE_RANGES.find(r => {
+                                  const parts = r.value.split(' - ');
+                                  const minParts = parts[0]?.replace(/[^0-9]/g, '');
+                                  const maxParts = parts[1]?.replace(/[^0-9]/g, '');
+                                  const expectedMin = minParts ? parseInt(minParts) * 1000000 : 0;
+                                  const expectedMax = maxParts ? parseInt(maxParts) * 1000000 : 0;
+                                  return formData.target_deal_size_min === expectedMin && formData.target_deal_size_max === expectedMax;
+                                })?.value || ""
+                              : ""}
+                            onValueChange={(value) => {
+                              const range = DEAL_SIZE_RANGES.find(r => r.value === value);
+                              if (range) {
+                                const parts = range.value.split(' - ');
+                                const min = parts[0]?.replace(/[^0-9]/g, '');
+                                const max = parts[1]?.replace(/[^0-9]/g, '');
+                                setFormData(prev => ({
+                                  ...prev,
+                                  target_deal_size_min: min ? parseInt(min) * 1000000 : null,
+                                  target_deal_size_max: max ? parseInt(max) * 1000000 : null
+                                }));
+                              }
+                            }}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select deal size range" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {DEAL_SIZE_RANGES.map((range) => (
+                                <SelectItem key={range.value} value={range.value}>
+                                  {range.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </div>
                       </>
                     )}

@@ -177,7 +177,6 @@ export function useNuclearAuth() {
           // Corporate Development
           owning_business_unit: userData.owning_business_unit || '',
           deal_size_band: userData.deal_size_band || '',
-          buyer_org_url: userData.buyer_org_url || '',
           integration_plan: Array.isArray(userData.integration_plan) ? userData.integration_plan : [],
           corpdev_intent: userData.corpdev_intent || '',
           // Family Office
@@ -203,6 +202,7 @@ export function useNuclearAuth() {
           // Advisor/Banker
           on_behalf_of_buyer: userData.on_behalf_of_buyer || '',
           buyer_role: userData.buyer_role || '',
+          buyer_org_url: userData.buyer_org_url || '',
           // Business Owner
           owner_timeline: userData.owner_timeline || '',
           owner_intent: userData.owner_intent || '',
