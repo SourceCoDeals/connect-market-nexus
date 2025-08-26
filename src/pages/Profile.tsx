@@ -17,6 +17,13 @@ import { MultiLocationSelect } from "@/components/ui/location-select";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { InvestmentSizeSelect } from "@/components/ui/investment-size-select";
 import { EnhancedCurrencyInput } from "@/components/ui/enhanced-currency-input";
+import { MultiSelect } from "@/components/ui/multi-select";
+import { Switch } from "@/components/ui/switch";
+import { 
+  COMMITTED_EQUITY_BAND_OPTIONS, 
+  EQUITY_SOURCE_OPTIONS, 
+  DEPLOYMENT_TIMING_OPTIONS 
+} from "@/lib/signup-field-options";
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@/types";
 import { STANDARDIZED_CATEGORIES, STANDARDIZED_LOCATIONS } from "@/lib/financial-parser";
@@ -106,7 +113,7 @@ const Profile = () => {
     }));
   };
 
-  const handleSelectChange = (value: string | string[], name: string) => {
+  const handleSelectChange = (value: string | string[] | boolean, name: string) => {
     setFormData((prev) => ({
       ...prev,
       [name]: value,
@@ -598,50 +605,82 @@ const Profile = () => {
                      </div>
                    )}
 
-                   {formData.buyer_type === "independentSponsor" && (
-                     <>
-                       <div className="space-y-2">
-                         <Label htmlFor="committed_equity_band">Committed Equity</Label>
-                         <Input 
-                           id="committed_equity_band" 
-                           name="committed_equity_band" 
-                           value={formData.committed_equity_band || ""} 
-                           onChange={handleInputChange}
-                           placeholder="e.g., $5M-$15M"
-                         />
-                       </div>
-                       <div className="space-y-2">
-                         <Label htmlFor="deployment_timing">Deployment Timing</Label>
-                         <Input 
-                           id="deployment_timing" 
-                           name="deployment_timing" 
-                           value={formData.deployment_timing || ""} 
-                           onChange={handleInputChange}
-                           placeholder="e.g., 6-12 months"
-                         />
-                       </div>
-                       <div className="space-y-2">
-                         <Label htmlFor="backers_summary">Backers Summary</Label>
-                         <Input 
-                           id="backers_summary" 
-                           name="backers_summary" 
-                           value={formData.backers_summary || ""} 
-                           onChange={handleInputChange}
-                           placeholder="e.g., Smith Capital; Oak Family Office"
-                         />
-                       </div>
-                       <div className="space-y-2">
-                         <Label htmlFor="deal_structure_preference">Deal Structure Preference</Label>
-                         <Input 
-                           id="deal_structure_preference" 
-                           name="deal_structure_preference" 
-                           value={formData.deal_structure_preference || ""} 
-                           onChange={handleInputChange}
-                           placeholder="e.g., Majority control"
-                         />
-                       </div>
-                     </>
-                   )}
+                    {formData.buyer_type === "independentSponsor" && (
+                      <>
+                        <div className="space-y-2">
+                          <Label htmlFor="committed_equity_band">Committed Equity</Label>
+                          <Select value={formData.committed_equity_band || ""} onValueChange={(value) => handleSelectChange(value, "committed_equity_band")}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select committed equity range" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {COMMITTED_EQUITY_BAND_OPTIONS.map((option) => (
+                                <SelectItem key={option.value} value={option.value}>
+                                  {option.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <Label htmlFor="equity_source">Equity Source</Label>
+                          <MultiSelect
+                            options={EQUITY_SOURCE_OPTIONS.map(opt => ({ value: opt.value, label: opt.label }))}
+                            selected={Array.isArray(formData.equity_source) ? formData.equity_source : (formData.equity_source ? [formData.equity_source] : [])}
+                            onSelectedChange={(values) => handleSelectChange(values, "equity_source")}
+                            placeholder="Select equity sources..."
+                            className="w-full"
+                          />
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <Label htmlFor="deployment_timing">Deployment Timing</Label>
+                          <Select value={formData.deployment_timing || ""} onValueChange={(value) => handleSelectChange(value, "deployment_timing")}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select deployment timing" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {DEPLOYMENT_TIMING_OPTIONS.map((option) => (
+                                <SelectItem key={option.value} value={option.value}>
+                                  {option.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="flex items-center space-x-2">
+                          <Switch
+                            id="flex_subXm_ebitda"
+                            checked={formData.flex_subXm_ebitda || false}
+                            onCheckedChange={(checked) => handleSelectChange(checked, "flex_subXm_ebitda")}
+                          />
+                          <Label htmlFor="flex_subXm_ebitda">Flexible on sub-$1M EBITDA targets</Label>
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <Label htmlFor="backers_summary">Backers Summary</Label>
+                          <Input 
+                            id="backers_summary" 
+                            name="backers_summary" 
+                            value={formData.backers_summary || ""} 
+                            onChange={handleInputChange}
+                            placeholder="e.g., Smith Capital; Oak Family Office"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="deal_structure_preference">Deal Structure Preference</Label>
+                          <Input 
+                            id="deal_structure_preference" 
+                            name="deal_structure_preference" 
+                            value={formData.deal_structure_preference || ""} 
+                            onChange={handleInputChange}
+                            placeholder="e.g., Majority control"
+                          />
+                        </div>
+                      </>
+                    )}
 
                    {formData.buyer_type === "searchFund" && (
                      <>
