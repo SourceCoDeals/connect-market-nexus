@@ -754,21 +754,12 @@ const Signup = () => {
               <div className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="estimatedRevenue">Estimated Revenue</Label>
-                  <Select
+                  <EnhancedCurrencyInput
                     value={formData.estimatedRevenue}
-                    onValueChange={(value) => setFormData((prev) => ({ ...prev, estimatedRevenue: value }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select revenue range" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {REVENUE_RANGES.map((range) => (
-                        <SelectItem key={range.value} value={range.value}>
-                          {range.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    onChange={(value) => setFormData((prev) => ({ ...prev, estimatedRevenue: value }))}
+                    fieldType="revenue"
+                    currencyMode="millions"
+                  />
                 </div>
                 
                 <div className="space-y-2">
@@ -854,21 +845,12 @@ const Signup = () => {
               <div className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="fundSize">Fund Size</Label>
-                  <Select
+                  <EnhancedCurrencyInput
                     value={formData.fundSize}
-                    onValueChange={(value) => setFormData((prev) => ({ ...prev, fundSize: value }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select fund size" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {FUND_AUM_RANGES.map((range) => (
-                        <SelectItem key={range.value} value={range.value}>
-                          {range.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    onChange={(value) => setFormData((prev) => ({ ...prev, fundSize: value }))}
+                    fieldType="fund"
+                    currencyMode="millions"
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="investmentSize">{FIELD_HELPERS.investmentSize.label}</Label>
@@ -884,21 +866,12 @@ const Signup = () => {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="aum">Assets Under Management</Label>
-                  <Select
+                  <EnhancedCurrencyInput
                     value={formData.aum}
-                    onValueChange={(value) => setFormData((prev) => ({ ...prev, aum: value }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select AUM range" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {FUND_AUM_RANGES.map((range) => (
-                        <SelectItem key={range.value} value={range.value}>
-                          {range.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    onChange={(value) => setFormData((prev) => ({ ...prev, aum: value }))}
+                    fieldType="aum"
+                    currencyMode="millions"
+                  />
                 </div>
                 
                 <div className="space-y-2">
@@ -939,21 +912,12 @@ const Signup = () => {
               <div className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="fundSize">Fund Size</Label>
-                  <Select
+                  <EnhancedCurrencyInput
                     value={formData.fundSize}
-                    onValueChange={(value) => setFormData((prev) => ({ ...prev, fundSize: value }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select fund size" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {FUND_AUM_RANGES.map((range) => (
-                        <SelectItem key={range.value} value={range.value}>
-                          {range.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    onChange={(value) => setFormData((prev) => ({ ...prev, fundSize: value }))}
+                    fieldType="fund"
+                    currencyMode="millions"
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="investmentSize">{FIELD_HELPERS.investmentSize.label}</Label>
@@ -969,21 +933,12 @@ const Signup = () => {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="aum">Assets Under Management</Label>
-                  <Select
+                  <EnhancedCurrencyInput
                     value={formData.aum}
-                    onValueChange={(value) => setFormData((prev) => ({ ...prev, aum: value }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select AUM range" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {FUND_AUM_RANGES.map((range) => (
-                        <SelectItem key={range.value} value={range.value}>
-                          {range.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    onChange={(value) => setFormData((prev) => ({ ...prev, aum: value }))}
+                    fieldType="aum"
+                    currencyMode="millions"
+                  />
                 </div>
                 
                 <div className="space-y-2">
