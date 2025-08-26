@@ -184,14 +184,14 @@ export const getFieldCategories = (buyerType: BuyerType | 'admin') => {
   if (buyerType === 'admin') {
     return {
       'Contact Information': BUYER_TYPE_FIELD_MAPPINGS.basic.filter(field => 
-        ['first_name', 'last_name', 'email', 'phone_number', 'company', 'website', 'linkedin_profile'].includes(field)
+        ['first_name', 'last_name', 'email', 'phone_number', 'company', 'job_title', 'website', 'linkedin_profile'].includes(field)
       ),
     };
   }
   
   return {
     'Contact Information': BUYER_TYPE_FIELD_MAPPINGS.basic.filter(field => 
-      ['first_name', 'last_name', 'email', 'phone_number', 'company', 'website', 'linkedin_profile'].includes(field)
+      ['first_name', 'last_name', 'email', 'phone_number', 'company', 'job_title', 'website', 'linkedin_profile'].includes(field)
     ),
     'Business Profile': [
       ...BUYER_TYPE_FIELD_MAPPINGS.profile,
