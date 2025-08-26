@@ -885,6 +885,12 @@ export const EnhancedSignupForm: React.FC = () => {
             </div>
 
             {/* New Step 4 fields */}
+            {(() => {
+              console.log('Step 4 fields rendering...');
+              console.log('DEAL_INTENT_OPTIONS:', DEAL_INTENT_OPTIONS);
+              return null;
+            })()}
+            
             <div>
               <Label htmlFor="dealIntent">Deal Intent</Label>
               <div className="space-y-2">
