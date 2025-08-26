@@ -19,6 +19,8 @@ import { InvestmentSizeSelect } from "@/components/ui/investment-size-select";
 import { EnhancedCurrencyInput } from "@/components/ui/enhanced-currency-input";
 import { MultiSelect } from "@/components/ui/multi-select";
 import { Switch } from "@/components/ui/switch";
+import { ChipInput } from "@/components/ui/chip-input";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { 
   DEPLOYING_CAPITAL_OPTIONS,
   DEAL_SIZE_BAND_OPTIONS,
@@ -37,7 +39,8 @@ import {
   OWNER_TIMELINE_OPTIONS,
   INDIVIDUAL_FUNDING_SOURCE_OPTIONS,
   USES_BANK_FINANCE_OPTIONS,
-  MAX_EQUITY_TODAY_OPTIONS
+  MAX_EQUITY_TODAY_OPTIONS,
+  DEAL_INTENT_OPTIONS
 } from "@/lib/signup-field-options";
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@/types";
@@ -1056,6 +1059,53 @@ const Profile = () => {
                       placeholder="Describe any specific types of businesses you're looking for..."
                       className="min-h-[80px]"
                     />
+                  </div>
+                  
+                  {/* New Step 4 fields */}
+                  <div className="space-y-2">
+                    <Label>Deal Intent</Label>
+                    <RadioGroup
+                      value={formData.deal_intent || ""}
+                      onValueChange={(value) => handleSelectChange(value, "deal_intent")}
+                    >
+                      {DEAL_INTENT_OPTIONS.map((option) => (
+                        <div key={option.value} className="flex items-center space-x-2">
+                          <RadioGroupItem value={option.value} id={`dealIntent-${option.value}`} />
+                          <Label htmlFor={`dealIntent-${option.value}`} className="text-sm font-normal">
+                            {option.label}
+                          </Label>
+                        </div>
+                      ))}
+                    </RadioGroup>
+                    <p className="text-sm text-muted-foreground">
+                      What type of deals are you primarily focused on pursuing?
+                    </p>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="exclusions">Hard Exclusions</Label>
+                    <ChipInput
+                      value={formData.exclusions || []}
+                      onChange={(value) => handleSelectChange(value, "exclusions")}
+                      placeholder="e.g., unionized, DTC, heavy CapEx"
+                      maxChips={10}
+                    />
+                    <p className="text-sm text-muted-foreground">
+                      Industries, business models, or characteristics to avoid (e.g., unionized, DTC, heavy CapEx).
+                    </p>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="include_keywords">Keywords (optional)</Label>
+                    <ChipInput
+                      value={formData.include_keywords || []}
+                      onChange={(value) => handleSelectChange(value, "include_keywords")}
+                      placeholder="e.g., route-based, B2B services"
+                      maxChips={5}
+                    />
+                    <p className="text-sm text-muted-foreground">
+                      2–5 keywords you care about (e.g., 'route-based', 'B2B services').
+                    </p>
                   </div>
                   
                   <div className="space-y-2">

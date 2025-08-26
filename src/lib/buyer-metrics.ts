@@ -374,6 +374,38 @@ export function getPrimaryMetrics(user: User | null): BuyerMetric[] {
       break;
   }
 
+  // Show deal intent if specified
+  if (user.deal_intent) {
+    metrics.push({
+      label: 'Deal Intent',
+      value: user.deal_intent.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase()),
+      isPrimary: false,
+      isClickable: false
+    });
+  }
+
+  // Show exclusions if specified (first 2)
+  if (user.exclusions && user.exclusions.length > 0) {
+    const exclusionsText = user.exclusions.slice(0, 2).join(', ') + (user.exclusions.length > 2 ? '...' : '');
+    metrics.push({
+      label: 'Exclusions',
+      value: exclusionsText,
+      isPrimary: false,
+      isClickable: false
+    });
+  }
+
+  // Show keywords if specified
+  if (user.include_keywords && user.include_keywords.length > 0) {
+    const keywordsText = user.include_keywords.slice(0, 2).join(', ') + (user.include_keywords.length > 2 ? '...' : '');
+    metrics.push({
+      label: 'Keywords',
+      value: keywordsText,
+      isPrimary: false,
+      isClickable: false
+    });
+  }
+
   return metrics;
 }
 
