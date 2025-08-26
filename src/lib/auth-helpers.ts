@@ -96,8 +96,9 @@ export function createUserObject(profile: any): User {
       deal_structure_preference: profile.deal_structure_preference || '',
       permanent_capital: profile.permanent_capital || null,
       operating_company_targets: Array.isArray(profile.operating_company_targets) ? profile.operating_company_targets : [],
-      // Aliasing flex fields for both database names
-      flex_subXm_ebitda: profile.flex_subxm_ebitda || null,
+      // Aliasing for both property names; database column is flex_subxm_ebitda
+      flex_subxm_ebitda: profile.flex_subxm_ebitda ?? null,
+      flex_subXm_ebitda: profile.flex_subxm_ebitda ?? null,
       // Search Fund
       search_type: profile.search_type || '',
       acq_equity_band: profile.acq_equity_band || '',

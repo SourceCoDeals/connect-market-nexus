@@ -104,7 +104,7 @@ export const EnhancedSignupForm: React.FC = () => {
         // Independent Sponsor fields
         committed_equity_band: data.committedEquityBand,
         equity_source: data.equitySource,
-        flex_subXm_ebitda: data.flexSubXmEbitda,
+        flex_subxm_ebitda: data.flexSubXmEbitda,
         backers_summary: data.backersSummary,
         deployment_timing: data.deploymentTiming,
         

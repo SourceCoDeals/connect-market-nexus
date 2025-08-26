@@ -73,6 +73,9 @@ export interface User {
   // Independent Sponsor fields (enhanced)
   committed_equity_band?: string;
   equity_source?: string[];
+  // Canonical DB column name
+  flex_subxm_ebitda?: boolean;
+  // Back-compat alias used in some components
   flex_subXm_ebitda?: boolean;
   backers_summary?: string;
   deployment_timing?: string;

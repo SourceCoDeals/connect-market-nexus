@@ -180,7 +180,7 @@ export function useNuclearAuth() {
           deal_structure_preference: userData.deal_structure_preference || '',
           permanent_capital: userData.permanent_capital || null,
           operating_company_targets: Array.isArray(userData.operating_company_targets) ? userData.operating_company_targets : [],
-          flex_subxm_ebitda: userData.flex_subXm_ebitda || null,
+          flex_subxm_ebitda: userData.flex_subxm_ebitda || null,
           // Search Fund
           search_type: userData.search_type || '',
           acq_equity_band: userData.acq_equity_band || '',

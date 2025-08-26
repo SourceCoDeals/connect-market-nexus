@@ -125,8 +125,11 @@ const Profile = () => {
     setIsLoading(true);
     try {
       // Normalize currency fields and standardize categories/locations before sending
+      const { flex_subXm_ebitda, ...restForm } = formData as any;
       const normalizedData = {
-        ...formData,
+        ...restForm,
+        // Correct DB column name
+        flex_subxm_ebitda: flex_subXm_ebitda ?? null,
         revenue_range_min: formData.revenue_range_min || null,
         revenue_range_max: formData.revenue_range_max || null,
         // Standardize business categories and target locations

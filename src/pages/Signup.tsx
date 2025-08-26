@@ -525,7 +525,7 @@ const Signup = () => {
         deal_structure_preference: dealStructurePreference || '',
         permanent_capital: formData.permanentCapital || false,
         operating_company_targets: formData.operatingCompanyTargets || [],
-        flex_subXm_ebitda: formData.flexSubxmEbitda || false,
+        flex_subxm_ebitda: formData.flexSubxmEbitda || false,
         // Search Fund
         search_type: formData.searchType || '',
         acq_equity_band: formData.acqEquityBand || '',
