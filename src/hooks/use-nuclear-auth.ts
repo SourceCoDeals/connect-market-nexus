@@ -214,6 +214,18 @@ export function useNuclearAuth() {
           portfolio_company_addon: userData.portfolio_company_addon || '',
           backers_summary: userData.backers_summary || '',
           anchor_investors_summary: userData.anchor_investors_summary || '',
+          // Special fields to ensure correct capture and snapshot
+          deal_intent: userData.deal_intent || '',
+          exclusions: Array.isArray(userData.exclusions)
+            ? userData.exclusions
+            : (typeof userData.exclusions === 'string' && userData.exclusions
+                ? (userData.exclusions as string).split(',').map(s => s.trim()).filter(Boolean)
+                : []),
+          include_keywords: Array.isArray(userData.include_keywords)
+            ? userData.include_keywords
+            : (typeof userData.include_keywords === 'string' && userData.include_keywords
+                ? (userData.include_keywords as string).split(',').map(s => s.trim()).filter(Boolean)
+                : []),
         }
       }
     });
