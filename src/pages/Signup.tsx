@@ -217,7 +217,7 @@ const Signup = () => {
       // Reset buyer-specific fields when type changes
       estimatedRevenue: "",
       fundSize: "",
-      investmentSize: "",
+      investmentSize: [] as string[],
       aum: "",
       isFunded: "",
       fundedBy: "",
@@ -874,21 +874,12 @@ const Signup = () => {
                   <p className="text-xs text-muted-foreground">
                     {FIELD_HELPERS.investmentSize.description}
                   </p>
-                  <Select
+                  <InvestmentSizeSelect
                     value={formData.investmentSize}
                     onValueChange={(value) => setFormData((prev) => ({ ...prev, investmentSize: value }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder={FIELD_HELPERS.investmentSize.placeholder} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {INVESTMENT_RANGES.map((range) => (
-                        <SelectItem key={range.value} value={range.value}>
-                          {range.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    placeholder="Select investment size ranges..."
+                    multiSelect={true}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="aum">Assets Under Management</Label>
@@ -968,21 +959,12 @@ const Signup = () => {
                   <p className="text-xs text-muted-foreground">
                     {FIELD_HELPERS.investmentSize.description}
                   </p>
-                  <Select
+                  <InvestmentSizeSelect
                     value={formData.investmentSize}
                     onValueChange={(value) => setFormData((prev) => ({ ...prev, investmentSize: value }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder={FIELD_HELPERS.investmentSize.placeholder} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {INVESTMENT_RANGES.map((range) => (
-                        <SelectItem key={range.value} value={range.value}>
-                          {range.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    placeholder="Select investment size ranges..."
+                    multiSelect={true}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="aum">Assets Under Management</Label>

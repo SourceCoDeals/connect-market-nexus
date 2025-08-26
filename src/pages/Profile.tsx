@@ -15,6 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { MultiCategorySelect } from "@/components/ui/category-select";
 import { MultiLocationSelect } from "@/components/ui/location-select";
 import { CurrencyInput } from "@/components/ui/currency-input";
+import { InvestmentSizeSelect } from "@/components/ui/investment-size-select";
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@/types";
 import { STANDARDIZED_CATEGORIES, STANDARDIZED_LOCATIONS } from "@/lib/financial-parser";
@@ -47,8 +48,8 @@ const Profile = () => {
     revenue_range_min: user?.revenue_range_min || undefined,
     revenue_range_max: user?.revenue_range_max || undefined,
     specific_business_search: user?.specific_business_search || "",
-    // Add missing financial fields
-    investment_size: user?.investment_size || "",
+    // Add missing financial fields  
+    investment_size: Array.isArray(user?.investment_size) ? user.investment_size : (user?.investment_size ? [user.investment_size] : []),
     fund_size: user?.fund_size || "",
     aum: user?.aum || "",
     estimated_revenue: user?.estimated_revenue || "",
@@ -360,21 +361,11 @@ const Profile = () => {
                     {/* Investment Size - for all buyer types */}
                     <div className="space-y-2">
                       <Label htmlFor="investment_size">Investment Size Range</Label>
-                      <Select 
-                        value={formData.investment_size} 
-                        onValueChange={(value) => handleSelectChange(value, "investment_size")}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select investment size" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Under $1M">Under $1M</SelectItem>
-                          <SelectItem value="$1M - $5M">$1M - $5M</SelectItem>
-                          <SelectItem value="$5M - $10M">$5M - $10M</SelectItem>
-                          <SelectItem value="$10M - $25M">$10M - $25M</SelectItem>
-                          <SelectItem value="Over $25M">Over $25M</SelectItem>
-                        </SelectContent>
-                      </Select>
+                       <InvestmentSizeSelect
+                        value={Array.isArray(formData.investment_size) ? formData.investment_size : (formData.investment_size ? [formData.investment_size] : [])}
+                        onValueChange={(values) => handleSelectChange(values, "investment_size")}
+                        placeholder="Select investment size ranges..."
+                      />
                     </div>
 
                     {/* Additional fields based on buyer type */}

@@ -232,9 +232,16 @@ export function useNuclearAuth() {
   const updateUserProfile = async (data: Partial<AppUser>) => {
     if (!user) throw new Error("No user logged in");
 
+    // Handle investment_size conversion for database
+    const { investment_size, ...restData } = data;
+    const dbPayload = {
+      ...restData,
+      investment_size: Array.isArray(investment_size) ? JSON.stringify(investment_size) : investment_size
+    };
+
     const { error } = await supabase
       .from('profiles')
-      .update(data)
+      .update(dbPayload)
       .eq('id', user.id);
 
     if (error) throw error;

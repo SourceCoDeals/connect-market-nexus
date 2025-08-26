@@ -123,7 +123,7 @@ export const EnhancedBuyerProfile: React.FC<EnhancedBuyerProfileProps> = ({
         {!metrics.some(m => m.label === 'Investment Size') && user.investment_size && (
           <div className="flex items-center justify-between py-0.5">
             <span className="text-xs text-muted-foreground">Investment Size</span>
-            <span className="text-xs font-medium text-foreground">{formatInvestmentSize(user.investment_size)}</span>
+            <span className="text-xs font-medium text-foreground">{Array.isArray(user.investment_size) ? user.investment_size.join(', ') : formatInvestmentSize(user.investment_size)}</span>
           </div>
         )}
 

@@ -7,8 +7,13 @@ import { processUrl } from './url-utils';
  * Users enter "46" to mean "$46M" based on placeholder text
  * Also handles cases where values are already in millions (like 5,000,000 -> $5M)
  */
-function formatFinancialMillions(value: string | number): string {
+function formatFinancialMillions(value: string | number | string[]): string {
   if (!value) return '';
+  
+  // Handle array format for investment_size
+  if (Array.isArray(value)) {
+    return value.join(', ');
+  }
   
   const numericValue = typeof value === 'number' ? value : parseFloat(value.toString().replace(/,/g, ''));
   if (isNaN(numericValue)) return '';

@@ -185,7 +185,9 @@ export function InvestmentFitScore({ revenue, ebitda, category, location }: Inve
     let sizeDetails = '';
     
     if (user.investment_size) {
-      const investmentSize = user.investment_size.toLowerCase();
+      const investmentSize = Array.isArray(user.investment_size) 
+        ? user.investment_size.join(' ').toLowerCase() 
+        : user.investment_size.toLowerCase();
       
       if (investmentSize.includes('small') || investmentSize.includes('<5m')) {
         sizeScore = revenue < 10000000 ? 100 : revenue < 25000000 ? 75 : 50;
