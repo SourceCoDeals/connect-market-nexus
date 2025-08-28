@@ -44,20 +44,16 @@ export const StatusIndicatorRow = ({
     
     const Icon = icons[type];
     
-    // Rejected state (red)
-    if (type === 'rejected' && requestStatus === 'rejected') {
+    // Rejection notice state - show as sent if request is rejected
+    if (type === 'rejected') {
+      const isRejected = requestStatus === 'rejected';
       return (
-        <div className="flex items-center gap-2 px-3 py-1.5 bg-destructive/10 border border-destructive/20 rounded-lg transition-all hover:bg-destructive/15">
-          <Icon className="h-4 w-4 text-destructive" />
-          <span className="text-xs font-medium text-destructive">{labels[type]}</span>
-          <AlertTriangle className="h-3 w-3 text-destructive" />
+        <div className={`flex items-center gap-2 px-3 py-1.5 ${isRejected ? 'bg-destructive/10 border-destructive/20' : 'bg-warning/10 border-warning/20'} border rounded-lg transition-all hover:${isRejected ? 'bg-destructive/15' : 'bg-warning/15'}`}>
+          <Icon className={`h-4 w-4 ${isRejected ? 'text-destructive' : 'text-warning'}`} />
+          <span className={`text-xs font-medium ${isRejected ? 'text-destructive' : 'text-warning'}`}>{labels[type]}</span>
+          {isRejected ? <CheckCheck className="h-3 w-3 text-destructive" /> : <Clock className="h-3 w-3 text-warning" />}
         </div>
       );
-    }
-    
-    // Don't show rejected status if not rejected
-    if (type === 'rejected' && requestStatus !== 'rejected') {
-      return null;
     }
     
     // Signed/completed state (green)
