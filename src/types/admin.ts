@@ -85,7 +85,7 @@ export interface CreateListingData {
 
 export interface AdminConnectionRequest {
   id: string;
-  user_id: string;
+  user_id: string | null;
   listing_id: string;
   status: 'pending' | 'approved' | 'rejected' | 'on_hold';
   admin_comment?: string;
@@ -104,7 +104,7 @@ export interface AdminConnectionRequest {
   on_hold_by?: string;
   on_hold_at?: string;
   // Phase 4: Source tracking fields
-  source: 'marketplace' | 'webflow' | 'manual' | 'import' | 'api';
+  source: 'marketplace' | 'webflow' | 'manual' | 'import' | 'api' | 'website' | 'referral' | 'cold_outreach' | 'networking' | 'linkedin' | 'email';
   source_lead_id?: string;
   source_metadata?: Record<string, any>;
   converted_by?: string;

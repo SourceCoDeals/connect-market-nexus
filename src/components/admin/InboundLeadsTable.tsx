@@ -132,9 +132,20 @@ const PriorityBadge = ({ score }: { score: number }) => {
 };
 
 const SourceBadge = ({ source }: { source: string }) => {
+  const labelMap: Record<string, string> = {
+    webflow: 'Webflow',
+    website: 'Website',
+    referral: 'Referral',
+    cold_outreach: 'Cold Outreach',
+    networking: 'Networking',
+    linkedin: 'LinkedIn',
+    email: 'Email',
+    manual: 'Manual',
+  };
+  const label = labelMap[source] || 'Manual';
   return (
     <Badge variant="outline" className="text-xs bg-secondary/10 text-secondary-foreground border-secondary/20">
-      {source === 'webflow' ? 'Webflow' : 'Manual'}
+      {label}
     </Badge>
   );
 };

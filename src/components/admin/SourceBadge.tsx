@@ -1,8 +1,8 @@
 import { Badge } from '@/components/ui/badge';
-import { ExternalLink, User, Upload, Bot, MousePointer } from 'lucide-react';
+import { ExternalLink, User, Upload, Bot, MousePointer, Mail, Link, Users } from 'lucide-react';
 
 interface SourceBadgeProps {
-  source: 'marketplace' | 'webflow' | 'manual' | 'import' | 'api';
+  source: 'marketplace' | 'webflow' | 'manual' | 'import' | 'api' | 'website' | 'referral' | 'cold_outreach' | 'networking' | 'linkedin' | 'email';
   className?: string;
 }
 
@@ -14,6 +14,42 @@ export const SourceBadge = ({ source, className }: SourceBadgeProps) => {
           label: 'Webflow',
           className: 'bg-blue-500/10 text-blue-600 border-blue-500/20',
           icon: <ExternalLink className="h-3 w-3 mr-1" />
+        };
+      case 'website':
+        return {
+          label: 'Website',
+          className: 'bg-cyan-500/10 text-cyan-600 border-cyan-500/20',
+          icon: <Link className="h-3 w-3 mr-1" />
+        };
+      case 'referral':
+        return {
+          label: 'Referral',
+          className: 'bg-amber-500/10 text-amber-600 border-amber-500/20',
+          icon: <Users className="h-3 w-3 mr-1" />
+        };
+      case 'cold_outreach':
+        return {
+          label: 'Cold Outreach',
+          className: 'bg-slate-500/10 text-slate-600 border-slate-500/20',
+          icon: <ExternalLink className="h-3 w-3 mr-1" />
+        };
+      case 'networking':
+        return {
+          label: 'Networking',
+          className: 'bg-indigo-500/10 text-indigo-600 border-indigo-500/20',
+          icon: <Users className="h-3 w-3 mr-1" />
+        };
+      case 'linkedin':
+        return {
+          label: 'LinkedIn',
+          className: 'bg-sky-500/10 text-sky-600 border-sky-500/20',
+          icon: <ExternalLink className="h-3 w-3 mr-1" />
+        };
+      case 'email':
+        return {
+          label: 'Email',
+          className: 'bg-rose-500/10 text-rose-600 border-rose-500/20',
+          icon: <Mail className="h-3 w-3 mr-1" />
         };
       case 'manual':
         return {

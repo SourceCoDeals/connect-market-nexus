@@ -67,7 +67,7 @@ export function useUserConnectionRequests(userId: string) {
           status,
           user,
           listing,
-          source: (request.source as 'marketplace' | 'webflow' | 'manual' | 'import' | 'api') || 'marketplace',
+          source: (request.source as 'marketplace' | 'webflow' | 'manual' | 'import' | 'api' | 'website' | 'referral' | 'cold_outreach' | 'networking' | 'linkedin' | 'email') || 'marketplace',
           source_metadata: (request.source_metadata as Record<string, any>) || {},
           followedUpByAdmin,
           negativeFollowedUpByAdmin

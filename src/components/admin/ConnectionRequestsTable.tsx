@@ -319,11 +319,17 @@ function ReactiveRequestCard({
           <div className="flex items-start justify-between">
             <div className="space-y-2">
               <div className="flex items-center gap-3 flex-wrap">
-                <BuyerProfileHoverCard user={request.user as any}>
-                  <h3 className="font-semibold cursor-pointer hover:text-primary transition-colors">
-                    {request.user?.first_name} {request.user?.last_name}
+                {request.user ? (
+                  <BuyerProfileHoverCard user={request.user as any}>
+                    <h3 className="font-semibold cursor-pointer hover:text-primary transition-colors">
+                      {request.user?.first_name} {request.user?.last_name}
+                    </h3>
+                  </BuyerProfileHoverCard>
+                ) : (
+                  <h3 className="font-semibold text-foreground">
+                    {(request as any).source_metadata?.lead_name || 'Lead Contact'}
                   </h3>
-                </BuyerProfileHoverCard>
+                )}
                 <CleanTierDisplay user={request.user} />
                 <StatusBadge status={request.status} />
                 <SourceBadge source={request.source || 'marketplace'} />

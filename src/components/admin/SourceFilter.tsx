@@ -17,6 +17,12 @@ interface SourceFilterProps {
 const sourceOptions = [
   { value: 'marketplace', label: 'Marketplace', color: 'bg-gray-100 text-gray-700' },
   { value: 'webflow', label: 'Webflow', color: 'bg-blue-100 text-blue-700' },
+  { value: 'website', label: 'Website', color: 'bg-cyan-100 text-cyan-700' },
+  { value: 'referral', label: 'Referral', color: 'bg-amber-100 text-amber-700' },
+  { value: 'cold_outreach', label: 'Cold Outreach', color: 'bg-slate-100 text-slate-700' },
+  { value: 'networking', label: 'Networking', color: 'bg-indigo-100 text-indigo-700' },
+  { value: 'linkedin', label: 'LinkedIn', color: 'bg-sky-100 text-sky-700' },
+  { value: 'email', label: 'Email', color: 'bg-rose-100 text-rose-700' },
   { value: 'manual', label: 'Manual', color: 'bg-purple-100 text-purple-700' },
   { value: 'import', label: 'Import', color: 'bg-orange-100 text-orange-700' },
   { value: 'api', label: 'API', color: 'bg-green-100 text-green-700' },
