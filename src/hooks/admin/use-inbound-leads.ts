@@ -97,12 +97,17 @@ export function useMapLeadToListing() {
 
   return useMutation({
     mutationFn: async ({ leadId, listingId, listingTitle }: MapLeadToListingData) => {
+      // Get current admin user ID
+      const { data: { user }, error: authError } = await sb.auth.getUser();
+      if (authError || !user) throw new Error('Authentication required');
+
       const { data, error } = await sb
         .from('inbound_leads')
         .update({
           mapped_to_listing_id: listingId,
           mapped_to_listing_title: listingTitle,
           mapped_at: new Date().toISOString(),
+          mapped_by: user.id,
           status: 'mapped',
           updated_at: new Date().toISOString(),
         })
@@ -161,24 +166,24 @@ export function useConvertLeadToRequest() {
 
       // If no profile exists, create a minimal one
       if (!userId) {
-        const { data: newProfile, error: profileError } = await sb
-          .from('profiles')
-          .insert([{
+        // Create user via edge function (handles auth user + profile creation)
+        const { data: createUserResult, error: createUserError } = await sb.functions.invoke('create-lead-user', {
+          body: {
             email: lead.email,
-            first_name: lead.name.split(' ')[0] || lead.name,
-            last_name: lead.name.split(' ').slice(1).join(' ') || '',
+            firstName: lead.name.split(' ')[0] || lead.name,
+            lastName: lead.name.split(' ').slice(1).join(' ') || '',
             company: lead.company_name,
-            phone_number: lead.phone_number,
-            buyer_type: lead.role?.toLowerCase().includes('equity') ? 'privateEquity' : 'corporate',
-            website: '',
-            linkedin_profile: '',
-            approval_status: 'approved', // Auto-approve for converted leads
-          }])
-          .select('id')
-          .single();
+            phoneNumber: lead.phone_number,
+            buyerType: lead.role?.toLowerCase().includes('equity') ? 'privateEquity' : 'corporate'
+          }
+        });
 
-        if (profileError) throw profileError;
-        userId = newProfile.id;
+        if (createUserError || !createUserResult?.userId) {
+          throw new Error('Failed to create user: ' + (createUserError?.message || 'Unknown error'));
+        }
+        
+        userId = createUserResult.userId;
+
       }
 
       // Create connection request

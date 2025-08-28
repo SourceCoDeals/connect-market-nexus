@@ -285,7 +285,8 @@ function ReactiveRequestCard({
   const handleStatusChange = (id: string, status: 'approved' | 'rejected' | 'on_hold' | 'pending') => {
     updateConnectionRequestStatus.mutate({
       requestId: id,
-      status
+      status,
+      notes: undefined // Allow updates without requiring notes
     });
   };
 

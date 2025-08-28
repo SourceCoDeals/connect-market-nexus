@@ -19,7 +19,7 @@ import {
   Plus,
   Upload
 } from "lucide-react";
-import { InboundLead, useCreateInboundLead } from "@/hooks/admin/use-inbound-leads";
+import { InboundLead, useCreateInboundLead, useMapLeadToListing } from "@/hooks/admin/use-inbound-leads";
 import { toast } from "@/hooks/use-toast";
 import { CreateInboundLeadDialog } from "./CreateInboundLeadDialog";
 import { BulkLeadImportDialog } from "./BulkLeadImportDialog";
@@ -306,10 +306,23 @@ export const InboundLeadsTable = ({
   const [isMappingDialogOpen, setIsMappingDialogOpen] = useState(false);
   
   const { mutate: createLead, isPending: isCreating } = useCreateInboundLead();
+  const { mutate: mapLeadToListing, isPending: isMapping } = useMapLeadToListing();
 
   const handleMapToListing = (lead: InboundLead) => {
     setSelectedLead(lead);
     setIsMappingDialogOpen(true);
+  };
+
+  const handleConfirmMapping = (listingId: string, listingTitle: string) => {
+    if (selectedLead) {
+      mapLeadToListing({
+        leadId: selectedLead.id,
+        listingId,
+        listingTitle
+      });
+      setIsMappingDialogOpen(false);
+      setSelectedLead(null);
+    }
   };
 
   const handleBulkCreate = async (leadsData: any[]) => {
@@ -440,14 +453,8 @@ export const InboundLeadsTable = ({
           setIsMappingDialogOpen(false);
           setSelectedLead(null);
         }}
-        onConfirm={(listingId, listingTitle) => {
-          if (selectedLead) {
-            // Call the parent's onMapToListing with the original signature
-            onMapToListing(selectedLead);
-          }
-          setIsMappingDialogOpen(false);
-          setSelectedLead(null);
-        }}
+        onConfirm={handleConfirmMapping}
+        isLoading={isMapping}
         lead={selectedLead}
       />
     </div>
