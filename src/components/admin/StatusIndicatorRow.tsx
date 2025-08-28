@@ -1,10 +1,9 @@
-import { Shield, FileText, MessageSquare, CheckCircle, Clock, Send, CheckCheck, XCircle, AlertTriangle } from "lucide-react";
+import { Shield, FileText, MessageSquare, CheckCircle, Clock, Send, CheckCheck, XCircle } from "lucide-react";
 import { User } from "@/types";
 import { format } from "date-fns";
 
 interface StatusIndicatorRowProps {
   user?: User | null; // Now optional for lead-only requests
-  requestStatus: 'pending' | 'approved' | 'rejected' | 'on_hold';
   followedUp: boolean;
   negativeFollowedUp?: boolean;
   followedUpByAdmin?: User | null;
@@ -15,7 +14,6 @@ interface StatusIndicatorRowProps {
 
 export const StatusIndicatorRow = ({ 
   user, 
-  requestStatus,
   followedUp, 
   negativeFollowedUp = false, 
   followedUpByAdmin, 
@@ -26,35 +24,21 @@ export const StatusIndicatorRow = ({
   const getStatusDisplay = (
     isSigned: boolean, 
     emailSent: boolean, 
-    type: 'nda' | 'fee' | 'follow' | 'rejected'
+    type: 'nda' | 'fee' | 'follow'
   ) => {
     const icons = {
       nda: Shield,
       fee: FileText,
-      follow: MessageSquare,
-      rejected: XCircle
+      follow: MessageSquare
     };
     
     const labels = {
       nda: "NDA",
       fee: "Fee Agreement", 
-      follow: "Follow-up",
-      rejected: "Rejected"
+      follow: "Follow-up"
     };
     
     const Icon = icons[type];
-    
-    // Rejection notice state - show as sent if request is rejected
-    if (type === 'rejected') {
-      const isRejected = requestStatus === 'rejected';
-      return (
-        <div className={`flex items-center gap-2 px-3 py-1.5 ${isRejected ? 'bg-destructive/10 border-destructive/20' : 'bg-warning/10 border-warning/20'} border rounded-lg transition-all hover:${isRejected ? 'bg-destructive/15' : 'bg-warning/15'}`}>
-          <Icon className={`h-4 w-4 ${isRejected ? 'text-destructive' : 'text-warning'}`} />
-          <span className={`text-xs font-medium ${isRejected ? 'text-destructive' : 'text-warning'}`}>{labels[type]}</span>
-          {isRejected ? <CheckCheck className="h-3 w-3 text-destructive" /> : <Clock className="h-3 w-3 text-warning" />}
-        </div>
-      );
-    }
     
     // Signed/completed state (green)
     if (isSigned) {
@@ -88,8 +72,7 @@ export const StatusIndicatorRow = ({
     );
   };
 
-  // For lead-only requests, treat them equally - show NDA, Fee Agreement, and follow-up status
-  // For user requests, use actual user data; for lead-only requests, show pending status
+  // For lead-only requests, only show follow-up status
   if (!user) {
     return (
       <div className="flex items-center gap-3 flex-wrap">
@@ -97,12 +80,7 @@ export const StatusIndicatorRow = ({
           <MessageSquare className="h-4 w-4 text-muted-foreground" />
           <span className="text-xs font-medium text-muted-foreground">Lead-Only Request</span>
         </div>
-        {/* Show NDA and Fee Agreement as pending for lead-only requests */}
-        {getStatusDisplay(false, false, 'nda')}
-        {getStatusDisplay(false, false, 'fee')}
         {getStatusDisplay(followedUp, true, 'follow')}
-        {/* Show rejection status if applicable */}
-        {getStatusDisplay(false, false, 'rejected')}
         {negativeFollowedUp && (
           <div className="flex items-center gap-2 px-3 py-1.5 bg-warning/10 border border-warning/20 rounded-lg">
             <XCircle className="h-4 w-4 text-warning" />
@@ -119,8 +97,6 @@ export const StatusIndicatorRow = ({
       {getStatusDisplay(user.nda_signed || false, user.nda_email_sent || false, 'nda')}
       {getStatusDisplay(user.fee_agreement_signed || false, user.fee_agreement_email_sent || false, 'fee')}
       {getStatusDisplay(followedUp, true, 'follow')}
-      {/* Show rejection status for all requests */}
-      {getStatusDisplay(false, false, 'rejected')}
       {negativeFollowedUp && (
         <div className="flex items-center gap-2 px-3 py-1.5 bg-warning/10 border border-warning/20 rounded-lg">
           <XCircle className="h-4 w-4 text-warning" />

@@ -433,7 +433,6 @@ function ReactiveRequestCard({
           {/* Status Indicators - show for both user and lead-only requests */}
           <StatusIndicatorRow 
             user={request.user} 
-            requestStatus={request.status}
             followedUp={request.followed_up || false} 
             negativeFollowedUp={request.negative_followed_up || false}
             followedUpByAdmin={request.followedUpByAdmin}
