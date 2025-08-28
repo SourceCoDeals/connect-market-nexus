@@ -72,7 +72,8 @@ export const StatusIndicatorRow = ({
     );
   };
 
-  // For lead-only requests, only show follow-up status
+  // For lead-only requests, show lead badge and follow-up status
+  // Note: Decision status (approved/rejected/on_hold) is handled at the request level, not user level
   if (!user) {
     return (
       <div className="flex items-center gap-3 flex-wrap">
