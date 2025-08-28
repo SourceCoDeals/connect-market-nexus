@@ -42,6 +42,19 @@ export interface MapLeadToListingData {
   listingTitle: string;
 }
 
+export interface DuplicateCheckResult {
+  exactDuplicate?: {
+    requestId: string;
+    userEmail: string;
+  };
+  sameFirmRequests?: Array<{
+    requestId: string;
+    userEmail: string;
+    companyName: string;
+  }>;
+  hasDuplicates: boolean;
+}
+
 // Query hook for fetching inbound leads
 export function useInboundLeadsQuery() {
   return useQuery<InboundLead[]>({
@@ -58,15 +71,153 @@ export function useInboundLeadsQuery() {
   });
 }
 
-// Mutation hook for creating inbound leads
+// Helper function to normalize company names for matching
+const normalizeCompanyName = (companyName?: string): string => {
+  if (!companyName) return '';
+  return companyName
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, ' ')
+    .replace(/\b(llc|inc|corp|ltd|limited|company|co\.?)\b/g, '')
+    .trim();
+};
+
+// Helper function to extract domain from email
+const getEmailDomain = (email: string): string => {
+  return email.split('@')[1] || '';
+};
+
+// Enhanced scoring function
+const calculateLeadScore = (lead: Partial<CreateInboundLeadData>): number => {
+  let score = 0;
+  
+  // Role-based scoring (higher weight for PE/FO/Corp)
+  const roleScores: Record<string, number> = {
+    'private equity': 50,
+    'family office': 50,
+    'corporate': 45,
+    'independent sponsor': 40,
+    'search fund': 35,
+    'individual': 20,
+  };
+  
+  if (lead.role) {
+    const normalizedRole = lead.role.toLowerCase();
+    for (const [role, points] of Object.entries(roleScores)) {
+      if (normalizedRole.includes(role)) {
+        score += points;
+        break;
+      }
+    }
+  }
+  
+  // Email domain scoring (corporate domains get bonus)
+  if (lead.email) {
+    const domain = getEmailDomain(lead.email);
+    const freeDomains = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'aol.com'];
+    if (!freeDomains.includes(domain)) {
+      score += 15; // Corporate email bonus
+    }
+  }
+  
+  // Message quality scoring
+  if (lead.message) {
+    const messageLength = lead.message.length;
+    if (messageLength > 100) score += 10;
+    if (messageLength > 200) score += 5;
+    
+    // Bonus for professional keywords
+    const professionalKeywords = ['acquisition', 'investment', 'portfolio', 'strategic', 'ebitda', 'revenue', 'valuation'];
+    const messageWords = lead.message.toLowerCase();
+    professionalKeywords.forEach(keyword => {
+      if (messageWords.includes(keyword)) score += 3;
+    });
+  }
+  
+  // Company name bonus
+  if (lead.company_name && lead.company_name.trim()) {
+    score += 10;
+  }
+  
+  return Math.min(score, 100); // Cap at 100
+};
+
+// Query hook for checking duplicates when mapping
+export function useCheckDuplicates() {
+  return async (leadEmail: string, leadCompany: string, listingId: string): Promise<DuplicateCheckResult> => {
+    try {
+      const { data: existingRequests, error } = await sb
+        .from('connection_requests')
+        .select(`
+          id,
+          user_id,
+          profiles!inner(email, company)
+        `)
+        .eq('listing_id', listingId);
+
+      if (error) throw error;
+
+      const normalizedLeadCompany = normalizeCompanyName(leadCompany);
+      const leadDomain = getEmailDomain(leadEmail);
+      
+      let exactDuplicate;
+      const sameFirmRequests = [];
+
+      for (const request of existingRequests || []) {
+        const profile = (request as any).profiles;
+        
+        // Check for exact email match
+        if (profile.email === leadEmail) {
+          exactDuplicate = {
+            requestId: request.id,
+            userEmail: profile.email
+          };
+          continue;
+        }
+        
+        // Check for same company/domain
+        const normalizedExistingCompany = normalizeCompanyName(profile.company);
+        const existingDomain = getEmailDomain(profile.email);
+        
+        const isSameFirm = (
+          (normalizedLeadCompany && normalizedExistingCompany && normalizedLeadCompany === normalizedExistingCompany) ||
+          (leadDomain && existingDomain && leadDomain === existingDomain && !['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com'].includes(leadDomain))
+        );
+        
+        if (isSameFirm) {
+          sameFirmRequests.push({
+            requestId: request.id,
+            userEmail: profile.email,
+            companyName: profile.company || 'Unknown'
+          });
+        }
+      }
+
+      return {
+        exactDuplicate,
+        sameFirmRequests,
+        hasDuplicates: !!exactDuplicate || sameFirmRequests.length > 0
+      };
+      
+    } catch (error) {
+      console.error('Error checking duplicates:', error);
+      return { hasDuplicates: false };
+    }
+  };
+}
+
+// Mutation hook for creating inbound leads with enhanced scoring
 export function useCreateInboundLead() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (leadData: CreateInboundLeadData) => {
+      // Calculate enhanced priority score
+      const priority_score = calculateLeadScore(leadData);
+      
       const { data, error } = await sb
         .from('inbound_leads')
-        .insert([leadData])
+        .insert([{ ...leadData, priority_score }])
         .select()
         .single();
 
@@ -91,15 +242,34 @@ export function useCreateInboundLead() {
   });
 }
 
-// Mutation hook for mapping lead to listing
+// Mutation hook for mapping lead to listing with duplicate checking
 export function useMapLeadToListing() {
   const queryClient = useQueryClient();
+  const checkDuplicates = useCheckDuplicates();
 
   return useMutation({
-    mutationFn: async ({ leadId, listingId, listingTitle }: MapLeadToListingData) => {
+    mutationFn: async ({ leadId, listingId, listingTitle, skipDuplicateCheck = false }: MapLeadToListingData & { skipDuplicateCheck?: boolean }) => {
       // Get current admin user ID
       const { data: { user }, error: authError } = await sb.auth.getUser();
       if (authError || !user) throw new Error('Authentication required');
+
+      // Get lead data for duplicate checking
+      if (!skipDuplicateCheck) {
+        const { data: leadData, error: leadError } = await sb
+          .from('inbound_leads')
+          .select('email, company_name')
+          .eq('id', leadId)
+          .single();
+          
+        if (leadError) throw leadError;
+        
+        const duplicateResult = await checkDuplicates(leadData.email, leadData.company_name || '', listingId);
+        
+        if (duplicateResult.hasDuplicates) {
+          // Return the duplicate result for UI handling
+          throw { isDuplicateError: true, duplicateResult, leadData };
+        }
+      }
 
       const { data, error } = await sb
         .from('inbound_leads')

@@ -36,6 +36,7 @@ import { useAdminProfiles } from '@/hooks/admin/use-admin-profiles';
 import { BuyerProfileHoverCard } from "./BuyerProfileHoverCard";
 import { ExpandableBusinessProfile } from "./ExpandableBusinessProfile";
 import { EnhancedBuyerProfile } from './EnhancedBuyerProfile';
+import { AssociatedContactsDisplay } from './AssociatedContactsDisplay';
 import { getBuyerTier } from '@/lib/buyer-metrics';
 import { processUrl } from '@/lib/url-utils';
 
@@ -265,6 +266,12 @@ const RequestDetails = ({ request }: { request: AdminConnectionRequest }) => {
           </div>
         </div>
       )}
+      
+      {/* Associated Contacts Display */}
+      <AssociatedContactsDisplay 
+        connectionRequest={request}
+        className="mt-4"
+      />
     </div>
   );
 };

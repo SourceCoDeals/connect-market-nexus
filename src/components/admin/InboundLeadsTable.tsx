@@ -19,11 +19,12 @@ import {
   Plus,
   Upload
 } from "lucide-react";
-import { InboundLead, useCreateInboundLead, useMapLeadToListing } from "@/hooks/admin/use-inbound-leads";
+import { InboundLead, useCreateInboundLead, useMapLeadToListing, DuplicateCheckResult } from "@/hooks/admin/use-inbound-leads";
 import { toast } from "@/hooks/use-toast";
 import { CreateInboundLeadDialog } from "./CreateInboundLeadDialog";
 import { BulkLeadImportDialog } from "./BulkLeadImportDialog";
 import { LeadMappingDialog } from "./LeadMappingDialog";
+import { DuplicateWarningDialog } from "./DuplicateWarningDialog";
 
 interface InboundLeadsTableProps {
   leads: InboundLead[];
@@ -304,6 +305,9 @@ export const InboundLeadsTable = ({
   const [isBulkImportDialogOpen, setIsBulkImportDialogOpen] = useState(false);
   const [selectedLead, setSelectedLead] = useState<InboundLead | null>(null);
   const [isMappingDialogOpen, setIsMappingDialogOpen] = useState(false);
+  const [isDuplicateWarningOpen, setIsDuplicateWarningOpen] = useState(false);
+  const [duplicateResult, setDuplicateResult] = useState<DuplicateCheckResult | null>(null);
+  const [pendingMappingData, setPendingMappingData] = useState<{ listingId: string; listingTitle: string } | null>(null);
   
   const { mutate: createLead, isPending: isCreating } = useCreateInboundLead();
   const { mutate: mapLeadToListing, isPending: isMapping } = useMapLeadToListing();
@@ -319,10 +323,47 @@ export const InboundLeadsTable = ({
         leadId: selectedLead.id,
         listingId,
         listingTitle
+      }, {
+        onError: (error: any) => {
+          if (error.isDuplicateError) {
+            // Handle duplicate detection
+            setDuplicateResult(error.duplicateResult);
+            setPendingMappingData({ listingId, listingTitle });
+            setIsDuplicateWarningOpen(true);
+            setIsMappingDialogOpen(false);
+          }
+        }
       });
+    }
+  };
+
+  const handleProceedWithMapping = () => {
+    if (selectedLead && pendingMappingData) {
+      mapLeadToListing({
+        leadId: selectedLead.id,
+        listingId: pendingMappingData.listingId,
+        listingTitle: pendingMappingData.listingTitle,
+        skipDuplicateCheck: true
+      });
+      setIsDuplicateWarningOpen(false);
       setIsMappingDialogOpen(false);
       setSelectedLead(null);
+      setPendingMappingData(null);
+      setDuplicateResult(null);
     }
+  };
+
+  const handleMergeWithExisting = (requestId: string) => {
+    // For now, just show a toast - in a full implementation this would open the connection request
+    toast({
+      title: "Opening connection request",
+      description: `Navigating to connection request ${requestId}`,
+    });
+    setIsDuplicateWarningOpen(false);
+    setIsMappingDialogOpen(false);
+    setSelectedLead(null);
+    setPendingMappingData(null);
+    setDuplicateResult(null);
   };
 
   const handleBulkCreate = async (leadsData: any[]) => {
@@ -456,6 +497,22 @@ export const InboundLeadsTable = ({
         onConfirm={handleConfirmMapping}
         isLoading={isMapping}
         lead={selectedLead}
+      />
+      
+      <DuplicateWarningDialog
+        isOpen={isDuplicateWarningOpen}
+        onClose={() => {
+          setIsDuplicateWarningOpen(false);
+          setSelectedLead(null);
+          setPendingMappingData(null);
+          setDuplicateResult(null);
+        }}
+        onProceed={handleProceedWithMapping}
+        onMerge={handleMergeWithExisting}
+        duplicateResult={duplicateResult}
+        leadEmail={selectedLead?.email || ''}
+        leadCompany={selectedLead?.company_name || ''}
+        listingTitle={pendingMappingData?.listingTitle || ''}
       />
     </div>
   );
