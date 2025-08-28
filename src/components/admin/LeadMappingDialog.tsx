@@ -27,7 +27,8 @@ export const LeadMappingDialog = ({
   const [selectedListingId, setSelectedListingId] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState("");
   
-  const { data: listings = [] } = useAdminListings();
+  const { useListings } = useAdminListings();
+  const { data: listings = [] } = useListings();
 
   // Filter listings based on search query
   const filteredListings = listings.filter(listing =>

@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+const sb = supabase as any;
 import { toast } from '@/hooks/use-toast';
 
 export interface InboundLead {
@@ -43,10 +44,10 @@ export interface MapLeadToListingData {
 
 // Query hook for fetching inbound leads
 export function useInboundLeadsQuery() {
-  return useQuery({
+  return useQuery<InboundLead[]>({
     queryKey: ['inbound-leads'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await sb
         .from('inbound_leads')
         .select('*')
         .order('created_at', { ascending: false });
@@ -63,7 +64,7 @@ export function useCreateInboundLead() {
 
   return useMutation({
     mutationFn: async (leadData: CreateInboundLeadData) => {
-      const { data, error } = await supabase
+      const { data, error } = await sb
         .from('inbound_leads')
         .insert([leadData])
         .select()
@@ -96,7 +97,7 @@ export function useMapLeadToListing() {
 
   return useMutation({
     mutationFn: async ({ leadId, listingId, listingTitle }: MapLeadToListingData) => {
-      const { data, error } = await supabase
+      const { data, error } = await sb
         .from('inbound_leads')
         .update({
           mapped_to_listing_id: listingId,
@@ -137,7 +138,7 @@ export function useConvertLeadToRequest() {
   return useMutation({
     mutationFn: async (leadId: string) => {
       // First get the lead data
-      const { data: lead, error: leadError } = await supabase
+      const { data: lead, error: leadError } = await sb
         .from('inbound_leads')
         .select('*')
         .eq('id', leadId)
@@ -150,7 +151,7 @@ export function useConvertLeadToRequest() {
       }
 
       // Check if user exists in profiles
-      const { data: existingProfile } = await supabase
+      const { data: existingProfile } = await sb
         .from('profiles')
         .select('id')
         .eq('email', lead.email)
@@ -160,7 +161,7 @@ export function useConvertLeadToRequest() {
 
       // If no profile exists, create a minimal one
       if (!userId) {
-        const { data: newProfile, error: profileError } = await supabase
+        const { data: newProfile, error: profileError } = await sb
           .from('profiles')
           .insert([{
             email: lead.email,
@@ -181,7 +182,7 @@ export function useConvertLeadToRequest() {
       }
 
       // Create connection request
-      const { data: connectionRequest, error: requestError } = await supabase
+      const { data: connectionRequest, error: requestError } = await sb
         .from('connection_requests')
         .insert([{
           user_id: userId,
@@ -195,7 +196,7 @@ export function useConvertLeadToRequest() {
       if (requestError) throw requestError;
 
       // Update lead status
-      const { error: updateError } = await supabase
+      const { error: updateError } = await sb
         .from('inbound_leads')
         .update({
           converted_to_request_id: connectionRequest.id,
@@ -234,7 +235,7 @@ export function useArchiveInboundLead() {
 
   return useMutation({
     mutationFn: async (leadId: string) => {
-      const { data, error } = await supabase
+      const { data, error } = await sb
         .from('inbound_leads')
         .update({
           status: 'archived',

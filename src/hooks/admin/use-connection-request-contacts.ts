@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+const sb = supabase as any;
 
 export interface ConnectionRequestContact {
   id: string;
@@ -16,10 +17,10 @@ export interface ConnectionRequestContact {
 
 // Query hook for fetching associated contacts for a connection request
 export function useConnectionRequestContacts(requestId: string) {
-  return useQuery({
+  return useQuery<any[]>({
     queryKey: ['connection-request-contacts', requestId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await sb
         .from('connection_request_contacts')
         .select(`
           *,
@@ -80,7 +81,7 @@ export function useConnectionRequestContacts(requestId: string) {
 export async function detectAndCreateAssociatedContacts(requestId: string) {
   try {
     // Get the current request details
-    const { data: currentRequest, error: requestError } = await supabase
+    const { data: currentRequest, error: requestError } = await sb
       .from('connection_requests')
       .select(`
         id,
@@ -110,7 +111,7 @@ export async function detectAndCreateAssociatedContacts(requestId: string) {
     // Find other requests from the same company (excluding the current request)
     let sameCompanyRequests = [];
     if (currentUserCompany) {
-      const { data: companyRequests } = await supabase
+      const { data: companyRequests } = await sb
         .from('connection_requests')
         .select(`
           id,
@@ -130,14 +131,15 @@ export async function detectAndCreateAssociatedContacts(requestId: string) {
             internal_company_name
           )
         `)
-        .neq('id', requestId)
-        .ilike('user.company', `%${currentUserCompany}%`);
+        .neq('id', requestId);
 
-      sameCompanyRequests = companyRequests || [];
+      sameCompanyRequests = (companyRequests || []).filter((r: any) =>
+        r.user?.company && r.user.company.toLowerCase().includes(currentUserCompany)
+      );
     }
 
     // Find other requests for the same listing (excluding the current request)
-    const { data: sameListingRequests } = await supabase
+    const { data: sameListingRequests } = await sb
       .from('connection_requests')
       .select(`
         id,
@@ -164,7 +166,7 @@ export async function detectAndCreateAssociatedContacts(requestId: string) {
 
     // Create associations for same company requests
     for (const relatedRequest of sameCompanyRequests) {
-      await supabase
+      await sb
         .from('connection_request_contacts')
         .upsert({
           primary_request_id: requestId,
@@ -179,7 +181,7 @@ export async function detectAndCreateAssociatedContacts(requestId: string) {
         });
 
       // Create reverse association
-      await supabase
+      await sb
         .from('connection_request_contacts')
         .upsert({
           primary_request_id: relatedRequest.id,
@@ -196,7 +198,7 @@ export async function detectAndCreateAssociatedContacts(requestId: string) {
 
     // Create associations for same listing requests
     for (const relatedRequest of sameListing) {
-      await supabase
+      await sb
         .from('connection_request_contacts')
         .upsert({
           primary_request_id: requestId,
@@ -211,7 +213,7 @@ export async function detectAndCreateAssociatedContacts(requestId: string) {
         });
 
       // Create reverse association
-      await supabase
+      await sb
         .from('connection_request_contacts')
         .upsert({
           primary_request_id: relatedRequest.id,
