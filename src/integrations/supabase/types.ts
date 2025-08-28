@@ -246,6 +246,8 @@ export type Database = {
           admin_comment: string | null
           approved_at: string | null
           approved_by: string | null
+          converted_at: string | null
+          converted_by: string | null
           created_at: string
           decision_at: string | null
           decision_notes: string | null
@@ -261,6 +263,9 @@ export type Database = {
           on_hold_by: string | null
           rejected_at: string | null
           rejected_by: string | null
+          source: string | null
+          source_lead_id: string | null
+          source_metadata: Json | null
           status: string
           updated_at: string
           user_id: string
@@ -270,6 +275,8 @@ export type Database = {
           admin_comment?: string | null
           approved_at?: string | null
           approved_by?: string | null
+          converted_at?: string | null
+          converted_by?: string | null
           created_at?: string
           decision_at?: string | null
           decision_notes?: string | null
@@ -285,6 +292,9 @@ export type Database = {
           on_hold_by?: string | null
           rejected_at?: string | null
           rejected_by?: string | null
+          source?: string | null
+          source_lead_id?: string | null
+          source_metadata?: Json | null
           status?: string
           updated_at?: string
           user_id: string
@@ -294,6 +304,8 @@ export type Database = {
           admin_comment?: string | null
           approved_at?: string | null
           approved_by?: string | null
+          converted_at?: string | null
+          converted_by?: string | null
           created_at?: string
           decision_at?: string | null
           decision_notes?: string | null
@@ -309,6 +321,9 @@ export type Database = {
           on_hold_by?: string | null
           rejected_at?: string | null
           rejected_by?: string | null
+          source?: string | null
+          source_lead_id?: string | null
+          source_metadata?: Json | null
           status?: string
           updated_at?: string
           user_id?: string
@@ -316,10 +331,24 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "connection_requests_converted_by_fkey"
+            columns: ["converted_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "connection_requests_listing_id_fkey"
             columns: ["listing_id"]
             isOneToOne: false
             referencedRelation: "listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "connection_requests_source_lead_id_fkey"
+            columns: ["source_lead_id"]
+            isOneToOne: false
+            referencedRelation: "inbound_leads"
             referencedColumns: ["id"]
           },
         ]
@@ -636,6 +665,7 @@ export type Database = {
         Row: {
           company_name: string | null
           converted_at: string | null
+          converted_by: string | null
           converted_to_request_id: string | null
           created_at: string
           email: string
@@ -657,6 +687,7 @@ export type Database = {
         Insert: {
           company_name?: string | null
           converted_at?: string | null
+          converted_by?: string | null
           converted_to_request_id?: string | null
           created_at?: string
           email: string
@@ -678,6 +709,7 @@ export type Database = {
         Update: {
           company_name?: string | null
           converted_at?: string | null
+          converted_by?: string | null
           converted_to_request_id?: string | null
           created_at?: string
           email?: string
@@ -697,6 +729,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "inbound_leads_converted_by_fkey"
+            columns: ["converted_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "inbound_leads_converted_to_request_id_fkey"
             columns: ["converted_to_request_id"]
