@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus } from "lucide-react";
-type LeadSource = 'webflow' | 'manual' | 'referral' | 'cold_outreach' | 'networking' | 'linkedin' | 'email';
+type LeadSource = 'webflow' | 'manual' | 'referral' | 'cold_outreach' | 'networking' | 'linkedin' | 'email' | 'website';
 
 export interface CreateInboundLeadData {
   name: string;
@@ -39,7 +39,7 @@ export const CreateInboundLeadDialog = ({
     phone_number: "",
     role: "",
     message: "",
-    source: "manual",
+    source: "website",
     source_form_name: "",
   });
 
@@ -59,7 +59,7 @@ export const CreateInboundLeadDialog = ({
       phone_number: "",
       role: "",
       message: "",
-      source: "manual",
+      source: "website",
       source_form_name: "",
     });
   };
@@ -161,13 +161,14 @@ export const CreateInboundLeadDialog = ({
                   <SelectValue placeholder="Select source" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="manual">Manual Entry</SelectItem>
-                  <SelectItem value="webflow">Website Form</SelectItem>
+                  <SelectItem value="website">Website</SelectItem>
+                  <SelectItem value="webflow">Webflow Form</SelectItem>
                   <SelectItem value="referral">Referral</SelectItem>
                   <SelectItem value="cold_outreach">Cold Outreach</SelectItem>
                   <SelectItem value="networking">Networking Event</SelectItem>
                   <SelectItem value="linkedin">LinkedIn</SelectItem>
                   <SelectItem value="email">Email Campaign</SelectItem>
+                  <SelectItem value="manual">Manual Entry</SelectItem>
                 </SelectContent>
               </Select>
             </div>

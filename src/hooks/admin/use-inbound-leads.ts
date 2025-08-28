@@ -32,7 +32,7 @@ export interface CreateInboundLeadData {
   phone_number?: string;
   role?: string;
   message?: string;
-  source: 'webflow' | 'manual' | 'referral' | 'cold_outreach' | 'networking' | 'linkedin' | 'email';
+  source: 'webflow' | 'manual' | 'referral' | 'cold_outreach' | 'networking' | 'linkedin' | 'email' | 'website';
   source_form_name?: string;
 }
 

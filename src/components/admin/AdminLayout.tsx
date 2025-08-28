@@ -7,7 +7,8 @@ import {
   Store, 
   MessageSquare, 
   ShoppingBag,
-  ChevronRight
+  ChevronRight,
+  GitBranch
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AdminNavbar } from "./AdminNavbar";
@@ -54,6 +55,12 @@ const AdminLayout = () => {
               icon={<MessageSquare className="h-4 w-4 mr-2" />}
               label="Connection Requests"
               isActive={location.pathname.includes('/admin/requests')}
+            />
+            <NavLink 
+              to="/admin/pipeline" 
+              icon={<GitBranch className="h-4 w-4 mr-2" />}
+              label="Deals Pipeline"
+              isActive={location.pathname.includes('/admin/pipeline')}
             />
             <NavLink 
               to="/" 

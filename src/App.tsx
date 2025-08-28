@@ -29,6 +29,7 @@ import AdminDashboard from "@/pages/admin/AdminDashboard";
 import AdminListings from "@/pages/admin/AdminListings";
 import AdminUsers from "@/pages/admin/AdminUsers";
 import AdminRequests from "@/pages/admin/AdminRequests";
+import AdminPipeline from "@/pages/admin/AdminPipeline";
 import AuthCallback from "@/pages/auth/callback";
 import { Toaster } from "@/components/ui/toaster";
 import { SimpleToastProvider } from "@/components/ui/simple-toast";
@@ -97,6 +98,7 @@ function App() {
               <Route path="listings" element={<AdminListings />} />
               <Route path="users" element={<AdminUsers />} />
               <Route path="requests" element={<AdminRequests />} />
+              <Route path="pipeline" element={<AdminPipeline />} />
             </Route>
             
             {/* Catch-all route for 404 Not Found */}
