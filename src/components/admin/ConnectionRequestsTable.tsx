@@ -27,6 +27,7 @@ import {
 import { AdminConnectionRequest } from "@/types/admin";
 import { StatusIndicatorRow } from "./StatusIndicatorRow";
 import { ConnectionRequestActions } from "./ConnectionRequestActions";
+import { LeadRequestActions } from "./LeadRequestActions";
 import { DecisionNotesInline } from "./DecisionNotesInline";
 import { SourceBadge } from "./SourceBadge";
 import { SourceLeadContext } from "./SourceLeadContext";
@@ -440,13 +441,17 @@ function ReactiveRequestCard({
             negativeFollowedUpByAdmin={request.negativeFollowedUpByAdmin}
             followedUpAt={request.followed_up_at}
             negativeFollowedUpAt={request.negative_followed_up_at}
+            leadNdaSigned={request.lead_nda_signed}
+            leadNdaEmailSent={request.lead_nda_email_sent}
+            leadFeeAgreementSigned={request.lead_fee_agreement_signed}
+            leadFeeAgreementEmailSent={request.lead_fee_agreement_email_sent}
           />
 
           {/* Expanded Content */}
           {isExpanded && (
             <div className="space-y-6 pt-4 border-t border-border/50">
               {/* Connection Request Actions */}
-              {request.user && (
+              {request.user ? (
                 <ConnectionRequestActions
                   user={request.user}
                   listing={request.listing}
@@ -454,6 +459,8 @@ function ReactiveRequestCard({
                   followedUp={request.followed_up || false}
                   negativeFollowedUp={request.negative_followed_up || false}
                 />
+              ) : (
+                <LeadRequestActions request={request} />
               )}
 
               <Separator />

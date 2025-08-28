@@ -257,7 +257,15 @@ export type Database = {
           id: string
           lead_company: string | null
           lead_email: string | null
+          lead_fee_agreement_email_sent: boolean | null
+          lead_fee_agreement_email_sent_at: string | null
+          lead_fee_agreement_signed: boolean | null
+          lead_fee_agreement_signed_at: string | null
           lead_name: string | null
+          lead_nda_email_sent: boolean | null
+          lead_nda_email_sent_at: string | null
+          lead_nda_signed: boolean | null
+          lead_nda_signed_at: string | null
           lead_role: string | null
           listing_id: string
           negative_followed_up: boolean | null
@@ -290,7 +298,15 @@ export type Database = {
           id?: string
           lead_company?: string | null
           lead_email?: string | null
+          lead_fee_agreement_email_sent?: boolean | null
+          lead_fee_agreement_email_sent_at?: string | null
+          lead_fee_agreement_signed?: boolean | null
+          lead_fee_agreement_signed_at?: string | null
           lead_name?: string | null
+          lead_nda_email_sent?: boolean | null
+          lead_nda_email_sent_at?: string | null
+          lead_nda_signed?: boolean | null
+          lead_nda_signed_at?: string | null
           lead_role?: string | null
           listing_id: string
           negative_followed_up?: boolean | null
@@ -323,7 +339,15 @@ export type Database = {
           id?: string
           lead_company?: string | null
           lead_email?: string | null
+          lead_fee_agreement_email_sent?: boolean | null
+          lead_fee_agreement_email_sent_at?: string | null
+          lead_fee_agreement_signed?: boolean | null
+          lead_fee_agreement_signed_at?: string | null
           lead_name?: string | null
+          lead_nda_email_sent?: boolean | null
+          lead_nda_email_sent_at?: string | null
+          lead_nda_signed?: boolean | null
+          lead_nda_signed_at?: string | null
           lead_role?: string | null
           listing_id?: string
           negative_followed_up?: boolean | null
@@ -1930,6 +1954,22 @@ export type Database = {
           is_signed: boolean
           target_user_id: string
         }
+        Returns: boolean
+      }
+      update_lead_fee_agreement_email_status: {
+        Args: { admin_notes?: string; is_sent: boolean; request_id: string }
+        Returns: boolean
+      }
+      update_lead_fee_agreement_status: {
+        Args: { admin_notes?: string; is_signed: boolean; request_id: string }
+        Returns: boolean
+      }
+      update_lead_nda_email_status: {
+        Args: { admin_notes?: string; is_sent: boolean; request_id: string }
+        Returns: boolean
+      }
+      update_lead_nda_status: {
+        Args: { admin_notes?: string; is_signed: boolean; request_id: string }
         Returns: boolean
       }
       update_nda_email_status: {

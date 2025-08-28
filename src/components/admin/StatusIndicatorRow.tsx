@@ -11,6 +11,11 @@ interface StatusIndicatorRowProps {
   negativeFollowedUpByAdmin?: User | null;
   followedUpAt?: string;
   negativeFollowedUpAt?: string;
+  // Lead-only status fields
+  leadNdaSigned?: boolean;
+  leadNdaEmailSent?: boolean;
+  leadFeeAgreementSigned?: boolean;
+  leadFeeAgreementEmailSent?: boolean;
 }
 
 export const StatusIndicatorRow = ({ 
@@ -21,7 +26,11 @@ export const StatusIndicatorRow = ({
   followedUpByAdmin, 
   negativeFollowedUpByAdmin,
   followedUpAt,
-  negativeFollowedUpAt 
+  negativeFollowedUpAt,
+  leadNdaSigned,
+  leadNdaEmailSent,
+  leadFeeAgreementSigned,
+  leadFeeAgreementEmailSent
 }: StatusIndicatorRowProps) => {
   const getStatusDisplay = (
     isSigned: boolean, 
@@ -93,7 +102,7 @@ export const StatusIndicatorRow = ({
   };
 
   // For lead-only requests, treat them equally - show NDA, Fee Agreement, and follow-up status
-  // For user requests, use actual user data; for lead-only requests, show pending status
+  // For user requests, use actual user data; for lead-only requests, show from lead-specific fields
   if (!user) {
     return (
       <div className="flex items-center gap-3 flex-wrap">
@@ -101,9 +110,9 @@ export const StatusIndicatorRow = ({
           <MessageSquare className="h-4 w-4 text-muted-foreground" />
           <span className="text-xs font-medium text-muted-foreground">Lead-Only Request</span>
         </div>
-        {/* Show NDA and Fee Agreement as pending for lead-only requests */}
-        {getStatusDisplay(false, false, 'nda')}
-        {getStatusDisplay(false, false, 'fee')}
+        {/* Use lead-specific fields for NDA and Fee Agreement */}
+        {getStatusDisplay(!!(leadNdaSigned), !!(leadNdaEmailSent), 'nda')}
+        {getStatusDisplay(!!(leadFeeAgreementSigned), !!(leadFeeAgreementEmailSent), 'fee')}
         {getStatusDisplay(followedUp, true, 'follow')}
         {/* Show rejection status if applicable */}
         {getStatusDisplay(false, false, 'rejected')}
