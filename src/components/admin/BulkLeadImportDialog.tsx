@@ -47,22 +47,40 @@ Jane Doe,jane@bcpartners.com,BC Partners,555-0456,VP,Looking for healthcare deal
       return;
     }
 
-    const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+    // Handle both comma and tab delimited data
+    const delimiter = lines[0].includes('\t') ? '\t' : ',';
+    const headers = lines[0].split(delimiter).map(h => h.trim().toLowerCase());
     const errors: string[] = [];
     const leads: ParsedLead[] = [];
 
-    // Validate headers
-    const requiredFields = ['name', 'email'];
-    const missingRequired = requiredFields.filter(field => !headers.includes(field));
-    if (missingRequired.length > 0) {
-      errors.push(`Missing required columns: ${missingRequired.join(', ')}`);
+    // Flexible column name matching
+    const findColumn = (variations: string[]) => {
+      return headers.findIndex(h => variations.some(v => h.includes(v.toLowerCase())));
+    };
+
+    const nameIndex = findColumn(['name']);
+    const emailIndex = findColumn(['email']);
+    const companyIndex = findColumn(['company']);
+    const phoneIndex = findColumn(['phone']);
+    const roleIndex = findColumn(['role']);
+    const messageIndex = findColumn(['message']);
+
+    // Validate required columns
+    if (nameIndex === -1) {
+      errors.push("Missing required column: Name");
+    }
+    if (emailIndex === -1) {
+      errors.push("Missing required column: Email");
+    }
+    
+    if (errors.length > 0) {
       setParseErrors(errors);
       return;
     }
 
     // Parse data rows
     for (let i = 1; i < lines.length; i++) {
-      const values = lines[i].split(',').map(v => v.trim().replace(/^"|"$/g, ''));
+      const values = lines[i].split(delimiter).map(v => v.trim().replace(/^"|"$/g, ''));
       const leadErrors: string[] = [];
       
       if (values.length !== headers.length) {
@@ -71,42 +89,15 @@ Jane Doe,jane@bcpartners.com,BC Partners,555-0456,VP,Looking for healthcare deal
       }
 
       const leadData: CreateInboundLeadData = {
-        name: "",
-        email: "",
-        company_name: "",
-        phone_number: "",
-        role: "",
-        message: "",
+        name: nameIndex >= 0 ? values[nameIndex] || "" : "",
+        email: emailIndex >= 0 ? values[emailIndex] || "" : "",
+        company_name: companyIndex >= 0 ? values[companyIndex] || "" : "",
+        phone_number: phoneIndex >= 0 ? values[phoneIndex] || "" : "",
+        role: roleIndex >= 0 ? values[roleIndex] || "" : "",
+        message: messageIndex >= 0 ? values[messageIndex] || "" : "",
         source: "manual",
         source_form_name: "bulk_import",
       };
-
-      // Map CSV values to lead data
-      headers.forEach((header, index) => {
-        const value = values[index];
-        switch (header) {
-          case 'name':
-            leadData.name = value;
-            break;
-          case 'email':
-            leadData.email = value;
-            break;
-          case 'company':
-          case 'company_name':
-            leadData.company_name = value;
-            break;
-          case 'phone':
-          case 'phone_number':
-            leadData.phone_number = value;
-            break;
-          case 'role':
-            leadData.role = value;
-            break;
-          case 'message':
-            leadData.message = value;
-            break;
-        }
-      });
 
       // Validate required fields
       if (!leadData.name) {
