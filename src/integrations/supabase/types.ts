@@ -199,6 +199,48 @@ export type Database = {
         }
         Relationships: []
       }
+      connection_request_contacts: {
+        Row: {
+          created_at: string
+          id: string
+          primary_request_id: string
+          related_request_id: string
+          relationship_metadata: Json
+          relationship_type: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          primary_request_id: string
+          related_request_id: string
+          relationship_metadata?: Json
+          relationship_type: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          primary_request_id?: string
+          related_request_id?: string
+          relationship_metadata?: Json
+          relationship_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "connection_request_contacts_primary_request_id_fkey"
+            columns: ["primary_request_id"]
+            isOneToOne: false
+            referencedRelation: "connection_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "connection_request_contacts_related_request_id_fkey"
+            columns: ["related_request_id"]
+            isOneToOne: false
+            referencedRelation: "connection_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       connection_requests: {
         Row: {
           admin_comment: string | null
@@ -589,6 +631,94 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: []
+      }
+      inbound_leads: {
+        Row: {
+          company_name: string | null
+          converted_at: string | null
+          converted_to_request_id: string | null
+          created_at: string
+          email: string
+          id: string
+          mapped_at: string | null
+          mapped_by: string | null
+          mapped_to_listing_id: string | null
+          mapped_to_listing_title: string | null
+          message: string | null
+          name: string
+          phone_number: string | null
+          priority_score: number
+          role: string | null
+          source: string
+          source_form_name: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          company_name?: string | null
+          converted_at?: string | null
+          converted_to_request_id?: string | null
+          created_at?: string
+          email: string
+          id?: string
+          mapped_at?: string | null
+          mapped_by?: string | null
+          mapped_to_listing_id?: string | null
+          mapped_to_listing_title?: string | null
+          message?: string | null
+          name: string
+          phone_number?: string | null
+          priority_score?: number
+          role?: string | null
+          source?: string
+          source_form_name?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          company_name?: string | null
+          converted_at?: string | null
+          converted_to_request_id?: string | null
+          created_at?: string
+          email?: string
+          id?: string
+          mapped_at?: string | null
+          mapped_by?: string | null
+          mapped_to_listing_id?: string | null
+          mapped_to_listing_title?: string | null
+          message?: string | null
+          name?: string
+          phone_number?: string | null
+          priority_score?: number
+          role?: string | null
+          source?: string
+          source_form_name?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inbound_leads_converted_to_request_id_fkey"
+            columns: ["converted_to_request_id"]
+            isOneToOne: false
+            referencedRelation: "connection_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inbound_leads_mapped_by_fkey"
+            columns: ["mapped_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inbound_leads_mapped_to_listing_id_fkey"
+            columns: ["mapped_to_listing_id"]
+            isOneToOne: false
+            referencedRelation: "listings"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       listing_analytics: {
         Row: {
