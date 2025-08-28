@@ -103,6 +103,12 @@ export interface AdminConnectionRequest {
   rejected_at?: string;
   on_hold_by?: string;
   on_hold_at?: string;
+  // Phase 4: Source tracking fields
+  source: 'marketplace' | 'webflow' | 'manual' | 'import' | 'api';
+  source_lead_id?: string;
+  source_metadata?: Record<string, any>;
+  converted_by?: string;
+  converted_at?: string;
   created_at: string;
   updated_at: string;
   decision_at?: string;
@@ -114,6 +120,17 @@ export interface AdminConnectionRequest {
   approvedByAdmin?: User | null;
   rejectedByAdmin?: User | null;
   onHoldByAdmin?: User | null;
+  // Source lead data for enhanced context
+  sourceLead?: {
+    id: string;
+    name: string;
+    email: string;
+    company_name?: string;
+    message?: string;
+    priority_score: number;
+    source: string;
+    source_form_name?: string;
+  };
 }
 
 export interface AdminStats {

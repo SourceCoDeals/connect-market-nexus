@@ -40,7 +40,19 @@ export function useConnectionRequestsQuery() {
 
         const { data: requests, error } = await supabase
           .from('connection_requests')
-          .select('*')
+          .select(`
+            *,
+            source_lead:inbound_leads!source_lead_id (
+              id,
+              name,
+              email,
+              company_name,
+              message,
+              priority_score,
+              source,
+              source_form_name
+            )
+          `)
           .order('created_at', { ascending: false });
 
         if (error) throw error;
@@ -106,6 +118,7 @@ export function useConnectionRequestsQuery() {
             approvedByAdmin: approvedAdminProfile ? createUserObject(approvedAdminProfile) : null,
             rejectedByAdmin: rejectedAdminProfile ? createUserObject(rejectedAdminProfile) : null,
             onHoldByAdmin: onHoldAdminProfile ? createUserObject(onHoldAdminProfile) : null,
+            sourceLead: (request as any).source_lead || null,
           } as AdminConnectionRequest;
         });
 

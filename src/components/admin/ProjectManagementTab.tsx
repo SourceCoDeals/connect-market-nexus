@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { BarChart3, Clock, FileText } from 'lucide-react';
+import { BarChart3, Clock, FileText, TrendingUp } from 'lucide-react';
 import { LeadMetricsDashboard } from './LeadMetricsDashboard';
 import { WorkQueueDashboard } from './WorkQueueDashboard';
 import { AuditTrailDashboard } from './AuditTrailDashboard';
+import { EnhancedPipelineView } from './EnhancedPipelineView';
 
 export function ProjectManagementTab() {
   return (
@@ -16,11 +17,15 @@ export function ProjectManagementTab() {
         </p>
       </div>
 
-      <Tabs defaultValue="metrics" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-3">
+      <Tabs defaultValue="pipeline" className="space-y-4">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="pipeline" className="flex items-center gap-2">
+            <TrendingUp className="h-4 w-4" />
+            Pipeline
+          </TabsTrigger>
           <TabsTrigger value="metrics" className="flex items-center gap-2">
             <BarChart3 className="h-4 w-4" />
-            Metrics & Analytics
+            Metrics
           </TabsTrigger>
           <TabsTrigger value="queue" className="flex items-center gap-2">
             <Clock className="h-4 w-4" />
@@ -31,6 +36,10 @@ export function ProjectManagementTab() {
             Audit Trail
           </TabsTrigger>
         </TabsList>
+
+        <TabsContent value="pipeline" className="space-y-4">
+          <EnhancedPipelineView />
+        </TabsContent>
 
         <TabsContent value="metrics" className="space-y-4">
           <Card>

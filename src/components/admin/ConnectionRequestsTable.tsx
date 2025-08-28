@@ -28,6 +28,9 @@ import { AdminConnectionRequest } from "@/types/admin";
 import { StatusIndicatorRow } from "./StatusIndicatorRow";
 import { ConnectionRequestActions } from "./ConnectionRequestActions";
 import { DecisionNotesInline } from "./DecisionNotesInline";
+import { SourceBadge } from "./SourceBadge";
+import { SourceLeadContext } from "./SourceLeadContext";
+import { SourceFilter } from "./SourceFilter";
 import { useAdminSignature } from "@/hooks/admin/use-admin-signature";
 import { useAuth } from "@/context/AuthContext";
 import { getAdminProfile } from "@/lib/admin-profiles";
@@ -120,6 +123,9 @@ interface ConnectionRequestsTableProps {
   requests: AdminConnectionRequest[];
   isLoading: boolean;
   onRefresh?: () => void;
+  showSourceFilter?: boolean;
+  selectedSources?: string[];
+  onSourcesChange?: (sources: string[]) => void;
 }
 
 const ConnectionRequestsTableSkeleton = () => (
@@ -267,6 +273,9 @@ const RequestDetails = ({ request }: { request: AdminConnectionRequest }) => {
         </div>
       )}
       
+      {/* Source Lead Context */}
+      <SourceLeadContext request={request} className="mt-4" />
+      
       {/* Associated Contacts Display */}
       <AssociatedContactsDisplay 
         connectionRequest={request}
@@ -317,6 +326,7 @@ function ReactiveRequestCard({
                 </BuyerProfileHoverCard>
                 <CleanTierDisplay user={request.user} />
                 <StatusBadge status={request.status} />
+                <SourceBadge source={request.source || 'marketplace'} />
               </div>
                <div className="text-sm text-muted-foreground space-y-1">
                  <div className="flex items-center gap-2">
@@ -655,46 +665,91 @@ function ReactiveRequestCard({
   );
 }
 
-export function ConnectionRequestsTable({
+export default function ConnectionRequestsTable({
   requests,
   isLoading,
   onRefresh,
+  showSourceFilter = false,
+  selectedSources = [],
+  onSourcesChange
 }: ConnectionRequestsTableProps) {
-  const [expandedRequest, setExpandedRequest] = useState<string | null>(null);
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  
+  // Filter requests by selected sources
+  const filteredRequests = selectedSources.length > 0 
+    ? requests.filter(req => selectedSources.includes(req.source || 'marketplace'))
+    : requests;
 
   const toggleExpanded = (requestId: string) => {
-    setExpandedRequest(expandedRequest === requestId ? null : requestId);
+    const newExpanded = new Set(expandedRows);
+    if (newExpanded.has(requestId)) {
+      newExpanded.delete(requestId);
+    } else {
+      newExpanded.add(requestId);
+    }
+    setExpandedRows(newExpanded);
   };
+
+  const [showAllCardActions, setShowAllCardActions] = useState(false);
 
   if (isLoading) {
     return <ConnectionRequestsTableSkeleton />;
   }
 
-  if (requests.length === 0) {
+  if (!requests || requests.length === 0) {
     return <ConnectionRequestsTableEmpty />;
   }
 
+  if (filteredRequests.length === 0 && selectedSources.length > 0) {
+    return (
+      <Card>
+        <CardContent className="flex flex-col items-center justify-center py-16">
+          <SourceFilter 
+            selectedSources={selectedSources}
+            onSourcesChange={onSourcesChange || (() => {})}
+          />
+          <div className="mt-4 text-center">
+            <h3 className="text-xl font-semibold text-muted-foreground mb-2">No requests found</h3>
+            <p className="text-sm text-muted-foreground">No connection requests match the selected source filters.</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
-    <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <div>
-          <h3 className="text-xl font-semibold">Connection Requests</h3>
-          <p className="text-sm text-muted-foreground mt-1">Manage buyer connection requests and send manual emails</p>
+    <div className="space-y-6">
+      {/* Header Actions */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <span className="text-sm text-muted-foreground">
+            {filteredRequests.length} of {requests.length} connection request{requests.length !== 1 ? 's' : ''}
+          </span>
+          {showSourceFilter && onSourcesChange && (
+            <SourceFilter 
+              selectedSources={selectedSources}
+              onSourcesChange={onSourcesChange}
+            />
+          )}
         </div>
-        {onRefresh && (
-          <Button variant="outline" size="sm" onClick={onRefresh}>
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Refresh
-          </Button>
-        )}
+        
+        <div className="flex items-center gap-2">
+          {onRefresh && (
+            <Button variant="outline" size="sm" onClick={onRefresh}>
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Refresh
+            </Button>
+          )}
+        </div>
       </div>
-      
-      <div className="space-y-3">
-        {requests.map((request) => (
+
+      {/* Connection Requests */}
+      <div className="space-y-4">
+        {filteredRequests.map((request) => (
           <ReactiveRequestCard
             key={request.id}
             request={request}
-            isExpanded={expandedRequest === request.id}
+            isExpanded={expandedRows.has(request.id)}
             onToggleExpanded={() => toggleExpanded(request.id)}
           />
         ))}

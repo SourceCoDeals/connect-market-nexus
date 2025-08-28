@@ -96,7 +96,9 @@ export function useConnectionRequestsMutation() {
           ...requestData,
           status: typedStatus,
           user,
-          listing
+          listing,
+          source: (requestData.source as 'marketplace' | 'webflow' | 'manual' | 'import' | 'api') || 'marketplace',
+          source_metadata: (requestData.source_metadata as Record<string, any>) || {}
         };
         
         // No automatic email sending - admins will use mailto links

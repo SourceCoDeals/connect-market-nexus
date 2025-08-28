@@ -356,7 +356,11 @@ export function useConvertLeadToRequest() {
 
       }
 
-      // Create connection request
+      // Get current admin user ID
+      const { data: { user: adminUser }, error: adminAuthError } = await sb.auth.getUser();
+      if (adminAuthError || !adminUser) throw new Error('Authentication required for conversion');
+
+      // Create connection request with source tracking
       const { data: connectionRequest, error: requestError } = await sb
         .from('connection_requests')
         .insert([{
@@ -364,6 +368,17 @@ export function useConvertLeadToRequest() {
           listing_id: lead.mapped_to_listing_id,
           user_message: lead.message || 'Converted from inbound lead',
           status: 'pending',
+          source: lead.source === 'webflow' ? 'webflow' : 'manual',
+          source_lead_id: leadId,
+          source_metadata: {
+            original_message: lead.message,
+            original_company: lead.company_name,
+            original_role: lead.role,
+            priority_score: lead.priority_score,
+            form_name: lead.source_form_name
+          },
+          converted_by: adminUser.id,
+          converted_at: new Date().toISOString(),
         }])
         .select('id')
         .single();

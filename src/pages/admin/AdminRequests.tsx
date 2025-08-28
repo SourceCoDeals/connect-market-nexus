@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Search, Users, Inbox } from "lucide-react";
 import { AdminConnectionRequest } from "@/types/admin";
-import { ConnectionRequestsTable } from "@/components/admin/ConnectionRequestsTable";
+import ConnectionRequestsTable from "@/components/admin/ConnectionRequestsTable";
 import { MobileConnectionRequestsTable } from "@/components/admin/MobileConnectionRequestsTable";
 import { ConnectionRequestDialog } from "@/components/admin/ConnectionRequestDialog";
 import { ApprovalEmailDialog } from "@/components/admin/ApprovalEmailDialog";
