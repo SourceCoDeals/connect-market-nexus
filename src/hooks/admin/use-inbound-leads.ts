@@ -340,9 +340,8 @@ export function useConvertLeadToRequest() {
         throw new Error('Authentication required for conversion');
       }
 
-      // Resolve user_id: existing profile by email, else create a lightweight user via edge function
-      let resolvedUserId: string | null = null;
-
+      // Resolve duplicates BEFORE creating/using a user
+      // Try to find an existing profile by email
       const { data: existingProfile, error: profileErr } = await sb
         .from('profiles')
         .select('id, email')
@@ -354,6 +353,58 @@ export function useConvertLeadToRequest() {
         throw profileErr;
       }
 
+      // If a request already exists for this listing and email, just link and exit
+      let existingRequestId: string | null = null;
+
+      if (existingProfile?.id) {
+        const { data: dupByUser, error: dupByUserErr } = await sb
+          .from('connection_requests')
+          .select('id')
+          .eq('listing_id', lead.mapped_to_listing_id)
+          .eq('user_id', existingProfile.id)
+          .limit(1)
+          .maybeSingle();
+        if (dupByUserErr) {
+          console.error('[ConvertLeadToRequest] Duplicate check (by user) error:', dupByUserErr);
+        }
+        existingRequestId = dupByUser?.id || null;
+      }
+
+      if (!existingRequestId) {
+        const { data: dupByMeta, error: dupByMetaErr } = await sb
+          .from('connection_requests')
+          .select('id')
+          .eq('listing_id', lead.mapped_to_listing_id)
+          .contains('source_metadata', { lead_email: lead.email })
+          .limit(1)
+          .maybeSingle();
+        if (dupByMetaErr) {
+          console.error('[ConvertLeadToRequest] Duplicate check (by metadata) error:', dupByMetaErr);
+        }
+        existingRequestId = dupByMeta?.id || null;
+      }
+
+      if (existingRequestId) {
+        console.info('[ConvertLeadToRequest] Duplicate request found, linking lead to existing request:', existingRequestId);
+        const { error: linkErr } = await sb
+          .from('inbound_leads')
+          .update({
+            converted_to_request_id: existingRequestId,
+            converted_at: new Date().toISOString(),
+            status: 'converted',
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', leadId);
+        if (linkErr) {
+          console.error('[ConvertLeadToRequest] Lead link update error:', linkErr);
+          throw linkErr;
+        }
+        console.groupEnd();
+        return { id: existingRequestId } as any;
+      }
+
+      // No duplicate: continue by resolving/creating a user
+      let resolvedUserId: string | null = null;
       if (existingProfile?.id) {
         resolvedUserId = existingProfile.id;
         console.info('[ConvertLeadToRequest] Matched existing user profile for email', lead.email, '->', resolvedUserId);
