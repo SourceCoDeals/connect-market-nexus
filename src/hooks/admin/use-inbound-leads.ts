@@ -32,7 +32,7 @@ export interface CreateInboundLeadData {
   phone_number?: string;
   role?: string;
   message?: string;
-  source: 'webflow' | 'manual';
+  source: 'webflow' | 'manual' | 'referral' | 'cold_outreach' | 'networking' | 'linkedin' | 'email';
   source_form_name?: string;
 }
 
@@ -325,57 +325,31 @@ export function useConvertLeadToRequest() {
         throw new Error('Lead must be mapped to a listing before conversion');
       }
 
-      // Check if user exists in profiles
-      const { data: existingProfile } = await sb
-        .from('profiles')
-        .select('id')
-        .eq('email', lead.email)
-        .single();
-
-      let userId = existingProfile?.id;
-
-      // If no profile exists, create a minimal one
-      if (!userId) {
-        // Create user via edge function (handles auth user + profile creation)
-        const { data: createUserResult, error: createUserError } = await sb.functions.invoke('create-lead-user', {
-          body: {
-            email: lead.email,
-            firstName: lead.name.split(' ')[0] || lead.name,
-            lastName: lead.name.split(' ').slice(1).join(' ') || '',
-            company: lead.company_name,
-            phoneNumber: lead.phone_number,
-            buyerType: lead.role?.toLowerCase().includes('equity') ? 'privateEquity' : 'corporate'
-          }
-        });
-
-        if (createUserError || !createUserResult?.userId) {
-          throw new Error('Failed to create user: ' + (createUserError?.message || 'Unknown error'));
-        }
-        
-        userId = createUserResult.userId;
-
-      }
-
       // Get current admin user ID
       const { data: { user: adminUser }, error: adminAuthError } = await sb.auth.getUser();
       if (adminAuthError || !adminUser) throw new Error('Authentication required for conversion');
 
-      // Create connection request with source tracking
+      // Create connection request WITHOUT creating a user profile
+      // Store lead contact information directly in the connection request
       const { data: connectionRequest, error: requestError } = await sb
         .from('connection_requests')
         .insert([{
-          user_id: userId,
+          user_id: null, // No user profile - this is a lead request
           listing_id: lead.mapped_to_listing_id,
           user_message: lead.message || 'Converted from inbound lead',
           status: 'pending',
-          source: lead.source === 'webflow' ? 'webflow' : 'manual',
+          source: lead.source || 'manual',
           source_lead_id: leadId,
           source_metadata: {
+            lead_name: lead.name,
+            lead_email: lead.email,
+            lead_company: lead.company_name,
+            lead_phone: lead.phone_number,
+            lead_role: lead.role,
             original_message: lead.message,
-            original_company: lead.company_name,
-            original_role: lead.role,
             priority_score: lead.priority_score,
-            form_name: lead.source_form_name
+            form_name: lead.source_form_name,
+            converted_from_lead: true
           },
           converted_by: adminUser.id,
           converted_at: new Date().toISOString(),

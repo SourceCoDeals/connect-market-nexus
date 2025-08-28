@@ -6,7 +6,18 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus } from "lucide-react";
-import { CreateInboundLeadData } from "@/hooks/admin/use-inbound-leads";
+type LeadSource = 'webflow' | 'manual' | 'referral' | 'cold_outreach' | 'networking' | 'linkedin' | 'email';
+
+export interface CreateInboundLeadData {
+  name: string;
+  email: string;
+  company_name?: string;
+  phone_number?: string;
+  role?: string;
+  message?: string;
+  source: LeadSource;
+  source_form_name?: string;
+}
 
 interface CreateInboundLeadDialogProps {
   isOpen: boolean;
@@ -144,28 +155,35 @@ export const CreateInboundLeadDialog = ({
               <Label htmlFor="source">Source</Label>
               <Select
                 value={formData.source}
-                onValueChange={(value) => setFormData({ ...formData, source: value as 'webflow' | 'manual' })}
+                onValueChange={(value) => setFormData({ ...formData, source: value as LeadSource })}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select source" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="manual">Manual Entry</SelectItem>
-                  <SelectItem value="webflow">Webflow Form</SelectItem>
+                  <SelectItem value="webflow">Website Form</SelectItem>
+                  <SelectItem value="referral">Referral</SelectItem>
+                  <SelectItem value="cold_outreach">Cold Outreach</SelectItem>
+                  <SelectItem value="networking">Networking Event</SelectItem>
+                  <SelectItem value="linkedin">LinkedIn</SelectItem>
+                  <SelectItem value="email">Email Campaign</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
           
-          {/* Source Form Name (if Webflow) */}
-          {formData.source === 'webflow' && (
+          {/* Source Form Name (for relevant sources) */}
+          {(formData.source === 'webflow' || formData.source === 'email') && (
             <div className="space-y-2">
-              <Label htmlFor="sourceForm">Form Name</Label>
+              <Label htmlFor="sourceForm">
+                {formData.source === 'webflow' ? 'Form Name' : 'Campaign Name'}
+              </Label>
               <Input
                 id="sourceForm"
                 value={formData.source_form_name}
                 onChange={(e) => setFormData({ ...formData, source_form_name: e.target.value })}
-                placeholder="e.g., Collision Repair Platform"
+                placeholder={formData.source === 'webflow' ? "e.g., Contact Form" : "e.g., Q1 Newsletter"}
               />
             </div>
           )}
