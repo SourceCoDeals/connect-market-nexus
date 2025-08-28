@@ -166,8 +166,8 @@ export function useCheckDuplicates() {
       for (const request of existingRequests || []) {
         const profile = (request as any).profiles;
         
-        // Check for exact email match
-        if (profile.email === leadEmail) {
+        // Check for exact email match (case-insensitive)
+        if (profile.email && profile.email.toLowerCase() === leadEmail.toLowerCase()) {
           exactDuplicate = {
             requestId: request.id,
             userEmail: profile.email
@@ -340,11 +340,11 @@ export function useConvertLeadToRequest() {
         throw new Error('Authentication required for conversion');
       }
 
-      // Check for existing user and existing requests for this listing/email combo
+      // Check for existing user and existing requests for this listing/email combo (case-insensitive)
       const { data: existingProfile, error: profileErr } = await sb
         .from('profiles')
         .select('id, email')
-        .eq('email', lead.email)
+        .ilike('email', lead.email)
         .maybeSingle();
 
       if (profileErr) {
@@ -375,7 +375,7 @@ export function useConvertLeadToRequest() {
           .from('connection_requests')
           .select('id')
           .eq('listing_id', lead.mapped_to_listing_id)
-          .eq('lead_email', lead.email)
+          .ilike('lead_email', lead.email)
           .limit(1)
           .maybeSingle();
         if (dupByEmailErr) {
