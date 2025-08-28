@@ -15,10 +15,15 @@ import {
   Archive,
   ArrowRight,
   Check,
-  X
+  X,
+  Plus,
+  Upload
 } from "lucide-react";
-import { InboundLead } from "@/hooks/admin/use-inbound-leads";
+import { InboundLead, useCreateInboundLead } from "@/hooks/admin/use-inbound-leads";
 import { toast } from "@/hooks/use-toast";
+import { CreateInboundLeadDialog } from "./CreateInboundLeadDialog";
+import { BulkLeadImportDialog } from "./BulkLeadImportDialog";
+import { LeadMappingDialog } from "./LeadMappingDialog";
 
 interface InboundLeadsTableProps {
   leads: InboundLead[];
@@ -295,25 +300,156 @@ export const InboundLeadsTable = ({
   onConvertToRequest, 
   onArchive 
 }: InboundLeadsTableProps) => {
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isBulkImportDialogOpen, setIsBulkImportDialogOpen] = useState(false);
+  const [selectedLead, setSelectedLead] = useState<InboundLead | null>(null);
+  const [isMappingDialogOpen, setIsMappingDialogOpen] = useState(false);
+  
+  const { mutate: createLead, isPending: isCreating } = useCreateInboundLead();
+
+  const handleMapToListing = (lead: InboundLead) => {
+    setSelectedLead(lead);
+    setIsMappingDialogOpen(true);
+  };
+
+  const handleBulkCreate = async (leadsData: any[]) => {
+    // Create leads one by one for better error handling
+    for (const leadData of leadsData) {
+      try {
+        await new Promise((resolve, reject) => {
+          createLead(leadData, {
+            onSuccess: resolve,
+            onError: reject
+          });
+        });
+      } catch (error) {
+        console.error('Error creating lead:', error);
+      }
+    }
+    
+    toast({
+      title: "Bulk import completed",
+      description: `Successfully imported ${leadsData.length} leads`,
+    });
+  };
+
   if (isLoading) {
     return <InboundLeadsTableSkeleton />;
   }
 
   if (leads.length === 0) {
-    return <InboundLeadsTableEmpty />;
+    return (
+      <div className="space-y-4">
+        {/* Action Buttons */}
+        <div className="flex gap-3">
+          <Button 
+            onClick={() => setIsCreateDialogOpen(true)}
+            className="flex items-center gap-2"
+          >
+            <Plus className="h-4 w-4" />
+            Add Single Lead
+          </Button>
+          <Button 
+            variant="outline"
+            onClick={() => setIsBulkImportDialogOpen(true)}
+            className="flex items-center gap-2"
+          >
+            <Upload className="h-4 w-4" />
+            Bulk Import (CSV)
+          </Button>
+        </div>
+        
+        <InboundLeadsTableEmpty />
+        
+        {/* Dialogs */}
+        <CreateInboundLeadDialog
+          isOpen={isCreateDialogOpen}
+          onClose={() => setIsCreateDialogOpen(false)}
+          onConfirm={(leadData) => {
+            createLead(leadData);
+            setIsCreateDialogOpen(false);
+          }}
+          isLoading={isCreating}
+        />
+        
+        <BulkLeadImportDialog
+          isOpen={isBulkImportDialogOpen}
+          onClose={() => setIsBulkImportDialogOpen(false)}
+          onConfirm={handleBulkCreate}
+          isLoading={isCreating}
+        />
+      </div>
+    );
   }
 
   return (
     <div className="space-y-4">
-      {leads.map((lead) => (
-        <LeadCard
-          key={lead.id}
-          lead={lead}
-          onMapToListing={onMapToListing}
-          onConvertToRequest={onConvertToRequest}
-          onArchive={onArchive}
-        />
-      ))}
+      {/* Action Buttons */}
+      <div className="flex gap-3">
+        <Button 
+          onClick={() => setIsCreateDialogOpen(true)}
+          className="flex items-center gap-2"
+        >
+          <Plus className="h-4 w-4" />
+          Add Single Lead
+        </Button>
+        <Button 
+          variant="outline"
+          onClick={() => setIsBulkImportDialogOpen(true)}
+          className="flex items-center gap-2"
+        >
+          <Upload className="h-4 w-4" />
+          Bulk Import (CSV)
+        </Button>
+      </div>
+
+      {/* Leads List */}
+      <div className="space-y-4">
+        {leads.map((lead) => (
+          <LeadCard
+            key={lead.id}
+            lead={lead}
+            onMapToListing={handleMapToListing}
+            onConvertToRequest={onConvertToRequest}
+            onArchive={onArchive}
+          />
+        ))}
+      </div>
+      
+      {/* Dialogs */}
+      <CreateInboundLeadDialog
+        isOpen={isCreateDialogOpen}
+        onClose={() => setIsCreateDialogOpen(false)}
+        onConfirm={(leadData) => {
+          createLead(leadData);
+          setIsCreateDialogOpen(false);
+        }}
+        isLoading={isCreating}
+      />
+      
+      <BulkLeadImportDialog
+        isOpen={isBulkImportDialogOpen}
+        onClose={() => setIsBulkImportDialogOpen(false)}
+        onConfirm={handleBulkCreate}
+        isLoading={isCreating}
+      />
+      
+      <LeadMappingDialog
+        isOpen={isMappingDialogOpen}
+        onClose={() => {
+          setIsMappingDialogOpen(false);
+          setSelectedLead(null);
+        }}
+        onConfirm={(listingId, listingTitle) => {
+          if (selectedLead) {
+            // Call the parent's onMapToListing with the original signature
+            onMapToListing(selectedLead);
+          }
+          setIsMappingDialogOpen(false);
+          setSelectedLead(null);
+        }}
+        lead={selectedLead}
+      />
     </div>
   );
 };
