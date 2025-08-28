@@ -63,6 +63,7 @@ export function useConnectionRequestsQuery() {
         }
 
         // Collect unique IDs for batch fetching (avoid N+1 queries)
+        // Filter out null user_ids for lead-only requests
         const userIds = Array.from(new Set(requests.map((r: any) => r.user_id).filter(Boolean)));
         const listingIds = Array.from(new Set(requests.map((r: any) => r.listing_id).filter(Boolean)));
         const followedIds = Array.from(new Set(requests.map((r: any) => (r as any).followed_up_by).filter(Boolean)));

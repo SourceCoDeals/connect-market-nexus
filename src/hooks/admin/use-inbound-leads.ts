@@ -340,8 +340,7 @@ export function useConvertLeadToRequest() {
         throw new Error('Authentication required for conversion');
       }
 
-      // Resolve duplicates BEFORE creating/using a user
-      // Try to find an existing profile by email
+      // Check for existing user and existing requests for this listing/email combo
       const { data: existingProfile, error: profileErr } = await sb
         .from('profiles')
         .select('id, email')
@@ -353,7 +352,7 @@ export function useConvertLeadToRequest() {
         throw profileErr;
       }
 
-      // If a request already exists for this listing and email, just link and exit
+      // Check for existing requests by user_id or lead_email
       let existingRequestId: string | null = null;
 
       if (existingProfile?.id) {
@@ -370,18 +369,19 @@ export function useConvertLeadToRequest() {
         existingRequestId = dupByUser?.id || null;
       }
 
+      // Also check for lead-only requests with the same email
       if (!existingRequestId) {
-        const { data: dupByMeta, error: dupByMetaErr } = await sb
+        const { data: dupByEmail, error: dupByEmailErr } = await sb
           .from('connection_requests')
           .select('id')
           .eq('listing_id', lead.mapped_to_listing_id)
-          .contains('source_metadata', { lead_email: lead.email })
+          .eq('lead_email', lead.email)
           .limit(1)
           .maybeSingle();
-        if (dupByMetaErr) {
-          console.error('[ConvertLeadToRequest] Duplicate check (by metadata) error:', dupByMetaErr);
+        if (dupByEmailErr) {
+          console.error('[ConvertLeadToRequest] Duplicate check (by lead email) error:', dupByEmailErr);
         }
-        existingRequestId = dupByMeta?.id || null;
+        existingRequestId = dupByEmail?.id || null;
       }
 
       if (existingRequestId) {
@@ -403,75 +403,56 @@ export function useConvertLeadToRequest() {
         return { id: existingRequestId } as any;
       }
 
-      // No duplicate: continue by resolving/creating a user
+      // Create connection request - either user-linked or lead-only
       let resolvedUserId: string | null = null;
+      let isLeadOnlyRequest = false;
+
       if (existingProfile?.id) {
         resolvedUserId = existingProfile.id;
         console.info('[ConvertLeadToRequest] Matched existing user profile for email', lead.email, '->', resolvedUserId);
       } else {
-        // Parse name
-        const nameParts = (lead.name || '').trim().split(' ').filter(Boolean);
-        const firstName = nameParts[0] || lead.name || 'Lead';
-        const lastName = nameParts.slice(1).join(' ') || '-';
-
-        // Simple role->buyerType mapping
-        const roleLower = (lead.role || '').toLowerCase();
-        const buyerType = roleLower.includes('private') ? 'private_equity'
-          : roleLower.includes('family') ? 'family_office'
-          : roleLower.includes('corporate') ? 'corporate'
-          : 'individual';
-
-        console.info('[ConvertLeadToRequest] Creating lightweight user for lead:', lead.email);
-        const { data: createdUser, error: createUserErr } = await sb.functions.invoke('create-lead-user', {
-          body: {
-            email: lead.email,
-            firstName,
-            lastName,
-            company: lead.company_name || '',
-            phoneNumber: lead.phone_number || '',
-            buyerType,
-          },
-        });
-
-        if (createUserErr) {
-          console.error('[ConvertLeadToRequest] create-lead-user error:', createUserErr);
-          throw new Error(createUserErr.message || 'Failed to create user for lead');
-        }
-
-        resolvedUserId = createdUser?.userId;
-        if (!resolvedUserId) {
-          console.error('[ConvertLeadToRequest] No userId returned from create-lead-user');
-          throw new Error('User creation did not return an ID');
-        }
-        console.info('[ConvertLeadToRequest] Created user:', resolvedUserId);
+        // NEW APPROACH: Create lead-only request instead of auto-creating users
+        console.info('[ConvertLeadToRequest] Creating lead-only request for:', lead.email);
+        isLeadOnlyRequest = true;
       }
 
-      // Insert connection request with correct source attribution and linkage
+      // Prepare request data based on whether we have a user or not
       const sourceValue = lead.source || 'manual';
+      const requestData: any = {
+        listing_id: lead.mapped_to_listing_id,
+        user_message: lead.message || 'Converted from inbound lead',
+        status: 'pending',
+        source: sourceValue,
+        source_lead_id: leadId,
+        source_metadata: {
+          lead_name: lead.name,
+          lead_email: lead.email,
+          lead_company: lead.company_name,
+          lead_phone: lead.phone_number,
+          lead_role: lead.role,
+          original_message: lead.message,
+          priority_score: lead.priority_score,
+          form_name: lead.source_form_name,
+          converted_from_lead: true,
+          is_lead_only_request: isLeadOnlyRequest,
+        },
+        converted_by: adminUser.id,
+        converted_at: new Date().toISOString(),
+      };
+
+      // Add user_id if user exists, otherwise add lead info for lead-only request
+      if (resolvedUserId) {
+        requestData.user_id = resolvedUserId;
+      } else {
+        requestData.lead_email = lead.email;
+        requestData.lead_name = lead.name;
+        requestData.lead_company = lead.company_name;
+        requestData.lead_role = lead.role;
+      }
+
       const { data: connectionRequest, error: requestError } = await sb
         .from('connection_requests')
-        .insert([{
-          user_id: resolvedUserId,
-          listing_id: lead.mapped_to_listing_id,
-          user_message: lead.message || 'Converted from inbound lead',
-          status: 'pending',
-          source: sourceValue,
-          source_lead_id: leadId,
-          source_metadata: {
-            lead_name: lead.name,
-            lead_email: lead.email,
-            lead_company: lead.company_name,
-            lead_phone: lead.phone_number,
-            lead_role: lead.role,
-            original_message: lead.message,
-            priority_score: lead.priority_score,
-            form_name: lead.source_form_name,
-            converted_from_lead: true,
-            created_user_for_lead: !existingProfile?.id,
-          },
-          converted_by: adminUser.id,
-          converted_at: new Date().toISOString(),
-        }])
+        .insert([requestData])
         .select('id')
         .single();
 

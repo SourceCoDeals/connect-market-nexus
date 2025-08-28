@@ -255,6 +255,10 @@ export type Database = {
           followed_up_at: string | null
           followed_up_by: string | null
           id: string
+          lead_company: string | null
+          lead_email: string | null
+          lead_name: string | null
+          lead_role: string | null
           listing_id: string
           negative_followed_up: boolean | null
           negative_followed_up_at: string | null
@@ -268,7 +272,7 @@ export type Database = {
           source_metadata: Json | null
           status: string
           updated_at: string
-          user_id: string
+          user_id: string | null
           user_message: string | null
         }
         Insert: {
@@ -284,6 +288,10 @@ export type Database = {
           followed_up_at?: string | null
           followed_up_by?: string | null
           id?: string
+          lead_company?: string | null
+          lead_email?: string | null
+          lead_name?: string | null
+          lead_role?: string | null
           listing_id: string
           negative_followed_up?: boolean | null
           negative_followed_up_at?: string | null
@@ -297,7 +305,7 @@ export type Database = {
           source_metadata?: Json | null
           status?: string
           updated_at?: string
-          user_id: string
+          user_id?: string | null
           user_message?: string | null
         }
         Update: {
@@ -313,6 +321,10 @@ export type Database = {
           followed_up_at?: string | null
           followed_up_by?: string | null
           id?: string
+          lead_company?: string | null
+          lead_email?: string | null
+          lead_name?: string | null
+          lead_role?: string | null
           listing_id?: string
           negative_followed_up?: boolean | null
           negative_followed_up_at?: string | null
@@ -326,7 +338,7 @@ export type Database = {
           source_metadata?: Json | null
           status?: string
           updated_at?: string
-          user_id?: string
+          user_id?: string | null
           user_message?: string | null
         }
         Relationships: [

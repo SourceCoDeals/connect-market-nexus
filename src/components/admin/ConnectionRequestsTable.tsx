@@ -213,11 +213,45 @@ const RequestDetails = ({ request }: { request: AdminConnectionRequest }) => {
     <div className="space-y-4">
       {/* Buyer & Listing Information - Clean inline layout */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-         {/* Enhanced Buyer Information */}
-         <div className="space-y-3">
-           <EnhancedBuyerProfile user={request.user} />
-           <ExpandableBusinessProfile user={request.user as any} />
-         </div>
+        {/* Enhanced Buyer Information - handle lead-only requests */}
+        <div className="space-y-3">
+          {request.user ? (
+            <>
+              <EnhancedBuyerProfile user={request.user} />
+              <ExpandableBusinessProfile user={request.user as any} />
+            </>
+          ) : (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 pb-1 border-b border-border/40">
+                <User className="h-3.5 w-3.5 text-muted-foreground" />
+                <span className="text-xs font-semibold text-card-foreground">Lead Information</span>
+                <Badge variant="outline" className="text-xs">Lead-Only Request</Badge>
+              </div>
+              <div className="space-y-2 pl-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">Name</span>
+                  <span className="text-xs font-medium text-foreground">{request.lead_name || 'Unknown'}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">Email</span>
+                  <span className="text-xs font-medium text-foreground">{request.lead_email}</span>
+                </div>
+                {request.lead_company && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">Company</span>
+                    <span className="text-xs font-medium text-foreground">{request.lead_company}</span>
+                  </div>
+                )}
+                {request.lead_role && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">Role</span>
+                    <span className="text-xs font-medium text-foreground">{request.lead_role}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
         
         {/* Listing Information */}
         <div className="space-y-3">
@@ -326,9 +360,12 @@ function ReactiveRequestCard({
                     </h3>
                   </BuyerProfileHoverCard>
                 ) : (
-                  <h3 className="font-semibold text-foreground">
-                    {(request as any).source_metadata?.lead_name || 'Lead Contact'}
-                  </h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-semibold text-foreground">
+                      {request.lead_name || (request as any).source_metadata?.lead_name || 'Lead Contact'}
+                    </h3>
+                    <Badge variant="outline" className="text-xs">Lead-Only</Badge>
+                  </div>
                 )}
                 <CleanTierDisplay user={request.user} />
                 <StatusBadge status={request.status} />
@@ -339,15 +376,15 @@ function ReactiveRequestCard({
                    <Mail className="h-3 w-3" />
                    <div className="flex items-center gap-2">
                      <a 
-                       href={`mailto:${request.user?.email}`}
+                       href={`mailto:${request.user?.email || request.lead_email}`}
                        target="_blank"
                        rel="noopener noreferrer"
                        className="hover:text-primary transition-colors flex items-center gap-1 group"
                      >
-                       {request.user?.email}
+                       {request.user?.email || request.lead_email}
                        <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
                      </a>
-                     {request.user?.website && (
+                     {(request.user?.website || request.lead_company) && (
                        <span className="text-muted-foreground/60">•</span>
                      )}
                      {request.user?.website && (
@@ -359,6 +396,11 @@ function ReactiveRequestCard({
                         >
                           {request.user?.company || 'Company'}
                         </a>
+                     )}
+                     {!request.user?.website && request.lead_company && (
+                       <span className="text-xs text-muted-foreground">
+                         {request.lead_company}
+                       </span>
                      )}
                    </div>
                  </div>
@@ -388,18 +430,16 @@ function ReactiveRequestCard({
             </div>
           </div>
 
-          {/* Status Indicators */}
-          {request.user && (
-            <StatusIndicatorRow 
-              user={request.user} 
-              followedUp={request.followed_up || false} 
-              negativeFollowedUp={request.negative_followed_up || false}
-              followedUpByAdmin={request.followedUpByAdmin}
-              negativeFollowedUpByAdmin={request.negativeFollowedUpByAdmin}
-              followedUpAt={request.followed_up_at}
-              negativeFollowedUpAt={request.negative_followed_up_at}
-            />
-          )}
+          {/* Status Indicators - show for both user and lead-only requests */}
+          <StatusIndicatorRow 
+            user={request.user} 
+            followedUp={request.followed_up || false} 
+            negativeFollowedUp={request.negative_followed_up || false}
+            followedUpByAdmin={request.followedUpByAdmin}
+            negativeFollowedUpByAdmin={request.negativeFollowedUpByAdmin}
+            followedUpAt={request.followed_up_at}
+            negativeFollowedUpAt={request.negative_followed_up_at}
+          />
 
           {/* Expanded Content */}
           {isExpanded && (

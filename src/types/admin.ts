@@ -109,6 +109,11 @@ export interface AdminConnectionRequest {
   source_metadata?: Record<string, any>;
   converted_by?: string;
   converted_at?: string;
+  // Lead-only request fields (when user_id is null)
+  lead_email?: string;
+  lead_name?: string;
+  lead_company?: string;
+  lead_role?: string;
   created_at: string;
   updated_at: string;
   decision_at?: string;
