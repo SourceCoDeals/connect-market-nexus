@@ -11,7 +11,7 @@ export interface InboundLead {
   phone_number?: string;
   role?: string;
   message?: string;
-  source: 'webflow' | 'manual';
+  source: 'webflow' | 'manual' | 'referral' | 'cold_outreach' | 'networking' | 'linkedin' | 'email' | 'website';
   source_form_name?: string;
   mapped_to_listing_id?: string;
   mapped_to_listing_title?: string;
@@ -307,38 +307,104 @@ export function useMapLeadToListing() {
 }
 
 // Mutation hook for converting lead to connection request
+// Mutation hook for converting lead to connection request
 export function useConvertLeadToRequest() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (leadId: string) => {
-      // First get the lead data
+      console.group('[ConvertLeadToRequest] Start');
+      console.debug('[ConvertLeadToRequest] leadId:', leadId);
+
+      // Fetch lead
       const { data: lead, error: leadError } = await sb
         .from('inbound_leads')
         .select('*')
         .eq('id', leadId)
-        .single();
+        .maybeSingle();
 
-      if (leadError || !lead) throw leadError || new Error('Lead not found');
+      if (leadError || !lead) {
+        console.error('[ConvertLeadToRequest] Lead fetch error:', leadError);
+        throw leadError || new Error('Lead not found');
+      }
 
       if (!lead.mapped_to_listing_id) {
+        console.warn('[ConvertLeadToRequest] Lead not mapped to listing');
         throw new Error('Lead must be mapped to a listing before conversion');
       }
 
-      // Get current admin user ID
+      // Get admin user
       const { data: { user: adminUser }, error: adminAuthError } = await sb.auth.getUser();
-      if (adminAuthError || !adminUser) throw new Error('Authentication required for conversion');
+      if (adminAuthError || !adminUser) {
+        console.error('[ConvertLeadToRequest] Auth error:', adminAuthError);
+        throw new Error('Authentication required for conversion');
+      }
 
-      // Create connection request WITHOUT creating a user profile
-      // Store lead contact information directly in the connection request
+      // Resolve user_id: existing profile by email, else create a lightweight user via edge function
+      let resolvedUserId: string | null = null;
+
+      const { data: existingProfile, error: profileErr } = await sb
+        .from('profiles')
+        .select('id, email')
+        .eq('email', lead.email)
+        .maybeSingle();
+
+      if (profileErr) {
+        console.error('[ConvertLeadToRequest] Profile lookup error:', profileErr);
+        throw profileErr;
+      }
+
+      if (existingProfile?.id) {
+        resolvedUserId = existingProfile.id;
+        console.info('[ConvertLeadToRequest] Matched existing user profile for email', lead.email, '->', resolvedUserId);
+      } else {
+        // Parse name
+        const nameParts = (lead.name || '').trim().split(' ').filter(Boolean);
+        const firstName = nameParts[0] || lead.name || 'Lead';
+        const lastName = nameParts.slice(1).join(' ') || '-';
+
+        // Simple role->buyerType mapping
+        const roleLower = (lead.role || '').toLowerCase();
+        const buyerType = roleLower.includes('private') ? 'private_equity'
+          : roleLower.includes('family') ? 'family_office'
+          : roleLower.includes('corporate') ? 'corporate'
+          : 'individual';
+
+        console.info('[ConvertLeadToRequest] Creating lightweight user for lead:', lead.email);
+        const { data: createdUser, error: createUserErr } = await sb.functions.invoke('create-lead-user', {
+          body: {
+            email: lead.email,
+            firstName,
+            lastName,
+            company: lead.company_name || '',
+            phoneNumber: lead.phone_number || '',
+            buyerType,
+          },
+        });
+
+        if (createUserErr) {
+          console.error('[ConvertLeadToRequest] create-lead-user error:', createUserErr);
+          throw new Error(createUserErr.message || 'Failed to create user for lead');
+        }
+
+        resolvedUserId = createdUser?.userId;
+        if (!resolvedUserId) {
+          console.error('[ConvertLeadToRequest] No userId returned from create-lead-user');
+          throw new Error('User creation did not return an ID');
+        }
+        console.info('[ConvertLeadToRequest] Created user:', resolvedUserId);
+      }
+
+      // Insert connection request with correct source attribution and linkage
+      const sourceValue = lead.source || 'manual';
       const { data: connectionRequest, error: requestError } = await sb
         .from('connection_requests')
         .insert([{
-          user_id: null, // No user profile - this is a lead request
+          user_id: resolvedUserId,
           listing_id: lead.mapped_to_listing_id,
           user_message: lead.message || 'Converted from inbound lead',
           status: 'pending',
-          source: lead.source || 'manual',
+          source: sourceValue,
           source_lead_id: leadId,
           source_metadata: {
             lead_name: lead.name,
@@ -349,7 +415,8 @@ export function useConvertLeadToRequest() {
             original_message: lead.message,
             priority_score: lead.priority_score,
             form_name: lead.source_form_name,
-            converted_from_lead: true
+            converted_from_lead: true,
+            created_user_for_lead: !existingProfile?.id,
           },
           converted_by: adminUser.id,
           converted_at: new Date().toISOString(),
@@ -357,7 +424,10 @@ export function useConvertLeadToRequest() {
         .select('id')
         .single();
 
-      if (requestError) throw requestError;
+      if (requestError) {
+        console.error('[ConvertLeadToRequest] Request insert error:', requestError);
+        throw requestError;
+      }
 
       // Update lead status
       const { error: updateError } = await sb
@@ -370,24 +440,28 @@ export function useConvertLeadToRequest() {
         })
         .eq('id', leadId);
 
-      if (updateError) throw updateError;
+      if (updateError) {
+        console.error('[ConvertLeadToRequest] Lead update error:', updateError);
+        throw updateError;
+      }
 
+      console.groupEnd();
       return connectionRequest;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['inbound-leads'] });
       queryClient.invalidateQueries({ queryKey: ['connection-requests'] });
       toast({
-        title: "Lead converted",
-        description: "Lead has been successfully converted to a connection request",
+        title: 'Lead converted',
+        description: 'Lead has been successfully converted to a connection request',
       });
     },
     onError: (error) => {
-      console.error('Error converting lead to request:', error);
+      console.error('[ConvertLeadToRequest] Error:', error);
       toast({
-        variant: "destructive",
-        title: "Failed to convert lead",
-        description: error.message || "Could not convert the lead to connection request",
+        variant: 'destructive',
+        title: 'Failed to convert lead',
+        description: (error as any)?.message || 'Could not convert the lead to connection request',
       });
     },
   });
