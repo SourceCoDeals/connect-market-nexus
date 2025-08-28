@@ -11,6 +11,7 @@ import { MarketIntelligenceTab } from "@/components/admin/MarketIntelligenceTab"
 import { PredictiveIntelligenceTab } from "@/components/admin/PredictiveIntelligenceTab";
 import { AutomatedIntelligenceTab } from "@/components/admin/AutomatedIntelligenceTab";
 import { RevenueOptimizationTab } from "@/components/admin/RevenueOptimizationTab";
+import { ProjectManagementTab } from "@/components/admin/ProjectManagementTab";
 
 const AdminDashboard = () => {
   return (
@@ -26,7 +27,7 @@ const AdminDashboard = () => {
         </div>
 
         <Tabs defaultValue="overview" className="space-y-4 md:space-y-6">
-          <TabsList className="grid w-full grid-cols-3 lg:grid-cols-9 text-xs">
+          <TabsList className="grid w-full grid-cols-3 lg:grid-cols-10 text-xs">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="analytics">Analytics</TabsTrigger>
             <TabsTrigger value="activity">Activity</TabsTrigger>
@@ -36,6 +37,7 @@ const AdminDashboard = () => {
             <TabsTrigger value="automation">Automation</TabsTrigger>
             <TabsTrigger value="revenue">Revenue</TabsTrigger>
             <TabsTrigger value="management">Management</TabsTrigger>
+            <TabsTrigger value="project">Project Mgmt</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview">
@@ -72,6 +74,10 @@ const AdminDashboard = () => {
 
           <TabsContent value="management">
             <StreamlinedManagementTab />
+          </TabsContent>
+
+          <TabsContent value="project">
+            <ProjectManagementTab />
           </TabsContent>
         </Tabs>
       </div>
