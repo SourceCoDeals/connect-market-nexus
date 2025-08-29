@@ -31,7 +31,7 @@ export default function AdminPipeline() {
   return (
     <div className="min-h-screen flex flex-col">
       {/* HubSpot-style Header */}
-      <div className="bg-background border-b border-border/30 px-6 py-4 pr-8">
+      <div className="bg-background border-b border-border/30 px-6 py-4">
         <div className="flex items-center justify-between gap-6">
           {/* Left: Title + View Tabs */}
           <div className="flex items-center gap-6">

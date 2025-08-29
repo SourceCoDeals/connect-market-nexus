@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import {
   DndContext,
@@ -199,7 +198,12 @@ export function EnhancedDealsKanbanBoard({ onCreateDeal, onManageStages, onDealC
           onDragEnd={handleDragEnd}
         >
           <div className="h-full overflow-x-auto overflow-y-hidden">
-            <div className="h-full flex gap-4 p-4 pr-8" style={{ width: `${stageMetrics.length * 320 + 32}px` }}>
+            <div 
+              className="h-full flex gap-4 p-4 min-w-max"
+              style={{ 
+                minWidth: `${stageMetrics.length * 320}px`
+              }}
+            >
               {stageMetrics.map((stage) => (
                 <DealKanbanColumn
                   key={stage.id}
