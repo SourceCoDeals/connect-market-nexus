@@ -31,7 +31,7 @@ export function DealKanbanColumn({ stage, deals, onDealClick }: DealKanbanColumn
   };
 
   return (
-    <div className="min-w-64 w-80 max-w-80">
+    <div className="flex-shrink-0 w-80">
       <Card className="h-full flex flex-col border-border/20 bg-card/40 backdrop-blur-sm shadow-sm hover:shadow-md transition-all duration-200">
         <CardHeader className="pb-3 flex-shrink-0 space-y-3">
           <div className="flex items-center justify-between">
