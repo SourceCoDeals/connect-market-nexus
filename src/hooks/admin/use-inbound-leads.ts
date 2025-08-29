@@ -21,8 +21,11 @@ export interface InboundLead {
   converted_at?: string;
   status: 'pending' | 'mapped' | 'converted' | 'archived';
   priority_score: number;
+  is_duplicate?: boolean;
+  duplicate_info?: string;
   created_at: string;
   updated_at: string;
+  converted_by?: string;
 }
 
 export interface CreateInboundLeadData {

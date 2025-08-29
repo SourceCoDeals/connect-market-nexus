@@ -17,7 +17,8 @@ import {
   Check,
   X,
   Plus,
-  Upload
+  Upload,
+  AlertTriangle
 } from "lucide-react";
 import { InboundLead, useCreateInboundLead, useMapLeadToListing, DuplicateCheckResult } from "@/hooks/admin/use-inbound-leads";
 import { toast } from "@/hooks/use-toast";
@@ -230,6 +231,17 @@ const LeadCard = ({
                   </p>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Duplicate Warning */}
+          {lead.is_duplicate && lead.duplicate_info && (
+            <div className="bg-warning/10 border border-warning/20 rounded-md p-3">
+              <div className="flex items-center gap-2 text-xs">
+                <AlertTriangle className="h-3 w-3 text-warning" />
+                <span className="text-warning font-medium">Duplicate Warning:</span>
+                <span className="text-foreground">{lead.duplicate_info}</span>
+              </div>
             </div>
           )}
 

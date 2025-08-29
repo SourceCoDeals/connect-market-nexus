@@ -704,8 +704,10 @@ export type Database = {
           converted_by: string | null
           converted_to_request_id: string | null
           created_at: string
+          duplicate_info: string | null
           email: string
           id: string
+          is_duplicate: boolean | null
           mapped_at: string | null
           mapped_by: string | null
           mapped_to_listing_id: string | null
@@ -726,8 +728,10 @@ export type Database = {
           converted_by?: string | null
           converted_to_request_id?: string | null
           created_at?: string
+          duplicate_info?: string | null
           email: string
           id?: string
+          is_duplicate?: boolean | null
           mapped_at?: string | null
           mapped_by?: string | null
           mapped_to_listing_id?: string | null
@@ -748,8 +752,10 @@ export type Database = {
           converted_by?: string | null
           converted_to_request_id?: string | null
           created_at?: string
+          duplicate_info?: string | null
           email?: string
           id?: string
+          is_duplicate?: boolean | null
           mapped_at?: string | null
           mapped_by?: string | null
           mapped_to_listing_id?: string | null
