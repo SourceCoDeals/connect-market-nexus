@@ -23,7 +23,7 @@ export function PipelineWorkspace({ pipeline }: PipelineWorkspaceProps) {
   };
   
   return (
-    <div className="flex-1 overflow-hidden bg-background">
+    <div className="h-full overflow-hidden bg-background">
       {renderView()}
     </div>
   );

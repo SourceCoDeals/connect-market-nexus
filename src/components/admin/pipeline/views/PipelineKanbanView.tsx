@@ -95,7 +95,7 @@ export function PipelineKanbanView({ pipeline }: PipelineKanbanViewProps) {
         onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
       >
-        <div className="flex-1 relative min-h-0">
+        <div className="flex-1 relative overflow-hidden">
           {/* Mobile: Horizontal scroll navigation */}
           <div className="md:hidden absolute top-2 right-2 z-20 flex gap-1 bg-background/95 backdrop-blur-sm rounded-lg p-1 shadow-lg">
             <Button
@@ -119,7 +119,7 @@ export function PipelineKanbanView({ pipeline }: PipelineKanbanViewProps) {
           {/* Kanban Container */}
           <div 
             id="kanban-scroll-container"
-            className="h-full overflow-x-auto overflow-y-hidden touch-pan-x"
+            className="absolute inset-0 overflow-x-auto overflow-y-hidden touch-pan-x"
             style={{ 
               WebkitOverflowScrolling: 'touch',
               scrollbarWidth: 'none',
@@ -127,9 +127,10 @@ export function PipelineKanbanView({ pipeline }: PipelineKanbanViewProps) {
             }}
           >
             <div 
-              className="flex gap-2 sm:gap-3 lg:gap-4 p-2 sm:p-3 lg:p-4 h-full min-w-full"
+              className="flex gap-2 sm:gap-3 lg:gap-4 p-2 sm:p-3 lg:p-4 min-w-full"
               style={{ 
-                width: 'max-content'
+                width: 'max-content',
+                height: '100%'
               }}
             >
               {pipeline.stageMetrics.map((stage) => (
