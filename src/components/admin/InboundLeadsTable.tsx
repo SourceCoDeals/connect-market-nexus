@@ -145,6 +145,12 @@ export const InboundLeadsTable = ({
 
   // Filter leads based on search and filters
   const filteredLeads = leads.filter((lead) => {
+    // Hide archived leads from main view unless specifically filtered for them
+    const showArchived = statusFilter === "archived";
+    if (lead.status === "archived" && !showArchived) {
+      return false;
+    }
+    
     const matchesSearch = searchTerm === "" || 
       lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       lead.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -426,7 +432,7 @@ export const InboundLeadsTable = ({
       {filteredLeads.length === 0 ? (
         <InboundLeadsTableEmpty />
       ) : (
-        <div className="grid gap-3">
+        <div className="space-y-4">
           {isSelectMode && (
             <div className="flex items-center gap-2 text-sm">
               <button
@@ -441,18 +447,21 @@ export const InboundLeadsTable = ({
             </div>
           )}
           
-          {filteredLeads.map((lead) => (
-            <CompactLeadCard
-              key={lead.id}
-              lead={lead}
-              isSelected={selectedLeadIds.has(lead.id)}
-              onSelectionChange={handleSelectionChange}
-              onMapToListing={handleMapToListing}
-              onConvertToRequest={onConvertToRequest}
-              onArchive={onArchive}
-              showCheckbox={isSelectMode}
-            />
-          ))}
+          {/* 2-3 Column Grid Layout */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3">
+            {filteredLeads.map((lead) => (
+              <CompactLeadCard
+                key={lead.id}
+                lead={lead}
+                isSelected={selectedLeadIds.has(lead.id)}
+                onSelectionChange={handleSelectionChange}
+                onMapToListing={handleMapToListing}
+                onConvertToRequest={onConvertToRequest}
+                onArchive={onArchive}
+                showCheckbox={isSelectMode}
+              />
+            ))}
+          </div>
         </div>
       )}
 
