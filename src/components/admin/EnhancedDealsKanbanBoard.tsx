@@ -172,23 +172,31 @@ export function EnhancedDealsKanbanBoard({ onCreateDeal, onManageStages, onDealC
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header Actions */}
-      <div className="flex items-center justify-between">
-        <div className="flex gap-2">
-          <Button onClick={onCreateDeal} className="gap-2">
-            <Plus className="h-4 w-4" />
-            Create Deal
-          </Button>
-          <Button variant="outline" onClick={onManageStages} className="gap-2">
-            <Settings className="h-4 w-4" />
-            Manage Stages
-          </Button>
+    <div className="flex flex-col h-full">
+      {/* Header with Actions and Filters */}
+      <div className="px-6 py-4 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <Button onClick={onCreateDeal} size="sm" className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-medium">
+              <Plus className="h-4 w-4" />
+              Create deal
+            </Button>
+            <Button 
+              variant="outline" 
+              onClick={onManageStages} 
+              size="sm"
+              className="gap-2 border-input bg-background hover:bg-accent hover:text-accent-foreground"
+            >
+              <Settings className="h-4 w-4" />
+              Manage stages
+            </Button>
+          </div>
+          <div className="text-sm text-muted-foreground font-medium">
+            {overallMetrics.totalDeals} deals • {formatCurrency(overallMetrics.totalValue)}
+          </div>
         </div>
-      </div>
 
-      {/* Filters */}
-      <div>
+        {/* Filters */}
         <DealFilters
           deals={deals || []}
           searchQuery={searchQuery}
@@ -208,89 +216,37 @@ export function EnhancedDealsKanbanBoard({ onCreateDeal, onManageStages, onDealC
         />
       </div>
 
-      {/* Pipeline Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Deals</CardTitle>
-            <Target className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{overallMetrics.totalDeals}</div>
-            {deals && deals.length !== overallMetrics.totalDeals && (
-              <p className="text-xs text-muted-foreground">
-                of {deals.length} total
-              </p>
-            )}
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Value</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {formatCurrency(overallMetrics.totalValue)}
+      {/* Kanban Board - Full Screen */}
+      <div className="flex-1 overflow-hidden">
+        <DndContext
+          sensors={sensors}
+          onDragStart={handleDragStart}
+          onDragOver={handleDragOver}
+          onDragEnd={handleDragEnd}
+        >
+          <div className="h-full overflow-x-auto">
+            <div className="flex gap-4 p-4 h-full" style={{ minHeight: 'calc(100vh - 200px)' }}>
+              {stageMetrics.map((stage) => (
+                <DealKanbanColumn
+                  key={stage.id}
+                  stage={stage}
+                  deals={dealsByStage[stage.id] || []}
+                  onDealClick={onDealClick}
+                />
+              ))}
             </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Avg Probability</CardTitle>
-            <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {Math.round(overallMetrics.avgProbability)}%
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending Tasks</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {overallMetrics.pendingTasks}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Kanban Board */}
-      <DndContext
-        sensors={sensors}
-        onDragStart={handleDragStart}
-        onDragOver={handleDragOver}
-        onDragEnd={handleDragEnd}
-      >
-        <div className="overflow-x-auto border rounded-lg">
-          <div className="flex gap-6 p-4" style={{ minHeight: '600px' }}>
-            {stageMetrics.map((stage) => (
-              <DealKanbanColumn
-                key={stage.id}
-                stage={stage}
-                deals={dealsByStage[stage.id] || []}
-                onDealClick={onDealClick}
-              />
-            ))}
           </div>
-        </div>
 
-        <DragOverlay>
-          {activeId ? (
-            <EnhancedDealKanbanCard 
-              deal={filteredAndSortedDeals?.find(d => d.deal_id === activeId)!} 
-              isDragging 
-            />
-          ) : null}
-        </DragOverlay>
-      </DndContext>
+          <DragOverlay>
+            {activeId ? (
+              <EnhancedDealKanbanCard 
+                deal={filteredAndSortedDeals?.find(d => d.deal_id === activeId)!} 
+                isDragging 
+              />
+            ) : null}
+          </DragOverlay>
+        </DndContext>
+      </div>
     </div>
   );
 }
