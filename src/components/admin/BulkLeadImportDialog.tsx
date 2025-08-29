@@ -31,9 +31,15 @@ export const BulkLeadImportDialog = ({
   const [parsedLeads, setParsedLeads] = useState<ParsedLead[]>([]);
   const [parseErrors, setParseErrors] = useState<string[]>([]);
 
-  const sampleCSV = `Name,Email,Company,Phone,Role,Message
-John Smith,john@kinderhook.com,Kinderhook Partners,555-0123,Partner,Interested in SaaS opportunities
-Jane Doe,jane@bcpartners.com,BC Partners,555-0456,VP,Looking for healthcare deals`;
+  const sampleCSV = `Supported headers (flexible): Name, Email address, Company name, Phone number, Role, Message, Date
+Example (comma CSV):
+Name,Email address,Company name,Phone number,Role,Message
+John Smith,john@kinderhook.com,Kinderhook Partners,555-0123,Partner,"Interested in SaaS opportunities"
+
+Example (tab TSV with Date column):
+Date	Name	Email address	Company name	Phone number	Role	Message
+08/27/2025 9:37:24 pm	Paul Cifelli	pcifelli@kinderhook.com	Kinderhook Industries	12017451613	Private Equity	"Automotive, value added distribution, environmental services and healthcare services"`;
+
 
   const parseCSV = () => {
     if (!csvText.trim()) {
@@ -58,12 +64,12 @@ Jane Doe,jane@bcpartners.com,BC Partners,555-0456,VP,Looking for healthcare deal
       return headers.findIndex(h => variations.some(v => h.includes(v.toLowerCase())));
     };
 
-    const nameIndex = findColumn(['name']);
-    const emailIndex = findColumn(['email']);
-    const companyIndex = findColumn(['company']);
-    const phoneIndex = findColumn(['phone']);
-    const roleIndex = findColumn(['role']);
-    const messageIndex = findColumn(['message']);
+    const nameIndex = findColumn(['name','full name','contact name']);
+    const emailIndex = findColumn(['email address','email','e-mail']);
+    const companyIndex = findColumn(['company name','company','organization','organisation','firm','fund']);
+    const phoneIndex = findColumn(['phone number','phone','mobile','telephone','cell']);
+    const roleIndex = findColumn(['role','buyer type','buyer','type','investor type','buyer role']);
+    const messageIndex = findColumn(['message','notes','comment','comments','details','inquiry','note']);
 
     // Validate required columns
     if (nameIndex === -1) {
@@ -78,9 +84,32 @@ Jane Doe,jane@bcpartners.com,BC Partners,555-0456,VP,Looking for healthcare deal
       return;
     }
 
+    // Helper to split CSV/TSV respecting quotes
+    const splitCSVLine = (line: string, delimiter: string): string[] => {
+      if (delimiter === ',') {
+        const result: string[] = [];
+        let current = '';
+        let inQuotes = false;
+        for (let i = 0; i < line.length; i++) {
+          const char = line[i];
+          if (char === '"') {
+            inQuotes = !inQuotes;
+          } else if (char === delimiter && !inQuotes) {
+            result.push(current);
+            current = '';
+            continue;
+          }
+          current += char;
+        }
+        result.push(current);
+        return result.map(v => v.trim().replace(/^"|"$/g, ''));
+      }
+      return line.split('\t').map(v => v.trim().replace(/^"|"$/g, ''));
+    };
+
     // Parse data rows
     for (let i = 1; i < lines.length; i++) {
-      const values = lines[i].split(delimiter).map(v => v.trim().replace(/^"|"$/g, ''));
+      const values = splitCSVLine(lines[i], delimiter);
       const leadErrors: string[] = [];
       
       if (values.length !== headers.length) {
@@ -89,22 +118,22 @@ Jane Doe,jane@bcpartners.com,BC Partners,555-0456,VP,Looking for healthcare deal
       }
 
       const leadData: CreateInboundLeadData = {
-        name: nameIndex >= 0 ? values[nameIndex] || "" : "",
-        email: emailIndex >= 0 ? values[emailIndex] || "" : "",
-        company_name: companyIndex >= 0 ? values[companyIndex] || "" : "",
-        phone_number: phoneIndex >= 0 ? values[phoneIndex] || "" : "",
-        role: roleIndex >= 0 ? values[roleIndex] || "" : "",
-        message: messageIndex >= 0 ? values[messageIndex] || "" : "",
-        source: "manual",
-        source_form_name: "bulk_import",
+        name: nameIndex >= 0 ? values[nameIndex] || '' : '',
+        email: emailIndex >= 0 ? values[emailIndex] || '' : '',
+        company_name: companyIndex >= 0 ? values[companyIndex] || '' : '',
+        phone_number: phoneIndex >= 0 ? values[phoneIndex] || '' : '',
+        role: roleIndex >= 0 ? values[roleIndex] || '' : '',
+        message: messageIndex >= 0 ? values[messageIndex] || '' : '',
+        source: 'manual',
+        source_form_name: 'bulk_import',
       };
 
       // Validate required fields
       if (!leadData.name) {
-        leadErrors.push("Name is required");
+        leadErrors.push('Name is required');
       }
       if (!leadData.email || !leadData.email.includes('@')) {
-        leadErrors.push("Valid email is required");
+        leadErrors.push('Valid email is required');
       }
 
       leads.push({
@@ -152,11 +181,11 @@ Jane Doe,jane@bcpartners.com,BC Partners,555-0456,VP,Looking for healthcare deal
             <div>
               <Label htmlFor="csv-input">CSV Data</Label>
               <p className="text-xs text-muted-foreground mb-2">
-                Paste your CSV data with columns: Name, Email, Company, Phone, Role, Message
+                Paste CSV/TSV. Headers like Email address, Company name, Phone number, Role, Message, Date are supported.
               </p>
               <Textarea
                 id="csv-input"
-                placeholder="Name,Email,Company,Phone,Role,Message&#10;John Smith,john@example.com,..."
+                placeholder={`Date\tName\tEmail address\tCompany name\tPhone number\tRole\tMessage\n08/27/2025 9:37:24 pm\tJohn Smith\tjohn@example.com\tAcme Partners\t555-0123\tPrivate Equity\t"Interested in SaaS and services"`}
                 value={csvText}
                 onChange={(e) => setCsvText(e.target.value)}
                 className="min-h-[200px] font-mono text-xs"
@@ -227,8 +256,13 @@ Jane Doe,jane@bcpartners.com,BC Partners,555-0456,VP,Looking for healthcare deal
                       <div className="font-medium">
                         Row {lead.index}: {lead.data.name || 'No Name'} ({lead.data.email || 'No Email'})
                       </div>
-                      {lead.data.company_name && (
-                        <div className="text-muted-foreground">{lead.data.company_name}</div>
+                      <div className="text-muted-foreground">
+                        {lead.data.company_name && <span>{lead.data.company_name}</span>}
+                        {lead.data.role && <span>{lead.data.company_name ? ' • ' : ''}Role: {lead.data.role}</span>}
+                        {lead.data.phone_number && <span>{(lead.data.company_name || lead.data.role) ? ' • ' : ''}Phone: {lead.data.phone_number}</span>}
+                      </div>
+                      {lead.data.message && (
+                        <div className="text-muted-foreground mt-1 break-words">“{lead.data.message}”</div>
                       )}
                       {lead.errors.length > 0 && (
                         <div className="text-destructive mt-1">
