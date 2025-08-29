@@ -22,7 +22,6 @@ import { formatCurrency } from "@/lib/currency-utils";
 import ListingInfo from "@/components/listing-detail/ListingInfo";
 import ConnectionButton from "@/components/listing-detail/ConnectionButton";
 import BlurredFinancialTeaser from "@/components/listing-detail/BlurredFinancialTeaser";
-import { PremiumInvestmentCalculator } from "@/components/listing-detail/PremiumInvestmentCalculator";
 import { EnhancedInvestorDashboard } from "@/components/listing-detail/EnhancedInvestorDashboard";
 import { CustomSection } from "@/components/listing-detail/CustomSection";
 import { CreateDealAlertDialog } from "@/components/deal-alerts/CreateDealAlertDialog";
@@ -30,11 +29,6 @@ import { ExecutiveSummaryGenerator } from "@/components/listing-detail/Executive
 import { PersonalNotesWidget } from "@/components/listing-detail/PersonalNotesWidget";
 import { DealComparisonWidget } from "@/components/listing-detail/DealComparisonWidget";
 import { ListingBadges } from "@/components/listing-detail/ListingBadges";
-import { InvestmentThesisGenerator } from "@/components/listing-detail/InvestmentThesisGenerator";
-import { InvestmentFitScore } from "@/components/listing-detail/InvestmentFitScore";
-import { EnhancedInvestmentCalculator } from "@/components/listing-detail/EnhancedInvestmentCalculator";
-import { AdvancedComparisonMatrix } from "@/components/listing-detail/AdvancedComparisonMatrix";
-import { InteractiveCashFlowProjections } from "@/components/listing-detail/InteractiveCashFlowProjections";
 
 
 const ListingDetail = () => {
@@ -332,59 +326,6 @@ const ListingDetail = () => {
               />
             </div>
 
-            {/* Investment Calculator */}
-            <div className="document-section py-6">
-              <PremiumInvestmentCalculator 
-                revenue={listing.revenue} 
-                ebitda={listing.ebitda}
-                formatCurrency={formatCurrency}
-              />
-            </div>
-
-            {/* Investment Thesis Generator */}
-            <div className="document-section py-6">
-            <InvestmentThesisGenerator
-              revenue={listing.revenue}
-              ebitda={listing.ebitda}
-              category={listing.category}
-              location={listing.location}
-              description={listing.description}
-              formatCurrency={formatCurrency}
-            />
-            </div>
-
-            {/* Investment Fit Score */}
-            <div className="document-section py-6">
-              <InvestmentFitScore 
-                revenue={listing.revenue}
-                ebitda={listing.ebitda}
-                category={listing.category}
-                location={listing.location}
-              />
-            </div>
-
-            {/* Advanced Analysis Tools */}
-            <div className="document-section py-6">
-              <AdvancedComparisonMatrix
-                currentListingId={id!}
-                currentListing={{
-                  title: listing.title,
-                  revenue: listing.revenue,
-                  ebitda: listing.ebitda,
-                  location: listing.location,
-                  category: listing.category
-                }}
-                formatCurrency={formatCurrency}
-              />
-            </div>
-
-            <div className="document-section py-6">
-              <InteractiveCashFlowProjections
-                revenue={listing.revenue}
-                ebitda={listing.ebitda}
-                formatCurrency={formatCurrency}
-              />
-            </div>
 
 
             {isAdmin && listing.owner_notes && (
