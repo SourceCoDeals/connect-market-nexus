@@ -21,13 +21,17 @@ export const useRequestConnection = () => {
           throw new Error('A detailed message (minimum 20 characters) is required to request a connection');
         }
         
-        // Use the new RPC function to handle potential merging
-        const { data: requestId, error } = await supabase.rpc('merge_or_create_connection_request', {
+        // Use the enhanced RPC function to handle conflicts and merging
+        const { data: result, error } = await supabase.rpc('enhanced_merge_or_create_connection_request', {
           p_listing_id: listingId,
           p_user_message: message.trim()
         });
 
         if (error) throw error;
+        
+        // Parse the result
+        const parsedResult = typeof result === 'string' ? JSON.parse(result) : result;
+        const requestId = parsedResult.request_id;
         
         const userId = session.user.id;
         
@@ -96,17 +100,31 @@ export const useRequestConnection = () => {
           console.error('Failed to send notification:', notificationError);
         }
         
-        return { id: requestId };
+        return parsedResult;
       } catch (error: any) {
         console.error('Error requesting connection:', error);
         throw error;
       }
     },
-    onSuccess: () => {
-      toast({
-        title: 'Connection Requested',
-        description: 'Your connection request has been submitted for review.',
-      });
+    onSuccess: (data: any) => {
+      if (data.is_duplicate) {
+        if (data.duplicate_type === 'same_user_same_listing') {
+          toast({
+            title: 'Request Updated',
+            description: 'Your connection request has been updated with your new message. We\'ll review both versions.',
+          });
+        } else if (data.duplicate_type === 'channel_merge') {
+          toast({
+            title: 'Request Merged',
+            description: 'Your marketplace request has been combined with your previous inquiry. We\'ll review both messages.',
+          });
+        }
+      } else {
+        toast({
+          title: 'Connection Requested',
+          description: 'Your connection request has been submitted for review.',
+        });
+      }
       
       // PHASE 2: Use centralized cache invalidation
       invalidateConnectionRequests(queryClient);

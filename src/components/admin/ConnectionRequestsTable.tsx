@@ -44,6 +44,7 @@ import { AssociatedContactsDisplay } from './AssociatedContactsDisplay';
 import { getBuyerTier } from '@/lib/buyer-metrics';
 import { processUrl, extractDomainFromEmail, mapRoleToBuyerType, getLeadTierInfo } from '@/lib/url-utils';
 import { DuplicateChannelWarning } from './DuplicateChannelWarning';
+import { MessageConflictDisplay } from './MessageConflictDisplay';
 
 // Helper function to format listing display name (Title/Company Name)
 const formatListingForDisplay = (title: string, companyName?: string | null): string => {
@@ -324,8 +325,15 @@ const RequestDetails = ({ request }: { request: AdminConnectionRequest }) => {
         </div>
       </div>
 
-      {/* Buyer Message - Refined minimal treatment */}
-      {request.user_message && (
+      {/* Message Conflict Display - Enhanced to show both messages */}
+      <MessageConflictDisplay 
+        sourceMetadata={request.source_metadata}
+        currentMessage={request.user_message}
+        className="mb-4"
+      />
+
+      {/* Buyer Message - Only show if no conflicts detected */}
+      {request.user_message && !request.source_metadata?.has_duplicate_submission && !request.source_metadata?.is_channel_duplicate && (
         <div className="space-y-3">
           <div className="flex items-center gap-2 pb-1 border-b border-border/40">
             <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" />
@@ -391,7 +399,7 @@ function ReactiveRequestCard({
   };
 
   return (
-    <Card className={getCardClassName()}>
+    <Card className={getCardClassName()} data-request-id={request.id}>
       <CardContent className="p-6">
         <div className="space-y-4">
           {/* Header */}

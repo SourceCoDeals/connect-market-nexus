@@ -1787,9 +1787,32 @@ export type Database = {
         Args: { target_user_id: string }
         Returns: boolean
       }
+      enhanced_merge_or_create_connection_request: {
+        Args: {
+          p_lead_company?: string
+          p_lead_email?: string
+          p_lead_name?: string
+          p_lead_phone?: string
+          p_lead_role?: string
+          p_listing_id: string
+          p_user_message: string
+        }
+        Returns: Json
+      }
       generate_deal_identifier: {
         Args: Record<PropertyKey, never>
         Returns: string
+      }
+      get_connection_request_conflicts: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          conflict_details: Json
+          conflict_type: string
+          listing_title: string
+          needs_review: boolean
+          request_id: string
+          user_email: string
+        }[]
       }
       get_feedback_analytics: {
         Args: { days_back?: number }
