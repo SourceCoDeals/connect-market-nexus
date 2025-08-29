@@ -32,28 +32,30 @@ export function DealKanbanColumn({ stage, deals, onDealClick }: DealKanbanColumn
 
   return (
     <div className="flex-shrink-0 w-80">
-      <Card className="h-full flex flex-col">
-        <CardHeader className="pb-3 flex-shrink-0">
+      <Card className="h-full flex flex-col border-border/20 bg-card/40 backdrop-blur-sm shadow-sm hover:shadow-md transition-all duration-200">
+        <CardHeader className="pb-3 flex-shrink-0 space-y-3">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-3">
               <div 
-                className="w-3 h-3 rounded-full" 
+                className="w-3 h-3 rounded-full shadow-sm" 
                 style={{ backgroundColor: stage.color }}
               />
-              {stage.name}
+              <span className="tracking-tight">{stage.name}</span>
             </CardTitle>
-            <Badge variant="outline">{stage.dealCount}</Badge>
+            <Badge variant="secondary" className="bg-muted/60 text-muted-foreground font-medium px-2.5 py-1">
+              {stage.dealCount}
+            </Badge>
           </div>
           
           {stage.dealCount > 0 && (
-            <div className="space-y-1 text-xs text-muted-foreground">
-              <div className="flex justify-between">
-                <span>Value:</span>
-                <span className="font-medium">{formatCurrency(stage.totalValue)}</span>
+            <div className="grid grid-cols-2 gap-3 text-xs">
+              <div className="bg-background/60 rounded-md p-2 border border-border/30">
+                <div className="text-muted-foreground font-medium uppercase tracking-wider">Value</div>
+                <div className="font-semibold text-foreground mt-1">{formatCurrency(stage.totalValue)}</div>
               </div>
-              <div className="flex justify-between">
-                <span>Avg Probability:</span>
-                <span className="font-medium">{Math.round(stage.avgProbability)}%</span>
+              <div className="bg-background/60 rounded-md p-2 border border-border/30">
+                <div className="text-muted-foreground font-medium uppercase tracking-wider">Avg Prob</div>
+                <div className="font-semibold text-foreground mt-1">{Math.round(stage.avgProbability)}%</div>
               </div>
             </div>
           )}
@@ -78,8 +80,9 @@ export function DealKanbanColumn({ stage, deals, onDealClick }: DealKanbanColumn
             </SortableContext>
             
             {deals.length === 0 && (
-              <div className="flex items-center justify-center h-32 text-muted-foreground text-sm">
-                No deals in this stage
+              <div className="flex flex-col items-center justify-center h-32 text-muted-foreground text-sm">
+                <div className="opacity-75">No deals in this stage</div>
+                <div className="text-xs mt-1 opacity-50">Deals will appear here when moved to this stage</div>
               </div>
             )}
           </div>
