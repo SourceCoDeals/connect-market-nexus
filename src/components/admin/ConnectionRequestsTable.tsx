@@ -265,8 +265,16 @@ const RequestDetails = ({ request }: { request: AdminConnectionRequest }) => {
                 )}
                 {request.lead_phone && (
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-muted-foreground">Phone</span>
-                    <span className="text-xs font-medium text-foreground">{request.lead_phone}</span>
+                    <span className="text-xs text-muted-foreground flex items-center gap-1">
+                      <Phone className="h-3 w-3" />
+                      Phone
+                    </span>
+                    <a 
+                      href={`tel:${request.lead_phone}`}
+                      className="text-xs font-medium text-primary hover:text-primary/80 transition-colors"
+                    >
+                      {request.lead_phone}
+                    </a>
                   </div>
                 )}
               </div>
