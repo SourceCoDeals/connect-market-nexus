@@ -173,25 +173,29 @@ export function EnhancedDealsKanbanBoard({ onCreateDeal, onManageStages, onDealC
 
   return (
     <div className="flex flex-col h-full">
-      {/* Header with Actions and Filters */}
-      <div className="px-6 py-4 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      {/* Clean Header with Actions */}
+      <div className="px-6 py-4 border-b border-neutral-200 bg-white">
         <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <Button onClick={onCreateDeal} size="sm" className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-medium">
+          <div className="flex items-center gap-2">
+            <Button 
+              onClick={onCreateDeal} 
+              size="default" 
+              className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-medium shadow-sm"
+            >
               <Plus className="h-4 w-4" />
-              Create deal
+              Create Deal
             </Button>
             <Button 
               variant="outline" 
               onClick={onManageStages} 
-              size="sm"
-              className="gap-2 border-input bg-background hover:bg-accent hover:text-accent-foreground"
+              size="default"
+              className="gap-2 font-medium"
             >
               <Settings className="h-4 w-4" />
-              Manage stages
+              Manage Stages
             </Button>
           </div>
-          <div className="text-sm text-muted-foreground font-medium">
+          <div className="text-sm text-neutral-600 font-medium">
             {overallMetrics.totalDeals} deals • {formatCurrency(overallMetrics.totalValue)}
           </div>
         </div>
