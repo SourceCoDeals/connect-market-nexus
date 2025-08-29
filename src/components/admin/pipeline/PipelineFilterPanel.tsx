@@ -75,31 +75,31 @@ export function PipelineFilterPanel({ pipeline }: PipelineFilterPanelProps) {
         <Label className="text-sm font-medium">Quick Filters</Label>
         <div className="flex flex-wrap gap-2">
           <Button
-            variant={pipeline.statusFilter === 'hot' ? 'default' : 'outline'}
+            variant={pipeline.statusFilter === 'due_diligence' ? 'default' : 'outline'}
             size="sm"
-            onClick={() => pipeline.setStatusFilter(pipeline.statusFilter === 'hot' ? 'all' : 'hot')}
+            onClick={() => pipeline.setStatusFilter(pipeline.statusFilter === 'due_diligence' ? 'all' : 'due_diligence')}
             className="h-8"
           >
             <Target className="h-3 w-3 mr-2" />
-            Hot Deals
+            Due Diligence
           </Button>
           <Button
-            variant={pipeline.documentStatusFilter === 'overdue' ? 'default' : 'outline'}
+            variant={pipeline.documentStatusFilter === 'overdue_followup' ? 'default' : 'outline'}
             size="sm"
-            onClick={() => pipeline.setDocumentStatusFilter(pipeline.documentStatusFilter === 'overdue' ? 'all' : 'overdue')}
+            onClick={() => pipeline.setDocumentStatusFilter(pipeline.documentStatusFilter === 'overdue_followup' ? 'all' : 'overdue_followup')}
             className="h-8"
           >
             <Calendar className="h-3 w-3 mr-2" />
-            Overdue
+            Overdue Follow-up
           </Button>
           <Button
-            variant={pipeline.statusFilter === 'closing-soon' ? 'default' : 'outline'}
+            variant={pipeline.statusFilter === 'under_contract' ? 'default' : 'outline'}
             size="sm"
-            onClick={() => pipeline.setStatusFilter(pipeline.statusFilter === 'closing-soon' ? 'all' : 'closing-soon')}
+            onClick={() => pipeline.setStatusFilter(pipeline.statusFilter === 'under_contract' ? 'all' : 'under_contract')}
             className="h-8"
           >
             <Calendar className="h-3 w-3 mr-2" />
-            Closing Soon
+            Under Contract
           </Button>
         </div>
       </div>
@@ -115,17 +115,11 @@ export function PipelineFilterPanel({ pipeline }: PipelineFilterPanelProps) {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Stages</SelectItem>
-            {pipeline.stages.map((stage) => (
-              <SelectItem key={stage.id} value={stage.id}>
-                <div className="flex items-center gap-2">
-                  <div 
-                    className="w-3 h-3 rounded-full"
-                    style={{ backgroundColor: stage.color }}
-                  />
-                  {stage.name}
-                </div>
-              </SelectItem>
-            ))}
+            <SelectItem value="new_inquiry">New Inquiry</SelectItem>
+            <SelectItem value="qualified">Qualified</SelectItem>
+            <SelectItem value="due_diligence">Due Diligence</SelectItem>
+            <SelectItem value="under_contract">Under Contract</SelectItem>
+            <SelectItem value="closed">Closed</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -154,7 +148,7 @@ export function PipelineFilterPanel({ pipeline }: PipelineFilterPanelProps) {
       {/* Assigned Admin Filter */}
       <div className="space-y-2">
         <Label className="text-sm font-medium">Assigned To</Label>
-        <Select value={pipeline.adminFilter} onValueChange={pipeline.setAdminFilter}>
+        <Select value={pipeline.adminFilter} onValueChange={(value: any) => pipeline.setAdminFilter(value)}>
           <SelectTrigger>
             <SelectValue placeholder="Select admin" />
           </SelectTrigger>
@@ -174,17 +168,17 @@ export function PipelineFilterPanel({ pipeline }: PipelineFilterPanelProps) {
       {/* Document Status Filter */}
       <div className="space-y-2">
         <Label className="text-sm font-medium">Document Status</Label>
-        <Select value={pipeline.documentStatusFilter} onValueChange={pipeline.setDocumentStatusFilter}>
+        <Select value={pipeline.documentStatusFilter} onValueChange={(value: any) => pipeline.setDocumentStatusFilter(value)}>
           <SelectTrigger>
             <SelectValue placeholder="Select status" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Statuses</SelectItem>
-            <SelectItem value="nda-pending">NDA Pending</SelectItem>
-            <SelectItem value="nda-signed">NDA Signed</SelectItem>
-            <SelectItem value="fee-pending">Fee Agreement Pending</SelectItem>
-            <SelectItem value="fee-signed">Fee Agreement Signed</SelectItem>
-            <SelectItem value="documents-complete">Documents Complete</SelectItem>
+            <SelectItem value="nda_signed">NDA Signed</SelectItem>
+            <SelectItem value="fee_signed">Fee Agreement Signed</SelectItem>
+            <SelectItem value="both_signed">Both Documents Signed</SelectItem>
+            <SelectItem value="none_signed">No Documents Signed</SelectItem>
+            <SelectItem value="overdue_followup">Overdue Follow-up</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -194,19 +188,17 @@ export function PipelineFilterPanel({ pipeline }: PipelineFilterPanelProps) {
       {/* Sort Options */}
       <div className="space-y-2">
         <Label className="text-sm font-medium">Sort By</Label>
-        <Select value={pipeline.sortOption} onValueChange={pipeline.setSortOption}>
+        <Select value={pipeline.sortOption} onValueChange={(value: any) => pipeline.setSortOption(value)}>
           <SelectTrigger>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="newest">Newest First</SelectItem>
             <SelectItem value="oldest">Oldest First</SelectItem>
-            <SelectItem value="value-high">Highest Value</SelectItem>
-            <SelectItem value="value-low">Lowest Value</SelectItem>
-            <SelectItem value="probability-high">Highest Probability</SelectItem>
-            <SelectItem value="probability-low">Lowest Probability</SelectItem>
-            <SelectItem value="close-date">Expected Close Date</SelectItem>
-            <SelectItem value="stage-time">Days in Stage</SelectItem>
+            <SelectItem value="priority">Highest Priority</SelectItem>
+            <SelectItem value="value">Highest Value</SelectItem>
+            <SelectItem value="probability">Highest Probability</SelectItem>
+            <SelectItem value="stage_entered">Recently Entered Stage</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -239,7 +231,7 @@ export function PipelineFilterPanel({ pipeline }: PipelineFilterPanelProps) {
             )}
             {pipeline.statusFilter !== 'all' && (
               <Badge variant="secondary" className="text-xs">
-                Stage: {pipeline.statusFilter}
+                Stage: {pipeline.statusFilter.replace('_', ' ')}
                 <X 
                   className="h-3 w-3 ml-1 cursor-pointer" 
                   onClick={() => pipeline.setStatusFilter('all')}
@@ -266,7 +258,7 @@ export function PipelineFilterPanel({ pipeline }: PipelineFilterPanelProps) {
             )}
             {pipeline.documentStatusFilter !== 'all' && (
               <Badge variant="secondary" className="text-xs">
-                Doc: {pipeline.documentStatusFilter}
+                Doc: {pipeline.documentStatusFilter.replace('_', ' ')}
                 <X 
                   className="h-3 w-3 ml-1 cursor-pointer" 
                   onClick={() => pipeline.setDocumentStatusFilter('all')}
