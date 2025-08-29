@@ -105,121 +105,122 @@ export function PipelineFilters({
   ] as const;
 
   return (
-    <div className="bg-white border border-gray-200 rounded-xl shadow-sm">
-      {/* Main Filter Row */}
-      <div className="flex items-center justify-between p-6">
-        {/* Status Filter Tabs */}
-        <div className="flex items-center bg-gray-50 rounded-lg p-1">
-          {statusOptions.map((option) => {
-            const isActive = statusFilter === option.value;
-            const StatusIcon = option.icon;
-            
-            return (
-              <button
-                key={option.value}
-                onClick={() => onStatusFilterChange(option.value as StatusFilter)}
-                className={`
-                  flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all duration-200
-                  ${isActive 
-                    ? "bg-white text-gray-900 shadow-sm" 
-                    : "text-gray-600 hover:text-gray-900 hover:bg-white/50"
-                  }
-                `}
-              >
-                <StatusIcon className="h-4 w-4" />
-                {option.label}
-                {option.count > 0 && (
-                  <span className={`
-                    text-xs px-2 py-0.5 rounded-full font-medium
-                    ${isActive 
-                      ? "bg-gray-100 text-gray-700" 
-                      : "bg-gray-200 text-gray-600"
-                    }
-                  `}>
-                    {option.count}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Secondary Filters */}
-        <div className="flex items-center gap-3">
-          {/* Buyer Type Filter */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors duration-200">
-                <Building2 className="h-4 w-4" />
-                Buyer Type
-                {buyerTypeFilter !== 'all' && (
-                  <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full font-medium">
-                    {buyerTypeCounts[buyerTypeFilter]}
-                  </span>
-                )}
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent 
-              align="end" 
-              className="w-56 bg-white border border-gray-200 rounded-xl shadow-lg p-1"
-            >
-              <div className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                Filter by Buyer Type
-              </div>
-              <div className="h-px bg-gray-100 my-1" />
-              {buyerTypeOptions.map((option) => (
+    <div className="bg-white border-b border-gray-100">
+      <div className="px-6 py-4">
+        {/* Status Filter Pills */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-1">
+            {statusOptions.map((option) => {
+              const isActive = statusFilter === option.value;
+              
+              return (
                 <button
                   key={option.value}
-                  onClick={() => onBuyerTypeFilterChange(option.value as BuyerTypeFilter)}
+                  onClick={() => onStatusFilterChange(option.value as StatusFilter)}
                   className={`
-                    w-full flex items-center justify-between px-3 py-2 text-sm rounded-lg transition-colors duration-200
-                    ${buyerTypeFilter === option.value 
-                      ? "bg-blue-50 text-blue-900" 
-                      : "text-gray-700 hover:bg-gray-50"
+                    px-4 py-2 text-sm font-medium rounded-full transition-all duration-200
+                    ${isActive 
+                      ? "bg-black text-white" 
+                      : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
                     }
                   `}
                 >
-                  <span className="font-medium">{option.label}</span>
-                  <span className={`
-                    text-xs px-2 py-0.5 rounded-full font-medium
-                    ${buyerTypeFilter === option.value 
-                      ? "bg-blue-100 text-blue-700" 
-                      : "bg-gray-100 text-gray-600"
-                    }
-                  `}>
-                    {option.count}
-                  </span>
+                  {option.label}
+                  {option.count > 0 && (
+                    <span className={`
+                      ml-2 text-xs font-medium
+                      ${isActive 
+                        ? "text-gray-300" 
+                        : "text-gray-400"
+                      }
+                    `}>
+                      {option.count}
+                    </span>
+                  )}
                 </button>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
+              );
+            })}
+          </div>
 
-          {/* Sort Options */}
-          <Select value={sortOption} onValueChange={(value) => onSortChange(value as SortOption)}>
-            <SelectTrigger className="w-40 h-10 bg-gray-50 hover:bg-gray-100 border-gray-200 rounded-lg transition-colors duration-200">
-              <div className="flex items-center gap-2">
-                <SortAsc className="h-4 w-4 text-gray-500" />
-                <SelectValue className="text-sm font-medium text-gray-700" />
-              </div>
-            </SelectTrigger>
-            <SelectContent className="bg-white border border-gray-200 rounded-xl shadow-lg">
-              {sortOptions.map((option) => {
-                const SortIcon = option.icon;
-                return (
-                  <SelectItem 
-                    key={option.value} 
-                    value={option.value}
-                    className="hover:bg-gray-50 rounded-lg mx-1"
-                  >
-                    <div className="flex items-center gap-2">
-                      <SortIcon className="h-4 w-4 text-gray-500" />
+          {/* Secondary Controls */}
+          <div className="flex items-center space-x-4">
+            {/* Buyer Type Filter */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors duration-200">
+                  Buyer Type
+                  {buyerTypeFilter !== 'all' && (
+                    <span className="ml-2 text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full">
+                      {buyerTypeCounts[buyerTypeFilter]}
+                    </span>
+                  )}
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent 
+                align="end" 
+                className="w-64 bg-white border border-gray-200 rounded-lg shadow-lg"
+              >
+                <div className="p-3 border-b border-gray-100">
+                  <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    Buyer Type
+                  </div>
+                </div>
+                <div className="p-2">
+                  {buyerTypeOptions.map((option) => (
+                    <button
+                      key={option.value}
+                      onClick={() => onBuyerTypeFilterChange(option.value as BuyerTypeFilter)}
+                      className={`
+                        w-full flex items-center justify-between px-3 py-2 text-sm rounded-md transition-colors duration-200
+                        ${buyerTypeFilter === option.value 
+                          ? "bg-black text-white" 
+                          : "text-gray-700 hover:bg-gray-50"
+                        }
+                      `}
+                    >
                       <span className="font-medium">{option.label}</span>
-                    </div>
-                  </SelectItem>
-                );
-              })}
-            </SelectContent>
-          </Select>
+                      <span className={`
+                        text-xs font-medium
+                        ${buyerTypeFilter === option.value 
+                          ? "text-gray-300" 
+                          : "text-gray-400"
+                        }
+                      `}>
+                        {option.count}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            {/* Sort Options */}
+            <Select value={sortOption} onValueChange={(value) => onSortChange(value as SortOption)}>
+              <SelectTrigger className="w-36 h-auto p-0 border-0 bg-transparent hover:bg-transparent focus:ring-0">
+                <div className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors duration-200">
+                  <SelectValue />
+                </div>
+              </SelectTrigger>
+              <SelectContent className="bg-white border border-gray-200 rounded-lg shadow-lg">
+                <div className="p-3 border-b border-gray-100">
+                  <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    Sort By
+                  </div>
+                </div>
+                <div className="p-2">
+                  {sortOptions.map((option) => (
+                    <SelectItem 
+                      key={option.value} 
+                      value={option.value}
+                      className="px-3 py-2 hover:bg-gray-50 rounded-md cursor-pointer"
+                    >
+                      <span className="font-medium">{option.label}</span>
+                    </SelectItem>
+                  ))}
+                </div>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </div>
     </div>
