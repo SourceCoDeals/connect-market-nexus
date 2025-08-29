@@ -148,22 +148,22 @@ export function DealFilters({
 
   return (
     <div className="space-y-6">
-      {/* Clean Primary Filter Bar */}
-      <div className="flex items-center justify-between gap-4 py-4 px-6 bg-background border border-border/50 rounded-lg shadow-sm">
+      {/* Responsive Primary Filter Bar */}
+      <div className="flex flex-wrap items-center gap-3 py-4 px-6 bg-background border border-border/50 rounded-lg shadow-sm">
         {/* Left Side - Search & Quick Filters */}
-        <div className="flex items-center gap-4 flex-1">
-          {/* Clean Search */}
-          <div className="relative w-80">
+        <div className="flex items-center gap-3 flex-1 min-w-0">
+          {/* Responsive Search */}
+          <div className="relative min-w-64 max-w-80 flex-shrink">
             <Input
               placeholder="Search deals, buyers, listings..."
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
-              className="h-10 pl-4 pr-4 border-border/50 bg-background focus:border-primary/50 focus:ring-0 transition-all"
+              className="h-9 pl-4 pr-4 border-border/50 bg-background focus:border-primary/50 focus:ring-0 transition-all"
             />
           </div>
 
-          {/* Clean Status Filters */}
-          <div className="flex items-center gap-2">
+          {/* Responsive Status Filters */}
+          <div className="flex items-center gap-2 overflow-hidden">
             {statusOptions.slice(0, 4).map((option) => {
               const isActive = statusFilter === option.value;
               
@@ -173,15 +173,16 @@ export function DealFilters({
                   variant={isActive ? "default" : "ghost"}
                   size="sm"
                   onClick={() => onStatusFilterChange(option.value as DealStatusFilter)}
-                  className={`h-9 px-4 text-sm font-medium transition-all ${
+                  className={`h-9 px-3 text-sm font-medium whitespace-nowrap transition-all ${
                     isActive 
                       ? "bg-primary text-primary-foreground shadow-sm" 
                       : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
                   }`}
                 >
-                  {option.label}
+                  <span className="hidden sm:inline">{option.label}</span>
+                  <span className="sm:hidden">{option.label.split(' ')[0]}</span>
                   {option.count > 0 && (
-                    <span className={`ml-2 text-xs ${
+                    <span className={`ml-1.5 text-xs ${
                       isActive ? "text-primary-foreground/80" : "text-muted-foreground"
                     }`}>
                       {option.count}
@@ -194,11 +195,11 @@ export function DealFilters({
         </div>
 
         {/* Right Side - Advanced Filters & Sort */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 flex-shrink-0">
           {/* Listing Filter */}
           <Select value={listingFilter} onValueChange={onListingFilterChange}>
-            <SelectTrigger className="w-44 h-9 border-border/50 bg-background text-sm">
-              <SelectValue placeholder="All Listings" />
+            <SelectTrigger className="w-32 lg:w-40 h-9 border-border/50 bg-background text-sm">
+              <SelectValue placeholder="Listings" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Listings</SelectItem>
@@ -212,8 +213,8 @@ export function DealFilters({
 
           {/* Admin Filter */}
           <Select value={adminFilter} onValueChange={onAdminFilterChange}>
-            <SelectTrigger className="w-36 h-9 border-border/50 bg-background text-sm">
-              <SelectValue placeholder="All Admins" />
+            <SelectTrigger className="w-28 lg:w-32 h-9 border-border/50 bg-background text-sm">
+              <SelectValue placeholder="Admins" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Admins</SelectItem>
@@ -229,10 +230,11 @@ export function DealFilters({
           {/* Buyer Type Filter */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-9 px-3 text-sm text-muted-foreground hover:text-foreground border border-border/50">
-                Buyer Type
+              <Button variant="ghost" size="sm" className="h-9 px-2.5 text-sm text-muted-foreground hover:text-foreground border border-border/50 whitespace-nowrap">
+                <span className="hidden sm:inline">Buyer Type</span>
+                <span className="sm:hidden">Buyers</span>
                 {buyerTypeFilter !== 'all' && (
-                  <span className="ml-2 text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded">
+                  <span className="ml-1.5 text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded">
                     {buyerTypeCounts[buyerTypeFilter as keyof typeof buyerTypeCounts]}
                   </span>
                 )}
@@ -260,8 +262,9 @@ export function DealFilters({
           {/* Document Status Filter */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-9 px-3 text-sm text-muted-foreground hover:text-foreground border border-border/50">
-                Documents
+              <Button variant="ghost" size="sm" className="h-9 px-2.5 text-sm text-muted-foreground hover:text-foreground border border-border/50 whitespace-nowrap">
+                <span className="hidden lg:inline">Documents</span>
+                <span className="lg:hidden">Docs</span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
@@ -281,7 +284,7 @@ export function DealFilters({
 
           {/* Clean Sort */}
           <Select value={sortOption} onValueChange={(value) => onSortChange(value as SortOption)}>
-            <SelectTrigger className="w-36 h-9 border-border/50 bg-background text-sm">
+            <SelectTrigger className="w-24 lg:w-32 h-9 border-border/50 bg-background text-sm">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
