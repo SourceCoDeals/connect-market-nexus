@@ -151,52 +151,25 @@ export function EnhancedDealsKanbanBoard({ onCreateDeal, onManageStages, onDealC
 
   if (dealsLoading || stagesLoading) {
     return (
-      <div className="space-y-6">
-        <div className="flex justify-end gap-3">
-          <Skeleton className="h-9 w-32" />
-          <Skeleton className="h-9 w-24" />
+      <div className="h-full flex flex-col">
+        <div className="bg-background border-b border-border/30 px-6 py-3">
+          <Skeleton className="h-8 w-full" />
         </div>
-        <Skeleton className="h-32 w-full" />
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {[...Array(4)].map((_, i) => (
-            <Skeleton key={i} className="h-20" />
-          ))}
-        </div>
-        <div className="flex gap-6 overflow-x-auto">
-          {[...Array(5)].map((_, i) => (
-            <Skeleton key={i} className="w-80 h-96 flex-shrink-0" />
-          ))}
+        <div className="flex-1 p-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 h-full">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="h-full min-h-96" />
+            ))}
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Header with Actions and Filters */}
-      <div className="px-6 py-4 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <Button onClick={onCreateDeal} size="sm" className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-medium">
-              <Plus className="h-4 w-4" />
-              Create deal
-            </Button>
-            <Button 
-              variant="outline" 
-              onClick={onManageStages} 
-              size="sm"
-              className="gap-2 border-input bg-background hover:bg-accent hover:text-accent-foreground"
-            >
-              <Settings className="h-4 w-4" />
-              Manage stages
-            </Button>
-          </div>
-          <div className="text-sm text-muted-foreground font-medium">
-            {overallMetrics.totalDeals} deals • {formatCurrency(overallMetrics.totalValue)}
-          </div>
-        </div>
-
-        {/* Filters */}
+    <div className="h-full flex flex-col">
+      {/* HubSpot-style Filters Bar */}
+      <div className="bg-background border-b border-border/30 px-6 py-3">
         <DealFilters
           deals={deals || []}
           searchQuery={searchQuery}
@@ -216,7 +189,7 @@ export function EnhancedDealsKanbanBoard({ onCreateDeal, onManageStages, onDealC
         />
       </div>
 
-      {/* Kanban Board - Full Screen */}
+      {/* Full-Height Kanban Board */}
       <div className="flex-1 overflow-hidden">
         <DndContext
           sensors={sensors}
@@ -224,8 +197,13 @@ export function EnhancedDealsKanbanBoard({ onCreateDeal, onManageStages, onDealC
           onDragOver={handleDragOver}
           onDragEnd={handleDragEnd}
         >
-          <div className="h-full overflow-x-auto">
-            <div className="flex gap-4 p-4 h-full" style={{ minHeight: 'calc(100vh - 200px)' }}>
+          <div className="h-full overflow-x-auto overflow-y-hidden">
+            <div 
+              className="h-full flex gap-4 p-4 min-w-max"
+              style={{ 
+                minWidth: `${stageMetrics.length * 320}px`
+              }}
+            >
               {stageMetrics.map((stage) => (
                 <DealKanbanColumn
                   key={stage.id}

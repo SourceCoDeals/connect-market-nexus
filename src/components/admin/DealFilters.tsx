@@ -147,48 +147,27 @@ export function DealFilters({
   ] as const;
 
   return (
-    <div className="space-y-4 p-4 bg-gradient-to-r from-background/80 to-accent/5 backdrop-blur-sm rounded-lg border border-border/40">
-      {/* Search and Primary Filters */}
-      <div className="flex flex-col lg:flex-row gap-4">
-        {/* Search */}
-        <div className="relative flex-1 max-w-md">
+    <div className="flex items-center justify-between gap-4">
+      {/* Left: Search + Key Filters */}
+      <div className="flex items-center gap-3">
+        {/* HubSpot-style Search */}
+        <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search deals, buyers, listings..."
+            placeholder="Search deals..."
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="pl-10 h-9 bg-background/60 border-border/60 focus:bg-background transition-all"
+            className="pl-10 h-8 w-64 text-sm border-border/40 focus:border-border bg-background/50 focus:bg-background"
           />
         </div>
 
-        {/* Listing Filter */}
-        <Select value={listingFilter} onValueChange={onListingFilterChange}>
-          <SelectTrigger className="w-60 h-9 bg-background/60 border-border/60">
-            <div className="flex items-center gap-2">
-              <Building2 className="h-4 w-4" />
-              <SelectValue placeholder="All Listings" />
-            </div>
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Listings</SelectItem>
-            {uniqueListings.map((listing) => (
-              <SelectItem key={listing.id} value={listing.id}>
-                {listing.title}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        {/* Admin Filter */}
+        {/* Deal Owner */}
         <Select value={adminFilter} onValueChange={onAdminFilterChange}>
-          <SelectTrigger className="w-48 h-9 bg-background/60 border-border/60">
-            <div className="flex items-center gap-2">
-              <Users className="h-4 w-4" />
-              <SelectValue placeholder="All Admins" />
-            </div>
+          <SelectTrigger className="w-44 h-8 text-sm border-border/40 bg-background/50">
+            <SelectValue placeholder="Deal owner" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Admins</SelectItem>
+            <SelectItem value="all">All owners</SelectItem>
             <SelectItem value="unassigned">Unassigned</SelectItem>
             {uniqueAdmins.map((admin) => (
               <SelectItem key={admin.id} value={admin.id || ''}>
@@ -197,95 +176,50 @@ export function DealFilters({
             ))}
           </SelectContent>
         </Select>
+
+        {/* Listing */}
+        <Select value={listingFilter} onValueChange={onListingFilterChange}>
+          <SelectTrigger className="w-48 h-8 text-sm border-border/40 bg-background/50">
+            <SelectValue placeholder="All listings" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All listings</SelectItem>
+            {uniqueListings.map((listing) => (
+              <SelectItem key={listing.id} value={listing.id}>
+                {listing.title}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
-      {/* Status Filter Badges */}
-      <div className="flex gap-2 flex-wrap">
-        {statusOptions.map((option) => {
-          const isActive = statusFilter === option.value;
-          const StatusIcon = option.icon;
-          
-          return (
-            <Button
-              key={option.value}
-              variant={isActive ? "default" : "outline"}
-              size="sm"
-              onClick={() => onStatusFilterChange(option.value as DealStatusFilter)}
-              className={`h-8 text-xs transition-all hover:scale-105 ${
-                isActive 
-                  ? "bg-primary text-primary-foreground shadow-sm" 
-                  : "hover:bg-accent/50 bg-background/60 border-border/60"
-              }`}
-            >
-              <StatusIcon className="h-3 w-3 mr-1.5" />
-              {option.label}
-              {option.count > 0 && (
-                <Badge 
-                  variant="secondary" 
-                  className={`ml-2 text-xs h-4 px-1.5 ${
-                    isActive 
-                      ? "bg-primary-foreground/20 text-primary-foreground" 
-                      : "bg-background/80 text-muted-foreground"
-                  }`}
-                >
-                  {option.count}
-                </Badge>
-              )}
-            </Button>
-          );
-        })}
-      </div>
-
-      {/* Advanced Filters */}
-      <div className="flex gap-2 flex-wrap">
+      {/* Right: Advanced Filters */}
+      <div className="flex items-center gap-2">
         {/* Buyer Type Filter */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" className="h-8 bg-background/60 border-border/60">
-              <Building2 className="h-3 w-3 mr-1.5" />
-              Buyer Type
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="h-8 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50"
+            >
+              Buyer type
               {buyerTypeFilter !== 'all' && (
-                <Badge variant="secondary" className="ml-2 text-xs h-4 px-1.5">
-                  {buyerTypeCounts[buyerTypeFilter as keyof typeof buyerTypeCounts]}
+                <Badge variant="secondary" className="ml-1 h-4 px-1.5 text-xs">
+                  1
                 </Badge>
               )}
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-56">
-            <DropdownMenuLabel>Filter by Buyer Type</DropdownMenuLabel>
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuLabel className="text-xs">Buyer type</DropdownMenuLabel>
             <DropdownMenuSeparator />
             {buyerTypeOptions.map((option) => (
               <DropdownMenuCheckboxItem
                 key={option.value}
                 checked={buyerTypeFilter === option.value}
                 onCheckedChange={() => onBuyerTypeFilterChange(option.value as BuyerTypeFilter)}
-                className="flex items-center justify-between"
-              >
-                <span>{option.label}</span>
-                <Badge variant="secondary" className="text-xs">
-                  {option.count}
-                </Badge>
-              </DropdownMenuCheckboxItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        {/* Document Status Filter */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" className="h-8 bg-background/60 border-border/60">
-              <ShieldCheck className="h-3 w-3 mr-1.5" />
-              Documents
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-48">
-            <DropdownMenuLabel>Document Status</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            {documentStatusOptions.map((option) => (
-              <DropdownMenuCheckboxItem
-                key={option.value}
-                checked={documentStatusFilter === option.value}
-                onCheckedChange={() => onDocumentStatusFilterChange(option.value as DocumentStatusFilter)}
+                className="text-sm"
               >
                 {option.label}
               </DropdownMenuCheckboxItem>
@@ -293,28 +227,85 @@ export function DealFilters({
           </DropdownMenuContent>
         </DropdownMenu>
 
-        {/* Sort Options */}
-        <Select value={sortOption} onValueChange={(value) => onSortChange(value as SortOption)}>
-          <SelectTrigger className="w-40 h-8 bg-background/60 border-border/60">
-            <div className="flex items-center gap-1.5">
-              <SortAsc className="h-3 w-3" />
-              <SelectValue />
+        {/* Document Status */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="h-8 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50"
+            >
+              Documents
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuLabel className="text-xs">Document status</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            {documentStatusOptions.map((option) => (
+              <DropdownMenuCheckboxItem
+                key={option.value}
+                checked={documentStatusFilter === option.value}
+                onCheckedChange={() => onDocumentStatusFilterChange(option.value as DocumentStatusFilter)}
+                className="text-sm"
+              >
+                {option.label}
+              </DropdownMenuCheckboxItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        {/* All Filters */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="h-8 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50"
+            >
+              <Filter className="h-3.5 w-3.5 mr-1" />
+              All filters
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-72 p-4">
+            <div className="space-y-4">
+              <div>
+                <DropdownMenuLabel className="text-xs text-muted-foreground mb-2">Deal stage</DropdownMenuLabel>
+                <div className="flex flex-wrap gap-1">
+                  {statusOptions.slice(1).map((option) => {
+                    const isActive = statusFilter === option.value;
+                    return (
+                      <Button
+                        key={option.value}
+                        variant={isActive ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => onStatusFilterChange(option.value as DealStatusFilter)}
+                        className="h-6 text-xs"
+                      >
+                        {option.label}
+                      </Button>
+                    );
+                  })}
+                </div>
+              </div>
+              
+              <div>
+                <DropdownMenuLabel className="text-xs text-muted-foreground mb-2">Sort by</DropdownMenuLabel>
+                <Select value={sortOption} onValueChange={(value) => onSortChange(value as SortOption)}>
+                  <SelectTrigger className="h-8 text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {sortOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value} className="text-sm">
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-          </SelectTrigger>
-          <SelectContent>
-            {sortOptions.map((option) => {
-              const SortIcon = option.icon;
-              return (
-                <SelectItem key={option.value} value={option.value}>
-                  <div className="flex items-center gap-2">
-                    <SortIcon className="h-3 w-3" />
-                    {option.label}
-                  </div>
-                </SelectItem>
-              );
-            })}
-          </SelectContent>
-        </Select>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </div>
   );
