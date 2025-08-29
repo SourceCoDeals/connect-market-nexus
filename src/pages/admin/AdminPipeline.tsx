@@ -28,8 +28,8 @@ export default function AdminPipeline() {
   };
 
   return (
-    <div className="space-y-8">
-      <div className="border-b border-border/50 pb-6">
+    <div className="h-full flex flex-col space-y-6">
+      <div className="border-b border-border/50 pb-6 flex-shrink-0">
         <h1 className="text-4xl font-bold bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent mb-2">
           Deals Pipeline
         </h1>
@@ -38,8 +38,8 @@ export default function AdminPipeline() {
         </p>
       </div>
 
-      <Tabs defaultValue="kanban" className="space-y-6">
-        <TabsList className="bg-muted/30 backdrop-blur-sm p-1 rounded-xl shadow-sm border border-border/50">
+      <Tabs defaultValue="kanban" className="flex flex-col flex-1 overflow-hidden">
+        <TabsList className="bg-muted/30 backdrop-blur-sm p-1 rounded-xl shadow-sm border border-border/50 flex-shrink-0">
           <TabsTrigger 
             value="kanban" 
             className="flex items-center gap-2 rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all duration-200"
@@ -56,7 +56,7 @@ export default function AdminPipeline() {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="kanban">
+        <TabsContent value="kanban" className="flex-1 overflow-hidden">
           <EnhancedDealsKanbanBoard 
             onCreateDeal={handleCreateDeal}
             onManageStages={handleManageStages}
@@ -64,7 +64,7 @@ export default function AdminPipeline() {
           />
         </TabsContent>
         
-        <TabsContent value="list">
+        <TabsContent value="list" className="flex-1 overflow-hidden">
           <DealsListView 
             onDealClick={handleDealClick}
           />

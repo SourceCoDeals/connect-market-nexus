@@ -4,7 +4,7 @@ import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Deal, DealStage } from '@/hooks/admin/use-deals';
-import { DealKanbanCard } from './DealKanbanCard';
+import { EnhancedDealKanbanCard } from './EnhancedDealKanbanCard';
 
 interface DealKanbanColumnProps {
   stage: DealStage & {
@@ -32,8 +32,8 @@ export function DealKanbanColumn({ stage, deals, onDealClick }: DealKanbanColumn
 
   return (
     <div className="flex-shrink-0 w-80">
-      <Card className="h-full">
-        <CardHeader className="pb-3">
+      <Card className="h-full flex flex-col">
+        <CardHeader className="pb-3 flex-shrink-0">
           <div className="flex items-center justify-between">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <div 
@@ -59,17 +59,17 @@ export function DealKanbanColumn({ stage, deals, onDealClick }: DealKanbanColumn
           )}
         </CardHeader>
         
-        <CardContent className="pt-0">
+        <CardContent className="pt-0 flex-1 overflow-hidden">
           <div
             ref={setNodeRef}
-            className="min-h-[500px] space-y-3"
+            className="h-full overflow-y-auto space-y-3 pr-1"
           >
             <SortableContext 
               items={deals.map(deal => deal.deal_id)}
               strategy={verticalListSortingStrategy}
             >
               {deals.map((deal) => (
-                <DealKanbanCard
+                <EnhancedDealKanbanCard
                   key={deal.deal_id}
                   deal={deal}
                   onClick={() => onDealClick?.(deal)}

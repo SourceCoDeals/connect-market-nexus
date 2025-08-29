@@ -172,9 +172,9 @@ export function EnhancedDealsKanbanBoard({ onCreateDeal, onManageStages, onDealC
   }
 
   return (
-    <div className="h-full flex flex-col space-y-6">
+    <div className="flex flex-col space-y-6 h-full">
       {/* Header Actions */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-shrink-0">
         <div className="flex gap-2">
           <Button onClick={onCreateDeal} className="gap-2">
             <Plus className="h-4 w-4" />
@@ -188,26 +188,28 @@ export function EnhancedDealsKanbanBoard({ onCreateDeal, onManageStages, onDealC
       </div>
 
       {/* Filters */}
-      <DealFilters
-        deals={deals || []}
-        searchQuery={searchQuery}
-        statusFilter={statusFilter}
-        buyerTypeFilter={buyerTypeFilter}
-        listingFilter={listingFilter}
-        adminFilter={adminFilter}
-        documentStatusFilter={documentStatusFilter}
-        sortOption={sortOption}
-        onSearchChange={setSearchQuery}
-        onStatusFilterChange={setStatusFilter}
-        onBuyerTypeFilterChange={setBuyerTypeFilter}
-        onListingFilterChange={setListingFilter}
-        onAdminFilterChange={setAdminFilter}
-        onDocumentStatusFilterChange={setDocumentStatusFilter}
-        onSortChange={setSortOption}
-      />
+      <div className="flex-shrink-0">
+        <DealFilters
+          deals={deals || []}
+          searchQuery={searchQuery}
+          statusFilter={statusFilter}
+          buyerTypeFilter={buyerTypeFilter}
+          listingFilter={listingFilter}
+          adminFilter={adminFilter}
+          documentStatusFilter={documentStatusFilter}
+          sortOption={sortOption}
+          onSearchChange={setSearchQuery}
+          onStatusFilterChange={setStatusFilter}
+          onBuyerTypeFilterChange={setBuyerTypeFilter}
+          onListingFilterChange={setListingFilter}
+          onAdminFilterChange={setAdminFilter}
+          onDocumentStatusFilterChange={setDocumentStatusFilter}
+          onSortChange={setSortOption}
+        />
+      </div>
 
       {/* Pipeline Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 flex-shrink-0">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Deals</CardTitle>
@@ -267,16 +269,18 @@ export function EnhancedDealsKanbanBoard({ onCreateDeal, onManageStages, onDealC
         onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
       >
-        <div className="flex-1 overflow-x-auto">
-          <div className="flex gap-6 pb-6 min-h-[600px]">
-            {stageMetrics.map((stage) => (
-              <DealKanbanColumn
-                key={stage.id}
-                stage={stage}
-                deals={dealsByStage[stage.id] || []}
-                onDealClick={onDealClick}
-              />
-            ))}
+        <div className="flex-1 overflow-hidden">
+          <div className="h-full overflow-x-auto">
+            <div className="flex gap-6 h-full min-w-max p-1">
+              {stageMetrics.map((stage) => (
+                <DealKanbanColumn
+                  key={stage.id}
+                  stage={stage}
+                  deals={dealsByStage[stage.id] || []}
+                  onDealClick={onDealClick}
+                />
+              ))}
+            </div>
           </div>
         </div>
 
