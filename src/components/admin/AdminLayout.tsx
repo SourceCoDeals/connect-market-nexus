@@ -119,8 +119,8 @@ const AdminLayout = () => {
         
         {/* Main content */}
         <main className={cn(
-          "flex-1 overflow-auto w-full min-w-0 bg-background/50",
-          location.pathname.includes('/admin/pipeline') ? "p-0" : "p-4 sm:p-6 md:p-8"
+          "flex-1 w-full min-w-0 bg-background/50",
+          location.pathname.includes('/admin/pipeline') ? "p-0 overflow-hidden" : "p-4 sm:p-6 md:p-8 overflow-auto"
         )}>
           <div className="max-w-full">
             <Outlet />
