@@ -21,7 +21,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useDeals, useDealStages, useUpdateDealStage, Deal, DealStage } from '@/hooks/admin/use-deals';
-import { DealKanbanCard } from './DealKanbanCard';
+import { EnhancedDealKanbanCard } from './EnhancedDealKanbanCard';
 import { DealKanbanColumn } from './DealKanbanColumn';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { Plus, Settings, Filter } from 'lucide-react';
@@ -221,7 +221,7 @@ export function DealsKanbanBoard({
 
         <DragOverlay>
           {activeDeal ? (
-            <DealKanbanCard deal={activeDeal} isDragging />
+            <EnhancedDealKanbanCard deal={activeDeal} isDragging />
           ) : null}
         </DragOverlay>
       </DndContext>
