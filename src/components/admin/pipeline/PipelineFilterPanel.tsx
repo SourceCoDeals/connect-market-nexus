@@ -14,11 +14,12 @@ export function PipelineFilterPanel({ pipeline }: PipelineFilterPanelProps) {
   if (!pipeline.isFilterPanelOpen) return null;
 
   const activeFiltersCount = [
-    pipeline.dealStatus !== 'all',
-    pipeline.documentStatus !== 'all',
-    pipeline.selectedStages.length > 0,
-    pipeline.selectedPriorities.length > 0,
-    pipeline.dateRange,
+    pipeline.statusFilter !== 'all',
+    pipeline.documentStatusFilter !== 'all',
+    pipeline.buyerTypeFilter !== 'all',
+    pipeline.listingFilter !== 'all',
+    pipeline.adminFilter !== 'all',
+    pipeline.searchQuery.trim() !== '',
   ].filter(Boolean).length;
 
   return (
@@ -45,61 +46,24 @@ export function PipelineFilterPanel({ pipeline }: PipelineFilterPanelProps) {
         <div className="p-4 space-y-6">
           {/* Quick Filters */}
           <div>
-            <h4 className="font-medium mb-3">Quick Filters</h4>
+            <h4 className="font-medium mb-3">Status</h4>
             <div className="space-y-2">
-              <Button
-                variant={pipeline.dealStatus === 'active' ? 'default' : 'outline'}
-                size="sm"
-                className="w-full justify-start"
-                onClick={() => pipeline.setDealStatus(pipeline.dealStatus === 'active' ? 'all' : 'active')}
-              >
-                Active Deals
-              </Button>
-              <Button
-                variant={pipeline.dealStatus === 'closing-soon' ? 'default' : 'outline'}
-                size="sm"
-                className="w-full justify-start"
-                onClick={() => pipeline.setDealStatus(pipeline.dealStatus === 'closing-soon' ? 'all' : 'closing-soon')}
-              >
-                Closing Soon
-              </Button>
-              <Button
-                variant={pipeline.documentStatus === 'pending' ? 'default' : 'outline'}
-                size="sm"
-                className="w-full justify-start"
-                onClick={() => pipeline.setDocumentStatus(pipeline.documentStatus === 'pending' ? 'all' : 'pending')}
-              >
-                Pending Documents
-              </Button>
-            </div>
-          </div>
-
-          <Separator />
-
-          {/* Stages */}
-          <div>
-            <h4 className="font-medium mb-3">Stages</h4>
-            <div className="space-y-2">
-              {pipeline.stages.map((stage) => (
+              {[
+                { value: 'all', label: 'All Deals' },
+                { value: 'new_inquiry', label: 'New Inquiry' },
+                { value: 'qualified', label: 'Qualified' },
+                { value: 'due_diligence', label: 'Due Diligence' },
+                { value: 'under_contract', label: 'Under Contract' },
+                { value: 'closed', label: 'Closed' },
+              ].map((status) => (
                 <Button
-                  key={stage.id}
-                  variant={pipeline.selectedStages.includes(stage.id) ? 'default' : 'outline'}
+                  key={status.value}
+                  variant={pipeline.statusFilter === status.value ? 'default' : 'outline'}
                   size="sm"
                   className="w-full justify-start"
-                  onClick={() => {
-                    const isSelected = pipeline.selectedStages.includes(stage.id);
-                    if (isSelected) {
-                      pipeline.setSelectedStages(pipeline.selectedStages.filter(id => id !== stage.id));
-                    } else {
-                      pipeline.setSelectedStages([...pipeline.selectedStages, stage.id]);
-                    }
-                  }}
+                  onClick={() => pipeline.setStatusFilter(status.value as any)}
                 >
-                  <div
-                    className="w-2 h-2 rounded-full mr-2"
-                    style={{ backgroundColor: stage.color }}
-                  />
-                  {stage.name}
+                  {status.label}
                 </Button>
               ))}
             </div>
@@ -107,26 +71,53 @@ export function PipelineFilterPanel({ pipeline }: PipelineFilterPanelProps) {
 
           <Separator />
 
-          {/* Priorities */}
+          {/* Buyer Type */}
           <div>
-            <h4 className="font-medium mb-3">Priority</h4>
+            <h4 className="font-medium mb-3">Buyer Type</h4>
             <div className="space-y-2">
-              {['urgent', 'high', 'medium', 'low'].map((priority) => (
+              {[
+                { value: 'all', label: 'All Types' },
+                { value: 'privateEquity', label: 'Private Equity' },
+                { value: 'familyOffice', label: 'Family Office' },
+                { value: 'searchFund', label: 'Search Fund' },
+                { value: 'corporate', label: 'Corporate' },
+                { value: 'individual', label: 'Individual' },
+              ].map((type) => (
                 <Button
-                  key={priority}
-                  variant={pipeline.selectedPriorities.includes(priority) ? 'default' : 'outline'}
+                  key={type.value}
+                  variant={pipeline.buyerTypeFilter === type.value ? 'default' : 'outline'}
                   size="sm"
                   className="w-full justify-start"
-                  onClick={() => {
-                    const isSelected = pipeline.selectedPriorities.includes(priority);
-                    if (isSelected) {
-                      pipeline.setSelectedPriorities(pipeline.selectedPriorities.filter(p => p !== priority));
-                    } else {
-                      pipeline.setSelectedPriorities([...pipeline.selectedPriorities, priority]);
-                    }
-                  }}
+                  onClick={() => pipeline.setBuyerTypeFilter(type.value as any)}
                 >
-                  {priority.charAt(0).toUpperCase() + priority.slice(1)}
+                  {type.label}
+                </Button>
+              ))}
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* Document Status */}
+          <div>
+            <h4 className="font-medium mb-3">Documents</h4>
+            <div className="space-y-2">
+              {[
+                { value: 'all', label: 'All Documents' },
+                { value: 'both_signed', label: 'Both Signed' },
+                { value: 'nda_signed', label: 'NDA Signed' },
+                { value: 'fee_signed', label: 'Fee Signed' },
+                { value: 'none_signed', label: 'None Signed' },
+                { value: 'overdue_followup', label: 'Overdue Follow-up' },
+              ].map((doc) => (
+                <Button
+                  key={doc.value}
+                  variant={pipeline.documentStatusFilter === doc.value ? 'default' : 'outline'}
+                  size="sm"
+                  className="w-full justify-start"
+                  onClick={() => pipeline.setDocumentStatusFilter(doc.value as any)}
+                >
+                  {doc.label}
                 </Button>
               ))}
             </div>
@@ -140,11 +131,12 @@ export function PipelineFilterPanel({ pipeline }: PipelineFilterPanelProps) {
               variant="outline"
               className="w-full"
               onClick={() => {
-                pipeline.setDealStatus('all');
-                pipeline.setDocumentStatus('all');
-                pipeline.setSelectedStages([]);
-                pipeline.setSelectedPriorities([]);
-                pipeline.setSearchTerm('');
+                pipeline.setStatusFilter('all');
+                pipeline.setDocumentStatusFilter('all');
+                pipeline.setBuyerTypeFilter('all');
+                pipeline.setListingFilter('all');
+                pipeline.setAdminFilter('all');
+                pipeline.setSearchQuery('');
               }}
             >
               Clear All Filters

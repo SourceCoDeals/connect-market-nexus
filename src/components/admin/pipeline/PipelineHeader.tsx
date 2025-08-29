@@ -61,8 +61,8 @@ export function PipelineHeader({ pipeline }: PipelineHeaderProps) {
             <Input
               placeholder="Search deals..."
               className="pl-9 w-64"
-              value={pipeline.searchTerm}
-              onChange={(e) => pipeline.setSearchTerm(e.target.value)}
+              value={pipeline.searchQuery}
+              onChange={(e) => pipeline.setSearchQuery(e.target.value)}
             />
           </div>
         </div>
@@ -156,8 +156,8 @@ export function PipelineHeader({ pipeline }: PipelineHeaderProps) {
             <Input
               placeholder="Search deals..."
               className="pl-9"
-              value={pipeline.searchTerm}
-              onChange={(e) => pipeline.setSearchTerm(e.target.value)}
+              value={pipeline.searchQuery}
+              onChange={(e) => pipeline.setSearchQuery(e.target.value)}
             />
           </div>
 
