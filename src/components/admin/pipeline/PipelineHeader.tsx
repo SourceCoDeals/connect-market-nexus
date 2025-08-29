@@ -28,7 +28,7 @@ import {
   X,
   BarChart3,
 } from 'lucide-react';
-import { usePipelineCore } from '@/hooks/admin/use-pipeline-core';
+import { usePipelineCore, ViewMode } from '@/hooks/admin/use-pipeline-core';
 
 interface PipelineHeaderProps {
   pipeline: ReturnType<typeof usePipelineCore>;
@@ -70,7 +70,7 @@ export function PipelineHeader({ pipeline }: PipelineHeaderProps) {
         {/* Desktop Actions */}
         <div className="hidden md:flex items-center gap-2">
           {/* View Mode Selector */}
-          <Select value={pipeline.viewMode} onValueChange={pipeline.setViewMode}>
+          <Select value={pipeline.viewMode} onValueChange={(value) => pipeline.setViewMode(value as ViewMode)}>
             <SelectTrigger className="w-32">
               <SelectValue />
             </SelectTrigger>
@@ -168,7 +168,7 @@ export function PipelineHeader({ pipeline }: PipelineHeaderProps) {
                 key={mode}
                 variant={pipeline.viewMode === mode ? "default" : "outline"}
                 size="sm"
-                onClick={() => pipeline.setViewMode(mode as any)}
+                onClick={() => pipeline.setViewMode(mode as ViewMode)}
                 className="flex-1"
               >
                 <Icon className="h-4 w-4 mr-2" />
