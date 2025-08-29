@@ -5,6 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Upload, FileText, CheckCircle, AlertCircle } from "lucide-react";
 import { CreateInboundLeadData } from "@/hooks/admin/use-inbound-leads";
 
@@ -32,6 +33,18 @@ export const BulkLeadImportDialog = ({
   const [csvText, setCsvText] = useState("");
   const [parsedLeads, setParsedLeads] = useState<ParsedLead[]>([]);
   const [parseErrors, setParseErrors] = useState<string[]>([]);
+  const [selectedSource, setSelectedSource] = useState<string>("manual");
+
+  const sourceOptions = [
+    { value: "manual", label: "Manual Entry" },
+    { value: "webflow", label: "Webflow Form" },
+    { value: "website", label: "Website Form" },
+    { value: "referral", label: "Referral" },
+    { value: "cold_outreach", label: "Cold Outreach" },
+    { value: "networking", label: "Networking" },
+    { value: "linkedin", label: "LinkedIn" },
+    { value: "email", label: "Email Campaign" },
+  ];
 
   const sampleCSV = `Supported headers (flexible): Name, Email address, Company name, Phone number, Role, Message, Date
 Example (comma CSV):
@@ -126,7 +139,7 @@ Date	Name	Email address	Company name	Phone number	Role	Message
         phone_number: phoneIndex >= 0 ? values[phoneIndex] || '' : '',
         role: roleIndex >= 0 ? values[roleIndex] || '' : '',
         message: messageIndex >= 0 ? values[messageIndex] || '' : '',
-        source: 'manual',
+        source: selectedSource as any,
         source_form_name: 'bulk_import',
       };
 
@@ -161,6 +174,7 @@ Date	Name	Email address	Company name	Phone number	Role	Message
     setCsvText("");
     setParsedLeads([]);
     setParseErrors([]);
+    setSelectedSource("manual");
     onClose();
   };
 
@@ -181,6 +195,25 @@ Date	Name	Email address	Company name	Phone number	Role	Message
           {/* Input Section */}
           <div className="space-y-4">
             <div>
+              <Label htmlFor="source-select">Lead Source</Label>
+              <p className="text-xs text-muted-foreground mb-2">
+                Select the source for all leads in this import.
+              </p>
+              <Select value={selectedSource} onValueChange={setSelectedSource}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select source" />
+                </SelectTrigger>
+                <SelectContent>
+                  {sourceOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div>
               <Label htmlFor="csv-input">CSV Data</Label>
               <p className="text-xs text-muted-foreground mb-2">
                 Paste CSV/TSV. Headers like Email address, Company name, Phone number, Role, Message, Date are supported.
@@ -190,7 +223,7 @@ Date	Name	Email address	Company name	Phone number	Role	Message
                 placeholder={`Date\tName\tEmail address\tCompany name\tPhone number\tRole\tMessage\n08/27/2025 9:37:24 pm\tJohn Smith\tjohn@example.com\tAcme Partners\t555-0123\tPrivate Equity\t"Interested in SaaS and services"`}
                 value={csvText}
                 onChange={(e) => setCsvText(e.target.value)}
-                className="min-h-[200px] font-mono text-xs"
+                className="min-h-[160px] font-mono text-xs"
               />
             </div>
             

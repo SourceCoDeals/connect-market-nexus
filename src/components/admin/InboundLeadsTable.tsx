@@ -1,32 +1,25 @@
 import { useState } from "react";
-import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
-  Mail, 
-  Phone, 
-  Building2, 
-  User, 
-  MessageSquare,
-  ExternalLink,
-  MapPin,
-  Archive,
-  ArrowRight,
-  Check,
-  X,
   Plus,
   Upload,
-  AlertTriangle
+  Search,
+  CheckSquare
 } from "lucide-react";
-import { InboundLead, useCreateInboundLead, useMapLeadToListing, DuplicateCheckResult } from "@/hooks/admin/use-inbound-leads";
+import { InboundLead, useCreateInboundLead, useMapLeadToListing, useConvertLeadToRequest, useArchiveInboundLead, DuplicateCheckResult } from "@/hooks/admin/use-inbound-leads";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { CreateInboundLeadDialog } from "./CreateInboundLeadDialog";
 import { BulkLeadImportDialog } from "./BulkLeadImportDialog";
 import { LeadMappingDialog } from "./LeadMappingDialog";
 import { DuplicateWarningDialog } from "./DuplicateWarningDialog";
+import { CompactLeadCard } from "./CompactLeadCard";
+import { BulkLeadActions } from "./BulkLeadActions";
 
 interface InboundLeadsTableProps {
   leads: InboundLead[];
@@ -60,263 +53,12 @@ const InboundLeadsTableSkeleton = () => (
 const InboundLeadsTableEmpty = () => (
   <Card>
     <CardContent className="flex flex-col items-center justify-center py-16">
-      <MessageSquare className="h-16 w-16 text-muted-foreground mb-4" />
+      <Search className="h-16 w-16 text-muted-foreground mb-4" />
       <h3 className="text-xl font-semibold text-muted-foreground mb-2">No inbound leads found</h3>
-      <p className="text-sm text-muted-foreground">Inbound leads from Webflow and manual entries will appear here.</p>
+      <p className="text-sm text-muted-foreground">Inbound leads from various sources will appear here.</p>
     </CardContent>
   </Card>
 );
-
-const StatusBadge = ({ status }: { status: string }) => {
-  const getStatusConfig = (status: string) => {
-    switch (status) {
-      case 'mapped':
-        return {
-          className: 'bg-primary/10 text-primary border-primary/20',
-          icon: <MapPin className="h-3 w-3 mr-1" />
-        };
-      case 'converted':
-        return {
-          className: 'bg-success/10 text-success border-success/20',
-          icon: <Check className="h-3 w-3 mr-1" />
-        };
-      case 'archived':
-        return {
-          className: 'bg-muted/50 text-muted-foreground border-border',
-          icon: <Archive className="h-3 w-3 mr-1" />
-        };
-      default:
-        return {
-          className: 'bg-warning/10 text-warning border-warning/20',
-          icon: <User className="h-3 w-3 mr-1" />
-        };
-    }
-  };
-
-  const config = getStatusConfig(status);
-  const displayText = status.charAt(0).toUpperCase() + status.slice(1);
-  
-  return (
-    <Badge variant="outline" className={`text-xs ${config.className}`}>
-      {config.icon}
-      {displayText}
-    </Badge>
-  );
-};
-
-const PriorityBadge = ({ score }: { score: number }) => {
-  const getPriorityConfig = (score: number) => {
-    if (score >= 8) {
-      return {
-        label: 'High',
-        className: 'bg-destructive/10 text-destructive border-destructive/20'
-      };
-    } else if (score >= 6) {
-      return {
-        label: 'Medium',
-        className: 'bg-warning/10 text-warning border-warning/20'
-      };
-    } else {
-      return {
-        label: 'Low',
-        className: 'bg-muted/50 text-muted-foreground border-border'
-      };
-    }
-  };
-
-  const config = getPriorityConfig(score);
-  
-  return (
-    <Badge variant="outline" className={`text-xs ${config.className}`}>
-      {config.label}
-    </Badge>
-  );
-};
-
-const SourceBadge = ({ source }: { source: string }) => {
-  const labelMap: Record<string, string> = {
-    webflow: 'Webflow',
-    website: 'Website',
-    referral: 'Referral',
-    cold_outreach: 'Cold Outreach',
-    networking: 'Networking',
-    linkedin: 'LinkedIn',
-    email: 'Email',
-    manual: 'Manual',
-  };
-  const label = labelMap[source] || 'Manual';
-  return (
-    <Badge variant="outline" className="text-xs bg-secondary/10 text-secondary-foreground border-secondary/20">
-      {label}
-    </Badge>
-  );
-};
-
-const LeadCard = ({ 
-  lead, 
-  onMapToListing, 
-  onConvertToRequest, 
-  onArchive 
-}: { 
-  lead: InboundLead;
-  onMapToListing: (lead: InboundLead) => void;
-  onConvertToRequest: (leadId: string) => void;
-  onArchive: (leadId: string) => void;
-}) => {
-  const [isExpanded, setIsExpanded] = useState(false);
-
-  return (
-    <Card className="border border-border/50 hover:border-border transition-colors">
-      <CardContent className="p-6">
-        <div className="space-y-4">
-          {/* Header */}
-          <div className="flex items-start justify-between">
-            <div className="space-y-2">
-              <div className="flex items-center gap-3 flex-wrap">
-                <h3 className="font-semibold text-foreground">
-                  {lead.name}
-                </h3>
-                <StatusBadge status={lead.status} />
-                <PriorityBadge score={lead.priority_score} />
-                <SourceBadge source={lead.source} />
-              </div>
-              <div className="text-sm text-muted-foreground space-y-1">
-                <div className="flex items-center gap-2">
-                  <Mail className="h-3 w-3" />
-                  <a 
-                    href={`mailto:${lead.email}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="hover:text-primary transition-colors flex items-center gap-1 group"
-                  >
-                    {lead.email}
-                    <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
-                  </a>
-                </div>
-                {lead.company_name && (
-                  <div className="flex items-center gap-2">
-                    <Building2 className="h-3 w-3" />
-                    <span>{lead.company_name}</span>
-                  </div>
-                )}
-                {lead.phone_number && (
-                  <div className="flex items-center gap-2">
-                    <Phone className="h-3 w-3" />
-                    <span>{lead.phone_number}</span>
-                  </div>
-                )}
-              </div>
-            </div>
-            
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground">
-                {format(new Date(lead.created_at), 'MMM d, yyyy')}
-              </span>
-            </div>
-          </div>
-
-          {/* Role and Message Preview */}
-          {(lead.role || lead.message) && (
-            <div className="space-y-2">
-              {lead.role && (
-                <div className="text-xs text-muted-foreground">
-                  <span className="font-medium">Role:</span> {lead.role}
-                </div>
-              )}
-              {lead.message && (
-                <div className="text-xs">
-                  <span className="font-medium text-muted-foreground">Message:</span>
-                  <p className="text-foreground mt-1 line-clamp-2">
-                    {lead.message}
-                  </p>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Duplicate Warning */}
-          {lead.is_duplicate && lead.duplicate_info && (
-            <div className="bg-warning/10 border border-warning/20 rounded-md p-3">
-              <div className="flex items-center gap-2 text-xs">
-                <AlertTriangle className="h-3 w-3 text-warning" />
-                <span className="text-warning font-medium">Duplicate Warning:</span>
-                <span className="text-foreground">{lead.duplicate_info}</span>
-              </div>
-            </div>
-          )}
-
-          {/* Mapping Info */}
-          {lead.mapped_to_listing_id && (
-            <div className="bg-primary/5 border border-primary/20 rounded-md p-3">
-              <div className="flex items-center gap-2 text-xs">
-                <MapPin className="h-3 w-3 text-primary" />
-                <span className="text-primary font-medium">Mapped to:</span>
-                <span className="text-foreground">{lead.mapped_to_listing_title}</span>
-              </div>
-              {lead.mapped_at && (
-                <div className="text-xs text-muted-foreground mt-1">
-                  {format(new Date(lead.mapped_at), 'MMM d, yyyy h:mm a')}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Conversion Info */}
-          {lead.converted_to_request_id && (
-            <div className="bg-success/5 border border-success/20 rounded-md p-3">
-              <div className="flex items-center gap-2 text-xs">
-                <Check className="h-3 w-3 text-success" />
-                <span className="text-success font-medium">Converted to connection request</span>
-              </div>
-              {lead.converted_at && (
-                <div className="text-xs text-muted-foreground mt-1">
-                  {format(new Date(lead.converted_at), 'MMM d, yyyy h:mm a')}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Actions */}
-          {lead.status !== 'archived' && (
-            <div className="flex gap-2 pt-2 border-t border-border/40">
-              {lead.status === 'pending' && (
-                <Button
-                  size="sm"
-                  onClick={() => onMapToListing(lead)}
-                  className="flex items-center gap-1"
-                >
-                  <MapPin className="h-3 w-3" />
-                  Map to Listing
-                </Button>
-              )}
-              
-              {lead.status === 'mapped' && (
-                <Button
-                  size="sm"
-                  onClick={() => onConvertToRequest(lead.id)}
-                  className="flex items-center gap-1"
-                >
-                  <ArrowRight className="h-3 w-3" />
-                  Convert to Request
-                </Button>
-              )}
-              
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => onArchive(lead.id)}
-                className="flex items-center gap-1"
-              >
-                <Archive className="h-3 w-3" />
-                Archive
-              </Button>
-            </div>
-          )}
-        </div>
-      </CardContent>
-    </Card>
-  );
-};
 
 export const InboundLeadsTable = ({ 
   leads, 
@@ -333,8 +75,19 @@ export const InboundLeadsTable = ({
   const [duplicateResult, setDuplicateResult] = useState<DuplicateCheckResult | null>(null);
   const [pendingMappingData, setPendingMappingData] = useState<{ listingId: string; listingTitle: string } | null>(null);
   
+  // Filters and search
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [sourceFilter, setSourceFilter] = useState<string>("all");
+  
+  // Bulk selection
+  const [selectedLeadIds, setSelectedLeadIds] = useState<Set<string>>(new Set());
+  const [isSelectMode, setIsSelectMode] = useState(false);
+  
   const { mutate: createLead, isPending: isCreating } = useCreateInboundLead();
   const { mutate: mapLeadToListing, isPending: isMapping } = useMapLeadToListing();
+  const { mutate: convertLead, isPending: isConverting } = useConvertLeadToRequest();
+  const { mutate: archiveLead, isPending: isArchiving } = useArchiveInboundLead();
 
   const handleMapToListing = (lead: InboundLead) => {
     setSelectedLead(lead);
@@ -390,13 +143,28 @@ export const InboundLeadsTable = ({
     setDuplicateResult(null);
   };
 
+  // Filter leads based on search and filters
+  const filteredLeads = leads.filter((lead) => {
+    const matchesSearch = searchTerm === "" || 
+      lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      lead.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (lead.company_name && lead.company_name.toLowerCase().includes(searchTerm.toLowerCase()));
+    
+    const matchesStatus = statusFilter === "all" || lead.status === statusFilter;
+    const matchesSource = sourceFilter === "all" || lead.source === sourceFilter;
+    
+    return matchesSearch && matchesStatus && matchesSource;
+  });
+
+  const selectedLeads = filteredLeads.filter(lead => selectedLeadIds.has(lead.id));
+
   const handleBulkCreate = async (leadsData: any[]) => {
     try {
-      // Check for duplicates by email
+      // Enhanced duplicate checking with persistent warnings
       const emails = leadsData.map(lead => lead.email.toLowerCase());
       const { data: existingLeads, error: duplicateCheckError } = await supabase
         .from('inbound_leads')
-        .select('email')
+        .select('email, name, company_name')
         .in('email', emails);
 
       if (duplicateCheckError) {
@@ -404,20 +172,24 @@ export const InboundLeadsTable = ({
       }
 
       const existingEmails = new Set(existingLeads?.map(lead => lead.email.toLowerCase()) || []);
-      const duplicates = leadsData.filter(lead => existingEmails.has(lead.email.toLowerCase()));
       
-      if (duplicates.length > 0) {
-        toast({
-          variant: "destructive",
-          title: "Duplicate leads detected",
-          description: `Found existing leads for: ${duplicates.map(d => d.email).join(', ')}`,
-        });
-        return;
-      }
+      // Process leads with duplicate info
+      const processedLeads = leadsData.map(leadData => {
+        const isDuplicate = existingEmails.has(leadData.email.toLowerCase());
+        if (isDuplicate) {
+          const existingLead = existingLeads?.find(el => el.email.toLowerCase() === leadData.email.toLowerCase());
+          return {
+            ...leadData,
+            is_duplicate: true,
+            duplicate_info: `Duplicate email found: ${existingLead?.name || 'Unknown'} at ${existingLead?.company_name || 'Unknown company'}`
+          };
+        }
+        return leadData;
+      });
 
-      // Create leads one by one for better error handling
+      // Create leads with duplicate tracking
       let successCount = 0;
-      for (const leadData of leadsData) {
+      for (const leadData of processedLeads) {
         try {
           await new Promise((resolve, reject) => {
             createLead(leadData, {
@@ -434,9 +206,10 @@ export const InboundLeadsTable = ({
       }
       
       if (successCount > 0) {
+        const duplicateCount = processedLeads.filter(l => l.is_duplicate).length;
         toast({
           title: "Bulk import completed",
-          description: `Successfully imported ${successCount} of ${leadsData.length} leads`,
+          description: `Imported ${successCount} leads${duplicateCount > 0 ? ` (${duplicateCount} marked as duplicates)` : ''}`,
         });
       }
     } catch (error: any) {
@@ -449,21 +222,131 @@ export const InboundLeadsTable = ({
     }
   };
 
+  const handleBulkMap = async (listingId: string, listingTitle: string) => {
+    const pendingLeads = selectedLeads.filter(lead => lead.status === 'pending');
+    
+    try {
+      // Get current admin user ID
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) throw new Error('Authentication required');
+
+      let successCount = 0;
+      for (const lead of pendingLeads) {
+        try {
+          const { error } = await supabase
+            .from('inbound_leads')
+            .update({
+              mapped_to_listing_id: listingId,
+              mapped_to_listing_title: listingTitle,
+              mapped_at: new Date().toISOString(),
+              mapped_by: user.id,
+              status: 'mapped',
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', lead.id);
+
+          if (!error) successCount++;
+        } catch (error) {
+          console.error('Error mapping lead:', error);
+        }
+      }
+
+      if (successCount > 0) {
+        toast({
+          title: "Bulk mapping completed",
+          description: `Successfully mapped ${successCount} of ${pendingLeads.length} leads`,
+        });
+      }
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Mapping failed",
+        description: error.message || 'Failed to map leads',
+      });
+    }
+  };
+
+  const handleBulkConvert = async () => {
+    const mappedLeads = selectedLeads.filter(lead => lead.status === 'mapped');
+    
+    let successCount = 0;
+    let errorCount = 0;
+    const errors: string[] = [];
+
+    for (const lead of mappedLeads) {
+      try {
+        await new Promise((resolve, reject) => {
+          convertLead(lead.id, {
+            onSuccess: () => {
+              successCount++;
+              resolve(null);
+            },
+            onError: (error: any) => {
+              errorCount++;
+              errors.push(`${lead.name}: ${error.message}`);
+              reject(error);
+            }
+          });
+        });
+      } catch (error) {
+        // Error already handled in onError callback
+      }
+    }
+
+    if (successCount > 0) {
+      toast({
+        title: "Bulk conversion completed",
+        description: `Successfully converted ${successCount} of ${mappedLeads.length} leads`,
+      });
+    }
+
+    if (errorCount > 0) {
+      toast({
+        variant: "destructive",
+        title: "Some conversions failed",
+        description: `${errorCount} leads failed to convert. Check for duplicates.`,
+      });
+    }
+  };
+
+  const handleSelectionChange = (leadId: string, selected: boolean) => {
+    const newSelection = new Set(selectedLeadIds);
+    if (selected) {
+      newSelection.add(leadId);
+    } else {
+      newSelection.delete(leadId);
+    }
+    setSelectedLeadIds(newSelection);
+  };
+
+  const handleSelectAll = () => {
+    if (selectedLeadIds.size === filteredLeads.length) {
+      setSelectedLeadIds(new Set());
+    } else {
+      setSelectedLeadIds(new Set(filteredLeads.map(lead => lead.id)));
+    }
+  };
+
+  const clearSelection = () => {
+    setSelectedLeadIds(new Set());
+    setIsSelectMode(false);
+  };
+
   if (isLoading) {
     return <InboundLeadsTableSkeleton />;
   }
 
-  if (leads.length === 0) {
-    return (
-      <div className="space-y-4">
-        {/* Action Buttons */}
+  return (
+    <div className="space-y-4">
+      {/* Header Actions */}
+      <div className="flex flex-col sm:flex-row gap-4 justify-between">
         <div className="flex gap-3">
           <Button 
             onClick={() => setIsCreateDialogOpen(true)}
             className="flex items-center gap-2"
           >
             <Plus className="h-4 w-4" />
-            Add Single Lead
+            Add Lead
           </Button>
           <Button 
             variant="outline"
@@ -471,67 +354,108 @@ export const InboundLeadsTable = ({
             className="flex items-center gap-2"
           >
             <Upload className="h-4 w-4" />
-            Bulk Import (CSV)
+            Bulk Import
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => setIsSelectMode(!isSelectMode)}
+            className="flex items-center gap-2"
+          >
+            <CheckSquare className="h-4 w-4" />
+            {isSelectMode ? 'Exit Select' : 'Select Mode'}
           </Button>
         </div>
-        
-        <InboundLeadsTableEmpty />
-        
-        {/* Dialogs */}
-        <CreateInboundLeadDialog
-          isOpen={isCreateDialogOpen}
-          onClose={() => setIsCreateDialogOpen(false)}
-          onConfirm={(leadData) => {
-            createLead(leadData);
-            setIsCreateDialogOpen(false);
-          }}
-          isLoading={isCreating}
-        />
-        
-        <BulkLeadImportDialog
-          isOpen={isBulkImportDialogOpen}
-          onClose={() => setIsBulkImportDialogOpen(false)}
-          onConfirm={handleBulkCreate}
-          isLoading={isCreating}
-        />
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-4">
-      {/* Action Buttons */}
-      <div className="flex gap-3">
-        <Button 
-          onClick={() => setIsCreateDialogOpen(true)}
-          className="flex items-center gap-2"
-        >
-          <Plus className="h-4 w-4" />
-          Add Single Lead
-        </Button>
-        <Button 
-          variant="outline"
-          onClick={() => setIsBulkImportDialogOpen(true)}
-          className="flex items-center gap-2"
-        >
-          <Upload className="h-4 w-4" />
-          Bulk Import (CSV)
-        </Button>
       </div>
 
-      {/* Leads List */}
-      <div className="space-y-4">
-        {leads.map((lead) => (
-          <LeadCard
-            key={lead.id}
-            lead={lead}
-            onMapToListing={handleMapToListing}
-            onConvertToRequest={onConvertToRequest}
-            onArchive={onArchive}
+      {/* Filters */}
+      <div className="flex flex-col sm:flex-row gap-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search leads..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10"
           />
-        ))}
+        </div>
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-40">
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Status</SelectItem>
+            <SelectItem value="pending">Pending</SelectItem>
+            <SelectItem value="mapped">Mapped</SelectItem>
+            <SelectItem value="converted">Converted</SelectItem>
+            <SelectItem value="archived">Archived</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={sourceFilter} onValueChange={setSourceFilter}>
+          <SelectTrigger className="w-40">
+            <SelectValue placeholder="Source" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Sources</SelectItem>
+            <SelectItem value="webflow">Webflow</SelectItem>
+            <SelectItem value="website">Website</SelectItem>
+            <SelectItem value="manual">Manual</SelectItem>
+            <SelectItem value="referral">Referral</SelectItem>
+            <SelectItem value="cold_outreach">Cold Outreach</SelectItem>
+            <SelectItem value="networking">Networking</SelectItem>
+            <SelectItem value="linkedin">LinkedIn</SelectItem>
+            <SelectItem value="email">Email</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
-      
+
+      {/* Results count */}
+      <div className="text-sm text-muted-foreground">
+        {filteredLeads.length} lead{filteredLeads.length !== 1 ? 's' : ''} found
+        {leads.length !== filteredLeads.length && ` (${leads.length} total)`}
+      </div>
+
+      {/* Bulk Actions */}
+      <BulkLeadActions
+        selectedLeads={selectedLeads}
+        onBulkMap={handleBulkMap}
+        onBulkConvert={handleBulkConvert}
+        onClearSelection={clearSelection}
+      />
+
+      {/* Leads Grid */}
+      {filteredLeads.length === 0 ? (
+        <InboundLeadsTableEmpty />
+      ) : (
+        <div className="grid gap-3">
+          {isSelectMode && (
+            <div className="flex items-center gap-2 text-sm">
+              <button
+                onClick={handleSelectAll}
+                className="text-primary hover:underline"
+              >
+                {selectedLeadIds.size === filteredLeads.length ? 'Deselect All' : 'Select All'}
+              </button>
+              <span className="text-muted-foreground">
+                ({selectedLeadIds.size} selected)
+              </span>
+            </div>
+          )}
+          
+          {filteredLeads.map((lead) => (
+            <CompactLeadCard
+              key={lead.id}
+              lead={lead}
+              isSelected={selectedLeadIds.has(lead.id)}
+              onSelectionChange={handleSelectionChange}
+              onMapToListing={handleMapToListing}
+              onConvertToRequest={onConvertToRequest}
+              onArchive={onArchive}
+              showCheckbox={isSelectMode}
+            />
+          ))}
+        </div>
+      )}
+
       {/* Dialogs */}
       <CreateInboundLeadDialog
         isOpen={isCreateDialogOpen}
@@ -549,7 +473,7 @@ export const InboundLeadsTable = ({
         onConfirm={handleBulkCreate}
         isLoading={isCreating}
       />
-      
+
       <LeadMappingDialog
         isOpen={isMappingDialogOpen}
         onClose={() => {
@@ -557,24 +481,21 @@ export const InboundLeadsTable = ({
           setSelectedLead(null);
         }}
         onConfirm={handleConfirmMapping}
-        isLoading={isMapping}
         lead={selectedLead}
+        isLoading={isMapping}
       />
-      
+
       <DuplicateWarningDialog
         isOpen={isDuplicateWarningOpen}
         onClose={() => {
           setIsDuplicateWarningOpen(false);
-          setSelectedLead(null);
-          setPendingMappingData(null);
           setDuplicateResult(null);
+          setPendingMappingData(null);
+          setSelectedLead(null);
         }}
         onProceed={handleProceedWithMapping}
         onMerge={handleMergeWithExisting}
         duplicateResult={duplicateResult}
-        leadEmail={selectedLead?.email || ''}
-        leadCompany={selectedLead?.company_name || ''}
-        listingTitle={pendingMappingData?.listingTitle || ''}
       />
     </div>
   );
