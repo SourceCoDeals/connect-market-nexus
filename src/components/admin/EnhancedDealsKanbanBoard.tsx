@@ -172,9 +172,9 @@ export function EnhancedDealsKanbanBoard({ onCreateDeal, onManageStages, onDealC
   }
 
   return (
-    <div className="flex flex-col h-full overflow-hidden">
+    <div className="space-y-6">
       {/* Header Actions */}
-      <div className="flex items-center justify-between flex-shrink-0 mb-6">
+      <div className="flex items-center justify-between">
         <div className="flex gap-2">
           <Button onClick={onCreateDeal} className="gap-2">
             <Plus className="h-4 w-4" />
@@ -188,7 +188,7 @@ export function EnhancedDealsKanbanBoard({ onCreateDeal, onManageStages, onDealC
       </div>
 
       {/* Filters */}
-      <div className="flex-shrink-0 mb-6">
+      <div>
         <DealFilters
           deals={deals || []}
           searchQuery={searchQuery}
@@ -209,7 +209,7 @@ export function EnhancedDealsKanbanBoard({ onCreateDeal, onManageStages, onDealC
       </div>
 
       {/* Pipeline Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 flex-shrink-0 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Deals</CardTitle>
@@ -263,15 +263,15 @@ export function EnhancedDealsKanbanBoard({ onCreateDeal, onManageStages, onDealC
       </div>
 
       {/* Kanban Board */}
-      <DndContext
-        sensors={sensors}
-        onDragStart={handleDragStart}
-        onDragOver={handleDragOver}
-        onDragEnd={handleDragEnd}
-      >
-        <div className="flex-1 overflow-hidden min-h-0">
-          <div className="h-full overflow-x-auto overflow-y-hidden">
-            <div className="flex gap-6 h-full min-w-max pb-4">
+      <div className="w-full">
+        <DndContext
+          sensors={sensors}
+          onDragStart={handleDragStart}
+          onDragOver={handleDragOver}
+          onDragEnd={handleDragEnd}
+        >
+          <div className="w-full overflow-x-auto">
+            <div className="flex gap-6 min-w-max pb-4" style={{ minHeight: '600px' }}>
               {stageMetrics.map((stage) => (
                 <DealKanbanColumn
                   key={stage.id}
@@ -282,17 +282,17 @@ export function EnhancedDealsKanbanBoard({ onCreateDeal, onManageStages, onDealC
               ))}
             </div>
           </div>
-        </div>
 
-        <DragOverlay>
-          {activeId ? (
-            <EnhancedDealKanbanCard 
-              deal={filteredAndSortedDeals?.find(d => d.deal_id === activeId)!} 
-              isDragging 
-            />
-          ) : null}
-        </DragOverlay>
-      </DndContext>
+          <DragOverlay>
+            {activeId ? (
+              <EnhancedDealKanbanCard 
+                deal={filteredAndSortedDeals?.find(d => d.deal_id === activeId)!} 
+                isDragging 
+              />
+            ) : null}
+          </DragOverlay>
+        </DndContext>
+      </div>
     </div>
   );
 }

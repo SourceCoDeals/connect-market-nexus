@@ -28,49 +28,50 @@ export default function AdminPipeline() {
   };
 
   return (
-    <div className="h-full flex flex-col overflow-hidden">
-      <div className="border-b border-border/50 pb-6 flex-shrink-0 px-6">
-        <h1 className="text-4xl font-bold bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent mb-2">
-          Deals Pipeline
-        </h1>
-        <p className="text-muted-foreground text-lg">
-          Manage your deals through the sales pipeline
-        </p>
+    <div className="min-h-screen w-full max-w-full overflow-x-hidden">
+      <div className="container mx-auto px-4 py-6 max-w-none">
+        <div className="border-b border-border/50 pb-6 mb-6">
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent mb-2">
+            Deals Pipeline
+          </h1>
+          <p className="text-muted-foreground text-lg">
+            Manage your deals through the sales pipeline
+          </p>
+        </div>
+
+        <Tabs defaultValue="kanban" className="space-y-6">
+          <TabsList className="bg-muted/30 backdrop-blur-sm p-1 rounded-xl shadow-sm border border-border/50">
+            <TabsTrigger 
+              value="kanban" 
+              className="flex items-center gap-2 rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all duration-200"
+            >
+              <LayoutDashboard className="h-4 w-4" />
+              Kanban
+            </TabsTrigger>
+            <TabsTrigger 
+              value="list" 
+              className="flex items-center gap-2 rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all duration-200"
+            >
+              <List className="h-4 w-4" />
+              List
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="kanban" className="space-y-0">
+            <EnhancedDealsKanbanBoard 
+              onCreateDeal={handleCreateDeal}
+              onManageStages={handleManageStages}
+              onDealClick={handleDealClick}
+            />
+          </TabsContent>
+          
+          <TabsContent value="list" className="space-y-0">
+            <DealsListView 
+              onDealClick={handleDealClick}
+            />
+          </TabsContent>
+        </Tabs>
       </div>
-
-      <Tabs defaultValue="kanban" className="flex flex-col flex-1 overflow-hidden px-6">
-        <TabsList className="bg-muted/30 backdrop-blur-sm p-1 rounded-xl shadow-sm border border-border/50 flex-shrink-0">
-          <TabsTrigger 
-            value="kanban" 
-            className="flex items-center gap-2 rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all duration-200"
-          >
-            <LayoutDashboard className="h-4 w-4" />
-            Kanban
-          </TabsTrigger>
-          <TabsTrigger 
-            value="list" 
-            className="flex items-center gap-2 rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all duration-200"
-          >
-            <List className="h-4 w-4" />
-            List
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="kanban" className="flex-1 overflow-hidden">
-          <EnhancedDealsKanbanBoard 
-            onCreateDeal={handleCreateDeal}
-            onManageStages={handleManageStages}
-            onDealClick={handleDealClick}
-          />
-        </TabsContent>
-        
-        <TabsContent value="list" className="flex-1 overflow-hidden">
-          <DealsListView 
-            onDealClick={handleDealClick}
-          />
-        </TabsContent>
-
-      </Tabs>
 
       <DealDetailModal
         deal={selectedDeal}
