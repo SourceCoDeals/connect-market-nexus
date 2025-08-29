@@ -28,21 +28,29 @@ export default function AdminPipeline() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Deals Pipeline</h1>
-          <p className="text-muted-foreground">Comprehensive deal management and sales pipeline</p>
-        </div>
+    <div className="space-y-8">
+      <div className="border-b border-border/50 pb-6">
+        <h1 className="text-4xl font-bold bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent mb-2">
+          Deals Pipeline
+        </h1>
+        <p className="text-muted-foreground text-lg">
+          Manage your deals through the sales pipeline
+        </p>
       </div>
 
-      <Tabs defaultValue="kanban" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="kanban" className="flex items-center gap-2">
+      <Tabs defaultValue="kanban" className="space-y-6">
+        <TabsList className="bg-muted/30 backdrop-blur-sm p-1 rounded-xl shadow-sm border border-border/50">
+          <TabsTrigger 
+            value="kanban" 
+            className="flex items-center gap-2 rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all duration-200"
+          >
             <LayoutDashboard className="h-4 w-4" />
             Kanban
           </TabsTrigger>
-          <TabsTrigger value="list" className="flex items-center gap-2">
+          <TabsTrigger 
+            value="list" 
+            className="flex items-center gap-2 rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all duration-200"
+          >
             <List className="h-4 w-4" />
             List
           </TabsTrigger>

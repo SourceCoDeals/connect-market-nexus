@@ -5,6 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Deal } from '@/hooks/admin/use-deals';
+import { cn } from '@/lib/utils';
 import { 
   Clock, 
   DollarSign, 
@@ -72,19 +73,24 @@ export function DealKanbanCard({ deal, isDragging, onClick }: DealKanbanCardProp
       style={style}
       {...attributes}
       {...listeners}
-      className={`cursor-pointer transition-all hover:shadow-md ${
-        isDragging ? 'opacity-50 rotate-3' : ''
-      }`}
+      className={cn(
+        "cursor-pointer transition-all duration-200 border-0 bg-card/80 backdrop-blur-sm shadow-sm hover:shadow-lg hover:scale-105",
+        "hover:bg-card/90 group",
+        isDragging && 'opacity-50 rotate-3 scale-105 shadow-xl'
+      )}
       onClick={onClick}
     >
-      <CardContent className="p-4 space-y-3">
+      <CardContent className="p-5 space-y-4">
         {/* Header with title and priority */}
-        <div className="flex items-start justify-between">
-          <h4 className="font-medium text-sm leading-tight line-clamp-2">
+        <div className="flex items-start justify-between gap-3">
+          <h4 className="font-semibold text-sm leading-tight line-clamp-2 flex-1 group-hover:text-primary transition-colors duration-200">
             {deal.deal_title}
           </h4>
           <Badge 
-            className={`ml-2 ${getPriorityColor(deal.deal_priority)}`}
+            className={cn(
+              "ml-2 shadow-sm border-0 font-medium transition-all duration-200 group-hover:scale-105",
+              getPriorityColor(deal.deal_priority)
+            )}
           >
             {deal.deal_priority}
           </Badge>

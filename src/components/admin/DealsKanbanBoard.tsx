@@ -142,59 +142,60 @@ export function DealsKanbanBoard({
 
   return (
     <div className="space-y-6">
-      {/* Header with actions */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold">Deals Pipeline</h2>
-          <p className="text-muted-foreground">
-            Manage your deals through the sales pipeline
-          </p>
-        </div>
-        
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={onManageStages}>
-            <Settings className="h-4 w-4 mr-2" />
-            Manage Stages
-          </Button>
-          <Button onClick={onCreateDeal}>
-            <Plus className="h-4 w-4 mr-2" />
-            Create Deal
-          </Button>
-        </div>
+      {/* Action buttons only - title removed to avoid duplication */}
+      <div className="flex items-center justify-end gap-3">
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={onManageStages}
+          className="hover:scale-105 transition-transform duration-200"
+        >
+          <Settings className="h-4 w-4 mr-2" />
+          Manage Stages
+        </Button>
+        <Button 
+          onClick={onCreateDeal}
+          className="bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105"
+        >
+          <Plus className="h-4 w-4 mr-2" />
+          Create Deal
+        </Button>
       </div>
 
       {/* Pipeline metrics overview */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="text-2xl font-bold">{deals.length}</div>
-            <p className="text-xs text-muted-foreground">Total Deals</p>
+        <Card className="border-0 bg-gradient-to-br from-card to-card/50 shadow-sm hover:shadow-md transition-all duration-200 hover:scale-105">
+          <CardContent className="p-6">
+            <div className="text-2xl font-bold bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent">
+              {deals.length}
+            </div>
+            <p className="text-sm text-muted-foreground font-medium">Total Deals</p>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="text-2xl font-bold">
+        <Card className="border-0 bg-gradient-to-br from-card to-card/50 shadow-sm hover:shadow-md transition-all duration-200 hover:scale-105">
+          <CardContent className="p-6">
+            <div className="text-2xl font-bold bg-gradient-to-r from-success to-success/80 bg-clip-text text-transparent">
               ${deals.reduce((sum, deal) => sum + (deal.deal_value || 0), 0).toLocaleString()}
             </div>
-            <p className="text-xs text-muted-foreground">Total Value</p>
+            <p className="text-sm text-muted-foreground font-medium">Total Value</p>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="text-2xl font-bold">
+        <Card className="border-0 bg-gradient-to-br from-card to-card/50 shadow-sm hover:shadow-md transition-all duration-200 hover:scale-105">
+          <CardContent className="p-6">
+            <div className="text-2xl font-bold bg-gradient-to-r from-warning to-warning/80 bg-clip-text text-transparent">
               {deals.length > 0 
                 ? Math.round(deals.reduce((sum, deal) => sum + deal.deal_probability, 0) / deals.length)
                 : 0}%
             </div>
-            <p className="text-xs text-muted-foreground">Avg Probability</p>
+            <p className="text-sm text-muted-foreground font-medium">Avg Probability</p>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="text-2xl font-bold">
+        <Card className="border-0 bg-gradient-to-br from-card to-card/50 shadow-sm hover:shadow-md transition-all duration-200 hover:scale-105">
+          <CardContent className="p-6">
+            <div className="text-2xl font-bold bg-gradient-to-r from-info to-info/80 bg-clip-text text-transparent">
               {deals.reduce((sum, deal) => sum + deal.pending_tasks, 0)}
             </div>
-            <p className="text-xs text-muted-foreground">Pending Tasks</p>
+            <p className="text-sm text-muted-foreground font-medium">Pending Tasks</p>
           </CardContent>
         </Card>
       </div>
@@ -207,7 +208,7 @@ export function DealsKanbanBoard({
         onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
       >
-        <div className="flex gap-6 overflow-x-auto pb-4">
+        <div className="flex gap-6 overflow-x-auto pb-6 px-1">
           {stageMetrics.map((stage) => (
             <DealKanbanColumn
               key={stage.id}

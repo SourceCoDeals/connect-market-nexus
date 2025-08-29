@@ -121,10 +121,10 @@ export const DealsListView = ({ onDealClick }: DealsListViewProps) => {
   return (
     <div className="space-y-6">
       {/* Filters */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Filter className="h-5 w-5" />
+      <Card className="border-0 bg-card/50 backdrop-blur-sm shadow-sm">
+        <CardHeader className="pb-4">
+          <CardTitle className="flex items-center gap-2 text-lg font-semibold">
+            <Filter className="h-5 w-5 text-primary" />
             Filters & Search
           </CardTitle>
         </CardHeader>
@@ -195,9 +195,9 @@ export const DealsListView = ({ onDealClick }: DealsListViewProps) => {
       </Card>
 
       {/* Deals Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>
+      <Card className="border-0 bg-card/50 backdrop-blur-sm shadow-sm">
+        <CardHeader className="pb-4">
+          <CardTitle className="text-lg font-semibold">
             Deals ({filteredDeals.length})
           </CardTitle>
         </CardHeader>
@@ -207,27 +207,27 @@ export const DealsListView = ({ onDealClick }: DealsListViewProps) => {
               <p>No deals found matching the current filters.</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto rounded-lg border border-border/50">
               <Table>
                 <TableHeader>
-                  <TableRow>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Deal</TableHead>
-                    <TableHead>Contact</TableHead>
-                    <TableHead>Stage</TableHead>
-                    <TableHead>Priority</TableHead>
-                    <TableHead>Value</TableHead>
-                    <TableHead>Probability</TableHead>
-                    <TableHead>Close Date</TableHead>
-                    <TableHead>Assigned</TableHead>
-                    <TableHead>Actions</TableHead>
+                  <TableRow className="bg-muted/30 hover:bg-muted/50">
+                    <TableHead className="font-semibold">Status</TableHead>
+                    <TableHead className="font-semibold">Deal</TableHead>
+                    <TableHead className="font-semibold">Contact</TableHead>
+                    <TableHead className="font-semibold">Stage</TableHead>
+                    <TableHead className="font-semibold">Priority</TableHead>
+                    <TableHead className="font-semibold">Value</TableHead>
+                    <TableHead className="font-semibold">Probability</TableHead>
+                    <TableHead className="font-semibold">Close Date</TableHead>
+                    <TableHead className="font-semibold">Assigned</TableHead>
+                    <TableHead className="font-semibold">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredDeals.map((deal) => (
                     <TableRow 
                       key={deal.deal_id} 
-                      className="cursor-pointer hover:bg-muted/50"
+                      className="cursor-pointer hover:bg-muted/30 transition-colors duration-200 group"
                       onClick={() => onDealClick?.(deal)}
                     >
                       <TableCell>
