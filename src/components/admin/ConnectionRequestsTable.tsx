@@ -240,13 +240,21 @@ const RequestDetails = ({ request }: { request: AdminConnectionRequest }) => {
                 {request.lead_company && (
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-muted-foreground">Company</span>
-                    <span className="text-xs font-medium text-foreground">{request.lead_company}</span>
+                    <span className="text-xs font-medium text-primary hover:text-primary/80 cursor-pointer transition-colors">
+                      {request.lead_company}
+                    </span>
                   </div>
                 )}
                 {request.lead_role && (
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-muted-foreground">Role</span>
                     <span className="text-xs font-medium text-foreground">{request.lead_role}</span>
+                  </div>
+                )}
+                {request.lead_phone && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">Phone</span>
+                    <span className="text-xs font-medium text-foreground">{request.lead_phone}</span>
                   </div>
                 )}
               </div>
@@ -398,11 +406,11 @@ function ReactiveRequestCard({
                           {request.user?.company || 'Company'}
                         </a>
                      )}
-                     {!request.user?.website && request.lead_company && (
-                       <span className="text-xs text-muted-foreground">
-                         {request.lead_company}
-                       </span>
-                     )}
+                      {!request.user?.website && request.lead_company && (
+                        <span className="text-xs text-primary hover:text-primary/80 cursor-pointer transition-colors">
+                          {request.lead_company}
+                        </span>
+                      )}
                    </div>
                  </div>
                   <div className="flex items-center gap-2">

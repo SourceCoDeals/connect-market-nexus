@@ -114,6 +114,7 @@ export interface AdminConnectionRequest {
   lead_name?: string;
   lead_company?: string;
   lead_role?: string;
+  lead_phone?: string;
   // Lead-only document status tracking
   lead_nda_email_sent?: boolean;
   lead_nda_email_sent_at?: string | null;
