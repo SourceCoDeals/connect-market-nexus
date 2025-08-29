@@ -95,43 +95,47 @@ export function PipelineKanbanView({ pipeline }: PipelineKanbanViewProps) {
         onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
       >
-        <div className="flex-1 relative">
+        <div className="flex-1 relative min-h-0">
           {/* Mobile: Horizontal scroll navigation */}
-          <div className="md:hidden absolute top-4 right-4 z-10 flex gap-2">
+          <div className="md:hidden absolute top-2 right-2 z-20 flex gap-1 bg-background/95 backdrop-blur-sm rounded-lg p-1 shadow-lg">
             <Button
               variant="outline"
               size="sm"
               onClick={() => scrollToStage('left')}
-              className="h-8 w-8 p-0 bg-background/80 backdrop-blur"
+              className="h-7 w-7 p-0 border-muted-foreground/20"
             >
-              <ChevronLeft className="h-4 w-4" />
+              <ChevronLeft className="h-3.5 w-3.5" />
             </Button>
             <Button
               variant="outline"
               size="sm"
               onClick={() => scrollToStage('right')}
-              className="h-8 w-8 p-0 bg-background/80 backdrop-blur"
+              className="h-7 w-7 p-0 border-muted-foreground/20"
             >
-              <ChevronRight className="h-4 w-4" />
+              <ChevronRight className="h-3.5 w-3.5" />
             </Button>
           </div>
 
           {/* Kanban Container */}
           <div 
             id="kanban-scroll-container"
-            className="h-full overflow-x-auto overflow-y-hidden scrollbar-hide"
+            className="h-full overflow-x-auto overflow-y-hidden touch-pan-x"
+            style={{ 
+              WebkitOverflowScrolling: 'touch',
+              scrollbarWidth: 'none',
+              msOverflowStyle: 'none'
+            }}
           >
             <div 
-              className="flex gap-3 md:gap-4 p-3 md:p-6 h-full"
+              className="flex gap-2 sm:gap-3 lg:gap-4 p-2 sm:p-3 lg:p-4 h-full min-w-full"
               style={{ 
-                minHeight: 'calc(100vh - 200px)',
-                width: `max-content`
+                width: 'max-content'
               }}
             >
               {pipeline.stageMetrics.map((stage) => (
                 <div 
                   key={stage.id}
-                  className="flex-shrink-0 w-72 sm:w-80"
+                  className="flex-shrink-0 w-64 sm:w-72 lg:w-80"
                 >
                   <PipelineKanbanColumn
                     stage={stage}
