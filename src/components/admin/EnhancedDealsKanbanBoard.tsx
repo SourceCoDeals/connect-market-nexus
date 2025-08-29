@@ -199,7 +199,7 @@ export function EnhancedDealsKanbanBoard({ onCreateDeal, onManageStages, onDealC
         >
           <div className="h-full overflow-x-auto overflow-y-hidden">
             <div 
-              className="h-full flex gap-4 p-4"
+              className="h-full flex gap-4 p-4 min-w-max"
               style={{ 
                 minWidth: `${stageMetrics.length * 320}px`
               }}
