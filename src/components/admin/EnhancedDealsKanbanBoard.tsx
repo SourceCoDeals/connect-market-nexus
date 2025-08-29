@@ -173,21 +173,7 @@ export function EnhancedDealsKanbanBoard({ onCreateDeal, onManageStages, onDealC
 
   return (
     <div className="space-y-6">
-      {/* Header Actions */}
-      <div className="flex items-center justify-between">
-        <div className="flex gap-2">
-          <Button onClick={onCreateDeal} className="gap-2">
-            <Plus className="h-4 w-4" />
-            Create Deal
-          </Button>
-          <Button variant="outline" onClick={onManageStages} className="gap-2">
-            <Settings className="h-4 w-4" />
-            Manage Stages
-          </Button>
-        </div>
-      </div>
-
-      {/* Filters */}
+      {/* Sophisticated Filter Bar */}
       <div>
         <DealFilters
           deals={deals || []}
