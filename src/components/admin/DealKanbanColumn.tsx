@@ -54,7 +54,7 @@ export function DealKanbanColumn({ stage, deals, onDealClick }: DealKanbanColumn
           <div
             ref={setNodeRef}
             className="h-full overflow-y-auto p-2 space-y-2"
-            style={{ maxHeight: 'calc(100vh - 108px)' }}
+            style={{ maxHeight: 'calc(100vh - 140px)' }}
           >
             <SortableContext 
               items={deals.map(deal => deal.deal_id)}

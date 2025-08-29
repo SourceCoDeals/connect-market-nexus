@@ -50,7 +50,7 @@ export default function AdminPipeline() {
   }, [deals]);
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden">
+    <div className="h-screen flex flex-col">
       {/* Minimal Top Bar */}
       <MinimalTopBar
         currentView={currentView}
@@ -62,7 +62,7 @@ export default function AdminPipeline() {
       />
 
       {/* Full Screen Content */}
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1">
         {currentView === 'kanban' ? (
           <EnhancedDealsKanbanBoard 
             onCreateDeal={handleCreateDeal}

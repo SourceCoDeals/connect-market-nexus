@@ -187,14 +187,14 @@ export function EnhancedDealsKanbanBoard({ onCreateDeal, onManageStages, onDealC
       />
 
       {/* Full Screen Pipeline */}
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1">
         <DndContext
           sensors={sensors}
           onDragStart={handleDragStart}
           onDragOver={handleDragOver}
           onDragEnd={handleDragEnd}
         >
-          <div className="h-full overflow-x-auto overflow-y-hidden">
+          <div className="h-screen overflow-x-auto overflow-y-hidden" style={{ height: 'calc(100vh - 92px)' }}>
             <div className="flex gap-3 px-4 py-3 h-full min-w-max">
               {stageMetrics.map((stage) => (
                 <DealKanbanColumn
