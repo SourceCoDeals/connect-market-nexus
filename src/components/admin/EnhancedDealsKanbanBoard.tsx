@@ -194,8 +194,8 @@ export function EnhancedDealsKanbanBoard({ onCreateDeal, onManageStages, onDealC
           onDragOver={handleDragOver}
           onDragEnd={handleDragEnd}
         >
-          <div className="h-screen overflow-x-auto overflow-y-hidden" style={{ height: 'calc(100vh - 92px)' }}>
-            <div className="flex gap-3 px-4 py-3 h-full min-w-max">
+          <div className="h-full overflow-x-auto overflow-y-hidden">
+            <div className="flex gap-3 px-4 py-3 h-full">
               {stageMetrics.map((stage) => (
                 <DealKanbanColumn
                   key={stage.id}
