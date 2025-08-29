@@ -52,36 +52,6 @@ const StatusBadge = ({ status }: { status: string }) => {
   );
 };
 
-const PriorityBadge = ({ score }: { score: number }) => {
-  const getPriorityConfig = (score: number) => {
-    if (score >= 8) {
-      return { 
-        label: 'High', 
-        className: 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100' 
-      };
-    } else if (score >= 6) {
-      return { 
-        label: 'Medium', 
-        className: 'bg-orange-50 text-orange-700 border-orange-200 hover:bg-orange-100' 
-      };
-    } else {
-      return { 
-        label: 'Low', 
-        className: 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100' 
-      };
-    }
-  };
-
-  const config = getPriorityConfig(score);
-  return (
-    <Badge 
-      variant="outline" 
-      className={`text-xs font-medium px-2 py-1 transition-colors ${config.className}`}
-    >
-      {config.label}
-    </Badge>
-  );
-};
 
 const SourceBadge = ({ source }: { source: string }) => {
   const labelMap: Record<string, string> = {
@@ -185,7 +155,6 @@ export const CompactLeadCard = ({
           {/* Badges Row */}
           <div className="flex items-center gap-2 flex-wrap">
             <StatusBadge status={lead.status} />
-            <PriorityBadge score={lead.priority_score} />
             <SourceBadge source={lead.source} />
           </div>
 

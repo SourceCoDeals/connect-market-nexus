@@ -192,58 +192,63 @@ Date	Name	Email address	Company name	Phone number	Role	Message
         </DialogHeader>
         
         <div className="flex-1 overflow-hidden grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Input Section */}
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="source-select">Lead Source</Label>
-              <p className="text-xs text-muted-foreground mb-2">
-                Select the source for all leads in this import.
-              </p>
-              <Select value={selectedSource} onValueChange={setSelectedSource}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select source" />
-                </SelectTrigger>
-                <SelectContent>
-                  {sourceOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div>
-              <Label htmlFor="csv-input">CSV Data</Label>
-              <p className="text-xs text-muted-foreground mb-2">
-                Paste CSV/TSV. Headers like Email address, Company name, Phone number, Role, Message, Date are supported.
-              </p>
-              <Textarea
-                id="csv-input"
-                placeholder={`Date\tName\tEmail address\tCompany name\tPhone number\tRole\tMessage\n08/27/2025 9:37:24 pm\tJohn Smith\tjohn@example.com\tAcme Partners\t555-0123\tPrivate Equity\t"Interested in SaaS and services"`}
-                value={csvText}
-                onChange={(e) => setCsvText(e.target.value)}
-                className="min-h-[160px] font-mono text-xs"
-              />
-            </div>
-            
-            <div>
-              <h4 className="text-sm font-medium mb-2">Sample Format:</h4>
-              <div className="bg-muted/50 border rounded-lg p-3">
-                <pre className="text-xs font-mono text-muted-foreground whitespace-pre-wrap">
-                  {sampleCSV}
-                </pre>
+          {/* Input Section - Scrollable */}
+          <div className="flex flex-col max-h-full overflow-hidden">
+            <div className="flex-1 overflow-y-auto space-y-4 pr-2">
+              <div>
+                <Label htmlFor="source-select">Lead Source</Label>
+                <p className="text-xs text-muted-foreground mb-2">
+                  Select the source for all leads in this import.
+                </p>
+                <Select value={selectedSource} onValueChange={setSelectedSource}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select source" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {sourceOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div>
+                <Label htmlFor="csv-input">CSV Data</Label>
+                <p className="text-xs text-muted-foreground mb-2">
+                  Paste CSV/TSV. Headers like Email address, Company name, Phone number, Role, Message, Date are supported.
+                </p>
+                <Textarea
+                  id="csv-input"
+                  placeholder={`Date\tName\tEmail address\tCompany name\tPhone number\tRole\tMessage\n08/27/2025 9:37:24 pm\tJohn Smith\tjohn@example.com\tAcme Partners\t555-0123\tPrivate Equity\t"Interested in SaaS and services"`}
+                  value={csvText}
+                  onChange={(e) => setCsvText(e.target.value)}
+                  className="min-h-[160px] font-mono text-xs"
+                />
+              </div>
+              
+              <div>
+                <h4 className="text-sm font-medium mb-2">Sample Format:</h4>
+                <div className="bg-muted/50 border rounded-lg p-3">
+                  <pre className="text-xs font-mono text-muted-foreground whitespace-pre-wrap">
+                    {sampleCSV}
+                  </pre>
+                </div>
               </div>
             </div>
 
-            <Button 
-              onClick={parseCSV} 
-              disabled={!csvText.trim() || isLoading}
-              className="w-full"
-            >
-              <FileText className="h-4 w-4 mr-2" />
-              Parse CSV
-            </Button>
+            {/* Parse Button - Fixed at bottom */}
+            <div className="pt-4 border-t border-border/40 mt-4">
+              <Button 
+                onClick={parseCSV} 
+                disabled={!csvText.trim() || isLoading}
+                className="w-full"
+              >
+                <FileText className="h-4 w-4 mr-2" />
+                Parse CSV
+              </Button>
+            </div>
           </div>
 
           {/* Preview Section */}
