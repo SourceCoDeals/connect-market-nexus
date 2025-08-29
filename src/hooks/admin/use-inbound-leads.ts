@@ -310,165 +310,31 @@ export function useMapLeadToListing() {
 }
 
 // Mutation hook for converting lead to connection request
-// Mutation hook for converting lead to connection request
 export function useConvertLeadToRequest() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (leadId: string) => {
-      console.group('[ConvertLeadToRequest] Start');
-      console.debug('[ConvertLeadToRequest] leadId:', leadId);
-
-      // Fetch lead
+      // Get the lead to extract the listing ID
       const { data: lead, error: leadError } = await sb
         .from('inbound_leads')
-        .select('*')
+        .select('mapped_to_listing_id')
         .eq('id', leadId)
-        .maybeSingle();
+        .single();
 
-      if (leadError || !lead) {
-        console.error('[ConvertLeadToRequest] Lead fetch error:', leadError);
-        throw leadError || new Error('Lead not found');
-      }
-
-      if (!lead.mapped_to_listing_id) {
-        console.warn('[ConvertLeadToRequest] Lead not mapped to listing');
+      if (leadError || !lead?.mapped_to_listing_id) {
         throw new Error('Lead must be mapped to a listing before conversion');
       }
 
-      // Get admin user
-      const { data: { user: adminUser }, error: adminAuthError } = await sb.auth.getUser();
-      if (adminAuthError || !adminUser) {
-        console.error('[ConvertLeadToRequest] Auth error:', adminAuthError);
-        throw new Error('Authentication required for conversion');
-      }
+      // Use the new RPC function to handle conversion and merging
+      const { data: requestId, error } = await sb.rpc('convert_inbound_lead_to_request', {
+        p_lead_id: leadId,
+        p_listing_id: lead.mapped_to_listing_id
+      });
 
-      // Check for existing user and existing requests for this listing/email combo (case-insensitive)
-      const { data: existingProfile, error: profileErr } = await sb
-        .from('profiles')
-        .select('id, email')
-        .ilike('email', lead.email)
-        .maybeSingle();
+      if (error) throw error;
 
-      if (profileErr) {
-        console.error('[ConvertLeadToRequest] Profile lookup error:', profileErr);
-        throw profileErr;
-      }
-
-      // Check for existing requests by user_id or lead_email
-      let existingRequestId: string | null = null;
-
-      if (existingProfile?.id) {
-        const { data: dupByUser, error: dupByUserErr } = await sb
-          .from('connection_requests')
-          .select('id')
-          .eq('listing_id', lead.mapped_to_listing_id)
-          .eq('user_id', existingProfile.id)
-          .limit(1)
-          .maybeSingle();
-        if (dupByUserErr) {
-          console.error('[ConvertLeadToRequest] Duplicate check (by user) error:', dupByUserErr);
-        }
-        existingRequestId = dupByUser?.id || null;
-      }
-
-      // Also check for lead-only requests with the same email
-      if (!existingRequestId) {
-        const { data: dupByEmail, error: dupByEmailErr } = await sb
-          .from('connection_requests')
-          .select('id')
-          .eq('listing_id', lead.mapped_to_listing_id)
-          .ilike('lead_email', lead.email)
-          .limit(1)
-          .maybeSingle();
-        if (dupByEmailErr) {
-          console.error('[ConvertLeadToRequest] Duplicate check (by lead email) error:', dupByEmailErr);
-        }
-        existingRequestId = dupByEmail?.id || null;
-      }
-
-      if (existingRequestId) {
-        console.warn('[ConvertLeadToRequest] Duplicate request found:', existingRequestId);
-        throw new Error(`Duplicate connection request found. A request already exists for this email and listing combination (Request ID: ${existingRequestId}). Cannot create duplicate requests.`);
-      }
-
-      // Create connection request - either user-linked or lead-only
-      let resolvedUserId: string | null = null;
-      let isLeadOnlyRequest = false;
-
-      if (existingProfile?.id) {
-        resolvedUserId = existingProfile.id;
-        console.info('[ConvertLeadToRequest] Matched existing user profile for email', lead.email, '->', resolvedUserId);
-      } else {
-        // NEW APPROACH: Create lead-only request instead of auto-creating users
-        console.info('[ConvertLeadToRequest] Creating lead-only request for:', lead.email);
-        isLeadOnlyRequest = true;
-      }
-
-      // Prepare request data based on whether we have a user or not
-      const sourceValue = lead.source || 'manual';
-      const requestData: any = {
-        listing_id: lead.mapped_to_listing_id,
-        user_message: lead.message || 'Converted from inbound lead',
-        status: 'pending',
-        source: sourceValue,
-        source_lead_id: leadId,
-        source_metadata: {
-          lead_name: lead.name,
-          lead_email: lead.email,
-          lead_company: lead.company_name,
-          lead_phone: lead.phone_number,
-          lead_role: lead.role,
-          original_message: lead.message,
-          priority_score: lead.priority_score,
-          form_name: lead.source_form_name,
-          converted_from_lead: true,
-          is_lead_only_request: isLeadOnlyRequest,
-        },
-        converted_by: adminUser.id,
-        converted_at: new Date().toISOString(),
-      };
-
-      // Add user_id if user exists, otherwise add lead info for lead-only request
-      if (resolvedUserId) {
-        requestData.user_id = resolvedUserId;
-      } else {
-        requestData.lead_email = lead.email;
-        requestData.lead_name = lead.name;
-        requestData.lead_company = lead.company_name;
-        requestData.lead_role = lead.role;
-        requestData.lead_phone = lead.phone_number;
-      }
-
-      const { data: connectionRequest, error: requestError } = await sb
-        .from('connection_requests')
-        .insert([requestData])
-        .select('id')
-        .single();
-
-      if (requestError) {
-        console.error('[ConvertLeadToRequest] Request insert error:', requestError);
-        throw requestError;
-      }
-
-      // Update lead status
-      const { error: updateError } = await sb
-        .from('inbound_leads')
-        .update({
-          converted_to_request_id: connectionRequest.id,
-          converted_at: new Date().toISOString(),
-          status: 'converted',
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', leadId);
-
-      if (updateError) {
-        console.error('[ConvertLeadToRequest] Lead update error:', updateError);
-        throw updateError;
-      }
-
-      console.groupEnd();
-      return connectionRequest;
+      return { id: requestId };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['inbound-leads'] });

@@ -266,6 +266,7 @@ export type Database = {
           lead_nda_email_sent_at: string | null
           lead_nda_signed: boolean | null
           lead_nda_signed_at: string | null
+          lead_phone: string | null
           lead_role: string | null
           listing_id: string
           negative_followed_up: boolean | null
@@ -307,6 +308,7 @@ export type Database = {
           lead_nda_email_sent_at?: string | null
           lead_nda_signed?: boolean | null
           lead_nda_signed_at?: string | null
+          lead_phone?: string | null
           lead_role?: string | null
           listing_id: string
           negative_followed_up?: boolean | null
@@ -348,6 +350,7 @@ export type Database = {
           lead_nda_email_sent_at?: string | null
           lead_nda_signed?: boolean | null
           lead_nda_signed_at?: string | null
+          lead_phone?: string | null
           lead_role?: string | null
           listing_id?: string
           negative_followed_up?: boolean | null
@@ -1768,6 +1771,10 @@ export type Database = {
         }
         Returns: number
       }
+      convert_inbound_lead_to_request: {
+        Args: { p_lead_id: string; p_listing_id: string }
+        Returns: string
+      }
       create_password_reset_token: {
         Args: { user_email: string }
         Returns: string
@@ -1866,6 +1873,18 @@ export type Database = {
           user_email: string
           user_id: string
         }[]
+      }
+      merge_or_create_connection_request: {
+        Args: {
+          p_lead_company?: string
+          p_lead_email?: string
+          p_lead_name?: string
+          p_lead_phone?: string
+          p_lead_role?: string
+          p_listing_id: string
+          p_user_message: string
+        }
+        Returns: string
       }
       preview_profile_data_restoration: {
         Args: Record<PropertyKey, never>

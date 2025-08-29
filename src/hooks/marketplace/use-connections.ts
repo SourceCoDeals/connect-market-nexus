@@ -21,41 +21,21 @@ export const useRequestConnection = () => {
           throw new Error('A detailed message (minimum 20 characters) is required to request a connection');
         }
         
-        const { data: existing, error: checkError } = await supabase
-          .from('connection_requests')
-          .select()
-          .eq('listing_id', listingId)
-          .eq('user_id', session.user.id)
-          .maybeSingle();
-        
-        if (checkError) throw checkError;
-        
-        // If a request already exists, don't create a new one
-        if (existing) {
-          return existing;
-        }
+        // Use the new RPC function to handle potential merging
+        const { data: requestId, error } = await supabase.rpc('merge_or_create_connection_request', {
+          p_listing_id: listingId,
+          p_user_message: message.trim()
+        });
+
+        if (error) throw error;
         
         const userId = session.user.id;
-        
-        // Create connection request
-        const { data, error } = await supabase
-          .from('connection_requests')
-          .insert({
-            user_id: userId,
-            listing_id: listingId,
-            status: 'pending',
-            user_message: message || null
-          })
-          .select()
-          .single();
-        
-        if (error) throw error;
         
         // Log activity
         await supabase.from('user_activity').insert({
           user_id: userId,
           activity_type: 'connection_request',
-          metadata: { listing_id: listingId }
+          metadata: { listing_id: listingId, request_id: requestId }
         });
 
         // Send notification email to user
@@ -87,7 +67,8 @@ export const useRequestConnection = () => {
             requesterEmail: userData.email,
             listingTitle: listingData.title,
             listingId: listingData.id,
-            message: message || ''
+            message: message || '',
+            requestId: requestId
           };
           
           await supabase.functions.invoke('send-connection-notification', {
@@ -103,7 +84,8 @@ export const useRequestConnection = () => {
             requesterEmail: userData.email,
             listingTitle: listingData.title,
             listingId: listingData.id,
-            message: message || ''
+            message: message || '',
+            requestId: requestId
           };
           
           await supabase.functions.invoke('send-connection-notification', {
@@ -114,7 +96,7 @@ export const useRequestConnection = () => {
           console.error('Failed to send notification:', notificationError);
         }
         
-        return data;
+        return { id: requestId };
       } catch (error: any) {
         console.error('Error requesting connection:', error);
         throw error;
