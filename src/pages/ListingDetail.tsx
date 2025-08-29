@@ -332,59 +332,6 @@ const ListingDetail = () => {
               />
             </div>
 
-            {/* Investment Calculator */}
-            <div className="document-section py-6">
-              <PremiumInvestmentCalculator 
-                revenue={listing.revenue} 
-                ebitda={listing.ebitda}
-                formatCurrency={formatCurrency}
-              />
-            </div>
-
-            {/* Investment Thesis Generator */}
-            <div className="document-section py-6">
-            <InvestmentThesisGenerator
-              revenue={listing.revenue}
-              ebitda={listing.ebitda}
-              category={listing.category}
-              location={listing.location}
-              description={listing.description}
-              formatCurrency={formatCurrency}
-            />
-            </div>
-
-            {/* Investment Fit Score */}
-            <div className="document-section py-6">
-              <InvestmentFitScore 
-                revenue={listing.revenue}
-                ebitda={listing.ebitda}
-                category={listing.category}
-                location={listing.location}
-              />
-            </div>
-
-            {/* Advanced Analysis Tools */}
-            <div className="document-section py-6">
-              <AdvancedComparisonMatrix
-                currentListingId={id!}
-                currentListing={{
-                  title: listing.title,
-                  revenue: listing.revenue,
-                  ebitda: listing.ebitda,
-                  location: listing.location,
-                  category: listing.category
-                }}
-                formatCurrency={formatCurrency}
-              />
-            </div>
-
-            <div className="document-section py-6">
-              <InteractiveCashFlowProjections
-                revenue={listing.revenue}
-                ebitda={listing.ebitda}
-                formatCurrency={formatCurrency}
-              />
-            </div>
 
 
             {isAdmin && listing.owner_notes && (
