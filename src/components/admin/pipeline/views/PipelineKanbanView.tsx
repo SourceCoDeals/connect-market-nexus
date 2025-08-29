@@ -17,8 +17,11 @@ import { PipelineKanbanCard } from './PipelineKanbanCard';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
-export function PipelineKanbanView() {
-  const pipeline = usePipelineCore();
+interface PipelineKanbanViewProps {
+  pipeline: ReturnType<typeof usePipelineCore>;
+}
+
+export function PipelineKanbanView({ pipeline }: PipelineKanbanViewProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [scrollPosition, setScrollPosition] = useState(0);
   const updateDealStage = useUpdateDealStage();
@@ -116,19 +119,19 @@ export function PipelineKanbanView() {
           {/* Kanban Container */}
           <div 
             id="kanban-scroll-container"
-            className="h-full overflow-x-auto overflow-y-hidden"
+            className="h-full overflow-x-auto overflow-y-hidden scrollbar-hide"
           >
             <div 
-              className="flex gap-3 md:gap-6 p-4 h-full min-w-fit"
+              className="flex gap-3 md:gap-4 p-3 md:p-6 h-full"
               style={{ 
                 minHeight: 'calc(100vh - 200px)',
-                width: `${pipeline.stageMetrics.length * 280}px` // Mobile: 280px per column
+                width: `max-content`
               }}
             >
               {pipeline.stageMetrics.map((stage) => (
                 <div 
                   key={stage.id}
-                  className="flex-shrink-0 w-72 md:w-80" // Responsive column width
+                  className="flex-shrink-0 w-72 sm:w-80"
                 >
                   <PipelineKanbanColumn
                     stage={stage}
