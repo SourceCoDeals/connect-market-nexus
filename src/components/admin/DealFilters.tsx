@@ -147,133 +147,99 @@ export function DealFilters({
   ] as const;
 
   return (
-    <div className="space-y-3 p-4 bg-neutral-50/50 rounded-lg border border-neutral-200">
-      {/* Search and Primary Controls */}
-      <div className="flex flex-col lg:flex-row gap-3">
-        {/* Clean Search */}
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-neutral-400" />
+    <div className="flex items-center justify-between gap-4">
+      {/* Left: Search + Key Filters */}
+      <div className="flex items-center gap-3">
+        {/* HubSpot-style Search */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search deals..."
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="pl-10 h-8 bg-white border-neutral-200 focus:border-neutral-300 focus:ring-0 text-sm placeholder:text-neutral-400"
+            className="pl-10 h-8 w-64 text-sm border-border/40 focus:border-border bg-background/50 focus:bg-background"
           />
         </div>
 
-        {/* Clean Dropdowns */}
-        <div className="flex gap-2">
-          <Select value={listingFilter} onValueChange={onListingFilterChange}>
-            <SelectTrigger className="w-48 h-8 bg-white border-neutral-200 text-sm font-medium">
-              <div className="flex items-center gap-2">
-                <Building2 className="h-3.5 w-3.5 text-neutral-500" />
-                <SelectValue placeholder="All Listings" />
-              </div>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Listings</SelectItem>
-              {uniqueListings.map((listing) => (
-                <SelectItem key={listing.id} value={listing.id}>
-                  {listing.title}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        {/* Deal Owner */}
+        <Select value={adminFilter} onValueChange={onAdminFilterChange}>
+          <SelectTrigger className="w-44 h-8 text-sm border-border/40 bg-background/50">
+            <SelectValue placeholder="Deal owner" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All owners</SelectItem>
+            <SelectItem value="unassigned">Unassigned</SelectItem>
+            {uniqueAdmins.map((admin) => (
+              <SelectItem key={admin.id} value={admin.id || ''}>
+                {admin.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
-          <Select value={adminFilter} onValueChange={onAdminFilterChange}>
-            <SelectTrigger className="w-40 h-8 bg-white border-neutral-200 text-sm font-medium">
-              <div className="flex items-center gap-2">
-                <Users className="h-3.5 w-3.5 text-neutral-500" />
-                <SelectValue placeholder="All Admins" />
-              </div>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Admins</SelectItem>
-              <SelectItem value="unassigned">Unassigned</SelectItem>
-              {uniqueAdmins.map((admin) => (
-                <SelectItem key={admin.id} value={admin.id || ''}>
-                  {admin.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        {/* Listing */}
+        <Select value={listingFilter} onValueChange={onListingFilterChange}>
+          <SelectTrigger className="w-48 h-8 text-sm border-border/40 bg-background/50">
+            <SelectValue placeholder="All listings" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All listings</SelectItem>
+            {uniqueListings.map((listing) => (
+              <SelectItem key={listing.id} value={listing.id}>
+                {listing.title}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
-      {/* Status Filter Pills */}
-      <div className="flex gap-1.5 flex-wrap">
-        {statusOptions.map((option) => {
-          const isActive = statusFilter === option.value;
-          const StatusIcon = option.icon;
-          
-          return (
-            <Button
-              key={option.value}
-              variant={isActive ? "filter-active" : "filter"}
-              size="filter"
-              onClick={() => onStatusFilterChange(option.value as DealStatusFilter)}
-              className="gap-1.5"
-            >
-              <StatusIcon className="h-3 w-3" />
-              {option.label}
-              {option.count > 0 && (
-                <span className={`ml-1 text-xs px-1.5 py-0.5 rounded-full ${
-                  isActive 
-                    ? "bg-primary/20 text-primary" 
-                    : "bg-neutral-100 text-neutral-500"
-                }`}>
-                  {option.count}
-                </span>
-              )}
-            </Button>
-          );
-        })}
-      </div>
-
-      {/* Advanced Filters */}
-      <div className="flex gap-2 items-center">
+      {/* Right: Advanced Filters */}
+      <div className="flex items-center gap-2">
         {/* Buyer Type Filter */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="filter" size="filter" className="gap-1.5">
-              <Building2 className="h-3 w-3" />
-              Buyer Type
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="h-8 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50"
+            >
+              Buyer type
               {buyerTypeFilter !== 'all' && (
-                <span className="ml-1 text-xs px-1.5 py-0.5 rounded-full bg-primary/20 text-primary">
-                  {buyerTypeCounts[buyerTypeFilter as keyof typeof buyerTypeCounts]}
-                </span>
+                <Badge variant="secondary" className="ml-1 h-4 px-1.5 text-xs">
+                  1
+                </Badge>
               )}
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-56">
-            <DropdownMenuLabel className="text-xs font-medium text-neutral-500">Buyer Type</DropdownMenuLabel>
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuLabel className="text-xs">Buyer type</DropdownMenuLabel>
             <DropdownMenuSeparator />
             {buyerTypeOptions.map((option) => (
               <DropdownMenuCheckboxItem
                 key={option.value}
                 checked={buyerTypeFilter === option.value}
                 onCheckedChange={() => onBuyerTypeFilterChange(option.value as BuyerTypeFilter)}
-                className="flex items-center justify-between text-sm"
+                className="text-sm"
               >
-                <span>{option.label}</span>
-                <span className="text-xs text-neutral-500">
-                  {option.count}
-                </span>
+                {option.label}
               </DropdownMenuCheckboxItem>
             ))}
           </DropdownMenuContent>
         </DropdownMenu>
 
-        {/* Document Status Filter */}
+        {/* Document Status */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="filter" size="filter" className="gap-1.5">
-              <ShieldCheck className="h-3 w-3" />
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="h-8 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50"
+            >
               Documents
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-48">
-            <DropdownMenuLabel className="text-xs font-medium text-neutral-500">Document Status</DropdownMenuLabel>
+          <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuLabel className="text-xs">Document status</DropdownMenuLabel>
             <DropdownMenuSeparator />
             {documentStatusOptions.map((option) => (
               <DropdownMenuCheckboxItem
@@ -288,28 +254,58 @@ export function DealFilters({
           </DropdownMenuContent>
         </DropdownMenu>
 
-        {/* Sort Options */}
-        <Select value={sortOption} onValueChange={(value) => onSortChange(value as SortOption)}>
-          <SelectTrigger className="w-36 h-8 bg-white border-neutral-200 text-sm font-medium">
-            <div className="flex items-center gap-1.5">
-              <SortAsc className="h-3 w-3 text-neutral-500" />
-              <SelectValue />
+        {/* All Filters */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="h-8 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50"
+            >
+              <Filter className="h-3.5 w-3.5 mr-1" />
+              All filters
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-72 p-4">
+            <div className="space-y-4">
+              <div>
+                <DropdownMenuLabel className="text-xs text-muted-foreground mb-2">Deal stage</DropdownMenuLabel>
+                <div className="flex flex-wrap gap-1">
+                  {statusOptions.slice(1).map((option) => {
+                    const isActive = statusFilter === option.value;
+                    return (
+                      <Button
+                        key={option.value}
+                        variant={isActive ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => onStatusFilterChange(option.value as DealStatusFilter)}
+                        className="h-6 text-xs"
+                      >
+                        {option.label}
+                      </Button>
+                    );
+                  })}
+                </div>
+              </div>
+              
+              <div>
+                <DropdownMenuLabel className="text-xs text-muted-foreground mb-2">Sort by</DropdownMenuLabel>
+                <Select value={sortOption} onValueChange={(value) => onSortChange(value as SortOption)}>
+                  <SelectTrigger className="h-8 text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {sortOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value} className="text-sm">
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-          </SelectTrigger>
-          <SelectContent>
-            {sortOptions.map((option) => {
-              const SortIcon = option.icon;
-              return (
-                <SelectItem key={option.value} value={option.value}>
-                  <div className="flex items-center gap-2 text-sm">
-                    <SortIcon className="h-3 w-3" />
-                    {option.label}
-                  </div>
-                </SelectItem>
-              );
-            })}
-          </SelectContent>
-        </Select>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </div>
   );
