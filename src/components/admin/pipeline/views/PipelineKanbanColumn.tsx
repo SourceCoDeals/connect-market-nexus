@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -22,10 +23,9 @@ interface PipelineKanbanColumnProps {
   stage: StageWithMetrics;
   deals: Deal[];
   onDealClick: (deal: Deal) => void;
-  isMobile?: boolean;
 }
 
-export function PipelineKanbanColumn({ stage, deals, onDealClick, isMobile }: PipelineKanbanColumnProps) {
+export function PipelineKanbanColumn({ stage, deals, onDealClick }: PipelineKanbanColumnProps) {
   const { setNodeRef, isOver } = useDroppable({
     id: stage.id,
   });
@@ -41,50 +41,56 @@ export function PipelineKanbanColumn({ stage, deals, onDealClick, isMobile }: Pi
   };
   
   return (
-    <div 
-      ref={setNodeRef}
-      className={`flex-shrink-0 ${isMobile ? 'w-80' : 'w-80'} ${isOver ? 'opacity-50' : ''}`}
+    <Card 
+      className={`h-full flex flex-col transition-colors duration-200 ${
+        isOver ? 'ring-2 ring-primary/50 bg-primary/5' : 'bg-card/50'
+      }`}
     >
-      <Card className="h-full flex flex-col border-border/50 bg-background/50 backdrop-blur-sm">
-        {/* Column Header */}
-        <CardHeader className="pb-3 border-b border-border/30">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div 
-                className="w-3 h-3 rounded-full"
-                style={{ backgroundColor: stage.color }}
-              />
-              <h3 className="font-semibold text-sm text-foreground">
-                {stage.name}
-              </h3>
-              <Badge variant="secondary" className="h-5 px-2 text-xs">
-                {stage.dealCount}
-              </Badge>
-            </div>
-            <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-              <MoreVertical className="h-3 w-3" />
-            </Button>
+      {/* Column Header */}
+      <CardHeader className="pb-3 flex-shrink-0">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            <div 
+              className="w-3 h-3 rounded-full flex-shrink-0"
+              style={{ backgroundColor: stage.color }}
+            />
+            <h3 className="font-semibold text-sm text-foreground truncate">
+              {stage.name}
+            </h3>
+            <Badge variant="secondary" className="h-5 px-2 text-xs flex-shrink-0">
+              {stage.dealCount}
+            </Badge>
           </div>
-          
-          {/* Stage Metrics */}
-          <div className="space-y-1">
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-muted-foreground">Total Value</span>
+          <Button variant="ghost" size="sm" className="h-6 w-6 p-0 flex-shrink-0">
+            <MoreVertical className="h-3 w-3" />
+          </Button>
+        </div>
+        
+        {/* Stage Metrics - Responsive Layout */}
+        {stage.dealCount > 0 && (
+          <div className="space-y-2">
+            <div className="flex justify-between text-xs">
+              <span className="text-muted-foreground">Value</span>
               <span className="font-medium text-foreground">
                 {formatCurrency(stage.totalValue)}
               </span>
             </div>
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-muted-foreground">Avg Probability</span>
+            <div className="flex justify-between text-xs">
+              <span className="text-muted-foreground">Avg Prob</span>
               <span className="font-medium text-foreground">
                 {stage.avgProbability.toFixed(0)}%
               </span>
             </div>
           </div>
-        </CardHeader>
-        
-        {/* Deals List */}
-        <CardContent className="flex-1 p-3 space-y-3 overflow-y-auto">
+        )}
+      </CardHeader>
+      
+      {/* Deals List */}
+      <CardContent 
+        ref={setNodeRef}
+        className="flex-1 p-3 pt-0 overflow-y-auto"
+      >
+        <div className="space-y-3 min-h-full">
           {deals.map((deal) => (
             <PipelineKanbanCard 
               key={deal.deal_id}
@@ -99,10 +105,19 @@ export function PipelineKanbanColumn({ stage, deals, onDealClick, isMobile }: Pi
             className="w-full h-12 border-2 border-dashed border-border/50 text-muted-foreground hover:text-foreground hover:border-border transition-colors"
           >
             <Plus className="h-4 w-4 mr-2" />
-            Add Deal
+            <span className="hidden sm:inline">Add Deal</span>
+            <span className="sm:hidden">Add</span>
           </Button>
-        </CardContent>
-      </Card>
-    </div>
+          
+          {/* Empty State */}
+          {deals.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-8 text-center text-muted-foreground">
+              <div className="text-sm opacity-75">No deals</div>
+              <div className="text-xs mt-1 opacity-50">Drag deals here</div>
+            </div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
   );
 }

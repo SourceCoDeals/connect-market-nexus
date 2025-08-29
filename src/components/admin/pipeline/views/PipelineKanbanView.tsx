@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import {
   DndContext,
@@ -13,13 +14,13 @@ import { usePipelineCore } from '@/hooks/admin/use-pipeline-core';
 import { useUpdateDealStage } from '@/hooks/admin/use-deals';
 import { PipelineKanbanColumn } from './PipelineKanbanColumn';
 import { PipelineKanbanCard } from './PipelineKanbanCard';
+import { Button } from '@/components/ui/button';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
-interface PipelineKanbanViewProps {
-  pipeline: ReturnType<typeof usePipelineCore>;
-}
-
-export function PipelineKanbanView({ pipeline }: PipelineKanbanViewProps) {
+export function PipelineKanbanView() {
+  const pipeline = usePipelineCore();
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [scrollPosition, setScrollPosition] = useState(0);
   const updateDealStage = useUpdateDealStage();
   
   const sensors = useSensors(
@@ -49,21 +50,32 @@ export function PipelineKanbanView({ pipeline }: PipelineKanbanViewProps) {
     const dealId = active.id as string;
     const newStageId = over.id as string;
     
-    // Find the deal being moved
     const deal = pipeline.deals.find(d => d.deal_id === dealId);
     if (!deal || deal.stage_id === newStageId) {
       setActiveId(null);
       return;
     }
     
-    // Update the deal stage
     updateDealStage.mutate({ dealId, stageId: newStageId });
     setActiveId(null);
   };
   
+  const scrollToStage = (direction: 'left' | 'right') => {
+    const container = document.getElementById('kanban-scroll-container');
+    if (container) {
+      const scrollAmount = 320; // Column width
+      const newPosition = direction === 'left' 
+        ? Math.max(0, scrollPosition - scrollAmount)
+        : scrollPosition + scrollAmount;
+      
+      container.scrollTo({ left: newPosition, behavior: 'smooth' });
+      setScrollPosition(newPosition);
+    }
+  };
+  
   if (pipeline.stages.length === 0) {
     return (
-      <div className="flex items-center justify-center h-full bg-muted/10">
+      <div className="flex items-center justify-center h-full">
         <div className="text-center">
           <p className="text-lg font-medium text-muted-foreground mb-2">No stages configured</p>
           <p className="text-sm text-muted-foreground">Create deal stages to start managing your pipeline</p>
@@ -80,37 +92,64 @@ export function PipelineKanbanView({ pipeline }: PipelineKanbanViewProps) {
         onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
       >
-        {/* Kanban Board Container */}
-        <div className="flex-1 overflow-hidden">
-          <div className="h-full overflow-x-auto">
+        <div className="flex-1 relative">
+          {/* Mobile: Horizontal scroll navigation */}
+          <div className="md:hidden absolute top-4 right-4 z-10 flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => scrollToStage('left')}
+              className="h-8 w-8 p-0 bg-background/80 backdrop-blur"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => scrollToStage('right')}
+              className="h-8 w-8 p-0 bg-background/80 backdrop-blur"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+
+          {/* Kanban Container */}
+          <div 
+            id="kanban-scroll-container"
+            className="h-full overflow-x-auto overflow-y-hidden"
+          >
             <div 
-              className="flex gap-4 p-4 h-full"
+              className="flex gap-3 md:gap-6 p-4 h-full min-w-fit"
               style={{ 
-                minWidth: pipeline.isMobile ? 'auto' : `${pipeline.stageMetrics.length * 320}px`,
-                minHeight: '600px'
+                minHeight: 'calc(100vh - 200px)',
+                width: `${pipeline.stageMetrics.length * 280}px` // Mobile: 280px per column
               }}
             >
               {pipeline.stageMetrics.map((stage) => (
-                <PipelineKanbanColumn
+                <div 
                   key={stage.id}
-                  stage={stage}
-                  deals={pipeline.dealsByStage[stage.id] || []}
-                  onDealClick={pipeline.handleDealSelect}
-                  isMobile={pipeline.isMobile}
-                />
+                  className="flex-shrink-0 w-72 md:w-80" // Responsive column width
+                >
+                  <PipelineKanbanColumn
+                    stage={stage}
+                    deals={pipeline.dealsByStage[stage.id] || []}
+                    onDealClick={pipeline.handleDealSelect}
+                  />
+                </div>
               ))}
             </div>
           </div>
         </div>
         
-        {/* Drag Overlay */}
         <DragOverlay>
           {activeId ? (
-            <PipelineKanbanCard 
-              deal={pipeline.deals.find(d => d.deal_id === activeId)!} 
-              isDragging
-              onDealClick={() => {}}
-            />
+            <div className="rotate-3 scale-105">
+              <PipelineKanbanCard 
+                deal={pipeline.deals.find(d => d.deal_id === activeId)!} 
+                isDragging
+                onDealClick={() => {}}
+              />
+            </div>
           ) : null}
         </DragOverlay>
       </DndContext>
