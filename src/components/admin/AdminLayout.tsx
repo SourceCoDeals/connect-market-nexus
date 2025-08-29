@@ -118,8 +118,8 @@ const AdminLayout = () => {
         <AdminNavbar className="md:hidden" />
         
         {/* Main content */}
-        <main className="flex-1 overflow-hidden p-0 w-full bg-background/50">
-          <div className="h-full w-full">
+        <main className="flex-1 overflow-auto p-4 sm:p-6 md:p-8 w-full min-w-0 bg-background/50">
+          <div className="max-w-full">
             <Outlet />
           </div>
         </main>
