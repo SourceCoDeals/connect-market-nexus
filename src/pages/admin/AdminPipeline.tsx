@@ -28,14 +28,14 @@ export default function AdminPipeline() {
   };
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden">
+    <div className="h-screen flex flex-col">
       <MinimalTopBar 
         onCreateDeal={handleCreateDeal}
         onManageStages={handleManageStages}
       />
       
-      <Tabs defaultValue="kanban" className="flex-1 flex flex-col overflow-hidden">
-        <TabsContent value="kanban" className="flex-1 overflow-hidden m-0">
+      <Tabs defaultValue="kanban" className="flex-1 flex flex-col">
+        <TabsContent value="kanban" className="flex-1 m-0">
           <EnhancedDealsKanbanBoard 
             onCreateDeal={handleCreateDeal}
             onManageStages={handleManageStages}
@@ -43,7 +43,7 @@ export default function AdminPipeline() {
           />
         </TabsContent>
         
-        <TabsContent value="list" className="flex-1 overflow-hidden m-0">
+        <TabsContent value="list" className="flex-1 m-0">
           <DealsListView 
             onDealClick={handleDealClick}
           />
