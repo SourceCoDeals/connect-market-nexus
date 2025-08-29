@@ -29,7 +29,7 @@ export default function AdminPipeline() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="w-screen max-w-full overflow-x-hidden h-screen flex flex-col">
       {/* HubSpot-style Header */}
       <div className="bg-background border-b border-border/30 px-6 py-4">
         <div className="flex items-center justify-between gap-6">
