@@ -496,6 +496,9 @@ export const InboundLeadsTable = ({
         onProceed={handleProceedWithMapping}
         onMerge={handleMergeWithExisting}
         duplicateResult={duplicateResult}
+        leadEmail={selectedLead?.email || ""}
+        leadCompany={selectedLead?.company_name || ""}
+        listingTitle={pendingMappingData?.listingTitle || ""}
       />
     </div>
   );
