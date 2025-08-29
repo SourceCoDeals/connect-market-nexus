@@ -77,36 +77,33 @@ export function EnhancedInvestorDashboard({ listing, formatCurrency }: EnhancedI
         </div>
       )}
 
-      {/* Growth & Risk Analysis */}
-      <div className="grid grid-cols-2 gap-8 pt-6 border-t border-sourceco-form">
-        {/* Growth Drivers */}
-        {listing.growth_drivers && listing.growth_drivers.length > 0 && (
-          <div className="space-y-4">
-            <span className="document-label">Growth Catalysts</span>
-            <div className="space-y-2">
-              {listing.growth_drivers.map((driver, index) => (
-                <div key={index} className="document-subtitle">
-                  • {driver}
-                </div>
-              ))}
-            </div>
+      {/* Growth Drivers */}
+      {listing.growth_drivers && listing.growth_drivers.length > 0 && (
+        <div className="space-y-4">
+          <span className="document-label">Growth Catalysts</span>
+          <div className="space-y-2">
+            {listing.growth_drivers.map((driver, index) => (
+              <div key={index} className="document-subtitle">
+                • {driver}
+              </div>
+            ))}
           </div>
-        )}
+        </div>
+      )}
 
-        {/* Risk Factors */}
-        {listing.key_risks && listing.key_risks.length > 0 && (
-          <div className="space-y-4">
-            <span className="document-label">Risk Factors</span>
-            <div className="space-y-2">
-              {listing.key_risks.map((risk, index) => (
-                <div key={index} className="document-subtitle">
-                  • {risk}
-                </div>
-              ))}
-            </div>
+      {/* Risk Factors */}
+      {listing.key_risks && listing.key_risks.length > 0 && (
+        <div className="space-y-4">
+          <span className="document-label">Risk Factors</span>
+          <div className="space-y-2">
+            {listing.key_risks.map((risk, index) => (
+              <div key={index} className="document-subtitle">
+                • {risk}
+              </div>
+            ))}
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
     </div>
   );
