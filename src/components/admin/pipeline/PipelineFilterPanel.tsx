@@ -1,22 +1,9 @@
+
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
-import { 
-  X, 
-  Filter, 
-  Search, 
-  Calendar,
-  DollarSign,
-  Target,
-  Users,
-  FileText,
-  Bookmark
-} from 'lucide-react';
+import { X } from 'lucide-react';
 import { usePipelineCore } from '@/hooks/admin/use-pipeline-core';
 
 interface PipelineFilterPanelProps {
@@ -24,330 +11,151 @@ interface PipelineFilterPanelProps {
 }
 
 export function PipelineFilterPanel({ pipeline }: PipelineFilterPanelProps) {
-  const clearAllFilters = () => {
-    pipeline.setSearchQuery('');
-    pipeline.setStatusFilter('all');
-    pipeline.setBuyerTypeFilter('all');
-    pipeline.setListingFilter('all');
-    pipeline.setAdminFilter('all');
-    pipeline.setDocumentStatusFilter('all');
-    pipeline.setSortOption('newest');
-  };
-  
-  const hasActiveFilters = 
-    pipeline.searchQuery ||
-    pipeline.statusFilter !== 'all' ||
-    pipeline.buyerTypeFilter !== 'all' ||
-    pipeline.listingFilter !== 'all' ||
-    pipeline.adminFilter !== 'all' ||
-    pipeline.documentStatusFilter !== 'all';
-  
-  const FilterContent = () => (
-    <div className="space-y-6">
-      {/* Search */}
-      <div className="space-y-2">
-        <Label className="text-sm font-medium">Search</Label>
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-          <Input
-            placeholder="Search deals, contacts, listings..."
-            value={pipeline.searchQuery}
-            onChange={(e) => pipeline.setSearchQuery(e.target.value)}
-            className="pl-10"
-          />
-          {pipeline.searchQuery && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="absolute right-1 top-1/2 transform -translate-y-1/2 h-7 w-7 p-0"
-              onClick={() => pipeline.setSearchQuery('')}
-            >
-              <X className="h-3 w-3" />
-            </Button>
-          )}
-        </div>
-      </div>
-      
-      <Separator />
-      
-      {/* Quick Filters */}
-      <div className="space-y-3">
-        <Label className="text-sm font-medium">Quick Filters</Label>
-        <div className="flex flex-wrap gap-2">
-          <Button
-            variant={pipeline.statusFilter === 'due_diligence' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => pipeline.setStatusFilter(pipeline.statusFilter === 'due_diligence' ? 'all' : 'due_diligence')}
-            className="h-8"
-          >
-            <Target className="h-3 w-3 mr-2" />
-            Due Diligence
-          </Button>
-          <Button
-            variant={pipeline.documentStatusFilter === 'overdue_followup' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => pipeline.setDocumentStatusFilter(pipeline.documentStatusFilter === 'overdue_followup' ? 'all' : 'overdue_followup')}
-            className="h-8"
-          >
-            <Calendar className="h-3 w-3 mr-2" />
-            Overdue Follow-up
-          </Button>
-          <Button
-            variant={pipeline.statusFilter === 'under_contract' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => pipeline.setStatusFilter(pipeline.statusFilter === 'under_contract' ? 'all' : 'under_contract')}
-            className="h-8"
-          >
-            <Calendar className="h-3 w-3 mr-2" />
-            Under Contract
-          </Button>
-        </div>
-      </div>
-      
-      <Separator />
-      
-      {/* Stage Filter */}
-      <div className="space-y-2">
-        <Label className="text-sm font-medium">Stage</Label>
-        <Select value={pipeline.statusFilter} onValueChange={(value: any) => pipeline.setStatusFilter(value)}>
-          <SelectTrigger>
-            <SelectValue placeholder="Select stage" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Stages</SelectItem>
-            <SelectItem value="new_inquiry">New Inquiry</SelectItem>
-            <SelectItem value="qualified">Qualified</SelectItem>
-            <SelectItem value="due_diligence">Due Diligence</SelectItem>
-            <SelectItem value="under_contract">Under Contract</SelectItem>
-            <SelectItem value="closed">Closed</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-      
-      {/* Buyer Type Filter */}
-      <div className="space-y-2">
-        <Label className="text-sm font-medium">Buyer Type</Label>
-        <Select value={pipeline.buyerTypeFilter} onValueChange={(value: any) => pipeline.setBuyerTypeFilter(value)}>
-          <SelectTrigger>
-            <SelectValue placeholder="Select buyer type" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Types</SelectItem>
-            <SelectItem value="privateEquity">Private Equity</SelectItem>
-            <SelectItem value="familyOffice">Family Office</SelectItem>
-            <SelectItem value="searchFund">Search Fund</SelectItem>
-            <SelectItem value="corporate">Corporate</SelectItem>
-            <SelectItem value="individual">Individual</SelectItem>
-            <SelectItem value="independentSponsor">Independent Sponsor</SelectItem>
-            <SelectItem value="advisor">Advisor</SelectItem>
-            <SelectItem value="businessOwner">Business Owner</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-      
-      {/* Assigned Admin Filter */}
-      <div className="space-y-2">
-        <Label className="text-sm font-medium">Assigned To</Label>
-        <Select value={pipeline.adminFilter} onValueChange={(value: any) => pipeline.setAdminFilter(value)}>
-          <SelectTrigger>
-            <SelectValue placeholder="Select admin" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Admins</SelectItem>
-            <SelectItem value="unassigned">Unassigned</SelectItem>
-            {/* We would need to get unique admin names from deals */}
-            {Array.from(new Set(pipeline.deals.map(d => d.assigned_admin_name).filter(Boolean))).map((admin) => (
-              <SelectItem key={admin} value={admin!}>
-                {admin}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-      
-      {/* Document Status Filter */}
-      <div className="space-y-2">
-        <Label className="text-sm font-medium">Document Status</Label>
-        <Select value={pipeline.documentStatusFilter} onValueChange={(value: any) => pipeline.setDocumentStatusFilter(value)}>
-          <SelectTrigger>
-            <SelectValue placeholder="Select status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Statuses</SelectItem>
-            <SelectItem value="nda_signed">NDA Signed</SelectItem>
-            <SelectItem value="fee_signed">Fee Agreement Signed</SelectItem>
-            <SelectItem value="both_signed">Both Documents Signed</SelectItem>
-            <SelectItem value="none_signed">No Documents Signed</SelectItem>
-            <SelectItem value="overdue_followup">Overdue Follow-up</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-      
-      <Separator />
-      
-      {/* Sort Options */}
-      <div className="space-y-2">
-        <Label className="text-sm font-medium">Sort By</Label>
-        <Select value={pipeline.sortOption} onValueChange={(value: any) => pipeline.setSortOption(value)}>
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="newest">Newest First</SelectItem>
-            <SelectItem value="oldest">Oldest First</SelectItem>
-            <SelectItem value="priority">Highest Priority</SelectItem>
-            <SelectItem value="value">Highest Value</SelectItem>
-            <SelectItem value="probability">Highest Probability</SelectItem>
-            <SelectItem value="stage_entered">Recently Entered Stage</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-      
-      <Separator />
-      
-      {/* Active Filters */}
-      {hasActiveFilters && (
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <Label className="text-sm font-medium">Active Filters</Label>
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={clearAllFilters}
-              className="text-xs h-6 px-2"
-            >
-              Clear All
-            </Button>
-          </div>
-          <div className="flex flex-wrap gap-1">
-            {pipeline.searchQuery && (
-              <Badge variant="secondary" className="text-xs">
-                Search: {pipeline.searchQuery}
-                <X 
-                  className="h-3 w-3 ml-1 cursor-pointer" 
-                  onClick={() => pipeline.setSearchQuery('')}
-                />
-              </Badge>
-            )}
-            {pipeline.statusFilter !== 'all' && (
-              <Badge variant="secondary" className="text-xs">
-                Stage: {pipeline.statusFilter.replace('_', ' ')}
-                <X 
-                  className="h-3 w-3 ml-1 cursor-pointer" 
-                  onClick={() => pipeline.setStatusFilter('all')}
-                />
-              </Badge>
-            )}
-            {pipeline.buyerTypeFilter !== 'all' && (
-              <Badge variant="secondary" className="text-xs">
-                Buyer: {pipeline.buyerTypeFilter}
-                <X 
-                  className="h-3 w-3 ml-1 cursor-pointer" 
-                  onClick={() => pipeline.setBuyerTypeFilter('all')}
-                />
-              </Badge>
-            )}
-            {pipeline.adminFilter !== 'all' && (
-              <Badge variant="secondary" className="text-xs">
-                Admin: {pipeline.adminFilter}
-                <X 
-                  className="h-3 w-3 ml-1 cursor-pointer" 
-                  onClick={() => pipeline.setAdminFilter('all')}
-                />
-              </Badge>
-            )}
-            {pipeline.documentStatusFilter !== 'all' && (
-              <Badge variant="secondary" className="text-xs">
-                Doc: {pipeline.documentStatusFilter.replace('_', ' ')}
-                <X 
-                  className="h-3 w-3 ml-1 cursor-pointer" 
-                  onClick={() => pipeline.setDocumentStatusFilter('all')}
-                />
-              </Badge>
-            )}
-          </div>
-        </div>
-      )}
-      
-      {/* Save Filters */}
-      <div className="space-y-2">
-        <Button variant="outline" className="w-full" size="sm">
-          <Bookmark className="h-4 w-4 mr-2" />
-          Save Current View
-        </Button>
-      </div>
-    </div>
-  );
-  
-  // Mobile: Use Sheet
-  if (pipeline.isMobile) {
-    return (
-      <Sheet open={pipeline.isFilterPanelOpen} onOpenChange={pipeline.setIsFilterPanelOpen}>
-        <SheetContent side="right" className="w-full sm:w-96">
-          <SheetHeader>
-            <SheetTitle className="flex items-center gap-2">
-              <Filter className="h-5 w-5" />
-              Filters
-              {hasActiveFilters && (
-                <Badge variant="secondary" className="ml-2">
-                  {[
-                    pipeline.searchQuery,
-                    pipeline.statusFilter !== 'all' && pipeline.statusFilter,
-                    pipeline.buyerTypeFilter !== 'all' && pipeline.buyerTypeFilter,
-                    pipeline.adminFilter !== 'all' && pipeline.adminFilter,
-                    pipeline.documentStatusFilter !== 'all' && pipeline.documentStatusFilter,
-                  ].filter(Boolean).length}
-                </Badge>
-              )}
-            </SheetTitle>
-          </SheetHeader>
-          <div className="mt-6">
-            <FilterContent />
-          </div>
-        </SheetContent>
-      </Sheet>
-    );
-  }
-  
-  // Desktop: Side Panel
   if (!pipeline.isFilterPanelOpen) return null;
-  
+
+  const activeFiltersCount = [
+    pipeline.dealStatus !== 'all',
+    pipeline.documentStatus !== 'all',
+    pipeline.selectedStages.length > 0,
+    pipeline.selectedPriorities.length > 0,
+    pipeline.dateRange,
+  ].filter(Boolean).length;
+
   return (
-    <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40" onClick={pipeline.toggleFilterPanel}>
-      <div 
-        className="absolute right-0 top-0 h-full w-96 bg-background border-l border-border/50 shadow-xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="p-4 border-b border-border/50">
-          <div className="flex items-center justify-between">
-            <h2 className="font-semibold text-foreground flex items-center gap-2">
-              <Filter className="h-5 w-5" />
-              Filters
-              {hasActiveFilters && (
-                <Badge variant="secondary">
-                  {[
-                    pipeline.searchQuery,
-                    pipeline.statusFilter !== 'all' && pipeline.statusFilter,
-                    pipeline.buyerTypeFilter !== 'all' && pipeline.buyerTypeFilter,
-                    pipeline.adminFilter !== 'all' && pipeline.adminFilter,
-                    pipeline.documentStatusFilter !== 'all' && pipeline.documentStatusFilter,
-                  ].filter(Boolean).length}
-                </Badge>
-              )}
-            </h2>
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={pipeline.toggleFilterPanel}
-              className="h-8 w-8 p-0"
-            >
-              <X className="h-4 w-4" />
-            </Button>
+    <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 lg:relative lg:bg-transparent lg:backdrop-blur-none">
+      <div className="fixed right-0 top-0 h-full w-80 bg-background border-l shadow-lg lg:relative lg:w-full lg:h-auto lg:shadow-none">
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 border-b">
+          <div className="flex items-center gap-2">
+            <h3 className="font-semibold">Filters</h3>
+            {activeFiltersCount > 0 && (
+              <Badge variant="secondary">{activeFiltersCount}</Badge>
+            )}
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={pipeline.toggleFilterPanel}
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+
+        {/* Content */}
+        <div className="p-4 space-y-6">
+          {/* Quick Filters */}
+          <div>
+            <h4 className="font-medium mb-3">Quick Filters</h4>
+            <div className="space-y-2">
+              <Button
+                variant={pipeline.dealStatus === 'active' ? 'default' : 'outline'}
+                size="sm"
+                className="w-full justify-start"
+                onClick={() => pipeline.setDealStatus(pipeline.dealStatus === 'active' ? 'all' : 'active')}
+              >
+                Active Deals
+              </Button>
+              <Button
+                variant={pipeline.dealStatus === 'closing-soon' ? 'default' : 'outline'}
+                size="sm"
+                className="w-full justify-start"
+                onClick={() => pipeline.setDealStatus(pipeline.dealStatus === 'closing-soon' ? 'all' : 'closing-soon')}
+              >
+                Closing Soon
+              </Button>
+              <Button
+                variant={pipeline.documentStatus === 'pending' ? 'default' : 'outline'}
+                size="sm"
+                className="w-full justify-start"
+                onClick={() => pipeline.setDocumentStatus(pipeline.documentStatus === 'pending' ? 'all' : 'pending')}
+              >
+                Pending Documents
+              </Button>
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* Stages */}
+          <div>
+            <h4 className="font-medium mb-3">Stages</h4>
+            <div className="space-y-2">
+              {pipeline.stages.map((stage) => (
+                <Button
+                  key={stage.id}
+                  variant={pipeline.selectedStages.includes(stage.id) ? 'default' : 'outline'}
+                  size="sm"
+                  className="w-full justify-start"
+                  onClick={() => {
+                    const isSelected = pipeline.selectedStages.includes(stage.id);
+                    if (isSelected) {
+                      pipeline.setSelectedStages(pipeline.selectedStages.filter(id => id !== stage.id));
+                    } else {
+                      pipeline.setSelectedStages([...pipeline.selectedStages, stage.id]);
+                    }
+                  }}
+                >
+                  <div
+                    className="w-2 h-2 rounded-full mr-2"
+                    style={{ backgroundColor: stage.color }}
+                  />
+                  {stage.name}
+                </Button>
+              ))}
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* Priorities */}
+          <div>
+            <h4 className="font-medium mb-3">Priority</h4>
+            <div className="space-y-2">
+              {['urgent', 'high', 'medium', 'low'].map((priority) => (
+                <Button
+                  key={priority}
+                  variant={pipeline.selectedPriorities.includes(priority) ? 'default' : 'outline'}
+                  size="sm"
+                  className="w-full justify-start"
+                  onClick={() => {
+                    const isSelected = pipeline.selectedPriorities.includes(priority);
+                    if (isSelected) {
+                      pipeline.setSelectedPriorities(pipeline.selectedPriorities.filter(p => p !== priority));
+                    } else {
+                      pipeline.setSelectedPriorities([...pipeline.selectedPriorities, priority]);
+                    }
+                  }}
+                >
+                  {priority.charAt(0).toUpperCase() + priority.slice(1)}
+                </Button>
+              ))}
+            </div>
           </div>
         </div>
-        
-        <div className="p-4 overflow-y-auto h-full">
-          <FilterContent />
+
+        {/* Actions */}
+        <div className="absolute bottom-0 left-0 right-0 p-4 border-t bg-background">
+          <div className="space-y-2">
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={() => {
+                pipeline.setDealStatus('all');
+                pipeline.setDocumentStatus('all');
+                pipeline.setSelectedStages([]);
+                pipeline.setSelectedPriorities([]);
+                pipeline.setSearchTerm('');
+              }}
+            >
+              Clear All Filters
+            </Button>
+            <Button
+              className="w-full"
+              onClick={pipeline.toggleFilterPanel}
+            >
+              Apply Filters
+            </Button>
+          </div>
         </div>
       </div>
     </div>

@@ -1,19 +1,16 @@
+
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Checkbox } from '@/components/ui/checkbox';
 import { 
-  Calendar, 
   DollarSign, 
-  User, 
-  Building2, 
-  Clock,
-  AlertCircle,
-  Phone,
-  Mail,
-  MoreVertical
+  Calendar, 
+  User,
+  Building2,
+  MoreVertical,
+  Percent
 } from 'lucide-react';
 import { usePipelineCore } from '@/hooks/admin/use-pipeline-core';
 import { Deal } from '@/hooks/admin/use-deals';
@@ -48,17 +45,6 @@ export function PipelineListView({ pipeline }: PipelineListViewProps) {
     return stage?.color || '#6b7280';
   };
   
-  const daysInStage = (deal: Deal) => {
-    return Math.floor(
-      (new Date().getTime() - new Date(deal.deal_stage_entered_at).getTime()) / 
-      (1000 * 60 * 60 * 24)
-    );
-  };
-  
-  const isOverdue = (deal: Deal) => {
-    return deal.next_followup_due && new Date(deal.next_followup_due) < new Date();
-  };
-  
   if (pipeline.deals.length === 0) {
     return (
       <div className="flex items-center justify-center h-full bg-muted/10">
@@ -71,54 +57,51 @@ export function PipelineListView({ pipeline }: PipelineListViewProps) {
   }
   
   return (
-    <div className="flex-1 overflow-auto">
-      <div className="p-4 space-y-3">
-        {/* Header Actions */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Checkbox 
-              checked={pipeline.selectedDeals.length === pipeline.deals.length}
-              onCheckedChange={(checked) => {
-                if (checked) {
-                  pipeline.handleMultiSelect(pipeline.deals.map(d => d.deal_id));
-                } else {
-                  pipeline.handleMultiSelect([]);
-                }
-              }}
-            />
-            <span className="text-sm text-muted-foreground">
-              {pipeline.selectedDeals.length > 0 
-                ? `${pipeline.selectedDeals.length} selected`
-                : `${pipeline.deals.length} deals`
+    <div className="flex-1 overflow-auto p-4">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <Checkbox 
+            checked={pipeline.selectedDeals.length === pipeline.deals.length}
+            onCheckedChange={(checked) => {
+              if (checked) {
+                pipeline.handleMultiSelect(pipeline.deals.map(d => d.deal_id));
+              } else {
+                pipeline.handleMultiSelect([]);
               }
-            </span>
-          </div>
-          
-          {pipeline.selectedDeals.length > 0 && (
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm">
-                Bulk Actions
-              </Button>
-            </div>
-          )}
+            }}
+          />
+          <span className="text-sm text-muted-foreground">
+            {pipeline.selectedDeals.length > 0 
+              ? `${pipeline.selectedDeals.length} selected`
+              : `${pipeline.deals.length} deals`
+            }
+          </span>
         </div>
         
-        {/* Deals List */}
-        <div className="space-y-2">
-          {pipeline.deals.map((deal) => (
-            <Card 
-              key={deal.deal_id}
-              className={`
-                transition-all duration-200 hover:shadow-sm border-border/50 cursor-pointer
-                ${pipeline.selectedDeals.includes(deal.deal_id) ? 'border-primary bg-primary/5' : 'bg-background/80'}
-                ${isOverdue(deal) ? 'border-red-200 bg-red-50/30' : ''}
-                backdrop-blur-sm
-              `}
-              onClick={() => pipeline.handleDealSelect(deal)}
-            >
-              <CardContent className="p-4">
-                <div className="flex items-center gap-4">
-                  {/* Selection Checkbox */}
+        {pipeline.selectedDeals.length > 0 && (
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm">
+              Bulk Actions
+            </Button>
+          </div>
+        )}
+      </div>
+      
+      {/* Deal List */}
+      <div className="space-y-3">
+        {pipeline.deals.map((deal) => (
+          <Card 
+            key={deal.deal_id}
+            className={`
+              cursor-pointer hover:shadow-md transition-all duration-200
+              ${pipeline.selectedDeals.includes(deal.deal_id) ? 'ring-2 ring-primary' : ''}
+            `}
+            onClick={() => pipeline.handleDealSelect(deal)}
+          >
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3 flex-1">
                   <Checkbox 
                     checked={pipeline.selectedDeals.includes(deal.deal_id)}
                     onCheckedChange={(checked) => {
@@ -131,115 +114,92 @@ export function PipelineListView({ pipeline }: PipelineListViewProps) {
                     onClick={(e) => e.stopPropagation()}
                   />
                   
-                  {/* Contact Avatar */}
-                  <Avatar className="h-10 w-10">
-                    <AvatarFallback className="bg-muted">
-                      {deal.contact_name ? deal.contact_name.charAt(0).toUpperCase() : 'D'}
-                    </AvatarFallback>
-                  </Avatar>
-                  
                   {/* Deal Info */}
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <h3 className="font-semibold text-sm text-foreground truncate">
-                            {deal.deal_title}
-                          </h3>
-                          {(deal.deal_priority === 'high' || deal.deal_priority === 'urgent') && (
-                            <Badge className={`${getPriorityColor(deal.deal_priority)} h-5 px-1.5 text-xs`}>
-                              {deal.deal_priority}
-                            </Badge>
-                          )}
-                          {isOverdue(deal) && (
-                            <Badge variant="destructive" className="h-5 px-1.5 text-xs">
-                              Overdue
-                            </Badge>
-                          )}
-                        </div>
-                        
-                        <div className="flex items-center gap-4 text-xs text-muted-foreground mb-2">
-                          <div className="flex items-center gap-1">
-                            <Building2 className="h-3 w-3" />
-                            <span className="truncate">{deal.listing_title}</span>
-                          </div>
-                          {deal.contact_name && (
-                            <div className="flex items-center gap-1">
-                              <User className="h-3 w-3" />
-                              <span className="truncate">{deal.contact_name}</span>
-                            </div>
-                          )}
-                        </div>
-                        
-                        <div className="flex items-center gap-4 text-xs">
-                          <div className="flex items-center gap-1 font-semibold text-foreground">
-                            <DollarSign className="h-3 w-3" />
-                            {formatCurrency(deal.deal_value)}
-                          </div>
-                          <span className="text-muted-foreground">
-                            {deal.deal_probability}% probability
-                          </span>
-                          <div className="flex items-center gap-1">
-                            <div 
-                              className="w-2 h-2 rounded-full"
-                              style={{ backgroundColor: getStageColor(deal.stage_id) }}
-                            />
-                            <span className="text-muted-foreground">{deal.stage_name}</span>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      {/* Right Side Info */}
-                      <div className="flex flex-col items-end gap-2 text-xs text-muted-foreground">
-                        <div className="flex items-center gap-1">
-                          <Clock className="h-3 w-3" />
-                          <span>{daysInStage(deal)} days in stage</span>
-                        </div>
-                        
-                        {deal.deal_expected_close_date && (
-                          <div className="flex items-center gap-1">
-                            <Calendar className="h-3 w-3" />
-                            <span>
-                              {formatDistanceToNow(new Date(deal.deal_expected_close_date), { addSuffix: true })}
-                            </span>
-                          </div>
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="font-semibold text-sm truncate">{deal.deal_title}</h3>
+                      <div className="flex items-center gap-2">
+                        {(deal.deal_priority === 'high' || deal.deal_priority === 'urgent') && (
+                          <Badge className={`${getPriorityColor(deal.deal_priority)} h-5 px-2 text-xs`}>
+                            {deal.deal_priority}
+                          </Badge>
                         )}
-                        
-                        <div className="flex items-center gap-1">
-                          {deal.nda_status === 'signed' && (
-                            <Badge variant="outline" className="h-4 px-1 text-xs bg-green-50 text-green-700 border-green-200">
-                              NDA
-                            </Badge>
-                          )}
-                          {deal.fee_agreement_status === 'signed' && (
-                            <Badge variant="outline" className="h-4 px-1 text-xs bg-blue-50 text-blue-700 border-blue-200">
-                              Fee
-                            </Badge>
-                          )}
-                          {deal.pending_tasks > 0 && (
-                            <Badge variant="outline" className="h-4 px-1 text-xs bg-orange-50 text-orange-700 border-orange-200">
-                              {deal.pending_tasks}
-                            </Badge>
-                          )}
-                        </div>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-8 w-8 p-0"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
                       </div>
                     </div>
+                    
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm">
+                      {/* Contact */}
+                      <div className="flex items-center gap-2">
+                        <User className="h-4 w-4 text-muted-foreground" />
+                        <span className="truncate">{deal.contact_name || 'Unknown'}</span>
+                      </div>
+                      
+                      {/* Value */}
+                      <div className="flex items-center gap-2">
+                        <DollarSign className="h-4 w-4 text-muted-foreground" />
+                        <span className="font-semibold">{formatCurrency(deal.deal_value)}</span>
+                      </div>
+                      
+                      {/* Probability */}
+                      <div className="flex items-center gap-2">
+                        <Percent className="h-4 w-4 text-muted-foreground" />
+                        <span>{deal.deal_probability}%</span>
+                      </div>
+                      
+                      {/* Expected Close */}
+                      {deal.deal_expected_close_date && (
+                        <div className="flex items-center gap-2">
+                          <Calendar className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-muted-foreground">
+                            {formatDistanceToNow(new Date(deal.deal_expected_close_date), { addSuffix: true })}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Stage and Listing */}
+                    <div className="flex items-center justify-between mt-3">
+                      <div className="flex items-center gap-2">
+                        <div 
+                          className="w-2 h-2 rounded-full"
+                          style={{ backgroundColor: getStageColor(deal.stage_id) }}
+                        />
+                        <span className="text-sm text-muted-foreground">{deal.stage_name}</span>
+                      </div>
+                      
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Building2 className="h-4 w-4" />
+                        <span className="truncate max-w-48">{deal.listing_title}</span>
+                      </div>
+                    </div>
+                    
+                    {/* Documents */}
+                    <div className="flex items-center gap-2 mt-2">
+                      {deal.nda_status === 'signed' && (
+                        <Badge variant="outline" className="h-4 px-1 text-xs bg-green-50 text-green-700 border-green-200">
+                          NDA
+                        </Badge>
+                      )}
+                      {deal.fee_agreement_status === 'signed' && (
+                        <Badge variant="outline" className="h-4 px-1 text-xs bg-blue-50 text-blue-700 border-blue-200">
+                          Fee
+                        </Badge>
+                      )}
+                    </div>
                   </div>
-                  
-                  {/* Actions */}
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="h-8 w-8 p-0"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <MoreVertical className="h-4 w-4" />
-                  </Button>
                 </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
       </div>
     </div>
   );

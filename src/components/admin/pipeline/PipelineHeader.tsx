@@ -2,204 +2,82 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Search, 
-  Filter, 
-  Settings, 
-  Plus, 
-  LayoutGrid, 
-  List, 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  Search,
+  Filter,
+  MoreVertical,
+  Plus,
+  Kanban,
+  List,
   Table,
   Menu,
-  X
+  X,
+  BarChart3,
 } from 'lucide-react';
 import { usePipelineCore } from '@/hooks/admin/use-pipeline-core';
-import { CreateDealModal } from '@/components/admin/CreateDealModal';
-import { StageManagementModal } from '@/components/admin/StageManagementModal';
 
-export function PipelineHeader() {
-  const pipeline = usePipelineCore();
-  const [isCreateDealOpen, setIsCreateDealOpen] = useState(false);
-  const [isStageManagementOpen, setIsStageManagementOpen] = useState(false);
+interface PipelineHeaderProps {
+  pipeline: ReturnType<typeof usePipelineCore>;
+}
+
+export function PipelineHeader({ pipeline }: PipelineHeaderProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  
-  const viewModeIcons = {
-    kanban: LayoutGrid,
+
+  const viewIcons = {
+    kanban: Kanban,
     list: List,
     table: Table,
   };
-  
-  const ViewIcon = viewModeIcons[pipeline.viewMode];
-  
-  const hasActiveFilters = 
-    pipeline.searchQuery ||
-    pipeline.statusFilter !== 'all' ||
-    pipeline.buyerTypeFilter !== 'all' ||
-    pipeline.listingFilter !== 'all' ||
-    pipeline.adminFilter !== 'all' ||
-    pipeline.documentStatusFilter !== 'all';
 
   return (
-    <div className="bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b sticky top-0 z-50">
-      {/* Mobile Header */}
-      <div className="flex items-center justify-between p-4 md:hidden">
-        <div className="flex items-center gap-3 flex-1 min-w-0">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className="h-8 w-8 p-0"
-          >
-            {isMobileMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
-          </Button>
-          
-          <div className="relative flex-1 max-w-xs">
-            <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-            <Input
-              placeholder="Search deals..."
-              value={pipeline.searchQuery}
-              onChange={(e) => pipeline.setSearchQuery(e.target.value)}
-              className="pl-8 h-8 text-sm"
-            />
+    <div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <div className="flex items-center justify-between p-4">
+        {/* Left section */}
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-semibold">Pipeline</h1>
+            <Badge variant="secondary" className="hidden sm:inline-flex">
+              {pipeline.deals.length} deals
+            </Badge>
           </div>
-        </div>
-        
-        <div className="flex items-center gap-2">
-          <Select value={pipeline.viewMode} onValueChange={(value: any) => pipeline.setViewMode(value)}>
-            <SelectTrigger className="w-8 h-8 p-0 border-none">
-              <ViewIcon className="h-4 w-4" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="kanban">
-                <div className="flex items-center gap-2">
-                  <LayoutGrid className="h-4 w-4" />
-                  Kanban
-                </div>
-              </SelectItem>
-              <SelectItem value="list">
-                <div className="flex items-center gap-2">
-                  <List className="h-4 w-4" />
-                  List
-                </div>
-              </SelectItem>
-              <SelectItem value="table">
-                <div className="flex items-center gap-2">
-                  <Table className="h-4 w-4" />
-                  Table
-                </div>
-              </SelectItem>
-            </SelectContent>
-          </Select>
-          
-          <Button
-            onClick={() => setIsCreateDealOpen(true)}
-            size="sm"
-            className="h-8 px-3"
-          >
-            <Plus className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
 
-      {/* Mobile Menu Dropdown */}
-      {isMobileMenuOpen && (
-        <div className="border-t bg-background/95 backdrop-blur md:hidden">
-          <div className="p-4 space-y-3">
-            <Button
-              variant={hasActiveFilters ? "secondary" : "outline"}
-              size="sm"
-              onClick={pipeline.toggleFilterPanel}
-              className="w-full justify-start h-9"
-            >
-              <Filter className="h-4 w-4 mr-2" />
-              Filters
-              {hasActiveFilters && (
-                <Badge variant="secondary" className="ml-auto">
-                  {[
-                    pipeline.statusFilter !== 'all',
-                    pipeline.buyerTypeFilter !== 'all',
-                    pipeline.listingFilter !== 'all',
-                    pipeline.adminFilter !== 'all',
-                    pipeline.documentStatusFilter !== 'all',
-                  ].filter(Boolean).length}
-                </Badge>
-              )}
-            </Button>
-            
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={pipeline.toggleMetrics}
-              className="w-full justify-start h-9"
-            >
-              {pipeline.isMetricsCollapsed ? 'Show Metrics' : 'Hide Metrics'}
-            </Button>
-            
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setIsStageManagementOpen(true);
-                setIsMobileMenuOpen(false);
-              }}
-              className="w-full justify-start h-9"
-            >
-              <Settings className="h-4 w-4 mr-2" />
-              Manage Stages
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {/* Desktop Header */}
-      <div className="hidden md:flex items-center justify-between px-6 py-4 gap-6">
-        {/* Left Section */}
-        <div className="flex items-center gap-4 flex-1 max-w-2xl">
-          <div className="relative flex-1 max-w-md">
+          {/* Desktop Search */}
+          <div className="relative hidden md:block">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
             <Input
-              placeholder="Search deals, contacts, listings..."
-              value={pipeline.searchQuery}
-              onChange={(e) => pipeline.setSearchQuery(e.target.value)}
-              className="pl-10 h-9"
+              placeholder="Search deals..."
+              className="pl-9 w-64"
+              value={pipeline.searchTerm}
+              onChange={(e) => pipeline.setSearchTerm(e.target.value)}
             />
           </div>
-          
-          <Button
-            variant={hasActiveFilters ? "secondary" : "outline"}
-            size="sm"
-            onClick={pipeline.toggleFilterPanel}
-            className="h-9 px-3"
-          >
-            <Filter className="h-4 w-4 mr-2" />
-            Filter
-            {hasActiveFilters && (
-              <Badge variant="secondary" className="ml-2">
-                {[
-                  pipeline.statusFilter !== 'all',
-                  pipeline.buyerTypeFilter !== 'all', 
-                  pipeline.listingFilter !== 'all',
-                  pipeline.adminFilter !== 'all',
-                  pipeline.documentStatusFilter !== 'all',
-                ].filter(Boolean).length}
-              </Badge>
-            )}
-          </Button>
         </div>
-        
-        {/* Center Section */}
-        <div className="flex items-center gap-3">
-          <Select value={pipeline.viewMode} onValueChange={(value: any) => pipeline.setViewMode(value)}>
-            <SelectTrigger className="w-32 h-9">
-              <ViewIcon className="h-4 w-4 mr-2" />
+
+        {/* Desktop Actions */}
+        <div className="hidden md:flex items-center gap-2">
+          {/* View Mode Selector */}
+          <Select value={pipeline.viewMode} onValueChange={pipeline.setViewMode}>
+            <SelectTrigger className="w-32">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="kanban">
                 <div className="flex items-center gap-2">
-                  <LayoutGrid className="h-4 w-4" />
+                  <Kanban className="h-4 w-4" />
                   Kanban
                 </div>
               </SelectItem>
@@ -217,49 +95,116 @@ export function PipelineHeader() {
               </SelectItem>
             </SelectContent>
           </Select>
-          
+
           <Button
             variant="outline"
             size="sm"
             onClick={pipeline.toggleMetrics}
-            className="h-9 px-3"
+            className="gap-2"
           >
-            {pipeline.isMetricsCollapsed ? 'Show Metrics' : 'Hide'}
+            <BarChart3 className="h-4 w-4" />
+            {pipeline.isMetricsCollapsed ? 'Show' : 'Hide'} Metrics
           </Button>
-        </div>
-        
-        {/* Right Section */}
-        <div className="flex items-center gap-3">
+
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setIsStageManagementOpen(true)}
-            className="h-9"
+            onClick={pipeline.toggleFilterPanel}
+            className="gap-2"
           >
-            <Settings className="h-4 w-4 mr-2" />
-            Stages
+            <Filter className="h-4 w-4" />
+            Filters
           </Button>
-          
+
+          <Button size="sm" className="gap-2">
+            <Plus className="h-4 w-4" />
+            New Deal
+          </Button>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm">
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem>Export Pipeline</DropdownMenuItem>
+              <DropdownMenuItem>Import Deals</DropdownMenuItem>
+              <DropdownMenuItem>Pipeline Settings</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+
+        {/* Mobile Menu Button */}
+        <div className="md:hidden flex items-center gap-2">
           <Button
-            onClick={() => setIsCreateDealOpen(true)}
+            variant="ghost"
             size="sm"
-            className="h-9"
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           >
-            <Plus className="h-4 w-4 mr-2" />
-            Create Deal
+            {isMobileMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
           </Button>
         </div>
       </div>
-      
-      <CreateDealModal
-        open={isCreateDealOpen}
-        onOpenChange={setIsCreateDealOpen}
-      />
-      
-      <StageManagementModal
-        open={isStageManagementOpen}
-        onOpenChange={setIsStageManagementOpen}
-      />
+
+      {/* Mobile Menu */}
+      {isMobileMenuOpen && (
+        <div className="md:hidden border-t bg-background p-4 space-y-4">
+          {/* Mobile Search */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+            <Input
+              placeholder="Search deals..."
+              className="pl-9"
+              value={pipeline.searchTerm}
+              onChange={(e) => pipeline.setSearchTerm(e.target.value)}
+            />
+          </div>
+
+          {/* Mobile View Mode */}
+          <div className="flex gap-2">
+            {Object.entries(viewIcons).map(([mode, Icon]) => (
+              <Button
+                key={mode}
+                variant={pipeline.viewMode === mode ? "default" : "outline"}
+                size="sm"
+                onClick={() => pipeline.setViewMode(mode as any)}
+                className="flex-1"
+              >
+                <Icon className="h-4 w-4 mr-2" />
+                {mode.charAt(0).toUpperCase() + mode.slice(1)}
+              </Button>
+            ))}
+          </div>
+
+          {/* Mobile Actions */}
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={pipeline.toggleMetrics}
+              className="flex-1"
+            >
+              <BarChart3 className="h-4 w-4 mr-2" />
+              Metrics
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={pipeline.toggleFilterPanel}
+              className="flex-1"
+            >
+              <Filter className="h-4 w-4 mr-2" />
+              Filters
+            </Button>
+          </div>
+
+          <Button size="sm" className="w-full">
+            <Plus className="h-4 w-4 mr-2" />
+            New Deal
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
