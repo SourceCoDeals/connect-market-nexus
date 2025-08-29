@@ -19,6 +19,8 @@ interface ParsedLead {
   data: CreateInboundLeadData;
   errors: string[];
   index: number;
+  isDuplicate?: boolean;
+  duplicateInfo?: string;
 }
 
 export const BulkLeadImportDialog = ({
