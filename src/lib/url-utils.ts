@@ -82,19 +82,19 @@ export const mapRoleToBuyerType = (role: string | null | undefined): string => {
 
   const normalizedRole = role.toLowerCase().trim();
   
-  if (normalizedRole.includes('private equity') || normalizedRole.includes('pe')) {
+  if (normalizedRole.includes('private equity') || normalizedRole.includes('pe') || normalizedRole === 'pe') {
     return 'PE';
   }
-  if (normalizedRole.includes('family office') || normalizedRole.includes('fo')) {
+  if (normalizedRole.includes('family office') || normalizedRole.includes('fo') || normalizedRole === 'fo') {
     return 'FO';
   }
-  if (normalizedRole.includes('search fund') || normalizedRole.includes('sf')) {
+  if (normalizedRole.includes('search fund') || normalizedRole.includes('sf') || normalizedRole === 'sf') {
     return 'SF';
   }
   if (normalizedRole.includes('corporate') || normalizedRole.includes('corp')) {
     return 'Corp';
   }
-  if (normalizedRole.includes('independent sponsor') || normalizedRole.includes('is')) {
+  if (normalizedRole.includes('independent sponsor') || normalizedRole.includes('is') || normalizedRole === 'independent sponsor') {
     return 'IS';
   }
   if (normalizedRole.includes('individual') || normalizedRole.includes('investor')) {
@@ -102,4 +102,36 @@ export const mapRoleToBuyerType = (role: string | null | undefined): string => {
   }
   
   return 'Buyer';
+};
+
+/**
+ * Get tier information for lead-only requests based on role
+ */
+export const getLeadTierInfo = (role: string | null | undefined) => {
+  if (!role || !role.trim()) {
+    return { tier: 5, badge: '5', color: 'text-muted-foreground', description: 'No type specified' };
+  }
+
+  const normalizedRole = role.toLowerCase().trim();
+  
+  if (normalizedRole.includes('private equity') || normalizedRole.includes('pe') || normalizedRole === 'pe') {
+    return { tier: 1, badge: '1', color: 'text-emerald-500', description: 'Private Equity' };
+  }
+  if (normalizedRole.includes('family office') || normalizedRole.includes('fo') || normalizedRole === 'fo') {
+    return { tier: 2, badge: '2', color: 'text-blue-600', description: 'Family Office' };
+  }
+  if (normalizedRole.includes('independent sponsor') || normalizedRole.includes('is') || normalizedRole === 'independent sponsor') {
+    return { tier: 3, badge: '3', color: 'text-purple-600', description: 'Independent Sponsor' };
+  }
+  if (normalizedRole.includes('corporate') || normalizedRole.includes('corp')) {
+    return { tier: 3, badge: '3', color: 'text-amber-600', description: 'Corporate' };
+  }
+  if (normalizedRole.includes('search fund') || normalizedRole.includes('sf') || normalizedRole === 'sf') {
+    return { tier: 4, badge: '4', color: 'text-orange-600', description: 'Search Fund' };
+  }
+  if (normalizedRole.includes('individual') || normalizedRole.includes('investor')) {
+    return { tier: 5, badge: '5', color: 'text-gray-600', description: 'Individual' };
+  }
+  
+  return { tier: 5, badge: '5', color: 'text-muted-foreground', description: 'Other' };
 };

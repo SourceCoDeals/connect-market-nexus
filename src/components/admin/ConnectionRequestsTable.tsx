@@ -42,7 +42,7 @@ import { ExpandableBusinessProfile } from "./ExpandableBusinessProfile";
 import { EnhancedBuyerProfile } from './EnhancedBuyerProfile';
 import { AssociatedContactsDisplay } from './AssociatedContactsDisplay';
 import { getBuyerTier } from '@/lib/buyer-metrics';
-import { processUrl, extractDomainFromEmail, mapRoleToBuyerType } from '@/lib/url-utils';
+import { processUrl, extractDomainFromEmail, mapRoleToBuyerType, getLeadTierInfo } from '@/lib/url-utils';
 
 // Helper function to format listing display name (Title/Company Name)
 const formatListingForDisplay = (title: string, companyName?: string | null): string => {
@@ -92,7 +92,10 @@ const getBuyerTypeAbbreviation = (buyerType: string): string => {
 
 // Clean Tier Display Component (Apple/Stripe style)
 const CleanTierDisplay = ({ user, leadRole }: { user: any; leadRole?: string }) => {
-  const tierInfo = getBuyerTier(user);
+  const tierInfo = user 
+    ? getBuyerTier(user)
+    : getLeadTierInfo(leadRole);
+    
   const buyerTypeAbbrev = user 
     ? getBuyerTypeAbbreviation(user?.buyer_type || '')
     : mapRoleToBuyerType(leadRole);

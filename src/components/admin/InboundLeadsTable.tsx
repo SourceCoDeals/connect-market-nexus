@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { InboundLead, useCreateInboundLead, useMapLeadToListing, DuplicateCheckResult } from "@/hooks/admin/use-inbound-leads";
 import { toast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 import { CreateInboundLeadDialog } from "./CreateInboundLeadDialog";
 import { BulkLeadImportDialog } from "./BulkLeadImportDialog";
 import { LeadMappingDialog } from "./LeadMappingDialog";
@@ -378,24 +379,62 @@ export const InboundLeadsTable = ({
   };
 
   const handleBulkCreate = async (leadsData: any[]) => {
-    // Create leads one by one for better error handling
-    for (const leadData of leadsData) {
-      try {
-        await new Promise((resolve, reject) => {
-          createLead(leadData, {
-            onSuccess: resolve,
-            onError: reject
-          });
-        });
-      } catch (error) {
-        console.error('Error creating lead:', error);
+    try {
+      // Check for duplicates by email
+      const emails = leadsData.map(lead => lead.email.toLowerCase());
+      const { data: existingLeads, error: duplicateCheckError } = await supabase
+        .from('inbound_leads')
+        .select('email')
+        .in('email', emails);
+
+      if (duplicateCheckError) {
+        throw duplicateCheckError;
       }
+
+      const existingEmails = new Set(existingLeads?.map(lead => lead.email.toLowerCase()) || []);
+      const duplicates = leadsData.filter(lead => existingEmails.has(lead.email.toLowerCase()));
+      
+      if (duplicates.length > 0) {
+        toast({
+          variant: "destructive",
+          title: "Duplicate leads detected",
+          description: `Found existing leads for: ${duplicates.map(d => d.email).join(', ')}`,
+        });
+        return;
+      }
+
+      // Create leads one by one for better error handling
+      let successCount = 0;
+      for (const leadData of leadsData) {
+        try {
+          await new Promise((resolve, reject) => {
+            createLead(leadData, {
+              onSuccess: () => {
+                successCount++;
+                resolve(null);
+              },
+              onError: reject
+            });
+          });
+        } catch (error) {
+          console.error('Error creating lead:', error);
+        }
+      }
+      
+      if (successCount > 0) {
+        toast({
+          title: "Bulk import completed",
+          description: `Successfully imported ${successCount} of ${leadsData.length} leads`,
+        });
+      }
+    } catch (error: any) {
+      console.error('Bulk create error:', error);
+      toast({
+        variant: "destructive",
+        title: "Import failed",
+        description: error.message || 'Failed to import leads',
+      });
     }
-    
-    toast({
-      title: "Bulk import completed",
-      description: `Successfully imported ${leadsData.length} leads`,
-    });
   };
 
   if (isLoading) {
