@@ -35,7 +35,7 @@ export interface Deal {
   contact_phone?: string;
   contact_role?: string;
   
-  // Status information
+  // Administrative status information
   nda_status: 'not_sent' | 'sent' | 'signed' | 'declined';
   fee_agreement_status: 'not_sent' | 'sent' | 'signed' | 'declined';
   followed_up: boolean;
@@ -53,6 +53,14 @@ export interface Deal {
   
   // Activity count
   activity_count: number;
+  
+  // Buyer information
+  buyer_id?: string;
+  buyer_name?: string;
+  buyer_email?: string;
+  buyer_company?: string;
+  buyer_type?: 'privateEquity' | 'familyOffice' | 'searchFund' | 'corporate' | 'individual' | 'independentSponsor' | 'advisor' | 'businessOwner';
+  buyer_priority_score?: number;
 }
 
 export interface DealStage {

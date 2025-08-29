@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { DealsKanbanBoard } from '@/components/admin/DealsKanbanBoard';
+import { EnhancedDealsKanbanBoard } from '@/components/admin/EnhancedDealsKanbanBoard';
 import { DealsListView } from '@/components/admin/DealsListView';
 import { DealDetailModal } from '@/components/admin/DealDetailModal';
 import { CreateDealModal } from '@/components/admin/CreateDealModal';
@@ -57,7 +57,7 @@ export default function AdminPipeline() {
         </TabsList>
 
         <TabsContent value="kanban">
-          <DealsKanbanBoard 
+          <EnhancedDealsKanbanBoard 
             onCreateDeal={handleCreateDeal}
             onManageStages={handleManageStages}
             onDealClick={handleDealClick}
