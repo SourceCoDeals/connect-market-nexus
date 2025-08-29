@@ -28,43 +28,68 @@ export default function AdminPipeline() {
   };
 
   return (
-    <div className="min-h-screen overflow-x-hidden">
-      <div className="container mx-auto px-4 py-6 max-w-7xl">
+    <div className="min-h-screen bg-gray-50">
+      {/* Clean Header Bar */}
+      <div className="bg-white border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-6 py-4">
+          <div className="flex items-center justify-between">
+            {/* View Switcher */}
+            <Tabs defaultValue="kanban" className="w-full">
+              <div className="flex items-center justify-between">
+                <TabsList className="bg-gray-100 p-1 rounded-lg">
+                  <TabsTrigger 
+                    value="kanban" 
+                    className="px-4 py-2 text-sm font-medium rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm transition-all duration-200"
+                  >
+                    Kanban
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="list" 
+                    className="px-4 py-2 text-sm font-medium rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm transition-all duration-200"
+                  >
+                    List
+                  </TabsTrigger>
+                </TabsList>
 
-        <Tabs defaultValue="kanban" className="space-y-6">
-          <TabsList className="bg-muted/30 backdrop-blur-sm p-1 rounded-xl shadow-sm border border-border/50">
-            <TabsTrigger 
-              value="kanban" 
-              className="flex items-center gap-2 rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all duration-200"
-            >
-              <LayoutDashboard className="h-4 w-4" />
-              Kanban
-            </TabsTrigger>
-            <TabsTrigger 
-              value="list" 
-              className="flex items-center gap-2 rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all duration-200"
-            >
-              <List className="h-4 w-4" />
-              List
-            </TabsTrigger>
-          </TabsList>
+                {/* Action Buttons */}
+                <div className="flex items-center space-x-3">
+                  <button
+                    onClick={handleManageStages}
+                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors duration-200"
+                  >
+                    Manage Stages
+                  </button>
+                  <button
+                    onClick={handleCreateDeal}
+                    className="px-4 py-2 text-sm font-medium text-white bg-black rounded-lg hover:bg-gray-800 transition-colors duration-200"
+                  >
+                    Create Deal
+                  </button>
+                </div>
+              </div>
 
-          <TabsContent value="kanban" className="space-y-0">
-            <EnhancedDealsKanbanBoard 
-              onCreateDeal={handleCreateDeal}
-              onManageStages={handleManageStages}
-              onDealClick={handleDealClick}
-            />
-          </TabsContent>
-          
-          <TabsContent value="list" className="space-y-0">
-            <DealsListView 
-              onDealClick={handleDealClick}
-            />
-          </TabsContent>
-        </Tabs>
+              {/* Content Area */}
+              <div className="mt-6">
+                <TabsContent value="kanban" className="space-y-0 m-0">
+                  <EnhancedDealsKanbanBoard 
+                    onCreateDeal={handleCreateDeal}
+                    onManageStages={handleManageStages}
+                    onDealClick={handleDealClick}
+                  />
+                </TabsContent>
+                
+                <TabsContent value="list" className="space-y-0 m-0">
+                  <DealsListView 
+                    onDealClick={handleDealClick}
+                  />
+                </TabsContent>
+              </div>
+            </Tabs>
+          </div>
+        </div>
       </div>
 
+      {/* Modals */}
       <DealDetailModal
         deal={selectedDeal}
         open={isDealDetailOpen}
