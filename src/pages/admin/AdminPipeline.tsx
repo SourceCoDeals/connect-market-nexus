@@ -2,17 +2,13 @@ import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DealsKanbanBoard } from '@/components/admin/DealsKanbanBoard';
 import { DealsListView } from '@/components/admin/DealsListView';
-import { AnalyticsDashboard } from '@/components/admin/AnalyticsDashboard';
-import { WorkflowAutomation } from '@/components/admin/WorkflowAutomation';
-import { BulkDealOperations } from '@/components/admin/BulkDealOperations';
 import { DealDetailModal } from '@/components/admin/DealDetailModal';
 import { CreateDealModal } from '@/components/admin/CreateDealModal';
 import { StageManagementModal } from '@/components/admin/StageManagementModal';
 import { Deal, useDeals } from '@/hooks/admin/use-deals';
-import { LayoutDashboard, List, BarChart3, Zap, Users } from 'lucide-react';
+import { LayoutDashboard, List } from 'lucide-react';
 
 export default function AdminPipeline() {
-  const { data: deals } = useDeals();
   const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null);
   const [isDealDetailOpen, setIsDealDetailOpen] = useState(false);
   const [isCreateDealOpen, setIsCreateDealOpen] = useState(false);
@@ -41,7 +37,7 @@ export default function AdminPipeline() {
       </div>
 
       <Tabs defaultValue="kanban" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="kanban" className="flex items-center gap-2">
             <LayoutDashboard className="h-4 w-4" />
             Kanban
@@ -49,18 +45,6 @@ export default function AdminPipeline() {
           <TabsTrigger value="list" className="flex items-center gap-2">
             <List className="h-4 w-4" />
             List
-          </TabsTrigger>
-          <TabsTrigger value="analytics" className="flex items-center gap-2">
-            <BarChart3 className="h-4 w-4" />
-            Analytics
-          </TabsTrigger>
-          <TabsTrigger value="automation" className="flex items-center gap-2">
-            <Zap className="h-4 w-4" />
-            Automation
-          </TabsTrigger>
-          <TabsTrigger value="bulk" className="flex items-center gap-2">
-            <Users className="h-4 w-4" />
-            Bulk Ops
           </TabsTrigger>
         </TabsList>
 
@@ -78,22 +62,6 @@ export default function AdminPipeline() {
           />
         </TabsContent>
 
-        <TabsContent value="analytics">
-          <AnalyticsDashboard />
-        </TabsContent>
-
-        <TabsContent value="automation">
-          <WorkflowAutomation />
-        </TabsContent>
-
-        <TabsContent value="bulk">
-          <BulkDealOperations 
-            deals={deals || []}
-            onRefresh={() => {
-              // Refresh deals data
-            }}
-          />
-        </TabsContent>
       </Tabs>
 
       <DealDetailModal
