@@ -42,7 +42,7 @@ import { ExpandableBusinessProfile } from "./ExpandableBusinessProfile";
 import { EnhancedBuyerProfile } from './EnhancedBuyerProfile';
 import { AssociatedContactsDisplay } from './AssociatedContactsDisplay';
 import { getBuyerTier } from '@/lib/buyer-metrics';
-import { processUrl } from '@/lib/url-utils';
+import { processUrl, extractDomainFromEmail, mapRoleToBuyerType } from '@/lib/url-utils';
 
 // Helper function to format listing display name (Title/Company Name)
 const formatListingForDisplay = (title: string, companyName?: string | null): string => {
@@ -91,9 +91,11 @@ const getBuyerTypeAbbreviation = (buyerType: string): string => {
 };
 
 // Clean Tier Display Component (Apple/Stripe style)
-const CleanTierDisplay = ({ user }: { user: any }) => {
+const CleanTierDisplay = ({ user, leadRole }: { user: any; leadRole?: string }) => {
   const tierInfo = getBuyerTier(user);
-  const buyerTypeAbbrev = getBuyerTypeAbbreviation(user?.buyer_type || '');
+  const buyerTypeAbbrev = user 
+    ? getBuyerTypeAbbreviation(user?.buyer_type || '')
+    : mapRoleToBuyerType(leadRole);
   
   return (
     <div className="flex items-center gap-1.5">
@@ -240,9 +242,15 @@ const RequestDetails = ({ request }: { request: AdminConnectionRequest }) => {
                 {request.lead_company && (
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-muted-foreground">Company</span>
-                    <span className="text-xs font-medium text-primary hover:text-primary/80 cursor-pointer transition-colors">
+                    <a
+                      href={extractDomainFromEmail(request.lead_email)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs font-medium text-primary hover:text-primary/80 cursor-pointer transition-colors flex items-center gap-1 group"
+                    >
                       {request.lead_company}
-                    </span>
+                      <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </a>
                   </div>
                 )}
                 {request.lead_role && (
@@ -376,7 +384,7 @@ function ReactiveRequestCard({
                     <Badge variant="outline" className="text-xs">Lead-Only</Badge>
                   </div>
                 )}
-                <CleanTierDisplay user={request.user} />
+                <CleanTierDisplay user={request.user} leadRole={request.lead_role} />
                 <StatusBadge status={request.status} />
                 <SourceBadge source={request.source || 'marketplace'} />
               </div>
@@ -407,9 +415,15 @@ function ReactiveRequestCard({
                         </a>
                      )}
                       {!request.user?.website && request.lead_company && (
-                        <span className="text-xs text-primary hover:text-primary/80 cursor-pointer transition-colors">
+                        <a
+                          href={extractDomainFromEmail(request.lead_email)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-primary hover:text-primary/80 cursor-pointer transition-colors flex items-center gap-1 group"
+                        >
                           {request.lead_company}
-                        </span>
+                          <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </a>
                       )}
                    </div>
                  </div>

@@ -385,22 +385,8 @@ export function useConvertLeadToRequest() {
       }
 
       if (existingRequestId) {
-        console.info('[ConvertLeadToRequest] Duplicate request found, linking lead to existing request:', existingRequestId);
-        const { error: linkErr } = await sb
-          .from('inbound_leads')
-          .update({
-            converted_to_request_id: existingRequestId,
-            converted_at: new Date().toISOString(),
-            status: 'converted',
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', leadId);
-        if (linkErr) {
-          console.error('[ConvertLeadToRequest] Lead link update error:', linkErr);
-          throw linkErr;
-        }
-        console.groupEnd();
-        return { id: existingRequestId } as any;
+        console.warn('[ConvertLeadToRequest] Duplicate request found:', existingRequestId);
+        throw new Error(`Duplicate connection request found. A request already exists for this email and listing combination (Request ID: ${existingRequestId}). Cannot create duplicate requests.`);
       }
 
       // Create connection request - either user-linked or lead-only
@@ -448,6 +434,7 @@ export function useConvertLeadToRequest() {
         requestData.lead_name = lead.name;
         requestData.lead_company = lead.company_name;
         requestData.lead_role = lead.role;
+        requestData.lead_phone = lead.phone_number;
       }
 
       const { data: connectionRequest, error: requestError } = await sb

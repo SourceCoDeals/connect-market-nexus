@@ -54,3 +54,52 @@ export const getUrlDisplayText = (url: string | null | undefined): string => {
   const processed = processUrl(url);
   return processed;
 };
+
+/**
+ * Extracts domain from email address and creates a company website URL
+ */
+export const extractDomainFromEmail = (email: string | null | undefined): string => {
+  if (!email || !email.trim()) {
+    return '';
+  }
+
+  const emailParts = email.trim().split('@');
+  if (emailParts.length !== 2) {
+    return '';
+  }
+
+  const domain = emailParts[1].toLowerCase();
+  return processUrl(domain);
+};
+
+/**
+ * Maps common role names to buyer type abbreviations
+ */
+export const mapRoleToBuyerType = (role: string | null | undefined): string => {
+  if (!role || !role.trim()) {
+    return 'Buyer';
+  }
+
+  const normalizedRole = role.toLowerCase().trim();
+  
+  if (normalizedRole.includes('private equity') || normalizedRole.includes('pe')) {
+    return 'PE';
+  }
+  if (normalizedRole.includes('family office') || normalizedRole.includes('fo')) {
+    return 'FO';
+  }
+  if (normalizedRole.includes('search fund') || normalizedRole.includes('sf')) {
+    return 'SF';
+  }
+  if (normalizedRole.includes('corporate') || normalizedRole.includes('corp')) {
+    return 'Corp';
+  }
+  if (normalizedRole.includes('independent sponsor') || normalizedRole.includes('is')) {
+    return 'IS';
+  }
+  if (normalizedRole.includes('individual') || normalizedRole.includes('investor')) {
+    return 'Individual';
+  }
+  
+  return 'Buyer';
+};
