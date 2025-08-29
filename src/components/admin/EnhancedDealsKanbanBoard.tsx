@@ -151,25 +151,44 @@ export function EnhancedDealsKanbanBoard({ onCreateDeal, onManageStages, onDealC
 
   if (dealsLoading || stagesLoading) {
     return (
-      <div className="h-full flex flex-col">
-        <div className="bg-background border-b border-border/30 px-6 py-3">
-          <Skeleton className="h-8 w-full" />
+      <div className="space-y-6">
+        <div className="flex justify-end gap-3">
+          <Skeleton className="h-9 w-32" />
+          <Skeleton className="h-9 w-24" />
         </div>
-        <div className="flex-1 p-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 h-full">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <Skeleton key={i} className="h-full min-h-96" />
-            ))}
-          </div>
+        <Skeleton className="h-32 w-full" />
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {[...Array(4)].map((_, i) => (
+            <Skeleton key={i} className="h-20" />
+          ))}
+        </div>
+        <div className="flex gap-6 overflow-x-auto">
+          {[...Array(5)].map((_, i) => (
+            <Skeleton key={i} className="w-80 h-96 flex-shrink-0" />
+          ))}
         </div>
       </div>
     );
   }
 
   return (
-    <div className="h-full flex flex-col">
-      {/* HubSpot-style Filters Bar */}
-      <div className="bg-background border-b border-border/30 px-6 py-3">
+    <div className="space-y-6">
+      {/* Header Actions */}
+      <div className="flex items-center justify-between">
+        <div className="flex gap-2">
+          <Button onClick={onCreateDeal} className="gap-2">
+            <Plus className="h-4 w-4" />
+            Create Deal
+          </Button>
+          <Button variant="outline" onClick={onManageStages} className="gap-2">
+            <Settings className="h-4 w-4" />
+            Manage Stages
+          </Button>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div>
         <DealFilters
           deals={deals || []}
           searchQuery={searchQuery}
@@ -189,42 +208,89 @@ export function EnhancedDealsKanbanBoard({ onCreateDeal, onManageStages, onDealC
         />
       </div>
 
-      {/* Full-Height Kanban Board */}
-      <div className="flex-1 overflow-hidden">
-        <DndContext
-          sensors={sensors}
-          onDragStart={handleDragStart}
-          onDragOver={handleDragOver}
-          onDragEnd={handleDragEnd}
-        >
-          <div className="h-full overflow-x-auto overflow-y-hidden">
-            <div 
-              className="h-full flex gap-4 p-4 min-w-max"
-              style={{ 
-                minWidth: `${stageMetrics.length * 320}px`
-              }}
-            >
-              {stageMetrics.map((stage) => (
-                <DealKanbanColumn
-                  key={stage.id}
-                  stage={stage}
-                  deals={dealsByStage[stage.id] || []}
-                  onDealClick={onDealClick}
-                />
-              ))}
+      {/* Pipeline Overview */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Deals</CardTitle>
+            <Target className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{overallMetrics.totalDeals}</div>
+            {deals && deals.length !== overallMetrics.totalDeals && (
+              <p className="text-xs text-muted-foreground">
+                of {deals.length} total
+              </p>
+            )}
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Value</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {formatCurrency(overallMetrics.totalValue)}
             </div>
-          </div>
-
-          <DragOverlay>
-            {activeId ? (
-              <EnhancedDealKanbanCard 
-                deal={filteredAndSortedDeals?.find(d => d.deal_id === activeId)!} 
-                isDragging 
-              />
-            ) : null}
-          </DragOverlay>
-        </DndContext>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Avg Probability</CardTitle>
+            <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {Math.round(overallMetrics.avgProbability)}%
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Pending Tasks</CardTitle>
+            <Clock className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {overallMetrics.pendingTasks}
+            </div>
+          </CardContent>
+        </Card>
       </div>
+
+      {/* Kanban Board */}
+      <DndContext
+        sensors={sensors}
+        onDragStart={handleDragStart}
+        onDragOver={handleDragOver}
+        onDragEnd={handleDragEnd}
+      >
+        <div className="overflow-x-auto border rounded-lg">
+          <div className="flex gap-6 p-4" style={{ minHeight: '600px' }}>
+            {stageMetrics.map((stage) => (
+              <DealKanbanColumn
+                key={stage.id}
+                stage={stage}
+                deals={dealsByStage[stage.id] || []}
+                onDealClick={onDealClick}
+              />
+            ))}
+          </div>
+        </div>
+
+        <DragOverlay>
+          {activeId ? (
+            <EnhancedDealKanbanCard 
+              deal={filteredAndSortedDeals?.find(d => d.deal_id === activeId)!} 
+              isDragging 
+            />
+          ) : null}
+        </DragOverlay>
+      </DndContext>
     </div>
   );
 }
