@@ -28,8 +28,8 @@ export default function AdminPipeline() {
   };
 
   return (
-    <div className="min-h-screen w-full max-w-full overflow-x-hidden">
-      <div className="container mx-auto px-4 py-6 max-w-none">
+    <div className="min-h-screen">
+      <div className="container mx-auto px-4 py-6">
         <div className="border-b border-border/50 pb-6 mb-6">
           <h1 className="text-4xl font-bold bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent mb-2">
             Deals Pipeline
