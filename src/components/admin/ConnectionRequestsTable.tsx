@@ -622,12 +622,73 @@ function ReactiveRequestCard({
 
               {/* Desktop/Tablet Layout (>= 768px) */}
               <div className="hidden md:block">
-                {/* Top Section: Buyer & Listing Info Grid */}
+                 {/* Top Section: Buyer & Listing Info Grid */}
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
-                   {/* Enhanced Buyer Information */}
+                   {/* Enhanced Buyer Information or Lead Information */}
                    <div className="space-y-3">
-                     <EnhancedBuyerProfile user={request.user} />
-                     <ExpandableBusinessProfile user={request.user as any} />
+                     {request.user ? (
+                       <>
+                         <EnhancedBuyerProfile user={request.user} />
+                         <ExpandableBusinessProfile user={request.user as any} />
+                       </>
+                     ) : (
+                       /* Lead Information Section */
+                       <div className="space-y-3">
+                         <div className="flex items-center gap-2 pb-1 border-b border-border/40">
+                           <User className="h-3.5 w-3.5 text-muted-foreground" />
+                           <span className="text-xs font-semibold text-card-foreground">Lead Information</span>
+                         </div>
+                         <div className="space-y-2.5 pl-1">
+                           {request.lead_name && (
+                             <div className="space-y-1">
+                               <span className="text-xs text-muted-foreground">Name</span>
+                               <p className="text-xs font-medium text-card-foreground">{request.lead_name}</p>
+                             </div>
+                           )}
+                           {request.lead_email && (
+                             <div className="space-y-1">
+                               <span className="text-xs text-muted-foreground">Email</span>
+                               <a 
+                                 href={`mailto:${request.lead_email}`}
+                                 className="text-xs font-medium text-primary hover:text-primary/80 transition-colors"
+                               >
+                                 {request.lead_email}
+                               </a>
+                             </div>
+                           )}
+                           {request.lead_phone && (
+                             <div className="space-y-1">
+                               <span className="text-xs text-muted-foreground">Phone</span>
+                               <a 
+                                 href={`tel:${request.lead_phone}`}
+                                 className="text-xs font-medium text-primary hover:text-primary/80 transition-colors"
+                               >
+                                 {/* Format phone number for display - handle various formats */}
+                                 {(() => {
+                                   const phone = request.lead_phone.toString();
+                                   // If it's an 11-digit number starting with 1, format as (XXX) XXX-XXXX
+                                   if (phone.length === 11 && phone.startsWith('1')) {
+                                     return phone.replace(/^1(\d{3})(\d{3})(\d{4})$/, '($1) $2-$3');
+                                   }
+                                   // If it's a 10-digit number, format as (XXX) XXX-XXXX
+                                   if (phone.length === 10) {
+                                     return phone.replace(/^(\d{3})(\d{3})(\d{4})$/, '($1) $2-$3');
+                                   }
+                                   // Otherwise return as-is
+                                   return phone;
+                                 })()}
+                               </a>
+                             </div>
+                           )}
+                           {request.lead_company && (
+                             <div className="space-y-1">
+                               <span className="text-xs text-muted-foreground">Company</span>
+                               <p className="text-xs font-medium text-card-foreground">{request.lead_company}</p>
+                             </div>
+                           )}
+                         </div>
+                       </div>
+                     )}
                    </div>
 
                   {/* Listing Information */}
