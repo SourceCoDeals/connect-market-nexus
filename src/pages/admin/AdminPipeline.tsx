@@ -29,8 +29,7 @@ export default function AdminPipeline() {
   };
 
   return (
-    <div className="min-h-screen">
-      <div className="max-w-7xl mx-auto px-6 py-8 space-y-8">
+    <div className="space-y-8">
         
         {/* Clean Header Bar */}
         <div className="flex items-center justify-between py-4 border-b border-border/50">
@@ -86,7 +85,6 @@ export default function AdminPipeline() {
             />
           </TabsContent>
         </Tabs>
-      </div>
 
       <DealDetailModal
         deal={selectedDeal}
