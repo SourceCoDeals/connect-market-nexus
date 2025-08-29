@@ -9,13 +9,15 @@ import {
   useSensors,
   DragOverlay,
 } from '@dnd-kit/core';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Plus, Settings, TrendingUp, CheckCircle2, Clock, Target } from 'lucide-react';
 import { useDeals, useDealStages, useUpdateDealStage, Deal } from '@/hooks/admin/use-deals';
 import { useDealFilters } from '@/hooks/admin/use-deal-filters';
-import { useViewportDimensions } from '@/hooks/useViewportDimensions';
 import { DealKanbanColumn } from './DealKanbanColumn';
 import { EnhancedDealKanbanCard } from './EnhancedDealKanbanCard';
 import { DealFilters } from './DealFilters';
-import { PipelineMetrics } from './PipelineMetrics';
 import { Skeleton } from '@/components/ui/skeleton';
 
 interface EnhancedDealsKanbanBoardProps {
@@ -30,7 +32,6 @@ export function EnhancedDealsKanbanBoard({ onCreateDeal, onManageStages, onDealC
   const { data: deals, isLoading: dealsLoading } = useDeals();
   const { data: stages, isLoading: stagesLoading } = useDealStages();
   const updateDealStage = useUpdateDealStage();
-  const { availableHeight } = useViewportDimensions();
 
   const {
     searchQuery,
@@ -150,28 +151,52 @@ export function EnhancedDealsKanbanBoard({ onCreateDeal, onManageStages, onDealC
 
   if (dealsLoading || stagesLoading) {
     return (
-      <div className="h-full flex flex-col">
-        <div className="bg-background border-b border-border/30 px-6 py-3">
-          <Skeleton className="h-8 w-full" />
+      <div className="space-y-6">
+        <div className="flex justify-end gap-3">
+          <Skeleton className="h-9 w-32" />
+          <Skeleton className="h-9 w-24" />
         </div>
-        <div className="bg-background border-b border-border/30 px-6 py-4">
-          <Skeleton className="h-20 w-full" />
+        <Skeleton className="h-32 w-full" />
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {[...Array(4)].map((_, i) => (
+            <Skeleton key={i} className="h-20" />
+          ))}
         </div>
-        <div className="flex-1 p-4">
-          <div className="flex gap-4 h-full overflow-x-auto">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <Skeleton key={i} className="flex-shrink-0 w-80 h-full" />
-            ))}
-          </div>
+        <div className="flex gap-6 overflow-x-auto">
+          {[...Array(5)].map((_, i) => (
+            <Skeleton key={i} className="w-80 h-96 flex-shrink-0" />
+          ))}
         </div>
       </div>
     );
   }
 
   return (
-    <div className="h-full flex flex-col overflow-hidden">
-      {/* HubSpot-style Filters Bar */}
-      <div className="bg-background border-b border-border/30 px-6 py-3 flex-shrink-0">
+    <div className="flex flex-col h-full">
+      {/* Header with Actions and Filters */}
+      <div className="px-6 py-4 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <Button onClick={onCreateDeal} size="sm" className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-medium">
+              <Plus className="h-4 w-4" />
+              Create deal
+            </Button>
+            <Button 
+              variant="outline" 
+              onClick={onManageStages} 
+              size="sm"
+              className="gap-2 border-input bg-background hover:bg-accent hover:text-accent-foreground"
+            >
+              <Settings className="h-4 w-4" />
+              Manage stages
+            </Button>
+          </div>
+          <div className="text-sm text-muted-foreground font-medium">
+            {overallMetrics.totalDeals} deals • {formatCurrency(overallMetrics.totalValue)}
+          </div>
+        </div>
+
+        {/* Filters */}
         <DealFilters
           deals={deals || []}
           searchQuery={searchQuery}
@@ -191,12 +216,7 @@ export function EnhancedDealsKanbanBoard({ onCreateDeal, onManageStages, onDealC
         />
       </div>
 
-      {/* Pipeline Metrics Dashboard */}
-      <div className="flex-shrink-0">
-        <PipelineMetrics deals={filteredAndSortedDeals || []} />
-      </div>
-
-      {/* Kanban Board with HubSpot-style Scrolling */}
+      {/* Kanban Board - Full Screen */}
       <div className="flex-1 overflow-hidden">
         <DndContext
           sensors={sensors}
@@ -204,21 +224,14 @@ export function EnhancedDealsKanbanBoard({ onCreateDeal, onManageStages, onDealC
           onDragOver={handleDragOver}
           onDragEnd={handleDragEnd}
         >
-          <div className="h-full overflow-x-auto overflow-y-hidden">
-            <div 
-              className="h-full flex gap-4 p-4"
-              style={{ 
-                minWidth: `${stageMetrics.length * 320}px`,
-                paddingRight: '20px' // Extra padding for smooth scrolling
-              }}
-            >
+          <div className="h-full overflow-x-auto">
+            <div className="flex gap-4 p-4 h-full" style={{ minHeight: 'calc(100vh - 200px)' }}>
               {stageMetrics.map((stage) => (
                 <DealKanbanColumn
                   key={stage.id}
                   stage={stage}
                   deals={dealsByStage[stage.id] || []}
                   onDealClick={onDealClick}
-                  availableHeight={availableHeight}
                 />
               ))}
             </div>
