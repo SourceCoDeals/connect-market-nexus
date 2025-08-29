@@ -211,6 +211,13 @@ const ListingDetail = () => {
               </div>
             </div>
 
+            {/* Financial Summary */}
+            <div className="document-section py-6">
+              <EnhancedInvestorDashboard 
+                listing={listing}
+                formatCurrency={formatCurrency}
+              />
+            </div>
             {/* Business Overview */}
             <div className="document-section py-6">
               <div className="space-y-4">
@@ -225,13 +232,6 @@ const ListingDetail = () => {
               </div>
             </div>
 
-            {/* Financial Summary */}
-            <div className="document-section py-6">
-              <EnhancedInvestorDashboard 
-                listing={listing}
-                formatCurrency={formatCurrency}
-              />
-            </div>
 
             {/* Ownership Structure */}
             {((listing as any).ownership_structure || (listing as any).seller_motivation) && (
