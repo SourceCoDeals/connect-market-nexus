@@ -5,7 +5,7 @@ export type DealStatusFilter = 'all' | 'new_inquiry' | 'qualified' | 'due_dilige
 export type BuyerTypeFilter = 'all' | 'privateEquity' | 'familyOffice' | 'searchFund' | 'corporate' | 'individual' | 'independentSponsor' | 'advisor' | 'businessOwner';
 export type ListingFilter = 'all' | string;
 export type AdminFilter = 'all' | 'unassigned' | string;
-export type DocumentStatusFilter = 'all' | 'nda_signed' | 'fee_signed' | 'both_signed' | 'none_signed';
+export type DocumentStatusFilter = 'all' | 'nda_signed' | 'fee_signed' | 'both_signed' | 'none_signed' | 'overdue_followup';
 export type SortOption = 'newest' | 'oldest' | 'priority' | 'value' | 'probability' | 'stage_entered';
 
 export function useDealFilters(deals: Deal[]) {
@@ -87,6 +87,9 @@ export function useDealFilters(deals: Deal[]) {
           break;
         case 'none_signed':
           filtered = filtered.filter(d => d.nda_status !== 'signed' && d.fee_agreement_status !== 'signed');
+          break;
+        case 'overdue_followup':
+          filtered = filtered.filter(d => d.followup_overdue === true);
           break;
       }
     }

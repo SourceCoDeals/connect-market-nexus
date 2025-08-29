@@ -2115,6 +2115,12 @@ export type Database = {
           assigned_admin_email: string
           assigned_admin_name: string
           assigned_to: string
+          buyer_company: string
+          buyer_email: string
+          buyer_id: string
+          buyer_name: string
+          buyer_priority_score: number
+          buyer_type: string
           completed_tasks: number
           contact_company: string
           contact_email: string
@@ -2135,12 +2141,14 @@ export type Database = {
           fee_agreement_status: string
           followed_up: boolean
           followed_up_at: string
+          followup_overdue: boolean
           listing_ebitda: number
           listing_id: string
           listing_location: string
           listing_revenue: number
           listing_title: string
           nda_status: string
+          next_followup_due: string
           pending_tasks: number
           stage_color: string
           stage_id: string

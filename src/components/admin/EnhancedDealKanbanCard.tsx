@@ -208,11 +208,19 @@ export function EnhancedDealKanbanCard({ deal, isDragging, onClick }: EnhancedDe
               <span className="text-xs text-muted-foreground">Fee</span>
             </div>
 
-            {/* Follow-up indicator */}
+            {/* Follow-up indicator with overdue status */}
             {deal.followed_up && (
               <div className="flex items-center gap-1">
                 <CheckCircle2 className="h-3 w-3 text-green-600 dark:text-green-400" />
                 <span className="text-xs text-muted-foreground">F/U</span>
+              </div>
+            )}
+            
+            {/* Overdue follow-up warning */}
+            {deal.followup_overdue && !deal.followed_up && (
+              <div className="flex items-center gap-1">
+                <AlertTriangle className="h-3 w-3 text-red-600 dark:text-red-400" />
+                <span className="text-xs text-red-600 dark:text-red-400">Overdue</span>
               </div>
             )}
           </div>
@@ -236,7 +244,7 @@ export function EnhancedDealKanbanCard({ deal, isDragging, onClick }: EnhancedDe
           </div>
         </div>
 
-        {/* Footer */}
+        {/* Footer with Follow-up Due Date */}
         <div className="flex items-center justify-between pt-1 text-xs text-muted-foreground">
           <div className="flex items-center gap-1">
             <Calendar className="h-3 w-3" />
@@ -244,6 +252,16 @@ export function EnhancedDealKanbanCard({ deal, isDragging, onClick }: EnhancedDe
               {Math.ceil((Date.now() - new Date(deal.deal_stage_entered_at).getTime()) / (1000 * 60 * 60 * 24))}d in stage
             </span>
           </div>
+          
+          {/* Follow-up due date indicator */}
+          {deal.next_followup_due && (
+            <div className={`flex items-center gap-1 ${deal.followup_overdue ? 'text-red-600 dark:text-red-400' : ''}`}>
+              <Clock className="h-3 w-3" />
+              <span className="text-xs">
+                Due {new Date(deal.next_followup_due).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+              </span>
+            </div>
+          )}
           
           {deal.assigned_admin_name && (
             <div className="flex items-center gap-1">

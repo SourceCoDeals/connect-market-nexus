@@ -39,7 +39,7 @@ export type DealStatusFilter = 'all' | 'new_inquiry' | 'qualified' | 'due_dilige
 export type BuyerTypeFilter = 'all' | 'privateEquity' | 'familyOffice' | 'searchFund' | 'corporate' | 'individual' | 'independentSponsor' | 'advisor' | 'businessOwner';
 export type ListingFilter = 'all' | string; // listing ID
 export type AdminFilter = 'all' | 'unassigned' | string; // admin ID
-export type DocumentStatusFilter = 'all' | 'nda_signed' | 'fee_signed' | 'both_signed' | 'none_signed';
+export type DocumentStatusFilter = 'all' | 'nda_signed' | 'fee_signed' | 'both_signed' | 'none_signed' | 'overdue_followup';
 export type SortOption = 'newest' | 'oldest' | 'priority' | 'value' | 'probability' | 'stage_entered';
 
 interface DealFiltersProps {
@@ -134,6 +134,7 @@ export function DealFilters({
     { value: 'nda_signed', label: 'NDA Signed Only' },
     { value: 'fee_signed', label: 'Fee Signed Only' },
     { value: 'none_signed', label: 'No Documents' },
+    { value: 'overdue_followup', label: 'Overdue Follow-up' },
   ] as const;
 
   const sortOptions = [

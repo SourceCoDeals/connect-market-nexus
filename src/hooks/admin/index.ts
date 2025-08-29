@@ -8,3 +8,6 @@ export * from './use-admin-categories';
 export * from './use-fee-agreement';
 export * from './use-nda';
 export * from './use-connection-notes';
+export * from './use-deals';
+export * from './use-deal-filters';
+export * from './use-deal-follow-up';

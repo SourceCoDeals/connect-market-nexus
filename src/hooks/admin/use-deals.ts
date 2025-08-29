@@ -54,13 +54,17 @@ export interface Deal {
   // Activity count
   activity_count: number;
   
-  // Buyer information
+  // Enhanced buyer information
   buyer_id?: string;
   buyer_name?: string;
   buyer_email?: string;
   buyer_company?: string;
   buyer_type?: 'privateEquity' | 'familyOffice' | 'searchFund' | 'corporate' | 'individual' | 'independentSponsor' | 'advisor' | 'businessOwner';
   buyer_priority_score?: number;
+  
+  // Follow-up tracking
+  next_followup_due?: string;
+  followup_overdue?: boolean;
 }
 
 export interface DealStage {
