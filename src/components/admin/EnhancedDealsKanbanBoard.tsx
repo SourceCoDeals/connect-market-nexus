@@ -263,36 +263,34 @@ export function EnhancedDealsKanbanBoard({ onCreateDeal, onManageStages, onDealC
       </div>
 
       {/* Kanban Board */}
-      <div className="w-full">
-        <DndContext
-          sensors={sensors}
-          onDragStart={handleDragStart}
-          onDragOver={handleDragOver}
-          onDragEnd={handleDragEnd}
-        >
-          <div className="overflow-x-auto">
-            <div className="flex gap-6 pb-4" style={{ minHeight: '600px' }}>
-              {stageMetrics.map((stage) => (
-                <DealKanbanColumn
-                  key={stage.id}
-                  stage={stage}
-                  deals={dealsByStage[stage.id] || []}
-                  onDealClick={onDealClick}
-                />
-              ))}
-            </div>
-          </div>
-
-          <DragOverlay>
-            {activeId ? (
-              <EnhancedDealKanbanCard 
-                deal={filteredAndSortedDeals?.find(d => d.deal_id === activeId)!} 
-                isDragging 
+      <DndContext
+        sensors={sensors}
+        onDragStart={handleDragStart}
+        onDragOver={handleDragOver}
+        onDragEnd={handleDragEnd}
+      >
+        <div className="overflow-x-auto border rounded-lg">
+          <div className="flex gap-6 p-4" style={{ width: 'max-content', minHeight: '600px' }}>
+            {stageMetrics.map((stage) => (
+              <DealKanbanColumn
+                key={stage.id}
+                stage={stage}
+                deals={dealsByStage[stage.id] || []}
+                onDealClick={onDealClick}
               />
-            ) : null}
-          </DragOverlay>
-        </DndContext>
-      </div>
+            ))}
+          </div>
+        </div>
+
+        <DragOverlay>
+          {activeId ? (
+            <EnhancedDealKanbanCard 
+              deal={filteredAndSortedDeals?.find(d => d.deal_id === activeId)!} 
+              isDragging 
+            />
+          ) : null}
+        </DragOverlay>
+      </DndContext>
     </div>
   );
 }
