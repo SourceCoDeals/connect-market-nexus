@@ -28,8 +28,8 @@ export default function AdminPipeline() {
   };
 
   return (
-    <div className="h-full flex flex-col space-y-6">
-      <div className="border-b border-border/50 pb-6 flex-shrink-0">
+    <div className="h-full flex flex-col overflow-hidden">
+      <div className="border-b border-border/50 pb-6 flex-shrink-0 px-6">
         <h1 className="text-4xl font-bold bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent mb-2">
           Deals Pipeline
         </h1>
@@ -38,7 +38,7 @@ export default function AdminPipeline() {
         </p>
       </div>
 
-      <Tabs defaultValue="kanban" className="flex flex-col flex-1 overflow-hidden">
+      <Tabs defaultValue="kanban" className="flex flex-col flex-1 overflow-hidden px-6">
         <TabsList className="bg-muted/30 backdrop-blur-sm p-1 rounded-xl shadow-sm border border-border/50 flex-shrink-0">
           <TabsTrigger 
             value="kanban" 
