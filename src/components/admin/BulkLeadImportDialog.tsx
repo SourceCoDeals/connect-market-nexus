@@ -36,7 +36,7 @@ export const BulkLeadImportDialog = ({
   const [parsedLeads, setParsedLeads] = useState<ParsedLead[]>([]);
   const [parseErrors, setParseErrors] = useState<string[]>([]);
   const [selectedSource, setSelectedSource] = useState<string>("manual");
-  const [selectedListingId, setSelectedListingId] = useState<string>("");
+  const [selectedListingId, setSelectedListingId] = useState<string>("none");
   const [shouldConvert, setShouldConvert] = useState(true);
   
   // Fetch active listings for mapping
@@ -174,9 +174,10 @@ Date	Name	Email address	Company name	Phone number	Role	Message
     const validLeads = parsedLeads.filter(lead => lead.errors.length === 0);
     if (validLeads.length > 0) {
       const selectedListing = listings.find(l => l.id === selectedListingId);
+      const finalListingId = selectedListingId === "none" ? undefined : selectedListingId;
       onConfirm(
         validLeads.map(lead => lead.data), 
-        selectedListingId || undefined,
+        finalListingId,
         selectedListing?.title || undefined,
         shouldConvert
       );
@@ -189,7 +190,7 @@ Date	Name	Email address	Company name	Phone number	Role	Message
     setParsedLeads([]);
     setParseErrors([]);
     setSelectedSource("manual");
-    setSelectedListingId("");
+    setSelectedListingId("none");
     setShouldConvert(true);
     onClose();
   };
@@ -240,7 +241,7 @@ Date	Name	Email address	Company name	Phone number	Role	Message
                     <SelectValue placeholder="Select listing or leave empty" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">No listing - Review manually</SelectItem>
+                    <SelectItem value="none">No listing - Review manually</SelectItem>
                     {listings.map((listing) => (
                       <SelectItem key={listing.id} value={listing.id}>
                         <div className="flex items-center gap-2">
@@ -256,7 +257,7 @@ Date	Name	Email address	Company name	Phone number	Role	Message
                 )}
               </div>
 
-              {selectedListingId && (
+              {selectedListingId && selectedListingId !== "none" && (
                 <div className="flex items-center space-x-2">
                   <Checkbox
                     id="auto-convert"
@@ -388,9 +389,9 @@ Date	Name	Email address	Company name	Phone number	Role	Message
             <Upload className="h-4 w-4" />
             {isLoading 
               ? "Processing..." 
-              : selectedListingId && shouldConvert
+              : selectedListingId && selectedListingId !== "none" && shouldConvert
                 ? `Import & Convert ${validLeads.length} Lead${validLeads.length !== 1 ? 's' : ''}`
-                : selectedListingId
+                : selectedListingId && selectedListingId !== "none"
                   ? `Import & Map ${validLeads.length} Lead${validLeads.length !== 1 ? 's' : ''}`
                   : `Import ${validLeads.length} Lead${validLeads.length !== 1 ? 's' : ''}`
             }
