@@ -43,6 +43,7 @@ import { EnhancedBuyerProfile } from './EnhancedBuyerProfile';
 import { AssociatedContactsDisplay } from './AssociatedContactsDisplay';
 import { getBuyerTier } from '@/lib/buyer-metrics';
 import { processUrl, extractDomainFromEmail, mapRoleToBuyerType, getLeadTierInfo } from '@/lib/url-utils';
+import { DuplicateChannelWarning } from './DuplicateChannelWarning';
 
 // Helper function to format listing display name (Title/Company Name)
 const formatListingForDisplay = (title: string, companyName?: string | null): string => {
@@ -327,8 +328,11 @@ const RequestDetails = ({ request }: { request: AdminConnectionRequest }) => {
         </div>
       )}
       
-      {/* Source Lead Context */}
-      <SourceLeadContext request={request} className="mt-4" />
+      {/* Source Lead Context and Duplicate Channel Warning */}
+      <div className="space-y-3">
+        <SourceLeadContext request={request} className="mt-4" />
+        <DuplicateChannelWarning sourceMetadata={request.source_metadata} />
+      </div>
       
       {/* Associated Contacts Display */}
       <AssociatedContactsDisplay 
