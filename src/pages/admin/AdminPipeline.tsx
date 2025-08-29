@@ -1,32 +1,34 @@
 import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Button } from '@/components/ui/button';
 import { DealsKanbanBoard } from '@/components/admin/DealsKanbanBoard';
 import { DealsListView } from '@/components/admin/DealsListView';
+import { AnalyticsDashboard } from '@/components/admin/AnalyticsDashboard';
+import { WorkflowAutomation } from '@/components/admin/WorkflowAutomation';
+import { BulkDealOperations } from '@/components/admin/BulkDealOperations';
 import { DealDetailModal } from '@/components/admin/DealDetailModal';
 import { CreateDealModal } from '@/components/admin/CreateDealModal';
 import { StageManagementModal } from '@/components/admin/StageManagementModal';
-import { Deal } from '@/hooks/admin/use-deals';
-import { Kanban, List } from 'lucide-react';
+import { Deal, useDeals } from '@/hooks/admin/use-deals';
+import { LayoutDashboard, List, BarChart3, Zap, Users } from 'lucide-react';
 
-const AdminPipeline = () => {
+export default function AdminPipeline() {
+  const { data: deals } = useDeals();
   const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null);
-  const [dealModalOpen, setDealModalOpen] = useState(false);
-  const [createDealModalOpen, setCreateDealModalOpen] = useState(false);
-  const [stageManagementModalOpen, setStageManagementModalOpen] = useState(false);
-  const [activeView, setActiveView] = useState<'kanban' | 'list'>('kanban');
+  const [isDealDetailOpen, setIsDealDetailOpen] = useState(false);
+  const [isCreateDealOpen, setIsCreateDealOpen] = useState(false);
+  const [isStageManagementOpen, setIsStageManagementOpen] = useState(false);
 
   const handleDealClick = (deal: Deal) => {
     setSelectedDeal(deal);
-    setDealModalOpen(true);
+    setIsDealDetailOpen(true);
   };
 
   const handleCreateDeal = () => {
-    setCreateDealModalOpen(true);
+    setIsCreateDealOpen(true);
   };
 
   const handleManageStages = () => {
-    setStageManagementModalOpen(true);
+    setIsStageManagementOpen(true);
   };
 
   return (
@@ -36,30 +38,34 @@ const AdminPipeline = () => {
           <h1 className="text-3xl font-bold">Deals Pipeline</h1>
           <p className="text-muted-foreground">Comprehensive deal management and sales pipeline</p>
         </div>
-        
-        <div className="flex items-center gap-2">
-          <Button
-            variant={activeView === 'kanban' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setActiveView('kanban')}
-          >
-            <Kanban className="h-4 w-4 mr-2" />
-            Kanban
-          </Button>
-          <Button
-            variant={activeView === 'list' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setActiveView('list')}
-          >
-            <List className="h-4 w-4 mr-2" />
-            List View
-          </Button>
-        </div>
       </div>
 
-      <Tabs value={activeView} onValueChange={(value) => setActiveView(value as 'kanban' | 'list')}>
+      <Tabs defaultValue="kanban" className="space-y-4">
+        <TabsList className="grid w-full grid-cols-5">
+          <TabsTrigger value="kanban" className="flex items-center gap-2">
+            <LayoutDashboard className="h-4 w-4" />
+            Kanban
+          </TabsTrigger>
+          <TabsTrigger value="list" className="flex items-center gap-2">
+            <List className="h-4 w-4" />
+            List
+          </TabsTrigger>
+          <TabsTrigger value="analytics" className="flex items-center gap-2">
+            <BarChart3 className="h-4 w-4" />
+            Analytics
+          </TabsTrigger>
+          <TabsTrigger value="automation" className="flex items-center gap-2">
+            <Zap className="h-4 w-4" />
+            Automation
+          </TabsTrigger>
+          <TabsTrigger value="bulk" className="flex items-center gap-2">
+            <Users className="h-4 w-4" />
+            Bulk Ops
+          </TabsTrigger>
+        </TabsList>
+
         <TabsContent value="kanban">
-          <DealsKanbanBoard
+          <DealsKanbanBoard 
             onCreateDeal={handleCreateDeal}
             onManageStages={handleManageStages}
             onDealClick={handleDealClick}
@@ -67,27 +73,44 @@ const AdminPipeline = () => {
         </TabsContent>
         
         <TabsContent value="list">
-          <DealsListView onDealClick={handleDealClick} />
+          <DealsListView 
+            onDealClick={handleDealClick}
+          />
+        </TabsContent>
+
+        <TabsContent value="analytics">
+          <AnalyticsDashboard />
+        </TabsContent>
+
+        <TabsContent value="automation">
+          <WorkflowAutomation />
+        </TabsContent>
+
+        <TabsContent value="bulk">
+          <BulkDealOperations 
+            deals={deals || []}
+            onRefresh={() => {
+              // Refresh deals data
+            }}
+          />
         </TabsContent>
       </Tabs>
 
       <DealDetailModal
         deal={selectedDeal}
-        open={dealModalOpen}
-        onOpenChange={setDealModalOpen}
+        open={isDealDetailOpen}
+        onOpenChange={setIsDealDetailOpen}
       />
 
       <CreateDealModal
-        open={createDealModalOpen}
-        onOpenChange={setCreateDealModalOpen}
+        open={isCreateDealOpen}
+        onOpenChange={setIsCreateDealOpen}
       />
 
       <StageManagementModal
-        open={stageManagementModalOpen}
-        onOpenChange={setStageManagementModalOpen}
+        open={isStageManagementOpen}
+        onOpenChange={setIsStageManagementOpen}
       />
     </div>
   );
-};
-
-export default AdminPipeline;
+}

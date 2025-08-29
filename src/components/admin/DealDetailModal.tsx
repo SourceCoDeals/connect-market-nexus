@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Deal, useDealTasks, useCreateDealTask, useUpdateDeal } from '@/hooks/admin/use-deals';
 import { useAdmin } from '@/hooks/use-admin';
+import { CommunicationTimeline } from '@/components/admin/CommunicationTimeline';
 import { 
   User, 
   Building, 
@@ -425,13 +426,12 @@ export function DealDetailModal({ deal, open, onOpenChange }: DealDetailModalPro
           </TabsContent>
 
           <TabsContent value="activity" className="space-y-4">
-            <Card>
-              <CardContent className="p-4">
-                <div className="text-center py-8 text-muted-foreground">
-                  Activity timeline coming soon
-                </div>
-              </CardContent>
-            </Card>
+            <CommunicationTimeline 
+              dealId={deal.deal_id}
+              dealTitle={deal.deal_title}
+              contactEmail={deal.contact_email}
+              contactName={deal.contact_name}
+            />
           </TabsContent>
         </Tabs>
       </DialogContent>
