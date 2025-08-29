@@ -30,14 +30,6 @@ export default function AdminPipeline() {
   return (
     <div className="min-h-screen overflow-x-hidden">
       <div className="container mx-auto px-4 py-6 max-w-7xl">
-        <div className="border-b border-border/50 pb-6 mb-6">
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent mb-2">
-            Deals Pipeline
-          </h1>
-          <p className="text-muted-foreground text-lg">
-            Manage your deals through the sales pipeline
-          </p>
-        </div>
 
         <Tabs defaultValue="kanban" className="space-y-6">
           <TabsList className="bg-muted/30 backdrop-blur-sm p-1 rounded-xl shadow-sm border border-border/50">
