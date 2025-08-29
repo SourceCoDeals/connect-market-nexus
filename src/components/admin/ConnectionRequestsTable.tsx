@@ -273,7 +273,20 @@ const RequestDetails = ({ request }: { request: AdminConnectionRequest }) => {
                       href={`tel:${request.lead_phone}`}
                       className="text-xs font-medium text-primary hover:text-primary/80 transition-colors"
                     >
-                      {request.lead_phone}
+                      {/* Format phone number for display - handle various formats */}
+                      {(() => {
+                        const phone = request.lead_phone.toString();
+                        // If it's an 11-digit number starting with 1, format as (XXX) XXX-XXXX
+                        if (phone.length === 11 && phone.startsWith('1')) {
+                          return phone.replace(/^1(\d{3})(\d{3})(\d{4})$/, '($1) $2-$3');
+                        }
+                        // If it's a 10-digit number, format as (XXX) XXX-XXXX
+                        if (phone.length === 10) {
+                          return phone.replace(/^(\d{3})(\d{3})(\d{4})$/, '($1) $2-$3');
+                        }
+                        // Otherwise return as-is
+                        return phone;
+                      })()}
                     </a>
                   </div>
                 )}
