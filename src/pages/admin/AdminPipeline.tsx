@@ -2,14 +2,18 @@ import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { DealsKanbanBoard } from '@/components/admin/DealsKanbanBoard';
-import { DealsPipelineView } from "@/components/admin/DealsPipelineView";
+import { DealsListView } from '@/components/admin/DealsListView';
 import { DealDetailModal } from '@/components/admin/DealDetailModal';
+import { CreateDealModal } from '@/components/admin/CreateDealModal';
+import { StageManagementModal } from '@/components/admin/StageManagementModal';
 import { Deal } from '@/hooks/admin/use-deals';
 import { Kanban, List } from 'lucide-react';
 
 const AdminPipeline = () => {
   const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null);
   const [dealModalOpen, setDealModalOpen] = useState(false);
+  const [createDealModalOpen, setCreateDealModalOpen] = useState(false);
+  const [stageManagementModalOpen, setStageManagementModalOpen] = useState(false);
   const [activeView, setActiveView] = useState<'kanban' | 'list'>('kanban');
 
   const handleDealClick = (deal: Deal) => {
@@ -18,13 +22,11 @@ const AdminPipeline = () => {
   };
 
   const handleCreateDeal = () => {
-    // TODO: Implement create deal functionality
-    console.log('Create deal');
+    setCreateDealModalOpen(true);
   };
 
   const handleManageStages = () => {
-    // TODO: Implement stage management
-    console.log('Manage stages');
+    setStageManagementModalOpen(true);
   };
 
   return (
@@ -65,7 +67,7 @@ const AdminPipeline = () => {
         </TabsContent>
         
         <TabsContent value="list">
-          <DealsPipelineView />
+          <DealsListView onDealClick={handleDealClick} />
         </TabsContent>
       </Tabs>
 
@@ -73,6 +75,16 @@ const AdminPipeline = () => {
         deal={selectedDeal}
         open={dealModalOpen}
         onOpenChange={setDealModalOpen}
+      />
+
+      <CreateDealModal
+        open={createDealModalOpen}
+        onOpenChange={setCreateDealModalOpen}
+      />
+
+      <StageManagementModal
+        open={stageManagementModalOpen}
+        onOpenChange={setStageManagementModalOpen}
       />
     </div>
   );
