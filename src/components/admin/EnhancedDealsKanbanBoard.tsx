@@ -12,13 +12,14 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Settings, TrendingUp, CheckCircle2, Clock, Target } from 'lucide-react';
+import { Plus, Settings, Search, CheckCircle2, Clock, AlertCircle, Users } from 'lucide-react';
 import { useDeals, useDealStages, useUpdateDealStage, Deal } from '@/hooks/admin/use-deals';
 import { useDealFilters } from '@/hooks/admin/use-deal-filters';
 import { DealKanbanColumn } from './DealKanbanColumn';
 import { EnhancedDealKanbanCard } from './EnhancedDealKanbanCard';
-import { DealFilters } from './DealFilters';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
 
 interface EnhancedDealsKanbanBoardProps {
   onCreateDeal?: () => void;
@@ -50,6 +51,57 @@ export function EnhancedDealsKanbanBoard({ onCreateDeal, onManageStages, onDealC
     setDocumentStatusFilter,
     setSortOption,
   } = useDealFilters(deals || []);
+
+  // Create status options with counts and icons
+  const statusOptions = useMemo(() => {
+    if (!deals) return [];
+    return [
+      {
+        value: 'new_inquiry',
+        label: 'New Inquiry',
+        icon: Users,
+        count: deals.filter(d => d.stage_name === 'New Inquiry').length
+      },
+      {
+        value: 'qualified',
+        label: 'Qualified',
+        icon: CheckCircle2,
+        count: deals.filter(d => d.stage_name === 'Qualified').length
+      },
+      {
+        value: 'due_diligence',
+        label: 'Due Diligence',
+        icon: Clock,
+        count: deals.filter(d => d.stage_name === 'Due Diligence').length
+      },
+      {
+        value: 'under_contract',
+        label: 'Under Contract',
+        icon: AlertCircle,
+        count: deals.filter(d => d.stage_name === 'Under Contract').length
+      }
+    ];
+  }, [deals]);
+
+  // Create listing options
+  const listingOptions = useMemo(() => {
+    if (!deals) return [];
+    const uniqueListings = Array.from(new Set(deals.map(d => ({ id: d.listing_id, title: d.listing_title })).filter(l => l.id)));
+    return uniqueListings.map(listing => ({
+      value: listing.id,
+      label: listing.title || 'Untitled Listing'
+    }));
+  }, [deals]);
+
+  // Create admin options
+  const adminOptions = useMemo(() => {
+    if (!deals) return [];
+    const uniqueAdmins = Array.from(new Set(deals.map(d => d.assigned_to).filter(a => a)));
+    return [
+      { value: 'unassigned', label: 'Unassigned' },
+      ...uniqueAdmins.map(admin => ({ value: admin, label: admin }))
+    ];
+  }, [deals]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -172,55 +224,117 @@ export function EnhancedDealsKanbanBoard({ onCreateDeal, onManageStages, onDealC
   }
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Clean Header with Actions */}
-      <div className="px-6 py-4 border-b border-neutral-200 bg-white">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <Button 
-              onClick={onCreateDeal} 
-              size="default" 
-              className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-medium shadow-sm"
-            >
-              <Plus className="h-4 w-4" />
-              Create Deal
-            </Button>
-            <Button 
-              variant="outline" 
-              onClick={onManageStages} 
-              size="default"
-              className="gap-2 font-medium"
-            >
-              <Settings className="h-4 w-4" />
-              Manage Stages
-            </Button>
+    <div className="h-full flex flex-col">
+      {/* Minimal Top Bar */}
+      <div className="flex-shrink-0 bg-background border-b border-neutral-200 px-6 py-4">
+        <div className="flex items-center justify-between gap-6">
+          {/* Left: Title & Essential Filters */}
+          <div className="flex items-center gap-6">
+            <h1 className="text-lg font-semibold text-foreground">Deals</h1>
+            
+            {/* Listing Filter */}
+            <Select value={listingFilter || 'all'} onValueChange={(value) => setListingFilter(value === 'all' ? 'all' : value)}>
+              <SelectTrigger className="w-40 h-8 text-sm border-neutral-200 hover:border-neutral-300 transition-colors">
+                <SelectValue placeholder="All Listings" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Listings</SelectItem>
+                {listingOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {/* Admin Filter */}
+            <Select value={adminFilter || 'all'} onValueChange={(value) => setAdminFilter(value === 'all' ? 'all' : value)}>
+              <SelectTrigger className="w-40 h-8 text-sm border-neutral-200 hover:border-neutral-300 transition-colors">
+                <SelectValue placeholder="All Admins" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Admins</SelectItem>
+                {adminOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-          <div className="text-sm text-neutral-600 font-medium">
-            {overallMetrics.totalDeals} deals • {formatCurrency(overallMetrics.totalValue)}
+
+          {/* Center: Search */}
+          <div className="flex-1 max-w-sm">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-neutral-400" />
+              <Input
+                placeholder="Search deals..."
+                value={searchQuery || ''}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 h-8 border-neutral-200 hover:border-neutral-300 focus:border-primary transition-colors"
+              />
+            </div>
+          </div>
+
+          {/* Right: Metrics & Actions */}
+          <div className="flex items-center gap-6">
+            <div className="flex items-center gap-4 text-sm text-neutral-600">
+              <span className="font-medium text-foreground">{overallMetrics.totalDeals}</span>
+              <span>deals</span>
+              <span className="text-neutral-300">•</span>
+              <span className="font-medium text-foreground">{formatCurrency(overallMetrics.totalValue)}</span>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={onManageStages}
+                className="h-8 text-neutral-600 hover:text-foreground hover:bg-neutral-50"
+              >
+                <Settings className="h-4 w-4" />
+                Manage Stages
+              </Button>
+              <Button 
+                onClick={onCreateDeal}
+                size="sm"
+                className="h-8 bg-primary text-primary-foreground hover:bg-primary/90 font-medium"
+              >
+                <Plus className="h-4 w-4" />
+                Create Deal
+              </Button>
+            </div>
           </div>
         </div>
 
-        {/* Filters */}
-        <DealFilters
-          deals={deals || []}
-          searchQuery={searchQuery}
-          statusFilter={statusFilter}
-          buyerTypeFilter={buyerTypeFilter}
-          listingFilter={listingFilter}
-          adminFilter={adminFilter}
-          documentStatusFilter={documentStatusFilter}
-          sortOption={sortOption}
-          onSearchChange={setSearchQuery}
-          onStatusFilterChange={setStatusFilter}
-          onBuyerTypeFilterChange={setBuyerTypeFilter}
-          onListingFilterChange={setListingFilter}
-          onAdminFilterChange={setAdminFilter}
-          onDocumentStatusFilterChange={setDocumentStatusFilter}
-          onSortChange={setSortOption}
-        />
+        {/* Status Filters Row */}
+        <div className="flex items-center gap-2 mt-4">
+          <Button
+            variant={statusFilter === 'all' ? "filter-active" : "filter"}
+            size="filter"
+            onClick={() => setStatusFilter('all')}
+            className="h-7"
+          >
+            All Deals
+            <span className="ml-1 text-xs text-neutral-500">({(deals || []).length})</span>
+          </Button>
+          {statusOptions.map((option) => (
+            <Button
+              key={option.value}
+              variant={statusFilter === option.value ? "filter-active" : "filter"}
+              size="filter"
+              onClick={() => setStatusFilter(statusFilter === option.value ? 'all' : option.value as any)}
+              className="h-7"
+            >
+              <option.icon className="h-3 w-3" />
+              {option.label}
+              <span className="ml-1 text-xs text-neutral-500">({option.count})</span>
+            </Button>
+          ))}
+        </div>
       </div>
 
-      {/* Kanban Board - Full Screen */}
+      {/* Full-Height Pipeline */}
       <div className="flex-1 overflow-hidden">
         <DndContext
           sensors={sensors}
@@ -229,7 +343,7 @@ export function EnhancedDealsKanbanBoard({ onCreateDeal, onManageStages, onDealC
           onDragEnd={handleDragEnd}
         >
           <div className="h-full overflow-x-auto">
-            <div className="flex gap-4 p-4 h-full" style={{ minHeight: 'calc(100vh - 200px)' }}>
+            <div className="flex gap-6 min-w-max h-full p-6">
               {stageMetrics.map((stage) => (
                 <DealKanbanColumn
                   key={stage.id}
@@ -240,12 +354,11 @@ export function EnhancedDealsKanbanBoard({ onCreateDeal, onManageStages, onDealC
               ))}
             </div>
           </div>
-
           <DragOverlay>
             {activeId ? (
-              <EnhancedDealKanbanCard 
-                deal={filteredAndSortedDeals?.find(d => d.deal_id === activeId)!} 
-                isDragging 
+              <EnhancedDealKanbanCard
+                deal={filteredAndSortedDeals?.find((deal) => deal.deal_id === activeId)!}
+                isDragging
               />
             ) : null}
           </DragOverlay>
