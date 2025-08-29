@@ -458,6 +458,54 @@ export type Database = {
         }
         Relationships: []
       }
+      deal_activities: {
+        Row: {
+          activity_type: string
+          admin_id: string | null
+          created_at: string | null
+          deal_id: string
+          description: string | null
+          id: string
+          metadata: Json | null
+          title: string
+        }
+        Insert: {
+          activity_type: string
+          admin_id?: string | null
+          created_at?: string | null
+          deal_id: string
+          description?: string | null
+          id?: string
+          metadata?: Json | null
+          title: string
+        }
+        Update: {
+          activity_type?: string
+          admin_id?: string | null
+          created_at?: string | null
+          deal_id?: string
+          description?: string | null
+          id?: string
+          metadata?: Json | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deal_activities_admin_id_fkey"
+            columns: ["admin_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deal_activities_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       deal_alerts: {
         Row: {
           created_at: string
@@ -493,6 +541,252 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      deal_stages: {
+        Row: {
+          color: string | null
+          created_at: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          is_default: boolean | null
+          name: string
+          position: number
+          updated_at: string | null
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_default?: boolean | null
+          name: string
+          position: number
+          updated_at?: string | null
+        }
+        Update: {
+          color?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_default?: boolean | null
+          name?: string
+          position?: number
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      deal_tasks: {
+        Row: {
+          assigned_by: string | null
+          assigned_to: string | null
+          completed_at: string | null
+          completed_by: string | null
+          created_at: string | null
+          deal_id: string
+          description: string | null
+          due_date: string | null
+          id: string
+          priority: string | null
+          status: string | null
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          assigned_by?: string | null
+          assigned_to?: string | null
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string | null
+          deal_id: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          priority?: string | null
+          status?: string | null
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          assigned_by?: string | null
+          assigned_to?: string | null
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string | null
+          deal_id?: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          priority?: string | null
+          status?: string | null
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deal_tasks_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deal_tasks_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deal_tasks_completed_by_fkey"
+            columns: ["completed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deal_tasks_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      deals: {
+        Row: {
+          assigned_to: string | null
+          connection_request_id: string | null
+          contact_company: string | null
+          contact_email: string | null
+          contact_name: string | null
+          contact_phone: string | null
+          contact_role: string | null
+          created_at: string | null
+          description: string | null
+          expected_close_date: string | null
+          fee_agreement_status: string | null
+          followed_up: boolean | null
+          followed_up_at: string | null
+          followed_up_by: string | null
+          id: string
+          inbound_lead_id: string | null
+          listing_id: string | null
+          metadata: Json | null
+          nda_status: string | null
+          priority: string | null
+          probability: number | null
+          source: string | null
+          stage_entered_at: string | null
+          stage_id: string | null
+          title: string
+          updated_at: string | null
+          value: number | null
+        }
+        Insert: {
+          assigned_to?: string | null
+          connection_request_id?: string | null
+          contact_company?: string | null
+          contact_email?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
+          contact_role?: string | null
+          created_at?: string | null
+          description?: string | null
+          expected_close_date?: string | null
+          fee_agreement_status?: string | null
+          followed_up?: boolean | null
+          followed_up_at?: string | null
+          followed_up_by?: string | null
+          id?: string
+          inbound_lead_id?: string | null
+          listing_id?: string | null
+          metadata?: Json | null
+          nda_status?: string | null
+          priority?: string | null
+          probability?: number | null
+          source?: string | null
+          stage_entered_at?: string | null
+          stage_id?: string | null
+          title: string
+          updated_at?: string | null
+          value?: number | null
+        }
+        Update: {
+          assigned_to?: string | null
+          connection_request_id?: string | null
+          contact_company?: string | null
+          contact_email?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
+          contact_role?: string | null
+          created_at?: string | null
+          description?: string | null
+          expected_close_date?: string | null
+          fee_agreement_status?: string | null
+          followed_up?: boolean | null
+          followed_up_at?: string | null
+          followed_up_by?: string | null
+          id?: string
+          inbound_lead_id?: string | null
+          listing_id?: string | null
+          metadata?: Json | null
+          nda_status?: string | null
+          priority?: string | null
+          probability?: number | null
+          source?: string | null
+          stage_entered_at?: string | null
+          stage_id?: string | null
+          title?: string
+          updated_at?: string | null
+          value?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deals_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deals_connection_request_id_fkey"
+            columns: ["connection_request_id"]
+            isOneToOne: false
+            referencedRelation: "connection_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deals_followed_up_by_fkey"
+            columns: ["followed_up_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deals_inbound_lead_id_fkey"
+            columns: ["inbound_lead_id"]
+            isOneToOne: false
+            referencedRelation: "inbound_leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deals_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deals_stage_id_fkey"
+            columns: ["stage_id"]
+            isOneToOne: false
+            referencedRelation: "deal_stages"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       email_delivery_logs: {
         Row: {
@@ -1812,6 +2106,47 @@ export type Database = {
           needs_review: boolean
           request_id: string
           user_email: string
+        }[]
+      }
+      get_deals_with_details: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          activity_count: number
+          assigned_admin_email: string
+          assigned_admin_name: string
+          assigned_to: string
+          completed_tasks: number
+          contact_company: string
+          contact_email: string
+          contact_name: string
+          contact_phone: string
+          contact_role: string
+          deal_created_at: string
+          deal_description: string
+          deal_expected_close_date: string
+          deal_id: string
+          deal_priority: string
+          deal_probability: number
+          deal_source: string
+          deal_stage_entered_at: string
+          deal_title: string
+          deal_updated_at: string
+          deal_value: number
+          fee_agreement_status: string
+          followed_up: boolean
+          followed_up_at: string
+          listing_ebitda: number
+          listing_id: string
+          listing_location: string
+          listing_revenue: number
+          listing_title: string
+          nda_status: string
+          pending_tasks: number
+          stage_color: string
+          stage_id: string
+          stage_name: string
+          stage_position: number
+          total_tasks: number
         }[]
       }
       get_feedback_analytics: {
