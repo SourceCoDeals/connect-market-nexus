@@ -193,7 +193,7 @@ export function EnhancedDealsKanbanBoard({ onCreateDeal, onManageStages, onDealC
       />
 
       {/* Kanban Board - Full Screen */}
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1">
         <DndContext
           sensors={sensors}
           onDragStart={handleDragStart}
