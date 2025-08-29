@@ -6,13 +6,15 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Upload, FileText, CheckCircle, AlertCircle } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Upload, FileText, CheckCircle, AlertCircle, Building2 } from "lucide-react";
 import { CreateInboundLeadData } from "@/hooks/admin/use-inbound-leads";
+import { useAdminListings } from "@/hooks/admin/use-admin-listings";
 
 interface BulkLeadImportDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onConfirm: (leads: CreateInboundLeadData[]) => void;
+  onConfirm: (leads: CreateInboundLeadData[], listingId?: string, listingTitle?: string, shouldConvert?: boolean) => void;
   isLoading?: boolean;
 }
 
@@ -34,6 +36,12 @@ export const BulkLeadImportDialog = ({
   const [parsedLeads, setParsedLeads] = useState<ParsedLead[]>([]);
   const [parseErrors, setParseErrors] = useState<string[]>([]);
   const [selectedSource, setSelectedSource] = useState<string>("manual");
+  const [selectedListingId, setSelectedListingId] = useState<string>("");
+  const [shouldConvert, setShouldConvert] = useState(true);
+  
+  // Fetch active listings for mapping
+  const { useListings } = useAdminListings();
+  const { data: listings = [], isLoading: listingsLoading } = useListings('active');
 
   const sourceOptions = [
     { value: "manual", label: "Manual Entry" },
@@ -165,7 +173,13 @@ Date	Name	Email address	Company name	Phone number	Role	Message
   const handleImport = () => {
     const validLeads = parsedLeads.filter(lead => lead.errors.length === 0);
     if (validLeads.length > 0) {
-      onConfirm(validLeads.map(lead => lead.data));
+      const selectedListing = listings.find(l => l.id === selectedListingId);
+      onConfirm(
+        validLeads.map(lead => lead.data), 
+        selectedListingId || undefined,
+        selectedListing?.title || undefined,
+        shouldConvert
+      );
       handleClose();
     }
   };
@@ -175,6 +189,8 @@ Date	Name	Email address	Company name	Phone number	Role	Message
     setParsedLeads([]);
     setParseErrors([]);
     setSelectedSource("manual");
+    setSelectedListingId("");
+    setShouldConvert(true);
     onClose();
   };
 
@@ -213,6 +229,48 @@ Date	Name	Email address	Company name	Phone number	Role	Message
                   </SelectContent>
                 </Select>
               </div>
+
+              <div>
+                <Label htmlFor="listing-select">Target Listing (Optional)</Label>
+                <p className="text-xs text-muted-foreground mb-2">
+                  Select a listing to automatically map all leads to. Leave empty to review manually later.
+                </p>
+                <Select value={selectedListingId} onValueChange={setSelectedListingId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select listing or leave empty" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">No listing - Review manually</SelectItem>
+                    {listings.map((listing) => (
+                      <SelectItem key={listing.id} value={listing.id}>
+                        <div className="flex items-center gap-2">
+                          <Building2 className="h-3 w-3" />
+                          <span className="truncate">{listing.title}</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {listingsLoading && (
+                  <p className="text-xs text-muted-foreground mt-1">Loading listings...</p>
+                )}
+              </div>
+
+              {selectedListingId && (
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="auto-convert"
+                    checked={shouldConvert}
+                    onCheckedChange={(checked) => setShouldConvert(checked === true)}
+                  />
+                  <Label 
+                    htmlFor="auto-convert" 
+                    className="text-sm font-normal cursor-pointer"
+                  >
+                    Automatically convert to connection requests
+                  </Label>
+                </div>
+              )}
               
               <div>
                 <Label htmlFor="csv-input">CSV Data</Label>
@@ -328,7 +386,14 @@ Date	Name	Email address	Company name	Phone number	Role	Message
             className="flex items-center gap-2"
           >
             <Upload className="h-4 w-4" />
-            {isLoading ? "Importing..." : `Import ${validLeads.length} Lead${validLeads.length !== 1 ? 's' : ''}`}
+            {isLoading 
+              ? "Processing..." 
+              : selectedListingId && shouldConvert
+                ? `Import & Convert ${validLeads.length} Lead${validLeads.length !== 1 ? 's' : ''}`
+                : selectedListingId
+                  ? `Import & Map ${validLeads.length} Lead${validLeads.length !== 1 ? 's' : ''}`
+                  : `Import ${validLeads.length} Lead${validLeads.length !== 1 ? 's' : ''}`
+            }
           </Button>
         </div>
       </DialogContent>

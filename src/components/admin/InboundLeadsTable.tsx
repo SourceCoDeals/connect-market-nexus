@@ -12,6 +12,7 @@ import {
   CheckSquare
 } from "lucide-react";
 import { InboundLead, useCreateInboundLead, useMapLeadToListing, useConvertLeadToRequest, useArchiveInboundLead, DuplicateCheckResult } from "@/hooks/admin/use-inbound-leads";
+import { useEnhancedBulkLeadOperations } from "@/hooks/admin/use-enhanced-bulk-lead-operations";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { CreateInboundLeadDialog } from "./CreateInboundLeadDialog";
@@ -88,6 +89,9 @@ export const InboundLeadsTable = ({
   const { mutate: mapLeadToListing, isPending: isMapping } = useMapLeadToListing();
   const { mutate: convertLead, isPending: isConverting } = useConvertLeadToRequest();
   const { mutate: archiveLead, isPending: isArchiving } = useArchiveInboundLead();
+  
+  // Enhanced bulk operations
+  const { bulkImportWithMapping, isLoading: isBulkOperationLoading } = useEnhancedBulkLeadOperations();
 
   const handleMapToListing = (lead: InboundLead) => {
     setSelectedLead(lead);
@@ -164,68 +168,18 @@ export const InboundLeadsTable = ({
 
   const selectedLeads = filteredLeads.filter(lead => selectedLeadIds.has(lead.id));
 
-  const handleBulkCreate = async (leadsData: any[]) => {
-    try {
-      // Enhanced duplicate checking with persistent warnings
-      const emails = leadsData.map(lead => lead.email.toLowerCase());
-      const { data: existingLeads, error: duplicateCheckError } = await supabase
-        .from('inbound_leads')
-        .select('email, name, company_name')
-        .in('email', emails);
-
-      if (duplicateCheckError) {
-        throw duplicateCheckError;
-      }
-
-      const existingEmails = new Set(existingLeads?.map(lead => lead.email.toLowerCase()) || []);
-      
-      // Process leads with duplicate info
-      const processedLeads = leadsData.map(leadData => {
-        const isDuplicate = existingEmails.has(leadData.email.toLowerCase());
-        if (isDuplicate) {
-          const existingLead = existingLeads?.find(el => el.email.toLowerCase() === leadData.email.toLowerCase());
-          return {
-            ...leadData,
-            is_duplicate: true,
-            duplicate_info: `Duplicate email found: ${existingLead?.name || 'Unknown'} at ${existingLead?.company_name || 'Unknown company'}`
-          };
-        }
-        return leadData;
-      });
-
-      // Create leads with duplicate tracking
-      let successCount = 0;
-      for (const leadData of processedLeads) {
-        try {
-          await new Promise((resolve, reject) => {
-            createLead(leadData, {
-              onSuccess: () => {
-                successCount++;
-                resolve(null);
-              },
-              onError: reject
-            });
-          });
-        } catch (error) {
-          console.error('Error creating lead:', error);
-        }
-      }
-      
-      if (successCount > 0) {
-        const duplicateCount = processedLeads.filter(l => l.is_duplicate).length;
-        toast({
-          title: "Bulk import completed",
-          description: `Imported ${successCount} leads${duplicateCount > 0 ? ` (${duplicateCount} marked as duplicates)` : ''}`,
-        });
-      }
-    } catch (error: any) {
-      console.error('Bulk create error:', error);
-      toast({
-        variant: "destructive",
-        title: "Import failed",
-        description: error.message || 'Failed to import leads',
-      });
-    }
+  const handleBulkCreate = async (
+    leadsData: any[], 
+    listingId?: string, 
+    listingTitle?: string, 
+    shouldConvert?: boolean
+  ) => {
+    bulkImportWithMapping.mutate({
+      leads: leadsData,
+      listingId,
+      listingTitle,
+      shouldConvert
+    });
   };
 
   const handleBulkMap = async (listingId: string, listingTitle: string) => {
@@ -480,7 +434,7 @@ export const InboundLeadsTable = ({
         isOpen={isBulkImportDialogOpen}
         onClose={() => setIsBulkImportDialogOpen(false)}
         onConfirm={handleBulkCreate}
-        isLoading={isCreating}
+        isLoading={isCreating || isBulkOperationLoading}
       />
 
       <LeadMappingDialog
