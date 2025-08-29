@@ -24,7 +24,7 @@ const AdminLayout = () => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   return (
-    <div className="flex min-h-screen w-full bg-background">
+    <div className="flex min-h-screen w-full bg-background overflow-x-hidden">
       {/* Admin sidebar */}
       <aside 
         className={cn(

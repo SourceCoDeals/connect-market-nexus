@@ -29,7 +29,7 @@ export default function AdminPipeline() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col w-full max-w-full">
       {/* HubSpot-style Header */}
       <div className="bg-background border-b border-border/30 px-6 py-4">
         <div className="flex items-center justify-between gap-6">
@@ -78,7 +78,7 @@ export default function AdminPipeline() {
       </div>
 
       {/* Content Area */}
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 overflow-hidden w-full max-w-full">
         <Tabs defaultValue="kanban" className="h-full flex flex-col">
           <TabsContent value="kanban" className="flex-1 m-0">
             <EnhancedDealsKanbanBoard 
