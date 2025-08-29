@@ -29,61 +29,64 @@ export default function AdminPipeline() {
   };
 
   return (
-    <div className="space-y-8">
-      {/* Clean Header Bar */}
-      <div className="flex items-center justify-between py-4 border-b border-border/50">
-        {/* View Switcher - Left Side */}
-        <Tabs defaultValue="kanban" className="w-auto">
-          <TabsList className="bg-background border border-border/50 shadow-sm p-1 h-11">
-            <TabsTrigger 
-              value="kanban" 
-              className="px-6 py-2 text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm transition-all duration-200"
-            >
-              Kanban
-            </TabsTrigger>
-            <TabsTrigger 
-              value="list" 
-              className="px-6 py-2 text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm transition-all duration-200"
-            >
-              List
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
-
-        {/* Action Buttons - Right Side */}
-        <div className="flex items-center gap-3">
-          <Button 
-            variant="outline" 
-            onClick={handleManageStages}
-            className="h-11 px-6 text-sm font-medium border-border/50 hover:bg-accent/50 transition-all duration-200"
-          >
-            Manage Stages
-          </Button>
-          <Button 
-            onClick={handleCreateDeal}
-            className="h-11 px-6 text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm transition-all duration-200"
-          >
-            Create Deal
-          </Button>
-        </div>
-      </div>
-
-      {/* Content Area */}
-      <Tabs defaultValue="kanban" className="space-y-0">
-        <TabsContent value="kanban" className="mt-0">
-          <EnhancedDealsKanbanBoard 
-            onCreateDeal={handleCreateDeal}
-            onManageStages={handleManageStages}
-            onDealClick={handleDealClick}
-          />
-        </TabsContent>
+    <div className="min-h-screen">
+      <div className="max-w-7xl mx-auto px-6 py-8 space-y-8">
         
-        <TabsContent value="list" className="mt-0">
-          <DealsListView 
-            onDealClick={handleDealClick}
-          />
-        </TabsContent>
-      </Tabs>
+        {/* Clean Header Bar */}
+        <div className="flex items-center justify-between py-4 border-b border-border/50">
+          {/* View Switcher - Left Side */}
+          <Tabs defaultValue="kanban" className="w-auto">
+            <TabsList className="bg-background border border-border/50 shadow-sm p-1 h-11">
+              <TabsTrigger 
+                value="kanban" 
+                className="px-6 py-2 text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm transition-all duration-200"
+              >
+                Kanban
+              </TabsTrigger>
+              <TabsTrigger 
+                value="list" 
+                className="px-6 py-2 text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm transition-all duration-200"
+              >
+                List
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+
+          {/* Action Buttons - Right Side */}
+          <div className="flex items-center gap-3">
+            <Button 
+              variant="outline" 
+              onClick={handleManageStages}
+              className="h-11 px-6 text-sm font-medium border-border/50 hover:bg-accent/50 transition-all duration-200"
+            >
+              Manage Stages
+            </Button>
+            <Button 
+              onClick={handleCreateDeal}
+              className="h-11 px-6 text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm transition-all duration-200"
+            >
+              Create Deal
+            </Button>
+          </div>
+        </div>
+
+        {/* Content Area */}
+        <Tabs defaultValue="kanban" className="space-y-0">
+          <TabsContent value="kanban" className="mt-0">
+            <EnhancedDealsKanbanBoard 
+              onCreateDeal={handleCreateDeal}
+              onManageStages={handleManageStages}
+              onDealClick={handleDealClick}
+            />
+          </TabsContent>
+          
+          <TabsContent value="list" className="mt-0">
+            <DealsListView 
+              onDealClick={handleDealClick}
+            />
+          </TabsContent>
+        </Tabs>
+      </div>
 
       <DealDetailModal
         deal={selectedDeal}
