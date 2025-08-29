@@ -31,40 +31,30 @@ export function DealKanbanColumn({ stage, deals, onDealClick }: DealKanbanColumn
   };
 
   return (
-    <div className="flex-shrink-0 w-80">
-      <Card className="h-full flex flex-col border-border/20 bg-card/40 backdrop-blur-sm shadow-sm hover:shadow-md transition-all duration-200">
-        <CardHeader className="pb-3 flex-shrink-0 space-y-3">
+    <div className="flex-shrink-0 w-72">
+      <div className="h-full flex flex-col bg-background/80 border border-border/20 rounded-lg">
+        {/* Minimal Header */}
+        <div className="p-3 border-b border-border/20 flex-shrink-0">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-sm font-medium flex items-center gap-3">
+            <div className="flex items-center gap-2">
               <div 
-                className="w-3 h-3 rounded-full shadow-sm" 
+                className="w-2 h-2 rounded-full" 
                 style={{ backgroundColor: stage.color }}
               />
-              <span className="tracking-tight">{stage.name}</span>
-            </CardTitle>
-            <Badge variant="secondary" className="bg-muted/60 text-muted-foreground font-medium px-2.5 py-1">
-              {stage.dealCount}
-            </Badge>
-          </div>
-          
-          {stage.dealCount > 0 && (
-            <div className="grid grid-cols-2 gap-3 text-xs">
-              <div className="bg-background/60 rounded-md p-2 border border-border/30">
-                <div className="text-muted-foreground font-medium uppercase tracking-wider">Value</div>
-                <div className="font-semibold text-foreground mt-1">{formatCurrency(stage.totalValue)}</div>
-              </div>
-              <div className="bg-background/60 rounded-md p-2 border border-border/30">
-                <div className="text-muted-foreground font-medium uppercase tracking-wider">Avg Prob</div>
-                <div className="font-semibold text-foreground mt-1">{Math.round(stage.avgProbability)}%</div>
-              </div>
+              <span className="text-sm font-medium text-foreground">{stage.name}</span>
             </div>
-          )}
-        </CardHeader>
+            <span className="text-xs text-muted-foreground font-medium bg-muted/40 px-2 py-0.5 rounded">
+              {stage.dealCount}
+            </span>
+          </div>
+        </div>
         
-        <CardContent className="pt-0 flex-1 overflow-hidden">
+        {/* Scrollable Content */}
+        <div className="flex-1 overflow-hidden">
           <div
             ref={setNodeRef}
-            className="h-full overflow-y-auto space-y-3 pr-1"
+            className="h-full overflow-y-auto p-2 space-y-2"
+            style={{ maxHeight: 'calc(100vh - 108px)' }}
           >
             <SortableContext 
               items={deals.map(deal => deal.deal_id)}
@@ -80,14 +70,14 @@ export function DealKanbanColumn({ stage, deals, onDealClick }: DealKanbanColumn
             </SortableContext>
             
             {deals.length === 0 && (
-              <div className="flex flex-col items-center justify-center h-32 text-muted-foreground text-sm">
-                <div className="opacity-75">No deals in this stage</div>
-                <div className="text-xs mt-1 opacity-50">Deals will appear here when moved to this stage</div>
+              <div className="flex flex-col items-center justify-center h-32 text-muted-foreground/60 text-xs">
+                <div>No deals</div>
+                <div className="mt-1 opacity-50">Drag deals here</div>
               </div>
             )}
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }

@@ -17,7 +17,7 @@ import { useDeals, useDealStages, useUpdateDealStage, Deal } from '@/hooks/admin
 import { useDealFilters } from '@/hooks/admin/use-deal-filters';
 import { DealKanbanColumn } from './DealKanbanColumn';
 import { EnhancedDealKanbanCard } from './EnhancedDealKanbanCard';
-import { DealFilters } from './DealFilters';
+import { FilterPills } from './FilterPills';
 import { Skeleton } from '@/components/ui/skeleton';
 
 interface EnhancedDealsKanbanBoardProps {
@@ -172,51 +172,21 @@ export function EnhancedDealsKanbanBoard({ onCreateDeal, onManageStages, onDealC
   }
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Header with Actions and Filters */}
-      <div className="px-6 py-4 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <Button onClick={onCreateDeal} size="sm" className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-medium">
-              <Plus className="h-4 w-4" />
-              Create deal
-            </Button>
-            <Button 
-              variant="outline" 
-              onClick={onManageStages} 
-              size="sm"
-              className="gap-2 border-input bg-background hover:bg-accent hover:text-accent-foreground"
-            >
-              <Settings className="h-4 w-4" />
-              Manage stages
-            </Button>
-          </div>
-          <div className="text-sm text-muted-foreground font-medium">
-            {overallMetrics.totalDeals} deals • {formatCurrency(overallMetrics.totalValue)}
-          </div>
-        </div>
+    <div className="h-full flex flex-col">
+      {/* Minimal Filter Bar */}
+      <FilterPills
+        deals={deals || []}
+        searchQuery={searchQuery}
+        statusFilter={statusFilter}
+        buyerTypeFilter={buyerTypeFilter}
+        sortOption={sortOption}
+        onSearchChange={setSearchQuery}
+        onStatusFilterChange={setStatusFilter}
+        onBuyerTypeFilterChange={setBuyerTypeFilter}
+        onSortChange={setSortOption}
+      />
 
-        {/* Filters */}
-        <DealFilters
-          deals={deals || []}
-          searchQuery={searchQuery}
-          statusFilter={statusFilter}
-          buyerTypeFilter={buyerTypeFilter}
-          listingFilter={listingFilter}
-          adminFilter={adminFilter}
-          documentStatusFilter={documentStatusFilter}
-          sortOption={sortOption}
-          onSearchChange={setSearchQuery}
-          onStatusFilterChange={setStatusFilter}
-          onBuyerTypeFilterChange={setBuyerTypeFilter}
-          onListingFilterChange={setListingFilter}
-          onAdminFilterChange={setAdminFilter}
-          onDocumentStatusFilterChange={setDocumentStatusFilter}
-          onSortChange={setSortOption}
-        />
-      </div>
-
-      {/* Kanban Board - Full Screen */}
+      {/* Full Screen Pipeline */}
       <div className="flex-1 overflow-hidden">
         <DndContext
           sensors={sensors}
@@ -224,8 +194,8 @@ export function EnhancedDealsKanbanBoard({ onCreateDeal, onManageStages, onDealC
           onDragOver={handleDragOver}
           onDragEnd={handleDragEnd}
         >
-          <div className="h-full overflow-x-auto">
-            <div className="flex gap-4 p-4 h-full" style={{ minHeight: 'calc(100vh - 200px)' }}>
+          <div className="h-full overflow-x-auto overflow-y-hidden">
+            <div className="flex gap-3 px-4 py-3 h-full min-w-max">
               {stageMetrics.map((stage) => (
                 <DealKanbanColumn
                   key={stage.id}
