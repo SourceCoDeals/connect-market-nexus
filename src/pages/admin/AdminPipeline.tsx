@@ -29,9 +29,9 @@ export default function AdminPipeline() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="h-screen flex flex-col overflow-hidden">
       {/* HubSpot-style Header */}
-      <div className="bg-background border-b border-border/30 px-6 py-4">
+      <div className="bg-background border-b border-border/30 px-6 py-4 flex-shrink-0">
         <div className="flex items-center justify-between gap-6">
           {/* Left: Title + View Tabs */}
           <div className="flex items-center gap-6">
@@ -77,10 +77,10 @@ export default function AdminPipeline() {
         </div>
       </div>
 
-      {/* Content Area */}
+      {/* Content Area - Full Height */}
       <div className="flex-1 overflow-hidden">
         <Tabs defaultValue="kanban" className="h-full flex flex-col">
-          <TabsContent value="kanban" className="flex-1 m-0">
+          <TabsContent value="kanban" className="flex-1 m-0 overflow-hidden">
             <EnhancedDealsKanbanBoard 
               onCreateDeal={handleCreateDeal}
               onManageStages={handleManageStages}
@@ -88,7 +88,7 @@ export default function AdminPipeline() {
             />
           </TabsContent>
           
-          <TabsContent value="list" className="flex-1 m-0">
+          <TabsContent value="list" className="flex-1 m-0 overflow-hidden">
             <DealsListView 
               onDealClick={handleDealClick}
             />
