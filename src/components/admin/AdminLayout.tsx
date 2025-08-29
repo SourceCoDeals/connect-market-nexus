@@ -118,10 +118,7 @@ const AdminLayout = () => {
         <AdminNavbar className="md:hidden" />
         
         {/* Main content */}
-        <main className={cn(
-          "flex-1 w-full min-w-0 bg-background/50",
-          location.pathname.includes('/admin/pipeline') ? "p-0 overflow-hidden" : "p-4 sm:p-6 md:p-8 overflow-auto"
-        )}>
+        <main className="flex-1 overflow-auto p-4 sm:p-6 md:p-8 w-full min-w-0 bg-background/50">
           <div className="max-w-full">
             <Outlet />
           </div>
