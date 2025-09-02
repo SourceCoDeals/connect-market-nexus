@@ -79,7 +79,7 @@ export function useAuditTrail(filters: AuditFilters = {}) {
       // Get connection request decisions
       const { data: decisions } = await supabase
         .from('connection_requests')
-        .select(`
+        .select<any>(`
           id,
           status,
           decision_at,
@@ -94,7 +94,7 @@ export function useAuditTrail(filters: AuditFilters = {}) {
         `)
         .not('decision_at', 'is', null)
         .order('decision_at', { ascending: false })
-        .limit(filters.limit || 50) as { data: any[] | null; error: any };
+        .limit(filters.limit || 50);
 
       if (decisions) {
         decisions.forEach((decision: any) => {

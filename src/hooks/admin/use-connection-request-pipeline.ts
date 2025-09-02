@@ -91,30 +91,7 @@ export function useConnectionRequestPipeline(listingId?: string) {
     queryFn: async () => {
       let query = supabase
         .from('connection_requests')
-        .select(`
-          *,
-          stage:connection_request_stages(*),
-          user:profiles!connection_requests_user_id_fkey(
-            id,
-            email,
-            first_name,
-            last_name,
-            company,
-            buyer_type,
-            nda_signed,
-            fee_agreement_signed,
-            phone_number
-          ),
-          listing:listings!connection_requests_listing_id_fkey(
-            id,
-            title,
-            deal_identifier,
-            revenue,
-            ebitda,
-            location,
-            category
-          )
-        `);
+        .select('*');
 
       if (listingId) {
         query = query.eq('listing_id', listingId);
@@ -127,7 +104,40 @@ export function useConnectionRequestPipeline(listingId?: string) {
         throw error;
       }
 
-      return data as unknown as ConnectionRequestPipelineItem[];
+      const requests = (data || []) as any[];
+
+      // Batch load related users and listings to avoid N+1 and FK dependency
+      const userIds = Array.from(new Set(requests.map(r => r.user_id).filter(Boolean)));
+      const listingIds = Array.from(new Set(requests.map(r => r.listing_id).filter(Boolean)));
+
+      const [usersRes, listingsRes] = await Promise.all([
+        userIds.length
+          ? supabase
+              .from('profiles')
+              .select('id, email, first_name, last_name, company, buyer_type, nda_signed, fee_agreement_signed, phone_number')
+              .in('id', userIds)
+          : Promise.resolve({ data: [], error: null } as any),
+        listingIds.length
+          ? supabase
+              .from('listings')
+              .select('id, title, deal_identifier, revenue, ebitda, location, category')
+              .in('id', listingIds)
+          : Promise.resolve({ data: [], error: null } as any),
+      ]);
+
+      if (usersRes.error) throw usersRes.error;
+      if (listingsRes.error) throw listingsRes.error;
+
+      const usersMap = new Map<string, any>((usersRes.data || []).map((u: any) => [u.id, u]));
+      const listingsMap = new Map<string, any>((listingsRes.data || []).map((l: any) => [l.id, l]));
+
+      const enriched = requests.map((r) => ({
+        ...r,
+        user: r.user_id ? usersMap.get(r.user_id) || null : null,
+        listing: r.listing_id ? listingsMap.get(r.listing_id) || null : null,
+      }));
+
+      return enriched as unknown as ConnectionRequestPipelineItem[];
     },
     staleTime: 2 * 60 * 1000, // 2 minutes
   });
