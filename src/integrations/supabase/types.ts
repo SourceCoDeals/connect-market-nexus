@@ -241,51 +241,11 @@ export type Database = {
           },
         ]
       }
-      connection_request_stages: {
-        Row: {
-          automation_rules: Json | null
-          color: string | null
-          created_at: string | null
-          description: string | null
-          id: string
-          is_active: boolean | null
-          is_default: boolean | null
-          name: string
-          position: number
-          updated_at: string | null
-        }
-        Insert: {
-          automation_rules?: Json | null
-          color?: string | null
-          created_at?: string | null
-          description?: string | null
-          id?: string
-          is_active?: boolean | null
-          is_default?: boolean | null
-          name: string
-          position: number
-          updated_at?: string | null
-        }
-        Update: {
-          automation_rules?: Json | null
-          color?: string | null
-          created_at?: string | null
-          description?: string | null
-          id?: string
-          is_active?: boolean | null
-          is_default?: boolean | null
-          name?: string
-          position?: number
-          updated_at?: string | null
-        }
-        Relationships: []
-      }
       connection_requests: {
         Row: {
           admin_comment: string | null
           approved_at: string | null
           approved_by: string | null
-          buyer_priority_score: number | null
           converted_at: string | null
           converted_by: string | null
           created_at: string
@@ -314,13 +274,11 @@ export type Database = {
           negative_followed_up_by: string | null
           on_hold_at: string | null
           on_hold_by: string | null
-          pipeline_stage_id: string | null
           rejected_at: string | null
           rejected_by: string | null
           source: string | null
           source_lead_id: string | null
           source_metadata: Json | null
-          stage_entered_at: string | null
           status: string
           updated_at: string
           user_id: string | null
@@ -330,7 +288,6 @@ export type Database = {
           admin_comment?: string | null
           approved_at?: string | null
           approved_by?: string | null
-          buyer_priority_score?: number | null
           converted_at?: string | null
           converted_by?: string | null
           created_at?: string
@@ -359,13 +316,11 @@ export type Database = {
           negative_followed_up_by?: string | null
           on_hold_at?: string | null
           on_hold_by?: string | null
-          pipeline_stage_id?: string | null
           rejected_at?: string | null
           rejected_by?: string | null
           source?: string | null
           source_lead_id?: string | null
           source_metadata?: Json | null
-          stage_entered_at?: string | null
           status?: string
           updated_at?: string
           user_id?: string | null
@@ -375,7 +330,6 @@ export type Database = {
           admin_comment?: string | null
           approved_at?: string | null
           approved_by?: string | null
-          buyer_priority_score?: number | null
           converted_at?: string | null
           converted_by?: string | null
           created_at?: string
@@ -404,13 +358,11 @@ export type Database = {
           negative_followed_up_by?: string | null
           on_hold_at?: string | null
           on_hold_by?: string | null
-          pipeline_stage_id?: string | null
           rejected_at?: string | null
           rejected_by?: string | null
           source?: string | null
           source_lead_id?: string | null
           source_metadata?: Json | null
-          stage_entered_at?: string | null
           status?: string
           updated_at?: string
           user_id?: string | null
@@ -429,13 +381,6 @@ export type Database = {
             columns: ["listing_id"]
             isOneToOne: false
             referencedRelation: "listings"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "connection_requests_pipeline_stage_id_fkey"
-            columns: ["pipeline_stage_id"]
-            isOneToOne: false
-            referencedRelation: "connection_request_stages"
             referencedColumns: ["id"]
           },
           {
@@ -2110,10 +2055,6 @@ export type Database = {
           p_request_id: string
         }
         Returns: boolean
-      }
-      calculate_buyer_priority_score: {
-        Args: { buyer_type_param: string }
-        Returns: number
       }
       calculate_engagement_score: {
         Args: {

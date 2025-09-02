@@ -1,22 +1,24 @@
 import React from 'react';
-import { useConnectionRequestPipelineCore } from '@/hooks/admin/use-connection-request-pipeline-core';
-import { ConnectionRequestKanbanView } from './views/ConnectionRequestKanbanView';
+import { usePipelineCore } from '@/hooks/admin/use-pipeline-core';
+import { PipelineKanbanView } from './views/PipelineKanbanView';
+import { PipelineListView } from './views/PipelineListView';
+import { PipelineTableView } from './views/PipelineTableView';
 
 interface PipelineWorkspaceProps {
-  pipeline: ReturnType<typeof useConnectionRequestPipelineCore>;
+  pipeline: ReturnType<typeof usePipelineCore>;
 }
 
 export function PipelineWorkspace({ pipeline }: PipelineWorkspaceProps) {
   const renderView = () => {
     switch (pipeline.viewMode) {
       case 'kanban':
-        return <ConnectionRequestKanbanView pipeline={pipeline} />;
+        return <PipelineKanbanView pipeline={pipeline} />;
       case 'list':
-        return <div>List view - Coming soon</div>;
+        return <PipelineListView pipeline={pipeline} />;
       case 'table':
-        return <div>Table view - Coming soon</div>;
+        return <PipelineTableView pipeline={pipeline} />;
       default:
-        return <ConnectionRequestKanbanView pipeline={pipeline} />;
+        return <PipelineKanbanView pipeline={pipeline} />;
     }
   };
   

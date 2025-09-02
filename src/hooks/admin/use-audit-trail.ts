@@ -79,7 +79,7 @@ export function useAuditTrail(filters: AuditFilters = {}) {
       // Get connection request decisions
       const { data: decisions } = await supabase
         .from('connection_requests')
-        .select<any>(`
+        .select(`
           id,
           status,
           decision_at,
