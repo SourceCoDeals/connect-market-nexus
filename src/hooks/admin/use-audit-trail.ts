@@ -94,7 +94,7 @@ export function useAuditTrail(filters: AuditFilters = {}) {
         `)
         .not('decision_at', 'is', null)
         .order('decision_at', { ascending: false })
-        .limit(filters.limit || 50);
+        .limit(filters.limit || 50) as { data: any[] | null; error: any };
 
       if (decisions) {
         decisions.forEach((decision: any) => {
