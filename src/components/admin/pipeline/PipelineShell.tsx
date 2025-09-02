@@ -1,13 +1,15 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { usePipelineCore } from '@/hooks/admin/use-pipeline-core';
 import { PipelineHeader } from './PipelineHeader';
-import { PipelineMetrics } from './PipelineMetrics';
 import { PipelineWorkspace } from './PipelineWorkspace';
 import { PipelineDetailPanel } from './PipelineDetailPanel';
 import { PipelineFilterPanel } from './PipelineFilterPanel';
 import { Skeleton } from '@/components/ui/skeleton';
 
+export type PipelineMode = 'deals' | 'connection-requests';
+
 export function PipelineShell() {
+  const [pipelineMode, setPipelineMode] = useState<PipelineMode>('deals');
   const pipeline = usePipelineCore();
   
   if (pipeline.isLoading) {
@@ -34,10 +36,9 @@ export function PipelineShell() {
           display: grid;
           grid-template-areas: 
             "header header"
-            "metrics metrics"
             "workspace detail";
           grid-template-columns: 1fr auto;
-          grid-template-rows: auto auto 1fr;
+          grid-template-rows: auto 1fr;
           height: 100vh;
           background: hsl(var(--background));
         }
@@ -46,33 +47,31 @@ export function PipelineShell() {
           .pipeline-shell {
             grid-template-areas: 
               "header"
-              "metrics"
               "workspace";
             grid-template-columns: 1fr;
           }
         }
         
         .pipeline-header { grid-area: header; }
-        .pipeline-metrics { grid-area: metrics; }
         .pipeline-workspace { grid-area: workspace; }
         .pipeline-detail { grid-area: detail; }
       `}</style>
       
       {/* Header */}
       <div className="pipeline-header">
-        <PipelineHeader pipeline={pipeline} />
+        <PipelineHeader 
+          pipeline={pipeline} 
+          pipelineMode={pipelineMode}
+          setPipelineMode={setPipelineMode}
+        />
       </div>
-      
-      {/* Metrics Dashboard */}
-      {!pipeline.isMetricsCollapsed && (
-        <div className="pipeline-metrics">
-          <PipelineMetrics pipeline={pipeline} />
-        </div>
-      )}
-      
+
       {/* Main Workspace */}
       <div className="pipeline-workspace">
-        <PipelineWorkspace pipeline={pipeline} />
+        <PipelineWorkspace 
+          pipeline={pipeline} 
+          pipelineMode={pipelineMode}
+        />
       </div>
       
       {/* Detail Panel */}

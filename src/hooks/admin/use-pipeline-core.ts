@@ -20,7 +20,7 @@ export function usePipelineCore() {
   const [selectedDeals, setSelectedDeals] = useState<string[]>([]);
   const [isDetailPanelOpen, setIsDetailPanelOpen] = useState(false);
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
-  const [isMetricsCollapsed, setIsMetricsCollapsed] = useState(false);
+  
   
   const isMobile = useIsMobile();
   
@@ -131,9 +131,6 @@ export function usePipelineCore() {
     setIsFilterPanelOpen(!isFilterPanelOpen);
   };
   
-  const toggleMetrics = () => {
-    setIsMetricsCollapsed(!isMetricsCollapsed);
-  };
   
   return {
     // State
@@ -142,7 +139,7 @@ export function usePipelineCore() {
     selectedDeals,
     isDetailPanelOpen,
     isFilterPanelOpen,
-    isMetricsCollapsed,
+    
     isMobile,
     
     // Data
@@ -162,11 +159,11 @@ export function usePipelineCore() {
     setSelectedDeals,
     setIsDetailPanelOpen,
     setIsFilterPanelOpen,
-    setIsMetricsCollapsed,
+    
     handleDealSelect,
     handleMultiSelect,
     toggleDetailPanel,
     toggleFilterPanel,
-    toggleMetrics,
+    
   };
 }

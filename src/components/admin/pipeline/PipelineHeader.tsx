@@ -26,15 +26,17 @@ import {
   Table,
   Menu,
   X,
-  BarChart3,
 } from 'lucide-react';
 import { usePipelineCore, ViewMode } from '@/hooks/admin/use-pipeline-core';
+import { PipelineMode } from './PipelineShell';
 
 interface PipelineHeaderProps {
   pipeline: ReturnType<typeof usePipelineCore>;
+  pipelineMode: PipelineMode;
+  setPipelineMode: (mode: PipelineMode) => void;
 }
 
-export function PipelineHeader({ pipeline }: PipelineHeaderProps) {
+export function PipelineHeader({ pipeline, pipelineMode, setPipelineMode }: PipelineHeaderProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const viewIcons = {
@@ -51,8 +53,32 @@ export function PipelineHeader({ pipeline }: PipelineHeaderProps) {
           <div className="flex items-center gap-2">
             <h1 className="text-xl font-semibold">Pipeline</h1>
             <Badge variant="secondary" className="hidden sm:inline-flex">
-              {pipeline.deals.length} deals
+              {pipelineMode === 'deals' ? `${pipeline.deals.length} deals` : 'Connection Requests'}
             </Badge>
+          </div>
+
+          {/* Pipeline Mode Toggle */}
+          <div className="hidden md:flex border rounded-lg p-1">
+            <button
+              onClick={() => setPipelineMode('deals')}
+              className={`px-3 py-1 text-sm rounded transition-colors ${
+                pipelineMode === 'deals'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              Deals
+            </button>
+            <button
+              onClick={() => setPipelineMode('connection-requests')}
+              className={`px-3 py-1 text-sm rounded transition-colors ${
+                pipelineMode === 'connection-requests'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              Connections
+            </button>
           </div>
 
           {/* Desktop Search */}
@@ -96,15 +122,6 @@ export function PipelineHeader({ pipeline }: PipelineHeaderProps) {
             </SelectContent>
           </Select>
 
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={pipeline.toggleMetrics}
-            className="gap-2"
-          >
-            <BarChart3 className="h-4 w-4" />
-            {pipeline.isMetricsCollapsed ? 'Show' : 'Hide'} Metrics
-          </Button>
 
           <Button
             variant="outline"
@@ -118,7 +135,7 @@ export function PipelineHeader({ pipeline }: PipelineHeaderProps) {
 
           <Button size="sm" className="gap-2">
             <Plus className="h-4 w-4" />
-            New Deal
+            {pipelineMode === 'deals' ? 'New Deal' : 'New Request'}
           </Button>
 
           <DropdownMenu>
@@ -182,15 +199,6 @@ export function PipelineHeader({ pipeline }: PipelineHeaderProps) {
             <Button
               variant="outline"
               size="sm"
-              onClick={pipeline.toggleMetrics}
-              className="flex-1"
-            >
-              <BarChart3 className="h-4 w-4 mr-2" />
-              Metrics
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
               onClick={pipeline.toggleFilterPanel}
               className="flex-1"
             >
@@ -201,7 +209,7 @@ export function PipelineHeader({ pipeline }: PipelineHeaderProps) {
 
           <Button size="sm" className="w-full">
             <Plus className="h-4 w-4 mr-2" />
-            New Deal
+            {pipelineMode === 'deals' ? 'New Deal' : 'New Request'}
           </Button>
         </div>
       )}
