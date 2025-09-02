@@ -1,5 +1,5 @@
 import React from 'react';
-import { usePipelineCore } from '@/hooks/admin/use-pipeline-core';
+import { useConnectionRequestPipelineCore } from '@/hooks/admin/use-connection-request-pipeline-core';
 import { PipelineHeader } from './PipelineHeader';
 import { PipelineMetrics } from './PipelineMetrics';
 import { PipelineWorkspace } from './PipelineWorkspace';
@@ -8,7 +8,7 @@ import { PipelineFilterPanel } from './PipelineFilterPanel';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export function PipelineShell() {
-  const pipeline = usePipelineCore();
+  const pipeline = useConnectionRequestPipelineCore();
   
   if (pipeline.isLoading) {
     return (

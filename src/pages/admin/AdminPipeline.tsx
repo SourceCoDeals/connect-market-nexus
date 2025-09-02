@@ -1,6 +1,6 @@
 import React from 'react';
-import { PipelineShell } from '@/components/admin/pipeline/PipelineShell';
+import { ConnectionRequestPipelineShell } from '@/components/admin/pipeline/ConnectionRequestPipelineShell';
 
 export default function AdminPipeline() {
-  return <PipelineShell />;
+  return <ConnectionRequestPipelineShell />;
 }
