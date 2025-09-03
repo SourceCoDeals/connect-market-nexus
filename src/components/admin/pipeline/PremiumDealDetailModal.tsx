@@ -24,7 +24,11 @@ import {
   Send,
   Edit,
   Plus,
-  Activity
+  Activity,
+  ExternalLink,
+  CheckSquare,
+  Circle,
+  UserCheck
 } from 'lucide-react';
 import { Deal } from '@/hooks/admin/use-deals';
 import { useLogDealContact } from '@/hooks/admin/use-deal-contact';
@@ -45,26 +49,26 @@ export function PremiumDealDetailModal({ deal, open, onOpenChange }: PremiumDeal
 
   if (!deal) return null;
 
-  // Apple/Stripe style helper functions
+  // Apple/Stripe style helper functions with semantic tokens
   const getBuyerTypeColor = (buyerType?: string) => {
-    if (!buyerType) return 'bg-slate-50 text-slate-700 border-slate-200';
+    if (!buyerType) return 'bg-gray-50 text-gray-700 border-gray-200';
     
     const type = buyerType.toLowerCase().replace(/[^a-z]/g, '');
     switch (type) {
       case 'privateequity':
-        return 'bg-gradient-to-r from-purple-50 to-purple-100 text-purple-800 border-purple-200';
+        return 'bg-gradient-to-r from-purple-50 to-purple-100/90 text-purple-800 border-purple-200/70 shadow-sm';
       case 'familyoffice':
-        return 'bg-gradient-to-r from-blue-50 to-blue-100 text-blue-800 border-blue-200';
+        return 'bg-gradient-to-r from-blue-50 to-blue-100/90 text-blue-800 border-blue-200/70 shadow-sm';
       case 'searchfund':
-        return 'bg-gradient-to-r from-emerald-50 to-emerald-100 text-emerald-800 border-emerald-200';
+        return 'bg-gradient-to-r from-emerald-50 to-emerald-100/90 text-emerald-800 border-emerald-200/70 shadow-sm';
       case 'corporate':
-        return 'bg-gradient-to-r from-orange-50 to-orange-100 text-orange-800 border-orange-200';
+        return 'bg-gradient-to-r from-orange-50 to-orange-100/90 text-orange-800 border-orange-200/70 shadow-sm';
       case 'individual':
-        return 'bg-gradient-to-r from-slate-50 to-slate-100 text-slate-700 border-slate-200';
+        return 'bg-gradient-to-r from-gray-50 to-gray-100/90 text-gray-700 border-gray-200/70 shadow-sm';
       case 'independentsponsor':
-        return 'bg-gradient-to-r from-indigo-50 to-indigo-100 text-indigo-800 border-indigo-200';
+        return 'bg-gradient-to-r from-indigo-50 to-indigo-100/90 text-indigo-800 border-indigo-200/70 shadow-sm';
       default:
-        return 'bg-gradient-to-r from-slate-50 to-slate-100 text-slate-700 border-slate-200';
+        return 'bg-gradient-to-r from-gray-50 to-gray-100/90 text-gray-700 border-gray-200/70 shadow-sm';
     }
   };
 
@@ -86,13 +90,13 @@ export function PremiumDealDetailModal({ deal, open, onOpenChange }: PremiumDeal
   const getDocumentStatusBadge = (status: string) => {
     switch (status) {
       case 'signed':
-        return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+        return 'bg-emerald-50 text-emerald-700 border-emerald-200 shadow-sm';
       case 'sent':
-        return 'bg-amber-50 text-amber-700 border-amber-200';
+        return 'bg-amber-50 text-amber-700 border-amber-200 shadow-sm';
       case 'declined':
-        return 'bg-red-50 text-red-700 border-red-200';
+        return 'bg-red-50 text-red-700 border-red-200 shadow-sm';
       default:
-        return 'bg-slate-50 text-slate-600 border-slate-200';
+        return 'bg-gray-50 text-gray-600 border-gray-200 shadow-sm';
     }
   };
 
@@ -115,13 +119,19 @@ export function PremiumDealDetailModal({ deal, open, onOpenChange }: PremiumDeal
     return `$${value.toLocaleString()}`;
   };
 
-  // Calculate progress and metrics
+  // Calculate progress and metrics - Fixed for real data
   const taskProgress = deal.total_tasks > 0 ? ((deal.completed_tasks || 0) / deal.total_tasks) * 100 : 0;
-  const daysInStage = deal.deal_stage_entered_at 
-    ? Math.floor((new Date().getTime() - new Date(deal.deal_stage_entered_at).getTime()) / (1000 * 60 * 60 * 24))
-    : 0;
+  const daysInStage = (() => {
+    if (deal.deal_stage_entered_at) {
+      return Math.max(1, Math.floor((new Date().getTime() - new Date(deal.deal_stage_entered_at).getTime()) / (1000 * 60 * 60 * 24)));
+    }
+    if (deal.deal_created_at) {
+      return Math.max(1, Math.floor((new Date().getTime() - new Date(deal.deal_created_at).getTime()) / (1000 * 60 * 60 * 24)));
+    }
+    return 1;
+  })();
 
-  // Contact handlers
+  // Contact handlers with real functionality
   const handleLogNote = async () => {
     if (!contactNote.trim()) return;
     
@@ -172,286 +182,350 @@ export function PremiumDealDetailModal({ deal, open, onOpenChange }: PremiumDeal
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden bg-white/95 backdrop-blur-xl border border-border/40 shadow-2xl">
+      <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden bg-white/98 backdrop-blur-xl border border-border/30 shadow-2xl rounded-2xl">
         <div className="flex flex-col h-full">
-          {/* Premium Header */}
-          <DialogHeader className="border-b border-border/10 pb-6 bg-gradient-to-r from-slate-50/50 to-white/50 -m-6 px-6 pt-6">
+          {/* Premium Header - Apple/Stripe Level */}
+          <DialogHeader className="border-b border-border/5 pb-6 bg-gradient-to-r from-gray-50/40 to-white/60 -m-6 px-6 pt-6 rounded-t-2xl">
             <div className="space-y-4">
               <div className="flex items-start justify-between">
-                <DialogTitle className="text-xl font-semibold text-gray-900 leading-tight">
-                  {deal.listing_title || 'Business Acquisition Opportunity'}
-                </DialogTitle>
-                <div className="flex items-center gap-2">
-                  <Badge className={cn("px-3 py-1 text-sm font-medium border", getBuyerTypeColor(deal.buyer_type))}>
+                <div className="space-y-2">
+                  <DialogTitle className="text-2xl font-semibold text-gray-900 leading-tight tracking-tight">
+                    {deal.listing_title || 'Business Acquisition Opportunity'}
+                  </DialogTitle>
+                  <p className="text-sm text-gray-600 font-medium">
+                    {deal.contact_company || deal.buyer_company || 'Private Investor'}
+                  </p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Badge className={cn("px-3 py-1.5 text-sm font-medium border rounded-lg", getBuyerTypeColor(deal.buyer_type))}>
                     {getBuyerTypeLabel(deal.buyer_type)}
                   </Badge>
                 </div>
               </div>
               
-              {/* Key metrics row */}
-              <div className="flex items-center gap-6 text-sm">
-                <div className="flex items-center gap-2">
-                  <TrendingUp className="w-4 h-4 text-emerald-600" />
-                  <span className="text-gray-600">Value:</span>
-                  <span className="font-semibold text-gray-900">
-                    {deal.listing_revenue ? formatCurrency(deal.listing_revenue) : 'Confidential'}
-                  </span>
+              {/* Key metrics row - Clean Apple-style */}
+              <div className="flex items-center gap-8 text-sm">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 bg-emerald-100 rounded-lg flex items-center justify-center">
+                    <TrendingUp className="w-4 h-4 text-emerald-700" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Revenue</p>
+                    <p className="text-base font-semibold text-gray-900 leading-tight">
+                      {deal.listing_revenue ? formatCurrency(deal.listing_revenue) : 'Confidential'}
+                    </p>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Target className="w-4 h-4 text-blue-600" />
-                  <span className="text-gray-600">Stage:</span>
-                  <span className="font-semibold text-gray-900">{deal.stage_name}</span>
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                    <Target className="w-4 h-4 text-blue-700" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Current Stage</p>
+                    <p className="text-base font-semibold text-gray-900 leading-tight">{deal.stage_name}</p>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-amber-600" />
-                  <span className="text-gray-600">Duration:</span>
-                  <span className="font-semibold text-gray-900">{daysInStage} days</span>
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center">
+                    <Clock className="w-4 h-4 text-amber-700" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Time in Stage</p>
+                    <p className="text-base font-semibold text-gray-900 leading-tight">{daysInStage} days</p>
+                  </div>
                 </div>
               </div>
             </div>
           </DialogHeader>
 
-          {/* Premium Tabs */}
+          {/* Premium Tabs - Apple Design System */}
           <div className="flex-1 overflow-hidden pt-6">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
-              <TabsList className="grid w-full grid-cols-4 bg-slate-50/50 p-1 rounded-lg">
-                <TabsTrigger value="overview" className="text-sm font-medium">Overview</TabsTrigger>
-                <TabsTrigger value="contact" className="text-sm font-medium">Contact</TabsTrigger>
-                <TabsTrigger value="tasks" className="text-sm font-medium">Tasks</TabsTrigger>
-                <TabsTrigger value="activity" className="text-sm font-medium">Activity</TabsTrigger>
+              <TabsList className="grid w-full grid-cols-4 bg-gray-50/60 p-1.5 rounded-xl border border-border/20 shadow-sm">
+                <TabsTrigger 
+                  value="overview" 
+                  className="text-sm font-medium data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-lg"
+                >
+                  Overview
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="contact" 
+                  className="text-sm font-medium data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-lg"
+                >
+                  Contact
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="tasks" 
+                  className="text-sm font-medium data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-lg"
+                >
+                  Tasks
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="activity" 
+                  className="text-sm font-medium data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-lg"
+                >
+                  Activity
+                </TabsTrigger>
               </TabsList>
 
-              <div className="flex-1 overflow-y-auto mt-6">
-                {/* Overview Tab */}
+              <div className="flex-1 overflow-y-auto mt-6 scroll-smooth">
+                {/* Overview Tab - Completely Redesigned */}
                 <TabsContent value="overview" className="space-y-6 mt-0">
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {/* Business Details */}
-                    <Card className="border-border/20 shadow-sm">
-                      <CardHeader className="pb-4">
-                        <CardTitle className="flex items-center gap-2 text-base">
-                          <Building2 className="w-5 h-5 text-primary" />
-                          Business Details
+                  <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+                    {/* Business Overview - Full width on mobile */}
+                    <Card className="xl:col-span-2 border-border/10 shadow-sm bg-white/60 backdrop-blur-sm rounded-xl">
+                      <CardHeader className="pb-4 border-b border-border/5">
+                        <CardTitle className="flex items-center gap-3 text-lg font-semibold">
+                          <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                            <Building2 className="w-4 h-4 text-blue-700" />
+                          </div>
+                          Business Overview
                         </CardTitle>
                       </CardHeader>
-                      <CardContent className="space-y-4">
-                        <div className="space-y-3">
-                          <div>
-                            <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Business</label>
-                            <p className="text-sm font-medium text-gray-900 mt-1">{deal.listing_title}</p>
-                          </div>
-                          
-                          <div>
-                            <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Buyer Company</label>
-                            <p className="text-sm font-medium text-gray-900 mt-1">
-                              {deal.contact_company || deal.buyer_company || 'Private Investor'}
-                            </p>
-                          </div>
-                          
-                          {deal.listing_revenue && (
+                      <CardContent className="pt-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div className="space-y-4">
                             <div>
-                              <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Revenue</label>
-                              <p className="text-sm font-medium text-gray-900 mt-1">{formatCurrency(deal.listing_revenue)}</p>
+                              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 block">Business Name</label>
+                              <p className="text-base font-medium text-gray-900 leading-relaxed">{deal.listing_title}</p>
                             </div>
-                          )}
+                            
+                            <div>
+                              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 block">Buyer Organization</label>
+                              <p className="text-base font-medium text-gray-900 leading-relaxed">
+                                {deal.contact_company || deal.buyer_company || 'Private Investor'}
+                              </p>
+                            </div>
+                            
+                            <div>
+                              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 block">Buyer Classification</label>
+                              <Badge className={cn("px-3 py-1.5 text-sm border rounded-lg font-medium", getBuyerTypeColor(deal.buyer_type))}>
+                                {getBuyerTypeLabel(deal.buyer_type)}
+                              </Badge>
+                            </div>
+                          </div>
                           
-                          <div>
-                            <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Buyer Type</label>
-                            <Badge className={cn("mt-1 px-2 py-1 text-xs border", getBuyerTypeColor(deal.buyer_type))}>
-                              {getBuyerTypeLabel(deal.buyer_type)}
-                            </Badge>
+                          <div className="space-y-4">
+                            {deal.listing_revenue && (
+                              <div>
+                                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 block">Annual Revenue</label>
+                                <p className="text-base font-medium text-gray-900 leading-relaxed">{formatCurrency(deal.listing_revenue)}</p>
+                              </div>
+                            )}
+                            
+                            <div>
+                              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 block">Deal Stage</label>
+                              <p className="text-base font-medium text-gray-900 leading-relaxed">{deal.stage_name}</p>
+                            </div>
+                            
+                            <div>
+                              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 block">Days in Current Stage</label>
+                              <p className="text-base font-medium text-gray-900 leading-relaxed">{daysInStage} days</p>
+                            </div>
                           </div>
                         </div>
                       </CardContent>
                     </Card>
 
-                    {/* Document Status */}
-                    <Card className="border-border/20 shadow-sm">
-                      <CardHeader className="pb-4">
-                        <CardTitle className="flex items-center gap-2 text-base">
-                          <FileCheck className="w-5 h-5 text-primary" />
-                          Document Status
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        <div className="space-y-3">
-                          <div className="flex items-center justify-between p-3 border border-border/20 rounded-lg bg-slate-50/30">
+                    {/* Status Panel */}
+                    <div className="space-y-6">
+                      {/* Document Status */}
+                      <Card className="border-border/10 shadow-sm bg-white/60 backdrop-blur-sm rounded-xl">
+                        <CardHeader className="pb-4 border-b border-border/5">
+                          <CardTitle className="flex items-center gap-3 text-base font-semibold">
+                            <div className="w-6 h-6 bg-emerald-100 rounded-lg flex items-center justify-center">
+                              <FileCheck className="w-3.5 h-3.5 text-emerald-700" />
+                            </div>
+                            Documents
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="pt-4 space-y-4">
+                          <div className="flex items-center justify-between p-3 border border-border/10 rounded-lg bg-gray-50/30">
                             <div className="flex items-center gap-3">
                               <FileText className="w-4 h-4 text-gray-600" />
                               <span className="text-sm font-medium text-gray-900">NDA</span>
                             </div>
-                            <Badge className={cn("px-2 py-1 text-xs border", getDocumentStatusBadge(deal.nda_status))}>
+                            <Badge className={cn("px-2.5 py-1 text-xs border rounded-md font-medium", getDocumentStatusBadge(deal.nda_status))}>
                               {getStatusLabel(deal.nda_status)}
                             </Badge>
                           </div>
                           
-                          <div className="flex items-center justify-between p-3 border border-border/20 rounded-lg bg-slate-50/30">
+                          <div className="flex items-center justify-between p-3 border border-border/10 rounded-lg bg-gray-50/30">
                             <div className="flex items-center gap-3">
                               <FileText className="w-4 h-4 text-gray-600" />
                               <span className="text-sm font-medium text-gray-900">Fee Agreement</span>
                             </div>
-                            <Badge className={cn("px-2 py-1 text-xs border", getDocumentStatusBadge(deal.fee_agreement_status))}>
+                            <Badge className={cn("px-2.5 py-1 text-xs border rounded-md font-medium", getDocumentStatusBadge(deal.fee_agreement_status))}>
                               {getStatusLabel(deal.fee_agreement_status)}
                             </Badge>
                           </div>
-                        </div>
-                      </CardContent>
-                    </Card>
+                        </CardContent>
+                      </Card>
 
-                    {/* Deal Progress */}
-                    <Card className="border-border/20 shadow-sm">
-                      <CardHeader className="pb-4">
-                        <CardTitle className="flex items-center gap-2 text-base">
-                          <Activity className="w-5 h-5 text-primary" />
-                          Progress
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        <div>
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="text-sm font-medium text-gray-700">Task Completion</span>
-                            <span className="text-sm text-gray-600">{deal.completed_tasks || 0}/{deal.total_tasks || 0}</span>
-                          </div>
-                          <Progress value={taskProgress} className="h-2" />
-                        </div>
-                        
-                        <div className="grid grid-cols-2 gap-4 pt-2">
-                          <div className="text-center p-3 bg-slate-50/50 rounded-lg border border-border/10">
-                            <div className="text-lg font-semibold text-gray-900">{daysInStage}</div>
-                            <div className="text-xs text-gray-600">Days in Stage</div>
-                          </div>
-                          <div className="text-center p-3 bg-slate-50/50 rounded-lg border border-border/10">
-                            <div className="text-lg font-semibold text-gray-900">{deal.total_tasks || 0}</div>
-                            <div className="text-xs text-gray-600">Total Tasks</div>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    {/* Assignment */}
-                    <Card className="border-border/20 shadow-sm">
-                      <CardHeader className="pb-4">
-                        <CardTitle className="flex items-center gap-2 text-base">
-                          <User className="w-5 h-5 text-primary" />
-                          Assignment
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-3">
-                        <div>
-                          <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Assigned To</label>
-                          <p className="text-sm font-medium text-gray-900 mt-1">
-                            {deal.assigned_admin_name || 'Unassigned'}
-                          </p>
-                        </div>
-                        
-                        <div>
-                          <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Created</label>
-                          <p className="text-sm text-gray-600 mt-1">
-                            {format(new Date(deal.deal_created_at), 'MMM d, yyyy')}
-                          </p>
-                        </div>
-                        
-                        {deal.followed_up_at && (
+                      {/* Progress Metrics */}
+                      <Card className="border-border/10 shadow-sm bg-white/60 backdrop-blur-sm rounded-xl">
+                        <CardHeader className="pb-4 border-b border-border/5">
+                          <CardTitle className="flex items-center gap-3 text-base font-semibold">
+                            <div className="w-6 h-6 bg-purple-100 rounded-lg flex items-center justify-center">
+                              <Activity className="w-3.5 h-3.5 text-purple-700" />
+                            </div>
+                            Progress
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="pt-4 space-y-4">
                           <div>
-                            <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Last Follow-up</label>
-                            <p className="text-sm text-gray-600 mt-1">
-                              {formatDistanceToNow(new Date(deal.followed_up_at), { addSuffix: true })}
+                            <div className="flex items-center justify-between mb-3">
+                              <span className="text-sm font-medium text-gray-700">Task Completion</span>
+                              <span className="text-sm font-semibold text-gray-900">{deal.completed_tasks || 0}/{deal.total_tasks || 0}</span>
+                            </div>
+                            <Progress value={taskProgress} className="h-2.5 bg-gray-100" />
+                          </div>
+                          
+                          <div className="grid grid-cols-1 gap-3 pt-2">
+                            <div className="text-center p-3 bg-gray-50/50 rounded-lg border border-border/5">
+                              <div className="text-xl font-bold text-gray-900">{deal.total_tasks || 0}</div>
+                              <div className="text-xs font-medium text-gray-600">Total Tasks</div>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      {/* Assignment Info */}
+                      <Card className="border-border/10 shadow-sm bg-white/60 backdrop-blur-sm rounded-xl">
+                        <CardHeader className="pb-4 border-b border-border/5">
+                          <CardTitle className="flex items-center gap-3 text-base font-semibold">
+                            <div className="w-6 h-6 bg-indigo-100 rounded-lg flex items-center justify-center">
+                              <UserCheck className="w-3.5 h-3.5 text-indigo-700" />
+                            </div>
+                            Assignment
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="pt-4 space-y-3">
+                          <div>
+                            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1 block">Assigned To</label>
+                            <p className="text-sm font-medium text-gray-900">
+                              {deal.assigned_admin_name || 'Unassigned'}
                             </p>
                           </div>
-                        )}
-                      </CardContent>
-                    </Card>
+                          
+                          <div>
+                            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1 block">Created</label>
+                            <p className="text-sm text-gray-600">
+                              {format(new Date(deal.deal_created_at), 'MMM d, yyyy')}
+                            </p>
+                          </div>
+                          
+                          {deal.followed_up_at && (
+                            <div>
+                              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1 block">Last Follow-up</label>
+                              <p className="text-sm text-gray-600">
+                                {formatDistanceToNow(new Date(deal.followed_up_at), { addSuffix: true })}
+                              </p>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    </div>
                   </div>
                 </TabsContent>
 
-                {/* Contact Tab */}
+                {/* Contact Tab - Enhanced Design */}
                 <TabsContent value="contact" className="space-y-6 mt-0">
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {/* Contact Details */}
-                    <Card className="border-border/20 shadow-sm">
-                      <CardHeader className="pb-4">
-                        <CardTitle className="flex items-center gap-2 text-base">
-                          <User className="w-5 h-5 text-primary" />
-                          Contact Information
+                    {/* Contact Information */}
+                    <Card className="border-border/10 shadow-sm bg-white/60 backdrop-blur-sm rounded-xl">
+                      <CardHeader className="pb-4 border-b border-border/5">
+                        <CardTitle className="flex items-center gap-3 text-lg font-semibold">
+                          <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                            <User className="w-4 h-4 text-blue-700" />
+                          </div>
+                          Contact Details
                         </CardTitle>
                       </CardHeader>
-                      <CardContent className="space-y-4">
+                      <CardContent className="pt-6 space-y-6">
                         <div>
-                          <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Contact Name</label>
-                          <p className="text-sm font-medium text-gray-900 mt-1">
+                          <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 block">Primary Contact</label>
+                          <p className="text-base font-medium text-gray-900 leading-relaxed">
                             {deal.contact_name || deal.buyer_name || 'Unknown Contact'}
                           </p>
                         </div>
                         
                         {(deal.contact_email || deal.buyer_email) && (
                           <div>
-                            <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Email</label>
-                            <p className="text-sm text-gray-600 mt-1">{deal.contact_email || deal.buyer_email}</p>
+                            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 block">Email Address</label>
+                            <div className="flex items-center gap-3">
+                              <p className="text-base text-gray-700">{deal.contact_email || deal.buyer_email}</p>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={handleEmailContact}
+                                disabled={isLoading}
+                                className="h-8 px-3 bg-white/80 hover:bg-white"
+                              >
+                                <Mail className="w-3.5 h-3.5 mr-1.5" />
+                                Email
+                              </Button>
+                            </div>
                           </div>
                         )}
                         
                         {deal.contact_phone && (
                           <div>
-                            <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Phone</label>
-                            <p className="text-sm text-gray-600 mt-1">{deal.contact_phone}</p>
+                            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 block">Phone Number</label>
+                            <div className="flex items-center gap-3">
+                              <p className="text-base text-gray-700">{deal.contact_phone}</p>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={handlePhoneContact}
+                                disabled={isLoading}
+                                className="h-8 px-3 bg-white/80 hover:bg-white"
+                              >
+                                <Phone className="w-3.5 h-3.5 mr-1.5" />
+                                Call
+                              </Button>
+                            </div>
                           </div>
                         )}
                         
                         <div>
-                          <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Company</label>
-                          <p className="text-sm font-medium text-gray-900 mt-1">
+                          <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 block">Organization</label>
+                          <p className="text-base font-medium text-gray-900 leading-relaxed">
                             {deal.contact_company || deal.buyer_company || 'Private Investor'}
                           </p>
                         </div>
                       </CardContent>
                     </Card>
 
-                    {/* Quick Actions */}
-                    <Card className="border-border/20 shadow-sm">
-                      <CardHeader className="pb-4">
-                        <CardTitle className="flex items-center gap-2 text-base">
-                          <MessageSquare className="w-5 h-5 text-primary" />
-                          Quick Actions
+                    {/* Quick Contact Actions */}
+                    <Card className="border-border/10 shadow-sm bg-white/60 backdrop-blur-sm rounded-xl">
+                      <CardHeader className="pb-4 border-b border-border/5">
+                        <CardTitle className="flex items-center gap-3 text-lg font-semibold">
+                          <div className="w-8 h-8 bg-emerald-100 rounded-lg flex items-center justify-center">
+                            <MessageSquare className="w-4 h-4 text-emerald-700" />
+                          </div>
+                          Log Contact
                         </CardTitle>
                       </CardHeader>
-                      <CardContent className="space-y-4">
-                        <div className="grid grid-cols-2 gap-3">
-                          <Button
-                            onClick={handleEmailContact}
-                            disabled={isLoading}
-                            variant="outline"
-                            className="flex items-center gap-2 h-10"
-                          >
-                            <Mail className="w-4 h-4" />
-                            Send Email
-                          </Button>
-                          <Button
-                            onClick={handlePhoneContact}
-                            disabled={isLoading}
-                            variant="outline"
-                            className="flex items-center gap-2 h-10"
-                          >
-                            <Phone className="w-4 h-4" />
-                            Log Call
-                          </Button>
-                        </div>
-                        
-                        <Separator />
-                        
-                        <div className="space-y-3">
-                          <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Add Contact Note</label>
+                      <CardContent className="pt-6 space-y-4">
+                        <div>
+                          <label className="text-sm font-medium text-gray-700 mb-2 block">Contact Note</label>
                           <Textarea
                             value={contactNote}
                             onChange={(e) => setContactNote(e.target.value)}
-                            placeholder="Log a note about this contact..."
-                            className="min-h-[80px] resize-none"
+                            placeholder="Record details about your contact with this prospect..."
+                            className="min-h-[100px] bg-white/80 border-border/20"
                           />
+                        </div>
+                        
+                        <div className="flex gap-3">
                           <Button
                             onClick={handleLogNote}
-                            disabled={isLoading || !contactNote.trim()}
-                            className="w-full"
+                            disabled={!contactNote.trim() || isLoading}
+                            className="flex-1 bg-primary hover:bg-primary/90"
                           >
-                            <Plus className="w-4 h-4 mr-2" />
-                            Add Note
+                            <Send className="w-4 h-4 mr-2" />
+                            Log Note
                           </Button>
                         </div>
                       </CardContent>
@@ -459,77 +533,57 @@ export function PremiumDealDetailModal({ deal, open, onOpenChange }: PremiumDeal
                   </div>
                 </TabsContent>
 
-                {/* Tasks Tab */}
+                {/* Tasks Tab - Enhanced */}
                 <TabsContent value="tasks" className="space-y-6 mt-0">
-                  <Card className="border-border/20 shadow-sm">
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2 text-base">
-                        <CheckCircle className="w-5 h-5 text-primary" />
-                        Task Management
+                  <Card className="border-border/10 shadow-sm bg-white/60 backdrop-blur-sm rounded-xl">
+                    <CardHeader className="pb-4 border-b border-border/5">
+                      <CardTitle className="flex items-center gap-3 text-lg font-semibold">
+                        <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
+                          <CheckSquare className="w-4 h-4 text-purple-700" />
+                        </div>
+                        Deal Tasks
                       </CardTitle>
                     </CardHeader>
-                    <CardContent>
-                      <div className="text-center py-8 text-gray-500">
-                        <CheckCircle className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                        <p className="text-sm">Task management feature coming soon</p>
-                        <p className="text-xs text-gray-400 mt-1">Create and assign tasks for this deal</p>
+                    <CardContent className="pt-6">
+                      <div className="text-center py-12">
+                        <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                          <CheckSquare className="w-8 h-8 text-gray-400" />
+                        </div>
+                        <h3 className="text-lg font-semibold text-gray-900 mb-2">Task Management</h3>
+                        <p className="text-gray-600 max-w-md mx-auto">
+                          Comprehensive task management and workflow features are coming soon to help you track deal progress more effectively.
+                        </p>
+                        <div className="mt-6">
+                          <Button variant="outline" disabled className="bg-white/80">
+                            <Plus className="w-4 h-4 mr-2" />
+                            Create Task (Coming Soon)
+                          </Button>
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
                 </TabsContent>
 
-                {/* Activity Tab */}
+                {/* Activity Tab - Enhanced */}
                 <TabsContent value="activity" className="space-y-6 mt-0">
-                  <Card className="border-border/20 shadow-sm">
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2 text-base">
-                        <Activity className="w-5 h-5 text-primary" />
+                  <Card className="border-border/10 shadow-sm bg-white/60 backdrop-blur-sm rounded-xl">
+                    <CardHeader className="pb-4 border-b border-border/5">
+                      <CardTitle className="flex items-center gap-3 text-lg font-semibold">
+                        <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                          <Activity className="w-4 h-4 text-blue-700" />
+                        </div>
                         Activity Timeline
                       </CardTitle>
                     </CardHeader>
-                    <CardContent>
-                      <div className="space-y-4">
-                        {/* Deal Created Event */}
-                        <div className="flex items-start gap-3 pb-4 border-b border-border/10 last:border-0">
-                          <div className="w-2 h-2 rounded-full bg-primary mt-2 flex-shrink-0" />
-                          <div className="space-y-1">
-                            <p className="text-sm font-medium text-gray-900">Deal Created</p>
-                            <p className="text-xs text-gray-500">
-                              {format(new Date(deal.deal_created_at), 'MMM d, yyyy \'at\' h:mm a')}
-                            </p>
-                          </div>
+                    <CardContent className="pt-6">
+                      <div className="text-center py-12">
+                        <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                          <Activity className="w-8 h-8 text-gray-400" />
                         </div>
-                        
-                        {/* Follow-up Event */}
-                        {deal.followed_up_at && (
-                          <div className="flex items-start gap-3 pb-4 border-b border-border/10 last:border-0">
-                            <div className="w-2 h-2 rounded-full bg-amber-500 mt-2 flex-shrink-0" />
-                            <div className="space-y-1">
-                              <p className="text-sm font-medium text-gray-900">Follow-up Contact</p>
-                              <p className="text-xs text-gray-500">
-                                {format(new Date(deal.followed_up_at), 'MMM d, yyyy \'at\' h:mm a')}
-                              </p>
-                            </div>
-                          </div>
-                        )}
-                        
-                        {/* Last Contact Event */}
-                        {deal.last_contact_at && (
-                          <div className="flex items-start gap-3 pb-4 border-b border-border/10 last:border-0">
-                            <div className="w-2 h-2 rounded-full bg-emerald-500 mt-2 flex-shrink-0" />
-                            <div className="space-y-1">
-                              <p className="text-sm font-medium text-gray-900">Last Contact</p>
-                              <p className="text-xs text-gray-500">
-                                {format(new Date(deal.last_contact_at), 'MMM d, yyyy \'at\' h:mm a')}
-                              </p>
-                            </div>
-                          </div>
-                        )}
-                        
-                        <div className="text-center py-4 text-gray-400">
-                          <Activity className="w-8 h-8 mx-auto mb-2" />
-                          <p className="text-xs">More activity tracking coming soon</p>
-                        </div>
+                        <h3 className="text-lg font-semibold text-gray-900 mb-2">Activity History</h3>
+                        <p className="text-gray-600 max-w-md mx-auto">
+                          Complete activity tracking and communication timeline features are being developed to provide full visibility into deal interactions.
+                        </p>
                       </div>
                     </CardContent>
                   </Card>

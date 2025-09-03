@@ -160,32 +160,20 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
     ? `$${(deal.listing_revenue / 1000000).toFixed(1)}M Revenue` 
     : null;
 
-  // Calculate meaningful and realistic days in stage with variety
+  // Calculate real days in stage
   const daysInStage = (() => {
     if (deal.deal_stage_entered_at) {
       const actualDays = Math.floor((new Date().getTime() - new Date(deal.deal_stage_entered_at).getTime()) / (1000 * 60 * 60 * 24));
       return Math.max(1, actualDays);
     }
     
-    // Generate realistic variety based on deal ID hash for consistency
-    const dealIdHash = deal.deal_id.split('').reduce((a, b) => a + b.charCodeAt(0), 0);
-    const stageName = deal.stage_name?.toLowerCase() || '';
-    
-    // Different realistic ranges for different stages
-    if (stageName.includes('new') || stageName.includes('inquiry')) {
-      return 1 + (dealIdHash % 3); // 1-3 days for new inquiries
-    } else if (stageName.includes('qualify') || stageName.includes('initial')) {
-      return 2 + (dealIdHash % 5); // 2-6 days for qualification
-    } else if (stageName.includes('document') || stageName.includes('nda')) {
-      return 5 + (dealIdHash % 8); // 5-12 days for documentation
-    } else if (stageName.includes('negotiat') || stageName.includes('term')) {
-      return 10 + (dealIdHash % 15); // 10-24 days for negotiations
-    } else if (stageName.includes('close') || stageName.includes('final')) {
-      return 15 + (dealIdHash % 20); // 15-34 days for closing
+    // If no stage entry date, use deal creation date as fallback
+    if (deal.deal_created_at) {
+      const daysSinceCreation = Math.floor((new Date().getTime() - new Date(deal.deal_created_at).getTime()) / (1000 * 60 * 60 * 24));
+      return Math.max(1, daysSinceCreation);
     }
     
-    // Default variety for unknown stages
-    return 1 + (dealIdHash % 7); // 1-7 days default
+    return 1; // Fallback to 1 day if no dates available
   })();
   
   const daysInStageText = `${daysInStage}d in ${deal.stage_name}`;
