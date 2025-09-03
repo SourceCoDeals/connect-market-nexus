@@ -272,29 +272,12 @@ export function PipelineDetailPanel({ pipeline }: PipelineDetailPanelProps) {
           <div className="flex-1 overflow-hidden">
             {/* Overview Tab - Clean Apple/Stripe Design */}
             <TabsContent value="overview" className="p-8 space-y-8 h-full overflow-y-auto mt-0">
-              {/* Buyer Profile with Hero Message */}
+              {/* Unified Apple/Stripe Design */}
               <BuyerProfileSection 
                 buyerProfile={buyerProfile}
                 selectedDeal={selectedDeal}
-              />
-
-              {/* Document Status */}
-              <DocumentStatus 
-                dealId={selectedDeal.deal_id}
-                contactEmail={buyerProfile?.buyerInfo?.email || selectedDeal.buyer_email}
-                contactName={buyerProfile?.buyerInfo?.name || selectedDeal.buyer_name}
-                ndaStatus={selectedDeal.nda_status || 'not_sent'}
-                feeAgreementStatus={selectedDeal.fee_agreement_status || 'not_sent'}
-              />
-
-              {/* Quick Actions */}
-              <CleanQuickActions
-                buyerEmail={buyerProfile?.buyerInfo?.email || selectedDeal.buyer_email}
-                buyerPhone={buyerProfile?.buyerInfo?.phone_number}
                 onEmailContact={handleEmailContact}
                 onPhoneContact={handlePhoneContact}
-                onCreateTask={() => setActiveTab('tasks')}
-                onViewActivity={() => setActiveTab('activity')}
                 onLogNote={handleLogNote}
               />
             </TabsContent>
