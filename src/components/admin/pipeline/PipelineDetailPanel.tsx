@@ -179,7 +179,7 @@ export function PipelineDetailPanel({ pipeline }: PipelineDetailPanelProps) {
       await logContact.mutateAsync({
         dealId: selectedDeal.deal_id,
         contactType: 'email',
-        details: { recipient: buyerProfile?.profiles?.email }
+        details: { recipient: buyerProfile?.profiles?.[0]?.email }
       });
     } catch (error) {
       console.error('Failed to log email:', error);
@@ -194,7 +194,7 @@ export function PipelineDetailPanel({ pipeline }: PipelineDetailPanelProps) {
       await logContact.mutateAsync({
         dealId: selectedDeal.deal_id,
         contactType: 'phone',
-        details: { phone: buyerProfile?.profiles?.phone_number }
+        details: { phone: buyerProfile?.profiles?.[0]?.phone_number }
       });
     } catch (error) {
       console.error('Failed to log phone call:', error);
@@ -309,22 +309,22 @@ export function PipelineDetailPanel({ pipeline }: PipelineDetailPanelProps) {
                           <p className="text-gray-900">{buyerProfile.profiles[0].email}</p>
                         </div>
                       )}
-                      {buyerProfile.profiles?.phone_number && (
+                      {buyerProfile.profiles?.[0]?.phone_number && (
                         <div>
                           <p className="text-gray-500 text-xs">Phone</p>
-                          <p className="text-gray-900">{buyerProfile.profiles.phone_number}</p>
+                          <p className="text-gray-900">{buyerProfile.profiles[0].phone_number}</p>
                         </div>
                       )}
-                      {buyerProfile.profiles?.website && (
+                      {buyerProfile.profiles?.[0]?.website && (
                         <div>
                           <p className="text-gray-500 text-xs">Website</p>
-                          <p className="text-gray-900">{buyerProfile.profiles.website}</p>
+                          <p className="text-gray-900">{buyerProfile.profiles[0].website}</p>
                         </div>
                       )}
-                      {buyerProfile.profiles?.linkedin_profile && (
+                      {buyerProfile.profiles?.[0]?.linkedin_profile && (
                         <div>
                           <p className="text-gray-500 text-xs">LinkedIn</p>
-                          <p className="text-gray-900 truncate">{buyerProfile.profiles.linkedin_profile}</p>
+                          <p className="text-gray-900 truncate">{buyerProfile.profiles[0].linkedin_profile}</p>
                         </div>
                       )}
                     </div>
@@ -365,7 +365,7 @@ export function PipelineDetailPanel({ pipeline }: PipelineDetailPanelProps) {
                     size="sm" 
                     className="justify-start"
                     onClick={handleEmailContact}
-                    disabled={!buyerProfile?.profiles?.email}
+                    disabled={!buyerProfile?.profiles?.[0]?.email}
                   >
                     <Mail className="w-4 h-4 mr-2" />
                     Email Buyer
@@ -375,7 +375,7 @@ export function PipelineDetailPanel({ pipeline }: PipelineDetailPanelProps) {
                     size="sm" 
                     className="justify-start"
                     onClick={handlePhoneContact}
-                    disabled={!buyerProfile?.profiles?.phone_number}
+                    disabled={!buyerProfile?.profiles?.[0]?.phone_number}
                   >
                     <Phone className="w-4 h-4 mr-2" />
                     Log Call
@@ -405,44 +405,44 @@ export function PipelineDetailPanel({ pipeline }: PipelineDetailPanelProps) {
             {/* Contact Tab - Clean Design */}
             <TabsContent value="contact" className="p-8 space-y-8 h-full overflow-y-auto mt-0">
               {/* Real Buyer Contact Info */}
-              {buyerProfile?.profiles ? (
+              {buyerProfile?.profiles?.[0] ? (
                 <div className="space-y-6">
                   <h3 className="text-sm font-medium text-gray-900">Buyer Contact Details</h3>
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-gray-500">Name</span>
                       <span className="text-sm font-medium text-gray-900">
-                        {buyerProfile.profiles.first_name} {buyerProfile.profiles.last_name}
+                        {buyerProfile.profiles[0].first_name} {buyerProfile.profiles[0].last_name}
                       </span>
                     </div>
                     
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-gray-500">Email</span>
-                      <span className="text-sm text-gray-900">{buyerProfile.profiles.email}</span>
+                      <span className="text-sm text-gray-900">{buyerProfile.profiles[0].email}</span>
                     </div>
                     
-                    {buyerProfile.profiles.phone_number && (
+                    {buyerProfile.profiles[0].phone_number && (
                       <div className="flex items-center justify-between">
                         <span className="text-sm text-gray-500">Phone</span>
-                        <span className="text-sm text-gray-900">{buyerProfile.profiles.phone_number}</span>
+                        <span className="text-sm text-gray-900">{buyerProfile.profiles[0].phone_number}</span>
                       </div>
                     )}
                     
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-gray-500">Company</span>
-                      <span className="text-sm text-gray-900">{buyerProfile.profiles.company}</span>
+                      <span className="text-sm text-gray-900">{buyerProfile.profiles[0].company}</span>
                     </div>
 
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-gray-500">Buyer Type</span>
-                      <span className="text-sm text-gray-900">{getBuyerTypeLabel(buyerProfile.profiles.buyer_type)}</span>
+                      <span className="text-sm text-gray-900">{getBuyerTypeLabel(buyerProfile.profiles[0].buyer_type)}</span>
                     </div>
 
-                    {buyerProfile.profiles.website && (
+                    {buyerProfile.profiles[0].website && (
                       <div className="flex items-center justify-between">
                         <span className="text-sm text-gray-500">Website</span>
                         <span className="text-sm text-blue-600 hover:text-blue-700 cursor-pointer">
-                          {buyerProfile.profiles.website}
+                          {buyerProfile.profiles[0].website}
                         </span>
                       </div>
                     )}
