@@ -73,7 +73,7 @@ export function useDealContacts(dealId?: string) {
   });
 }
 
-// Real buyer profile from connection request
+// Enhanced buyer profile with message from connection request
 export function useBuyerProfile(dealId?: string) {
   return useQuery({
     queryKey: ['buyer-profile', dealId],
@@ -89,7 +89,7 @@ export function useBuyerProfile(dealId?: string) {
 
       if (dealError || !deal?.connection_request_id) return null;
 
-      // Get the connection request with buyer profile
+      // Get the connection request with buyer message and full profile/lead data
       const { data: request, error: requestError } = await supabase
         .from('connection_requests')
         .select(`
@@ -109,7 +109,31 @@ export function useBuyerProfile(dealId?: string) {
         .single();
 
       if (requestError) throw requestError;
-      return request;
+      
+      // Structure the response to handle both registered users and leads
+      return {
+        ...request,
+        // Determine if this is a registered user or lead
+        isRegisteredUser: !!request.user_id,
+        // Consolidated buyer info (prefer profile data, fallback to lead data)
+        buyerInfo: (request.profiles && Array.isArray(request.profiles) && request.profiles.length > 0) ? {
+          name: `${request.profiles[0].first_name} ${request.profiles[0].last_name}`,
+          email: request.profiles[0].email,
+          company: request.profiles[0].company,
+          buyer_type: request.profiles[0].buyer_type,
+          phone_number: request.profiles[0].phone_number,
+          website: request.profiles[0].website,
+          linkedin_profile: request.profiles[0].linkedin_profile
+        } : {
+          name: request.lead_name,
+          email: request.lead_email,
+          company: request.lead_company,
+          buyer_type: null,
+          phone_number: request.lead_phone,
+          website: null,
+          linkedin_profile: null
+        }
+      };
     },
     enabled: !!dealId,
     staleTime: 5 * 60 * 1000, // 5 minutes

@@ -176,10 +176,11 @@ export function PipelineDetailPanel({ pipeline }: PipelineDetailPanelProps) {
   const handleEmailContact = async () => {
     setIsLoading(true);
     try {
+      const recipientEmail = buyerProfile?.buyerInfo?.email || selectedDeal.buyer_email;
       await logContact.mutateAsync({
         dealId: selectedDeal.deal_id,
         contactType: 'email',
-        details: { recipient: buyerProfile?.profiles?.[0]?.email }
+        details: { recipient: recipientEmail }
       });
     } catch (error) {
       console.error('Failed to log email:', error);
@@ -194,7 +195,7 @@ export function PipelineDetailPanel({ pipeline }: PipelineDetailPanelProps) {
       await logContact.mutateAsync({
         dealId: selectedDeal.deal_id,
         contactType: 'phone',
-        details: { phone: buyerProfile?.profiles?.[0]?.phone_number }
+        details: { phone: buyerProfile?.buyerInfo?.phone_number }
       });
     } catch (error) {
       console.error('Failed to log phone call:', error);
@@ -274,26 +275,33 @@ export function PipelineDetailPanel({ pipeline }: PipelineDetailPanelProps) {
               <div className="space-y-4">
                 <h3 className="text-sm font-medium text-gray-900">Buyer Profile</h3>
                 
-                {buyerProfile?.profiles?.[0] ? (
+                {buyerProfile?.buyerInfo ? (
                   <div className="space-y-6">
                     {/* Buyer Identity */}
                     <div className="flex items-start gap-4">
                       <Avatar className="w-10 h-10">
                         <AvatarImage src="" />
                         <AvatarFallback className="bg-blue-50 text-blue-600 text-sm font-medium">
-                          {buyerProfile.profiles?.[0]?.first_name?.[0]}{buyerProfile.profiles?.[0]?.last_name?.[0]}
+                          {buyerProfile.buyerInfo.name?.split(' ').map(n => n[0]).join('') || 'U'}
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex-1 space-y-1">
                         <p className="font-medium text-gray-900">
-                          {buyerProfile.profiles[0]?.first_name} {buyerProfile.profiles[0]?.last_name}
+                          {buyerProfile.buyerInfo.name || 'Name not available'}
                         </p>
-                        <p className="text-sm text-gray-600">{buyerProfile.profiles[0]?.company}</p>
-                        <p className="text-xs text-gray-500">{getBuyerTypeLabel(buyerProfile.profiles[0]?.buyer_type)}</p>
+                        <p className="text-sm text-gray-600">{buyerProfile.buyerInfo.company || 'Company not specified'}</p>
+                        <div className="flex items-center gap-2">
+                          <p className="text-xs text-gray-500">{getBuyerTypeLabel(buyerProfile.buyerInfo.buyer_type)}</p>
+                          {!buyerProfile.isRegisteredUser && (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800">
+                              Lead
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
 
-                    {/* Buyer Message/Interest */}
+                    {/* Original Buyer Message/Interest */}
                     {buyerProfile.user_message && (
                       <div className="bg-gray-50 rounded-lg p-4">
                         <p className="text-xs font-medium text-gray-500 mb-2">Original Interest Message</p>
@@ -303,28 +311,54 @@ export function PipelineDetailPanel({ pipeline }: PipelineDetailPanelProps) {
 
                     {/* Buyer Details Grid */}
                     <div className="grid grid-cols-2 gap-4 text-sm">
-                      {buyerProfile.profiles[0]?.email && (
+                      {buyerProfile.buyerInfo.email && (
                         <div>
                           <p className="text-gray-500 text-xs">Email</p>
-                          <p className="text-gray-900">{buyerProfile.profiles[0].email}</p>
+                          <p className="text-gray-900">{buyerProfile.buyerInfo.email}</p>
                         </div>
                       )}
-                      {buyerProfile.profiles?.[0]?.phone_number && (
+                      {buyerProfile.buyerInfo.phone_number && (
                         <div>
                           <p className="text-gray-500 text-xs">Phone</p>
-                          <p className="text-gray-900">{buyerProfile.profiles[0].phone_number}</p>
+                          <p className="text-gray-900">{buyerProfile.buyerInfo.phone_number}</p>
                         </div>
                       )}
-                      {buyerProfile.profiles?.[0]?.website && (
+                      {buyerProfile.buyerInfo.website && (
                         <div>
                           <p className="text-gray-500 text-xs">Website</p>
-                          <p className="text-gray-900">{buyerProfile.profiles[0].website}</p>
+                          <p className="text-gray-900">{buyerProfile.buyerInfo.website}</p>
                         </div>
                       )}
-                      {buyerProfile.profiles?.[0]?.linkedin_profile && (
+                      {buyerProfile.buyerInfo.linkedin_profile && (
                         <div>
                           <p className="text-gray-500 text-xs">LinkedIn</p>
-                          <p className="text-gray-900 truncate">{buyerProfile.profiles[0].linkedin_profile}</p>
+                          <p className="text-gray-900 truncate">{buyerProfile.buyerInfo.linkedin_profile}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : selectedDeal.buyer_name ? (
+                  // Fallback to deal data if buyerProfile is loading
+                  <div className="space-y-6">
+                    <div className="flex items-start gap-4">
+                      <Avatar className="w-10 h-10">
+                        <AvatarImage src="" />
+                        <AvatarFallback className="bg-blue-50 text-blue-600 text-sm font-medium">
+                          {selectedDeal.buyer_name?.split(' ').map(n => n[0]).join('') || 'U'}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 space-y-1">
+                        <p className="font-medium text-gray-900">{selectedDeal.buyer_name}</p>
+                        <p className="text-sm text-gray-600">{selectedDeal.buyer_company || 'Company not specified'}</p>
+                        <p className="text-xs text-gray-500">{getBuyerTypeLabel(selectedDeal.buyer_type)}</p>
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      {selectedDeal.buyer_email && (
+                        <div>
+                          <p className="text-gray-500 text-xs">Email</p>
+                          <p className="text-gray-900">{selectedDeal.buyer_email}</p>
                         </div>
                       )}
                     </div>
@@ -365,7 +399,7 @@ export function PipelineDetailPanel({ pipeline }: PipelineDetailPanelProps) {
                     size="sm" 
                     className="justify-start"
                     onClick={handleEmailContact}
-                    disabled={!buyerProfile?.profiles?.[0]?.email}
+                    disabled={!buyerProfile?.buyerInfo?.email && !selectedDeal.buyer_email}
                   >
                     <Mail className="w-4 h-4 mr-2" />
                     Email Buyer
@@ -375,7 +409,7 @@ export function PipelineDetailPanel({ pipeline }: PipelineDetailPanelProps) {
                     size="sm" 
                     className="justify-start"
                     onClick={handlePhoneContact}
-                    disabled={!buyerProfile?.profiles?.[0]?.phone_number}
+                    disabled={!buyerProfile?.buyerInfo?.phone_number}
                   >
                     <Phone className="w-4 h-4 mr-2" />
                     Log Call
@@ -405,45 +439,102 @@ export function PipelineDetailPanel({ pipeline }: PipelineDetailPanelProps) {
             {/* Contact Tab - Clean Design */}
             <TabsContent value="contact" className="p-8 space-y-8 h-full overflow-y-auto mt-0">
               {/* Real Buyer Contact Info */}
-              {buyerProfile?.profiles?.[0] ? (
+              {buyerProfile?.buyerInfo ? (
                 <div className="space-y-6">
                   <h3 className="text-sm font-medium text-gray-900">Buyer Contact Details</h3>
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-gray-500">Name</span>
                       <span className="text-sm font-medium text-gray-900">
-                        {buyerProfile.profiles[0].first_name} {buyerProfile.profiles[0].last_name}
+                        {buyerProfile.buyerInfo.name}
                       </span>
                     </div>
                     
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-gray-500">Email</span>
-                      <span className="text-sm text-gray-900">{buyerProfile.profiles[0].email}</span>
+                      <span className="text-sm text-gray-900">{buyerProfile.buyerInfo.email}</span>
                     </div>
                     
-                    {buyerProfile.profiles[0].phone_number && (
+                    {buyerProfile.buyerInfo.phone_number && (
                       <div className="flex items-center justify-between">
                         <span className="text-sm text-gray-500">Phone</span>
-                        <span className="text-sm text-gray-900">{buyerProfile.profiles[0].phone_number}</span>
+                        <span className="text-sm text-gray-900">{buyerProfile.buyerInfo.phone_number}</span>
                       </div>
                     )}
                     
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-gray-500">Company</span>
-                      <span className="text-sm text-gray-900">{buyerProfile.profiles[0].company}</span>
+                      <span className="text-sm text-gray-900">{buyerProfile.buyerInfo.company}</span>
                     </div>
-
+                    
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-500">Buyer Type</span>
-                      <span className="text-sm text-gray-900">{getBuyerTypeLabel(buyerProfile.profiles[0].buyer_type)}</span>
+                      <span className="text-sm text-gray-500">Type</span>
+                      <span className="text-sm text-gray-900">{getBuyerTypeLabel(buyerProfile.buyerInfo.buyer_type)}</span>
                     </div>
-
-                    {buyerProfile.profiles[0].website && (
+                    
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-500">User Type</span>
+                      <span className="text-sm text-gray-900">
+                        {buyerProfile.isRegisteredUser ? 'Registered User' : 'Lead'}
+                      </span>
+                    </div>
+                    
+                    {buyerProfile.buyerInfo.website && (
                       <div className="flex items-center justify-between">
                         <span className="text-sm text-gray-500">Website</span>
-                        <span className="text-sm text-blue-600 hover:text-blue-700 cursor-pointer">
-                          {buyerProfile.profiles[0].website}
-                        </span>
+                        <a 
+                          href={buyerProfile.buyerInfo.website.startsWith('http') ? buyerProfile.buyerInfo.website : `https://${buyerProfile.buyerInfo.website}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1"
+                        >
+                          {buyerProfile.buyerInfo.website}
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      </div>
+                    )}
+                    
+                    {buyerProfile.buyerInfo.linkedin_profile && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-gray-500">LinkedIn</span>
+                        <a 
+                          href={buyerProfile.buyerInfo.linkedin_profile}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1"
+                        >
+                          View Profile
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : selectedDeal.buyer_name ? (
+                // Fallback to deal data
+                <div className="space-y-6">
+                  <h3 className="text-sm font-medium text-gray-900">Buyer Contact Details</h3>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-500">Name</span>
+                      <span className="text-sm font-medium text-gray-900">{selectedDeal.buyer_name}</span>
+                    </div>
+                    {selectedDeal.buyer_email && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-gray-500">Email</span>
+                        <span className="text-sm text-gray-900">{selectedDeal.buyer_email}</span>
+                      </div>
+                    )}
+                    {selectedDeal.buyer_company && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-gray-500">Company</span>
+                        <span className="text-sm text-gray-900">{selectedDeal.buyer_company}</span>
+                      </div>
+                    )}
+                    {selectedDeal.buyer_type && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-gray-500">Type</span>
+                        <span className="text-sm text-gray-900">{getBuyerTypeLabel(selectedDeal.buyer_type)}</span>
                       </div>
                     )}
                   </div>
@@ -451,7 +542,7 @@ export function PipelineDetailPanel({ pipeline }: PipelineDetailPanelProps) {
               ) : (
                 <div className="text-center py-8 text-gray-500">
                   <User className="w-8 h-8 mx-auto mb-2" />
-                  <p className="text-sm">No contact information available</p>
+                  <p className="text-sm">No buyer contact details available</p>
                 </div>
               )}
 
