@@ -89,6 +89,48 @@
     --shadow-elegant: 0 10px 30px -10px hsl(var(--foreground) / 0.1);
     --shadow-glow: 0 0 40px hsl(var(--primary) / 0.15);
     
+    /* Enhanced Status Colors - Clean, Apple-style */
+    --status-signed: 134 239 172; /* Emerald 300 - Success green */
+    --status-signed-foreground: 5 46 22; /* Emerald 950 */
+    --status-signed-border: 34 197 94; /* Emerald 500 */
+    
+    --status-sent: 253 224 71; /* Yellow 300 - Warning yellow */
+    --status-sent-foreground: 69 26 3; /* Yellow 950 */
+    --status-sent-border: 234 179 8; /* Yellow 500 */
+    
+    --status-declined: 252 165 165; /* Red 300 - Error red */
+    --status-declined-foreground: 69 10 10; /* Red 950 */
+    --status-declined-border: 239 68 68; /* Red 500 */
+    
+    --status-pending: 226 232 240; /* Blue-gray 200 - Neutral */
+    --status-pending-foreground: 51 65 85; /* Blue-gray 700 */
+    --status-pending-border: 148 163 184; /* Blue-gray 400 */
+
+    /* Enhanced Buyer Type Colors - Professional, distinctive */
+    --buyer-pe: 221 214 254; /* Purple 200 - Premium purple for PE */
+    --buyer-pe-foreground: 88 28 135; /* Purple 800 */
+    --buyer-pe-border: 168 85 247; /* Purple 500 */
+    
+    --buyer-family: 191 219 254; /* Blue 200 - Trust blue for Family Office */
+    --buyer-family-foreground: 30 64 175; /* Blue 800 */
+    --buyer-family-border: 59 130 246; /* Blue 500 */
+    
+    --buyer-search: 187 247 208; /* Green 200 - Growth green for Search Fund */
+    --buyer-search-foreground: 22 101 52; /* Green 800 */
+    --buyer-search-border: 34 197 94; /* Green 500 */
+    
+    --buyer-corporate: 254 215 170; /* Orange 200 - Energy orange for Corporate */
+    --buyer-corporate-foreground: 154 52 18; /* Orange 800 */
+    --buyer-corporate-border: 251 146 60; /* Orange 400 */
+    
+    --buyer-individual: 229 231 235; /* Gray 200 - Neutral gray for Individual */
+    --buyer-individual-foreground: 55 65 81; /* Gray 700 */
+    --buyer-individual-border: 156 163 175; /* Gray 400 */
+    
+    --buyer-sponsor: 199 210 254; /* Indigo 200 - Professional indigo for Independent Sponsor */
+    --buyer-sponsor-foreground: 55 48 163; /* Indigo 800 */
+    --buyer-sponsor-border: 129 140 248; /* Indigo 400 */
+
     /* Sidebar colors */
     --sidebar: 0 0% 100%;
     --sidebar-foreground: 222.2 84% 4.9%;
