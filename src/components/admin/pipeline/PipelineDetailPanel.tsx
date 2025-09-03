@@ -1,10 +1,11 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { X, User, Building2, Calendar, DollarSign, Percent, AlertCircle } from 'lucide-react';
 import { usePipelineCore } from '@/hooks/admin/use-pipeline-core';
+import { DealDetailModal } from './DealDetailModal';
 import { formatDistanceToNow } from 'date-fns';
 
 interface PipelineDetailPanelProps {
@@ -13,6 +14,7 @@ interface PipelineDetailPanelProps {
 
 export function PipelineDetailPanel({ pipeline }: PipelineDetailPanelProps) {
   const { selectedDeal } = pipeline;
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   if (!selectedDeal) {
     return (
@@ -169,13 +171,24 @@ export function PipelineDetailPanel({ pipeline }: PipelineDetailPanelProps) {
 
       {/* Actions */}
       <div className="p-4 border-t space-y-2">
-        <Button className="w-full" size="sm">
-          Edit Deal
-        </Button>
-        <Button variant="outline" className="w-full" size="sm">
+        <Button 
+          className="w-full" 
+          size="sm"
+          onClick={() => setIsModalOpen(true)}
+        >
           View Full Details
         </Button>
+        <Button variant="outline" className="w-full" size="sm">
+          Edit Deal
+        </Button>
       </div>
+
+      {/* Modal */}
+      <DealDetailModal 
+        deal={selectedDeal}
+        open={isModalOpen}
+        onOpenChange={setIsModalOpen}
+      />
     </div>
   );
 }

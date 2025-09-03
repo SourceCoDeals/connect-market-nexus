@@ -597,6 +597,44 @@ export type Database = {
         }
         Relationships: []
       }
+      deal_contacts: {
+        Row: {
+          admin_id: string
+          contact_details: Json | null
+          contact_type: string
+          created_at: string | null
+          deal_id: string
+          id: string
+          updated_at: string | null
+        }
+        Insert: {
+          admin_id: string
+          contact_details?: Json | null
+          contact_type: string
+          created_at?: string | null
+          deal_id: string
+          id?: string
+          updated_at?: string | null
+        }
+        Update: {
+          admin_id?: string
+          contact_details?: Json | null
+          contact_type?: string
+          created_at?: string | null
+          deal_id?: string
+          id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deal_contacts_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       deal_stages: {
         Row: {
           automation_rules: Json | null
@@ -2211,6 +2249,8 @@ export type Database = {
           followed_up: boolean
           followed_up_at: string
           followup_overdue: boolean
+          last_contact_at: string
+          last_contact_type: string
           listing_ebitda: number
           listing_id: string
           listing_location: string

@@ -3,8 +3,9 @@ import { useDraggable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Mail, Phone, Edit, CheckSquare, Clock, Building2, Calendar, ArrowRight } from 'lucide-react';
+import { Mail, Phone, Edit, CheckSquare, Clock, Building2, Calendar, FileCheck, FileX } from 'lucide-react';
 import { Deal } from '@/hooks/admin/use-deals';
+import { useLogDealContact } from '@/hooks/admin/use-deal-contact';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -16,6 +17,7 @@ interface PipelineKanbanCardProps {
 
 export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKanbanCardProps) {
   const [isHovered, setIsHovered] = useState(false);
+  const logContact = useLogDealContact();
   
   const {
     attributes,
@@ -30,40 +32,50 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
     transform: CSS.Translate.toString(transform),
   };
 
-  // Helper functions for colors and labels - Premium design system
+  // Premium Apple/Stripe-style design helpers
   const getBuyerTypeColor = (buyerType?: string) => {
-    switch (buyerType) {
-      case 'privateEquity':
-        return 'bg-purple-50 text-purple-700 border-purple-200';
-      case 'familyOffice':
-        return 'bg-blue-50 text-blue-700 border-blue-200';
-      case 'searchFund':
-        return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+    const type = buyerType?.toLowerCase();
+    switch (type) {
+      case 'privateequity':
+      case 'private equity':
+        return 'bg-purple-100/70 text-purple-700 border-purple-200/60';
+      case 'familyoffice':
+      case 'family office':
+        return 'bg-blue-100/70 text-blue-700 border-blue-200/60';
+      case 'searchfund':
+      case 'search fund':
+        return 'bg-emerald-100/70 text-emerald-700 border-emerald-200/60';
       case 'corporate':
-        return 'bg-orange-50 text-orange-700 border-orange-200';
+        return 'bg-orange-100/70 text-orange-700 border-orange-200/60';
       case 'individual':
-        return 'bg-gray-50 text-gray-600 border-gray-200';
-      case 'independentSponsor':
-        return 'bg-indigo-50 text-indigo-700 border-indigo-200';
+        return 'bg-slate-100/70 text-slate-700 border-slate-200/60';
+      case 'independentsponsor':
+      case 'independent sponsor':
+        return 'bg-indigo-100/70 text-indigo-700 border-indigo-200/60';
       default:
-        return 'bg-gray-50 text-gray-600 border-gray-200';
+        return 'bg-slate-100/70 text-slate-700 border-slate-200/60';
     }
   };
 
   const getBuyerTypeLabel = (buyerType?: string) => {
-    switch (buyerType) {
-      case 'privateEquity':
-        return 'Private Equity';
-      case 'familyOffice':
+    const type = buyerType?.toLowerCase();
+    switch (type) {
+      case 'privateequity':
+      case 'private equity':
+        return 'PE';
+      case 'familyoffice':
+      case 'family office':
         return 'Family Office';
-      case 'searchFund':
+      case 'searchfund':
+      case 'search fund':
         return 'Search Fund';
       case 'corporate':
-        return 'Strategic';
+        return 'Corporate';
       case 'individual':
         return 'Individual';
-      case 'independentSponsor':
-        return 'Independent Sponsor';
+      case 'independentsponsor':
+      case 'independent sponsor':
+        return 'Ind. Sponsor';
       default:
         return 'Individual';
     }
@@ -152,15 +164,15 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
     ? `$${(deal.listing_revenue / 1000000).toFixed(1)}M Revenue` 
     : null;
 
-  // Calculate days in stage with proper context
+  // Calculate real days in stage with proper context
   const daysInStage = deal.deal_stage_entered_at 
     ? Math.max(1, Math.floor((new Date().getTime() - new Date(deal.deal_stage_entered_at).getTime()) / (1000 * 60 * 60 * 24)))
     : 1;
 
-  // Calculate last contact - use real data
-  const lastContactDate = deal.followed_up_at || deal.deal_created_at;
+  // Calculate last contact - use real contact tracking data
+  const lastContactDate = deal.last_contact_at || deal.followed_up_at;
   const lastContactText = lastContactDate 
-    ? formatDistanceToNow(new Date(lastContactDate), { addSuffix: false })
+    ? formatDistanceToNow(new Date(lastContactDate), { addSuffix: true })
     : 'No contact';
 
   // Determine next action based on deal status
@@ -175,17 +187,31 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
 
   const nextAction = getNextAction();
 
-  // Quick action handlers
-  const handleEmailClick = (e: React.MouseEvent) => {
+  // Quick action handlers with real contact logging
+  const handleEmailClick = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    // TODO: Implement email functionality
-    console.log('Email clicked for deal:', deal.deal_id);
+    try {
+      await logContact.mutateAsync({
+        dealId: deal.deal_id,
+        contactType: 'email',
+        details: { recipient: deal.contact_email || deal.buyer_email }
+      });
+    } catch (error) {
+      console.error('Failed to log email contact:', error);
+    }
   };
 
-  const handlePhoneClick = (e: React.MouseEvent) => {
+  const handlePhoneClick = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    // TODO: Implement phone functionality
-    console.log('Phone clicked for deal:', deal.deal_id);
+    try {
+      await logContact.mutateAsync({
+        dealId: deal.deal_id,
+        contactType: 'phone',
+        details: { phone: deal.contact_phone }
+      });
+    } catch (error) {
+      console.error('Failed to log phone contact:', error);
+    }
   };
 
   const handleEditClick = (e: React.MouseEvent) => {
@@ -238,72 +264,87 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
           <div className="text-xs text-gray-500 font-medium">{listingRevenue}</div>
         )}
 
-        {/* Document Status - Clear indicators with labels */}
-        <div className="flex items-center gap-4 py-2 border-t border-gray-100">
-          <div className="flex items-center gap-2">
-            <div className={cn("w-2 h-2 rounded-full", ndaStatus.color)} />
-            <span className={cn("text-xs font-medium", ndaStatus.textColor)}>
-              NDA: {ndaStatus.label}
+        {/* Document Status - Clean, readable format */}
+        <div className="flex items-center gap-4 text-xs">
+          <div className="flex items-center gap-1.5">
+            <div className={cn('w-2 h-2 rounded-full', 
+              deal.nda_status === 'signed' ? 'bg-emerald-500' :
+              deal.nda_status === 'sent' ? 'bg-amber-500' : 'bg-slate-300'
+            )} />
+            <span className="text-muted-foreground">NDA:</span>
+            <span className={cn('font-medium',
+              deal.nda_status === 'signed' ? 'text-emerald-600' :
+              deal.nda_status === 'sent' ? 'text-amber-600' : 'text-slate-500'
+            )}>
+              {ndaStatus.label}
             </span>
           </div>
-          <div className="flex items-center gap-2">
-            <div className={cn("w-2 h-2 rounded-full", feeStatus.color)} />
-            <span className={cn("text-xs font-medium", feeStatus.textColor)}>
-              Fee: {feeStatus.label}
+          
+          <div className="flex items-center gap-1.5">
+            <div className={cn('w-2 h-2 rounded-full',
+              deal.fee_agreement_status === 'signed' ? 'bg-emerald-500' :
+              deal.fee_agreement_status === 'sent' ? 'bg-amber-500' : 'bg-slate-300'
+            )} />
+            <span className="text-muted-foreground">Fee:</span>
+            <span className={cn('font-medium',
+              deal.fee_agreement_status === 'signed' ? 'text-emerald-600' :
+              deal.fee_agreement_status === 'sent' ? 'text-amber-600' : 'text-slate-500'
+            )}>
+              {feeStatus.label}
             </span>
           </div>
         </div>
 
-        {/* Tasks - Always show */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <CheckSquare className="w-3.5 h-3.5 text-gray-400" />
-            <span className="text-xs text-gray-500">Tasks</span>
-          </div>
-          <div className="text-xs font-medium text-gray-700">
-            {taskInfo.total > 0 ? `${taskInfo.completed}/${taskInfo.total}` : '0 tasks'}
-          </div>
+        {/* Task Progress - Always visible */}
+        <div className="flex items-center gap-1.5 text-xs">
+          <CheckSquare className={cn(
+            'h-3 w-3',
+            deal.pending_tasks > 0 ? 'text-amber-500' : 'text-emerald-500'
+          )} />
+          <span className={cn('font-medium',
+            deal.pending_tasks > 0 ? 'text-amber-600' : 'text-emerald-600'
+          )}>
+            {deal.total_tasks === 0 ? '0 tasks' : 
+             deal.pending_tasks === 0 ? `${deal.total_tasks} tasks completed` : 
+             `${deal.pending_tasks}/${deal.total_tasks} tasks pending`}
+          </span>
         </div>
 
-        {/* Bottom metadata - Clean, contextual */}
-        <div className="flex items-center justify-between text-xs text-gray-500 pt-2 border-t border-gray-100">
-          <div className="flex items-center gap-1">
-            <Calendar className="w-3 h-3" />
-            <span>{daysInStage} days in stage</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <Clock className="w-3 h-3" />
-            <span>Last: {lastContactText}</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <ArrowRight className="w-3 h-3" />
-            <span className="truncate max-w-16">{nextAction}</span>
-          </div>
+        {/* Bottom metadata row */}
+        <div className="flex items-center justify-between text-xs text-muted-foreground pt-2 border-t border-border/10">
+          <span className="font-medium">
+            {daysInStage} day{daysInStage !== 1 ? 's' : ''} in {deal.stage_name}
+          </span>
+          <span className="truncate">
+            {lastContactText}
+          </span>
         </div>
 
-        {/* Quick Actions on Hover - Clean floating actions */}
+        {/* Quick Actions on Hover */}
         {isHovered && !isDragging && (
-          <div className="absolute top-3 right-3 flex gap-1 bg-white/95 backdrop-blur-sm rounded-lg shadow-sm border border-gray-200 p-1">
+          <div className="absolute top-3 left-3 flex gap-1 opacity-0 group-hover:opacity-100 transition-all duration-200">
             <button
               onClick={handleEmailClick}
-              className="p-1.5 rounded-md hover:bg-gray-100 transition-colors duration-150"
+              disabled={logContact.isPending}
+              className="h-7 w-7 p-0 bg-white/95 backdrop-blur-sm border border-border/30 rounded-md shadow-sm hover:shadow-md flex items-center justify-center transition-all"
               title="Send Email"
             >
-              <Mail className="h-3.5 w-3.5 text-gray-500" />
+              <Mail className="h-3 w-3 text-muted-foreground" />
             </button>
             <button
               onClick={handlePhoneClick}
-              className="p-1.5 rounded-md hover:bg-gray-100 transition-colors duration-150"
-              title="Call"
+              disabled={logContact.isPending}
+              className="h-7 w-7 p-0 bg-white/95 backdrop-blur-sm border border-border/30 rounded-md shadow-sm hover:shadow-md flex items-center justify-center transition-all"
+              title="Log Call"
             >
-              <Phone className="h-3.5 w-3.5 text-gray-500" />
+              <Phone className="h-3 w-3 text-muted-foreground" />
             </button>
             <button
               onClick={handleEditClick}
-              className="p-1.5 rounded-md hover:bg-gray-100 transition-colors duration-150"
-              title="Edit Deal"
+              className="h-7 w-7 p-0 bg-white/95 backdrop-blur-sm border border-border/30 rounded-md shadow-sm hover:shadow-md flex items-center justify-center transition-all"
+              title="View Details"
             >
-              <Edit className="h-3.5 w-3.5 text-gray-500" />
+              <Edit className="h-3 w-3 text-muted-foreground" />
             </button>
           </div>
         )}

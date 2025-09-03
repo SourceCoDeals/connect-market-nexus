@@ -54,15 +54,17 @@ export interface Deal {
   // Activity count
   activity_count: number;
   
-  // Enhanced buyer information
+  // Enhanced buyer information (from profiles)
   buyer_id?: string;
   buyer_name?: string;
   buyer_email?: string;
   buyer_company?: string;
-  buyer_type?: 'privateEquity' | 'familyOffice' | 'searchFund' | 'corporate' | 'individual' | 'independentSponsor' | 'advisor' | 'businessOwner';
+  buyer_type?: string; // Changed to string to match database
   buyer_priority_score?: number;
   
-  // Follow-up tracking
+  // Real contact tracking
+  last_contact_at?: string;
+  last_contact_type?: 'email' | 'phone' | 'meeting' | 'note';
   next_followup_due?: string;
   followup_overdue?: boolean;
 }
