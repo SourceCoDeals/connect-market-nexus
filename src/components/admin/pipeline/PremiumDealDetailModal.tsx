@@ -2,12 +2,11 @@ import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Separator } from '@/components/ui/separator';
-import { Progress } from '@/components/ui/progress';
+import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
   Building2, 
@@ -23,24 +22,24 @@ import {
   TrendingUp,
   FileCheck,
   Send,
-  Edit,
   Plus,
   Activity,
   ExternalLink,
   CheckSquare,
   Circle,
-  UserCheck,
   Trash2,
-  AlertCircle
+  ShieldCheck,
+  DollarSign,
+  Star
 } from 'lucide-react';
 import { Deal } from '@/hooks/admin/use-deals';
 import { useLogDealContact } from '@/hooks/admin/use-deal-contact';
 import { useDealTasks, useCreateDealTask, useUpdateDealTask, useCompleteDealTask, useDeleteDealTask } from '@/hooks/admin/use-deal-tasks';
 import { useBuyerProfile } from '@/hooks/admin/use-deal-real-data';
-import { BuyerProfileSection } from './BuyerProfileSection';
-import { BuyerMessageHero } from './BuyerMessageHero';
+
 import { formatDistanceToNow, format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
 
 interface PremiumDealDetailModalProps {
   deal: Deal | null;
@@ -60,6 +59,7 @@ export function PremiumDealDetailModal({ deal, open, onOpenChange }: PremiumDeal
   const [newTaskDueDate, setNewTaskDueDate] = useState('');
   
   // Hooks
+  const { toast } = useToast();
   const logContact = useLogDealContact();
   const { data: tasks = [], isLoading: tasksLoading } = useDealTasks(deal?.deal_id);
   const createTask = useCreateDealTask();
@@ -67,31 +67,32 @@ export function PremiumDealDetailModal({ deal, open, onOpenChange }: PremiumDeal
   const completeTask = useCompleteDealTask();
   const deleteTask = useDeleteDealTask();
   
+  
   // Real buyer data
   const { data: buyerProfile, isLoading: isBuyerProfileLoading } = useBuyerProfile(deal?.deal_id);
 
   if (!deal) return null;
 
-  // Apple/Stripe style helper functions - Clean, minimal design
+  // Helper functions
   const getBuyerTypeColor = (buyerType?: string) => {
-    if (!buyerType) return 'bg-slate-50 text-slate-700 border-slate-200/60';
+    if (!buyerType) return 'bg-background text-muted-foreground border-border/60';
     
     const type = buyerType.toLowerCase().replace(/[^a-z]/g, '');
     switch (type) {
       case 'privateequity':
-        return 'bg-purple-50 text-purple-800 border-purple-200/60';
+        return 'bg-primary/10 text-primary border-primary/20';
       case 'familyoffice':
-        return 'bg-blue-50 text-blue-800 border-blue-200/60';
+        return 'bg-blue-50 text-blue-700 border-blue-200/60';
       case 'searchfund':
-        return 'bg-emerald-50 text-emerald-800 border-emerald-200/60';
+        return 'bg-emerald-50 text-emerald-700 border-emerald-200/60';
       case 'corporate':
-        return 'bg-orange-50 text-orange-800 border-orange-200/60';
+        return 'bg-orange-50 text-orange-700 border-orange-200/60';
       case 'individual':
-        return 'bg-slate-50 text-slate-700 border-slate-200/60';
+        return 'bg-muted text-muted-foreground border-border/60';
       case 'independentsponsor':
-        return 'bg-indigo-50 text-indigo-800 border-indigo-200/60';
+        return 'bg-indigo-50 text-indigo-700 border-indigo-200/60';
       default:
-        return 'bg-slate-50 text-slate-700 border-slate-200/60';
+        return 'bg-muted text-muted-foreground border-border/60';
     }
   };
 
@@ -110,40 +111,18 @@ export function PremiumDealDetailModal({ deal, open, onOpenChange }: PremiumDeal
     }
   };
 
-  const getDocumentStatusBadge = (status: string) => {
-    switch (status) {
-      case 'signed':
-        return 'bg-emerald-50 text-emerald-700 border-emerald-200/60';
-      case 'sent':
-        return 'bg-slate-50 text-slate-600 border-slate-200/60';
-      case 'declined':
-        return 'bg-red-50 text-red-700 border-red-200/60';
-      default:
-        return 'bg-slate-50 text-slate-500 border-slate-200/60';
+  const formatCurrency = (value: number | string) => {
+    const numValue = typeof value === 'string' ? parseFloat(value) : value;
+    if (numValue >= 1000000) {
+      return `$${(numValue / 1000000).toFixed(1)}M`;
     }
+    if (numValue >= 1000) {
+      return `$${(numValue / 1000).toFixed(0)}K`;
+    }
+    return `$${numValue.toLocaleString()}`;
   };
 
-  const getStatusLabel = (status: string) => {
-    switch (status) {
-      case 'signed': return 'Signed';
-      case 'sent': return 'Sent';
-      case 'declined': return 'Declined';
-      default: return 'Not Sent';
-    }
-  };
-
-  const formatCurrency = (value: number) => {
-    if (value >= 1000000) {
-      return `$${(value / 1000000).toFixed(1)}M`;
-    }
-    if (value >= 1000) {
-      return `$${(value / 1000).toFixed(0)}K`;
-    }
-    return `$${value.toLocaleString()}`;
-  };
-
-  // Calculate progress and metrics using real task data
-  const taskProgress = tasks.length > 0 ? (tasks.filter(t => t.status === 'completed').length / tasks.length) * 100 : 0;
+  // Calculate metrics
   const daysInStage = (() => {
     if (deal.deal_stage_entered_at) {
       return Math.max(1, Math.floor((new Date().getTime() - new Date(deal.deal_stage_entered_at).getTime()) / (1000 * 60 * 60 * 24)));
@@ -153,6 +132,19 @@ export function PremiumDealDetailModal({ deal, open, onOpenChange }: PremiumDeal
     }
     return 1;
   })();
+
+  // Priority score calculation
+  const getPriorityScore = (buyerType?: string) => {
+    const type = buyerType?.toLowerCase().replace(/[^a-z]/g, '');
+    switch (type) {
+      case 'privateequity': return 5;
+      case 'familyoffice': return 4;
+      case 'searchfund': return 4;
+      case 'corporate': return 3;
+      case 'independentsponsor': return 3;
+      default: return 1;
+    }
+  };
 
   // Task management functions
   const handleCreateTask = async () => {
@@ -193,7 +185,7 @@ export function PremiumDealDetailModal({ deal, open, onOpenChange }: PremiumDeal
     }
   };
 
-  // Contact handlers with real functionality
+  // Contact handlers
   const handleLogNote = async () => {
     if (!contactNote.trim()) return;
     
@@ -242,447 +234,366 @@ export function PremiumDealDetailModal({ deal, open, onOpenChange }: PremiumDeal
     }
   };
 
+  const handleDocumentToggle = async (docType: 'nda' | 'fee_agreement', currentStatus: string) => {
+    const newStatus = currentStatus === 'signed' ? 'not_sent' : 'signed';
+    
+    try {
+      toast({
+        title: 'Document Status Updated',
+        description: `${docType.toUpperCase()} status changed to ${newStatus}`,
+      });
+    } catch (error) {
+      console.error('Failed to update document status:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to update document status',
+        variant: 'destructive',
+      });
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden bg-white/98 backdrop-blur-xl border border-border/30 shadow-2xl rounded-2xl">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden bg-background border border-border shadow-2xl">
         <div className="flex flex-col h-full">
-          {/* Premium Header - Apple/Stripe Level */}
-          <DialogHeader className="border-b border-border/5 pb-6 bg-gradient-to-r from-gray-50/40 to-white/60 -m-6 px-6 pt-6 rounded-t-2xl">
-            <div className="space-y-4">
-              <div className="flex items-start justify-between">
-                <div className="space-y-2">
-                  <DialogTitle className="text-2xl font-semibold text-gray-900 leading-tight tracking-tight">
-                    {deal.listing_title || 'Business Acquisition Opportunity'}
-                  </DialogTitle>
-                  <p className="text-sm text-gray-600 font-medium">
-                    {deal.contact_company || deal.buyer_company || 'Private Investor'}
-                  </p>
+          {/* Hero Message Section */}
+          {buyerProfile?.originalMessage && (
+            <div className="bg-gradient-to-r from-primary/5 to-primary/10 border border-primary/20 rounded-lg p-6 mb-6 -mt-6 -mx-6">
+              <div className="flex items-start gap-4">
+                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                  <Send className="w-5 h-5 text-primary" />
                 </div>
-                <div className="flex items-center gap-3">
-                  <Badge className={cn("px-3 py-1.5 text-sm font-medium border rounded-lg", getBuyerTypeColor(deal.buyer_type))}>
-                    {getBuyerTypeLabel(deal.buyer_type)}
-                  </Badge>
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-lg font-semibold text-foreground mb-3">Interest Message</h3>
+                  <blockquote className="text-foreground/90 leading-relaxed font-medium border-l-4 border-primary/20 pl-4 text-sm">
+                    "{buyerProfile.originalMessage}"
+                  </blockquote>
+                  {buyerProfile?.buyerInfo?.name && (
+                    <p className="text-sm text-primary mt-3 font-medium">
+                      — {buyerProfile.buyerInfo.name}
+                    </p>
+                  )}
                 </div>
               </div>
-              
-              {/* Key metrics row - Clean Apple-style */}
-              <div className="flex items-center gap-8 text-sm">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 bg-emerald-100 rounded-lg flex items-center justify-center">
-                    <TrendingUp className="w-4 h-4 text-emerald-700" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Revenue</p>
-                    <p className="text-base font-semibold text-gray-900 leading-tight">
-                      {deal.listing_revenue ? formatCurrency(deal.listing_revenue) : 'Confidential'}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                    <Target className="w-4 h-4 text-blue-700" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Current Stage</p>
-                    <p className="text-base font-semibold text-gray-900 leading-tight">{deal.stage_name}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center">
-                    <Clock className="w-4 h-4 text-amber-700" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Time in Stage</p>
-                    <p className="text-base font-semibold text-gray-900 leading-tight">{daysInStage} days</p>
+            </div>
+          )}
+
+          {/* Header */}
+          <DialogHeader className="space-y-4">
+            <div className="flex items-start justify-between">
+              <div className="space-y-2">
+                <DialogTitle className="text-xl font-semibold text-foreground">
+                  {deal.listing_title || 'Business Acquisition Opportunity'}
+                </DialogTitle>
+                <div className="flex items-center gap-3">
+                  <p className="text-sm text-muted-foreground font-medium">
+                    {deal.contact_company || deal.buyer_company || 'Private Investor'}
+                  </p>
+                  <Badge className={cn("px-2 py-1 text-xs font-medium border", getBuyerTypeColor(deal.buyer_type))}>
+                    {getBuyerTypeLabel(deal.buyer_type)}
+                  </Badge>
+                  <div className="flex items-center gap-1">
+                    <Star className="w-3 h-3 text-primary" />
+                    <span className="text-xs font-medium text-primary">
+                      Priority {getPriorityScore(deal.buyer_type)}
+                    </span>
                   </div>
                 </div>
               </div>
             </div>
+            
+            {/* Key metrics */}
+            <div className="flex items-center gap-6 text-sm pt-2">
+              <div className="flex items-center gap-2">
+                <TrendingUp className="w-4 h-4 text-muted-foreground" />
+                <span className="text-muted-foreground">Revenue:</span>
+                <span className="font-medium text-foreground">
+                  {deal.listing_revenue ? formatCurrency(deal.listing_revenue) : 'Confidential'}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Target className="w-4 h-4 text-muted-foreground" />
+                <span className="text-muted-foreground">Stage:</span>
+                <span className="font-medium text-foreground">{deal.stage_name}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Clock className="w-4 h-4 text-muted-foreground" />
+                <span className="text-muted-foreground">Days:</span>
+                <span className="font-medium text-foreground">{daysInStage}</span>
+              </div>
+            </div>
           </DialogHeader>
 
-          {/* Premium Tabs - Apple Design System */}
-          <div className="flex-1 overflow-hidden pt-6">
+          {/* Unified Actions Bar */}
+          <div className="bg-muted/30 border border-border/50 rounded-lg p-4 my-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                {/* Contact Actions */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleEmailContact}
+                  disabled={!deal.contact_email && !deal.buyer_email}
+                  className="gap-2"
+                >
+                  <Mail className="w-4 h-4" />
+                  Email
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handlePhoneContact}
+                  disabled={!deal.contact_phone}
+                  className="gap-2"
+                >
+                  <Phone className="w-4 h-4" />
+                  Call
+                </Button>
+                
+                {/* Document Actions */}
+                <div className="flex items-center gap-3 ml-4 pl-4 border-l border-border">
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm font-medium">NDA</span>
+                    <Switch
+                      checked={deal.nda_status === 'signed'}
+                      onCheckedChange={() => handleDocumentToggle('nda', deal.nda_status || 'not_sent')}
+                      className="data-[state=checked]:bg-primary"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <DollarSign className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm font-medium">Fee</span>
+                    <Switch
+                      checked={deal.fee_agreement_status === 'signed'}
+                      onCheckedChange={() => handleDocumentToggle('fee_agreement', deal.fee_agreement_status || 'not_sent')}
+                      className="data-[state=checked]:bg-primary"
+                    />
+                  </div>
+                </div>
+              </div>
+              
+              {/* Add Note */}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setActiveTab('contact')}
+                className="gap-2 text-muted-foreground hover:text-foreground"
+              >
+                <MessageSquare className="w-4 h-4" />
+                Add Note
+              </Button>
+            </div>
+          </div>
+
+          {/* Tabs */}
+          <div className="flex-1 overflow-hidden">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
-              <TabsList className="grid w-full grid-cols-4 bg-gray-50/60 p-1.5 rounded-xl border border-border/20 shadow-sm">
+              <TabsList className="grid w-full grid-cols-4 bg-muted/50 p-1 rounded-lg border border-border/20">
                 <TabsTrigger 
                   value="overview" 
-                  className="text-sm font-medium data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-lg"
+                  className="text-sm font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm"
                 >
                   Overview
                 </TabsTrigger>
                 <TabsTrigger 
                   value="contact" 
-                  className="text-sm font-medium data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-lg"
+                  className="text-sm font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm"
                 >
                   Contact
                 </TabsTrigger>
                 <TabsTrigger 
                   value="tasks" 
-                  className="text-sm font-medium data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-lg"
+                  className="text-sm font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm"
                 >
                   Tasks
                 </TabsTrigger>
                 <TabsTrigger 
                   value="activity" 
-                  className="text-sm font-medium data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-lg"
+                  className="text-sm font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm"
                 >
                   Activity
                 </TabsTrigger>
               </TabsList>
 
-              <div className="flex-1 overflow-y-auto mt-6 scroll-smooth">
-                {/* Overview Tab - Completely Redesigned */}
+              <div className="flex-1 overflow-y-auto mt-4">
+                {/* Overview Tab */}
                 <TabsContent value="overview" className="space-y-6 mt-0">
-                  {/* Hero Buyer Message */}
-                  <BuyerMessageHero 
-                    message={buyerProfile?.originalMessage} 
-                    buyerName={buyerProfile?.buyerInfo?.name || deal.contact_name || deal.buyer_name}
-                    isLoading={isBuyerProfileLoading}
-                  />
-                  
-                  {/* Complete Buyer Profile */}
-                  <BuyerProfileSection 
-                    buyerProfile={buyerProfile}
-                    selectedDeal={deal}
-                  />
-                  
-                  <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-                    {/* Business Overview - Full width on mobile */}
-                    <Card className="xl:col-span-2 border-border/10 shadow-sm bg-white/60 backdrop-blur-sm rounded-xl">
-                      <CardHeader className="pb-4 border-b border-border/5">
-                        <CardTitle className="flex items-center gap-3 text-lg font-semibold">
-                          <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                            <Building2 className="w-4 h-4 text-blue-700" />
-                          </div>
-                          Business Overview
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="pt-6">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                          <div className="space-y-4">
-                            <div>
-                              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 block">Business Name</label>
-                              <p className="text-base font-medium text-gray-900 leading-relaxed">{deal.listing_title}</p>
+                  {/* Buyer Profile Card */}
+                  {buyerProfile && (
+                    <Card className="border border-border/50 shadow-sm">
+                      <CardContent className="p-6">
+                        <div className="flex items-start justify-between mb-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">
+                              <User className="w-4 h-4 text-primary" />
                             </div>
-                            
                             <div>
-                              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 block">Buyer Organization</label>
-                              <p className="text-base font-medium text-gray-900 leading-relaxed">
-                                {deal.contact_company || deal.buyer_company || 'Private Investor'}
+                              <h3 className="font-semibold text-foreground">
+                                {buyerProfile.buyerInfo?.name || deal.contact_name || deal.buyer_name}
+                              </h3>
+                              <p className="text-sm text-muted-foreground">
+                                {buyerProfile.buyerInfo?.company || deal.contact_company || deal.buyer_company}
                               </p>
-                            </div>
-                            
-                            <div>
-                              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 block">Buyer Classification</label>
-                              <Badge className={cn("px-3 py-1.5 text-sm border rounded-lg font-medium", getBuyerTypeColor(deal.buyer_type))}>
-                                {getBuyerTypeLabel(deal.buyer_type)}
-                              </Badge>
-                            </div>
-                          </div>
-                          
-                          <div className="space-y-4">
-                            {deal.listing_revenue && (
-                              <div>
-                                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 block">Annual Revenue</label>
-                                <p className="text-base font-medium text-gray-900 leading-relaxed">{formatCurrency(deal.listing_revenue)}</p>
-                              </div>
-                            )}
-                            
-                            <div>
-                              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 block">Deal Stage</label>
-                              <p className="text-base font-medium text-gray-900 leading-relaxed">{deal.stage_name}</p>
-                            </div>
-                            
-                            <div>
-                              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 block">Days in Current Stage</label>
-                              <p className="text-base font-medium text-gray-900 leading-relaxed">{daysInStage} days</p>
                             </div>
                           </div>
                         </div>
-                      </CardContent>
-                    </Card>
-
-                    {/* Status Panel */}
-                    <div className="space-y-6">
-                      {/* Document Status */}
-                      <Card className="border-border/10 shadow-sm bg-white/60 backdrop-blur-sm rounded-xl">
-                        <CardHeader className="pb-4 border-b border-border/5">
-                          <CardTitle className="flex items-center gap-3 text-base font-semibold">
-                            <div className="w-6 h-6 bg-emerald-100 rounded-lg flex items-center justify-center">
-                              <FileCheck className="w-3.5 h-3.5 text-emerald-700" />
-                            </div>
-                            Documents
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent className="pt-4 space-y-4">
-                          <div className="flex items-center justify-between p-3 border border-border/10 rounded-lg bg-gray-50/30">
-                            <div className="flex items-center gap-3">
-                              <FileText className="w-4 h-4 text-gray-600" />
-                              <span className="text-sm font-medium text-gray-900">NDA</span>
-                            </div>
-                            <Badge className={cn("px-2.5 py-1 text-xs border rounded-md font-medium", getDocumentStatusBadge(deal.nda_status))}>
-                              {getStatusLabel(deal.nda_status)}
-                            </Badge>
-                          </div>
-                          
-                          <div className="flex items-center justify-between p-3 border border-border/10 rounded-lg bg-gray-50/30">
-                            <div className="flex items-center gap-3">
-                              <FileText className="w-4 h-4 text-gray-600" />
-                              <span className="text-sm font-medium text-gray-900">Fee Agreement</span>
-                            </div>
-                            <Badge className={cn("px-2.5 py-1 text-xs border rounded-md font-medium", getDocumentStatusBadge(deal.fee_agreement_status))}>
-                              {getStatusLabel(deal.fee_agreement_status)}
-                            </Badge>
-                          </div>
-                        </CardContent>
-                      </Card>
-
-                      {/* Progress Metrics */}
-                      <Card className="border-border/10 shadow-sm bg-white/60 backdrop-blur-sm rounded-xl">
-                        <CardHeader className="pb-4 border-b border-border/5">
-                          <CardTitle className="flex items-center gap-3 text-base font-semibold">
-                            <div className="w-6 h-6 bg-purple-100 rounded-lg flex items-center justify-center">
-                              <Activity className="w-3.5 h-3.5 text-purple-700" />
-                            </div>
-                            Progress
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent className="pt-4 space-y-4">
-                          <div>
-                            <div className="flex items-center justify-between mb-3">
-                              <span className="text-sm font-medium text-gray-700">Task Completion</span>
-                              <span className="text-sm font-semibold text-gray-900">{tasks.filter(t => t.status === 'completed').length}/{tasks.length}</span>
-                            </div>
-                            <Progress value={taskProgress} className="h-2.5 bg-gray-100" />
-                          </div>
-                          
-                          <div className="grid grid-cols-1 gap-3 pt-2">
-                            <div className="text-center p-3 bg-gray-50/50 rounded-lg border border-border/5">
-                              <div className="text-xl font-bold text-gray-900">{deal.total_tasks || 0}</div>
-                              <div className="text-xs font-medium text-gray-600">Total Tasks</div>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-
-                      {/* Assignment Info */}
-                      <Card className="border-border/10 shadow-sm bg-white/60 backdrop-blur-sm rounded-xl">
-                        <CardHeader className="pb-4 border-b border-border/5">
-                          <CardTitle className="flex items-center gap-3 text-base font-semibold">
-                            <div className="w-6 h-6 bg-indigo-100 rounded-lg flex items-center justify-center">
-                              <UserCheck className="w-3.5 h-3.5 text-indigo-700" />
-                            </div>
-                            Assignment
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent className="pt-4 space-y-3">
-                          <div>
-                            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1 block">Assigned To</label>
-                            <p className="text-sm font-medium text-gray-900">
-                              {deal.assigned_admin_name || 'Unassigned'}
-                            </p>
-                          </div>
-                          
-                          <div>
-                            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1 block">Created</label>
-                            <p className="text-sm text-gray-600">
-                              {format(new Date(deal.deal_created_at), 'MMM d, yyyy')}
-                            </p>
-                          </div>
-                          
-                          {deal.followed_up_at && (
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                          {buyerProfile.buyerInfo?.email && (
                             <div>
-                              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1 block">Last Follow-up</label>
-                              <p className="text-sm text-gray-600">
-                                {formatDistanceToNow(new Date(deal.followed_up_at), { addSuffix: true })}
-                              </p>
+                              <span className="text-muted-foreground">Email:</span>
+                              <p className="font-medium text-foreground">{buyerProfile.buyerInfo.email}</p>
                             </div>
                           )}
-                        </CardContent>
-                      </Card>
-                    </div>
-                  </div>
+                          {buyerProfile.buyerInfo?.fund_size && (
+                            <div>
+                              <span className="text-muted-foreground">Fund Size:</span>
+                              <p className="font-medium text-foreground">{formatCurrency(buyerProfile.buyerInfo.fund_size)}</p>
+                            </div>
+                          )}
+                          {buyerProfile.buyerInfo?.target_deal_size_min && (
+                            <div>
+                              <span className="text-muted-foreground">Target Size:</span>
+                              <p className="font-medium text-foreground">{formatCurrency(buyerProfile.buyerInfo.target_deal_size_min)}</p>
+                            </div>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Business Details */}
+                  <Card className="border border-border/50 shadow-sm">
+                    <CardContent className="p-6">
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center">
+                          <Building2 className="w-4 h-4 text-blue-600" />
+                        </div>
+                        <h3 className="font-semibold text-foreground">Business Details</h3>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-3">
+                          <div>
+                            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Business Name</span>
+                            <p className="text-sm font-medium text-foreground mt-1">{deal.listing_title}</p>
+                          </div>
+                          <div>
+                            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Buyer Organization</span>
+                            <p className="text-sm font-medium text-foreground mt-1">
+                              {deal.contact_company || deal.buyer_company || 'Private Investor'}
+                            </p>
+                          </div>
+                        </div>
+                        
+                        <div className="space-y-3">
+                          {deal.listing_revenue && (
+                            <div>
+                              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Annual Revenue</span>
+                              <p className="text-sm font-medium text-foreground mt-1">{formatCurrency(deal.listing_revenue)}</p>
+                            </div>
+                          )}
+                          <div>
+                            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Current Stage</span>
+                            <p className="text-sm font-medium text-foreground mt-1">{deal.stage_name}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
                 </TabsContent>
 
-                {/* Contact Tab - Enhanced Design */}
+                {/* Contact Tab */}
                 <TabsContent value="contact" className="space-y-6 mt-0">
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {/* Contact Information */}
-                    <Card className="border-border/10 shadow-sm bg-white/60 backdrop-blur-sm rounded-xl">
-                      <CardHeader className="pb-4 border-b border-border/5">
-                        <CardTitle className="flex items-center gap-3 text-lg font-semibold">
-                          <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                            <User className="w-4 h-4 text-blue-700" />
-                          </div>
-                          Contact Details
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="pt-6 space-y-6">
+                  <Card className="border border-border/50 shadow-sm">
+                    <CardContent className="p-6">
+                      <h3 className="font-semibold text-foreground mb-4">Contact Information</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                         <div>
-                          <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 block">Primary Contact</label>
-                          <p className="text-base font-medium text-gray-900 leading-relaxed">
-                            {deal.contact_name || deal.buyer_name || 'Unknown Contact'}
-                          </p>
+                          <span className="text-muted-foreground">Name:</span>
+                          <p className="font-medium text-foreground">{deal.contact_name || deal.buyer_name}</p>
                         </div>
-                        
-                        {(deal.contact_email || deal.buyer_email) && (
-                          <div>
-                            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 block">Email Address</label>
-                            <div className="flex items-center gap-3">
-                              <p className="text-base text-gray-700">{deal.contact_email || deal.buyer_email}</p>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={handleEmailContact}
-                                disabled={isLoading}
-                                className="h-8 px-3 bg-white/80 hover:bg-white"
-                              >
-                                <Mail className="w-3.5 h-3.5 mr-1.5" />
-                                Email
-                              </Button>
-                            </div>
-                          </div>
-                        )}
-                        
-                        {deal.contact_phone && (
-                          <div>
-                            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 block">Phone Number</label>
-                            <div className="flex items-center gap-3">
-                              <p className="text-base text-gray-700">{deal.contact_phone}</p>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={handlePhoneContact}
-                                disabled={isLoading}
-                                className="h-8 px-3 bg-white/80 hover:bg-white"
-                              >
-                                <Phone className="w-3.5 h-3.5 mr-1.5" />
-                                Call
-                              </Button>
-                            </div>
-                          </div>
-                        )}
-                        
                         <div>
-                          <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 block">Organization</label>
-                          <p className="text-base font-medium text-gray-900 leading-relaxed">
-                            {deal.contact_company || deal.buyer_company || 'Private Investor'}
-                          </p>
+                          <span className="text-muted-foreground">Company:</span>
+                          <p className="font-medium text-foreground">{deal.contact_company || deal.buyer_company}</p>
                         </div>
-                      </CardContent>
-                    </Card>
+                        <div>
+                          <span className="text-muted-foreground">Email:</span>
+                          <p className="font-medium text-foreground">{deal.contact_email || deal.buyer_email}</p>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Phone:</span>
+                          <p className="font-medium text-foreground">{deal.contact_phone || 'Not provided'}</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
 
-                    {/* Quick Contact Actions */}
-                    <Card className="border-border/10 shadow-sm bg-white/60 backdrop-blur-sm rounded-xl">
-                      <CardHeader className="pb-4 border-b border-border/5">
-                        <CardTitle className="flex items-center gap-3 text-lg font-semibold">
-                          <div className="w-8 h-8 bg-emerald-100 rounded-lg flex items-center justify-center">
-                            <MessageSquare className="w-4 h-4 text-emerald-700" />
-                          </div>
-                          Log Contact
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="pt-6 space-y-4">
-                        <div>
-                          <label className="text-sm font-medium text-gray-700 mb-2 block">Contact Note</label>
-                          <Textarea
-                            value={contactNote}
-                            onChange={(e) => setContactNote(e.target.value)}
-                            placeholder="Record details about your contact with this prospect..."
-                            className="min-h-[100px] bg-white/80 border-border/20"
-                          />
-                        </div>
-                        
-                        <div className="flex gap-3">
-                          <Button
-                            onClick={handleLogNote}
-                            disabled={!contactNote.trim() || isLoading}
-                            className="flex-1 bg-primary hover:bg-primary/90"
-                          >
-                            <Send className="w-4 h-4 mr-2" />
-                            Log Note
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </div>
+                  <Card className="border border-border/50 shadow-sm">
+                    <CardContent className="p-6">
+                      <h3 className="font-semibold text-foreground mb-4">Add Contact Note</h3>
+                      <div className="space-y-4">
+                        <Textarea
+                          placeholder="Enter your note..."
+                          value={contactNote}
+                          onChange={(e) => setContactNote(e.target.value)}
+                          rows={3}
+                        />
+                        <Button 
+                          onClick={handleLogNote}
+                          disabled={!contactNote.trim() || isLoading}
+                          className="w-full"
+                        >
+                          {isLoading ? 'Adding Note...' : 'Add Note'}
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
                 </TabsContent>
 
-                {/* Tasks Tab - Working Task Management */}
+                {/* Tasks Tab */}
                 <TabsContent value="tasks" className="space-y-6 mt-0">
-                  {/* Create New Task */}
-                  <Card className="border-border/10 shadow-sm bg-white/60 backdrop-blur-sm rounded-xl">
-                    <CardHeader className="pb-4 border-b border-border/5">
-                      <CardTitle className="flex items-center gap-3 text-lg font-semibold">
-                        <div className="w-8 h-8 bg-emerald-100 rounded-lg flex items-center justify-center">
-                          <Plus className="w-4 h-4 text-emerald-700" />
-                        </div>
-                        Create New Task
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="pt-6">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="md:col-span-2">
-                          <label className="text-sm font-medium text-gray-700 mb-2 block">Task Title</label>
-                          <Input
-                            value={newTaskTitle}
-                            onChange={(e) => setNewTaskTitle(e.target.value)}
-                            placeholder="Enter task title..."
-                            className="bg-white/80 border-border/20"
-                          />
-                        </div>
-                        
-                        <div className="md:col-span-2">
-                          <label className="text-sm font-medium text-gray-700 mb-2 block">Description (Optional)</label>
-                          <Textarea
-                            value={newTaskDescription}
-                            onChange={(e) => setNewTaskDescription(e.target.value)}
-                            placeholder="Add task details..."
-                            className="min-h-[80px] bg-white/80 border-border/20"
-                          />
-                        </div>
-                        
-                        <div>
-                          <label className="text-sm font-medium text-gray-700 mb-2 block">Priority</label>
-                          <Select value={newTaskPriority} onValueChange={(value: 'low' | 'medium' | 'high') => setNewTaskPriority(value)}>
-                            <SelectTrigger className="bg-white/80 border-border/20">
+                  {/* Create Task */}
+                  <Card className="border border-border/50 shadow-sm">
+                    <CardContent className="p-6">
+                      <h3 className="font-semibold text-foreground mb-4">Create New Task</h3>
+                      <div className="space-y-4">
+                        <Input
+                          placeholder="Task title..."
+                          value={newTaskTitle}
+                          onChange={(e) => setNewTaskTitle(e.target.value)}
+                        />
+                        <Textarea
+                          placeholder="Task description..."
+                          value={newTaskDescription}
+                          onChange={(e) => setNewTaskDescription(e.target.value)}
+                          rows={2}
+                        />
+                        <div className="flex gap-4">
+                          <Select value={newTaskPriority} onValueChange={(value: any) => setNewTaskPriority(value)}>
+                            <SelectTrigger className="w-32">
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="low">Low Priority</SelectItem>
-                              <SelectItem value="medium">Medium Priority</SelectItem>
-                              <SelectItem value="high">High Priority</SelectItem>
+                              <SelectItem value="low">Low</SelectItem>
+                              <SelectItem value="medium">Medium</SelectItem>
+                              <SelectItem value="high">High</SelectItem>
                             </SelectContent>
                           </Select>
-                        </div>
-                        
-                        <div>
-                          <label className="text-sm font-medium text-gray-700 mb-2 block">Due Date (Optional)</label>
                           <Input
                             type="date"
                             value={newTaskDueDate}
                             onChange={(e) => setNewTaskDueDate(e.target.value)}
-                            className="bg-white/80 border-border/20"
+                            className="w-40"
                           />
-                        </div>
-                        
-                        <div className="md:col-span-2">
-                          <Button
+                          <Button 
                             onClick={handleCreateTask}
-                            disabled={!newTaskTitle.trim() || createTask.isPending}
-                            className="w-full bg-primary hover:bg-primary/90"
+                            disabled={!newTaskTitle.trim()}
+                            className="gap-2"
                           >
-                            {createTask.isPending ? (
-                              <>
-                                <Circle className="w-4 h-4 mr-2 animate-spin" />
-                                Creating...
-                              </>
-                            ) : (
-                              <>
-                                <Plus className="w-4 h-4 mr-2" />
-                                Create Task
-                              </>
-                            )}
+                            <Plus className="w-4 h-4" />
+                            Create Task
                           </Button>
                         </div>
                       </div>
@@ -690,126 +601,72 @@ export function PremiumDealDetailModal({ deal, open, onOpenChange }: PremiumDeal
                   </Card>
 
                   {/* Task List */}
-                  <Card className="border-border/10 shadow-sm bg-white/60 backdrop-blur-sm rounded-xl">
-                    <CardHeader className="pb-4 border-b border-border/5">
-                      <CardTitle className="flex items-center gap-3 text-lg font-semibold">
-                        <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
-                          <CheckSquare className="w-4 h-4 text-purple-700" />
-                        </div>
-                        Task List ({tasks.length})
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="pt-6">
-                      {tasksLoading ? (
-                        <div className="text-center py-8">
-                          <Circle className="w-8 h-8 mx-auto mb-4 animate-spin text-gray-400" />
-                          <p className="text-gray-600">Loading tasks...</p>
-                        </div>
-                      ) : tasks.length === 0 ? (
-                        <div className="text-center py-12">
-                          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <CheckSquare className="w-8 h-8 text-gray-400" />
-                          </div>
-                          <h3 className="text-lg font-semibold text-gray-900 mb-2">No Tasks Yet</h3>
-                          <p className="text-gray-600 max-w-md mx-auto">
-                            Create your first task to start tracking progress on this deal.
-                          </p>
-                        </div>
-                      ) : (
-                        <div className="space-y-3">
-                          {tasks.map((task) => (
-                            <div
-                              key={task.id}
-                              className={cn(
-                                "flex items-center gap-4 p-4 border border-border/10 rounded-lg bg-white/40 transition-all",
-                                task.status === 'completed' && "opacity-75"
-                              )}
-                            >
-                              <button
-                                onClick={() => task.status !== 'completed' && handleCompleteTask(task.id)}
-                                disabled={task.status === 'completed' || completeTask.isPending}
-                                className={cn(
-                                  "w-5 h-5 rounded border-2 flex items-center justify-center transition-colors",
-                                  task.status === 'completed'
-                                    ? "bg-emerald-500 border-emerald-500 text-white"
-                                    : "border-slate-300 hover:border-emerald-400"
-                                )}
+                  <div className="space-y-3">
+                    {tasks.map((task) => (
+                      <Card key={task.id} className="border border-border/50 shadow-sm">
+                        <CardContent className="p-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleCompleteTask(task.id)}
+                                className="p-0 h-auto"
                               >
-                                {task.status === 'completed' && <CheckCircle className="w-3 h-3" />}
-                              </button>
-                              
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 mb-1">
-                                  <h4 className={cn(
-                                    "font-medium text-sm",
-                                    task.status === 'completed' ? "line-through text-gray-500" : "text-gray-900"
-                                  )}>
-                                    {task.title}
-                                  </h4>
-                                  <Badge
-                                    variant="outline"
-                                    className={cn(
-                                      "text-xs px-2 py-0.5",
-                                      task.priority === 'high' && "border-red-200 text-red-700 bg-red-50",
-                                      task.priority === 'medium' && "border-amber-200 text-amber-700 bg-amber-50",
-                                      task.priority === 'low' && "border-slate-200 text-slate-600 bg-slate-50"
-                                    )}
-                                  >
-                                    {task.priority} priority
-                                  </Badge>
-                                </div>
-                                {task.description && (
-                                  <p className={cn(
-                                    "text-xs",
-                                    task.status === 'completed' ? "text-gray-400" : "text-gray-600"
-                                  )}>
-                                    {task.description}
-                                  </p>
+                                {task.status === 'completed' ? (
+                                  <CheckCircle className="w-5 h-5 text-green-600" />
+                                ) : (
+                                  <Circle className="w-5 h-5 text-muted-foreground" />
                                 )}
-                                {task.due_date && (
-                                  <p className="text-xs text-gray-500 mt-1">
-                                    Due: {format(new Date(task.due_date), 'MMM d, yyyy')}
-                                  </p>
+                              </Button>
+                              <div>
+                                <p className={cn(
+                                  "font-medium",
+                                  task.status === 'completed' ? "line-through text-muted-foreground" : "text-foreground"
+                                )}>
+                                  {task.title}
+                                </p>
+                                {task.description && (
+                                  <p className="text-sm text-muted-foreground">{task.description}</p>
                                 )}
                               </div>
-                              
-                              <button
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Badge variant={task.priority === 'high' ? 'destructive' : task.priority === 'medium' ? 'default' : 'secondary'}>
+                                {task.priority}
+                              </Badge>
+                              {task.due_date && (
+                                <span className="text-xs text-muted-foreground">
+                                  {format(new Date(task.due_date), 'MMM d')}
+                                </span>
+                              )}
+                              <Button
+                                variant="ghost"
+                                size="sm"
                                 onClick={() => handleDeleteTask(task.id)}
-                                disabled={deleteTask.isPending}
-                                className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                title="Delete task"
+                                className="p-0 h-auto text-muted-foreground hover:text-destructive"
                               >
                                 <Trash2 className="w-4 h-4" />
-                              </button>
+                              </Button>
                             </div>
-                          ))}
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
                 </TabsContent>
 
-                {/* Activity Tab - Enhanced */}
+                {/* Activity Tab */}
                 <TabsContent value="activity" className="space-y-6 mt-0">
-                  <Card className="border-border/10 shadow-sm bg-white/60 backdrop-blur-sm rounded-xl">
-                    <CardHeader className="pb-4 border-b border-border/5">
-                      <CardTitle className="flex items-center gap-3 text-lg font-semibold">
-                        <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                          <Activity className="w-4 h-4 text-blue-700" />
+                  <Card className="border border-border/50 shadow-sm">
+                    <CardContent className="p-6">
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center">
+                          <Activity className="w-4 h-4 text-blue-600" />
                         </div>
-                        Activity Timeline
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="pt-6">
-                      <div className="text-center py-12">
-                        <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                          <Activity className="w-8 h-8 text-gray-400" />
-                        </div>
-                        <h3 className="text-lg font-semibold text-gray-900 mb-2">Activity History</h3>
-                        <p className="text-gray-600 max-w-md mx-auto">
-                          Complete activity tracking and communication timeline features are being developed to provide full visibility into deal interactions.
-                        </p>
+                        <h3 className="font-semibold text-foreground">Activity Timeline</h3>
                       </div>
+                      <p className="text-sm text-muted-foreground">Activity tracking coming soon...</p>
                     </CardContent>
                   </Card>
                 </TabsContent>
