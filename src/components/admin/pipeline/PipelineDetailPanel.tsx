@@ -36,6 +36,9 @@ import { usePipelineCore } from '@/hooks/admin/use-pipeline-core';
 import { useDealTasks, useCreateDealTask, useCompleteDealTask, useDeleteDealTask } from '@/hooks/admin/use-deal-tasks';
 import { useLogDealContact } from '@/hooks/admin/use-deal-contact';
 import { RealCommunicationTimeline } from './RealCommunicationTimeline';
+import { BuyerInvestmentCriteria } from './BuyerInvestmentCriteria';
+import { BuyerPriorityScore } from './BuyerPriorityScore';
+import { ContactIntelligence } from './ContactIntelligence';
 import { useBuyerProfile, useDocumentLogs } from '@/hooks/admin/use-deal-real-data';
 import { formatDistanceToNow, format } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -309,33 +312,22 @@ export function PipelineDetailPanel({ pipeline }: PipelineDetailPanelProps) {
                       </div>
                     )}
 
-                    {/* Buyer Details Grid */}
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                      {buyerProfile.buyerInfo.email && (
-                        <div>
-                          <p className="text-gray-500 text-xs">Email</p>
-                          <p className="text-gray-900">{buyerProfile.buyerInfo.email}</p>
-                        </div>
-                      )}
-                      {buyerProfile.buyerInfo.phone_number && (
-                        <div>
-                          <p className="text-gray-500 text-xs">Phone</p>
-                          <p className="text-gray-900">{buyerProfile.buyerInfo.phone_number}</p>
-                        </div>
-                      )}
-                      {buyerProfile.buyerInfo.website && (
-                        <div>
-                          <p className="text-gray-500 text-xs">Website</p>
-                          <p className="text-gray-900">{buyerProfile.buyerInfo.website}</p>
-                        </div>
-                      )}
-                      {buyerProfile.buyerInfo.linkedin_profile && (
-                        <div>
-                          <p className="text-gray-500 text-xs">LinkedIn</p>
-                          <p className="text-gray-900 truncate">{buyerProfile.buyerInfo.linkedin_profile}</p>
-                        </div>
-                      )}
-                    </div>
+                     {/* Buyer Priority Score */}
+                    <BuyerPriorityScore 
+                      score={selectedDeal.buyer_priority_score || 0}
+                      buyerType={buyerProfile.buyerInfo.buyer_type}
+                    />
+
+                    {/* Investment Criteria */}
+                    <BuyerInvestmentCriteria 
+                      buyerProfile={buyerProfile.buyerInfo}
+                    />
+
+                    {/* Contact Intelligence */}
+                    <ContactIntelligence 
+                      buyerProfile={buyerProfile.buyerInfo}
+                      dealData={selectedDeal}
+                    />
                   </div>
                 ) : selectedDeal.buyer_name ? (
                   // Fallback to deal data if buyerProfile is loading
@@ -354,6 +346,12 @@ export function PipelineDetailPanel({ pipeline }: PipelineDetailPanelProps) {
                       </div>
                     </div>
                     
+                     {/* Basic Priority Score for Fallback */}
+                    <BuyerPriorityScore 
+                      score={selectedDeal.buyer_priority_score || 0}
+                      buyerType={selectedDeal.buyer_type}
+                    />
+
                     <div className="grid grid-cols-2 gap-4 text-sm">
                       {selectedDeal.buyer_email && (
                         <div>
