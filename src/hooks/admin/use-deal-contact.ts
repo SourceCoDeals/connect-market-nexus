@@ -42,6 +42,7 @@ export function useLogDealContact() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['deals'] });
+      queryClient.invalidateQueries({ queryKey: ['deal-contacts'] });
       toast({
         title: 'Contact Logged',
         description: 'Contact activity has been recorded successfully.',
