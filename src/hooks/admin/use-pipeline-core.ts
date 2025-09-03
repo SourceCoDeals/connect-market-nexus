@@ -73,8 +73,8 @@ export function usePipelineCore() {
     
     // Calculate conversion rate (deals in final stages)
     const finalStageDeals = filteredAndSortedDeals.filter(deal => 
-      deal.stage_name.toLowerCase().includes('closed') || 
-      deal.stage_name.toLowerCase().includes('won')
+      deal.stage_name?.toLowerCase().includes('closed') || 
+      deal.stage_name?.toLowerCase().includes('won')
     );
     const conversionRate = filteredAndSortedDeals.length > 0 
       ? (finalStageDeals.length / filteredAndSortedDeals.length) * 100 

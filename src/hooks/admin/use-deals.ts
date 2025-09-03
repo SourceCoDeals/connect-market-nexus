@@ -17,7 +17,7 @@ export interface Deal {
   
   // Stage information
   stage_id: string;
-  stage_name: string;
+  stage_name: string | null;
   stage_color: string;
   stage_position: number;
   
