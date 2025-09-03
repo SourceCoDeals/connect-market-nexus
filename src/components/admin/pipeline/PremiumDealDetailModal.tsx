@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
 import { Progress } from '@/components/ui/progress';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
   Building2, 
   User, 
@@ -28,10 +29,13 @@ import {
   ExternalLink,
   CheckSquare,
   Circle,
-  UserCheck
+  UserCheck,
+  Trash2,
+  AlertCircle
 } from 'lucide-react';
 import { Deal } from '@/hooks/admin/use-deals';
 import { useLogDealContact } from '@/hooks/admin/use-deal-contact';
+import { useDealTasks, useCreateDealTask, useUpdateDealTask, useCompleteDealTask, useDeleteDealTask } from '@/hooks/admin/use-deal-tasks';
 import { formatDistanceToNow, format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
@@ -45,30 +49,43 @@ export function PremiumDealDetailModal({ deal, open, onOpenChange }: PremiumDeal
   const [activeTab, setActiveTab] = useState('overview');
   const [contactNote, setContactNote] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  
+  // Task management state
+  const [newTaskTitle, setNewTaskTitle] = useState('');
+  const [newTaskDescription, setNewTaskDescription] = useState('');
+  const [newTaskPriority, setNewTaskPriority] = useState<'low' | 'medium' | 'high'>('medium');
+  const [newTaskDueDate, setNewTaskDueDate] = useState('');
+  
+  // Hooks
   const logContact = useLogDealContact();
+  const { data: tasks = [], isLoading: tasksLoading } = useDealTasks(deal?.deal_id);
+  const createTask = useCreateDealTask();
+  const updateTask = useUpdateDealTask();
+  const completeTask = useCompleteDealTask();
+  const deleteTask = useDeleteDealTask();
 
   if (!deal) return null;
 
-  // Apple/Stripe style helper functions with semantic tokens
+  // Apple/Stripe style helper functions - Clean, minimal design
   const getBuyerTypeColor = (buyerType?: string) => {
-    if (!buyerType) return 'bg-gray-50 text-gray-700 border-gray-200';
+    if (!buyerType) return 'bg-slate-50 text-slate-700 border-slate-200/60';
     
     const type = buyerType.toLowerCase().replace(/[^a-z]/g, '');
     switch (type) {
       case 'privateequity':
-        return 'bg-gradient-to-r from-purple-50 to-purple-100/90 text-purple-800 border-purple-200/70 shadow-sm';
+        return 'bg-purple-50 text-purple-800 border-purple-200/60';
       case 'familyoffice':
-        return 'bg-gradient-to-r from-blue-50 to-blue-100/90 text-blue-800 border-blue-200/70 shadow-sm';
+        return 'bg-blue-50 text-blue-800 border-blue-200/60';
       case 'searchfund':
-        return 'bg-gradient-to-r from-emerald-50 to-emerald-100/90 text-emerald-800 border-emerald-200/70 shadow-sm';
+        return 'bg-emerald-50 text-emerald-800 border-emerald-200/60';
       case 'corporate':
-        return 'bg-gradient-to-r from-orange-50 to-orange-100/90 text-orange-800 border-orange-200/70 shadow-sm';
+        return 'bg-orange-50 text-orange-800 border-orange-200/60';
       case 'individual':
-        return 'bg-gradient-to-r from-gray-50 to-gray-100/90 text-gray-700 border-gray-200/70 shadow-sm';
+        return 'bg-slate-50 text-slate-700 border-slate-200/60';
       case 'independentsponsor':
-        return 'bg-gradient-to-r from-indigo-50 to-indigo-100/90 text-indigo-800 border-indigo-200/70 shadow-sm';
+        return 'bg-indigo-50 text-indigo-800 border-indigo-200/60';
       default:
-        return 'bg-gradient-to-r from-gray-50 to-gray-100/90 text-gray-700 border-gray-200/70 shadow-sm';
+        return 'bg-slate-50 text-slate-700 border-slate-200/60';
     }
   };
 
@@ -90,13 +107,13 @@ export function PremiumDealDetailModal({ deal, open, onOpenChange }: PremiumDeal
   const getDocumentStatusBadge = (status: string) => {
     switch (status) {
       case 'signed':
-        return 'bg-emerald-50 text-emerald-700 border-emerald-200 shadow-sm';
+        return 'bg-emerald-50 text-emerald-700 border-emerald-200/60';
       case 'sent':
-        return 'bg-amber-50 text-amber-700 border-amber-200 shadow-sm';
+        return 'bg-slate-50 text-slate-600 border-slate-200/60';
       case 'declined':
-        return 'bg-red-50 text-red-700 border-red-200 shadow-sm';
+        return 'bg-red-50 text-red-700 border-red-200/60';
       default:
-        return 'bg-gray-50 text-gray-600 border-gray-200 shadow-sm';
+        return 'bg-slate-50 text-slate-500 border-slate-200/60';
     }
   };
 
@@ -119,8 +136,8 @@ export function PremiumDealDetailModal({ deal, open, onOpenChange }: PremiumDeal
     return `$${value.toLocaleString()}`;
   };
 
-  // Calculate progress and metrics - Fixed for real data
-  const taskProgress = deal.total_tasks > 0 ? ((deal.completed_tasks || 0) / deal.total_tasks) * 100 : 0;
+  // Calculate progress and metrics using real task data
+  const taskProgress = tasks.length > 0 ? (tasks.filter(t => t.status === 'completed').length / tasks.length) * 100 : 0;
   const daysInStage = (() => {
     if (deal.deal_stage_entered_at) {
       return Math.max(1, Math.floor((new Date().getTime() - new Date(deal.deal_stage_entered_at).getTime()) / (1000 * 60 * 60 * 24)));
@@ -130,6 +147,45 @@ export function PremiumDealDetailModal({ deal, open, onOpenChange }: PremiumDeal
     }
     return 1;
   })();
+
+  // Task management functions
+  const handleCreateTask = async () => {
+    if (!newTaskTitle.trim()) return;
+    
+    try {
+      await createTask.mutateAsync({
+        deal_id: deal.deal_id,
+        title: newTaskTitle,
+        description: newTaskDescription || undefined,
+        priority: newTaskPriority,
+        due_date: newTaskDueDate || undefined
+      });
+      
+      // Reset form
+      setNewTaskTitle('');
+      setNewTaskDescription('');
+      setNewTaskPriority('medium');
+      setNewTaskDueDate('');
+    } catch (error) {
+      console.error('Failed to create task:', error);
+    }
+  };
+
+  const handleCompleteTask = async (taskId: string) => {
+    try {
+      await completeTask.mutateAsync(taskId);
+    } catch (error) {
+      console.error('Failed to complete task:', error);
+    }
+  };
+
+  const handleDeleteTask = async (taskId: string) => {
+    try {
+      await deleteTask.mutateAsync(taskId);
+    } catch (error) {
+      console.error('Failed to delete task:', error);
+    }
+  };
 
   // Contact handlers with real functionality
   const handleLogNote = async () => {
@@ -376,7 +432,7 @@ export function PremiumDealDetailModal({ deal, open, onOpenChange }: PremiumDeal
                           <div>
                             <div className="flex items-center justify-between mb-3">
                               <span className="text-sm font-medium text-gray-700">Task Completion</span>
-                              <span className="text-sm font-semibold text-gray-900">{deal.completed_tasks || 0}/{deal.total_tasks || 0}</span>
+                              <span className="text-sm font-semibold text-gray-900">{tasks.filter(t => t.status === 'completed').length}/{tasks.length}</span>
                             </div>
                             <Progress value={taskProgress} className="h-2.5 bg-gray-100" />
                           </div>
@@ -533,33 +589,183 @@ export function PremiumDealDetailModal({ deal, open, onOpenChange }: PremiumDeal
                   </div>
                 </TabsContent>
 
-                {/* Tasks Tab - Enhanced */}
+                {/* Tasks Tab - Working Task Management */}
                 <TabsContent value="tasks" className="space-y-6 mt-0">
+                  {/* Create New Task */}
+                  <Card className="border-border/10 shadow-sm bg-white/60 backdrop-blur-sm rounded-xl">
+                    <CardHeader className="pb-4 border-b border-border/5">
+                      <CardTitle className="flex items-center gap-3 text-lg font-semibold">
+                        <div className="w-8 h-8 bg-emerald-100 rounded-lg flex items-center justify-center">
+                          <Plus className="w-4 h-4 text-emerald-700" />
+                        </div>
+                        Create New Task
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-6">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="md:col-span-2">
+                          <label className="text-sm font-medium text-gray-700 mb-2 block">Task Title</label>
+                          <Input
+                            value={newTaskTitle}
+                            onChange={(e) => setNewTaskTitle(e.target.value)}
+                            placeholder="Enter task title..."
+                            className="bg-white/80 border-border/20"
+                          />
+                        </div>
+                        
+                        <div className="md:col-span-2">
+                          <label className="text-sm font-medium text-gray-700 mb-2 block">Description (Optional)</label>
+                          <Textarea
+                            value={newTaskDescription}
+                            onChange={(e) => setNewTaskDescription(e.target.value)}
+                            placeholder="Add task details..."
+                            className="min-h-[80px] bg-white/80 border-border/20"
+                          />
+                        </div>
+                        
+                        <div>
+                          <label className="text-sm font-medium text-gray-700 mb-2 block">Priority</label>
+                          <Select value={newTaskPriority} onValueChange={(value: 'low' | 'medium' | 'high') => setNewTaskPriority(value)}>
+                            <SelectTrigger className="bg-white/80 border-border/20">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="low">Low Priority</SelectItem>
+                              <SelectItem value="medium">Medium Priority</SelectItem>
+                              <SelectItem value="high">High Priority</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        
+                        <div>
+                          <label className="text-sm font-medium text-gray-700 mb-2 block">Due Date (Optional)</label>
+                          <Input
+                            type="date"
+                            value={newTaskDueDate}
+                            onChange={(e) => setNewTaskDueDate(e.target.value)}
+                            className="bg-white/80 border-border/20"
+                          />
+                        </div>
+                        
+                        <div className="md:col-span-2">
+                          <Button
+                            onClick={handleCreateTask}
+                            disabled={!newTaskTitle.trim() || createTask.isPending}
+                            className="w-full bg-primary hover:bg-primary/90"
+                          >
+                            {createTask.isPending ? (
+                              <>
+                                <Circle className="w-4 h-4 mr-2 animate-spin" />
+                                Creating...
+                              </>
+                            ) : (
+                              <>
+                                <Plus className="w-4 h-4 mr-2" />
+                                Create Task
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Task List */}
                   <Card className="border-border/10 shadow-sm bg-white/60 backdrop-blur-sm rounded-xl">
                     <CardHeader className="pb-4 border-b border-border/5">
                       <CardTitle className="flex items-center gap-3 text-lg font-semibold">
                         <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
                           <CheckSquare className="w-4 h-4 text-purple-700" />
                         </div>
-                        Deal Tasks
+                        Task List ({tasks.length})
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="pt-6">
-                      <div className="text-center py-12">
-                        <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                          <CheckSquare className="w-8 h-8 text-gray-400" />
+                      {tasksLoading ? (
+                        <div className="text-center py-8">
+                          <Circle className="w-8 h-8 mx-auto mb-4 animate-spin text-gray-400" />
+                          <p className="text-gray-600">Loading tasks...</p>
                         </div>
-                        <h3 className="text-lg font-semibold text-gray-900 mb-2">Task Management</h3>
-                        <p className="text-gray-600 max-w-md mx-auto">
-                          Comprehensive task management and workflow features are coming soon to help you track deal progress more effectively.
-                        </p>
-                        <div className="mt-6">
-                          <Button variant="outline" disabled className="bg-white/80">
-                            <Plus className="w-4 h-4 mr-2" />
-                            Create Task (Coming Soon)
-                          </Button>
+                      ) : tasks.length === 0 ? (
+                        <div className="text-center py-12">
+                          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <CheckSquare className="w-8 h-8 text-gray-400" />
+                          </div>
+                          <h3 className="text-lg font-semibold text-gray-900 mb-2">No Tasks Yet</h3>
+                          <p className="text-gray-600 max-w-md mx-auto">
+                            Create your first task to start tracking progress on this deal.
+                          </p>
                         </div>
-                      </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {tasks.map((task) => (
+                            <div
+                              key={task.id}
+                              className={cn(
+                                "flex items-center gap-4 p-4 border border-border/10 rounded-lg bg-white/40 transition-all",
+                                task.status === 'completed' && "opacity-75"
+                              )}
+                            >
+                              <button
+                                onClick={() => task.status !== 'completed' && handleCompleteTask(task.id)}
+                                disabled={task.status === 'completed' || completeTask.isPending}
+                                className={cn(
+                                  "w-5 h-5 rounded border-2 flex items-center justify-center transition-colors",
+                                  task.status === 'completed'
+                                    ? "bg-emerald-500 border-emerald-500 text-white"
+                                    : "border-slate-300 hover:border-emerald-400"
+                                )}
+                              >
+                                {task.status === 'completed' && <CheckCircle className="w-3 h-3" />}
+                              </button>
+                              
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <h4 className={cn(
+                                    "font-medium text-sm",
+                                    task.status === 'completed' ? "line-through text-gray-500" : "text-gray-900"
+                                  )}>
+                                    {task.title}
+                                  </h4>
+                                  <Badge
+                                    variant="outline"
+                                    className={cn(
+                                      "text-xs px-2 py-0.5",
+                                      task.priority === 'high' && "border-red-200 text-red-700 bg-red-50",
+                                      task.priority === 'medium' && "border-amber-200 text-amber-700 bg-amber-50",
+                                      task.priority === 'low' && "border-slate-200 text-slate-600 bg-slate-50"
+                                    )}
+                                  >
+                                    {task.priority} priority
+                                  </Badge>
+                                </div>
+                                {task.description && (
+                                  <p className={cn(
+                                    "text-xs",
+                                    task.status === 'completed' ? "text-gray-400" : "text-gray-600"
+                                  )}>
+                                    {task.description}
+                                  </p>
+                                )}
+                                {task.due_date && (
+                                  <p className="text-xs text-gray-500 mt-1">
+                                    Due: {format(new Date(task.due_date), 'MMM d, yyyy')}
+                                  </p>
+                                )}
+                              </div>
+                              
+                              <button
+                                onClick={() => handleDeleteTask(task.id)}
+                                disabled={deleteTask.isPending}
+                                className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                title="Delete task"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                 </TabsContent>

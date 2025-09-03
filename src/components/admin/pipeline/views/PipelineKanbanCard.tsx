@@ -32,26 +32,26 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
     transform: CSS.Translate.toString(transform),
   };
 
-  // Premium Apple/Stripe-style design helpers with camelCase support
+  // Apple/Stripe-style design helpers - Clean, minimal approach
   const getBuyerTypeColor = (buyerType?: string) => {
-    if (!buyerType) return 'bg-slate-50 text-slate-600 border-slate-200/50';
+    if (!buyerType) return 'bg-slate-50 text-slate-700 border-slate-200/60';
     
     const type = buyerType.toLowerCase().replace(/[^a-z]/g, '');
     switch (type) {
       case 'privateequity':
-        return 'bg-gradient-to-r from-purple-50 to-purple-100/80 text-purple-800 border-purple-200/70 shadow-sm';
+        return 'bg-purple-50 text-purple-800 border-purple-200/60';
       case 'familyoffice':
-        return 'bg-gradient-to-r from-blue-50 to-blue-100/80 text-blue-800 border-blue-200/70 shadow-sm';
+        return 'bg-blue-50 text-blue-800 border-blue-200/60';
       case 'searchfund':
-        return 'bg-gradient-to-r from-emerald-50 to-emerald-100/80 text-emerald-800 border-emerald-200/70 shadow-sm';
+        return 'bg-emerald-50 text-emerald-800 border-emerald-200/60';
       case 'corporate':
-        return 'bg-gradient-to-r from-orange-50 to-orange-100/80 text-orange-800 border-orange-200/70 shadow-sm';
+        return 'bg-orange-50 text-orange-800 border-orange-200/60';
       case 'individual':
-        return 'bg-gradient-to-r from-slate-50 to-slate-100/80 text-slate-700 border-slate-200/70 shadow-sm';
+        return 'bg-slate-50 text-slate-700 border-slate-200/60';
       case 'independentsponsor':
-        return 'bg-gradient-to-r from-indigo-50 to-indigo-100/80 text-indigo-800 border-indigo-200/70 shadow-sm';
+        return 'bg-indigo-50 text-indigo-800 border-indigo-200/60';
       default:
-        return 'bg-gradient-to-r from-slate-50 to-slate-100/80 text-slate-700 border-slate-200/70 shadow-sm';
+        return 'bg-slate-50 text-slate-700 border-slate-200/60';
     }
   };
 
@@ -306,47 +306,47 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
           <div className="text-xs text-gray-500 font-medium">{listingRevenue}</div>
         )}
 
-        {/* Document Status - Clean, readable format */}
+        {/* Document Status - Clean Apple/Stripe design */}
         <div className="flex items-center gap-4 text-xs">
           <div className="flex items-center gap-1.5">
-            <div className={cn('w-2 h-2 rounded-full', 
+            <div className={cn('w-1.5 h-1.5 rounded-full', 
               deal.nda_status === 'signed' ? 'bg-emerald-500' :
-              deal.nda_status === 'sent' ? 'bg-amber-500' : 'bg-slate-300'
+              deal.nda_status === 'sent' ? 'bg-slate-400' : 'bg-slate-300'
             )} />
-            <span className="text-muted-foreground">NDA:</span>
+            <span className="text-slate-500">NDA:</span>
             <span className={cn('font-medium',
-              deal.nda_status === 'signed' ? 'text-emerald-600' :
-              deal.nda_status === 'sent' ? 'text-amber-600' : 'text-slate-500'
+              deal.nda_status === 'signed' ? 'text-emerald-700' :
+              deal.nda_status === 'sent' ? 'text-slate-600' : 'text-slate-500'
             )}>
               {ndaStatus.label}
             </span>
           </div>
           
           <div className="flex items-center gap-1.5">
-            <div className={cn('w-2 h-2 rounded-full',
+            <div className={cn('w-1.5 h-1.5 rounded-full',
               deal.fee_agreement_status === 'signed' ? 'bg-emerald-500' :
-              deal.fee_agreement_status === 'sent' ? 'bg-amber-500' : 'bg-slate-300'
+              deal.fee_agreement_status === 'sent' ? 'bg-slate-400' : 'bg-slate-300'
             )} />
-            <span className="text-muted-foreground">Fee:</span>
+            <span className="text-slate-500">Fee:</span>
             <span className={cn('font-medium',
-              deal.fee_agreement_status === 'signed' ? 'text-emerald-600' :
-              deal.fee_agreement_status === 'sent' ? 'text-amber-600' : 'text-slate-500'
+              deal.fee_agreement_status === 'signed' ? 'text-emerald-700' :
+              deal.fee_agreement_status === 'sent' ? 'text-slate-600' : 'text-slate-500'
             )}>
               {feeStatus.label}
             </span>
           </div>
         </div>
 
-        {/* Task Progress - Always visible */}
+        {/* Task Progress - Clean Apple/Stripe design */}
         <div className="flex items-center gap-1.5 text-xs">
           <CheckSquare className={cn(
             'h-3 w-3',
-            deal.pending_tasks > 0 ? 'text-amber-500' : 'text-emerald-500'
+            deal.pending_tasks > 0 ? 'text-slate-500' : 'text-emerald-600'
           )} />
           <span className={cn('font-medium',
-            deal.pending_tasks > 0 ? 'text-amber-600' : 'text-emerald-600'
+            deal.pending_tasks > 0 ? 'text-slate-600' : 'text-emerald-700'
           )}>
-            {deal.total_tasks === 0 ? '0 tasks' : 
+            {deal.total_tasks === 0 ? 'No tasks' : 
              deal.pending_tasks === 0 ? `${deal.total_tasks} tasks completed` : 
              `${deal.pending_tasks}/${deal.total_tasks} tasks pending`}
           </span>
