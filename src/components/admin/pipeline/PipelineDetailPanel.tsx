@@ -34,12 +34,17 @@ import {
   Activity,
   ExternalLink,
   UserCheck,
-  Trash2
+  Trash2,
+  BarChart3,
+  Zap
 } from 'lucide-react';
 import { usePipelineCore } from '@/hooks/admin/use-pipeline-core';
 import { useDealTasks, useCreateDealTask, useCompleteDealTask, useDeleteDealTask } from '@/hooks/admin/use-deal-tasks';
 import { useLogDealContact } from '@/hooks/admin/use-deal-contact';
 import { CommunicationTimeline } from '@/components/admin/CommunicationTimeline';
+import { DealInsightsCard } from './DealInsightsCard';
+import { DocumentManagementCard } from './DocumentManagementCard';
+import { QuickActionsCard } from './QuickActionsCard';
 import { formatDistanceToNow, format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
@@ -345,72 +350,25 @@ export function PipelineDetailPanel({ pipeline }: PipelineDetailPanelProps) {
                 </CardContent>
               </Card>
 
-              {/* Documents */}
-              <Card className="border-gray-200/60 shadow-sm bg-white/60 rounded-lg">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-                    <FileCheck className="w-4 h-4 text-gray-600" />
-                    Documents
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="flex items-center justify-between py-2 px-3 border border-gray-200/60 rounded-md bg-gray-50/30">
-                    <div className="flex items-center gap-2">
-                      <FileText className="w-3.5 h-3.5 text-gray-600" />
-                      <span className="text-sm font-medium text-gray-900">NDA</span>
-                    </div>
-                    <Badge className={cn("px-2 py-0.5 text-xs border rounded-md font-medium", getDocumentStatusBadge(selectedDeal.nda_status))}>
-                      {getStatusLabel(selectedDeal.nda_status)}
-                    </Badge>
-                  </div>
-                  
-                  <div className="flex items-center justify-between py-2 px-3 border border-gray-200/60 rounded-md bg-gray-50/30">
-                    <div className="flex items-center gap-2">
-                      <FileText className="w-3.5 h-3.5 text-gray-600" />
-                      <span className="text-sm font-medium text-gray-900">Fee Agreement</span>
-                    </div>
-                    <Badge className={cn("px-2 py-0.5 text-xs border rounded-md font-medium", getDocumentStatusBadge(selectedDeal.fee_agreement_status))}>
-                      {getStatusLabel(selectedDeal.fee_agreement_status)}
-                    </Badge>
-                  </div>
-                </CardContent>
-              </Card>
+              {/* Deal Insights */}
+              <DealInsightsCard dealId={selectedDeal.deal_id} />
+
+              {/* Document Management */}
+              <DocumentManagementCard 
+                dealId={selectedDeal.deal_id}
+                contactEmail={selectedDeal.contact_email}
+                contactName={selectedDeal.contact_name}
+                ndaStatus={selectedDeal.nda_status}
+                feeAgreementStatus={selectedDeal.fee_agreement_status}
+              />
 
               {/* Quick Actions */}
-              <Card className="border-gray-200/60 shadow-sm bg-white/60 rounded-lg">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-                    <Activity className="w-4 h-4 text-gray-600" />
-                    Quick Actions
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  {selectedDeal.contact_email && (
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="w-full justify-start"
-                      onClick={handleEmailContact}
-                      disabled={isLoading}
-                    >
-                      <Mail className="w-4 h-4 mr-2" />
-                      Send Email
-                    </Button>
-                  )}
-                  {selectedDeal.contact_phone && (
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="w-full justify-start"
-                      onClick={handlePhoneContact}
-                      disabled={isLoading}
-                    >
-                      <Phone className="w-4 h-4 mr-2" />
-                      Log Call
-                    </Button>
-                  )}
-                </CardContent>
-              </Card>
+              <QuickActionsCard 
+                dealId={selectedDeal.deal_id}
+                contactEmail={selectedDeal.contact_email}
+                contactPhone={selectedDeal.contact_phone}
+                contactName={selectedDeal.contact_name}
+              />
             </TabsContent>
 
             {/* Contact Tab */}
