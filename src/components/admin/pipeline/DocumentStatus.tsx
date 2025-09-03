@@ -157,55 +157,45 @@ export function DocumentStatus({
 
   return (
     <>
-      <div className={cn("space-y-6", className)}>
+      <div className={cn("space-y-4", className)}>
         <h3 className="text-sm font-medium text-gray-900">Document Status</h3>
         
-        <div className="space-y-4">
+        <div className="grid grid-cols-2 gap-3">
           {/* NDA Section */}
-          <div className="border border-gray-200 rounded-lg p-4">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-3">
+          <div className="border border-gray-200 rounded-lg p-3">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
                 {getStatusIcon(ndaStatus)}
                 <div>
-                  <p className="text-sm font-medium text-gray-900">Non-Disclosure Agreement</p>
-                  <p className="text-xs text-gray-500">Required for deal details</p>
+                  <p className="text-xs font-medium text-gray-900">NDA</p>
+                  <p className="text-xs text-gray-500">{getStatusLabel(ndaStatus)}</p>
                 </div>
               </div>
-              <Badge className={cn("px-2 py-0.5 text-xs border rounded-md font-medium", getDocumentStatusBadge(ndaStatus))}>
+              <Badge className={cn("px-1.5 py-0.5 text-xs border rounded-md font-medium", getDocumentStatusBadge(ndaStatus))}>
                 {getStatusLabel(ndaStatus)}
               </Badge>
             </div>
 
-            {/* Recent Activity with Real Admin Attribution */}
+            {/* Activity and Actions */}
             {(() => {
               const activity = getRecentDocumentActivity('nda');
               return activity ? (
-                <div className="bg-gray-50 rounded-md p-3 text-xs mb-3">
-                  <div className="flex items-center gap-2 text-gray-600">
-                    <Calendar className="w-3 h-3" />
-                    <span className="font-medium">{activity.action === 'sent' ? 'Sent' : activity.action} by {activity.adminName}</span>
-                    <span className="text-gray-400">•</span>
-                    <span>{formatDistanceToNow(new Date(activity.timestamp), { addSuffix: true })}</span>
-                  </div>
-                  {activity.recipient && (
-                    <div className="mt-1 text-gray-500">
-                      To: {activity.recipient}
-                    </div>
-                  )}
+                <div className="text-xs text-gray-500 mb-2">
+                  {activity.action === 'sent' ? 'Sent' : activity.action} by {activity.adminName} • {formatDistanceToNow(new Date(activity.timestamp), { addSuffix: true })}
                 </div>
               ) : null;
             })()}
             
-            <div className="flex gap-2">
-              {getAvailableActions(ndaStatus).map((action) => (
+            <div className="flex gap-1">
+              {getAvailableActions(ndaStatus).slice(0, 2).map((action) => (
                 <Button
                   key={action.type}
                   variant="outline"
                   size="sm"
                   onClick={() => handleAction('nda', action.type)}
-                  className="text-xs h-7 px-3"
+                  className="text-xs h-6 px-2 flex-1"
                 >
-                  <action.icon className="w-3 h-3 mr-1.5" />
+                  <action.icon className="w-3 h-3 mr-1" />
                   {action.label}
                 </Button>
               ))}
@@ -213,50 +203,40 @@ export function DocumentStatus({
           </div>
 
           {/* Fee Agreement Section */}
-          <div className="border border-gray-200 rounded-lg p-4">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-3">
+          <div className="border border-gray-200 rounded-lg p-3">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
                 {getStatusIcon(feeAgreementStatus)}
                 <div>
-                  <p className="text-sm font-medium text-gray-900">Fee Agreement</p>
-                  <p className="text-xs text-gray-500">Commission structure</p>
+                  <p className="text-xs font-medium text-gray-900">Fee Agreement</p>
+                  <p className="text-xs text-gray-500">{getStatusLabel(feeAgreementStatus)}</p>
                 </div>
               </div>
-              <Badge className={cn("px-2 py-0.5 text-xs border rounded-md font-medium", getDocumentStatusBadge(feeAgreementStatus))}>
+              <Badge className={cn("px-1.5 py-0.5 text-xs border rounded-md font-medium", getDocumentStatusBadge(feeAgreementStatus))}>
                 {getStatusLabel(feeAgreementStatus)}
               </Badge>
             </div>
 
-            {/* Recent Activity with Real Admin Attribution */}
+            {/* Activity and Actions */}
             {(() => {
               const activity = getRecentDocumentActivity('fee_agreement');
               return activity ? (
-                <div className="bg-gray-50 rounded-md p-3 text-xs mb-3">
-                  <div className="flex items-center gap-2 text-gray-600">
-                    <Calendar className="w-3 h-3" />
-                    <span className="font-medium">{activity.action === 'sent' ? 'Sent' : activity.action} by {activity.adminName}</span>
-                    <span className="text-gray-400">•</span>
-                    <span>{formatDistanceToNow(new Date(activity.timestamp), { addSuffix: true })}</span>
-                  </div>
-                  {activity.recipient && (
-                    <div className="mt-1 text-gray-500">
-                      To: {activity.recipient}
-                    </div>
-                  )}
+                <div className="text-xs text-gray-500 mb-2">
+                  {activity.action === 'sent' ? 'Sent' : activity.action} by {activity.adminName} • {formatDistanceToNow(new Date(activity.timestamp), { addSuffix: true })}
                 </div>
               ) : null;
             })()}
             
-            <div className="flex gap-2">
-              {getAvailableActions(feeAgreementStatus).map((action) => (
+            <div className="flex gap-1">
+              {getAvailableActions(feeAgreementStatus).slice(0, 2).map((action) => (
                 <Button
                   key={action.type}
                   variant="outline"
                   size="sm"
                   onClick={() => handleAction('fee_agreement', action.type)}
-                  className="text-xs h-7 px-3"
+                  className="text-xs h-6 px-2 flex-1"
                 >
-                  <action.icon className="w-3 h-3 mr-1.5" />
+                  <action.icon className="w-3 h-3 mr-1" />
                   {action.label}
                 </Button>
               ))}

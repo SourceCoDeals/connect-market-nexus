@@ -65,11 +65,11 @@ export function CleanQuickActions({
   ];
 
   return (
-    <div className={cn("space-y-4", className)}>
+    <div className={cn("space-y-3", className)}>
       <h4 className="text-sm font-medium text-gray-900">Quick Actions</h4>
       
-      {/* Single row of minimal actions */}
-      <div className="flex gap-2">
+      {/* Clean grid of minimal actions */}
+      <div className="grid grid-cols-2 gap-2">
         {actions.map((action, index) => {
           const Icon = action.icon;
           return (
@@ -80,8 +80,9 @@ export function CleanQuickActions({
               onClick={action.onClick}
               disabled={action.disabled}
               className={cn(
-                "flex-1 justify-center gap-1.5 text-xs font-medium h-7 border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400",
-                action.disabled && "opacity-50 cursor-not-allowed"
+                "justify-center gap-1.5 text-xs font-medium h-7 border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300",
+                action.disabled && "opacity-50 cursor-not-allowed",
+                action.primary && "border-blue-200 text-blue-700 hover:bg-blue-50 hover:border-blue-300"
               )}
             >
               <Icon className="w-3.5 h-3.5" />
@@ -91,7 +92,7 @@ export function CleanQuickActions({
         })}
       </div>
 
-      {/* Secondary note action - minimal style */}
+      {/* Secondary note action */}
       {onLogNote && (
         <Button
           variant="ghost"

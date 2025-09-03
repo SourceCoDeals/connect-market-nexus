@@ -9,8 +9,8 @@ interface BuyerPriorityScoreProps {
 }
 
 export function BuyerPriorityScore({ score, buyerType, className }: BuyerPriorityScoreProps) {
-  // Convert database score (0-100 scale) to standard 1-5 point scale based on buyer type
-  const getActualScore = (rawScore: number, buyerType?: string) => {
+  // Calculate priority score based on buyer type (1-5 scale)
+  const getActualScore = (buyerType?: string) => {
     if (!buyerType) return 1; // Individual/Unknown = lowest score
     
     const type = buyerType.toLowerCase().replace(/[^a-z]/g, '');
@@ -32,7 +32,7 @@ export function BuyerPriorityScore({ score, buyerType, className }: BuyerPriorit
     }
   };
 
-  const actualScore = getActualScore(score, buyerType);
+  const actualScore = getActualScore(buyerType);
 
   const getScoreConfig = (score: number) => {
     if (score === 5) {

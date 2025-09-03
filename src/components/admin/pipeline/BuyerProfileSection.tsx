@@ -69,17 +69,20 @@ export function BuyerProfileSection({ buyerProfile, selectedDeal, className }: B
     );
   }
 
-  const buyerName = buyer?.name || buyer?.first_name + ' ' + buyer?.last_name || selectedDeal.buyer_name;
-  const buyerCompany = buyer?.company || buyer?.company_name || selectedDeal.buyer_company;
-  const buyerEmail = buyer?.email || selectedDeal.buyer_email;
-  const buyerPhone = buyer?.phone_number || selectedDeal.buyer_phone;
+  const buyerName = buyer?.name || 
+                   (buyer?.first_name && buyer?.last_name ? `${buyer.first_name} ${buyer.last_name}` : '') || 
+                   selectedDeal.contact_name || 
+                   'Name not available';
+  const buyerCompany = buyer?.company || selectedDeal.contact_company || 'Company not specified';
+  const buyerEmail = buyer?.email || selectedDeal.contact_email;
+  const buyerPhone = buyer?.phone_number || selectedDeal.contact_phone;
   const buyerType = buyer?.buyer_type || selectedDeal.buyer_type;
 
   return (
     <div className={cn("space-y-6", className)}>
       {/* Original Buyer Message - Hero Content */}
-      {(buyerProfile?.user_message && buyerProfile.user_message.trim()) ? (
-        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200/60 rounded-xl p-6 shadow-sm">
+      {buyerProfile?.user_message ? (
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200/50 rounded-xl p-6">
           <div className="flex items-start gap-4">
             <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
               <Mail className="w-5 h-5 text-blue-600" />
@@ -91,18 +94,19 @@ export function BuyerProfileSection({ buyerProfile, selectedDeal, className }: B
                   Why they're interested
                 </span>
               </div>
-              <blockquote className="text-sm text-blue-800 leading-relaxed font-medium border-l-3 border-blue-300 pl-4 italic">
+              <blockquote className="text-sm text-blue-800 leading-relaxed font-medium border-l-4 border-blue-300 pl-4 italic">
                 "{buyerProfile.user_message}"
               </blockquote>
             </div>
           </div>
         </div>
       ) : (
-        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-          <div className="flex items-center gap-2 text-gray-500">
+        <div className="bg-amber-50 border border-amber-200/60 rounded-lg p-4">
+          <div className="flex items-center gap-2 text-amber-700">
             <Mail className="w-4 h-4" />
-            <span className="text-sm">No original message available</span>
+            <span className="text-sm font-medium">Contact initiated without message</span>
           </div>
+          <p className="text-xs text-amber-600 mt-1">This buyer reached out directly or was converted from a lead</p>
         </div>
       )}
 
@@ -117,7 +121,7 @@ export function BuyerProfileSection({ buyerProfile, selectedDeal, className }: B
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
             <h3 className="text-base font-semibold text-gray-900 truncate">
-              {buyerName || 'Name not available'}
+              {buyerName}
             </h3>
             {isLead && (
               <Badge variant="secondary" className="text-xs">
@@ -125,7 +129,7 @@ export function BuyerProfileSection({ buyerProfile, selectedDeal, className }: B
               </Badge>
             )}
           </div>
-          <p className="text-sm text-gray-600 mb-2">{buyerCompany || 'Company not specified'}</p>
+          <p className="text-sm text-gray-600 mb-2">{buyerCompany}</p>
           <div className="flex items-center gap-3 text-xs text-gray-500">
             <span className="font-medium">{getBuyerTypeLabel(buyerType)}</span>
             {buyer?.job_title && (

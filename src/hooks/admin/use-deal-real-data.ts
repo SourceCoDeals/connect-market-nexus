@@ -1,14 +1,15 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
-// Real NDA and Fee Agreement logs
 export function useDocumentLogs(dealId?: string) {
   return useQuery({
     queryKey: ['document-logs', dealId],
     queryFn: async () => {
-      if (!dealId) return { nda_logs: [], fee_agreement_logs: [] };
+      if (!dealId) return null;
       
-      const [ndaResult, feeResult] = await Promise.all([
+      // Get both NDA and Fee Agreement logs
+      const [ndaLogs, feeAgreementLogs] = await Promise.all([
         supabase
           .from('nda_logs')
           .select('*')
@@ -22,16 +23,16 @@ export function useDocumentLogs(dealId?: string) {
       ]);
 
       return {
-        nda_logs: ndaResult.data || [],
-        fee_agreement_logs: feeResult.data || []
+        nda_logs: ndaLogs.data || [],
+        fee_agreement_logs: feeAgreementLogs.data || []
       };
     },
     enabled: !!dealId,
-    staleTime: 30 * 1000, // 30 seconds
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 }
 
-// Real deal activities and communications
+
 export function useDealActivities(dealId?: string) {
   return useQuery({
     queryKey: ['deal-activities', dealId],
@@ -48,11 +49,11 @@ export function useDealActivities(dealId?: string) {
       return data || [];
     },
     enabled: !!dealId,
-    staleTime: 30 * 1000,
+    staleTime: 5 * 60 * 1000,
   });
 }
 
-// Real deal contacts
+
 export function useDealContacts(dealId?: string) {
   return useQuery({
     queryKey: ['deal-contacts', dealId],
@@ -69,11 +70,11 @@ export function useDealContacts(dealId?: string) {
       return data || [];
     },
     enabled: !!dealId,
-    staleTime: 30 * 1000,
+    staleTime: 5 * 60 * 1000,
   });
 }
 
-// Enhanced buyer profile with message from connection request
+
 export function useBuyerProfile(dealId?: string) {
   return useQuery({
     queryKey: ['buyer-profile', dealId],
@@ -102,7 +103,15 @@ export function useBuyerProfile(dealId?: string) {
             buyer_type,
             phone_number,
             website,
-            linkedin_profile
+            linkedin_profile,
+            geographic_focus,
+            target_deal_size_min,
+            target_deal_size_max,
+            business_categories,
+            fund_size,
+            aum,
+            bio,
+            job_title
           )
         `)
         .eq('id', deal.connection_request_id)
@@ -110,22 +119,38 @@ export function useBuyerProfile(dealId?: string) {
 
       if (requestError) throw requestError;
       
+      // Handle the profiles relation correctly (it comes as an array or object)
+      const profile = Array.isArray(request.profiles) ? request.profiles[0] : request.profiles;
+      
       // Structure the response to handle both registered users and leads
       return {
         ...request,
         // Determine if this is a registered user or lead
         isRegisteredUser: !!request.user_id,
         // Consolidated buyer info (prefer profile data, fallback to lead data)
-        buyerInfo: (request.profiles && Array.isArray(request.profiles) && request.profiles.length > 0) ? {
-          name: `${request.profiles[0].first_name} ${request.profiles[0].last_name}`,
-          email: request.profiles[0].email,
-          company: request.profiles[0].company,
-          buyer_type: request.profiles[0].buyer_type,
-          phone_number: request.profiles[0].phone_number,
-          website: request.profiles[0].website,
-          linkedin_profile: request.profiles[0].linkedin_profile
+        buyerInfo: profile ? {
+          name: `${profile.first_name || ''} ${profile.last_name || ''}`.trim(),
+          first_name: profile.first_name,
+          last_name: profile.last_name,
+          email: profile.email,
+          company: profile.company,
+          buyer_type: profile.buyer_type,
+          phone_number: profile.phone_number,
+          website: profile.website,
+          linkedin_profile: profile.linkedin_profile,
+          // Full profile data for investment details
+          geographic_focus: profile.geographic_focus,
+          target_deal_size_min: profile.target_deal_size_min,
+          target_deal_size_max: profile.target_deal_size_max,
+          business_categories: profile.business_categories,
+          fund_size: profile.fund_size,
+          aum: profile.aum,
+          bio: profile.bio,
+          job_title: profile.job_title
         } : {
           name: request.lead_name,
+          first_name: request.lead_name?.split(' ')[0] || '',
+          last_name: request.lead_name?.split(' ').slice(1).join(' ') || '',
           email: request.lead_email,
           company: request.lead_company,
           buyer_type: null,
@@ -140,51 +165,49 @@ export function useBuyerProfile(dealId?: string) {
   });
 }
 
-// Real deal analytics based on actual data
 export function useRealDealAnalytics(dealId?: string) {
   return useQuery({
     queryKey: ['real-deal-analytics', dealId],
     queryFn: async () => {
       if (!dealId) return null;
-      
-      // Get deal with stage info
-      const { data: deal, error: dealError } = await supabase
-        .from('deals')
-        .select(`
-          *,
-          stage:deal_stages!deals_stage_id_fkey(name, color)
-        `)
-        .eq('id', dealId)
-        .single();
 
-      if (dealError || !deal) return null;
+      // Get deal, activities, and contacts in parallel
+      const [dealResult, activitiesResult, contactsResult] = await Promise.all([
+        supabase
+          .from('deals')
+          .select('*')
+          .eq('id', dealId)
+          .single(),
+        supabase
+          .from('deal_activities')
+          .select('*')
+          .eq('deal_id', dealId),
+        supabase
+          .from('deal_contacts')
+          .select('*')
+          .eq('deal_id', dealId)
+      ]);
+
+      if (dealResult.error) throw dealResult.error;
+      
+      const deal = dealResult.data;
+      const activities = activitiesResult.data || [];
+      const contacts = contactsResult.data || [];
 
       // Calculate days in current stage
-      const stageEnteredDate = new Date(deal.stage_entered_at || deal.created_at);
-      const daysInStage = Math.floor((Date.now() - stageEnteredDate.getTime()) / (1000 * 60 * 60 * 24));
+      const stageEnteredAt = deal.stage_entered_at ? new Date(deal.stage_entered_at) : new Date(deal.created_at);
+      const daysInStage = Math.floor((Date.now() - stageEnteredAt.getTime()) / (1000 * 60 * 60 * 24));
 
-      // Get activity counts
-      const { data: activities } = await supabase
-        .from('deal_activities')
-        .select('activity_type, created_at')
-        .eq('deal_id', dealId);
+      // Calculate total interactions
+      const totalInteractions = activities.length + contacts.length;
 
-      const { data: contacts } = await supabase
-        .from('deal_contacts')
-        .select('contact_type, created_at')
-        .eq('deal_id', dealId);
-
-      const totalInteractions = (activities?.length || 0) + (contacts?.length || 0);
-      
-      // Calculate last interaction
+      // Get last interaction date
       const allInteractionDates = [
-        ...(activities || []).map(a => new Date(a.created_at)),
-        ...(contacts || []).map(c => new Date(c.created_at))
+        ...activities.map(a => new Date(a.created_at)),
+        ...contacts.map(c => new Date(c.created_at))
       ].sort((a, b) => b.getTime() - a.getTime());
-
-      const lastInteractionDays = allInteractionDates.length > 0 
-        ? Math.floor((Date.now() - allInteractionDates[0].getTime()) / (1000 * 60 * 60 * 24))
-        : 0;
+      
+      const lastInteraction = allInteractionDates[0] || null;
 
       // Calculate document completion score
       let documentScore = 0;
@@ -194,27 +217,46 @@ export function useRealDealAnalytics(dealId?: string) {
       if (deal.fee_agreement_status === 'signed') documentScore += 50;
       else if (deal.fee_agreement_status === 'sent') documentScore += 25;
 
-      // Risk assessment based on real data
-      let riskLevel: 'low' | 'medium' | 'high' = 'low';
-      if (daysInStage > 14 && totalInteractions < 3) riskLevel = 'high';
-      else if (daysInStage > 7 && totalInteractions < 2) riskLevel = 'medium';
+      // Calculate risk assessment based on multiple factors
+      let riskScore = 0;
+      
+      // Days without interaction
+      const daysSinceLastInteraction = lastInteraction 
+        ? Math.floor((Date.now() - lastInteraction.getTime()) / (1000 * 60 * 60 * 24))
+        : daysInStage;
+      
+      if (daysSinceLastInteraction > 14) riskScore += 30;
+      else if (daysSinceLastInteraction > 7) riskScore += 15;
+      
+      // Time in stage without progress
+      if (daysInStage > 30 && deal.stage_id) riskScore += 25;
+      else if (daysInStage > 14 && deal.stage_id) riskScore += 10;
+      
+      // Document completion
+      if (documentScore < 50) riskScore += 20;
+      
+      // Low interaction frequency
+      if (totalInteractions < 3 && daysInStage > 7) riskScore += 15;
 
       return {
-        deal_id: dealId,
-        days_in_current_stage: daysInStage,
-        total_interactions: totalInteractions,
-        last_interaction_days: lastInteractionDays,
-        document_completion_score: documentScore,
-        nda_status: deal.nda_status,
-        fee_agreement_status: deal.fee_agreement_status,
-        deal_value: deal.value || 0,
-        probability: deal.probability || 50,
-        risk_level: riskLevel,
-        stage_name: deal.stage?.name || 'Unknown',
-        stage_color: deal.stage?.color || '#3b82f6'
+        daysInStage,
+        totalInteractions,
+        lastInteraction,
+        daysSinceLastInteraction,
+        documentCompletionScore: documentScore,
+        riskAssessment: {
+          score: Math.min(riskScore, 100),
+          level: riskScore > 60 ? 'high' : riskScore > 30 ? 'medium' : 'low',
+          factors: [
+            ...(daysSinceLastInteraction > 14 ? ['No recent contact'] : []),
+            ...(daysInStage > 30 ? ['Stuck in stage'] : []),
+            ...(documentScore < 50 ? ['Incomplete documents'] : []),
+            ...(totalInteractions < 3 ? ['Low engagement'] : [])
+          ]
+        }
       };
     },
     enabled: !!dealId,
-    staleTime: 60 * 1000, // 1 minute
+    staleTime: 5 * 60 * 1000,
   });
 }
