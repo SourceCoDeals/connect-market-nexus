@@ -34,24 +34,24 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
 
   // Apple/Stripe-style design helpers - Clean, minimal approach
   const getBuyerTypeColor = (buyerType?: string) => {
-    if (!buyerType) return 'bg-slate-50 text-slate-700 border-slate-200/60';
+    if (!buyerType) return 'bg-gray-50 text-gray-600 border-gray-200';
     
     const type = buyerType.toLowerCase().replace(/[^a-z]/g, '');
     switch (type) {
       case 'privateequity':
-        return 'bg-purple-50 text-purple-800 border-purple-200/60';
+        return 'bg-gray-50 text-gray-700 border-gray-200';
       case 'familyoffice':
-        return 'bg-blue-50 text-blue-800 border-blue-200/60';
+        return 'bg-gray-50 text-gray-700 border-gray-200';
       case 'searchfund':
-        return 'bg-emerald-50 text-emerald-800 border-emerald-200/60';
+        return 'bg-gray-50 text-gray-700 border-gray-200';
       case 'corporate':
-        return 'bg-orange-50 text-orange-800 border-orange-200/60';
+        return 'bg-gray-50 text-gray-700 border-gray-200';
       case 'individual':
-        return 'bg-slate-50 text-slate-700 border-slate-200/60';
+        return 'bg-gray-50 text-gray-700 border-gray-200';
       case 'independentsponsor':
-        return 'bg-indigo-50 text-indigo-800 border-indigo-200/60';
+        return 'bg-gray-50 text-gray-700 border-gray-200';
       default:
-        return 'bg-slate-50 text-slate-700 border-slate-200/60';
+        return 'bg-gray-50 text-gray-700 border-gray-200';
     }
   };
 
@@ -132,14 +132,9 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
   const getTaskInfo = () => {
     const total = deal.total_tasks || 0;
     const completed = deal.completed_tasks || 0;
-    const pending = deal.pending_tasks || 0;
+    const pending = total - completed;
     
-    // If no tasks exist, show realistic task count
-    if (total === 0) {
-      return { completed: 0, total: 0, pending: 0, hasAnyTasks: false };
-    }
-    
-    return { completed, total, pending, hasAnyTasks: true };
+    return { completed, total, pending, hasAnyTasks: total > 0 };
   };
 
   // Calculate meaningful data
@@ -155,10 +150,6 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
   const companyName = deal.contact_company || deal.buyer_company || 'Private Investor';
   const contactName = deal.contact_name || deal.buyer_name || 'Unknown Contact';
 
-  // Revenue formatting
-  const listingRevenue = deal.listing_revenue 
-    ? `$${(deal.listing_revenue / 1000000).toFixed(1)}M Revenue` 
-    : null;
 
   // Calculate real days in stage
   const daysInStage = (() => {
@@ -287,10 +278,10 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
             </h3>
             <div className="flex items-center gap-2">
               <Building2 className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
-              <span className="text-xs text-gray-600 truncate">{companyName}</span>
-              <Badge className={cn("text-xs px-1.5 py-0.5 font-medium border rounded-md", getBuyerTypeColor(actualBuyerType))}>
-                {getBuyerTypeLabel(actualBuyerType)}
-              </Badge>
+            <span className="text-xs text-gray-600 truncate">{companyName}</span>
+            <Badge className={cn("text-xs px-2 py-0.5 font-medium border rounded-md", getBuyerTypeColor(actualBuyerType))}>
+              {getBuyerTypeLabel(actualBuyerType)}
+            </Badge>
             </div>
           </div>
           <div className={cn("w-2 h-2 rounded-full ml-3 mt-0.5 flex-shrink-0", buyerPriority.dot)} />
@@ -301,10 +292,6 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
           Contact: {contactName}
         </div>
 
-        {/* Revenue - when available */}
-        {listingRevenue && (
-          <div className="text-xs text-gray-500 font-medium">{listingRevenue}</div>
-        )}
 
         {/* Document Status - Clean Apple/Stripe design */}
         <div className="flex items-center gap-4 text-xs">
@@ -341,14 +328,14 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
         <div className="flex items-center gap-1.5 text-xs">
           <CheckSquare className={cn(
             'h-3 w-3',
-            deal.pending_tasks > 0 ? 'text-slate-500' : 'text-emerald-600'
+            taskInfo.hasAnyTasks && taskInfo.pending === 0 ? 'text-gray-700' : 'text-gray-400'
           )} />
           <span className={cn('font-medium',
-            deal.pending_tasks > 0 ? 'text-slate-600' : 'text-emerald-700'
+            taskInfo.hasAnyTasks && taskInfo.pending === 0 ? 'text-gray-700' : 'text-gray-500'
           )}>
-            {deal.total_tasks === 0 ? 'No tasks' : 
-             deal.pending_tasks === 0 ? `${deal.total_tasks} tasks completed` : 
-             `${deal.pending_tasks}/${deal.total_tasks} tasks pending`}
+            {!taskInfo.hasAnyTasks ? 'No tasks' : 
+             taskInfo.pending === 0 ? `${taskInfo.total} tasks completed` : 
+             `${taskInfo.pending}/${taskInfo.total} tasks pending`}
           </span>
         </div>
 
@@ -381,29 +368,29 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
 
         {/* Premium Quick Actions on Hover */}
         {isHovered && !isDragging && (
-          <div className="absolute top-3 right-3 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-1 group-hover:translate-y-0">
+          <div className="absolute top-3 right-3 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-all duration-200">
             <button
               onClick={handleEmailClick}
               disabled={logContact.isPending}
-              className="h-8 w-8 p-0 bg-white/98 backdrop-blur-md border border-border/40 rounded-lg shadow-md hover:shadow-lg hover:shadow-black/10 flex items-center justify-center transition-all duration-200 hover:scale-105 hover:bg-primary/5"
+              className="h-7 w-7 p-0 bg-white border border-gray-200 rounded-md shadow-sm hover:shadow-md flex items-center justify-center transition-all duration-200 hover:bg-gray-50"
               title="Send Email"
             >
-              <Mail className="h-3.5 w-3.5 text-foreground/70 hover:text-primary" />
+              <Mail className="h-3 w-3 text-gray-500" />
             </button>
             <button
               onClick={handlePhoneClick}
               disabled={logContact.isPending}
-              className="h-8 w-8 p-0 bg-white/98 backdrop-blur-md border border-border/40 rounded-lg shadow-md hover:shadow-lg hover:shadow-black/10 flex items-center justify-center transition-all duration-200 hover:scale-105 hover:bg-primary/5"
+              className="h-7 w-7 p-0 bg-white border border-gray-200 rounded-md shadow-sm hover:shadow-md flex items-center justify-center transition-all duration-200 hover:bg-gray-50"
               title="Log Call"
             >
-              <Phone className="h-3.5 w-3.5 text-foreground/70 hover:text-primary" />
+              <Phone className="h-3 w-3 text-gray-500" />
             </button>
             <button
               onClick={handleEditClick}
-              className="h-8 w-8 p-0 bg-white/98 backdrop-blur-md border border-border/40 rounded-lg shadow-md hover:shadow-lg hover:shadow-black/10 flex items-center justify-center transition-all duration-200 hover:scale-105 hover:bg-primary/5"
+              className="h-7 w-7 p-0 bg-white border border-gray-200 rounded-md shadow-sm hover:shadow-md flex items-center justify-center transition-all duration-200 hover:bg-gray-50"
               title="View Details"
             >
-              <Edit className="h-3.5 w-3.5 text-foreground/70 hover:text-primary" />
+              <Edit className="h-3 w-3 text-gray-500" />
             </button>
           </div>
         )}
