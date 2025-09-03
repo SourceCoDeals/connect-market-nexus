@@ -3,7 +3,7 @@ import { useDraggable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle, Mail, Phone, Edit } from 'lucide-react';
+import { Mail, Phone, Edit, Clock, AlertCircle } from 'lucide-react';
 import { Deal } from '@/hooks/admin/use-deals';
 import { cn } from '@/lib/utils';
 
@@ -33,32 +33,32 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
   const getBuyerTypeColor = (buyerType?: string) => {
     switch (buyerType) {
       case 'privateEquity':
-        return 'bg-buyer-pe text-buyer-pe-foreground border-buyer-pe-border';
+        return 'bg-purple-50 text-purple-700 border-purple-200';
       case 'familyOffice':
-        return 'bg-buyer-family text-buyer-family-foreground border-buyer-family-border';
+        return 'bg-blue-50 text-blue-700 border-blue-200';
       case 'searchFund':
-        return 'bg-buyer-search text-buyer-search-foreground border-buyer-search-border';
+        return 'bg-green-50 text-green-700 border-green-200';
       case 'corporate':
-        return 'bg-buyer-corporate text-buyer-corporate-foreground border-buyer-corporate-border';
+        return 'bg-orange-50 text-orange-700 border-orange-200';
       case 'individual':
-        return 'bg-buyer-individual text-buyer-individual-foreground border-buyer-individual-border';
+        return 'bg-gray-50 text-gray-700 border-gray-200';
       case 'independentSponsor':
-        return 'bg-buyer-sponsor text-buyer-sponsor-foreground border-buyer-sponsor-border';
+        return 'bg-indigo-50 text-indigo-700 border-indigo-200';
       default:
-        return 'bg-muted text-muted-foreground border-border';
+        return 'bg-gray-50 text-gray-600 border-gray-200';
     }
   };
 
   const getBuyerTypeLabel = (buyerType?: string) => {
     switch (buyerType) {
       case 'privateEquity':
-        return 'PE';
+        return 'PE Fund';
       case 'familyOffice':
         return 'Family Office';
       case 'searchFund':
         return 'Search Fund';
       case 'corporate':
-        return 'Corporate';
+        return 'Strategic';
       case 'individual':
         return 'Individual';
       case 'independentSponsor':
@@ -71,37 +71,37 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'signed':
-        return 'bg-status-signed text-status-signed-foreground border-status-signed-border';
+        return 'bg-emerald-100 text-emerald-800 border-emerald-200';
       case 'sent':
-        return 'bg-status-sent text-status-sent-foreground border-status-sent-border';
+        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
       case 'declined':
-        return 'bg-status-declined text-status-declined-foreground border-status-declined-border';
+        return 'bg-red-100 text-red-800 border-red-200';
       default:
-        return 'bg-status-pending text-status-pending-foreground border-status-pending-border';
+        return 'bg-gray-100 text-gray-600 border-gray-200';
     }
   };
 
-  // Phase 3: Enhanced Buyer Priority Logic
+  // Enhanced Buyer Priority Logic
   const getBuyerPriority = (buyerType?: string, score?: number) => {
     switch (buyerType) {
       case 'privateEquity':
-        return { level: 'High', color: 'bg-status-signed text-status-signed-foreground border-status-signed-border' };
+        return { level: 'High', color: 'bg-emerald-100 text-emerald-800' };
       case 'familyOffice':
       case 'corporate':
-        return { level: 'High', color: 'bg-status-signed text-status-signed-foreground border-status-signed-border' };
+        return { level: 'High', color: 'bg-emerald-100 text-emerald-800' };
       case 'searchFund':
       case 'independentSponsor':
-        return { level: 'Medium', color: 'bg-status-sent text-status-sent-foreground border-status-sent-border' };
+        return { level: 'Medium', color: 'bg-yellow-100 text-yellow-800' };
       case 'individual':
-        if (score && score >= 70) return { level: 'High', color: 'bg-status-signed text-status-signed-foreground border-status-signed-border' };
-        if (score && score >= 40) return { level: 'Medium', color: 'bg-status-sent text-status-sent-foreground border-status-sent-border' };
-        return { level: 'Low', color: 'bg-status-pending text-status-pending-foreground border-status-pending-border' };
+        if (score && score >= 70) return { level: 'High', color: 'bg-emerald-100 text-emerald-800' };
+        if (score && score >= 40) return { level: 'Medium', color: 'bg-yellow-100 text-yellow-800' };
+        return { level: 'Low', color: 'bg-gray-100 text-gray-600' };
       default:
-        return { level: 'Low', color: 'bg-status-pending text-status-pending-foreground border-status-pending-border' };
+        return { level: 'Low', color: 'bg-gray-100 text-gray-600' };
     }
   };
 
-  // Phase 2: Deal Momentum Indicators
+  // Deal Momentum Indicators
   const getDaysSinceLastContact = () => {
     if (deal.followed_up_at) {
       return Math.floor((new Date().getTime() - new Date(deal.followed_up_at).getTime()) / (1000 * 60 * 60 * 24));
@@ -118,7 +118,7 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
     return 'Follow up';
   };
 
-  // Calculate days in stage
+  // Calculate meaningful data
   const daysInStage = Math.floor(
     (new Date().getTime() - new Date(deal.deal_stage_entered_at).getTime()) / (1000 * 60 * 60 * 24)
   );
@@ -127,16 +127,21 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
   const nextAction = getNextAction();
   const buyerPriority = getBuyerPriority(deal.buyer_type, deal.buyer_priority_score);
 
-  // Phase 1: Fix company name priority - buyer_company first, then contact_company, avoid listing_title
-  const companyName = deal.buyer_company || deal.contact_company || 'Unknown Company';
+  // Key information display - prioritize listing title and buyer company
+  const listingTitle = deal.listing_title || 'Unknown Listing';
+  const buyerCompany = deal.buyer_company || deal.contact_company || 'Unknown Company';
   const contactName = deal.buyer_name || deal.contact_name || 'Unknown Contact';
 
-  // Determine priority and urgency indicators
+  // Revenue context for deal sizing
+  const listingRevenue = deal.listing_revenue ? `$${(deal.listing_revenue / 1000000).toFixed(1)}M` : null;
+  const listingEbitda = deal.listing_ebitda ? `$${(deal.listing_ebitda / 1000000).toFixed(1)}M` : null;
+
+  // Urgency indicators
   const isOverdue = deal.followup_overdue;
   const isStale = daysInStage > 14;
   const isUrgent = daysSinceLastContact > 7;
 
-  // Phase 4: Quick action handlers
+  // Quick action handlers
   const handleEmailClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     // TODO: Implement email functionality
@@ -161,128 +166,137 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
       {...listeners}
       {...attributes}
       className={cn(
-        "group relative mb-3 cursor-pointer transition-all duration-300 hover:shadow-md border-l-4 bg-card",
-        isDragging && "rotate-1 shadow-lg scale-[1.02]",
-        isOverdue && "border-l-destructive bg-destructive/5",
-        isStale && "border-l-warning bg-warning/5", 
-        buyerPriority.level === 'High' && "border-l-status-signed bg-status-signed/5",
-        !isOverdue && !isStale && buyerPriority.level !== 'High' && "border-l-muted-foreground/20"
+        "group relative mb-3 cursor-pointer transition-all duration-200 hover:shadow-lg border border-gray-200 bg-white",
+        isDragging && "rotate-1 shadow-xl scale-[1.02] z-50",
+        isOverdue && "border-red-200 bg-red-50",
+        isUrgent && !isOverdue && "border-yellow-200 bg-yellow-50",
+        buyerPriority.level === 'High' && !isOverdue && !isUrgent && "border-emerald-200 bg-emerald-50"
       )}
       onClick={() => !isDragging && onDealClick(deal)}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <CardContent className="p-4 space-y-3">
-        {/* Phase 1: Primary Info - Company Name and Contact */}
-        <div className="space-y-2">
-          <div>
-            <h3 className="font-semibold text-base leading-tight text-foreground tracking-tight">
-              {companyName}
-            </h3>
-            <p className="text-sm text-muted-foreground mt-0.5">
-              {contactName}
-            </p>
-          </div>
+      <CardContent className="p-5">
+        {/* Primary Information - Listing Title (Most Important) */}
+        <div className="mb-4">
+          <h2 className="text-lg font-semibold text-gray-900 leading-tight mb-1">
+            {listingTitle}
+          </h2>
+          {(listingRevenue || listingEbitda) && (
+            <div className="text-sm text-gray-600 flex gap-3">
+              {listingRevenue && <span>Rev: {listingRevenue}</span>}
+              {listingEbitda && <span>EBITDA: {listingEbitda}</span>}
+            </div>
+          )}
+        </div>
 
-          {/* Buyer Type and Priority */}
-          <div className="flex items-center justify-between">
-            <Badge 
-              variant="outline" 
-              className={cn("text-xs font-semibold px-3 py-1 rounded-full", getBuyerTypeColor(deal.buyer_type))}
-            >
-              {getBuyerTypeLabel(deal.buyer_type)}
-            </Badge>
-            <Badge 
-              variant="outline" 
-              className={cn("text-xs px-2 py-1 rounded-full font-medium", buyerPriority.color)}
-            >
+        {/* Buyer Information */}
+        <div className="mb-4">
+          <div className="flex items-start justify-between mb-2">
+            <div className="flex-1 min-w-0">
+              <p className="font-medium text-gray-900 truncate">{buyerCompany}</p>
+              <p className="text-sm text-gray-600 truncate">{contactName}</p>
+            </div>
+            <Badge className={cn("ml-2 text-xs font-medium px-2 py-1 rounded-full shrink-0", buyerPriority.color)}>
               {buyerPriority.level}
             </Badge>
           </div>
-        </div>
-
-        {/* Phase 1: Time in Stage - Prominent Display */}
-        <div className={cn(
-          "bg-muted/40 rounded-lg p-3 text-center border transition-colors",
-          isStale && "bg-warning/10 border-warning/30",
-          isOverdue && "bg-destructive/10 border-destructive/30"
-        )}>
-          <div className="text-2xl font-bold text-foreground mb-0.5">{daysInStage}</div>
-          <div className="text-xs text-muted-foreground font-medium uppercase tracking-wide">days in stage</div>
-        </div>
-
-        {/* Phase 1: Document Status - NDA/Fee Agreement */}
-        <div className="flex gap-2">
-          <Badge 
-            variant="outline" 
-            className={cn("flex-1 justify-center text-xs py-1.5 font-semibold rounded-md", getStatusColor(deal.nda_status))}
-          >
-            NDA
-          </Badge>
-          <Badge 
-            variant="outline" 
-            className={cn("flex-1 justify-center text-xs py-1.5 font-semibold rounded-md", getStatusColor(deal.fee_agreement_status))}
-          >
-            Fee
+          
+          <Badge variant="outline" className={cn("text-xs font-medium px-2 py-1 rounded-full", getBuyerTypeColor(deal.buyer_type))}>
+            {getBuyerTypeLabel(deal.buyer_type)}
           </Badge>
         </div>
 
-        {/* Phase 2: Deal Momentum Indicators */}
-        <div className="space-y-1.5">
-          <div className="flex justify-between items-center text-xs">
-            <span className="text-muted-foreground">Last Contact:</span>
+        {/* Document Status - Clean, Minimal */}
+        <div className="mb-4">
+          <div className="grid grid-cols-2 gap-2">
+            <div className={cn(
+              "text-center py-2 px-3 rounded-lg text-xs font-medium border",
+              getStatusColor(deal.nda_status)
+            )}>
+              <div>NDA</div>
+              <div className="text-xs opacity-75 mt-0.5 capitalize">
+                {deal.nda_status === 'not_sent' ? 'Pending' : deal.nda_status}
+              </div>
+            </div>
+            <div className={cn(
+              "text-center py-2 px-3 rounded-lg text-xs font-medium border",
+              getStatusColor(deal.fee_agreement_status)
+            )}>
+              <div>Fee Agreement</div>
+              <div className="text-xs opacity-75 mt-0.5 capitalize">
+                {deal.fee_agreement_status === 'not_sent' ? 'Pending' : deal.fee_agreement_status}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Deal Momentum - Key Metrics */}
+        <div className="space-y-2 text-sm">
+          <div className="flex justify-between items-center">
+            <span className="text-gray-600 flex items-center gap-1">
+              <Clock className="h-3 w-3" />
+              Last Contact
+            </span>
             <span className={cn(
               "font-medium",
-              isUrgent ? "text-warning" : "text-foreground"
+              isUrgent ? "text-red-600" : "text-gray-900"
             )}>
-              {daysSinceLastContact} days ago
+              {daysSinceLastContact}d ago
             </span>
           </div>
-          <div className="text-xs">
-            <span className="text-muted-foreground">Next Action: </span>
-            <span className="font-medium text-foreground">{nextAction}</span>
+          
+          <div className="flex justify-between items-center">
+            <span className="text-gray-600">Next Action</span>
+            <span className="font-medium text-gray-900 text-right flex-1 ml-2 truncate">
+              {nextAction}
+            </span>
           </div>
         </div>
 
-        {/* Phase 3: Task Indicator */}
-        {deal.pending_tasks > 0 && (
-          <div className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground bg-muted/20 rounded-md py-1.5 px-2">
-            <CheckCircle className="h-3 w-3" />
-            <span className="font-medium">{deal.pending_tasks} tasks</span>
+        {/* Days in Stage - Bottom, Subtle */}
+        <div className="mt-4 pt-3 border-t border-gray-100">
+          <div className="text-center">
+            <div className="text-xs text-gray-500 uppercase tracking-wide">Days in Stage</div>
+            <div className={cn(
+              "text-lg font-semibold mt-0.5",
+              isStale ? "text-yellow-600" : "text-gray-900"
+            )}>{daysInStage}</div>
           </div>
-        )}
+        </div>
 
-        {/* Phase 4: Interactive Quick Actions on Hover */}
+        {/* Quick Actions on Hover */}
         {isHovered && !isDragging && (
-          <div className="absolute top-2 right-2 flex gap-1 bg-background/90 backdrop-blur-sm rounded-md border shadow-sm p-1">
+          <div className="absolute top-3 right-3 flex gap-1 bg-white/95 backdrop-blur-sm rounded-lg border border-gray-200 shadow-lg p-1">
             <button
               onClick={handleEmailClick}
-              className="p-1.5 rounded hover:bg-muted transition-colors"
+              className="p-2 rounded-md hover:bg-gray-100 transition-colors"
               title="Send Email"
             >
-              <Mail className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
+              <Mail className="h-4 w-4 text-gray-600" />
             </button>
             <button
               onClick={handlePhoneClick}
-              className="p-1.5 rounded hover:bg-muted transition-colors"
+              className="p-2 rounded-md hover:bg-gray-100 transition-colors"
               title="Call"
             >
-              <Phone className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
+              <Phone className="h-4 w-4 text-gray-600" />
             </button>
             <button
               onClick={handleEditClick}
-              className="p-1.5 rounded hover:bg-muted transition-colors"
+              className="p-2 rounded-md hover:bg-gray-100 transition-colors"
               title="Edit Deal"
             >
-              <Edit className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
+              <Edit className="h-4 w-4 text-gray-600" />
             </button>
           </div>
         )}
 
         {/* Urgency Indicator */}
         {isOverdue && (
-          <div className="absolute -top-1 -right-1">
-            <div className="bg-destructive text-destructive-foreground text-xs px-2 py-0.5 rounded-full shadow-sm animate-pulse font-medium">
+          <div className="absolute -top-2 -right-2">
+            <div className="bg-red-500 text-white text-xs px-2 py-1 rounded-full shadow-lg flex items-center gap-1">
+              <AlertCircle className="h-3 w-3" />
               Overdue
             </div>
           </div>
