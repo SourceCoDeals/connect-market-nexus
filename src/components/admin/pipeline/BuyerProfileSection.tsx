@@ -78,16 +78,30 @@ export function BuyerProfileSection({ buyerProfile, selectedDeal, className }: B
   return (
     <div className={cn("space-y-6", className)}>
       {/* Original Buyer Message - Hero Content */}
-      {buyerProfile?.user_message && (
-        <div className="bg-blue-50 border border-blue-100 rounded-lg p-4">
-          <div className="flex items-start gap-3">
-            <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-              <Mail className="w-4 h-4 text-blue-600" />
+      {(buyerProfile?.user_message && buyerProfile.user_message.trim()) ? (
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200/60 rounded-xl p-6 shadow-sm">
+          <div className="flex items-start gap-4">
+            <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
+              <Mail className="w-5 h-5 text-blue-600" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium text-blue-900 mb-2">Original Interest Message</p>
-              <p className="text-sm text-blue-800 leading-relaxed">{buyerProfile.user_message}</p>
+              <div className="flex items-center gap-2 mb-3">
+                <h4 className="text-sm font-semibold text-blue-900">Original Interest Message</h4>
+                <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">
+                  Why they're interested
+                </span>
+              </div>
+              <blockquote className="text-sm text-blue-800 leading-relaxed font-medium border-l-3 border-blue-300 pl-4 italic">
+                "{buyerProfile.user_message}"
+              </blockquote>
             </div>
+          </div>
+        </div>
+      ) : (
+        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+          <div className="flex items-center gap-2 text-gray-500">
+            <Mail className="w-4 h-4" />
+            <span className="text-sm">No original message available</span>
           </div>
         </div>
       )}

@@ -17,7 +17,7 @@ export function BuyerPriorityScore({ score, buyerType, className }: BuyerPriorit
         bgColor: 'bg-green-50',
         borderColor: 'border-green-200',
         icon: Star,
-        description: 'High-value buyer with strong credentials'
+        description: 'Private Equity - Highest value buyer'
       };
     }
     if (score >= 4) {
@@ -27,7 +27,7 @@ export function BuyerPriorityScore({ score, buyerType, className }: BuyerPriorit
         bgColor: 'bg-blue-50',
         borderColor: 'border-blue-200',
         icon: TrendingUp,
-        description: 'Experienced buyer with good potential'
+        description: 'Corporate/Strategic buyer'
       };
     }
     if (score >= 3) {
@@ -37,7 +37,7 @@ export function BuyerPriorityScore({ score, buyerType, className }: BuyerPriorit
         bgColor: 'bg-amber-50',
         borderColor: 'border-amber-200',
         icon: TrendingUp,
-        description: 'Qualified buyer worth pursuing'
+        description: 'Family Office/Independent Sponsor'
       };
     }
     if (score >= 2) {
@@ -47,16 +47,16 @@ export function BuyerPriorityScore({ score, buyerType, className }: BuyerPriorit
         bgColor: 'bg-gray-50',
         borderColor: 'border-gray-200',
         icon: AlertCircle,
-        description: 'Basic qualification, monitor closely'
+        description: 'Search Fund buyer'
       };
     }
     return {
-      label: 'Unqualified',
-      color: 'text-red-600',
-      bgColor: 'bg-red-50',
-      borderColor: 'border-red-200',
+      label: 'Individual',
+      color: 'text-gray-500',
+      bgColor: 'bg-gray-50',
+      borderColor: 'border-gray-200',
       icon: AlertCircle,
-      description: 'Limited buyer credentials'
+      description: 'Individual buyer - requires qualification'
     };
   };
 
@@ -69,15 +69,15 @@ export function BuyerPriorityScore({ score, buyerType, className }: BuyerPriorit
     if (buyerType) {
       const type = buyerType.toLowerCase();
       if (type.includes('pe') || type.includes('private equity')) {
-        explanations.push('Private Equity (+5 points)');
+        explanations.push('Private Equity (5 points)');
       } else if (type.includes('corporate') || type.includes('strategic')) {
-        explanations.push('Corporate/Strategic (+4 points)');
+        explanations.push('Corporate/Strategic (4 points)');
       } else if (type.includes('family office') || type.includes('independent sponsor')) {
-        explanations.push('Family Office/Independent (+3 points)');
+        explanations.push('Family Office/Independent (3 points)');
       } else if (type.includes('search fund')) {
-        explanations.push('Search Fund (+2 points)');
+        explanations.push('Search Fund (2 points)');
       } else {
-        explanations.push('Individual Buyer (+1 point)');
+        explanations.push('Individual Buyer (1 point)');
       }
     }
 
