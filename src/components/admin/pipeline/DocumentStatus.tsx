@@ -157,13 +157,13 @@ export function DocumentStatus({
 
   return (
     <>
-      <div className={cn("space-y-4", className)}>
+      <div className={cn("space-y-6", className)}>
         <h3 className="text-sm font-medium text-gray-900">Document Status</h3>
         
-        <div className="space-y-6">
+        <div className="space-y-4">
           {/* NDA Section */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
+          <div className="border border-gray-200 rounded-lg p-4">
+            <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-3">
                 {getStatusIcon(ndaStatus)}
                 <div>
@@ -180,7 +180,7 @@ export function DocumentStatus({
             {(() => {
               const activity = getRecentDocumentActivity('nda');
               return activity ? (
-                <div className="bg-gray-50 rounded-lg p-3 text-xs">
+                <div className="bg-gray-50 rounded-md p-3 text-xs mb-3">
                   <div className="flex items-center gap-2 text-gray-600">
                     <Calendar className="w-3 h-3" />
                     <span className="font-medium">{activity.action === 'sent' ? 'Sent' : activity.action} by {activity.adminName}</span>
@@ -196,14 +196,14 @@ export function DocumentStatus({
               ) : null;
             })()}
             
-            <div className="flex flex-wrap gap-2">
+            <div className="flex gap-2">
               {getAvailableActions(ndaStatus).map((action) => (
                 <Button
                   key={action.type}
                   variant="outline"
                   size="sm"
                   onClick={() => handleAction('nda', action.type)}
-                  className="text-xs h-8"
+                  className="text-xs h-7 px-3"
                 >
                   <action.icon className="w-3 h-3 mr-1.5" />
                   {action.label}
@@ -213,8 +213,8 @@ export function DocumentStatus({
           </div>
 
           {/* Fee Agreement Section */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
+          <div className="border border-gray-200 rounded-lg p-4">
+            <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-3">
                 {getStatusIcon(feeAgreementStatus)}
                 <div>
@@ -231,7 +231,7 @@ export function DocumentStatus({
             {(() => {
               const activity = getRecentDocumentActivity('fee_agreement');
               return activity ? (
-                <div className="bg-gray-50 rounded-lg p-3 text-xs">
+                <div className="bg-gray-50 rounded-md p-3 text-xs mb-3">
                   <div className="flex items-center gap-2 text-gray-600">
                     <Calendar className="w-3 h-3" />
                     <span className="font-medium">{activity.action === 'sent' ? 'Sent' : activity.action} by {activity.adminName}</span>
@@ -247,14 +247,14 @@ export function DocumentStatus({
               ) : null;
             })()}
             
-            <div className="flex flex-wrap gap-2">
+            <div className="flex gap-2">
               {getAvailableActions(feeAgreementStatus).map((action) => (
                 <Button
                   key={action.type}
                   variant="outline"
                   size="sm"
                   onClick={() => handleAction('fee_agreement', action.type)}
-                  className="text-xs h-8"
+                  className="text-xs h-7 px-3"
                 >
                   <action.icon className="w-3 h-3 mr-1.5" />
                   {action.label}

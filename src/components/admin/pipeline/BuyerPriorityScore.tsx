@@ -9,18 +9,43 @@ interface BuyerPriorityScoreProps {
 }
 
 export function BuyerPriorityScore({ score, buyerType, className }: BuyerPriorityScoreProps) {
+  // Convert database score (0-100 scale) to standard 1-5 point scale based on buyer type
+  const getActualScore = (rawScore: number, buyerType?: string) => {
+    if (!buyerType) return 1; // Individual/Unknown = lowest score
+    
+    const type = buyerType.toLowerCase().replace(/[^a-z]/g, '');
+    switch (type) {
+      case 'privateequity':
+      case 'pe':
+        return 5;
+      case 'corporate':
+      case 'strategic':
+        return 4;
+      case 'familyoffice':
+      case 'independentsponsor':
+        return 3;
+      case 'searchfund':
+        return 2;
+      case 'individual':
+      default:
+        return 1;
+    }
+  };
+
+  const actualScore = getActualScore(score, buyerType);
+
   const getScoreConfig = (score: number) => {
-    if (score >= 5) {
+    if (score === 5) {
       return {
         label: 'Premium',
-        color: 'text-green-600',
-        bgColor: 'bg-green-50',
-        borderColor: 'border-green-200',
+        color: 'text-emerald-600',
+        bgColor: 'bg-emerald-50',
+        borderColor: 'border-emerald-200',
         icon: Star,
         description: 'Private Equity - Highest value buyer'
       };
     }
-    if (score >= 4) {
+    if (score === 4) {
       return {
         label: 'High Priority',
         color: 'text-blue-600',
@@ -30,17 +55,17 @@ export function BuyerPriorityScore({ score, buyerType, className }: BuyerPriorit
         description: 'Corporate/Strategic buyer'
       };
     }
-    if (score >= 3) {
+    if (score === 3) {
       return {
         label: 'Medium Priority',
-        color: 'text-amber-600',
-        bgColor: 'bg-amber-50',
-        borderColor: 'border-amber-200',
+        color: 'text-orange-600',
+        bgColor: 'bg-orange-50',
+        borderColor: 'border-orange-200',
         icon: TrendingUp,
         description: 'Family Office/Independent Sponsor'
       };
     }
-    if (score >= 2) {
+    if (score === 2) {
       return {
         label: 'Lower Priority',
         color: 'text-gray-600',
@@ -60,7 +85,7 @@ export function BuyerPriorityScore({ score, buyerType, className }: BuyerPriorit
     };
   };
 
-  const config = getScoreConfig(score);
+  const config = getScoreConfig(actualScore);
   const Icon = config.icon;
 
   const getScoreExplanation = () => {
@@ -98,7 +123,7 @@ export function BuyerPriorityScore({ score, buyerType, className }: BuyerPriorit
               {config.label}
             </span>
             <span className="text-xs font-mono bg-white/50 px-1.5 py-0.5 rounded">
-              {score}/5
+              {actualScore}/5
             </span>
           </div>
         </div>

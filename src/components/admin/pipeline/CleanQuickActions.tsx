@@ -65,43 +65,41 @@ export function CleanQuickActions({
   ];
 
   return (
-    <div className={cn("space-y-3", className)}>
+    <div className={cn("space-y-4", className)}>
       <h4 className="text-sm font-medium text-gray-900">Quick Actions</h4>
       
-      {/* Primary action row */}
+      {/* Single row of minimal actions */}
       <div className="flex gap-2">
         {actions.map((action, index) => {
           const Icon = action.icon;
           return (
             <Button
               key={index}
-              variant={action.primary ? "default" : "outline"}
+              variant="outline"
               size="sm"
               onClick={action.onClick}
               disabled={action.disabled}
               className={cn(
-                "flex-1 justify-center gap-2 text-xs font-medium",
-                action.primary 
-                  ? "bg-blue-600 hover:bg-blue-700 text-white border-0" 
-                  : "border-gray-300 text-gray-700 hover:bg-gray-50"
+                "flex-1 justify-center gap-1.5 text-xs font-medium h-7 border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400",
+                action.disabled && "opacity-50 cursor-not-allowed"
               )}
             >
-              <Icon className="w-4 h-4" />
+              <Icon className="w-3.5 h-3.5" />
               {action.label}
             </Button>
           );
         })}
       </div>
 
-      {/* Secondary note action */}
+      {/* Secondary note action - minimal style */}
       {onLogNote && (
         <Button
           variant="ghost"
           size="sm"
           onClick={onLogNote}
-          className="w-full justify-start gap-2 text-xs text-gray-600 hover:text-gray-900 hover:bg-gray-50 h-8"
+          className="w-full justify-start gap-2 text-xs text-gray-600 hover:text-gray-900 hover:bg-gray-50 h-7 px-2"
         >
-          <MessageSquare className="w-4 h-4" />
+          <MessageSquare className="w-3.5 h-3.5" />
           Add Note
         </Button>
       )}

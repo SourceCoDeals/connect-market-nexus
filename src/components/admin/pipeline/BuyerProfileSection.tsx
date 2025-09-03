@@ -139,11 +139,12 @@ export function BuyerProfileSection({ buyerProfile, selectedDeal, className }: B
       </div>
 
       {/* Buyer Priority Score */}
-      <BuyerPriorityScore 
-        score={selectedDeal.buyer_priority_score || 0}
-        buyerType={buyerType}
-        className="bg-white border border-gray-200 rounded-lg p-4"
-      />
+      <div className="border border-gray-200 rounded-lg p-4">
+        <BuyerPriorityScore 
+          score={selectedDeal.buyer_priority_score || 0}
+          buyerType={buyerType}
+        />
+      </div>
 
       {/* Contact Information */}
       <div className="space-y-3">
