@@ -94,7 +94,7 @@ export function useBuyerProfile(dealId?: string) {
         .from('connection_requests')
         .select(`
           *,
-          buyer:profiles!connection_requests_user_id_fkey(
+          profiles!connection_requests_user_id_fkey(
             first_name,
             last_name,
             email,
