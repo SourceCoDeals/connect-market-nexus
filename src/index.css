@@ -41,6 +41,21 @@
     --status-completed-foreground: 0 0% 100%;
     --status-pending: 47 96% 89%;
     --status-pending-foreground: 24 45% 37%;
+
+    /* Deal status indicators */
+    --deal-nda-pending: 220 13% 69%;
+    --deal-nda-sent: 43 38% 56%;
+    --deal-nda-signed: 142 71% 45%;
+    --deal-fee-pending: 220 13% 69%;
+    --deal-fee-sent: 43 38% 56%;
+    --deal-fee-signed: 266 91% 59%;
+
+    /* Buyer type colors */
+    --buyer-pe: 142 71% 45%;
+    --buyer-strategic: 266 91% 59%;
+    --buyer-individual: 43 38% 56%;
+    --buyer-search-fund: 25 95% 53%;
+    --buyer-other: 220 13% 69%;
     
     /* Enhanced semantic color system */
     --success: 142 71% 45%;

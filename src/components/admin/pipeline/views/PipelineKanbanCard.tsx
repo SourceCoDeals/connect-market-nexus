@@ -28,40 +28,58 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
     zIndex: isDragActive ? 1000 : 'auto',
   } : undefined;
   
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-      notation: value >= 100000 ? 'compact' : 'standard',
-    }).format(value);
-  };
-  
-  const getPriorityDotColor = (priority: string) => {
-    switch (priority) {
-      case 'urgent': return 'bg-red-500';
-      case 'high': return 'bg-orange-500';
-      case 'medium': return 'bg-yellow-500';
-      default: return 'bg-gray-300';
+  const getBuyerTypeColor = (buyerType?: string) => {
+    switch (buyerType?.toLowerCase()) {
+      case 'private_equity':
+      case 'pe':
+        return 'bg-green-500 text-white';
+      case 'strategic':
+        return 'bg-purple-500 text-white';
+      case 'individual':
+        return 'bg-yellow-600 text-white';
+      case 'search_fund':
+        return 'bg-orange-500 text-white';
+      default:
+        return 'bg-gray-400 text-white';
     }
   };
-  
-  const getBuyerPriorityStars = (score: number) => {
-    if (score >= 80) return 5;
-    if (score >= 60) return 4;
-    if (score >= 40) return 3;
-    if (score >= 20) return 2;
-    return 1;
+
+  const getBuyerTypeLabel = (buyerType?: string) => {
+    switch (buyerType?.toLowerCase()) {
+      case 'private_equity':
+      case 'pe':
+        return 'PE';
+      case 'strategic':
+        return 'Strategic';
+      case 'individual':
+        return 'Individual';
+      case 'search_fund':
+        return 'Search Fund';
+      default:
+        return 'Other';
+    }
   };
-  
+
+  const getStatusColor = (status: string, type: 'nda' | 'fee') => {
+    const baseColor = type === 'nda' ? 'blue' : 'purple';
+    switch (status) {
+      case 'signed':
+        return `bg-green-500 text-white`;
+      case 'sent':
+        return `bg-${baseColor}-500 text-white`;
+      case 'not_sent':
+      default:
+        return 'bg-gray-300 text-gray-600';
+    }
+  };
+
   const daysInStage = Math.floor(
     (new Date().getTime() - new Date(deal.deal_stage_entered_at).getTime()) / 
     (1000 * 60 * 60 * 24)
   );
-  
+
   const isOverdue = deal.next_followup_due && new Date(deal.next_followup_due) < new Date();
-  const stars = getBuyerPriorityStars(deal.buyer_priority_score || 0);
+  const isStale = daysInStage > 14;
   
   return (
     <Card
@@ -79,9 +97,9 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
       `}
       onClick={() => !isDragActive && onDealClick(deal)}
     >
-      <CardContent className="p-4 space-y-3">
-        {/* Header */}
-        <div className="flex items-start justify-between gap-3">
+      <CardContent className="p-3 space-y-3">
+        {/* Header: Deal Title + Buyer Type */}
+        <div className="flex items-start justify-between gap-2">
           <div className="flex-1 min-w-0">
             <h4 className="font-medium text-foreground text-sm leading-tight mb-1 line-clamp-2">
               {deal.deal_title}
@@ -91,34 +109,25 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
             </p>
           </div>
           
-          <div className="flex items-center gap-2 flex-shrink-0">
-            {/* Priority Dot */}
-            <div className={`w-2 h-2 rounded-full ${getPriorityDotColor(deal.deal_priority)}`} />
-            
-            {/* Buyer Priority Stars */}
-            <div className="flex gap-0.5">
-              {[...Array(5)].map((_, i) => (
-                <div
-                  key={i}
-                  className={`w-1 h-1 rounded-full ${
-                    i < stars ? 'bg-amber-400' : 'bg-gray-200'
-                  }`}
-                />
-              ))}
-            </div>
-          </div>
+          {/* Buyer Type Badge */}
+          <Badge 
+            className={`text-xs px-2 py-0.5 font-medium ${getBuyerTypeColor(deal.buyer_type)}`}
+            variant="secondary"
+          >
+            {getBuyerTypeLabel(deal.buyer_type)}
+          </Badge>
         </div>
         
         {/* Contact Info */}
         {deal.contact_name && (
           <div className="flex items-center gap-2">
-            <Avatar className="h-6 w-6">
+            <Avatar className="h-5 w-5">
               <AvatarFallback className="text-xs bg-muted-foreground/10 text-muted-foreground">
                 {deal.contact_name.charAt(0).toUpperCase()}
               </AvatarFallback>
             </Avatar>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-foreground truncate">
+              <p className="text-xs font-medium text-foreground truncate">
                 {deal.contact_name}
               </p>
               {deal.contact_company && (
@@ -130,40 +139,38 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
           </div>
         )}
         
-        {/* Deal Value & Probability */}
-        <div className="flex items-center justify-between pt-1">
-          <div className="text-lg font-semibold text-foreground">
-            {formatCurrency(deal.deal_value)}
-          </div>
-          <div className="text-sm text-muted-foreground">
-            {deal.deal_probability}% likelihood
-          </div>
+        {/* Document Status - Prominent */}
+        <div className="flex items-center gap-2">
+          <Badge 
+            className={`text-xs px-2 py-1 font-medium rounded-md ${getStatusColor(deal.nda_status, 'nda')}`}
+            variant="outline"
+          >
+            NDA {deal.nda_status === 'signed' ? '✓' : deal.nda_status === 'sent' ? '→' : '○'}
+          </Badge>
+          <Badge 
+            className={`text-xs px-2 py-1 font-medium rounded-md ${getStatusColor(deal.fee_agreement_status, 'fee')}`}
+            variant="outline"
+          >
+            Fee {deal.fee_agreement_status === 'signed' ? '✓' : deal.fee_agreement_status === 'sent' ? '→' : '○'}
+          </Badge>
         </div>
         
-        {/* Status Indicators */}
+        {/* Time in Stage + Tasks */}
         <div className="flex items-center justify-between pt-1">
-          <div className="flex items-center gap-1">
-            {deal.nda_status === 'signed' && (
-              <div className="w-1.5 h-1.5 rounded-full bg-green-500" title="NDA Signed" />
-            )}
-            {deal.fee_agreement_status === 'signed' && (
-              <div className="w-1.5 h-1.5 rounded-full bg-blue-500" title="Fee Agreement Signed" />
-            )}
-            {deal.pending_tasks > 0 && (
-              <Badge variant="secondary" className="h-5 px-2 text-xs">
-                {deal.pending_tasks} tasks
-              </Badge>
-            )}
-          </div>
-          
-          <div className="text-xs text-muted-foreground">
+          <div className={`text-xs font-medium ${isStale ? 'text-orange-600' : 'text-muted-foreground'}`}>
             {daysInStage}d in stage
           </div>
+          
+          {deal.pending_tasks > 0 && (
+            <Badge variant="secondary" className="h-4 px-1.5 text-xs">
+              {deal.pending_tasks} tasks
+            </Badge>
+          )}
         </div>
         
         {/* Overdue Warning */}
         {isOverdue && (
-          <div className="flex items-center gap-1 text-xs text-red-600 bg-red-50 rounded-md px-2 py-1 -mx-1">
+          <div className="flex items-center gap-1 text-xs text-red-600 bg-red-50 rounded px-2 py-1 -mx-1">
             <div className="w-1 h-1 rounded-full bg-red-500" />
             <span>Overdue follow-up</span>
           </div>
