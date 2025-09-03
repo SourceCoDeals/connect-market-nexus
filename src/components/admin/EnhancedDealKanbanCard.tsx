@@ -54,33 +54,35 @@ export function EnhancedDealKanbanCard({ deal, isDragging, onClick }: EnhancedDe
     }).format(value);
   };
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'urgent': return 'bg-red-100 text-red-800 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800';
-      case 'high': return 'bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-900/30 dark:text-orange-400 dark:border-orange-800';
-      case 'medium': return 'bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400 dark:border-yellow-800';
-      case 'low': return 'bg-green-100 text-green-800 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-900/30 dark:text-gray-400 dark:border-gray-800';
-    }
-  };
-
   const getBuyerTypeColor = (buyerType?: string) => {
     switch (buyerType) {
-      case 'privateEquity': return 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400';
-      case 'familyOffice': return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400';
-      case 'searchFund': return 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400';
-      case 'corporate': return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400';
-      default: return 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400';
+      case 'privateEquity': return 'bg-primary text-primary-foreground border-primary/20';
+      case 'familyOffice': return 'bg-blue-500 text-white border-blue-200';
+      case 'searchFund': return 'bg-indigo-500 text-white border-indigo-200';
+      case 'corporate': return 'bg-green-500 text-white border-green-200';
+      case 'independentSponsor': return 'bg-orange-500 text-white border-orange-200';
+      case 'individual': return 'bg-gray-500 text-white border-gray-200';
+      default: return 'bg-muted text-muted-foreground border-border';
     }
   };
 
-  const getStatusColor = (status: string) => {
+  const getDocumentStatusColor = (status: string) => {
     switch (status) {
-      case 'signed': return 'text-green-600 dark:text-green-400';
-      case 'sent': return 'text-amber-600 dark:text-amber-400';
-      case 'declined': return 'text-red-600 dark:text-red-400';
-      default: return 'text-gray-400 dark:text-gray-500';
+      case 'signed': return 'bg-green-500 text-white border-green-300';
+      case 'sent': return 'bg-amber-500 text-white border-amber-300';
+      case 'declined': return 'bg-red-500 text-white border-red-300';
+      default: return 'bg-muted text-muted-foreground border-border';
     }
+  };
+
+  const getTimeInStageColor = (daysInStage: number) => {
+    if (daysInStage <= 3) return 'text-green-600 dark:text-green-400';
+    if (daysInStage <= 7) return 'text-amber-600 dark:text-amber-400';
+    return 'text-red-600 dark:text-red-400';
+  };
+
+  const getDaysInStage = () => {
+    return Math.ceil((Date.now() - new Date(deal.deal_stage_entered_at).getTime()) / (1000 * 60 * 60 * 24));
   };
 
   const getBuyerPriorityStars = (score?: number) => {
@@ -102,18 +104,17 @@ export function EnhancedDealKanbanCard({ deal, isDragging, onClick }: EnhancedDe
       onClick={onClick}
     >
       <CardContent className="p-4 space-y-3">
-        {/* Header with Priority and Buyer Score */}
+        {/* Header with Deal Title and Time in Stage */}
         <div className="space-y-2">
           <div className="flex items-start justify-between gap-2">
             <h3 className="font-semibold text-sm text-foreground/90 line-clamp-2 leading-tight">
               {deal.deal_title}
             </h3>
             <div className="flex flex-col gap-1 items-end">
-              <Badge 
-                className={`text-xs font-medium border ${getPriorityColor(deal.deal_priority)} flex-shrink-0`}
-              >
-                {deal.deal_priority}
-              </Badge>
+              {/* Time in Stage - Prominent */}
+              <div className={`text-xs font-bold ${getTimeInStageColor(getDaysInStage())}`}>
+                {getDaysInStage()}d
+              </div>
               {deal.buyer_priority_score && deal.buyer_priority_score > 0 && (
                 <div className="flex items-center gap-0.5">
                   {[...Array(getBuyerPriorityStars(deal.buyer_priority_score))].map((_, i) => (
@@ -125,7 +126,7 @@ export function EnhancedDealKanbanCard({ deal, isDragging, onClick }: EnhancedDe
           </div>
         </div>
 
-        {/* Buyer Information */}
+        {/* Buyer Information with Prominent Type Badge */}
         <div className="space-y-2">
           <div className="flex items-center gap-2">
             <Avatar className="h-6 w-6">
@@ -135,27 +136,29 @@ export function EnhancedDealKanbanCard({ deal, isDragging, onClick }: EnhancedDe
               </AvatarFallback>
             </Avatar>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-foreground/90 truncate">
-                {deal.buyer_name || deal.contact_name || 'Unknown Buyer'}
-              </p>
-              <div className="flex items-center gap-2">
-                {(deal.buyer_company || deal.contact_company) && (
-                  <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
-                    <Building2 className="h-3 w-3" />
-                    {deal.buyer_company || deal.contact_company}
-                  </p>
-                )}
+              <div className="flex items-center gap-2 mb-1">
+                <p className="text-sm font-medium text-foreground/90 truncate">
+                  {deal.buyer_name || deal.contact_name || 'Unknown Buyer'}
+                </p>
+                {/* Prominent Buyer Type Badge */}
                 {deal.buyer_type && (
-                  <Badge className={`text-xs px-1.5 py-0.5 ${getBuyerTypeColor(deal.buyer_type)}`}>
+                  <Badge className={`text-xs px-2 py-0.5 font-semibold ${getBuyerTypeColor(deal.buyer_type)}`}>
                     {deal.buyer_type === 'privateEquity' ? 'PE' : 
                      deal.buyer_type === 'familyOffice' ? 'FO' :
                      deal.buyer_type === 'searchFund' ? 'SF' :
                      deal.buyer_type === 'corporate' ? 'Corp' :
                      deal.buyer_type === 'independentSponsor' ? 'IS' :
+                     deal.buyer_type === 'individual' ? 'IND' :
                      deal.buyer_type}
                   </Badge>
                 )}
               </div>
+              {(deal.buyer_company || deal.contact_company) && (
+                <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
+                  <Building2 className="h-3 w-3" />
+                  {deal.buyer_company || deal.contact_company}
+                </p>
+              )}
             </div>
           </div>
         </div>
@@ -177,14 +180,8 @@ export function EnhancedDealKanbanCard({ deal, isDragging, onClick }: EnhancedDe
           </div>
         </div>
 
-        {/* Deal Value & Probability */}
-        <div className="flex items-center justify-between">
-          <div className="text-sm">
-            <span className="text-muted-foreground">Value: </span>
-            <span className="font-semibold text-foreground/90">
-              {formatCurrency(deal.deal_value)}
-            </span>
-          </div>
+        {/* Deal Probability - Simplified */}
+        <div className="flex items-center justify-center">
           <div className="flex items-center gap-1">
             <Target className="h-3 w-3 text-muted-foreground" />
             <span className="text-sm font-medium text-foreground/90">
@@ -193,66 +190,44 @@ export function EnhancedDealKanbanCard({ deal, isDragging, onClick }: EnhancedDe
           </div>
         </div>
 
-        {/* Status Indicators */}
-        <div className="flex items-center justify-between pt-2 border-t border-border/40">
-          <div className="flex items-center gap-3">
-            {/* NDA Status */}
-            <div className="flex items-center gap-1">
-              <ShieldCheck className={`h-3 w-3 ${getStatusColor(deal.nda_status)}`} />
-              <span className="text-xs text-muted-foreground">NDA</span>
-            </div>
-            
-            {/* Fee Agreement Status */}
-            <div className="flex items-center gap-1">
-              <FileCheck className={`h-3 w-3 ${getStatusColor(deal.fee_agreement_status)}`} />
-              <span className="text-xs text-muted-foreground">Fee</span>
-            </div>
-
-            {/* Follow-up indicator with overdue status */}
-            {deal.followed_up && (
-              <div className="flex items-center gap-1">
-                <CheckCircle2 className="h-3 w-3 text-green-600 dark:text-green-400" />
-                <span className="text-xs text-muted-foreground">F/U</span>
-              </div>
-            )}
-            
-            {/* Overdue follow-up warning */}
-            {deal.followup_overdue && !deal.followed_up && (
-              <div className="flex items-center gap-1">
-                <AlertTriangle className="h-3 w-3 text-red-600 dark:text-red-400" />
-                <span className="text-xs text-red-600 dark:text-red-400">Overdue</span>
-              </div>
-            )}
-          </div>
-
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            {/* Tasks */}
-            {deal.total_tasks > 0 && (
-              <span className="flex items-center gap-1">
-                <CheckCircle2 className="h-3 w-3" />
-                {deal.completed_tasks}/{deal.total_tasks}
-              </span>
-            )}
-            
-            {/* Activities */}
-            {deal.activity_count > 0 && (
-              <span className="flex items-center gap-1">
-                <Activity className="h-3 w-3" />
-                {deal.activity_count}
-              </span>
-            )}
-          </div>
+        {/* Prominent Document Status Badges */}
+        <div className="flex items-center justify-center gap-2 pt-2">
+          {/* NDA Status - Prominent Badge */}
+          <Badge className={`text-xs px-2 py-1 font-semibold ${getDocumentStatusColor(deal.nda_status)}`}>
+            NDA: {deal.nda_status === 'not_sent' ? 'Not Sent' : 
+                   deal.nda_status === 'sent' ? 'Sent' :
+                   deal.nda_status === 'signed' ? 'Signed' : 'Declined'}
+          </Badge>
+          
+          {/* Fee Agreement Status - Prominent Badge */}
+          <Badge className={`text-xs px-2 py-1 font-semibold ${getDocumentStatusColor(deal.fee_agreement_status)}`}>
+            Fee: {deal.fee_agreement_status === 'not_sent' ? 'Not Sent' : 
+                   deal.fee_agreement_status === 'sent' ? 'Sent' :
+                   deal.fee_agreement_status === 'signed' ? 'Signed' : 'Declined'}
+          </Badge>
         </div>
 
-        {/* Footer with Follow-up Due Date */}
-        <div className="flex items-center justify-between pt-1 text-xs text-muted-foreground">
-          <div className="flex items-center gap-1">
-            <Calendar className="h-3 w-3" />
-            <span>
-              {Math.ceil((Date.now() - new Date(deal.deal_stage_entered_at).getTime()) / (1000 * 60 * 60 * 24))}d in stage
+        {/* Tasks and Activities */}
+        <div className="flex items-center justify-center gap-4 text-xs text-muted-foreground pt-2 border-t border-border/20">
+          {/* Tasks */}
+          {deal.total_tasks > 0 && (
+            <span className="flex items-center gap-1">
+              <CheckCircle2 className="h-3 w-3" />
+              {deal.completed_tasks}/{deal.total_tasks} tasks
             </span>
-          </div>
+          )}
           
+          {/* Activities */}
+          {deal.activity_count > 0 && (
+            <span className="flex items-center gap-1">
+              <Activity className="h-3 w-3" />
+              {deal.activity_count} activities
+            </span>
+          )}
+        </div>
+
+        {/* Footer with Admin and Follow-up Info */}
+        <div className="flex items-center justify-between pt-1 text-xs text-muted-foreground border-t border-border/20">
           {/* Follow-up due date indicator */}
           {deal.next_followup_due && (
             <div className={`flex items-center gap-1 ${deal.followup_overdue ? 'text-red-600 dark:text-red-400' : ''}`}>
@@ -260,6 +235,14 @@ export function EnhancedDealKanbanCard({ deal, isDragging, onClick }: EnhancedDe
               <span className="text-xs">
                 Due {new Date(deal.next_followup_due).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
               </span>
+            </div>
+          )}
+          
+          {/* Overdue follow-up warning */}
+          {deal.followup_overdue && !deal.followed_up && (
+            <div className="flex items-center gap-1">
+              <AlertTriangle className="h-3 w-3 text-red-600 dark:text-red-400" />
+              <span className="text-xs text-red-600 dark:text-red-400 font-medium">Overdue</span>
             </div>
           )}
           
