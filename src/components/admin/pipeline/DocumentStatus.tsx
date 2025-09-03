@@ -138,12 +138,12 @@ export function DocumentStatus({
   };
 
   return (
-    <div className={cn("space-y-4", className)}>
-      <div className="flex items-center gap-3 mb-6">
-        <div className="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center">
-          <FileCheck className="w-4 h-4 text-slate-600" />
+    <div className={cn("space-y-6", className)}>
+      <div className="flex items-center gap-3">
+        <div className="w-8 h-8 bg-muted rounded-lg flex items-center justify-center">
+          <FileCheck className="w-4 h-4 text-muted-foreground" />
         </div>
-        <h3 className="text-base font-semibold text-slate-900">Documents</h3>
+        <h3 className="text-base font-semibold text-foreground">Documents</h3>
       </div>
 
       <div className="space-y-3">
@@ -154,8 +154,6 @@ export function DocumentStatus({
           onStatusChange={(status) => {
             if (status === 'signed') {
               handleAction('nda', 'mark_signed');
-            } else {
-              // Handle other status changes if needed
             }
           }}
           lastActivity={ndaActivity}
@@ -168,24 +166,22 @@ export function DocumentStatus({
           onStatusChange={(status) => {
             if (status === 'signed') {
               handleAction('fee_agreement', 'mark_signed');
-            } else {
-              // Handle other status changes if needed
             }
           }}
           lastActivity={feeActivity}
         />
       </div>
 
-      {/* Quick Actions for Document Management */}
-      <div className="flex gap-2 pt-2">
+      {/* Clean Action Buttons */}
+      <div className="flex items-center gap-2">
         {getAvailableActions(ndaStatus).includes('send') && (
           <Button
             variant="outline"
             size="sm"
             onClick={() => handleAction('nda', 'send')}
-            className="text-xs h-8 px-3"
+            className="h-9 px-4 text-sm"
           >
-            <Send className="w-3.5 h-3.5 mr-1.5" />
+            <Send className="w-4 h-4 mr-2" />
             Send NDA
           </Button>
         )}
@@ -194,9 +190,9 @@ export function DocumentStatus({
             variant="outline"
             size="sm"
             onClick={() => handleAction('fee_agreement', 'send')}
-            className="text-xs h-8 px-3"
+            className="h-9 px-4 text-sm"
           >
-            <Send className="w-3.5 h-3.5 mr-1.5" />
+            <Send className="w-4 h-4 mr-2" />
             Send Fee Agreement
           </Button>
         )}

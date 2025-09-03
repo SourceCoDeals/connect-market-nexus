@@ -276,26 +276,24 @@ export function PipelineDetailPanel({ pipeline }: PipelineDetailPanelProps) {
           </div>
 
           <div className="flex-1 overflow-hidden">
-            {/* Overview Tab - Buyer-Focused Design */}
+            {/* Overview Tab - Clean Apple/Stripe Design */}
             <TabsContent value="overview" className="p-8 space-y-8 h-full overflow-y-auto mt-0">
-              {/* Comprehensive Buyer Profile - Hero Section */}
+              {/* Buyer Profile with Hero Message */}
               <BuyerProfileSection 
                 buyerProfile={buyerProfile}
                 selectedDeal={selectedDeal}
               />
 
-              {/* Document Status - Clean Integration */}
-              <div className="border border-gray-200 rounded-lg p-4">
-                <DocumentStatus 
-                  dealId={selectedDeal.deal_id}
-                  contactEmail={buyerProfile?.buyerInfo?.email || selectedDeal.buyer_email}
-                  contactName={buyerProfile?.buyerInfo?.name || selectedDeal.buyer_name}
-                  ndaStatus={selectedDeal.nda_status || 'not_sent'}
-                  feeAgreementStatus={selectedDeal.fee_agreement_status || 'not_sent'}
-                />
-              </div>
+              {/* Document Status */}
+              <DocumentStatus 
+                dealId={selectedDeal.deal_id}
+                contactEmail={buyerProfile?.buyerInfo?.email || selectedDeal.buyer_email}
+                contactName={buyerProfile?.buyerInfo?.name || selectedDeal.buyer_name}
+                ndaStatus={selectedDeal.nda_status || 'not_sent'}
+                feeAgreementStatus={selectedDeal.fee_agreement_status || 'not_sent'}
+              />
 
-              {/* Clean Quick Actions */}
+              {/* Quick Actions */}
               <CleanQuickActions
                 buyerEmail={buyerProfile?.buyerInfo?.email || selectedDeal.buyer_email}
                 buyerPhone={buyerProfile?.buyerInfo?.phone_number}

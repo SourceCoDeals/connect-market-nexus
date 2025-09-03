@@ -67,10 +67,10 @@ export function CleanQuickActions({
   return (
     <div className={cn("space-y-4", className)}>
       <div className="flex items-center gap-3">
-        <div className="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center">
-          <Activity className="w-4 h-4 text-slate-600" />
+        <div className="w-8 h-8 bg-muted rounded-lg flex items-center justify-center">
+          <Activity className="w-4 h-4 text-muted-foreground" />
         </div>
-        <h4 className="text-base font-semibold text-slate-900">Quick Actions</h4>
+        <h4 className="text-base font-semibold text-foreground">Quick Actions</h4>
       </div>
       
       {/* Minimal horizontal action row */}
@@ -85,9 +85,9 @@ export function CleanQuickActions({
               onClick={action.onClick}
               disabled={action.disabled}
               className={cn(
-                "flex-1 justify-center gap-2 text-xs font-medium h-9 border-slate-200/60 text-slate-700 hover:bg-slate-50 hover:border-slate-300/60 transition-all",
+                "flex-1 justify-center gap-2 text-xs font-medium h-9 transition-all",
                 action.disabled && "opacity-40 cursor-not-allowed",
-                action.primary && "border-blue-200/60 text-blue-700 hover:bg-blue-50/60 hover:border-blue-300/60"
+                action.primary && "border-primary/20 text-primary hover:bg-primary/5"
               )}
             >
               <Icon className="w-4 h-4" />
@@ -103,7 +103,7 @@ export function CleanQuickActions({
           variant="ghost"
           size="sm"
           onClick={onLogNote}
-          className="w-full justify-center gap-2 text-xs text-slate-600 hover:text-slate-900 hover:bg-slate-50/60 h-8 transition-all"
+          className="w-full justify-center gap-2 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 h-8 transition-all"
         >
           <MessageSquare className="w-4 h-4" />
           Add Note

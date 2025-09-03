@@ -37,54 +37,54 @@ export function BuyerPriorityScore({ buyerType, className }: BuyerPriorityScoreP
       case 5:
         return {
           label: "PE",
-          color: "text-purple-700",
+          color: "text-purple-600",
           bg: "bg-purple-50",
-          border: "border-purple-200/60",
+          border: "border-purple-200",
           icon: Crown,
           description: "Private Equity"
         };
       case 4:
         return {
           label: "Corporate",
-          color: "text-blue-700",
+          color: "text-blue-600",
           bg: "bg-blue-50",
-          border: "border-blue-200/60",
+          border: "border-blue-200",
           icon: TrendingUp,
           description: "Corporate/Family Office"
         };
       case 3:
         return {
           label: "Sponsor",
-          color: "text-emerald-700",
+          color: "text-emerald-600",
           bg: "bg-emerald-50",
-          border: "border-emerald-200/60",
+          border: "border-emerald-200",
           icon: Target,
           description: "Independent Sponsor"
         };
       case 2:
         return {
           label: "Search Fund",
-          color: "text-orange-700",
+          color: "text-orange-600",
           bg: "bg-orange-50",
-          border: "border-orange-200/60",
+          border: "border-orange-200",
           icon: Users,
           description: "Search Fund"
         };
       case 1:
         return {
           label: "Individual",
-          color: "text-slate-600",
-          bg: "bg-slate-50",
-          border: "border-slate-200/60",
+          color: "text-muted-foreground",
+          bg: "bg-muted/50",
+          border: "border-border",
           icon: User,
           description: "Individual Investor"
         };
       default:
         return {
           label: "Unknown",
-          color: "text-slate-500",
-          bg: "bg-slate-50",
-          border: "border-slate-200/60",
+          color: "text-muted-foreground",
+          bg: "bg-muted/50",
+          border: "border-border",
           icon: User,
           description: "Classification pending"
         };
@@ -96,19 +96,14 @@ export function BuyerPriorityScore({ buyerType, className }: BuyerPriorityScoreP
   return (
     <div className={cn("flex items-center gap-2", className)}>
       <div className={cn(
-        "flex items-center gap-2 px-3 py-1.5 rounded-lg border",
+        "flex items-center gap-2 px-3 py-1.5 rounded-md border text-xs",
         config.bg,
         config.border
       )}>
         <config.icon className={cn("w-3.5 h-3.5", config.color)} />
-        <div className="flex items-center gap-1.5">
-          <span className={cn("text-xs font-semibold", config.color)}>
-            {config.label}
-          </span>
-          <span className={cn("text-xs font-medium opacity-75", config.color)}>
-            {actualScore}/5
-          </span>
-        </div>
+        <span className={cn("font-semibold", config.color)}>
+          {config.label} {actualScore}/5
+        </span>
       </div>
     </div>
   );

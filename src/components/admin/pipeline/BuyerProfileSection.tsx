@@ -64,11 +64,11 @@ export function BuyerProfileSection({ buyerProfile, selectedDeal, className }: B
   if (!buyer && !selectedDeal.buyer_name) {
     return (
       <div className={cn("text-center py-12", className)}>
-        <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-3">
-          <User className="w-6 h-6 text-gray-400" />
+        <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mx-auto mb-3">
+          <User className="w-6 h-6 text-muted-foreground" />
         </div>
-        <p className="text-sm font-medium text-gray-900">No Buyer Information</p>
-        <p className="text-xs text-gray-500 mt-1">Buyer details are not available for this deal</p>
+        <p className="text-sm font-medium text-foreground">No Buyer Information</p>
+        <p className="text-xs text-muted-foreground mt-1">Buyer details are not available for this deal</p>
       </div>
     );
   }
@@ -90,12 +90,12 @@ export function BuyerProfileSection({ buyerProfile, selectedDeal, className }: B
         buyerName={buyerName}
       />
 
-      {/* Buyer Identity & Core Info - Clean Apple Style */}
-      <div className="bg-white border border-slate-200/60 rounded-xl p-6 space-y-6">
+      {/* Clean Buyer Identity */}
+      <div className="bg-background border border-border rounded-lg p-6 space-y-6">
         <div className="flex items-start gap-4">
-          <Avatar className="w-12 h-12 border border-slate-200/60">
+          <Avatar className="w-12 h-12 border border-border">
             <AvatarImage src="" />
-            <AvatarFallback className="bg-slate-50 text-slate-700 text-sm font-medium">
+            <AvatarFallback className="bg-muted text-foreground text-sm font-medium">
               {buyerName?.split(' ').map(n => n[0]).join('').toUpperCase() || 'U'}
             </AvatarFallback>
           </Avatar>
@@ -103,10 +103,10 @@ export function BuyerProfileSection({ buyerProfile, selectedDeal, className }: B
           <div className="flex-1 min-w-0">
             <div className="flex items-start justify-between mb-4">
               <div>
-                <h2 className="text-lg font-semibold text-slate-900 leading-tight">{buyerName}</h2>
-                <p className="text-sm text-slate-600 font-medium">{buyerCompany}</p>
+                <h2 className="text-lg font-semibold text-foreground leading-tight">{buyerName}</h2>
+                <p className="text-sm text-muted-foreground font-medium">{buyerCompany}</p>
                 <div className="flex items-center gap-2 mt-2">
-                  <Badge variant="secondary" className="text-xs font-medium border-slate-200/60">
+                  <Badge variant="secondary" className="text-xs font-medium">
                     {getBuyerTypeLabel(buyerType)}
                   </Badge>
                 </div>
@@ -122,21 +122,21 @@ export function BuyerProfileSection({ buyerProfile, selectedDeal, className }: B
             {/* Essential Contact Info */}
             <div className="grid grid-cols-2 gap-3">
               {buyerEmail && (
-                <div className="flex items-center gap-2.5 p-3 bg-slate-50/60 rounded-lg">
-                  <Mail className="w-4 h-4 text-slate-500" />
+                <div className="flex items-center gap-2.5 p-3 bg-muted/50 rounded-lg">
+                  <Mail className="w-4 h-4 text-muted-foreground" />
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs text-slate-500 font-medium">Email</p>
-                    <p className="text-sm font-medium text-slate-900 truncate">{buyerEmail}</p>
+                    <p className="text-xs text-muted-foreground font-medium">Email</p>
+                    <p className="text-sm font-medium text-foreground truncate">{buyerEmail}</p>
                   </div>
                 </div>
               )}
               
               {buyerPhone && (
-                <div className="flex items-center gap-2.5 p-3 bg-slate-50/60 rounded-lg">
-                  <Phone className="w-4 h-4 text-slate-500" />
+                <div className="flex items-center gap-2.5 p-3 bg-muted/50 rounded-lg">
+                  <Phone className="w-4 h-4 text-muted-foreground" />
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs text-slate-500 font-medium">Phone</p>
-                    <p className="text-sm font-medium text-slate-900 truncate">{buyerPhone}</p>
+                    <p className="text-xs text-muted-foreground font-medium">Phone</p>
+                    <p className="text-sm font-medium text-foreground truncate">{buyerPhone}</p>
                   </div>
                 </div>
               )}
@@ -151,27 +151,27 @@ export function BuyerProfileSection({ buyerProfile, selectedDeal, className }: B
               variant="ghost"
               size="sm"
               onClick={() => setShowDetails(!showDetails)}
-              className="w-full justify-center gap-2 text-slate-600 hover:text-slate-900"
+              className="w-full justify-center gap-2 text-muted-foreground hover:text-foreground"
             >
               {showDetails ? 'Hide Details' : 'View Investment Profile'}
               {showDetails ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
             </Button>
             
             {showDetails && (
-              <div className="space-y-4 pt-4 border-t border-slate-200/60">
+              <div className="space-y-4 pt-4 border-t border-border">
                 {/* Investment Details */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {buyer.fund_size && (
                     <div className="space-y-1">
-                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Fund Size</p>
-                      <p className="text-sm font-medium text-slate-900">{buyer.fund_size}</p>
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Fund Size</p>
+                      <p className="text-sm font-medium text-foreground">{buyer.fund_size}</p>
                     </div>
                   )}
                   
                   {(buyer.target_deal_size_min || buyer.target_deal_size_max) && (
                     <div className="space-y-1">
-                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Target Deal Size</p>
-                      <p className="text-sm font-medium text-slate-900">
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Target Deal Size</p>
+                      <p className="text-sm font-medium text-foreground">
                         {buyer.target_deal_size_min && buyer.target_deal_size_max
                           ? `${formatCurrency(buyer.target_deal_size_min)} - ${formatCurrency(buyer.target_deal_size_max)}`
                           : buyer.target_deal_size_min
@@ -186,15 +186,15 @@ export function BuyerProfileSection({ buyerProfile, selectedDeal, className }: B
                   
                   {buyer.job_title && (
                     <div className="space-y-1">
-                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Role</p>
-                      <p className="text-sm font-medium text-slate-900">{buyer.job_title}</p>
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Role</p>
+                      <p className="text-sm font-medium text-foreground">{buyer.job_title}</p>
                     </div>
                   )}
                   
                   {buyer.deployment_timing && (
                     <div className="space-y-1">
-                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Deployment Timeline</p>
-                      <p className="text-sm font-medium text-slate-900">{buyer.deployment_timing}</p>
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Deployment Timeline</p>
+                      <p className="text-sm font-medium text-foreground">{buyer.deployment_timing}</p>
                     </div>
                   )}
                 </div>
@@ -207,7 +207,7 @@ export function BuyerProfileSection({ buyerProfile, selectedDeal, className }: B
                         href={buyer.website}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 rounded-lg transition-colors"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground bg-muted/50 hover:bg-muted rounded-lg transition-colors"
                       >
                         <Globe className="w-3.5 h-3.5" />
                         Website
@@ -219,7 +219,7 @@ export function BuyerProfileSection({ buyerProfile, selectedDeal, className }: B
                         href={buyer.linkedin_profile}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-primary hover:text-primary/80 bg-primary/10 hover:bg-primary/20 rounded-lg transition-colors"
                       >
                         <Linkedin className="w-3.5 h-3.5" />
                         LinkedIn
@@ -232,8 +232,8 @@ export function BuyerProfileSection({ buyerProfile, selectedDeal, className }: B
                 {/* Bio */}
                 {buyer.bio && (
                   <div className="space-y-2">
-                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Background</p>
-                    <p className="text-sm text-slate-700 leading-relaxed">{buyer.bio}</p>
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Background</p>
+                    <p className="text-sm text-muted-foreground leading-relaxed">{buyer.bio}</p>
                   </div>
                 )}
               </div>

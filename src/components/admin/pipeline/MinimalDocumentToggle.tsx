@@ -51,9 +51,9 @@ export function MinimalDocumentToggle({
         return {
           icon: AlertCircle,
           label: 'Not Sent',
-          color: 'text-slate-500',
-          bgColor: 'bg-slate-50',
-          borderColor: 'border-slate-200/60'
+          color: 'text-muted-foreground',
+          bgColor: 'bg-muted/50',
+          borderColor: 'border-border'
         };
     }
   };
@@ -63,14 +63,14 @@ export function MinimalDocumentToggle({
   const DocumentIcon = type === 'nda' ? Shield : FileText;
 
   return (
-    <div className={cn("flex items-center justify-between p-4 rounded-xl border transition-all", config.borderColor, config.bgColor, className)}>
+    <div className={cn("flex items-center justify-between p-4 rounded-lg border transition-all hover:bg-muted/30", config.borderColor, config.bgColor, className)}>
       <div className="flex items-center gap-3">
         <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", config.bgColor)}>
           <DocumentIcon className={cn("w-4 h-4", config.color)} />
         </div>
         <div>
           <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold text-slate-900">
+            <span className="text-sm font-semibold text-foreground">
               {type === 'nda' ? 'NDA' : 'Fee Agreement'}
             </span>
             <div className="flex items-center gap-1.5">
@@ -79,7 +79,7 @@ export function MinimalDocumentToggle({
             </div>
           </div>
           {lastActivity?.admin_name && (
-            <p className="text-xs text-slate-500 mt-0.5">
+            <p className="text-xs text-muted-foreground mt-0.5">
               by {lastActivity.admin_name}
             </p>
           )}
