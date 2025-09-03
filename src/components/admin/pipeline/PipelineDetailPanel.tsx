@@ -39,6 +39,8 @@ import { RealCommunicationTimeline } from './RealCommunicationTimeline';
 import { BuyerInvestmentCriteria } from './BuyerInvestmentCriteria';
 import { BuyerPriorityScore } from './BuyerPriorityScore';
 import { ContactIntelligence } from './ContactIntelligence';
+import { DocumentStatus } from './DocumentStatus';
+import { EnhancedActivityTimeline } from './EnhancedActivityTimeline';
 import { useBuyerProfile, useDocumentLogs } from '@/hooks/admin/use-deal-real-data';
 import { formatDistanceToNow, format } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -369,24 +371,14 @@ export function PipelineDetailPanel({ pipeline }: PipelineDetailPanelProps) {
                 )}
               </div>
 
-              {/* Document Status - Clean */}
-              <div className="space-y-4">
-                <h3 className="text-sm font-medium text-gray-900">Document Status</h3>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-700">NDA</span>
-                    <span className="text-sm text-gray-600 capitalize">
-                      {selectedDeal.nda_status?.replace('_', ' ') || 'Not sent'}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-700">Fee Agreement</span>
-                    <span className="text-sm text-gray-600 capitalize">
-                      {selectedDeal.fee_agreement_status?.replace('_', ' ') || 'Not sent'}
-                    </span>
-                  </div>
-                </div>
-              </div>
+            {/* Enhanced Document Status with Real Admin Attribution */}
+            <DocumentStatus 
+              dealId={selectedDeal.deal_id}
+              contactEmail={buyerProfile?.buyerInfo?.email || selectedDeal.buyer_email}
+              contactName={buyerProfile?.buyerInfo?.name || selectedDeal.buyer_name}
+              ndaStatus={selectedDeal.nda_status || 'not_sent'}
+              feeAgreementStatus={selectedDeal.fee_agreement_status || 'not_sent'}
+            />
 
               {/* Contextual Quick Actions */}
               <div className="space-y-4">
@@ -685,9 +677,9 @@ export function PipelineDetailPanel({ pipeline }: PipelineDetailPanelProps) {
               </div>
             </TabsContent>
 
-            {/* Activity Tab - Real Timeline */}
+            {/* Activity Tab - Enhanced Timeline with Document Attribution */}
             <TabsContent value="activity" className="p-8 mt-0">
-              <RealCommunicationTimeline 
+              <EnhancedActivityTimeline 
                 dealId={selectedDeal.deal_id}
               />
             </TabsContent>
