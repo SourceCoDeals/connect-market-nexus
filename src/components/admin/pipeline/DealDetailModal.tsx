@@ -9,7 +9,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 import { Deal } from '@/hooks/admin/use-deals';
 import { useLogDealContact } from '@/hooks/admin/use-deal-contact';
@@ -28,7 +29,12 @@ import {
   MessageSquare,
   Target,
   TrendingUp,
-  Users
+  Users,
+  Activity,
+  AlertCircle,
+  Star,
+  CheckSquare,
+  X
 } from 'lucide-react';
 import { formatDistanceToNow, format } from 'date-fns';
 
@@ -40,6 +46,7 @@ interface DealDetailModalProps {
 
 export function DealDetailModal({ deal, open, onOpenChange }: DealDetailModalProps) {
   const [contactNote, setContactNote] = useState('');
+  const [activeTab, setActiveTab] = useState('overview');
   const logContact = useLogDealContact();
 
   if (!deal) return null;
@@ -84,6 +91,11 @@ export function DealDetailModal({ deal, open, onOpenChange }: DealDetailModalPro
   };
 
   const formatCurrency = (value: number) => {
+    if (value >= 1000000) {
+      return `$${(value / 1000000).toFixed(1)}M`;
+    } else if (value >= 1000) {
+      return `$${(value / 1000).toFixed(0)}K`;
+    }
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
@@ -92,40 +104,78 @@ export function DealDetailModal({ deal, open, onOpenChange }: DealDetailModalPro
     }).format(value);
   };
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'urgent': return 'bg-red-50 text-red-700 border-red-200';
-      case 'high': return 'bg-orange-50 text-orange-700 border-orange-200';
-      case 'medium': return 'bg-yellow-50 text-yellow-700 border-yellow-200';
-      default: return 'bg-gray-50 text-gray-700 border-gray-200';
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'urgent': return 'destructive';
+      case 'high': return 'default';
+      case 'medium': return 'secondary';
+      case 'low': return 'outline';
+      default: return 'outline';
     }
   };
 
   const getBuyerTypeColor = (type?: string) => {
-    switch (type?.toLowerCase()) {
+    if (!type) return 'bg-slate-50 text-slate-600 border-slate-200/50';
+    
+    const cleanType = type.toLowerCase().replace(/[^a-z]/g, '');
+    switch (cleanType) {
       case 'privateequity':
-        return 'bg-purple-50 text-purple-700 border-purple-200';
+        return 'bg-gradient-to-r from-purple-50 to-purple-100 text-purple-700 border-purple-200';
       case 'familyoffice':
-        return 'bg-blue-50 text-blue-700 border-blue-200';
+        return 'bg-gradient-to-r from-blue-50 to-blue-100 text-blue-700 border-blue-200';
       case 'searchfund':
-        return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+        return 'bg-gradient-to-r from-emerald-50 to-emerald-100 text-emerald-700 border-emerald-200';
       case 'corporate':
-        return 'bg-orange-50 text-orange-700 border-orange-200';
+        return 'bg-gradient-to-r from-orange-50 to-orange-100 text-orange-700 border-orange-200';
       default:
-        return 'bg-gray-50 text-gray-700 border-gray-200';
+        return 'bg-gradient-to-r from-slate-50 to-slate-100 text-slate-700 border-slate-200';
     }
   };
 
-  const getDocumentStatusIcon = (status: string) => {
+  const getBuyerTypeLabel = (type?: string) => {
+    if (!type) return 'Individual';
+    
+    const cleanType = type.toLowerCase().replace(/[^a-z]/g, '');
+    switch (cleanType) {
+      case 'privateequity': return 'Private Equity';
+      case 'familyoffice': return 'Family Office';
+      case 'searchfund': return 'Search Fund';
+      case 'corporate': return 'Corporate';
+      case 'independentsponsor': return 'Independent Sponsor';
+      default: return 'Individual';
+    }
+  };
+
+  const getDocumentStatusDisplay = (status: string) => {
     switch (status) {
       case 'signed':
-        return { icon: FileCheck, color: 'text-emerald-600', label: 'Signed' };
+        return { 
+          icon: CheckCircle, 
+          color: 'text-emerald-600 bg-emerald-50 border-emerald-200', 
+          label: 'Signed',
+          description: 'Document has been executed'
+        };
       case 'sent':
-        return { icon: Clock, color: 'text-amber-600', label: 'Sent - Pending' };
-      case 'not_sent':
-        return { icon: FileX, color: 'text-slate-400', label: 'Not Sent' };
+        return { 
+          icon: Clock, 
+          color: 'text-amber-600 bg-amber-50 border-amber-200', 
+          label: 'Pending',
+          description: 'Awaiting signature'
+        };
+      case 'declined':
+        return { 
+          icon: X, 
+          color: 'text-red-600 bg-red-50 border-red-200', 
+          label: 'Declined',
+          description: 'Document was declined'
+        };
       default:
-        return { icon: FileX, color: 'text-slate-400', label: 'Not Sent' };
+        return { 
+          icon: FileX, 
+          color: 'text-slate-400 bg-slate-50 border-slate-200', 
+          label: 'Not Sent',
+          description: 'Document not yet sent'
+        };
     }
   };
 
@@ -133,289 +183,362 @@ export function DealDetailModal({ deal, open, onOpenChange }: DealDetailModalPro
     (new Date().getTime() - new Date(deal.deal_stage_entered_at).getTime()) / (1000 * 60 * 60 * 24)
   );
 
-  const ndaStatus = getDocumentStatusIcon(deal.nda_status);
-  const feeStatus = getDocumentStatusIcon(deal.fee_agreement_status);
+  const ndaStatus = getDocumentStatusDisplay(deal.nda_status);
+  const feeStatus = getDocumentStatusDisplay(deal.fee_agreement_status);
+
+  const companyName = deal.buyer_company || deal.contact_company || 'Unknown Company';
+  const contactName = deal.contact_name || deal.buyer_name || 'Unknown Contact';
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader className="pb-4">
+      <DialogContent className="max-w-5xl max-h-[95vh] overflow-hidden bg-background/95 backdrop-blur-md border border-border/50">
+        <DialogHeader className="pb-6 border-b border-border/50">
           <div className="flex items-start justify-between">
-            <div className="space-y-2">
-              <DialogTitle className="text-xl font-semibold">
+            <div className="space-y-3">
+              <DialogTitle className="text-2xl font-semibold tracking-tight text-foreground">
                 {deal.deal_title}
               </DialogTitle>
-              <div className="flex items-center gap-2">
-                <Badge variant="outline" className={cn('text-sm', getPriorityColor(deal.deal_priority))}>
+              <div className="flex items-center gap-3">
+                <Badge 
+                  variant={getStatusColor(deal.deal_priority)}
+                  className="text-sm font-medium"
+                >
                   {deal.deal_priority} priority
                 </Badge>
                 {deal.buyer_type && (
-                  <Badge variant="outline" className={cn('text-sm', getBuyerTypeColor(deal.buyer_type))}>
-                    {deal.buyer_type}
+                  <Badge 
+                    variant="outline" 
+                    className={cn('text-sm font-medium border', getBuyerTypeColor(deal.buyer_type))}
+                  >
+                    {getBuyerTypeLabel(deal.buyer_type)}
                   </Badge>
                 )}
+                <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                  <Star className="h-4 w-4" />
+                  <span>Priority Score: {deal.buyer_priority_score || 0}</span>
+                </div>
               </div>
             </div>
-            <div className="text-right">
-              <p className="text-2xl font-bold">{formatCurrency(deal.deal_value)}</p>
-              <p className="text-sm text-muted-foreground">{deal.deal_probability}% probability</p>
+            <div className="text-right space-y-1">
+              <p className="text-3xl font-bold text-foreground">{formatCurrency(deal.deal_value)}</p>
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Percent className="h-4 w-4" />
+                <span>{deal.deal_probability}% probability</span>
+              </div>
             </div>
           </div>
         </DialogHeader>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Main Content - Left Column */}
-          <div className="lg:col-span-2 space-y-6">
-            
-            {/* Key Metrics */}
-            <Card>
-              <CardContent className="p-4">
-                <h3 className="font-semibold mb-4 flex items-center gap-2">
-                  <TrendingUp className="h-4 w-4" />
-                  Key Metrics
-                </h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="flex items-center gap-3">
-                    <DollarSign className="h-4 w-4 text-muted-foreground" />
-                    <div>
-                      <p className="text-sm text-muted-foreground">Listing Revenue</p>
-                      <p className="font-semibold">{formatCurrency(deal.listing_revenue)}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                    <div>
-                      <p className="text-sm text-muted-foreground">EBITDA</p>
-                      <p className="font-semibold">{formatCurrency(deal.listing_ebitda)}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <Target className="h-4 w-4 text-muted-foreground" />
-                    <div>
-                      <p className="text-sm text-muted-foreground">Location</p>
-                      <p className="font-semibold">{deal.listing_location}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <Calendar className="h-4 w-4 text-muted-foreground" />
-                    <div>
-                      <p className="text-sm text-muted-foreground">Time in Stage</p>
-                      <p className="font-semibold">{daysInStage} days</p>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 overflow-hidden">
+          <TabsList className="grid w-full grid-cols-4 bg-muted/30 border border-border/30">
+            <TabsTrigger value="overview" className="data-[state=active]:bg-background data-[state=active]:shadow-sm">
+              Overview
+            </TabsTrigger>
+            <TabsTrigger value="contact" className="data-[state=active]:bg-background data-[state=active]:shadow-sm">
+              Contact
+            </TabsTrigger>
+            <TabsTrigger value="tasks" className="data-[state=active]:bg-background data-[state=active]:shadow-sm">
+              Tasks
+            </TabsTrigger>
+            <TabsTrigger value="activity" className="data-[state=active]:bg-background data-[state=active]:shadow-sm">
+              Activity
+            </TabsTrigger>
+          </TabsList>
 
-            {/* Contact Information */}
-            <Card>
-              <CardContent className="p-4">
-                <h3 className="font-semibold mb-4 flex items-center gap-2">
-                  <User className="h-4 w-4" />
-                  Contact Information
-                </h3>
-                <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
+          <div className="flex-1 overflow-y-auto pt-6">
+            <TabsContent value="overview" className="mt-0 space-y-6">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                
+                {/* Main Content */}
+                <div className="lg:col-span-2 space-y-6">
+                  
+                  {/* Listing Information */}
+                  <Card className="border-border/50 shadow-sm">
+                    <CardHeader className="pb-4">
+                      <CardTitle className="flex items-center gap-2 text-lg">
+                        <Building2 className="h-5 w-5 text-primary" />
+                        Business Details
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="grid grid-cols-2 gap-6">
+                        <div className="space-y-3">
+                          <div>
+                            <p className="text-sm font-medium text-muted-foreground mb-1">Business Name</p>
+                            <p className="font-semibold">{deal.listing_title}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-muted-foreground mb-1">Annual Revenue</p>
+                            <p className="font-semibold text-emerald-700">{formatCurrency(deal.listing_revenue)}</p>
+                          </div>
+                        </div>
+                        <div className="space-y-3">
+                          <div>
+                            <p className="text-sm font-medium text-muted-foreground mb-1">Location</p>
+                            <p className="font-semibold">{deal.listing_location}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-muted-foreground mb-1">EBITDA</p>
+                            <p className="font-semibold text-emerald-700">{formatCurrency(deal.listing_ebitda)}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Document Status */}
+                  <Card className="border-border/50 shadow-sm">
+                    <CardHeader className="pb-4">
+                      <CardTitle className="flex items-center gap-2 text-lg">
+                        <FileCheck className="h-5 w-5 text-primary" />
+                        Document Status
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className={cn('flex items-center gap-4 p-4 rounded-xl border', ndaStatus.color)}>
+                          <ndaStatus.icon className="h-6 w-6" />
+                          <div>
+                            <p className="font-semibold">NDA</p>
+                            <p className="text-sm">{ndaStatus.label}</p>
+                            <p className="text-xs opacity-75">{ndaStatus.description}</p>
+                          </div>
+                        </div>
+                        <div className={cn('flex items-center gap-4 p-4 rounded-xl border', feeStatus.color)}>
+                          <feeStatus.icon className="h-6 w-6" />
+                          <div>
+                            <p className="font-semibold">Fee Agreement</p>
+                            <p className="text-sm">{feeStatus.label}</p>
+                            <p className="text-xs opacity-75">{feeStatus.description}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Sidebar */}
+                <div className="space-y-6">
+                  
+                  {/* Stage Information */}
+                  <Card className="border-border/50 shadow-sm">
+                    <CardHeader className="pb-4">
+                      <CardTitle className="flex items-center gap-2 text-lg">
+                        <Target className="h-5 w-5 text-primary" />
+                        Deal Stage
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground mb-1">Current Stage</p>
+                        <p className="font-semibold text-lg">{deal.stage_name}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground mb-1">Time in Stage</p>
+                        <p className="font-semibold">{daysInStage} day{daysInStage !== 1 ? 's' : ''}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground mb-1">Last Contact</p>
+                        <p className="font-medium">
+                          {deal.last_contact_at 
+                            ? formatDistanceToNow(new Date(deal.last_contact_at), { addSuffix: true })
+                            : 'No contact recorded'
+                          }
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Task Summary */}
+                  <Card className="border-border/50 shadow-sm">
+                    <CardHeader className="pb-4">
+                      <CardTitle className="flex items-center gap-2 text-lg">
+                        <CheckSquare className="h-5 w-5 text-primary" />
+                        Tasks Overview
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-medium text-muted-foreground">Total Tasks</span>
+                        <span className="font-bold text-lg">{deal.total_tasks}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-medium text-muted-foreground">Pending</span>
+                        <span className={cn('font-semibold', 
+                          deal.pending_tasks > 0 ? 'text-amber-600' : 'text-muted-foreground'
+                        )}>
+                          {deal.pending_tasks}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-medium text-muted-foreground">Completed</span>
+                        <span className="font-semibold text-emerald-600">{deal.completed_tasks}</span>
+                      </div>
+                      {deal.total_tasks > 0 && (
+                        <div className="pt-2">
+                          <div className="w-full bg-muted rounded-full h-2">
+                            <div 
+                              className="bg-emerald-500 h-2 rounded-full transition-all duration-300" 
+                              style={{ width: `${(deal.completed_tasks / deal.total_tasks) * 100}%` }}
+                            />
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-1 text-center">
+                            {Math.round((deal.completed_tasks / deal.total_tasks) * 100)}% Complete
+                          </p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+
+                  {/* Assignment */}
+                  {deal.assigned_admin_name && (
+                    <Card className="border-border/50 shadow-sm">
+                      <CardHeader className="pb-4">
+                        <CardTitle className="flex items-center gap-2 text-lg">
+                          <Users className="h-5 w-5 text-primary" />
+                          Assignment
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div>
+                          <p className="text-sm font-medium text-muted-foreground mb-1">Assigned to</p>
+                          <p className="font-semibold">{deal.assigned_admin_name}</p>
+                          <p className="text-sm text-muted-foreground">{deal.assigned_admin_email}</p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="contact" className="mt-0">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                
+                {/* Contact Information */}
+                <Card className="border-border/50 shadow-sm">
+                  <CardHeader className="pb-4">
+                    <CardTitle className="flex items-center gap-2 text-lg">
+                      <User className="h-5 w-5 text-primary" />
+                      Contact Details
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
                     <div>
-                      <p className="text-sm text-muted-foreground">Contact Name</p>
-                      <p className="font-medium">{deal.contact_name || deal.buyer_name || 'Unknown'}</p>
+                      <p className="text-sm font-medium text-muted-foreground mb-1">Contact Person</p>
+                      <p className="font-semibold text-lg">{contactName}</p>
                     </div>
                     <div>
-                      <p className="text-sm text-muted-foreground">Company</p>
-                      <p className="font-medium">{deal.buyer_company || deal.contact_company || 'Unknown'}</p>
+                      <p className="text-sm font-medium text-muted-foreground mb-1">Company</p>
+                      <p className="font-semibold">{companyName}</p>
                     </div>
                     <div>
-                      <p className="text-sm text-muted-foreground">Email</p>
+                      <p className="text-sm font-medium text-muted-foreground mb-1">Email Address</p>
                       <p className="font-medium">{deal.contact_email || deal.buyer_email || 'Not provided'}</p>
                     </div>
                     <div>
-                      <p className="text-sm text-muted-foreground">Phone</p>
+                      <p className="text-sm font-medium text-muted-foreground mb-1">Phone Number</p>
                       <p className="font-medium">{deal.contact_phone || 'Not provided'}</p>
                     </div>
-                  </div>
-                  
-                  <div className="flex gap-2 pt-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={handleEmailContact}
-                      disabled={!deal.contact_email || logContact.isPending}
-                      className="flex items-center gap-2"
-                    >
-                      <Mail className="h-4 w-4" />
-                      Send Email
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={handlePhoneContact}
-                      disabled={!deal.contact_phone || logContact.isPending}
-                      className="flex items-center gap-2"
-                    >
-                      <Phone className="h-4 w-4" />
-                      Log Call
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Document Status */}
-            <Card>
-              <CardContent className="p-4">
-                <h3 className="font-semibold mb-4 flex items-center gap-2">
-                  <FileCheck className="h-4 w-4" />
-                  Document Status
-                </h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30">
-                    <ndaStatus.icon className={cn('h-5 w-5', ndaStatus.color)} />
-                    <div>
-                      <p className="font-medium">NDA</p>
-                      <p className={cn('text-sm', ndaStatus.color)}>{ndaStatus.label}</p>
+                    
+                    <div className="flex gap-3 pt-4">
+                      <Button
+                        variant="outline"
+                        onClick={handleEmailContact}
+                        disabled={!deal.contact_email || logContact.isPending}
+                        className="flex-1 flex items-center gap-2"
+                      >
+                        <Mail className="h-4 w-4" />
+                        Send Email
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={handlePhoneContact}
+                        disabled={!deal.contact_phone || logContact.isPending}
+                        className="flex-1 flex items-center gap-2"
+                      >
+                        <Phone className="h-4 w-4" />
+                        Log Call
+                      </Button>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30">
-                    <feeStatus.icon className={cn('h-5 w-5', feeStatus.color)} />
-                    <div>
-                      <p className="font-medium">Fee Agreement</p>
-                      <p className={cn('text-sm', feeStatus.color)}>{feeStatus.label}</p>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                  </CardContent>
+                </Card>
 
-            {/* Contact Log */}
-            <Card>
-              <CardContent className="p-4">
-                <h3 className="font-semibold mb-4 flex items-center gap-2">
-                  <MessageSquare className="h-4 w-4" />
-                  Add Contact Note
-                </h3>
-                <div className="space-y-3">
-                  <Textarea
-                    placeholder="Add a note about your contact with this buyer..."
-                    value={contactNote}
-                    onChange={(e) => setContactNote(e.target.value)}
-                    className="min-h-[80px]"
-                  />
-                  <Button
-                    onClick={handleLogNote}
-                    disabled={!contactNote.trim() || logContact.isPending}
-                    className="w-full"
-                  >
-                    Log Note
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+                {/* Contact Notes */}
+                <Card className="border-border/50 shadow-sm">
+                  <CardHeader className="pb-4">
+                    <CardTitle className="flex items-center gap-2 text-lg">
+                      <MessageSquare className="h-5 w-5 text-primary" />
+                      Add Contact Note
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <Textarea
+                      placeholder="Record details about your interaction with this buyer..."
+                      value={contactNote}
+                      onChange={(e) => setContactNote(e.target.value)}
+                      className="min-h-[120px] resize-none"
+                    />
+                    <Button
+                      onClick={handleLogNote}
+                      disabled={!contactNote.trim() || logContact.isPending}
+                      className="w-full"
+                    >
+                      {logContact.isPending ? 'Logging...' : 'Log Contact Note'}
+                    </Button>
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
 
-          {/* Sidebar - Right Column */}
-          <div className="space-y-6">
-            
-            {/* Stage Information */}
-            <Card>
-              <CardContent className="p-4">
-                <h3 className="font-semibold mb-4">Stage Information</h3>
-                <div className="space-y-3">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Current Stage</p>
-                    <p className="font-medium">{deal.stage_name}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Time in Stage</p>
-                    <p className="font-medium">{daysInStage} days</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Last Contact</p>
-                    <p className="font-medium">
-                      {deal.last_contact_at 
-                        ? formatDistanceToNow(new Date(deal.last_contact_at), { addSuffix: true })
-                        : 'No contact recorded'
-                      }
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Task Summary */}
-            <Card>
-              <CardContent className="p-4">
-                <h3 className="font-semibold mb-4 flex items-center gap-2">
-                  <CheckCircle className="h-4 w-4" />
-                  Tasks
-                </h3>
-                <div className="space-y-3">
-                  <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Total Tasks</span>
-                    <span className="font-medium">{deal.total_tasks}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Pending</span>
-                    <span className={cn('font-medium', 
-                      deal.pending_tasks > 0 ? 'text-amber-600' : 'text-muted-foreground'
-                    )}>
-                      {deal.pending_tasks}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Completed</span>
-                    <span className="font-medium text-emerald-600">{deal.completed_tasks}</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Assignment */}
-            {deal.assigned_admin_name && (
-              <Card>
-                <CardContent className="p-4">
-                  <h3 className="font-semibold mb-4 flex items-center gap-2">
-                    <Users className="h-4 w-4" />
-                    Assignment
-                  </h3>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Assigned to</p>
-                    <p className="font-medium">{deal.assigned_admin_name}</p>
-                    <p className="text-xs text-muted-foreground">{deal.assigned_admin_email}</p>
+            <TabsContent value="tasks" className="mt-0">
+              <Card className="border-border/50 shadow-sm">
+                <CardHeader className="pb-4">
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <CheckSquare className="h-5 w-5 text-primary" />
+                    Task Management
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-center py-8 text-muted-foreground">
+                    <CheckSquare className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                    <p>Task management interface will be implemented here.</p>
+                    <p className="text-sm">Create, assign, and track deal-specific tasks.</p>
                   </div>
                 </CardContent>
               </Card>
-            )}
+            </TabsContent>
 
-            {/* Deal Timeline */}
-            <Card>
-              <CardContent className="p-4">
-                <h3 className="font-semibold mb-4">Deal Timeline</h3>
-                <div className="space-y-3 text-sm">
-                  <div>
-                    <p className="text-muted-foreground">Created</p>
-                    <p className="font-medium">
-                      {format(new Date(deal.deal_created_at), 'MMM d, yyyy')}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Last Updated</p>
-                    <p className="font-medium">
-                      {formatDistanceToNow(new Date(deal.deal_updated_at), { addSuffix: true })}
-                    </p>
-                  </div>
-                  {deal.deal_expected_close_date && (
-                    <div>
-                      <p className="text-muted-foreground">Expected Close</p>
-                      <p className="font-medium">
-                        {format(new Date(deal.deal_expected_close_date), 'MMM d, yyyy')}
-                      </p>
+            <TabsContent value="activity" className="mt-0">
+              <Card className="border-border/50 shadow-sm">
+                <CardHeader className="pb-4">
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <Activity className="h-5 w-5 text-primary" />
+                    Activity Timeline
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/30">
+                      <div className="w-2 h-2 rounded-full bg-emerald-500 mt-2" />
+                      <div>
+                        <p className="font-medium">Deal Created</p>
+                        <p className="text-sm text-muted-foreground">
+                          {format(new Date(deal.deal_created_at), 'MMM d, yyyy at h:mm a')}
+                        </p>
+                      </div>
                     </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+                    
+                    <div className="text-center py-6 text-muted-foreground">
+                      <Activity className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                      <p className="text-sm">Additional activity timeline will be displayed here.</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
           </div>
-        </div>
+        </Tabs>
       </DialogContent>
     </Dialog>
   );

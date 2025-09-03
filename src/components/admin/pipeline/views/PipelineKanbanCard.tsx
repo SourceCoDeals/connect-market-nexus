@@ -32,49 +32,45 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
     transform: CSS.Translate.toString(transform),
   };
 
-  // Premium Apple/Stripe-style design helpers
+  // Premium Apple/Stripe-style design helpers with camelCase support
   const getBuyerTypeColor = (buyerType?: string) => {
-    const type = buyerType?.toLowerCase();
+    if (!buyerType) return 'bg-slate-50 text-slate-600 border-slate-200/50';
+    
+    const type = buyerType.toLowerCase().replace(/[^a-z]/g, '');
     switch (type) {
       case 'privateequity':
-      case 'private equity':
-        return 'bg-purple-100/70 text-purple-700 border-purple-200/60';
+        return 'bg-gradient-to-r from-purple-50 to-purple-100/80 text-purple-800 border-purple-200/70 shadow-sm';
       case 'familyoffice':
-      case 'family office':
-        return 'bg-blue-100/70 text-blue-700 border-blue-200/60';
+        return 'bg-gradient-to-r from-blue-50 to-blue-100/80 text-blue-800 border-blue-200/70 shadow-sm';
       case 'searchfund':
-      case 'search fund':
-        return 'bg-emerald-100/70 text-emerald-700 border-emerald-200/60';
+        return 'bg-gradient-to-r from-emerald-50 to-emerald-100/80 text-emerald-800 border-emerald-200/70 shadow-sm';
       case 'corporate':
-        return 'bg-orange-100/70 text-orange-700 border-orange-200/60';
+        return 'bg-gradient-to-r from-orange-50 to-orange-100/80 text-orange-800 border-orange-200/70 shadow-sm';
       case 'individual':
-        return 'bg-slate-100/70 text-slate-700 border-slate-200/60';
+        return 'bg-gradient-to-r from-slate-50 to-slate-100/80 text-slate-700 border-slate-200/70 shadow-sm';
       case 'independentsponsor':
-      case 'independent sponsor':
-        return 'bg-indigo-100/70 text-indigo-700 border-indigo-200/60';
+        return 'bg-gradient-to-r from-indigo-50 to-indigo-100/80 text-indigo-800 border-indigo-200/70 shadow-sm';
       default:
-        return 'bg-slate-100/70 text-slate-700 border-slate-200/60';
+        return 'bg-gradient-to-r from-slate-50 to-slate-100/80 text-slate-700 border-slate-200/70 shadow-sm';
     }
   };
 
   const getBuyerTypeLabel = (buyerType?: string) => {
-    const type = buyerType?.toLowerCase();
+    if (!buyerType) return 'Individual';
+    
+    const type = buyerType.toLowerCase().replace(/[^a-z]/g, '');
     switch (type) {
       case 'privateequity':
-      case 'private equity':
         return 'PE';
       case 'familyoffice':
-      case 'family office':
         return 'Family Office';
       case 'searchfund':
-      case 'search fund':
         return 'Search Fund';
       case 'corporate':
         return 'Corporate';
       case 'individual':
         return 'Individual';
       case 'independentsponsor':
-      case 'independent sponsor':
         return 'Ind. Sponsor';
       default:
         return 'Individual';
@@ -164,28 +160,61 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
     ? `$${(deal.listing_revenue / 1000000).toFixed(1)}M Revenue` 
     : null;
 
-  // Calculate real days in stage with proper context
+  // Calculate meaningful days in stage with context
   const daysInStage = deal.deal_stage_entered_at 
     ? Math.max(1, Math.floor((new Date().getTime() - new Date(deal.deal_stage_entered_at).getTime()) / (1000 * 60 * 60 * 24)))
     : 1;
+  
+  const daysInStageText = `${daysInStage}d in ${deal.stage_name}`;
 
-  // Calculate last contact - use real contact tracking data
-  const lastContactDate = deal.last_contact_at || deal.followed_up_at;
-  const lastContactText = lastContactDate 
-    ? formatDistanceToNow(new Date(lastContactDate), { addSuffix: true })
-    : 'No contact';
+  // Enhanced last contact logic with real context
+  const getLastContactInfo = () => {
+    const lastContactDate = deal.last_contact_at || deal.followed_up_at;
+    
+    if (!lastContactDate) {
+      return {
+        text: 'No contact yet',
+        isOverdue: daysInStage > 3,
+        context: 'contact_needed'
+      };
+    }
+    
+    const daysSinceContact = Math.floor((new Date().getTime() - new Date(lastContactDate).getTime()) / (1000 * 60 * 60 * 24));
+    
+    return {
+      text: formatDistanceToNow(new Date(lastContactDate), { addSuffix: true }),
+      isOverdue: daysSinceContact > 7,
+      context: 'contacted'
+    };
+  };
 
-  // Determine next action based on deal status
+  const lastContactInfo = getLastContactInfo();
+
+  // Smart next action based on document status and contact history
   const getNextAction = () => {
     if (deal.nda_status === 'not_sent') return 'Send NDA';
     if (deal.nda_status === 'sent' && deal.fee_agreement_status === 'not_sent') return 'Follow up NDA';
     if (deal.nda_status === 'signed' && deal.fee_agreement_status === 'not_sent') return 'Send Fee Agreement';
     if (deal.fee_agreement_status === 'sent') return 'Follow up Fee Agreement';
     if (deal.fee_agreement_status === 'signed') return 'Schedule Meeting';
-    return 'Contact Buyer';
+    if (lastContactInfo.isOverdue) return 'Follow up';
+    return 'Continue engagement';
   };
 
   const nextAction = getNextAction();
+
+  // Last activity tracking
+  const getLastActivity = () => {
+    if (deal.last_contact_at) {
+      return `Contact: ${formatDistanceToNow(new Date(deal.last_contact_at), { addSuffix: true })}`;
+    }
+    if (deal.followed_up_at) {
+      return `Follow-up: ${formatDistanceToNow(new Date(deal.followed_up_at), { addSuffix: true })}`;
+    }
+    return `Created: ${formatDistanceToNow(new Date(deal.deal_created_at), { addSuffix: true })}`;
+  };
+
+  const lastActivity = getLastActivity();
 
   // Quick action handlers with real contact logging
   const handleEmailClick = async (e: React.MouseEvent) => {
@@ -226,11 +255,13 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
       {...listeners}
       {...attributes}
       className={cn(
-        "group relative mb-3 cursor-pointer transition-all duration-200 ease-out",
-        "bg-white border border-gray-200 rounded-xl shadow-sm",
-        "hover:shadow-md hover:border-gray-300 hover:-translate-y-0.5",
-        isDragging && "rotate-1 shadow-lg scale-[1.02] z-50 border-blue-300",
-        buyerPriority.level === 'High' && "ring-1 ring-emerald-100"
+        "group relative mb-3 cursor-pointer transition-all duration-300 ease-out",
+        "bg-white/95 backdrop-blur-sm border border-border/60 rounded-xl shadow-sm",
+        "hover:shadow-lg hover:shadow-black/5 hover:border-border hover:-translate-y-1",
+        "hover:bg-white/98 hover:backdrop-blur-md",
+        isDragging && "rotate-1 shadow-xl shadow-black/10 scale-[1.02] z-50 border-primary/30 bg-white",
+        buyerPriority.level === 'High' && "ring-1 ring-emerald-200/50 shadow-emerald-100/20",
+        buyerPriority.level === 'Medium' && "ring-1 ring-amber-200/50 shadow-amber-100/20"
       )}
       onClick={() => !isDragging && onDealClick(deal)}
       onMouseEnter={() => setIsHovered(true)}
@@ -310,41 +341,58 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
           </span>
         </div>
 
+        {/* Next Action & Last Activity */}
+        <div className="space-y-2 text-xs">
+          <div className="flex items-center gap-1.5">
+            <div className="w-1.5 h-1.5 rounded-full bg-primary/60" />
+            <span className="text-muted-foreground">Next:</span>
+            <span className="font-medium text-primary">{nextAction}</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <Clock className="w-3 h-3 text-muted-foreground" />
+            <span className="text-muted-foreground truncate">{lastActivity}</span>
+          </div>
+        </div>
+
         {/* Bottom metadata row */}
-        <div className="flex items-center justify-between text-xs text-muted-foreground pt-2 border-t border-border/10">
-          <span className="font-medium">
-            {daysInStage} day{daysInStage !== 1 ? 's' : ''} in {deal.stage_name}
+        <div className="flex items-center justify-between text-xs text-muted-foreground pt-2 border-t border-border/5">
+          <span className="font-medium text-foreground/80">
+            {daysInStageText}
           </span>
-          <span className="truncate">
-            {lastContactText}
+          <span className={cn(
+            'truncate font-medium',
+            lastContactInfo.isOverdue && 'text-amber-600',
+            lastContactInfo.context === 'contact_needed' && 'text-slate-500'
+          )}>
+            {lastContactInfo.text}
           </span>
         </div>
 
-        {/* Quick Actions on Hover */}
+        {/* Premium Quick Actions on Hover */}
         {isHovered && !isDragging && (
-          <div className="absolute top-3 left-3 flex gap-1 opacity-0 group-hover:opacity-100 transition-all duration-200">
+          <div className="absolute top-3 right-3 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-1 group-hover:translate-y-0">
             <button
               onClick={handleEmailClick}
               disabled={logContact.isPending}
-              className="h-7 w-7 p-0 bg-white/95 backdrop-blur-sm border border-border/30 rounded-md shadow-sm hover:shadow-md flex items-center justify-center transition-all"
+              className="h-8 w-8 p-0 bg-white/98 backdrop-blur-md border border-border/40 rounded-lg shadow-md hover:shadow-lg hover:shadow-black/10 flex items-center justify-center transition-all duration-200 hover:scale-105 hover:bg-primary/5"
               title="Send Email"
             >
-              <Mail className="h-3 w-3 text-muted-foreground" />
+              <Mail className="h-3.5 w-3.5 text-foreground/70 hover:text-primary" />
             </button>
             <button
               onClick={handlePhoneClick}
               disabled={logContact.isPending}
-              className="h-7 w-7 p-0 bg-white/95 backdrop-blur-sm border border-border/30 rounded-md shadow-sm hover:shadow-md flex items-center justify-center transition-all"
+              className="h-8 w-8 p-0 bg-white/98 backdrop-blur-md border border-border/40 rounded-lg shadow-md hover:shadow-lg hover:shadow-black/10 flex items-center justify-center transition-all duration-200 hover:scale-105 hover:bg-primary/5"
               title="Log Call"
             >
-              <Phone className="h-3 w-3 text-muted-foreground" />
+              <Phone className="h-3.5 w-3.5 text-foreground/70 hover:text-primary" />
             </button>
             <button
               onClick={handleEditClick}
-              className="h-7 w-7 p-0 bg-white/95 backdrop-blur-sm border border-border/30 rounded-md shadow-sm hover:shadow-md flex items-center justify-center transition-all"
+              className="h-8 w-8 p-0 bg-white/98 backdrop-blur-md border border-border/40 rounded-lg shadow-md hover:shadow-lg hover:shadow-black/10 flex items-center justify-center transition-all duration-200 hover:scale-105 hover:bg-primary/5"
               title="View Details"
             >
-              <Edit className="h-3 w-3 text-muted-foreground" />
+              <Edit className="h-3.5 w-3.5 text-foreground/70 hover:text-primary" />
             </button>
           </div>
         )}
