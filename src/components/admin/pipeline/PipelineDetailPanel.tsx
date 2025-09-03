@@ -232,12 +232,6 @@ export function PipelineDetailPanel({ pipeline }: PipelineDetailPanelProps) {
               <span className="font-medium text-gray-900">{selectedDeal.stage_name || 'Unknown'}</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-gray-500">Value</span>
-              <span className="font-medium text-gray-900">
-                {formatCurrency(selectedDeal.deal_value || 0)}
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
               <span className="text-gray-500">Days in Stage</span>
               <span className="font-medium text-gray-900">{daysInStage}d</span>
             </div>
