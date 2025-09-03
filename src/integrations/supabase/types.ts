@@ -599,6 +599,7 @@ export type Database = {
       }
       deal_stages: {
         Row: {
+          automation_rules: Json | null
           color: string | null
           created_at: string | null
           description: string | null
@@ -610,6 +611,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          automation_rules?: Json | null
           color?: string | null
           created_at?: string | null
           description?: string | null
@@ -621,6 +623,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          automation_rules?: Json | null
           color?: string | null
           created_at?: string | null
           description?: string | null
@@ -713,6 +716,7 @@ export type Database = {
       deals: {
         Row: {
           assigned_to: string | null
+          buyer_priority_score: number | null
           connection_request_id: string | null
           contact_company: string | null
           contact_email: string | null
@@ -742,6 +746,7 @@ export type Database = {
         }
         Insert: {
           assigned_to?: string | null
+          buyer_priority_score?: number | null
           connection_request_id?: string | null
           contact_company?: string | null
           contact_email?: string | null
@@ -771,6 +776,7 @@ export type Database = {
         }
         Update: {
           assigned_to?: string | null
+          buyer_priority_score?: number | null
           connection_request_id?: string | null
           contact_company?: string | null
           contact_email?: string | null
@@ -2113,6 +2119,10 @@ export type Database = {
       }
       calculate_buyer_priority_score: {
         Args: { buyer_type_param: string }
+        Returns: number
+      }
+      calculate_deal_buyer_priority: {
+        Args: { deal_row: Database["public"]["Tables"]["deals"]["Row"] }
         Returns: number
       }
       calculate_engagement_score: {

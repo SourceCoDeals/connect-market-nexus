@@ -28,15 +28,13 @@ import {
   X,
 } from 'lucide-react';
 import { usePipelineCore, ViewMode } from '@/hooks/admin/use-pipeline-core';
-import { PipelineMode } from './PipelineShell';
+
 
 interface PipelineHeaderProps {
   pipeline: ReturnType<typeof usePipelineCore>;
-  pipelineMode: PipelineMode;
-  setPipelineMode: (mode: PipelineMode) => void;
 }
 
-export function PipelineHeader({ pipeline, pipelineMode, setPipelineMode }: PipelineHeaderProps) {
+export function PipelineHeader({ pipeline }: PipelineHeaderProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const viewIcons = {
@@ -53,33 +51,10 @@ export function PipelineHeader({ pipeline, pipelineMode, setPipelineMode }: Pipe
           <div className="flex items-center gap-2">
             <h1 className="text-xl font-semibold">Pipeline</h1>
             <Badge variant="secondary" className="hidden sm:inline-flex">
-              {pipelineMode === 'deals' ? `${pipeline.deals.length} deals` : 'Connection Requests'}
+              {`${pipeline.deals.length} deals`}
             </Badge>
           </div>
 
-          {/* Pipeline Mode Toggle */}
-          <div className="hidden md:flex border rounded-lg p-1">
-            <button
-              onClick={() => setPipelineMode('deals')}
-              className={`px-3 py-1 text-sm rounded transition-colors ${
-                pipelineMode === 'deals'
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              Deals
-            </button>
-            <button
-              onClick={() => setPipelineMode('connection-requests')}
-              className={`px-3 py-1 text-sm rounded transition-colors ${
-                pipelineMode === 'connection-requests'
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              Connections
-            </button>
-          </div>
 
           {/* Desktop Search */}
           <div className="relative hidden md:block">
@@ -135,7 +110,7 @@ export function PipelineHeader({ pipeline, pipelineMode, setPipelineMode }: Pipe
 
           <Button size="sm" className="gap-2">
             <Plus className="h-4 w-4" />
-            {pipelineMode === 'deals' ? 'New Deal' : 'New Request'}
+            New Deal
           </Button>
 
           <DropdownMenu>
@@ -209,7 +184,7 @@ export function PipelineHeader({ pipeline, pipelineMode, setPipelineMode }: Pipe
 
           <Button size="sm" className="w-full">
             <Plus className="h-4 w-4 mr-2" />
-            {pipelineMode === 'deals' ? 'New Deal' : 'New Request'}
+            New Deal
           </Button>
         </div>
       )}

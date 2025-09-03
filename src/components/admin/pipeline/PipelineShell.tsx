@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { usePipelineCore } from '@/hooks/admin/use-pipeline-core';
 import { PipelineHeader } from './PipelineHeader';
 import { PipelineWorkspace } from './PipelineWorkspace';
@@ -6,10 +6,9 @@ import { PipelineDetailPanel } from './PipelineDetailPanel';
 import { PipelineFilterPanel } from './PipelineFilterPanel';
 import { Skeleton } from '@/components/ui/skeleton';
 
-export type PipelineMode = 'deals' | 'connection-requests';
+
 
 export function PipelineShell() {
-  const [pipelineMode, setPipelineMode] = useState<PipelineMode>('deals');
   const pipeline = usePipelineCore();
   
   if (pipeline.isLoading) {
@@ -61,8 +60,6 @@ export function PipelineShell() {
       <div className="pipeline-header">
         <PipelineHeader 
           pipeline={pipeline} 
-          pipelineMode={pipelineMode}
-          setPipelineMode={setPipelineMode}
         />
       </div>
 
@@ -70,7 +67,6 @@ export function PipelineShell() {
       <div className="pipeline-workspace">
         <PipelineWorkspace 
           pipeline={pipeline} 
-          pipelineMode={pipelineMode}
         />
       </div>
       
