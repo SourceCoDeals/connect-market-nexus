@@ -162,18 +162,13 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
           </Badge>
         </div>
 
-        {/* Time in Stage & Key Metrics */}
-        <div className="flex items-center justify-between pt-2 border-t border-border/50">
-          <div className="text-xs text-muted-foreground">
-            <span className="font-medium">{daysInStage}</span> days in stage
+        {/* Tasks Indicator */}
+        {deal.pending_tasks > 0 && (
+          <div className="flex items-center justify-center space-x-1 text-xs text-muted-foreground bg-muted/20 rounded-md p-2">
+            <CheckCircle className="h-3 w-3" />
+            <span className="font-medium">{deal.pending_tasks} pending tasks</span>
           </div>
-          {deal.pending_tasks > 0 && (
-            <div className="flex items-center space-x-1 text-xs text-muted-foreground">
-              <CheckCircle className="h-3 w-3" />
-              <span>{deal.pending_tasks} tasks</span>
-            </div>
-          )}
-        </div>
+        )}
 
         {/* Urgency Indicators */}
         {isOverdue && (
