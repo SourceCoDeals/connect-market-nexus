@@ -4,18 +4,7 @@ import { useDraggable } from '@dnd-kit/core';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { 
-  Calendar, 
-  DollarSign, 
-  User, 
-  Building2, 
-  Clock,
-  AlertCircle,
-  CheckCircle2,
-  Target
-} from 'lucide-react';
 import { Deal } from '@/hooks/admin/use-deals';
-import { formatDistanceToNow } from 'date-fns';
 
 interface PipelineKanbanCardProps {
   deal: Deal;
@@ -49,13 +38,21 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
     }).format(value);
   };
   
-  const getPriorityColor = (priority: string) => {
+  const getPriorityDotColor = (priority: string) => {
     switch (priority) {
-      case 'urgent': return 'bg-red-500 text-white';
-      case 'high': return 'bg-orange-500 text-white';
-      case 'medium': return 'bg-yellow-500 text-white';
-      default: return 'bg-gray-500 text-white';
+      case 'urgent': return 'bg-red-500';
+      case 'high': return 'bg-orange-500';
+      case 'medium': return 'bg-yellow-500';
+      default: return 'bg-gray-300';
     }
+  };
+  
+  const getBuyerPriorityStars = (score: number) => {
+    if (score >= 80) return 5;
+    if (score >= 60) return 4;
+    if (score >= 40) return 3;
+    if (score >= 20) return 2;
+    return 1;
   };
   
   const daysInStage = Math.floor(
@@ -64,6 +61,7 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
   );
   
   const isOverdue = deal.next_followup_due && new Date(deal.next_followup_due) < new Date();
+  const stars = getBuyerPriorityStars(deal.buyer_priority_score || 0);
   
   return (
     <Card
@@ -72,57 +70,55 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
       {...listeners}
       {...attributes}
       className={`
-        cursor-pointer transition-all duration-200 select-none
+        cursor-pointer transition-all duration-200 select-none border-border/50 hover:border-border
         ${isDragging || isDragActive 
-          ? 'opacity-80 shadow-2xl scale-105 rotate-1 z-50' 
-          : 'hover:shadow-md hover:-translate-y-0.5'
+          ? 'opacity-80 shadow-lg scale-[1.02] rotate-1 z-50 border-primary/20' 
+          : 'hover:shadow-sm'
         }
-        ${isOverdue ? 'ring-1 ring-red-200 bg-red-50/50' : 'bg-background'}
+        ${isOverdue ? 'border-red-200 bg-red-50/30' : 'bg-card'}
       `}
       onClick={() => !isDragActive && onDealClick(deal)}
     >
-      <CardContent className="p-3 space-y-3">
+      <CardContent className="p-4 space-y-3">
         {/* Header */}
-        <div className="flex items-start justify-between gap-2">
+        <div className="flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
-            <h4 className="font-semibold text-sm text-foreground line-clamp-2 mb-1 leading-tight">
+            <h4 className="font-medium text-foreground text-sm leading-tight mb-1 line-clamp-2">
               {deal.deal_title}
             </h4>
-            <div className="flex items-center gap-1 text-xs text-muted-foreground">
-              <Building2 className="h-3 w-3 flex-shrink-0" />
-              <span className="truncate">{deal.listing_title}</span>
-            </div>
+            <p className="text-xs text-muted-foreground truncate">
+              {deal.listing_title}
+            </p>
           </div>
           
-          {(deal.deal_priority === 'high' || deal.deal_priority === 'urgent') && (
-            <Badge className={`${getPriorityColor(deal.deal_priority)} h-5 px-1.5 text-xs flex-shrink-0`}>
-              {deal.deal_priority === 'urgent' && <AlertCircle className="h-3 w-3" />}
-            </Badge>
-          )}
-        </div>
-        
-        {/* Deal Value & Probability */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1 text-sm font-semibold text-foreground">
-            <DollarSign className="h-3 w-3" />
-            <span className="text-xs sm:text-sm">{formatCurrency(deal.deal_value)}</span>
-          </div>
-          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-            <Target className="h-3 w-3" />
-            <span>{deal.deal_probability}%</span>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {/* Priority Dot */}
+            <div className={`w-2 h-2 rounded-full ${getPriorityDotColor(deal.deal_priority)}`} />
+            
+            {/* Buyer Priority Stars */}
+            <div className="flex gap-0.5">
+              {[...Array(5)].map((_, i) => (
+                <div
+                  key={i}
+                  className={`w-1 h-1 rounded-full ${
+                    i < stars ? 'bg-amber-400' : 'bg-gray-200'
+                  }`}
+                />
+              ))}
+            </div>
           </div>
         </div>
         
         {/* Contact Info */}
         {deal.contact_name && (
           <div className="flex items-center gap-2">
-            <Avatar className="h-5 w-5">
-              <AvatarFallback className="text-xs bg-muted text-xs">
+            <Avatar className="h-6 w-6">
+              <AvatarFallback className="text-xs bg-muted-foreground/10 text-muted-foreground">
                 {deal.contact_name.charAt(0).toUpperCase()}
               </AvatarFallback>
             </Avatar>
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium text-foreground truncate">
+              <p className="text-sm font-medium text-foreground truncate">
                 {deal.contact_name}
               </p>
               {deal.contact_company && (
@@ -134,51 +130,42 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
           </div>
         )}
         
-        {/* Status Indicators - Responsive */}
-        <div className="flex items-center gap-1 flex-wrap">
-          {deal.nda_status === 'signed' && (
-            <Badge variant="outline" className="h-4 px-1.5 text-xs bg-green-50 text-green-700 border-green-200">
-              NDA
-            </Badge>
-          )}
-          {deal.fee_agreement_status === 'signed' && (
-            <Badge variant="outline" className="h-4 px-1.5 text-xs bg-blue-50 text-blue-700 border-blue-200">
-              Fee
-            </Badge>
-          )}
-          {deal.pending_tasks > 0 && (
-            <Badge variant="outline" className="h-4 px-1.5 text-xs bg-orange-50 text-orange-700 border-orange-200">
-              {deal.pending_tasks}
-            </Badge>
-          )}
+        {/* Deal Value & Probability */}
+        <div className="flex items-center justify-between pt-1">
+          <div className="text-lg font-semibold text-foreground">
+            {formatCurrency(deal.deal_value)}
+          </div>
+          <div className="text-sm text-muted-foreground">
+            {deal.deal_probability}% likelihood
+          </div>
         </div>
         
-        {/* Timeline Info - Mobile Optimized */}
-        <div className="flex items-center justify-between text-xs text-muted-foreground">
+        {/* Status Indicators */}
+        <div className="flex items-center justify-between pt-1">
           <div className="flex items-center gap-1">
-            <Clock className="h-3 w-3" />
-            <span className="hidden sm:inline">{daysInStage} days in stage</span>
-            <span className="sm:hidden">{daysInStage}d</span>
+            {deal.nda_status === 'signed' && (
+              <div className="w-1.5 h-1.5 rounded-full bg-green-500" title="NDA Signed" />
+            )}
+            {deal.fee_agreement_status === 'signed' && (
+              <div className="w-1.5 h-1.5 rounded-full bg-blue-500" title="Fee Agreement Signed" />
+            )}
+            {deal.pending_tasks > 0 && (
+              <Badge variant="secondary" className="h-5 px-2 text-xs">
+                {deal.pending_tasks} tasks
+              </Badge>
+            )}
           </div>
           
-          {deal.deal_expected_close_date && (
-            <div className="flex items-center gap-1">
-              <Calendar className="h-3 w-3" />
-              <span className="hidden sm:inline">
-                {formatDistanceToNow(new Date(deal.deal_expected_close_date), { addSuffix: true })}
-              </span>
-              <span className="sm:hidden">
-                {new Date(deal.deal_expected_close_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-              </span>
-            </div>
-          )}
+          <div className="text-xs text-muted-foreground">
+            {daysInStage}d in stage
+          </div>
         </div>
         
-        {/* Overdue Indicator */}
+        {/* Overdue Warning */}
         {isOverdue && (
-          <div className="flex items-center gap-1 text-xs text-red-600 bg-red-50 rounded px-2 py-1">
-            <AlertCircle className="h-3 w-3" />
-            <span>Overdue</span>
+          <div className="flex items-center gap-1 text-xs text-red-600 bg-red-50 rounded-md px-2 py-1 -mx-1">
+            <div className="w-1 h-1 rounded-full bg-red-500" />
+            <span>Overdue follow-up</span>
           </div>
         )}
       </CardContent>
