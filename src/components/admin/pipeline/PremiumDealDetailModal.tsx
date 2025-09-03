@@ -36,6 +36,9 @@ import {
 import { Deal } from '@/hooks/admin/use-deals';
 import { useLogDealContact } from '@/hooks/admin/use-deal-contact';
 import { useDealTasks, useCreateDealTask, useUpdateDealTask, useCompleteDealTask, useDeleteDealTask } from '@/hooks/admin/use-deal-tasks';
+import { useBuyerProfile } from '@/hooks/admin/use-deal-real-data';
+import { BuyerProfileSection } from './BuyerProfileSection';
+import { BuyerMessageHero } from './BuyerMessageHero';
 import { formatDistanceToNow, format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
@@ -63,6 +66,9 @@ export function PremiumDealDetailModal({ deal, open, onOpenChange }: PremiumDeal
   const updateTask = useUpdateDealTask();
   const completeTask = useCompleteDealTask();
   const deleteTask = useDeleteDealTask();
+  
+  // Real buyer data
+  const { data: buyerProfile } = useBuyerProfile(deal?.deal_id);
 
   if (!deal) return null;
 
@@ -327,6 +333,18 @@ export function PremiumDealDetailModal({ deal, open, onOpenChange }: PremiumDeal
               <div className="flex-1 overflow-y-auto mt-6 scroll-smooth">
                 {/* Overview Tab - Completely Redesigned */}
                 <TabsContent value="overview" className="space-y-6 mt-0">
+                  {/* Hero Buyer Message */}
+                  <BuyerMessageHero 
+                    message={buyerProfile?.originalMessage} 
+                    buyerName={buyerProfile?.buyerInfo?.name || deal.contact_name || deal.buyer_name}
+                  />
+                  
+                  {/* Complete Buyer Profile */}
+                  <BuyerProfileSection 
+                    buyerProfile={buyerProfile}
+                    selectedDeal={deal}
+                  />
+                  
                   <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
                     {/* Business Overview - Full width on mobile */}
                     <Card className="xl:col-span-2 border-border/10 shadow-sm bg-white/60 backdrop-blur-sm rounded-xl">

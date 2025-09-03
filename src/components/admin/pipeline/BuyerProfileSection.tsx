@@ -61,6 +61,20 @@ export function BuyerProfileSection({ buyerProfile, selectedDeal, className }: B
   // Extract buyer information from either buyerProfile.buyerInfo or selectedDeal
   const buyer = buyerProfile?.buyerInfo;
   
+  // Show loading state while data is being fetched
+  if (!buyerProfile && !selectedDeal.buyer_name) {
+    return (
+      <div className={cn("space-y-6", className)}>
+        <div className="bg-muted/50 border border-border/60 rounded-lg p-6">
+          <div className="animate-pulse space-y-4">
+            <div className="h-4 bg-muted rounded w-1/3"></div>
+            <div className="h-6 bg-muted rounded w-2/3"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  
   if (!buyer && !selectedDeal.buyer_name) {
     return (
       <div className={cn("text-center py-12", className)}>
