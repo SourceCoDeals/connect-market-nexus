@@ -111,7 +111,11 @@ export function useBuyerProfile(dealId?: string) {
             fund_size,
             aum,
             bio,
-            job_title
+            job_title,
+            industry_expertise,
+            is_funded,
+            deployment_timing,
+            funding_source
           )
         `)
         .eq('id', deal.connection_request_id)
@@ -146,7 +150,11 @@ export function useBuyerProfile(dealId?: string) {
           fund_size: profile.fund_size,
           aum: profile.aum,
           bio: profile.bio,
-          job_title: profile.job_title
+          job_title: profile.job_title,
+          industry_expertise: profile.industry_expertise,
+          is_funded: profile.is_funded,
+          deployment_timing: profile.deployment_timing,
+          funding_source: profile.funding_source
         } : {
           name: request.lead_name,
           first_name: request.lead_name?.split(' ')[0] || '',
@@ -157,7 +165,9 @@ export function useBuyerProfile(dealId?: string) {
           phone_number: request.lead_phone,
           website: null,
           linkedin_profile: null
-        }
+        },
+        // Always include the buyer message
+        originalMessage: request.user_message
       };
     },
     enabled: !!dealId,

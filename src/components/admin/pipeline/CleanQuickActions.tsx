@@ -65,11 +65,16 @@ export function CleanQuickActions({
   ];
 
   return (
-    <div className={cn("space-y-3", className)}>
-      <h4 className="text-sm font-medium text-gray-900">Quick Actions</h4>
+    <div className={cn("space-y-4", className)}>
+      <div className="flex items-center gap-3">
+        <div className="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center">
+          <Activity className="w-4 h-4 text-slate-600" />
+        </div>
+        <h4 className="text-base font-semibold text-slate-900">Quick Actions</h4>
+      </div>
       
-      {/* Clean grid of minimal actions */}
-      <div className="grid grid-cols-2 gap-2">
+      {/* Minimal horizontal action row */}
+      <div className="flex gap-2">
         {actions.map((action, index) => {
           const Icon = action.icon;
           return (
@@ -80,27 +85,27 @@ export function CleanQuickActions({
               onClick={action.onClick}
               disabled={action.disabled}
               className={cn(
-                "justify-center gap-1.5 text-xs font-medium h-7 border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300",
-                action.disabled && "opacity-50 cursor-not-allowed",
-                action.primary && "border-blue-200 text-blue-700 hover:bg-blue-50 hover:border-blue-300"
+                "flex-1 justify-center gap-2 text-xs font-medium h-9 border-slate-200/60 text-slate-700 hover:bg-slate-50 hover:border-slate-300/60 transition-all",
+                action.disabled && "opacity-40 cursor-not-allowed",
+                action.primary && "border-blue-200/60 text-blue-700 hover:bg-blue-50/60 hover:border-blue-300/60"
               )}
             >
-              <Icon className="w-3.5 h-3.5" />
+              <Icon className="w-4 h-4" />
               {action.label}
             </Button>
           );
         })}
       </div>
 
-      {/* Secondary note action */}
+      {/* Note action below */}
       {onLogNote && (
         <Button
           variant="ghost"
           size="sm"
           onClick={onLogNote}
-          className="w-full justify-start gap-2 text-xs text-gray-600 hover:text-gray-900 hover:bg-gray-50 h-7 px-2"
+          className="w-full justify-center gap-2 text-xs text-slate-600 hover:text-slate-900 hover:bg-slate-50/60 h-8 transition-all"
         >
-          <MessageSquare className="w-3.5 h-3.5" />
+          <MessageSquare className="w-4 h-4" />
           Add Note
         </Button>
       )}

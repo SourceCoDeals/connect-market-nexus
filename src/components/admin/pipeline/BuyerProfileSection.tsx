@@ -1,23 +1,25 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { 
   User, 
   Building2, 
   Mail, 
   Phone, 
-  ExternalLink,
+  Globe, 
+  Linkedin, 
   MapPin,
   DollarSign,
-  Briefcase,
-  Calendar,
   Target,
-  TrendingUp,
-  Globe
+  Briefcase,
+  ChevronDown,
+  ChevronUp,
+  ExternalLink
 } from 'lucide-react';
-import { BuyerPriorityScore } from './BuyerPriorityScore';
 import { cn } from '@/lib/utils';
+import { BuyerPriorityScore } from './BuyerPriorityScore';
+import { BuyerMessageHero } from './BuyerMessageHero';
 
 interface BuyerProfileSectionProps {
   buyerProfile: any;
@@ -25,38 +27,40 @@ interface BuyerProfileSectionProps {
   className?: string;
 }
 
+function getBuyerTypeLabel(buyerType?: string) {
+  if (!buyerType) return 'Individual';
+  
+  const type = buyerType.toLowerCase().replace(/[^a-z]/g, '');
+  switch (type) {
+    case 'privateequity': return 'Private Equity';
+    case 'familyoffice': return 'Family Office';
+    case 'searchfund': return 'Search Fund';
+    case 'corporate': return 'Corporate Buyer';
+    case 'individual': return 'Individual Investor';
+    case 'independentsponsor': return 'Independent Sponsor';
+    default: return 'Individual';
+  }
+}
+
+function formatCurrency(value: number | string) {
+  const num = typeof value === 'string' ? parseFloat(value) : value;
+  if (isNaN(num)) return 'Not specified';
+  
+  if (num >= 1000000) {
+    return `$${(num / 1000000).toFixed(1)}M`;
+  }
+  if (num >= 1000) {
+    return `$${(num / 1000).toFixed(0)}K`;
+  }
+  return `$${num.toLocaleString()}`;
+}
+
 export function BuyerProfileSection({ buyerProfile, selectedDeal, className }: BuyerProfileSectionProps) {
-  const getBuyerTypeLabel = (buyerType?: string) => {
-    if (!buyerType) return 'Individual';
-    
-    const type = buyerType.toLowerCase().replace(/[^a-z]/g, '');
-    switch (type) {
-      case 'privateequity': return 'Private Equity';
-      case 'familyoffice': return 'Family Office';
-      case 'searchfund': return 'Search Fund';
-      case 'corporate': return 'Corporate';
-      case 'individual': return 'Individual';
-      case 'independentsponsor': return 'Independent Sponsor';
-      default: return 'Individual';
-    }
-  };
-
-  const formatCurrency = (value: number | string) => {
-    const num = typeof value === 'string' ? parseFloat(value) : value;
-    if (isNaN(num)) return 'Not specified';
-    
-    if (num >= 1000000) {
-      return `$${(num / 1000000).toFixed(1)}M`;
-    }
-    if (num >= 1000) {
-      return `$${(num / 1000).toFixed(0)}K`;
-    }
-    return `$${num.toLocaleString()}`;
-  };
-
+  const [showDetails, setShowDetails] = useState(false);
+  
+  // Extract buyer information from either buyerProfile.buyerInfo or selectedDeal
   const buyer = buyerProfile?.buyerInfo;
-  const isLead = !buyerProfile?.isRegisteredUser;
-
+  
   if (!buyer && !selectedDeal.buyer_name) {
     return (
       <div className={cn("text-center py-12", className)}>
@@ -80,204 +84,163 @@ export function BuyerProfileSection({ buyerProfile, selectedDeal, className }: B
 
   return (
     <div className={cn("space-y-6", className)}>
-      {/* Original Buyer Message - Hero Content */}
-      {buyerProfile?.user_message ? (
-        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200/50 rounded-xl p-6">
-          <div className="flex items-start gap-4">
-            <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
-              <Mail className="w-5 h-5 text-blue-600" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-3">
-                <h4 className="text-sm font-semibold text-blue-900">Original Interest Message</h4>
-                <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">
-                  Why they're interested
-                </span>
-              </div>
-              <blockquote className="text-sm text-blue-800 leading-relaxed font-medium border-l-4 border-blue-300 pl-4 italic">
-                "{buyerProfile.user_message}"
-              </blockquote>
-            </div>
-          </div>
-        </div>
-      ) : (
-        <div className="bg-amber-50 border border-amber-200/60 rounded-lg p-4">
-          <div className="flex items-center gap-2 text-amber-700">
-            <Mail className="w-4 h-4" />
-            <span className="text-sm font-medium">Contact initiated without message</span>
-          </div>
-          <p className="text-xs text-amber-600 mt-1">This buyer reached out directly or was converted from a lead</p>
-        </div>
-      )}
+      {/* Hero Buyer Message */}
+      <BuyerMessageHero 
+        message={buyerProfile?.originalMessage} 
+        buyerName={buyerName}
+      />
 
-      {/* Buyer Identity & Core Info */}
-      <div className="flex items-start gap-4">
-        <Avatar className="w-12 h-12 border border-gray-200">
-          <AvatarImage src="" />
-          <AvatarFallback className="bg-gray-50 text-gray-700 text-sm font-medium">
-            {buyerName?.split(' ').map(n => n[0]).join('').toUpperCase() || 'U'}
-          </AvatarFallback>
-        </Avatar>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
-            <h3 className="text-base font-semibold text-gray-900 truncate">
-              {buyerName}
-            </h3>
-            {isLead && (
-              <Badge variant="secondary" className="text-xs">
-                Lead
-              </Badge>
-            )}
-          </div>
-          <p className="text-sm text-gray-600 mb-2">{buyerCompany}</p>
-          <div className="flex items-center gap-3 text-xs text-gray-500">
-            <span className="font-medium">{getBuyerTypeLabel(buyerType)}</span>
-            {buyer?.job_title && (
-              <>
-                <span>•</span>
-                <span>{buyer.job_title}</span>
-              </>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Buyer Priority Score */}
-      <div className="border border-gray-200 rounded-lg p-4">
-        <BuyerPriorityScore 
-          score={selectedDeal.buyer_priority_score || 0}
-          buyerType={buyerType}
-        />
-      </div>
-
-      {/* Contact Information */}
-      <div className="space-y-3">
-        <h4 className="text-sm font-medium text-gray-900">Contact Information</h4>
-        <div className="space-y-2">
-          {buyerEmail && (
-            <div className="flex items-center gap-3 text-sm">
-              <Mail className="w-4 h-4 text-gray-400" />
-              <span className="text-gray-900">{buyerEmail}</span>
-            </div>
-          )}
-          {buyerPhone && (
-            <div className="flex items-center gap-3 text-sm">
-              <Phone className="w-4 h-4 text-gray-400" />
-              <span className="text-gray-900">{buyerPhone}</span>
-            </div>
-          )}
-          {buyer?.website && (
-            <div className="flex items-center gap-3 text-sm">
-              <Globe className="w-4 h-4 text-gray-400" />
-              <a 
-                href={buyer.website}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-600 hover:text-blue-700 flex items-center gap-1"
-              >
-                {buyer.website}
-                <ExternalLink className="w-3 h-3" />
-              </a>
-            </div>
-          )}
-          {buyer?.linkedin_profile && (
-            <div className="flex items-center gap-3 text-sm">
-              <ExternalLink className="w-4 h-4 text-gray-400" />
-              <a 
-                href={buyer.linkedin_profile}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-600 hover:text-blue-700"
-              >
-                LinkedIn Profile
-              </a>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Investment Profile */}
-      {buyer && (
-        <div className="space-y-4">
-          <h4 className="text-sm font-medium text-gray-900">Investment Profile</h4>
+      {/* Buyer Identity & Core Info - Clean Apple Style */}
+      <div className="bg-white border border-slate-200/60 rounded-xl p-6 space-y-6">
+        <div className="flex items-start gap-4">
+          <Avatar className="w-12 h-12 border border-slate-200/60">
+            <AvatarImage src="" />
+            <AvatarFallback className="bg-slate-50 text-slate-700 text-sm font-medium">
+              {buyerName?.split(' ').map(n => n[0]).join('').toUpperCase() || 'U'}
+            </AvatarFallback>
+          </Avatar>
           
-          {/* Deal Size Preferences */}
-          {(buyer.target_deal_size_min || buyer.target_deal_size_max) && (
-            <div className="bg-gray-50 rounded-lg p-3">
-              <div className="flex items-center gap-2 mb-2">
-                <Target className="w-4 h-4 text-gray-500" />
-                <span className="text-xs font-medium text-gray-700">Target Deal Size</span>
-              </div>
-              <p className="text-sm text-gray-900">
-                {formatCurrency(buyer.target_deal_size_min || 0)} - {formatCurrency(buyer.target_deal_size_max || 0)}
-              </p>
-            </div>
-          )}
-
-          {/* Geographic Focus */}
-          {buyer.geographic_focus && Array.isArray(buyer.geographic_focus) && buyer.geographic_focus.length > 0 && (
-            <div className="bg-gray-50 rounded-lg p-3">
-              <div className="flex items-center gap-2 mb-2">
-                <MapPin className="w-4 h-4 text-gray-500" />
-                <span className="text-xs font-medium text-gray-700">Geographic Focus</span>
-              </div>
-              <div className="flex flex-wrap gap-1">
-                {buyer.geographic_focus.map((location: string, index: number) => (
-                  <Badge key={index} variant="outline" className="text-xs">
-                    {location}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <h2 className="text-lg font-semibold text-slate-900 leading-tight">{buyerName}</h2>
+                <p className="text-sm text-slate-600 font-medium">{buyerCompany}</p>
+                <div className="flex items-center gap-2 mt-2">
+                  <Badge variant="secondary" className="text-xs font-medium border-slate-200/60">
+                    {getBuyerTypeLabel(buyerType)}
                   </Badge>
-                ))}
+                </div>
               </div>
+              
+              {/* Buyer Priority Score */}
+              <BuyerPriorityScore 
+                buyerType={buyerType}
+                className="flex-shrink-0"
+              />
             </div>
-          )}
 
-          {/* Fund Information */}
-          {(buyer.fund_size || buyer.aum) && (
-            <div className="bg-gray-50 rounded-lg p-3">
-              <div className="flex items-center gap-2 mb-2">
-                <Briefcase className="w-4 h-4 text-gray-500" />
-                <span className="text-xs font-medium text-gray-700">Fund Information</span>
-              </div>
-              <div className="space-y-1">
-                {buyer.fund_size && (
-                  <p className="text-sm text-gray-900">Fund Size: {buyer.fund_size}</p>
-                )}
-                {buyer.aum && (
-                  <p className="text-sm text-gray-900">AUM: {buyer.aum}</p>
-                )}
-              </div>
+            {/* Essential Contact Info */}
+            <div className="grid grid-cols-2 gap-3">
+              {buyerEmail && (
+                <div className="flex items-center gap-2.5 p-3 bg-slate-50/60 rounded-lg">
+                  <Mail className="w-4 h-4 text-slate-500" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-slate-500 font-medium">Email</p>
+                    <p className="text-sm font-medium text-slate-900 truncate">{buyerEmail}</p>
+                  </div>
+                </div>
+              )}
+              
+              {buyerPhone && (
+                <div className="flex items-center gap-2.5 p-3 bg-slate-50/60 rounded-lg">
+                  <Phone className="w-4 h-4 text-slate-500" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-slate-500 font-medium">Phone</p>
+                    <p className="text-sm font-medium text-slate-900 truncate">{buyerPhone}</p>
+                  </div>
+                </div>
+              )}
             </div>
-          )}
-
-          {/* Business Categories */}
-          {buyer.business_categories && Array.isArray(buyer.business_categories) && buyer.business_categories.length > 0 && (
-            <div className="bg-gray-50 rounded-lg p-3">
-              <div className="flex items-center gap-2 mb-2">
-                <Building2 className="w-4 h-4 text-gray-500" />
-                <span className="text-xs font-medium text-gray-700">Industry Focus</span>
-              </div>
-              <div className="flex flex-wrap gap-1">
-                {buyer.business_categories.map((category: string, index: number) => (
-                  <Badge key={index} variant="outline" className="text-xs">
-                    {category}
-                  </Badge>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Bio */}
-          {buyer.bio && (
-            <div className="bg-gray-50 rounded-lg p-3">
-              <div className="flex items-center gap-2 mb-2">
-                <User className="w-4 h-4 text-gray-500" />
-                <span className="text-xs font-medium text-gray-700">Background</span>
-              </div>
-              <p className="text-sm text-gray-700 leading-relaxed">{buyer.bio}</p>
-            </div>
-          )}
+          </div>
         </div>
-      )}
+        
+        {/* Progressive Disclosure for Detailed Info */}
+        {buyer && (buyer.fund_size || buyer.target_deal_size_min || buyer.bio) && (
+          <>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowDetails(!showDetails)}
+              className="w-full justify-center gap-2 text-slate-600 hover:text-slate-900"
+            >
+              {showDetails ? 'Hide Details' : 'View Investment Profile'}
+              {showDetails ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            </Button>
+            
+            {showDetails && (
+              <div className="space-y-4 pt-4 border-t border-slate-200/60">
+                {/* Investment Details */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {buyer.fund_size && (
+                    <div className="space-y-1">
+                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Fund Size</p>
+                      <p className="text-sm font-medium text-slate-900">{buyer.fund_size}</p>
+                    </div>
+                  )}
+                  
+                  {(buyer.target_deal_size_min || buyer.target_deal_size_max) && (
+                    <div className="space-y-1">
+                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Target Deal Size</p>
+                      <p className="text-sm font-medium text-slate-900">
+                        {buyer.target_deal_size_min && buyer.target_deal_size_max
+                          ? `${formatCurrency(buyer.target_deal_size_min)} - ${formatCurrency(buyer.target_deal_size_max)}`
+                          : buyer.target_deal_size_min
+                          ? `${formatCurrency(buyer.target_deal_size_min)}+`
+                          : buyer.target_deal_size_max
+                          ? `Up to ${formatCurrency(buyer.target_deal_size_max)}`
+                          : 'Not specified'
+                        }
+                      </p>
+                    </div>
+                  )}
+                  
+                  {buyer.job_title && (
+                    <div className="space-y-1">
+                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Role</p>
+                      <p className="text-sm font-medium text-slate-900">{buyer.job_title}</p>
+                    </div>
+                  )}
+                  
+                  {buyer.deployment_timing && (
+                    <div className="space-y-1">
+                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Deployment Timeline</p>
+                      <p className="text-sm font-medium text-slate-900">{buyer.deployment_timing}</p>
+                    </div>
+                  )}
+                </div>
+                
+                {/* External Links */}
+                {(buyer.website || buyer.linkedin_profile) && (
+                  <div className="flex gap-2">
+                    {buyer.website && (
+                      <a
+                        href={buyer.website}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 rounded-lg transition-colors"
+                      >
+                        <Globe className="w-3.5 h-3.5" />
+                        Website
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    )}
+                    {buyer.linkedin_profile && (
+                      <a
+                        href={buyer.linkedin_profile}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
+                      >
+                        <Linkedin className="w-3.5 h-3.5" />
+                        LinkedIn
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    )}
+                  </div>
+                )}
+                
+                {/* Bio */}
+                {buyer.bio && (
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Background</p>
+                    <p className="text-sm text-slate-700 leading-relaxed">{buyer.bio}</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </>
+        )}
+      </div>
     </div>
   );
 }

@@ -1,32 +1,30 @@
 import React from 'react';
-import { Star, TrendingUp, AlertCircle } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Star, TrendingUp, Target, Users, User, Crown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface BuyerPriorityScoreProps {
-  score: number;
   buyerType?: string;
   className?: string;
 }
 
-export function BuyerPriorityScore({ score, buyerType, className }: BuyerPriorityScoreProps) {
-  // Calculate priority score based on buyer type (1-5 scale)
-  const getActualScore = (buyerType?: string) => {
-    if (!buyerType) return 1; // Individual/Unknown = lowest score
+export function BuyerPriorityScore({ buyerType, className }: BuyerPriorityScoreProps) {
+  const getActualScore = (buyerType?: string): number => {
+    if (!buyerType) return 1;
     
     const type = buyerType.toLowerCase().replace(/[^a-z]/g, '');
     switch (type) {
       case 'privateequity':
-      case 'pe':
         return 5;
       case 'corporate':
-      case 'strategic':
-        return 4;
       case 'familyoffice':
+        return 4;
       case 'independentsponsor':
         return 3;
       case 'searchfund':
         return 2;
       case 'individual':
+        return 1;
       default:
         return 1;
     }
@@ -35,112 +33,82 @@ export function BuyerPriorityScore({ score, buyerType, className }: BuyerPriorit
   const actualScore = getActualScore(buyerType);
 
   const getScoreConfig = (score: number) => {
-    if (score === 5) {
-      return {
-        label: 'Premium',
-        color: 'text-emerald-600',
-        bgColor: 'bg-emerald-50',
-        borderColor: 'border-emerald-200',
-        icon: Star,
-        description: 'Private Equity - Highest value buyer'
-      };
+    switch (score) {
+      case 5:
+        return {
+          label: "PE",
+          color: "text-purple-700",
+          bg: "bg-purple-50",
+          border: "border-purple-200/60",
+          icon: Crown,
+          description: "Private Equity"
+        };
+      case 4:
+        return {
+          label: "Corporate",
+          color: "text-blue-700",
+          bg: "bg-blue-50",
+          border: "border-blue-200/60",
+          icon: TrendingUp,
+          description: "Corporate/Family Office"
+        };
+      case 3:
+        return {
+          label: "Sponsor",
+          color: "text-emerald-700",
+          bg: "bg-emerald-50",
+          border: "border-emerald-200/60",
+          icon: Target,
+          description: "Independent Sponsor"
+        };
+      case 2:
+        return {
+          label: "Search Fund",
+          color: "text-orange-700",
+          bg: "bg-orange-50",
+          border: "border-orange-200/60",
+          icon: Users,
+          description: "Search Fund"
+        };
+      case 1:
+        return {
+          label: "Individual",
+          color: "text-slate-600",
+          bg: "bg-slate-50",
+          border: "border-slate-200/60",
+          icon: User,
+          description: "Individual Investor"
+        };
+      default:
+        return {
+          label: "Unknown",
+          color: "text-slate-500",
+          bg: "bg-slate-50",
+          border: "border-slate-200/60",
+          icon: User,
+          description: "Classification pending"
+        };
     }
-    if (score === 4) {
-      return {
-        label: 'High Priority',
-        color: 'text-blue-600',
-        bgColor: 'bg-blue-50',
-        borderColor: 'border-blue-200',
-        icon: TrendingUp,
-        description: 'Corporate/Strategic buyer'
-      };
-    }
-    if (score === 3) {
-      return {
-        label: 'Medium Priority',
-        color: 'text-orange-600',
-        bgColor: 'bg-orange-50',
-        borderColor: 'border-orange-200',
-        icon: TrendingUp,
-        description: 'Family Office/Independent Sponsor'
-      };
-    }
-    if (score === 2) {
-      return {
-        label: 'Lower Priority',
-        color: 'text-gray-600',
-        bgColor: 'bg-gray-50',
-        borderColor: 'border-gray-200',
-        icon: AlertCircle,
-        description: 'Search Fund buyer'
-      };
-    }
-    return {
-      label: 'Individual',
-      color: 'text-gray-500',
-      bgColor: 'bg-gray-50',
-      borderColor: 'border-gray-200',
-      icon: AlertCircle,
-      description: 'Individual buyer - requires qualification'
-    };
   };
 
   const config = getScoreConfig(actualScore);
-  const Icon = config.icon;
-
-  const getScoreExplanation = () => {
-    const explanations = [];
-    
-    if (buyerType) {
-      const type = buyerType.toLowerCase();
-      if (type.includes('pe') || type.includes('private equity')) {
-        explanations.push('Private Equity (5 points)');
-      } else if (type.includes('corporate') || type.includes('strategic')) {
-        explanations.push('Corporate/Strategic (4 points)');
-      } else if (type.includes('family office') || type.includes('independent sponsor')) {
-        explanations.push('Family Office/Independent (3 points)');
-      } else if (type.includes('search fund')) {
-        explanations.push('Search Fund (2 points)');
-      } else {
-        explanations.push('Individual Buyer (1 point)');
-      }
-    }
-
-    return explanations;
-  };
 
   return (
-    <div className={cn("", className)}>
-      <div className="flex items-center gap-3">
-        <div className={cn(
-          "flex items-center gap-2 px-3 py-2 rounded-lg border",
-          config.bgColor,
-          config.borderColor
-        )}>
-          <Icon className={cn("w-4 h-4", config.color)} />
-          <div className="flex items-center gap-2">
-            <span className={cn("text-sm font-medium", config.color)}>
-              {config.label}
-            </span>
-            <span className="text-xs font-mono bg-white/50 px-1.5 py-0.5 rounded">
-              {actualScore}/5
-            </span>
-          </div>
+    <div className={cn("flex items-center gap-2", className)}>
+      <div className={cn(
+        "flex items-center gap-2 px-3 py-1.5 rounded-lg border",
+        config.bg,
+        config.border
+      )}>
+        <config.icon className={cn("w-3.5 h-3.5", config.color)} />
+        <div className="flex items-center gap-1.5">
+          <span className={cn("text-xs font-semibold", config.color)}>
+            {config.label}
+          </span>
+          <span className={cn("text-xs font-medium opacity-75", config.color)}>
+            {actualScore}/5
+          </span>
         </div>
-      </div>
-      
-      <div className="mt-2">
-        <p className="text-xs text-muted-foreground">
-          {config.description}
-        </p>
-        
-        {getScoreExplanation().length > 0 && (
-          <div className="mt-1">
-            <p className="text-xs text-muted-foreground">
-              Based on: {getScoreExplanation().join(', ')}
-            </p>
-          </div>
-        )}
       </div>
     </div>
   );
