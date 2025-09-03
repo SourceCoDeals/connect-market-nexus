@@ -3,25 +3,12 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { 
-  Building2, 
-  DollarSign, 
-  Calendar, 
-  User, 
-  CheckCircle2, 
   Clock, 
   AlertTriangle,
-  TrendingUp,
-  Phone,
-  Mail,
-  MapPin,
-  FileText,
-  Activity,
-  ShieldCheck,
-  FileCheck,
-  Star,
-  Target
+  User,
+  CheckCircle2,
+  Activity
 } from 'lucide-react';
 import { Deal } from '@/hooks/admin/use-deals';
 
@@ -43,15 +30,6 @@ export function EnhancedDealKanbanCard({ deal, isDragging, onClick }: EnhancedDe
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-  };
-
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(value);
   };
 
   const getBuyerTypeColor = (buyerType?: string) => {
@@ -85,11 +63,6 @@ export function EnhancedDealKanbanCard({ deal, isDragging, onClick }: EnhancedDe
     return Math.ceil((Date.now() - new Date(deal.deal_stage_entered_at).getTime()) / (1000 * 60 * 60 * 24));
   };
 
-  const getBuyerPriorityStars = (score?: number) => {
-    if (!score) return 0;
-    return Math.min(Math.floor(score), 5);
-  };
-
   return (
     <Card 
       ref={setNodeRef}
@@ -104,157 +77,95 @@ export function EnhancedDealKanbanCard({ deal, isDragging, onClick }: EnhancedDe
       onClick={onClick}
     >
       <CardContent className="p-4 space-y-3">
-        {/* Header with Deal Title and Time in Stage */}
-        <div className="space-y-2">
-          <div className="flex items-start justify-between gap-2">
-            <h3 className="font-semibold text-sm text-foreground/90 line-clamp-2 leading-tight">
-              {deal.deal_title}
+        {/* Header with Company and Time in Stage */}
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex-1 min-w-0">
+            <h3 className="font-semibold text-sm text-foreground line-clamp-1 leading-tight">
+              {deal.buyer_company || deal.contact_company || deal.buyer_name || deal.contact_name || 'Unknown Company'}
             </h3>
-            <div className="flex flex-col gap-1 items-end">
-              {/* Time in Stage - Prominent */}
-              <div className={`text-xs font-bold ${getTimeInStageColor(getDaysInStage())}`}>
-                {getDaysInStage()}d
-              </div>
-              {deal.buyer_priority_score && deal.buyer_priority_score > 0 && (
-                <div className="flex items-center gap-0.5">
-                  {[...Array(getBuyerPriorityStars(deal.buyer_priority_score))].map((_, i) => (
-                    <Star key={i} className="h-2.5 w-2.5 fill-amber-400 text-amber-400" />
-                  ))}
-                </div>
-              )}
+            <p className="text-xs text-muted-foreground truncate mt-0.5">
+              {deal.contact_name || deal.buyer_name}
+            </p>
+          </div>
+          <div className="flex flex-col gap-1 items-end">
+            {/* Time in Stage - Prominent */}
+            <div className={`text-sm font-bold ${getTimeInStageColor(getDaysInStage())}`}>
+              {getDaysInStage()}d
             </div>
+            {/* Buyer Type Badge */}
+            {deal.buyer_type && (
+              <Badge className={`text-xs px-1.5 py-0.5 font-semibold ${getBuyerTypeColor(deal.buyer_type)}`}>
+                {deal.buyer_type === 'privateEquity' ? 'PE' : 
+                 deal.buyer_type === 'familyOffice' ? 'FO' :
+                 deal.buyer_type === 'searchFund' ? 'SF' :
+                 deal.buyer_type === 'corporate' ? 'Corp' :
+                 deal.buyer_type === 'independentSponsor' ? 'IS' :
+                 deal.buyer_type === 'individual' ? 'IND' :
+                 deal.buyer_type}
+              </Badge>
+            )}
           </div>
         </div>
 
-        {/* Buyer Information with Prominent Type Badge */}
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <Avatar className="h-6 w-6">
-              <AvatarFallback className="text-xs bg-primary/10 text-primary font-medium">
-                {deal.buyer_name?.split(' ').map(n => n[0]).join('').toUpperCase() || 
-                 deal.contact_name?.split(' ').map(n => n[0]).join('').toUpperCase() || 'B'}
-              </AvatarFallback>
-            </Avatar>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-1">
-                <p className="text-sm font-medium text-foreground/90 truncate">
-                  {deal.buyer_name || deal.contact_name || 'Unknown Buyer'}
-                </p>
-                {/* Prominent Buyer Type Badge */}
-                {deal.buyer_type && (
-                  <Badge className={`text-xs px-2 py-0.5 font-semibold ${getBuyerTypeColor(deal.buyer_type)}`}>
-                    {deal.buyer_type === 'privateEquity' ? 'PE' : 
-                     deal.buyer_type === 'familyOffice' ? 'FO' :
-                     deal.buyer_type === 'searchFund' ? 'SF' :
-                     deal.buyer_type === 'corporate' ? 'Corp' :
-                     deal.buyer_type === 'independentSponsor' ? 'IS' :
-                     deal.buyer_type === 'individual' ? 'IND' :
-                     deal.buyer_type}
-                  </Badge>
-                )}
-              </div>
-              {(deal.buyer_company || deal.contact_company) && (
-                <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
-                  <Building2 className="h-3 w-3" />
-                  {deal.buyer_company || deal.contact_company}
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Listing Information */}
-        <div className="bg-accent/30 rounded-md p-2 space-y-1">
-          <p className="text-xs font-medium text-foreground/80 truncate">
-            {deal.listing_title}
-          </p>
-          <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <span className="flex items-center gap-1">
-              <DollarSign className="h-3 w-3" />
-              {formatCurrency(deal.listing_revenue)}
-            </span>
-            <span className="flex items-center gap-1">
-              <MapPin className="h-3 w-3" />
-              {deal.listing_location}
-            </span>
-          </div>
-        </div>
-
-        {/* Deal Probability - Simplified */}
-        <div className="flex items-center justify-center">
-          <div className="flex items-center gap-1">
-            <Target className="h-3 w-3 text-muted-foreground" />
-            <span className="text-sm font-medium text-foreground/90">
-              {deal.deal_probability}%
-            </span>
-          </div>
-        </div>
-
-        {/* Prominent Document Status Badges */}
-        <div className="flex items-center justify-center gap-2 pt-2">
-          {/* NDA Status - Prominent Badge */}
-          <Badge className={`text-xs px-2 py-1 font-semibold ${getDocumentStatusColor(deal.nda_status)}`}>
-            NDA: {deal.nda_status === 'not_sent' ? 'Not Sent' : 
-                   deal.nda_status === 'sent' ? 'Sent' :
-                   deal.nda_status === 'signed' ? 'Signed' : 'Declined'}
+        {/* Document Status - Prominent and Clean */}
+        <div className="flex items-center justify-center gap-2">
+          <Badge className={`text-xs px-2 py-1 font-medium ${getDocumentStatusColor(deal.nda_status)}`}>
+            NDA
           </Badge>
-          
-          {/* Fee Agreement Status - Prominent Badge */}
-          <Badge className={`text-xs px-2 py-1 font-semibold ${getDocumentStatusColor(deal.fee_agreement_status)}`}>
-            Fee: {deal.fee_agreement_status === 'not_sent' ? 'Not Sent' : 
-                   deal.fee_agreement_status === 'sent' ? 'Sent' :
-                   deal.fee_agreement_status === 'signed' ? 'Signed' : 'Declined'}
+          <Badge className={`text-xs px-2 py-1 font-medium ${getDocumentStatusColor(deal.fee_agreement_status)}`}>
+            Fee
           </Badge>
         </div>
 
-        {/* Tasks and Activities */}
-        <div className="flex items-center justify-center gap-4 text-xs text-muted-foreground pt-2 border-t border-border/20">
-          {/* Tasks */}
-          {deal.total_tasks > 0 && (
-            <span className="flex items-center gap-1">
-              <CheckCircle2 className="h-3 w-3" />
-              {deal.completed_tasks}/{deal.total_tasks} tasks
-            </span>
-          )}
-          
-          {/* Activities */}
-          {deal.activity_count > 0 && (
-            <span className="flex items-center gap-1">
-              <Activity className="h-3 w-3" />
-              {deal.activity_count} activities
-            </span>
-          )}
-        </div>
+        {/* Tasks and Activities - Clean Row */}
+        {(deal.total_tasks > 0 || deal.activity_count > 0) && (
+          <div className="flex items-center justify-center gap-4 text-xs text-muted-foreground">
+            {deal.total_tasks > 0 && (
+              <span className="flex items-center gap-1">
+                <CheckCircle2 className="h-3 w-3" />
+                {deal.completed_tasks}/{deal.total_tasks}
+              </span>
+            )}
+            {deal.activity_count > 0 && (
+              <span className="flex items-center gap-1">
+                <Activity className="h-3 w-3" />
+                {deal.activity_count}
+              </span>
+            )}
+          </div>
+        )}
 
-        {/* Footer with Admin and Follow-up Info */}
-        <div className="flex items-center justify-between pt-1 text-xs text-muted-foreground border-t border-border/20">
-          {/* Follow-up due date indicator */}
-          {deal.next_followup_due && (
-            <div className={`flex items-center gap-1 ${deal.followup_overdue ? 'text-red-600 dark:text-red-400' : ''}`}>
-              <Clock className="h-3 w-3" />
-              <span className="text-xs">
-                Due {new Date(deal.next_followup_due).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-              </span>
-            </div>
-          )}
-          
-          {/* Overdue follow-up warning */}
-          {deal.followup_overdue && !deal.followed_up && (
-            <div className="flex items-center gap-1">
-              <AlertTriangle className="h-3 w-3 text-red-600 dark:text-red-400" />
-              <span className="text-xs text-red-600 dark:text-red-400 font-medium">Overdue</span>
-            </div>
-          )}
-          
-          {deal.assigned_admin_name && (
-            <div className="flex items-center gap-1">
-              <User className="h-3 w-3" />
-              <span className="truncate max-w-[80px]">
-                {deal.assigned_admin_name.split(' ')[0]}
-              </span>
-            </div>
-          )}
-        </div>
+        {/* Footer - Follow-up and Admin */}
+        {(deal.next_followup_due || deal.followup_overdue || deal.assigned_admin_name) && (
+          <div className="flex items-center justify-between pt-2 text-xs text-muted-foreground border-t border-border/20">
+            {/* Follow-up due date indicator */}
+            {deal.next_followup_due && (
+              <div className={`flex items-center gap-1 ${deal.followup_overdue ? 'text-red-600 dark:text-red-400' : ''}`}>
+                <Clock className="h-3 w-3" />
+                <span>
+                  {new Date(deal.next_followup_due).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                </span>
+              </div>
+            )}
+            
+            {/* Overdue follow-up warning */}
+            {deal.followup_overdue && !deal.followed_up && (
+              <div className="flex items-center gap-1">
+                <AlertTriangle className="h-3 w-3 text-red-600 dark:text-red-400" />
+                <span className="text-red-600 dark:text-red-400 font-medium">Overdue</span>
+              </div>
+            )}
+            
+            {deal.assigned_admin_name && (
+              <div className="flex items-center gap-1">
+                <User className="h-3 w-3" />
+                <span className="truncate max-w-[80px]">
+                  {deal.assigned_admin_name.split(' ')[0]}
+                </span>
+              </div>
+            )}
+          </div>
+        )}
       </CardContent>
     </Card>
   );
