@@ -68,7 +68,7 @@ export function PremiumDealDetailModal({ deal, open, onOpenChange }: PremiumDeal
   const deleteTask = useDeleteDealTask();
   
   // Real buyer data
-  const { data: buyerProfile } = useBuyerProfile(deal?.deal_id);
+  const { data: buyerProfile, isLoading: isBuyerProfileLoading } = useBuyerProfile(deal?.deal_id);
 
   if (!deal) return null;
 
@@ -337,6 +337,7 @@ export function PremiumDealDetailModal({ deal, open, onOpenChange }: PremiumDeal
                   <BuyerMessageHero 
                     message={buyerProfile?.originalMessage} 
                     buyerName={buyerProfile?.buyerInfo?.name || deal.contact_name || deal.buyer_name}
+                    isLoading={isBuyerProfileLoading}
                   />
                   
                   {/* Complete Buyer Profile */}
