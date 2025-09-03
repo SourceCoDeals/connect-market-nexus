@@ -49,7 +49,7 @@ export function useDealFilters(deals: Deal[]) {
           filtered = filtered.filter(d => d.stage_name === 'Under Contract');
           break;
         case 'closed':
-          filtered = filtered.filter(d => ['Closed Won', 'Closed Lost'].includes(d.stage_name));
+          filtered = filtered.filter(d => d.stage_name && ['Closed Won', 'Closed Lost'].includes(d.stage_name));
           break;
       }
     }
