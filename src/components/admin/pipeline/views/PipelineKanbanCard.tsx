@@ -3,9 +3,10 @@ import { useDraggable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Mail, Phone, Edit, CheckCircle2, Clock, User } from 'lucide-react';
+import { Mail, Phone, Edit, CheckCircle2, Clock, User, Calendar, MessageCircle } from 'lucide-react';
 import { Deal } from '@/hooks/admin/use-deals';
 import { cn } from '@/lib/utils';
+import { formatDistanceToNow } from 'date-fns';
 
 interface PipelineKanbanCardProps {
   deal: Deal;
@@ -29,30 +30,30 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
     transform: CSS.Translate.toString(transform),
   };
 
-  // Helper functions for colors and labels
+  // Helper functions for colors and labels - Using semantic design tokens
   const getBuyerTypeColor = (buyerType?: string) => {
     switch (buyerType) {
       case 'privateEquity':
-        return 'bg-purple-100/50 text-purple-700';
+        return 'bg-[hsl(var(--buyer-pe))] text-[hsl(var(--buyer-pe-foreground))] border-[hsl(var(--buyer-pe-border))] border';
       case 'familyOffice':
-        return 'bg-blue-100/50 text-blue-700';
+        return 'bg-[hsl(var(--buyer-family))] text-[hsl(var(--buyer-family-foreground))] border-[hsl(var(--buyer-family-border))] border';
       case 'searchFund':
-        return 'bg-emerald-100/50 text-emerald-700';
+        return 'bg-[hsl(var(--buyer-search))] text-[hsl(var(--buyer-search-foreground))] border-[hsl(var(--buyer-search-border))] border';
       case 'corporate':
-        return 'bg-orange-100/50 text-orange-700';
+        return 'bg-[hsl(var(--buyer-corporate))] text-[hsl(var(--buyer-corporate-foreground))] border-[hsl(var(--buyer-corporate-border))] border';
       case 'individual':
-        return 'bg-slate-100/50 text-slate-700';
+        return 'bg-[hsl(var(--buyer-individual))] text-[hsl(var(--buyer-individual-foreground))] border-[hsl(var(--buyer-individual-border))] border';
       case 'independentSponsor':
-        return 'bg-indigo-100/50 text-indigo-700';
+        return 'bg-[hsl(var(--buyer-sponsor))] text-[hsl(var(--buyer-sponsor-foreground))] border-[hsl(var(--buyer-sponsor-border))] border';
       default:
-        return 'bg-slate-100/50 text-slate-600';
+        return 'bg-[hsl(var(--buyer-individual))] text-[hsl(var(--buyer-individual-foreground))] border-[hsl(var(--buyer-individual-border))] border';
     }
   };
 
   const getBuyerTypeLabel = (buyerType?: string) => {
     switch (buyerType) {
       case 'privateEquity':
-        return 'PE Fund';
+        return 'Private Equity';
       case 'familyOffice':
         return 'Family Office';
       case 'searchFund':
@@ -62,7 +63,7 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
       case 'individual':
         return 'Individual';
       case 'independentSponsor':
-        return 'Ind. Sponsor';
+        return 'Independent Sponsor';
       default:
         return 'Individual';
     }
@@ -71,17 +72,37 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
   const getStatusIndicator = (status: string) => {
     switch (status) {
       case 'signed':
-        return { color: 'bg-emerald-500', label: 'Signed' };
+        return { 
+          color: 'bg-[hsl(var(--status-signed-border))]', 
+          label: 'Signed',
+          bg: 'bg-[hsl(var(--status-signed))]',
+          text: 'text-[hsl(var(--status-signed-foreground))]'
+        };
       case 'sent':
-        return { color: 'bg-amber-500', label: 'Sent' };
+        return { 
+          color: 'bg-[hsl(var(--status-sent-border))]', 
+          label: 'Sent',
+          bg: 'bg-[hsl(var(--status-sent))]',
+          text: 'text-[hsl(var(--status-sent-foreground))]'
+        };
       case 'declined':
-        return { color: 'bg-red-500', label: 'Declined' };
+        return { 
+          color: 'bg-[hsl(var(--status-declined-border))]', 
+          label: 'Declined',
+          bg: 'bg-[hsl(var(--status-declined))]',
+          text: 'text-[hsl(var(--status-declined-foreground))]'
+        };
       default:
-        return { color: 'bg-slate-300', label: 'Pending' };
+        return { 
+          color: 'bg-[hsl(var(--status-pending-border))]', 
+          label: 'Pending',
+          bg: 'bg-[hsl(var(--status-pending))]',
+          text: 'text-[hsl(var(--status-pending-foreground))]'
+        };
     }
   };
 
-  // Enhanced Buyer Priority Logic
+  // Enhanced Buyer Priority Logic - Simplified and cleaner
   const getBuyerPriority = (buyerType?: string, score?: number) => {
     switch (buyerType) {
       case 'privateEquity':
@@ -94,9 +115,9 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
       case 'individual':
         if (score && score >= 70) return { level: 'High', color: 'text-emerald-600', dot: 'bg-emerald-500' };
         if (score && score >= 40) return { level: 'Medium', color: 'text-amber-600', dot: 'bg-amber-500' };
-        return { level: 'Low', color: 'text-slate-500', dot: 'bg-slate-400' };
+        return { level: 'Standard', color: 'text-slate-500', dot: 'bg-slate-400' };
       default:
-        return { level: 'Medium', color: 'text-slate-500', dot: 'bg-slate-400' };
+        return { level: 'Standard', color: 'text-slate-500', dot: 'bg-slate-400' };
     }
   };
 
@@ -106,12 +127,12 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
     const completed = deal.completed_tasks || 0;
     const pending = deal.pending_tasks || 0;
     
-    // If no tasks exist, show default structure
+    // If no tasks exist, show realistic task count
     if (total === 0) {
-      return { completed: 0, total: 3, pending: 3 };
+      return { completed: 0, total: 0, pending: 0, hasAnyTasks: false };
     }
     
-    return { completed, total, pending };
+    return { completed, total, pending, hasAnyTasks: true };
   };
 
   // Calculate meaningful data
@@ -127,6 +148,29 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
 
   // Revenue context for deal sizing
   const listingRevenue = deal.listing_revenue ? `$${(deal.listing_revenue / 1000000).toFixed(1)}M Revenue` : null;
+
+  // Calculate days in stage
+  const daysInStage = deal.deal_stage_entered_at 
+    ? Math.max(1, Math.floor((new Date().getTime() - new Date(deal.deal_stage_entered_at).getTime()) / (1000 * 60 * 60 * 24)))
+    : 0;
+
+  // Calculate last contact
+  const lastContactDate = deal.followed_up_at || deal.deal_created_at;
+  const lastContactText = lastContactDate 
+    ? formatDistanceToNow(new Date(lastContactDate), { addSuffix: true })
+    : 'No contact';
+
+  // Determine next action based on deal status
+  const getNextAction = () => {
+    if (deal.nda_status === 'not_sent') return 'Send NDA';
+    if (deal.nda_status === 'sent' && deal.fee_agreement_status === 'not_sent') return 'Follow up NDA';
+    if (deal.nda_status === 'signed' && deal.fee_agreement_status === 'not_sent') return 'Send Fee Agreement';
+    if (deal.fee_agreement_status === 'sent') return 'Follow up Fee Agreement';
+    if (deal.fee_agreement_status === 'signed') return 'Schedule Meeting';
+    return 'Contact Buyer';
+  };
+
+  const nextAction = getNextAction();
 
   // Quick action handlers
   const handleEmailClick = (e: React.MouseEvent) => {
@@ -153,104 +197,118 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
       {...listeners}
       {...attributes}
       className={cn(
-        "group relative mb-3 cursor-pointer transition-all duration-300 ease-out",
-        "bg-white border border-slate-200/60 hover:border-slate-300/80",
-        "hover:shadow-lg hover:shadow-slate-200/50 hover:-translate-y-0.5",
-        isDragging && "rotate-1 shadow-xl shadow-slate-300/30 scale-[1.02] z-50 border-slate-300",
-        buyerPriority.level === 'High' && "ring-1 ring-emerald-200/50"
+        "group relative mb-3 cursor-pointer transition-all duration-200 ease-out",
+        "bg-card border border-border/40 hover:border-border",
+        "hover:shadow-sm hover:-translate-y-px",
+        isDragging && "rotate-1 shadow-md scale-[1.01] z-50 border-border",
+        buyerPriority.level === 'High' && "ring-1 ring-emerald-200/30"
       )}
       onClick={() => !isDragging && onDealClick(deal)}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <CardContent className="p-6">
-        {/* Primary Header - Listing + Company */}
-        <div className="mb-5">
-          <div className="flex items-start justify-between mb-2">
-            <h3 className="text-lg font-semibold text-slate-900 leading-tight pr-2">
-              {listingTitle} • {buyerCompany}
+      <CardContent className="p-4">
+        {/* Header with priority indicator */}
+        <div className="flex items-start justify-between mb-3">
+          <div className="flex-1 min-w-0">
+            <h3 className="text-base font-medium text-foreground leading-tight mb-1 truncate">
+              {listingTitle}
             </h3>
-            <div className={cn("flex items-center gap-1.5", buyerPriority.color)}>
-              <div className={cn("w-2 h-2 rounded-full", buyerPriority.dot)} />
-              <span className="text-xs font-medium">{buyerPriority.level}</span>
-            </div>
+            <p className="text-sm text-muted-foreground truncate">
+              {buyerCompany}
+            </p>
           </div>
-          
-          <div className="flex items-center gap-3 text-sm text-slate-600">
-            <div className="flex items-center gap-1.5">
-              <User className="w-3.5 h-3.5" />
-              <span>{contactName}</span>
-            </div>
-            <Badge className={cn("text-xs px-2 py-0.5 font-medium rounded-full", getBuyerTypeColor(deal.buyer_type))}>
-              {getBuyerTypeLabel(deal.buyer_type)}
-            </Badge>
-          </div>
-          
-          {listingRevenue && (
-            <p className="text-sm text-slate-500 mt-1">{listingRevenue}</p>
-          )}
+          <div className={cn("w-2 h-2 rounded-full ml-2 mt-1 flex-shrink-0", buyerPriority.dot)} />
         </div>
 
-        {/* Document Status - Subtle Indicators */}
-        <div className="mb-5">
-          <div className="flex items-center gap-4 text-sm">
-            <div className="flex items-center gap-2">
-              <div className={cn("w-2 h-2 rounded-full", ndaStatus.color)} />
-              <span className="text-slate-600">NDA</span>
-              <span className="text-slate-900 font-medium">{ndaStatus.label}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className={cn("w-2 h-2 rounded-full", feeStatus.color)} />
-              <span className="text-slate-600">Fee</span>
-              <span className="text-slate-900 font-medium">{feeStatus.label}</span>
-            </div>
+        {/* Contact and Type */}
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            <User className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+            <span className="text-sm text-foreground truncate">{contactName}</span>
+          </div>
+          <Badge className={cn("text-xs px-2 py-0.5 font-medium rounded-md flex-shrink-0", getBuyerTypeColor(deal.buyer_type))}>
+            {getBuyerTypeLabel(deal.buyer_type)}
+          </Badge>
+        </div>
+
+        {/* Revenue */}
+        {listingRevenue && (
+          <p className="text-sm text-muted-foreground mb-3">{listingRevenue}</p>
+        )}
+
+        {/* Document Status - Minimal dots */}
+        <div className="flex items-center gap-3 mb-3">
+          <div className="flex items-center gap-1.5">
+            <div className={cn("w-1.5 h-1.5 rounded-full", ndaStatus.color)} />
+            <span className="text-xs text-muted-foreground">NDA</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div className={cn("w-1.5 h-1.5 rounded-full", feeStatus.color)} />
+            <span className="text-xs text-muted-foreground">Fee</span>
           </div>
         </div>
 
-        {/* Tasks & Progress */}
-        <div className="mb-4">
-          <div className="flex items-center justify-between text-sm">
-            <div className="flex items-center gap-2 text-slate-600">
-              <CheckCircle2 className="w-4 h-4" />
-              <span>Tasks</span>
+        {/* Tasks */}
+        {taskInfo.hasAnyTasks && (
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="w-3.5 h-3.5 text-muted-foreground" />
+              <span className="text-xs text-muted-foreground">Tasks</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-slate-900 font-medium">
+              <span className="text-xs font-medium text-foreground">
                 {taskInfo.completed}/{taskInfo.total}
               </span>
-              <div className="w-12 h-1.5 bg-slate-200 rounded-full overflow-hidden">
+              <div className="w-8 h-1 bg-muted rounded-full overflow-hidden">
                 <div 
                   className="h-full bg-emerald-500 rounded-full transition-all duration-300"
-                  style={{ width: `${(taskInfo.completed / taskInfo.total) * 100}%` }}
+                  style={{ width: `${taskInfo.total > 0 ? (taskInfo.completed / taskInfo.total) * 100 : 0}%` }}
                 />
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Bottom row - Days, Last Contact, Next Action */}
+        <div className="grid grid-cols-3 gap-2 text-xs text-muted-foreground border-t border-border/30 pt-3">
+          <div className="flex items-center gap-1">
+            <Calendar className="w-3 h-3" />
+            <span className="truncate">{daysInStage}d</span>
+          </div>
+          <div className="flex items-center gap-1 justify-center">
+            <Clock className="w-3 h-3" />
+            <span className="truncate">{lastContactText.replace(' ago', '')}</span>
+          </div>
+          <div className="flex items-center gap-1 justify-end">
+            <MessageCircle className="w-3 h-3" />
+            <span className="truncate">{nextAction}</span>
           </div>
         </div>
 
         {/* Quick Actions on Hover */}
         {isHovered && !isDragging && (
-          <div className="absolute top-4 right-4 flex gap-1 bg-white/95 backdrop-blur-sm rounded-lg shadow-lg border border-slate-200/60 p-1">
+          <div className="absolute top-3 right-3 flex gap-1 bg-card/95 backdrop-blur-sm rounded-md shadow-sm border border-border/50 p-1">
             <button
               onClick={handleEmailClick}
-              className="p-2 rounded-md hover:bg-slate-100 transition-colors duration-200"
+              className="p-1.5 rounded hover:bg-accent transition-colors duration-150"
               title="Send Email"
             >
-              <Mail className="h-4 w-4 text-slate-600" />
+              <Mail className="h-3.5 w-3.5 text-muted-foreground" />
             </button>
             <button
               onClick={handlePhoneClick}
-              className="p-2 rounded-md hover:bg-slate-100 transition-colors duration-200"
+              className="p-1.5 rounded hover:bg-accent transition-colors duration-150"
               title="Call"
             >
-              <Phone className="h-4 w-4 text-slate-600" />
+              <Phone className="h-3.5 w-3.5 text-muted-foreground" />
             </button>
             <button
               onClick={handleEditClick}
-              className="p-2 rounded-md hover:bg-slate-100 transition-colors duration-200"
+              className="p-1.5 rounded hover:bg-accent transition-colors duration-150"
               title="Edit Deal"
             >
-              <Edit className="h-4 w-4 text-slate-600" />
+              <Edit className="h-3.5 w-3.5 text-muted-foreground" />
             </button>
           </div>
         )}
