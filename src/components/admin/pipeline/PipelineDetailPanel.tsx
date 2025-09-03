@@ -44,6 +44,8 @@ import { EnhancedActivityTimeline } from './EnhancedActivityTimeline';
 import { useBuyerProfile, useDocumentLogs } from '@/hooks/admin/use-deal-real-data';
 import { formatDistanceToNow, format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { BuyerProfileSection } from './BuyerProfileSection';
+import { CleanQuickActions } from './CleanQuickActions';
 
 interface PipelineDetailPanelProps {
   pipeline: ReturnType<typeof usePipelineCore>;
@@ -276,154 +278,33 @@ export function PipelineDetailPanel({ pipeline }: PipelineDetailPanelProps) {
           <div className="flex-1 overflow-hidden">
             {/* Overview Tab - Buyer-Focused Design */}
             <TabsContent value="overview" className="p-8 space-y-8 h-full overflow-y-auto mt-0">
-              {/* Buyer Profile Section - Primary Focus */}
-              <div className="space-y-4">
-                <h3 className="text-sm font-medium text-gray-900">Buyer Profile</h3>
-                
-                {buyerProfile?.buyerInfo ? (
-                  <div className="space-y-6">
-                    {/* Buyer Identity */}
-                    <div className="flex items-start gap-4">
-                      <Avatar className="w-10 h-10">
-                        <AvatarImage src="" />
-                        <AvatarFallback className="bg-blue-50 text-blue-600 text-sm font-medium">
-                          {buyerProfile.buyerInfo.name?.split(' ').map(n => n[0]).join('') || 'U'}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1 space-y-1">
-                        <p className="font-medium text-gray-900">
-                          {buyerProfile.buyerInfo.name || 'Name not available'}
-                        </p>
-                        <p className="text-sm text-gray-600">{buyerProfile.buyerInfo.company || 'Company not specified'}</p>
-                        <div className="flex items-center gap-2">
-                          <p className="text-xs text-gray-500">{getBuyerTypeLabel(buyerProfile.buyerInfo.buyer_type)}</p>
-                          {!buyerProfile.isRegisteredUser && (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800">
-                              Lead
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
+              {/* Comprehensive Buyer Profile - Hero Section */}
+              <BuyerProfileSection 
+                buyerProfile={buyerProfile}
+                selectedDeal={selectedDeal}
+              />
 
-                    {/* Original Buyer Message/Interest */}
-                    {buyerProfile.user_message && (
-                      <div className="bg-gray-50 rounded-lg p-4">
-                        <p className="text-xs font-medium text-gray-500 mb-2">Original Interest Message</p>
-                        <p className="text-sm text-gray-700 leading-relaxed">{buyerProfile.user_message}</p>
-                      </div>
-                    )}
-
-                     {/* Buyer Priority Score */}
-                    <BuyerPriorityScore 
-                      score={selectedDeal.buyer_priority_score || 0}
-                      buyerType={buyerProfile.buyerInfo.buyer_type}
-                    />
-
-                    {/* Investment Criteria */}
-                    <BuyerInvestmentCriteria 
-                      buyerProfile={buyerProfile.buyerInfo}
-                    />
-
-                    {/* Contact Intelligence */}
-                    <ContactIntelligence 
-                      buyerProfile={buyerProfile.buyerInfo}
-                      dealData={selectedDeal}
-                    />
-                  </div>
-                ) : selectedDeal.buyer_name ? (
-                  // Fallback to deal data if buyerProfile is loading
-                  <div className="space-y-6">
-                    <div className="flex items-start gap-4">
-                      <Avatar className="w-10 h-10">
-                        <AvatarImage src="" />
-                        <AvatarFallback className="bg-blue-50 text-blue-600 text-sm font-medium">
-                          {selectedDeal.buyer_name?.split(' ').map(n => n[0]).join('') || 'U'}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1 space-y-1">
-                        <p className="font-medium text-gray-900">{selectedDeal.buyer_name}</p>
-                        <p className="text-sm text-gray-600">{selectedDeal.buyer_company || 'Company not specified'}</p>
-                        <p className="text-xs text-gray-500">{getBuyerTypeLabel(selectedDeal.buyer_type)}</p>
-                      </div>
-                    </div>
-                    
-                     {/* Basic Priority Score for Fallback */}
-                    <BuyerPriorityScore 
-                      score={selectedDeal.buyer_priority_score || 0}
-                      buyerType={selectedDeal.buyer_type}
-                    />
-
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                      {selectedDeal.buyer_email && (
-                        <div>
-                          <p className="text-gray-500 text-xs">Email</p>
-                          <p className="text-gray-900">{selectedDeal.buyer_email}</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="text-center py-8 text-gray-500">
-                    <User className="w-8 h-8 mx-auto mb-2" />
-                    <p className="text-sm">No buyer profile available</p>
-                  </div>
-                )}
+              {/* Document Status - Clean Integration */}
+              <div className="border border-gray-200 rounded-lg p-4">
+                <DocumentStatus 
+                  dealId={selectedDeal.deal_id}
+                  contactEmail={buyerProfile?.buyerInfo?.email || selectedDeal.buyer_email}
+                  contactName={buyerProfile?.buyerInfo?.name || selectedDeal.buyer_name}
+                  ndaStatus={selectedDeal.nda_status || 'not_sent'}
+                  feeAgreementStatus={selectedDeal.fee_agreement_status || 'not_sent'}
+                />
               </div>
 
-            {/* Enhanced Document Status with Real Admin Attribution */}
-            <DocumentStatus 
-              dealId={selectedDeal.deal_id}
-              contactEmail={buyerProfile?.buyerInfo?.email || selectedDeal.buyer_email}
-              contactName={buyerProfile?.buyerInfo?.name || selectedDeal.buyer_name}
-              ndaStatus={selectedDeal.nda_status || 'not_sent'}
-              feeAgreementStatus={selectedDeal.fee_agreement_status || 'not_sent'}
-            />
-
-              {/* Contextual Quick Actions */}
-              <div className="space-y-4">
-                <h3 className="text-sm font-medium text-gray-900">Quick Actions</h3>
-                <div className="grid grid-cols-2 gap-3">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="justify-start"
-                    onClick={handleEmailContact}
-                    disabled={!buyerProfile?.buyerInfo?.email && !selectedDeal.buyer_email}
-                  >
-                    <Mail className="w-4 h-4 mr-2" />
-                    Email Buyer
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="justify-start"
-                    onClick={handlePhoneContact}
-                    disabled={!buyerProfile?.buyerInfo?.phone_number}
-                  >
-                    <Phone className="w-4 h-4 mr-2" />
-                    Log Call
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="justify-start"
-                    onClick={() => setActiveTab('tasks')}
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    Create Task
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="justify-start"
-                    onClick={() => setActiveTab('activity')}
-                  >
-                    <Activity className="w-4 h-4 mr-2" />
-                    View Activity
-                  </Button>
-                </div>
-              </div>
+              {/* Clean Quick Actions */}
+              <CleanQuickActions
+                buyerEmail={buyerProfile?.buyerInfo?.email || selectedDeal.buyer_email}
+                buyerPhone={buyerProfile?.buyerInfo?.phone_number}
+                onEmailContact={handleEmailContact}
+                onPhoneContact={handlePhoneContact}
+                onCreateTask={() => setActiveTab('tasks')}
+                onViewActivity={() => setActiveTab('activity')}
+                onLogNote={handleLogNote}
+              />
             </TabsContent>
 
             {/* Contact Tab - Clean Design */}
