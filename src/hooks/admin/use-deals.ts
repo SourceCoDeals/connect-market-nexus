@@ -99,8 +99,13 @@ export function useDeals() {
   return useQuery({
     queryKey: ['deals'],
     queryFn: async () => {
+      console.log('Fetching deals with RPC...');
       const { data, error } = await supabase.rpc('get_deals_with_details');
-      if (error) throw error;
+      console.log('RPC Response:', { data: data?.length || 0, error: error?.message });
+      if (error) {
+        console.error('Deals RPC Error:', error);
+        throw error;
+      }
       return data as Deal[];
     },
     staleTime: 30000, // 30 seconds

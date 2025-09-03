@@ -25,8 +25,18 @@ export function usePipelineCore() {
   const isMobile = useIsMobile();
   
   // Data fetching
-  const { data: deals, isLoading: dealsLoading } = useDeals();
-  const { data: stages, isLoading: stagesLoading } = useDealStages();
+  const { data: deals, isLoading: dealsLoading, error: dealsError } = useDeals();
+  const { data: stages, isLoading: stagesLoading, error: stagesError } = useDealStages();
+  
+  // Debug logging
+  console.log('Pipeline Core Debug:', {
+    dealsLoading,
+    stagesLoading,
+    dealsCount: deals?.length || 0,
+    stagesCount: stages?.length || 0,
+    dealsError: dealsError?.message,
+    stagesError: stagesError?.message
+  });
   
   // Filtering
   const filterHook = useDealFilters(deals || []);
