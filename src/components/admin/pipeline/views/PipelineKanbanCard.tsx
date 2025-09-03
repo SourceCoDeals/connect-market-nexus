@@ -32,28 +32,28 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
     transform: CSS.Translate.toString(transform),
   };
 
-  // Premium semantic design system colors
+  // Premium Apple/Stripe-style design helpers
   const getBuyerTypeColor = (buyerType?: string) => {
     const type = buyerType?.toLowerCase();
     switch (type) {
       case 'privateequity':
       case 'private equity':
-        return 'bg-purple-50/80 text-purple-700 border-purple-200/50';
+        return 'bg-purple-100/70 text-purple-700 border-purple-200/60';
       case 'familyoffice':
       case 'family office':
-        return 'bg-blue-50/80 text-blue-700 border-blue-200/50';
+        return 'bg-blue-100/70 text-blue-700 border-blue-200/60';
       case 'searchfund':
       case 'search fund':
-        return 'bg-emerald-50/80 text-emerald-700 border-emerald-200/50';
+        return 'bg-emerald-100/70 text-emerald-700 border-emerald-200/60';
       case 'corporate':
-        return 'bg-orange-50/80 text-orange-700 border-orange-200/50';
+        return 'bg-orange-100/70 text-orange-700 border-orange-200/60';
       case 'individual':
-        return 'bg-slate-50/80 text-slate-700 border-slate-200/50';
+        return 'bg-slate-100/70 text-slate-700 border-slate-200/60';
       case 'independentsponsor':
       case 'independent sponsor':
-        return 'bg-indigo-50/80 text-indigo-700 border-indigo-200/50';
+        return 'bg-indigo-100/70 text-indigo-700 border-indigo-200/60';
       default:
-        return 'bg-slate-50/80 text-slate-700 border-slate-200/50';
+        return 'bg-slate-100/70 text-slate-700 border-slate-200/60';
     }
   };
 
@@ -77,7 +77,7 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
       case 'independent sponsor':
         return 'Ind. Sponsor';
       default:
-        return 'Unknown';
+        return 'Individual';
     }
   };
 
@@ -168,14 +168,12 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
   const daysInStage = deal.deal_stage_entered_at 
     ? Math.max(1, Math.floor((new Date().getTime() - new Date(deal.deal_stage_entered_at).getTime()) / (1000 * 60 * 60 * 24)))
     : 1;
-  
-  const stageTimeText = `${daysInStage}d in ${deal.stage_name || 'Unknown Stage'}`;
 
   // Calculate last contact - use real contact tracking data
   const lastContactDate = deal.last_contact_at || deal.followed_up_at;
   const lastContactText = lastContactDate 
     ? formatDistanceToNow(new Date(lastContactDate), { addSuffix: true })
-    : 'No contact yet';
+    : 'No contact';
 
   // Determine next action based on deal status
   const getNextAction = () => {
@@ -312,44 +310,41 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
           </span>
         </div>
 
-        {/* Next Action & Time Context */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-muted-foreground font-medium">{stageTimeText}</span>
-            <span className="text-muted-foreground">{lastContactText}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="flex-1 px-2 py-1 bg-primary/5 border border-primary/10 rounded text-xs font-medium text-primary">
-              Next: {nextAction}
-            </div>
-          </div>
+        {/* Bottom metadata row */}
+        <div className="flex items-center justify-between text-xs text-muted-foreground pt-2 border-t border-border/10">
+          <span className="font-medium">
+            {daysInStage} day{daysInStage !== 1 ? 's' : ''} in {deal.stage_name}
+          </span>
+          <span className="truncate">
+            {lastContactText}
+          </span>
         </div>
 
-        {/* Quick Actions on Hover - Premium floating design */}
+        {/* Quick Actions on Hover */}
         {isHovered && !isDragging && (
-          <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-all duration-300 ease-out">
+          <div className="absolute top-3 left-3 flex gap-1 opacity-0 group-hover:opacity-100 transition-all duration-200">
             <button
               onClick={handleEmailClick}
               disabled={logContact.isPending}
-              className="h-8 w-8 p-0 bg-white/95 backdrop-blur-sm border border-gray-200/60 rounded-lg shadow-sm hover:shadow-md hover:bg-white flex items-center justify-center transition-all duration-200"
+              className="h-7 w-7 p-0 bg-white/95 backdrop-blur-sm border border-border/30 rounded-md shadow-sm hover:shadow-md flex items-center justify-center transition-all"
               title="Send Email"
             >
-              <Mail className="h-3.5 w-3.5 text-gray-600" />
+              <Mail className="h-3 w-3 text-muted-foreground" />
             </button>
             <button
               onClick={handlePhoneClick}
               disabled={logContact.isPending}
-              className="h-8 w-8 p-0 bg-white/95 backdrop-blur-sm border border-gray-200/60 rounded-lg shadow-sm hover:shadow-md hover:bg-white flex items-center justify-center transition-all duration-200"
+              className="h-7 w-7 p-0 bg-white/95 backdrop-blur-sm border border-border/30 rounded-md shadow-sm hover:shadow-md flex items-center justify-center transition-all"
               title="Log Call"
             >
-              <Phone className="h-3.5 w-3.5 text-gray-600" />
+              <Phone className="h-3 w-3 text-muted-foreground" />
             </button>
             <button
               onClick={handleEditClick}
-              className="h-8 w-8 p-0 bg-white/95 backdrop-blur-sm border border-gray-200/60 rounded-lg shadow-sm hover:shadow-md hover:bg-white flex items-center justify-center transition-all duration-200"
+              className="h-7 w-7 p-0 bg-white/95 backdrop-blur-sm border border-border/30 rounded-md shadow-sm hover:shadow-md flex items-center justify-center transition-all"
               title="View Details"
             >
-              <Edit className="h-3.5 w-3.5 text-gray-600" />
+              <Edit className="h-3 w-3 text-muted-foreground" />
             </button>
           </div>
         )}
