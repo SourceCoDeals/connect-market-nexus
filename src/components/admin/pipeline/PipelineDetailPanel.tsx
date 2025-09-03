@@ -71,14 +71,14 @@ export function PipelineDetailPanel({ pipeline }: PipelineDetailPanelProps) {
 
   if (!selectedDeal) {
     return (
-      <div className="w-96 border-l bg-gradient-to-b from-gray-50/50 to-white backdrop-blur-sm flex items-center justify-center">
-        <div className="text-center space-y-3 p-8">
-          <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto">
-            <Target className="w-8 h-8 text-gray-400" />
+      <div className="w-[512px] border-l border-border bg-background flex items-center justify-center">
+        <div className="text-center space-y-4 p-8">
+          <div className="w-12 h-12 bg-muted rounded-lg flex items-center justify-center mx-auto">
+            <Target className="w-6 h-6 text-muted-foreground" />
           </div>
           <div>
-            <p className="font-medium text-gray-900">No Deal Selected</p>
-            <p className="text-sm text-gray-500 mt-1">Choose a deal from the pipeline to view details</p>
+            <p className="font-medium text-foreground">No Deal Selected</p>
+            <p className="text-sm text-muted-foreground">Choose a deal from the pipeline to view details</p>
           </div>
         </div>
       </div>
@@ -96,21 +96,6 @@ export function PipelineDetailPanel({ pipeline }: PipelineDetailPanelProps) {
     return `$${value.toLocaleString()}`;
   };
 
-  const getBuyerTypeColor = (buyerType?: string) => {
-    if (!buyerType) return 'bg-gray-50 text-gray-700 border-gray-200/60';
-    
-    const type = buyerType.toLowerCase().replace(/[^a-z]/g, '');
-    switch (type) {
-      case 'privateequity': return 'bg-purple-50 text-purple-800 border-purple-200/60';
-      case 'familyoffice': return 'bg-blue-50 text-blue-800 border-blue-200/60';
-      case 'searchfund': return 'bg-emerald-50 text-emerald-800 border-emerald-200/60';
-      case 'corporate': return 'bg-orange-50 text-orange-800 border-orange-200/60';
-      case 'individual': return 'bg-gray-50 text-gray-700 border-gray-200/60';
-      case 'independentsponsor': return 'bg-indigo-50 text-indigo-800 border-indigo-200/60';
-      default: return 'bg-gray-50 text-gray-700 border-gray-200/60';
-    }
-  };
-
   const getBuyerTypeLabel = (buyerType?: string) => {
     if (!buyerType) return 'Individual';
     
@@ -123,24 +108,6 @@ export function PipelineDetailPanel({ pipeline }: PipelineDetailPanelProps) {
       case 'individual': return 'Individual';
       case 'independentsponsor': return 'Independent Sponsor';
       default: return 'Individual';
-    }
-  };
-
-  const getDocumentStatusBadge = (status: string) => {
-    switch (status) {
-      case 'signed': return 'bg-emerald-50 text-emerald-700 border-emerald-200/60';
-      case 'sent': return 'bg-blue-50 text-blue-600 border-blue-200/60';
-      case 'declined': return 'bg-red-50 text-red-700 border-red-200/60';
-      default: return 'bg-gray-50 text-gray-500 border-gray-200/60';
-    }
-  };
-
-  const getStatusLabel = (status: string) => {
-    switch (status) {
-      case 'signed': return 'Signed';
-      case 'sent': return 'Sent';
-      case 'declined': return 'Declined';
-      default: return 'Not Sent';
     }
   };
 
@@ -240,115 +207,104 @@ export function PipelineDetailPanel({ pipeline }: PipelineDetailPanelProps) {
   };
 
   return (
-    <div className="w-96 border-l bg-white/95 backdrop-blur-sm flex flex-col h-full">
-      {/* Premium Header */}
-      <div className="border-b border-gray-200/40 bg-gradient-to-r from-gray-50/40 to-white/80">
-        <div className="flex items-center justify-between p-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
-              <Building2 className="w-5 h-5 text-blue-700" />
-            </div>
-            <div>
-              <h3 className="font-semibold text-gray-900">Deal Details</h3>
-              <p className="text-xs text-gray-500">Complete Overview</p>
-            </div>
+    <div className="w-[512px] border-l border-border bg-background flex flex-col h-full">
+      {/* Clean Header */}
+      <div className="border-b border-border">
+        <div className="flex items-center justify-between p-6">
+          <div>
+            <h3 className="text-lg font-medium text-foreground">
+              {selectedDeal.listing_title || 'Business Opportunity'}
+            </h3>
+            <p className="text-sm text-muted-foreground mt-1">
+              {selectedDeal.contact_company || selectedDeal.buyer_company || 'Private Investor'}
+            </p>
           </div>
           <Button
             variant="ghost"
             size="sm"
             onClick={() => pipeline.setSelectedDeal(null)}
-            className="text-gray-400 hover:text-gray-600 hover:bg-gray-100/50"
+            className="text-muted-foreground hover:text-foreground"
           >
             <X className="h-4 w-4" />
           </Button>
         </div>
 
-        {/* Deal Header */}
-        <div className="px-4 pb-4 space-y-3">
-          <div>
-            <h4 className="font-semibold text-lg text-gray-900 leading-tight">
-              {selectedDeal.listing_title || 'Business Opportunity'}
-            </h4>
-            <p className="text-sm text-gray-600 mt-1">
-              {selectedDeal.contact_company || selectedDeal.buyer_company || 'Private Investor'}
-            </p>
-          </div>
-          
+        {/* Essential Info Bar */}
+        <div className="px-6 pb-6 flex items-center gap-6">
           <div className="flex items-center gap-2">
-            <Badge className={cn("px-2.5 py-1 text-xs font-medium border rounded-md", getBuyerTypeColor(selectedDeal.buyer_type))}>
+            <span className="text-xs font-medium text-muted-foreground">Type</span>
+            <span className="text-xs text-foreground">
               {getBuyerTypeLabel(selectedDeal.buyer_type)}
-            </Badge>
-            <div className="flex items-center gap-1.5 text-xs text-gray-500">
-              <Clock className="w-3 h-3" />
-              <span>{daysInStage}d in {selectedDeal.stage_name}</span>
-            </div>
+            </span>
           </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-medium text-muted-foreground">Stage</span>
+            <span className="text-xs text-foreground">{daysInStage}d in {selectedDeal.stage_name}</span>
+          </div>
+          {selectedDeal.deal_value && (
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-medium text-muted-foreground">Value</span>
+              <span className="text-xs text-foreground">{formatCurrency(selectedDeal.deal_value)}</span>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Tabs */}
+      {/* Clean Tabs */}
       <div className="flex-1 flex flex-col overflow-hidden">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
-          <TabsList className="grid grid-cols-4 mx-4 mt-4 bg-gray-50/80 p-1 rounded-lg border border-gray-200/50">
-            <TabsTrigger value="overview" className="text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-md">
+          <TabsList className="grid grid-cols-4 mx-6 mt-6 bg-muted/50 p-1">
+            <TabsTrigger value="overview" className="text-sm">
               Overview
             </TabsTrigger>
-            <TabsTrigger value="contact" className="text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-md">
+            <TabsTrigger value="contact" className="text-sm">
               Contact
             </TabsTrigger>
-            <TabsTrigger value="tasks" className="text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-md">
+            <TabsTrigger value="tasks" className="text-sm">
               Tasks
             </TabsTrigger>
-            <TabsTrigger value="activity" className="text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-md">
+            <TabsTrigger value="activity" className="text-sm">
               Activity
             </TabsTrigger>
           </TabsList>
 
           <div className="flex-1 overflow-y-auto">
             {/* Overview Tab */}
-            <TabsContent value="overview" className="p-4 space-y-4 mt-0">
+            <TabsContent value="overview" className="p-6 space-y-6 mt-0">
               {/* Key Metrics */}
-              <Card className="border-gray-200/60 shadow-sm bg-white/60 rounded-lg">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-                    <TrendingUp className="w-4 h-4 text-gray-600" />
-                    Key Metrics
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <p className="text-xs font-medium text-gray-500 mb-1">Deal Value</p>
-                      <p className="text-sm font-semibold text-gray-900">
-                        {selectedDeal.deal_value ? formatCurrency(selectedDeal.deal_value) : 'TBD'}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs font-medium text-gray-500 mb-1">Probability</p>
-                      <p className="text-sm font-semibold text-gray-900">{selectedDeal.deal_probability || 50}%</p>
+              <div className="space-y-4">
+                <h4 className="text-sm font-medium text-foreground">Deal Metrics</h4>
+                <div className="grid grid-cols-3 gap-6">
+                  <div>
+                    <div className="text-xs text-muted-foreground mb-1">Value</div>
+                    <div className="text-sm font-medium text-foreground">
+                      {selectedDeal.deal_value ? formatCurrency(selectedDeal.deal_value) : 'TBD'}
                     </div>
                   </div>
-                  
+                  <div>
+                    <div className="text-xs text-muted-foreground mb-1">Probability</div>
+                    <div className="text-sm font-medium text-foreground">{selectedDeal.deal_probability || 50}%</div>
+                  </div>
                   {selectedDeal.deal_expected_close_date && (
                     <div>
-                      <p className="text-xs font-medium text-gray-500 mb-1">Expected Close</p>
-                      <p className="text-sm font-semibold text-gray-900">
+                      <div className="text-xs text-muted-foreground mb-1">Expected Close</div>
+                      <div className="text-sm font-medium text-foreground">
                         {format(new Date(selectedDeal.deal_expected_close_date), 'MMM dd, yyyy')}
-                      </p>
+                      </div>
                     </div>
                   )}
-                  
-                  {tasks.length > 0 && (
-                    <div>
-                      <p className="text-xs font-medium text-gray-500 mb-2">Task Progress</p>
-                      <Progress value={taskProgress} className="h-2" />
-                      <p className="text-xs text-gray-600 mt-1">
-                        {tasks.filter(t => t.status === 'completed').length} of {tasks.length} completed
-                      </p>
+                </div>
+                
+                {tasks.length > 0 && (
+                  <div>
+                    <div className="text-xs text-muted-foreground mb-2">Task Progress</div>
+                    <Progress value={taskProgress} className="h-1.5" />
+                    <div className="text-xs text-muted-foreground mt-1">
+                      {tasks.filter(t => t.status === 'completed').length} of {tasks.length} completed
                     </div>
-                  )}
-                </CardContent>
-              </Card>
+                  </div>
+                )}
+              </div>
 
               {/* Deal Insights */}
               <DealInsightsCard dealId={selectedDeal.deal_id} />
@@ -372,60 +328,51 @@ export function PipelineDetailPanel({ pipeline }: PipelineDetailPanelProps) {
             </TabsContent>
 
             {/* Contact Tab */}
-            <TabsContent value="contact" className="p-4 space-y-4 mt-0">
-              <Card className="border-gray-200/60 shadow-sm bg-white/60 rounded-lg">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-                    <User className="w-4 h-4 text-gray-600" />
-                    Contact Information
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
+            <TabsContent value="contact" className="p-6 space-y-6 mt-0">
+              {/* Contact Information */}
+              <div className="space-y-4">
+                <h4 className="text-sm font-medium text-foreground">Contact Information</h4>
+                <div className="space-y-4">
                   <div>
-                    <p className="text-xs font-medium text-gray-500 mb-1">Contact Name</p>
-                    <p className="text-sm font-semibold text-gray-900">
+                    <div className="text-xs text-muted-foreground mb-1">Name</div>
+                    <div className="text-sm font-medium text-foreground">
                       {selectedDeal.contact_name || 'Not provided'}
-                    </p>
+                    </div>
                   </div>
                   
                   {selectedDeal.contact_email && (
                     <div>
-                      <p className="text-xs font-medium text-gray-500 mb-1">Email</p>
-                      <p className="text-sm text-gray-900">{selectedDeal.contact_email}</p>
+                      <div className="text-xs text-muted-foreground mb-1">Email</div>
+                      <div className="text-sm text-foreground">{selectedDeal.contact_email}</div>
                     </div>
                   )}
                   
                   {selectedDeal.contact_phone && (
                     <div>
-                      <p className="text-xs font-medium text-gray-500 mb-1">Phone</p>
-                      <p className="text-sm text-gray-900">{selectedDeal.contact_phone}</p>
+                      <div className="text-xs text-muted-foreground mb-1">Phone</div>
+                      <div className="text-sm text-foreground">{selectedDeal.contact_phone}</div>
                     </div>
                   )}
                   
                   {selectedDeal.contact_company && (
                     <div>
-                      <p className="text-xs font-medium text-gray-500 mb-1">Company</p>
-                      <p className="text-sm text-gray-900">{selectedDeal.contact_company}</p>
+                      <div className="text-xs text-muted-foreground mb-1">Company</div>
+                      <div className="text-sm text-foreground">{selectedDeal.contact_company}</div>
                     </div>
                   )}
-                </CardContent>
-              </Card>
+                </div>
+              </div>
 
               {/* Add Note */}
-              <Card className="border-gray-200/60 shadow-sm bg-white/60 rounded-lg">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-                    <MessageSquare className="w-4 h-4 text-gray-600" />
-                    Add Note
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
+              <div className="space-y-4">
+                <h4 className="text-sm font-medium text-foreground">Add Note</h4>
+                <div className="space-y-3">
                   <Textarea
                     placeholder="Add a note about this contact..."
                     value={contactNote}
                     onChange={(e) => setContactNote(e.target.value)}
                     rows={3}
-                    className="text-sm"
+                    className="text-sm resize-none"
                   />
                   <Button 
                     onClick={handleLogNote} 
@@ -433,50 +380,44 @@ export function PipelineDetailPanel({ pipeline }: PipelineDetailPanelProps) {
                     size="sm"
                     className="w-full"
                   >
-                    <Plus className="w-4 h-4 mr-2" />
                     Add Note
                   </Button>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             </TabsContent>
 
             {/* Tasks Tab */}
-            <TabsContent value="tasks" className="p-4 space-y-4 mt-0">
+            <TabsContent value="tasks" className="p-6 space-y-6 mt-0">
               {/* Add Task */}
-              <Card className="border-gray-200/60 shadow-sm bg-white/60 rounded-lg">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-                    <Plus className="w-4 h-4 text-gray-600" />
-                    Add Task
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
+              <div className="space-y-4">
+                <h4 className="text-sm font-medium text-foreground">Add Task</h4>
+                <div className="space-y-3">
                   <Input
-                    placeholder="Task title"
+                    placeholder="Task title..."
                     value={newTaskTitle}
                     onChange={(e) => setNewTaskTitle(e.target.value)}
                     className="text-sm"
                   />
                   <Textarea
-                    placeholder="Task description (optional)"
+                    placeholder="Description (optional)..."
                     value={newTaskDescription}
                     onChange={(e) => setNewTaskDescription(e.target.value)}
                     rows={2}
-                    className="text-sm"
+                    className="text-sm resize-none"
                   />
-                  <div className="grid grid-cols-2 gap-2">
-                    <Select value={newTaskPriority} onValueChange={(value: any) => setNewTaskPriority(value)}>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Select value={newTaskPriority} onValueChange={(value: 'low' | 'medium' | 'high') => setNewTaskPriority(value)}>
                       <SelectTrigger className="text-sm">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="low">Low Priority</SelectItem>
-                        <SelectItem value="medium">Medium Priority</SelectItem>
-                        <SelectItem value="high">High Priority</SelectItem>
+                        <SelectItem value="low">Low</SelectItem>
+                        <SelectItem value="medium">Medium</SelectItem>
+                        <SelectItem value="high">High</SelectItem>
                       </SelectContent>
                     </Select>
                     <Input
-                      type="date"
+                      type="datetime-local"
                       value={newTaskDueDate}
                       onChange={(e) => setNewTaskDueDate(e.target.value)}
                       className="text-sm"
@@ -484,87 +425,87 @@ export function PipelineDetailPanel({ pipeline }: PipelineDetailPanelProps) {
                   </div>
                   <Button 
                     onClick={handleCreateTask} 
-                    disabled={!newTaskTitle.trim()}
+                    disabled={!newTaskTitle.trim() || createTask.isPending}
                     size="sm"
                     className="w-full"
                   >
-                    <Plus className="w-4 h-4 mr-2" />
                     Create Task
                   </Button>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
 
-              {/* Task List */}
-              <div className="space-y-2">
+              {/* Tasks List */}
+              <div className="space-y-4">
+                <h4 className="text-sm font-medium text-foreground">Tasks ({tasks.length})</h4>
                 {tasksLoading ? (
-                  <div className="text-center py-4">
-                    <div className="w-6 h-6 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin mx-auto"></div>
-                    <p className="text-xs text-gray-500 mt-2">Loading tasks...</p>
-                  </div>
-                ) : tasks.length > 0 ? (
-                  tasks.map((task) => (
-                    <Card key={task.id} className="border-gray-200/60 shadow-sm bg-white/60 rounded-lg">
-                      <CardContent className="p-3">
-                        <div className="flex items-start justify-between">
-                          <div className="flex items-start gap-3 flex-1">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="p-0 h-auto"
-                              onClick={() => handleCompleteTask(task.id)}
-                            >
-                              {task.status === 'completed' ? (
-                                <CheckSquare className="w-4 h-4 text-green-600" />
-                              ) : (
-                                <Circle className="w-4 h-4 text-gray-400" />
-                              )}
-                            </Button>
-                            <div className="flex-1">
-                              <p className={cn("text-sm font-medium", task.status === 'completed' && "line-through text-gray-500")}>
-                                {task.title}
-                              </p>
-                              {task.description && (
-                                <p className="text-xs text-gray-600 mt-1">{task.description}</p>
-                              )}
-                              <div className="flex items-center gap-2 mt-2">
-                                <Badge variant="outline" className="text-xs">
-                                  {task.priority}
-                                </Badge>
-                                {task.due_date && (
-                                  <span className="text-xs text-gray-500">
-                                    Due {format(new Date(task.due_date), 'MMM dd')}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="p-1 h-auto text-gray-400 hover:text-red-600"
-                            onClick={() => handleDeleteTask(task.id)}
-                          >
-                            <Trash2 className="w-3 h-3" />
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))
+                  <div className="text-sm text-muted-foreground py-8 text-center">Loading tasks...</div>
+                ) : tasks.length === 0 ? (
+                  <div className="text-sm text-muted-foreground py-8 text-center">No tasks yet</div>
                 ) : (
-                  <div className="text-center py-8">
-                    <CheckSquare className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-                    <p className="text-sm text-gray-500">No tasks yet</p>
-                    <p className="text-xs text-gray-400">Create your first task above</p>
+                  <div className="space-y-3">
+                    {tasks.map((task) => (
+                      <div key={task.id} className="flex items-start gap-3 p-3 rounded-lg border border-border bg-card">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => task.status === 'completed' ? null : handleCompleteTask(task.id)}
+                          disabled={task.status === 'completed'}
+                          className="p-0 h-auto min-w-0 w-5 h-5"
+                        >
+                          {task.status === 'completed' ? (
+                            <CheckSquare className="w-4 h-4 text-green-600" />
+                          ) : (
+                            <Circle className="w-4 h-4 text-muted-foreground" />
+                          )}
+                        </Button>
+                        
+                        <div className="flex-1 min-w-0">
+                          <div className={cn(
+                            "text-sm font-medium",
+                            task.status === 'completed' ? "line-through text-muted-foreground" : "text-foreground"
+                          )}>
+                            {task.title}
+                          </div>
+                          {task.description && (
+                            <div className="text-xs text-muted-foreground mt-1">{task.description}</div>
+                          )}
+                          <div className="flex items-center gap-2 mt-2">
+                            {task.priority && task.priority !== 'medium' && (
+                              <span className={cn(
+                                "text-xs",
+                                task.priority === 'high' ? 'text-red-600' : 'text-muted-foreground'
+                              )}>
+                                {task.priority}
+                              </span>
+                            )}
+                            {task.due_date && (
+                              <div className="text-xs text-muted-foreground">
+                                Due {formatDistanceToNow(new Date(task.due_date), { addSuffix: true })}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeleteTask(task.id)}
+                          className="p-1 h-auto text-muted-foreground hover:text-destructive"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
             </TabsContent>
 
             {/* Activity Tab */}
-            <TabsContent value="activity" className="p-4 mt-0">
+            <TabsContent value="activity" className="p-6 mt-0">
               <CommunicationTimeline 
                 dealId={selectedDeal.deal_id}
-                dealTitle={selectedDeal.listing_title || 'Deal'}
+                dealTitle={selectedDeal.listing_title || 'Business Opportunity'}
                 contactEmail={selectedDeal.contact_email}
                 contactName={selectedDeal.contact_name}
               />
