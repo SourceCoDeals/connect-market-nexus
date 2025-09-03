@@ -3,7 +3,6 @@ import { useDraggable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { CheckCircle } from 'lucide-react';
 import { Deal } from '@/hooks/admin/use-deals';
 import { cn } from '@/lib/utils';
@@ -97,85 +96,84 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
       {...listeners}
       {...attributes}
       className={cn(
-        "group relative mb-3 cursor-pointer transition-all duration-200 hover:shadow-md border-l-4",
-        isDragging && "rotate-2 shadow-lg scale-105",
+        "group relative mb-3 cursor-pointer transition-all duration-200 hover:shadow-sm border-l-4 bg-card",
+        isDragging && "rotate-1 shadow-lg scale-[1.02]",
         isOverdue && "border-l-destructive bg-destructive/5",
-        isStale && "border-l-warning bg-warning/5",
+        isStale && "border-l-warning bg-warning/5", 
         isHotDeal && "border-l-status-signed bg-status-signed/5",
-        !isOverdue && !isStale && !isHotDeal && "border-l-border"
+        !isOverdue && !isStale && !isHotDeal && "border-l-muted-foreground/20"
       )}
       onClick={() => !isDragging && onDealClick(deal)}
     >
-      <CardContent className="p-4 space-y-3">
-        {/* Header with buyer type and priority indicators */}
-        <div className="flex items-start justify-between">
-          <div className="flex items-center space-x-2">
+      <CardContent className="p-5 space-y-4">
+        {/* Phase 2: Visual Hierarchy - Primary Info */}
+        <div className="space-y-3">
+          {/* Company Name - Primary Focus */}
+          <div>
+            <h3 className="font-semibold text-lg leading-tight text-foreground tracking-tight">
+              {deal.buyer_company || deal.listing_title || 'Unknown Company'}
+            </h3>
+            <p className="text-sm text-muted-foreground mt-1 font-medium">
+              {deal.buyer_name || 'Unknown Contact'}
+            </p>
+          </div>
+
+          {/* Buyer Type Badge - Prominent for Quick Assessment */}
+          <div className="flex items-center justify-between">
             <Badge 
               variant="outline" 
-              className={cn("text-xs font-medium", getBuyerTypeColor(deal.buyer_type))}
+              className={cn("text-sm font-semibold px-4 py-1.5 rounded-full", getBuyerTypeColor(deal.buyer_type))}
             >
               {getBuyerTypeLabel(deal.buyer_type)}
             </Badge>
             {isHotDeal && (
-              <Badge variant="outline" className="text-xs bg-status-signed/20 text-status-signed-foreground border-status-signed-border">
-                Hot
+              <Badge variant="outline" className="text-xs px-3 py-1 bg-status-signed/20 text-status-signed-foreground border-status-signed-border rounded-full font-medium">
+                🔥 Hot
               </Badge>
             )}
           </div>
-          <div className="text-xs text-muted-foreground">
-            {deal.deal_probability}%
-          </div>
         </div>
 
-        {/* Deal Title */}
-        <div>
-          <h4 className="font-medium text-sm leading-tight">{deal.deal_title}</h4>
-          <p className="text-xs text-muted-foreground mt-0.5">{deal.listing_title}</p>
+        {/* Phase 2: Secondary Info - Time in Stage (Large & Prominent) */}
+        <div className={cn(
+          "bg-muted/40 rounded-xl p-4 text-center border",
+          isStale && "bg-warning/10 border-warning/30",
+          isOverdue && "bg-destructive/10 border-destructive/30"
+        )}>
+          <div className="text-3xl font-bold text-foreground mb-1">{daysInStage}</div>
+          <div className="text-xs text-muted-foreground font-medium uppercase tracking-wide">days in stage</div>
         </div>
 
-        {/* Buyer Information */}
-        <div className="flex items-center space-x-2">
-          <Avatar className="h-7 w-7">
-            <AvatarFallback className="text-xs bg-muted">
-              {deal.buyer_name?.split(' ').map(n => n[0]).join('').toUpperCase() || 'UN'}
-            </AvatarFallback>
-          </Avatar>
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-medium truncate">{deal.buyer_name || 'Unknown Buyer'}</p>
-            <p className="text-xs text-muted-foreground truncate">{deal.buyer_company}</p>
-          </div>
-        </div>
-
-        {/* Document Status - Prominent Display */}
-        <div className="flex space-x-2">
+        {/* Phase 2: Status Row - Essential Document Status */}
+        <div className="flex gap-3">
           <Badge 
             variant="outline" 
-            className={cn("text-xs px-2 py-1 font-medium", getStatusColor(deal.nda_status))}
+            className={cn("flex-1 justify-center text-xs py-2 font-semibold rounded-lg", getStatusColor(deal.nda_status))}
           >
             NDA
           </Badge>
           <Badge 
             variant="outline" 
-            className={cn("text-xs px-2 py-1 font-medium", getStatusColor(deal.fee_agreement_status))}
+            className={cn("flex-1 justify-center text-xs py-2 font-semibold rounded-lg", getStatusColor(deal.fee_agreement_status))}
           >
-            Fee Agreement
+            Fee
           </Badge>
         </div>
 
-        {/* Tasks Indicator */}
+        {/* Phase 3: Minimal Task Indicator */}
         {deal.pending_tasks > 0 && (
-          <div className="flex items-center justify-center space-x-1 text-xs text-muted-foreground bg-muted/20 rounded-md p-2">
-            <CheckCircle className="h-3 w-3" />
-            <span className="font-medium">{deal.pending_tasks} pending tasks</span>
+          <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground bg-muted/20 rounded-lg py-2 px-3">
+            <CheckCircle className="h-3.5 w-3.5" />
+            <span className="font-medium">{deal.pending_tasks} tasks</span>
           </div>
         )}
 
-        {/* Urgency Indicators */}
+        {/* Phase 3: Clean Urgency Indicator */}
         {isOverdue && (
-          <div className="absolute top-2 right-2">
-            <Badge variant="destructive" className="text-xs animate-pulse">
+          <div className="absolute -top-1 -right-1">
+            <div className="bg-destructive text-destructive-foreground text-xs px-2 py-1 rounded-full shadow-sm animate-pulse font-medium">
               Overdue
-            </Badge>
+            </div>
           </div>
         )}
       </CardContent>
