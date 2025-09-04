@@ -11,6 +11,7 @@ import { useUpdateDeal } from '@/hooks/admin/use-deals';
 import { useUpdateNDA, useLogNDAEmail } from '@/hooks/admin/use-nda';
 import { useUpdateFeeAgreement, useLogFeeAgreementEmail } from '@/hooks/admin/use-fee-agreement';
 import { supabase } from '@/integrations/supabase/client';
+import { useQuery } from '@tanstack/react-query';
 
 interface PipelineDetailOverviewProps {
   deal: Deal;
@@ -20,6 +21,52 @@ export function PipelineDetailOverview({ deal }: PipelineDetailOverviewProps) {
   const { data: allAdminProfiles, isLoading: adminProfilesLoading } = useAdminProfiles();
   const assignedAdmin = deal.assigned_to && allAdminProfiles ? allAdminProfiles[deal.assigned_to] : null;
   const updateDeal = useUpdateDeal();
+
+  // Fetch NDA admin attribution
+  const { data: ndaAdminInfo } = useQuery({
+    queryKey: ['nda-admin-info', deal.buyer_id],
+    queryFn: async () => {
+      if (!deal.buyer_id || deal.nda_status !== 'signed') return null;
+      
+      const { data } = await supabase
+        .from('nda_logs')
+        .select(`
+          created_at,
+          admin_id
+        `)
+        .eq('user_id', deal.buyer_id)
+        .eq('action_type', 'signed')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+      
+      return data;
+    },
+    enabled: !!deal.buyer_id && deal.nda_status === 'signed'
+  });
+
+  // Fetch Fee Agreement admin attribution
+  const { data: feeAdminInfo } = useQuery({
+    queryKey: ['fee-admin-info', deal.buyer_id],
+    queryFn: async () => {
+      if (!deal.buyer_id || deal.fee_agreement_status !== 'signed') return null;
+      
+      const { data } = await supabase
+        .from('fee_agreement_logs')
+        .select(`
+          created_at,
+          admin_id
+        `)
+        .eq('user_id', deal.buyer_id)
+        .eq('action_type', 'signed')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+      
+      return data;
+    },
+    enabled: !!deal.buyer_id && deal.fee_agreement_status === 'signed'
+  });
 
   const handleOwnerChange = (value: string) => {
     const adminId = value === 'unassigned' ? null : value;
@@ -107,7 +154,10 @@ export function PipelineDetailOverview({ deal }: PipelineDetailOverviewProps) {
                     <p className="text-xs text-muted-foreground/70">{ndaStatus.label}</p>
                     {deal.nda_status === 'signed' && (
                       <p className="text-xs text-muted-foreground/60">
-                        Marked signed by Admin
+                        {ndaAdminInfo?.admin_id && allAdminProfiles?.[ndaAdminInfo.admin_id] ? 
+                          `Signed by ${allAdminProfiles[ndaAdminInfo.admin_id].displayName} on ${formatDistanceToNow(new Date(ndaAdminInfo.created_at), { addSuffix: true })}` :
+                          'Marked signed by Admin'
+                        }
                       </p>
                     )}
                   </div>
@@ -133,7 +183,10 @@ export function PipelineDetailOverview({ deal }: PipelineDetailOverviewProps) {
                     <p className="text-xs text-muted-foreground/70">{feeStatus.label}</p>
                     {deal.fee_agreement_status === 'signed' && (
                       <p className="text-xs text-muted-foreground/60">
-                        Marked signed by Admin
+                        {feeAdminInfo?.admin_id && allAdminProfiles?.[feeAdminInfo.admin_id] ? 
+                          `Signed by ${allAdminProfiles[feeAdminInfo.admin_id].displayName} on ${formatDistanceToNow(new Date(feeAdminInfo.created_at), { addSuffix: true })}` :
+                          'Marked signed by Admin'
+                        }
                       </p>
                     )}
                   </div>
