@@ -81,21 +81,6 @@ export interface DealStage {
   updated_at: string;
 }
 
-export interface DealTask {
-  id: string;
-  deal_id: string;
-  assigned_to?: string;
-  assigned_by?: string;
-  title: string;
-  description?: string;
-  due_date?: string;
-  priority: 'low' | 'medium' | 'high' | 'urgent';
-  status: 'pending' | 'in_progress' | 'completed' | 'cancelled';
-  completed_at?: string;
-  completed_by?: string;
-  created_at: string;
-  updated_at: string;
-}
 
 export function useDeals() {
   return useQuery({
@@ -129,22 +114,6 @@ export function useDealStages() {
   });
 }
 
-export function useDealTasks(dealId?: string) {
-  return useQuery({
-    queryKey: ['deal-tasks', dealId],
-    queryFn: async () => {
-      if (!dealId) return [];
-      const { data, error } = await supabase
-        .from('deal_tasks')
-        .select('*')
-        .eq('deal_id', dealId)
-        .order('created_at', { ascending: false });
-      if (error) throw error;
-      return data as DealTask[];
-    },
-    enabled: !!dealId,
-  });
-}
 
 export function useUpdateDealStage() {
   const queryClient = useQueryClient();
@@ -182,72 +151,7 @@ export function useUpdateDealStage() {
   });
 }
 
-export function useCreateDealTask() {
-  const queryClient = useQueryClient();
-  const { toast } = useToast();
 
-  return useMutation({
-    mutationFn: async (task: Omit<DealTask, 'id' | 'created_at' | 'updated_at'>) => {
-      const { data, error } = await supabase
-        .from('deal_tasks')
-        .insert(task)
-        .select()
-        .single();
-      
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['deal-tasks', data.deal_id] });
-      queryClient.invalidateQueries({ queryKey: ['deals'] });
-      toast({
-        title: 'Task Created',
-        description: 'Deal task has been created successfully.',
-      });
-    },
-    onError: (error) => {
-      toast({
-        title: 'Error',
-        description: `Failed to create task: ${error.message}`,
-        variant: 'destructive',
-      });
-    },
-  });
-}
-
-export function useUpdateDealTask() {
-  const queryClient = useQueryClient();
-  const { toast } = useToast();
-
-  return useMutation({
-    mutationFn: async ({ taskId, updates }: { taskId: string; updates: Partial<DealTask> }) => {
-      const { data, error } = await supabase
-        .from('deal_tasks')
-        .update(updates)
-        .eq('id', taskId)
-        .select()
-        .single();
-      
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['deal-tasks', data.deal_id] });
-      queryClient.invalidateQueries({ queryKey: ['deals'] });
-      toast({
-        title: 'Task Updated',
-        description: 'Deal task has been updated successfully.',
-      });
-    },
-    onError: (error) => {
-      toast({
-        title: 'Error',
-        description: `Failed to update task: ${error.message}`,
-        variant: 'destructive',
-      });
-    },
-  });
-}
 
 export function useUpdateDeal() {
   const queryClient = useQueryClient();
