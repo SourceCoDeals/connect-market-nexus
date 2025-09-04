@@ -37,75 +37,115 @@ export function PipelineDetailPanel({ pipeline }: PipelineDetailPanelProps) {
       case 'privateEquity':
       case 'familyOffice':
       case 'corporate':
-        return { level: 'High', color: 'text-emerald-600', bg: 'bg-emerald-50' };
+        return { level: 'High', score: 95, color: 'text-emerald-600', bg: 'bg-emerald-50' };
       case 'searchFund':
       case 'independentSponsor':
-        return { level: 'Medium', color: 'text-amber-600', bg: 'bg-amber-50' };
+        return { level: 'Medium', score: 75, color: 'text-amber-600', bg: 'bg-amber-50' };
       case 'individual':
-        if (score && score >= 70) return { level: 'High', color: 'text-emerald-600', bg: 'bg-emerald-50' };
-        if (score && score >= 40) return { level: 'Medium', color: 'text-amber-600', bg: 'bg-amber-50' };
-        return { level: 'Standard', color: 'text-muted-foreground', bg: 'bg-muted/50' };
+        if (score && score >= 70) return { level: 'High', score, color: 'text-emerald-600', bg: 'bg-emerald-50' };
+        if (score && score >= 40) return { level: 'Medium', score, color: 'text-amber-600', bg: 'bg-amber-50' };
+        return { level: 'Standard', score: score || 25, color: 'text-muted-foreground', bg: 'bg-muted/50' };
       default:
-        return { level: 'Standard', color: 'text-muted-foreground', bg: 'bg-muted/50' };
+        return { level: 'Standard', score: 25, color: 'text-muted-foreground', bg: 'bg-muted/50' };
     }
   };
 
   const buyerPriority = getBuyerPriority(selectedDeal.buyer_type, selectedDeal.buyer_priority_score);
 
   return (
-    <div className="w-[550px] border-l bg-background flex flex-col min-h-0">
-      {/* Apple-inspired header with minimal design */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-border/40">
-        <div className="flex items-center gap-3">
-          <div className="space-y-1">
-            <h3 className="font-semibold text-[15px] leading-tight text-foreground">
-              {selectedDeal.deal_title}
-            </h3>
+    <div className="w-[800px] border-l bg-background flex flex-col min-h-0">
+      {/* Apple-inspired header with sophisticated layout */}
+      <div className="px-8 py-6 border-b border-border/30">
+        <div className="flex items-start justify-between">
+          <div className="flex items-start gap-6">
+            {/* Deal info */}
+            <div className="space-y-3">
+              <h3 className="font-semibold text-lg leading-tight text-foreground tracking-tight">
+                {selectedDeal.deal_title}
+              </h3>
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-primary"></div>
+                  <span className="text-sm text-muted-foreground">{selectedDeal.contact_name}</span>
+                </div>
+                {selectedDeal.contact_company && (
+                  <>
+                    <div className="w-1 h-1 rounded-full bg-muted-foreground/30"></div>
+                    <span className="text-sm text-muted-foreground">{selectedDeal.contact_company}</span>
+                  </>
+                )}
+              </div>
+            </div>
+            
+            {/* Buyer priority badge - compact in header */}
             <div className="flex items-center gap-2">
               <Badge 
                 variant="secondary" 
-                className={`text-xs font-medium ${buyerPriority.bg} ${buyerPriority.color} border-0`}
+                className={`text-xs font-medium px-3 py-1 ${buyerPriority.bg} ${buyerPriority.color} border-0`}
               >
-                {buyerPriority.level} Priority
+                {buyerPriority.level} Priority • {buyerPriority.score}/100
               </Badge>
-              {selectedDeal.deal_priority && (
-                <Badge variant="outline" className="text-xs font-medium border-border/60">
-                  {selectedDeal.deal_priority}
-                </Badge>
-              )}
             </div>
           </div>
+          
+          {/* Header actions */}
+          <div className="flex items-center gap-3">
+            {/* Quick contact actions */}
+            {selectedDeal.contact_phone && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 px-3 text-xs"
+                onClick={() => window.open(`tel:${selectedDeal.contact_phone}`)}
+              >
+                Call
+              </Button>
+            )}
+            {selectedDeal.contact_email && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 px-3 text-xs"
+                onClick={() => window.open(`mailto:${selectedDeal.contact_email}`)}
+              >
+                Email
+              </Button>
+            )}
+            
+            <div className="w-px h-4 bg-border/40"></div>
+            
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => pipeline.setSelectedDeal(null)}
+              className="h-8 w-8 p-0 hover:bg-muted/60"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => pipeline.setSelectedDeal(null)}
-          className="h-8 w-8 p-0 hover:bg-muted/60"
-        >
-          <X className="h-4 w-4" />
-        </Button>
       </div>
 
-      {/* Tabs navigation - Apple style */}
+      {/* Tabs navigation - Apple sophistication */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
-        <div className="px-6 py-3 border-b border-border/40">
-          <TabsList className="grid w-full grid-cols-6 bg-muted/30 p-1 h-9">
-            <TabsTrigger value="overview" className="text-xs font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm">
+        <div className="px-8 py-4 border-b border-border/30">
+          <TabsList className="grid w-full grid-cols-6 bg-muted/20 p-1 h-10 rounded-lg">
+            <TabsTrigger value="overview" className="text-sm font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground rounded-md">
               Overview
             </TabsTrigger>
-            <TabsTrigger value="buyer" className="text-xs font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm">
+            <TabsTrigger value="buyer" className="text-sm font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground rounded-md">
               Buyer
             </TabsTrigger>
-            <TabsTrigger value="documents" className="text-xs font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm">
+            <TabsTrigger value="documents" className="text-sm font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground rounded-md">
               Documents
             </TabsTrigger>
-            <TabsTrigger value="tasks" className="text-xs font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm">
+            <TabsTrigger value="tasks" className="text-sm font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground rounded-md">
               Tasks
             </TabsTrigger>
-            <TabsTrigger value="communication" className="text-xs font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm">
+            <TabsTrigger value="communication" className="text-sm font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground rounded-md">
               Email
             </TabsTrigger>
-            <TabsTrigger value="activity" className="text-xs font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm">
+            <TabsTrigger value="activity" className="text-sm font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground rounded-md">
               Activity
             </TabsTrigger>
           </TabsList>
