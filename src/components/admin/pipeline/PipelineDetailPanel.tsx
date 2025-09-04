@@ -1,11 +1,15 @@
-
-import React from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
-import { X, User, Building2, Calendar, DollarSign, Percent, AlertCircle } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { X } from 'lucide-react';
 import { usePipelineCore } from '@/hooks/admin/use-pipeline-core';
-import { formatDistanceToNow } from 'date-fns';
+import { PipelineDetailOverview } from './tabs/PipelineDetailOverview';
+import { PipelineDetailBuyer } from './tabs/PipelineDetailBuyer';
+import { PipelineDetailDocuments } from './tabs/PipelineDetailDocuments';
+import { PipelineDetailTasks } from './tabs/PipelineDetailTasks';
+import { PipelineDetailCommunication } from './tabs/PipelineDetailCommunication';
+import { PipelineDetailActivity } from './tabs/PipelineDetailActivity';
 
 interface PipelineDetailPanelProps {
   pipeline: ReturnType<typeof usePipelineCore>;
@@ -13,159 +17,127 @@ interface PipelineDetailPanelProps {
 
 export function PipelineDetailPanel({ pipeline }: PipelineDetailPanelProps) {
   const { selectedDeal } = pipeline;
+  const [activeTab, setActiveTab] = useState('overview');
 
   if (!selectedDeal) {
     return (
-      <div className="w-80 border-l bg-background p-6 flex items-center justify-center">
-        <p className="text-muted-foreground">Select a deal to view details</p>
+      <div className="w-96 border-l bg-muted/5 flex items-center justify-center">
+        <div className="text-center space-y-3">
+          <div className="w-12 h-12 mx-auto bg-muted/20 rounded-xl flex items-center justify-center">
+            <div className="w-6 h-6 bg-muted rounded" />
+          </div>
+          <p className="text-muted-foreground text-sm">Select a deal to view details</p>
+        </div>
       </div>
     );
   }
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(value);
-  };
-
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'urgent': return 'bg-red-500 text-white';
-      case 'high': return 'bg-orange-500 text-white';
-      case 'medium': return 'bg-yellow-500 text-white';
-      default: return 'bg-gray-500 text-white';
+  const getBuyerPriority = (buyerType?: string, score?: number) => {
+    switch (buyerType) {
+      case 'privateEquity':
+      case 'familyOffice':
+      case 'corporate':
+        return { level: 'High', color: 'text-emerald-600', bg: 'bg-emerald-50' };
+      case 'searchFund':
+      case 'independentSponsor':
+        return { level: 'Medium', color: 'text-amber-600', bg: 'bg-amber-50' };
+      case 'individual':
+        if (score && score >= 70) return { level: 'High', color: 'text-emerald-600', bg: 'bg-emerald-50' };
+        if (score && score >= 40) return { level: 'Medium', color: 'text-amber-600', bg: 'bg-amber-50' };
+        return { level: 'Standard', color: 'text-muted-foreground', bg: 'bg-muted/50' };
+      default:
+        return { level: 'Standard', color: 'text-muted-foreground', bg: 'bg-muted/50' };
     }
   };
 
+  const buyerPriority = getBuyerPriority(selectedDeal.buyer_type, selectedDeal.buyer_priority_score);
+
   return (
-    <div className="w-80 border-l bg-background flex flex-col">
-      {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b">
-        <h3 className="font-semibold">Deal Details</h3>
+    <div className="w-[550px] border-l bg-background flex flex-col min-h-0">
+      {/* Apple-inspired header with minimal design */}
+      <div className="flex items-center justify-between px-6 py-4 border-b border-border/40">
+        <div className="flex items-center gap-3">
+          <div className="space-y-1">
+            <h3 className="font-semibold text-[15px] leading-tight text-foreground">
+              {selectedDeal.deal_title}
+            </h3>
+            <div className="flex items-center gap-2">
+              <Badge 
+                variant="secondary" 
+                className={`text-xs font-medium ${buyerPriority.bg} ${buyerPriority.color} border-0`}
+              >
+                {buyerPriority.level} Priority
+              </Badge>
+              {selectedDeal.deal_priority && (
+                <Badge variant="outline" className="text-xs font-medium border-border/60">
+                  {selectedDeal.deal_priority}
+                </Badge>
+              )}
+            </div>
+          </div>
+        </div>
         <Button
           variant="ghost"
           size="sm"
           onClick={() => pipeline.setSelectedDeal(null)}
+          className="h-8 w-8 p-0 hover:bg-muted/60"
         >
           <X className="h-4 w-4" />
         </Button>
       </div>
 
-      {/* Content */}
-      <div className="flex-1 overflow-auto p-4 space-y-6">
-        {/* Deal Title */}
-        <div>
-          <h4 className="font-semibold text-lg mb-2">{selectedDeal.deal_title}</h4>
-          {selectedDeal.deal_priority && (
-            <Badge className={getPriorityColor(selectedDeal.deal_priority)}>
-              {selectedDeal.deal_priority} priority
-            </Badge>
-          )}
+      {/* Tabs navigation - Apple style */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
+        <div className="px-6 py-3 border-b border-border/40">
+          <TabsList className="grid w-full grid-cols-6 bg-muted/30 p-1 h-9">
+            <TabsTrigger value="overview" className="text-xs font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm">
+              Overview
+            </TabsTrigger>
+            <TabsTrigger value="buyer" className="text-xs font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm">
+              Buyer
+            </TabsTrigger>
+            <TabsTrigger value="documents" className="text-xs font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm">
+              Documents
+            </TabsTrigger>
+            <TabsTrigger value="tasks" className="text-xs font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm">
+              Tasks
+            </TabsTrigger>
+            <TabsTrigger value="communication" className="text-xs font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm">
+              Email
+            </TabsTrigger>
+            <TabsTrigger value="activity" className="text-xs font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm">
+              Activity
+            </TabsTrigger>
+          </TabsList>
         </div>
 
-        <Separator />
-
-        {/* Key Metrics */}
-        <div className="space-y-4">
-          <div className="flex items-center gap-3">
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-            <div>
-              <p className="text-sm text-muted-foreground">Deal Value</p>
-              <p className="font-semibold">{formatCurrency(selectedDeal.deal_value)}</p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <Percent className="h-4 w-4 text-muted-foreground" />
-            <div>
-              <p className="text-sm text-muted-foreground">Probability</p>
-              <p className="font-semibold">{selectedDeal.deal_probability}%</p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <User className="h-4 w-4 text-muted-foreground" />
-            <div>
-              <p className="text-sm text-muted-foreground">Contact</p>
-              <p className="font-semibold">{selectedDeal.contact_name || 'Unknown'}</p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <Building2 className="h-4 w-4 text-muted-foreground" />
-            <div>
-              <p className="text-sm text-muted-foreground">Listing</p>
-              <p className="font-semibold text-sm">{selectedDeal.listing_title}</p>
-            </div>
-          </div>
-
-          {selectedDeal.deal_expected_close_date && (
-            <div className="flex items-center gap-3">
-              <Calendar className="h-4 w-4 text-muted-foreground" />
-              <div>
-                <p className="text-sm text-muted-foreground">Expected Close</p>
-                <p className="font-semibold">
-                  {formatDistanceToNow(new Date(selectedDeal.deal_expected_close_date), { addSuffix: true })}
-                </p>
-              </div>
-            </div>
-          )}
-
-          {selectedDeal.pending_tasks > 0 && (
-            <div className="flex items-center gap-3">
-              <AlertCircle className="h-4 w-4 text-orange-500" />
-              <div>
-                <p className="text-sm text-muted-foreground">Pending Tasks</p>
-                <p className="font-semibold text-orange-600">{selectedDeal.pending_tasks}</p>
-              </div>
-            </div>
-          )}
+        {/* Tab content with proper scrolling */}
+        <div className="flex-1 overflow-hidden">
+          <TabsContent value="overview" className="h-full mt-0 data-[state=active]:flex data-[state=active]:flex-col">
+            <PipelineDetailOverview deal={selectedDeal} />
+          </TabsContent>
+          
+          <TabsContent value="buyer" className="h-full mt-0 data-[state=active]:flex data-[state=active]:flex-col">
+            <PipelineDetailBuyer deal={selectedDeal} />
+          </TabsContent>
+          
+          <TabsContent value="documents" className="h-full mt-0 data-[state=active]:flex data-[state=active]:flex-col">
+            <PipelineDetailDocuments deal={selectedDeal} />
+          </TabsContent>
+          
+          <TabsContent value="tasks" className="h-full mt-0 data-[state=active]:flex data-[state=active]:flex-col">
+            <PipelineDetailTasks deal={selectedDeal} />
+          </TabsContent>
+          
+          <TabsContent value="communication" className="h-full mt-0 data-[state=active]:flex data-[state=active]:flex-col">
+            <PipelineDetailCommunication deal={selectedDeal} />
+          </TabsContent>
+          
+          <TabsContent value="activity" className="h-full mt-0 data-[state=active]:flex data-[state=active]:flex-col">
+            <PipelineDetailActivity deal={selectedDeal} />
+          </TabsContent>
         </div>
-
-        <Separator />
-
-        {/* Documents */}
-        <div>
-          <h5 className="font-medium mb-3">Documents</h5>
-          <div className="space-y-2">
-            {selectedDeal.nda_status === 'signed' && (
-              <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                NDA Signed
-              </Badge>
-            )}
-            {selectedDeal.fee_agreement_status === 'signed' && (
-              <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                Fee Agreement Signed
-              </Badge>
-            )}
-            {selectedDeal.nda_status !== 'signed' && selectedDeal.fee_agreement_status !== 'signed' && (
-              <p className="text-sm text-muted-foreground">No documents signed</p>
-            )}
-          </div>
-        </div>
-
-        <Separator />
-
-        {/* Stage Info */}
-        <div>
-          <h5 className="font-medium mb-3">Stage Information</h5>
-          <div className="space-y-2">
-            <p className="text-sm">
-              <span className="text-muted-foreground">Current Stage:</span>{' '}
-              <span className="font-medium">{selectedDeal.stage_name}</span>
-            </p>
-            <p className="text-sm">
-              <span className="text-muted-foreground">Time in Stage:</span>{' '}
-              <span className="font-medium">
-                {formatDistanceToNow(new Date(selectedDeal.deal_stage_entered_at))}
-              </span>
-            </p>
-          </div>
-        </div>
-      </div>
+      </Tabs>
     </div>
   );
 }
