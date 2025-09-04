@@ -26,38 +26,34 @@ export function DealDocumentsTab({ deal }: DealDocumentsTabProps) {
   const updateFeeAgreementEmail = useUpdateFeeAgreementEmailSent();
 
   const handleNDAToggle = (signed: boolean) => {
-    if (!deal.user_id) return;
+    if (!deal.buyer_id) return;
     updateNDA.mutate({
-      userId: deal.user_id,
-      isSigned: signed,
-      notes: signed ? 'NDA marked as signed' : 'NDA signature revoked'
+      userId: deal.buyer_id,
+      isSigned: signed
     });
   };
 
   const handleNDAEmailToggle = (sent: boolean) => {
-    if (!deal.user_id) return;
+    if (!deal.buyer_id) return;
     updateNDAEmail.mutate({
-      userId: deal.user_id,
-      isSent: sent,
-      notes: sent ? 'NDA email marked as sent' : 'NDA email status revoked'
+      userId: deal.buyer_id,
+      isSent: sent
     });
   };
 
   const handleFeeAgreementToggle = (signed: boolean) => {
-    if (!deal.user_id) return;
+    if (!deal.buyer_id) return;
     updateFeeAgreement.mutate({
-      userId: deal.user_id,
-      isSigned: signed,
-      notes: signed ? 'Fee agreement marked as signed' : 'Fee agreement signature revoked'
+      userId: deal.buyer_id,
+      isSigned: signed
     });
   };
 
   const handleFeeAgreementEmailToggle = (sent: boolean) => {
-    if (!deal.user_id) return;
+    if (!deal.buyer_id) return;
     updateFeeAgreementEmail.mutate({
-      userId: deal.user_id,
-      isSent: sent,
-      notes: sent ? 'Fee agreement email marked as sent' : 'Fee agreement email status revoked'
+      userId: deal.buyer_id,
+      isSent: sent
     });
   };
 
@@ -89,9 +85,9 @@ export function DealDocumentsTab({ deal }: DealDocumentsTabProps) {
     }
   };
 
-  // Determine NDA status
-  const ndaStatus = deal.nda_signed ? 'signed' : (deal.nda_email_sent ? 'sent' : 'pending');
-  const feeAgreementStatus = deal.fee_agreement_signed ? 'signed' : (deal.fee_agreement_email_sent ? 'sent' : 'pending');
+  // Determine status based on existing Deal fields  
+  const ndaStatus = deal.nda_status === 'signed' ? 'signed' : (deal.nda_status === 'sent' ? 'sent' : 'pending');
+  const feeAgreementStatus = deal.fee_agreement_status === 'signed' ? 'signed' : (deal.fee_agreement_status === 'sent' ? 'sent' : 'pending');
 
   return (
     <div className="p-8 space-y-6">
@@ -125,12 +121,7 @@ export function DealDocumentsTab({ deal }: DealDocumentsTabProps) {
                 </div>
               </div>
               <div className="text-right text-sm text-gray-600">
-                {deal.nda_signed_at && (
-                  <p>Signed: {formatDate(deal.nda_signed_at)}</p>
-                )}
-                {deal.nda_email_sent_at && !deal.nda_signed_at && (
-                  <p>Sent: {formatDate(deal.nda_email_sent_at)}</p>
-                )}
+                <p>Status: {ndaStatus}</p>
               </div>
             </div>
 
@@ -142,7 +133,7 @@ export function DealDocumentsTab({ deal }: DealDocumentsTabProps) {
                   <p className="text-sm text-gray-600">Mark NDA email as sent to buyer</p>
                 </div>
                 <Switch
-                  checked={deal.nda_email_sent || false}
+                  checked={deal.nda_status === 'sent' || deal.nda_status === 'signed'}
                   onCheckedChange={handleNDAEmailToggle}
                   disabled={updateNDAEmail.isPending}
                 />
@@ -154,7 +145,7 @@ export function DealDocumentsTab({ deal }: DealDocumentsTabProps) {
                   <p className="text-sm text-gray-600">Mark NDA as signed by buyer</p>
                 </div>
                 <Switch
-                  checked={deal.nda_signed || false}
+                  checked={deal.nda_status === 'signed'}
                   onCheckedChange={handleNDAToggle}
                   disabled={updateNDA.isPending}
                 />
@@ -220,12 +211,7 @@ export function DealDocumentsTab({ deal }: DealDocumentsTabProps) {
                 </div>
               </div>
               <div className="text-right text-sm text-gray-600">
-                {deal.fee_agreement_signed_at && (
-                  <p>Signed: {formatDate(deal.fee_agreement_signed_at)}</p>
-                )}
-                {deal.fee_agreement_email_sent_at && !deal.fee_agreement_signed_at && (
-                  <p>Sent: {formatDate(deal.fee_agreement_email_sent_at)}</p>
-                )}
+                <p>Status: {feeAgreementStatus}</p>
               </div>
             </div>
 
@@ -237,7 +223,7 @@ export function DealDocumentsTab({ deal }: DealDocumentsTabProps) {
                   <p className="text-sm text-gray-600">Mark fee agreement email as sent to buyer</p>
                 </div>
                 <Switch
-                  checked={deal.fee_agreement_email_sent || false}
+                  checked={deal.fee_agreement_status === 'sent' || deal.fee_agreement_status === 'signed'}
                   onCheckedChange={handleFeeAgreementEmailToggle}
                   disabled={updateFeeAgreementEmail.isPending}
                 />
@@ -249,7 +235,7 @@ export function DealDocumentsTab({ deal }: DealDocumentsTabProps) {
                   <p className="text-sm text-gray-600">Mark fee agreement as signed by buyer</p>
                 </div>
                 <Switch
-                  checked={deal.fee_agreement_signed || false}
+                  checked={deal.fee_agreement_status === 'signed'}
                   onCheckedChange={handleFeeAgreementToggle}
                   disabled={updateFeeAgreement.isPending}
                 />
@@ -324,11 +310,11 @@ export function DealDocumentsTab({ deal }: DealDocumentsTabProps) {
                 <p className="font-semibold text-gray-900">Negative Follow-up</p>
               </div>
               <p className="text-sm text-gray-600">
-                {deal.negative_followed_up ? 'Completed' : 'Not needed'}
+                {deal.followed_up ? 'Completed' : 'Pending'}
               </p>
-              {deal.negative_followed_up_at && (
+              {deal.followed_up_at && (
                 <p className="text-xs text-gray-500 mt-1">
-                  {formatDate(deal.negative_followed_up_at)}
+                  {formatDate(deal.followed_up_at)}
                 </p>
               )}
             </div>

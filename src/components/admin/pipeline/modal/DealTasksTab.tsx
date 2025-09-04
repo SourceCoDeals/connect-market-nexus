@@ -71,12 +71,12 @@ export function DealTasksTab({ dealId }: DealTasksTabProps) {
   };
 
   const handleCompleteTask = (taskId: string) => {
-    completeTask.mutate({ taskId });
+    completeTask.mutate(taskId);
   };
 
   const handleDeleteTask = (taskId: string) => {
     if (confirm('Are you sure you want to delete this task?')) {
-      deleteTask.mutate({ taskId });
+      deleteTask.mutate(taskId);
     }
   };
 

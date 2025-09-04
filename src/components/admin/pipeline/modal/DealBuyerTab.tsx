@@ -101,7 +101,7 @@ export function DealBuyerTab({ deal }: DealBuyerTabProps) {
                   <p className="text-sm font-medium text-gray-500 mb-1">Website</p>
                   <div className="flex items-center gap-2">
                     <Building className="h-4 w-4 text-gray-400" />
-                    <span className="text-gray-900">{deal.user_website || 'Not provided'}</span>
+                    <span className="text-gray-900">{'Not provided'}</span>
                   </div>
                 </div>
               </div>
@@ -112,22 +112,12 @@ export function DealBuyerTab({ deal }: DealBuyerTabProps) {
                 variant="outline"
                 size="sm"
                 className="border-gray-200"
-                onClick={() => window.open(`mailto:${deal.user_email}`)}
+                onClick={() => window.open(`mailto:${deal.buyer_email || ''}`)}
               >
                 <Mail className="h-4 w-4 mr-2" />
                 Email
               </Button>
-              {deal.user_phone_number && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="border-gray-200"
-                  onClick={() => window.open(`tel:${deal.user_phone_number}`)}
-                >
-                  <Phone className="h-4 w-4 mr-2" />
-                  Call
-                </Button>
-              )}
+              {/* Removed phone button since phone number not available in Deal interface */}
             </div>
           </div>
         </CardContent>
@@ -146,38 +136,19 @@ export function DealBuyerTab({ deal }: DealBuyerTabProps) {
             <div>
               <p className="text-sm font-medium text-gray-500 mb-2">Target Deal Size</p>
               <p className="text-lg font-semibold text-gray-900">
-                {deal.target_deal_size_min && deal.target_deal_size_max 
-                  ? `${formatCurrency(deal.target_deal_size_min)} - ${formatCurrency(deal.target_deal_size_max)}`
-                  : 'Not specified'
-                }
+                Not specified
               </p>
             </div>
             <div>
               <p className="text-sm font-medium text-gray-500 mb-2">Target Locations</p>
               <div className="flex flex-wrap gap-1">
-                {deal.target_locations && Array.isArray(deal.target_locations) ? (
-                  deal.target_locations.map((location, index) => (
-                    <Badge key={index} variant="outline" className="text-xs">
-                      {location}
-                    </Badge>
-                  ))
-                ) : (
-                  <span className="text-gray-900">Not specified</span>
-                )}
+                <span className="text-gray-900">Not specified</span>
               </div>
             </div>
             <div className="md:col-span-2">
               <p className="text-sm font-medium text-gray-500 mb-2">Business Categories</p>
               <div className="flex flex-wrap gap-1">
-                {deal.business_categories && Array.isArray(deal.business_categories) ? (
-                  deal.business_categories.map((category, index) => (
-                    <Badge key={index} variant="outline" className="text-xs">
-                      {category}
-                    </Badge>
-                  ))
-                ) : (
-                  <span className="text-gray-900">Not specified</span>
-                )}
+                <span className="text-gray-900">Not specified</span>
               </div>
             </div>
           </div>
