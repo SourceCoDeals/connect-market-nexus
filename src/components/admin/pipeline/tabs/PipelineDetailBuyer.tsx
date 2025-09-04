@@ -279,9 +279,9 @@ export function PipelineDetailBuyer({ deal }: PipelineDetailBuyerProps) {
             ) : (
               <div className="space-y-3">
                 {connectionRequests.slice(0, 5).map((request: any) => (
-                  <div key={request.id} className="flex items-center justify-between p-3 bg-muted/20 rounded-lg border border-border/10">
+                  <div key={request.id} className="flex items-center justify-between py-3 border-b border-border/10 last:border-0">
                     <div className="flex-1">
-                      <p className="text-sm font-medium">{request.listings?.title || 'Unknown Listing'}</p>
+                      <p className="text-sm font-medium text-foreground">{request.listings?.title || 'Unknown Listing'}</p>
                       <div className="flex items-center gap-4 mt-1">
                         <p className="text-xs text-muted-foreground/70">
                           {formatDistanceToNow(new Date(request.created_at), { addSuffix: true })}
@@ -294,10 +294,10 @@ export function PipelineDetailBuyer({ deal }: PipelineDetailBuyerProps) {
                       </div>
                     </div>
                     <Badge variant="outline" className={`text-xs ${
-                      request.status === 'approved' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
-                      request.status === 'rejected' ? 'bg-red-50 text-red-700 border-red-200' :
-                      request.status === 'on_hold' ? 'bg-amber-50 text-amber-700 border-amber-200' :
-                      'bg-muted border-border/60'
+                      request.status === 'approved' ? 'text-emerald-700 border-emerald-200' :
+                      request.status === 'rejected' ? 'text-red-700 border-red-200' :
+                      request.status === 'on_hold' ? 'text-amber-700 border-amber-200' :
+                      'border-border/60'
                     }`}>
                       {request.status}
                     </Badge>
@@ -327,9 +327,9 @@ export function PipelineDetailBuyer({ deal }: PipelineDetailBuyerProps) {
             ) : (
               <div className="space-y-3">
                 {savedListings.slice(0, 5).map((saved: any) => (
-                  <div key={saved.id} className="flex items-center justify-between p-3 bg-muted/20 rounded-lg border border-border/10">
+                  <div key={saved.id} className="flex items-center justify-between py-3 border-b border-border/10 last:border-0">
                     <div className="flex-1">
-                      <p className="text-sm font-medium">{saved.listings?.title || 'Unknown Listing'}</p>
+                      <p className="text-sm font-medium text-foreground">{saved.listings?.title || 'Unknown Listing'}</p>
                       <div className="flex items-center gap-4 mt-1">
                         <p className="text-xs text-muted-foreground/70">
                           Saved {formatDistanceToNow(new Date(saved.created_at), { addSuffix: true })}

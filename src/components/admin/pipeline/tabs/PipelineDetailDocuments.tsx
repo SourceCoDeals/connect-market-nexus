@@ -5,6 +5,7 @@ import { FileText, Mail, Check, Clock, User } from 'lucide-react';
 import { Deal } from '@/hooks/admin/use-deals';
 import { useUpdateNDA, useLogNDAEmail } from '@/hooks/admin/use-nda';
 import { useUpdateFeeAgreement, useLogFeeAgreementEmail } from '@/hooks/admin/use-fee-agreement';
+import { supabase } from '@/integrations/supabase/client';
 
 interface PipelineDetailDocumentsProps {
   deal: Deal;
@@ -39,40 +40,65 @@ export function PipelineDetailDocuments({ deal }: PipelineDetailDocumentsProps) 
     }
   };
 
-  const handleNDAToggle = (checked: boolean) => {
-    if (!deal.buyer_id) return;
+  // Get buyer_id from deal or fetch via connection request
+  const getBuyerId = async () => {
+    if (deal.buyer_id) return deal.buyer_id;
+    
+    // If no buyer_id, try to find via connection request
+    if (deal.contact_email) {
+      const { data: connectionRequest } = await supabase
+        .from('connection_requests')
+        .select('user_id')
+        .eq('lead_email', deal.contact_email)
+        .single();
+      
+      return connectionRequest?.user_id;
+    }
+    return null;
+  };
+
+  const handleNDAToggle = async (checked: boolean) => {
+    const buyerId = await getBuyerId();
+    if (!buyerId) return;
     
     updateNDA.mutate({
-      userId: deal.buyer_id,
+      userId: buyerId,
       isSigned: checked
     });
   };
 
-  const handleFeeAgreementToggle = (checked: boolean) => {
-    if (!deal.buyer_id) return;
+  const handleFeeAgreementToggle = async (checked: boolean) => {
+    const buyerId = await getBuyerId();
+    if (!buyerId) return;
     
     updateFeeAgreement.mutate({
-      userId: deal.buyer_id,
+      userId: buyerId,
       isSigned: checked
     });
   };
 
-  const handleSendNDA = () => {
-    if (!deal.buyer_id || !deal.contact_email || !deal.contact_name) return;
+  const handleSendNDA = async () => {
+    if (!deal.contact_email || !deal.contact_name) return;
+    
+    const buyerId = await getBuyerId();
+    if (!buyerId) return;
     
     logNDAEmail.mutate({
-      userId: deal.buyer_id,
+      userId: buyerId,
       userEmail: deal.contact_email,
       notes: 'Please review and sign the attached NDA.',
       listingTitle: deal.deal_title
     });
   };
 
-  const handleSendFeeAgreement = () => {
-    if (!deal.buyer_id || !deal.contact_email || !deal.contact_name) return;
+  const handleSendFeeAgreement = async () => {
+    if (!deal.contact_email || !deal.contact_name) return;
+    
+    const buyerId = await getBuyerId();
+    if (!buyerId) return;
     
     logFeeAgreementEmail.mutate({
-      userId: deal.buyer_id,
+      userId: buyerId,
       userEmail: deal.contact_email,
       content: `Please review and sign the attached Fee Agreement for ${deal.deal_title}.`
     });

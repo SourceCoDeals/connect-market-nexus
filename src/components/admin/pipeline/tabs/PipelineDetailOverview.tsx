@@ -10,13 +10,14 @@ import { useAdminProfiles } from '@/hooks/admin/use-admin-profiles';
 import { useUpdateDeal } from '@/hooks/admin/use-deals';
 import { useUpdateNDA, useLogNDAEmail } from '@/hooks/admin/use-nda';
 import { useUpdateFeeAgreement, useLogFeeAgreementEmail } from '@/hooks/admin/use-fee-agreement';
+import { supabase } from '@/integrations/supabase/client';
 
 interface PipelineDetailOverviewProps {
   deal: Deal;
 }
 
 export function PipelineDetailOverview({ deal }: PipelineDetailOverviewProps) {
-  const { data: allAdminProfiles } = useAdminProfiles();
+  const { data: allAdminProfiles, isLoading: adminProfilesLoading } = useAdminProfiles();
   const assignedAdmin = deal.assigned_to && allAdminProfiles ? allAdminProfiles[deal.assigned_to] : null;
   const updateDeal = useUpdateDeal();
 
@@ -28,26 +29,45 @@ export function PipelineDetailOverview({ deal }: PipelineDetailOverviewProps) {
     });
   };
 
-  // Real NDA and Fee Agreement hooks
+  // Real NDA and Fee Agreement hooks with proper buyer_id handling
   const updateNDA = useUpdateNDA();
   const updateFeeAgreement = useUpdateFeeAgreement();
   const logNDAEmail = useLogNDAEmail();
   const logFeeAgreementEmail = useLogFeeAgreementEmail();
 
-  const handleNDAToggle = (checked: boolean) => {
-    if (!deal.buyer_id) return;
+  // Get buyer_id from deal or fetch via connection request
+  const getBuyerId = async () => {
+    if (deal.buyer_id) return deal.buyer_id;
+    
+    // If no buyer_id, try to find via connection request
+    if (deal.contact_email) {
+      const { data: connectionRequest } = await supabase
+        .from('connection_requests')
+        .select('user_id')
+        .eq('lead_email', deal.contact_email)
+        .single();
+      
+      return connectionRequest?.user_id;
+    }
+    return null;
+  };
+
+  const handleNDAToggle = async (checked: boolean) => {
+    const buyerId = await getBuyerId();
+    if (!buyerId) return;
     
     updateNDA.mutate({
-      userId: deal.buyer_id,
+      userId: buyerId,
       isSigned: checked
     });
   };
 
-  const handleFeeAgreementToggle = (checked: boolean) => {
-    if (!deal.buyer_id) return;
+  const handleFeeAgreementToggle = async (checked: boolean) => {
+    const buyerId = await getBuyerId();
+    if (!buyerId) return;
     
     updateFeeAgreement.mutate({
-      userId: deal.buyer_id,
+      userId: buyerId,
       isSigned: checked
     });
   };
@@ -72,7 +92,7 @@ export function PipelineDetailOverview({ deal }: PipelineDetailOverviewProps) {
   return (
     <div className="flex-1 overflow-auto">
       <div className="px-6 py-5 space-y-8">
-        {/* Document Status - Apple Minimal */}
+        {/* Document Status - Apple Minimal with Admin Attribution */}
         <div className="space-y-4">
           <h4 className="font-medium text-sm text-foreground">Document Status</h4>
           
@@ -83,13 +103,20 @@ export function PipelineDetailOverview({ deal }: PipelineDetailOverviewProps) {
                 <div className={`w-2 h-2 rounded-full ${deal.nda_status === 'signed' ? 'bg-emerald-500' : deal.nda_status === 'sent' ? 'bg-amber-500' : 'bg-muted-foreground/40'}`} />
                 <div>
                   <span className="text-sm text-foreground">NDA</span>
-                  <p className="text-xs text-muted-foreground/70">{ndaStatus.label}</p>
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground/70">{ndaStatus.label}</p>
+                    {deal.nda_status === 'signed' && (
+                      <p className="text-xs text-muted-foreground/60">
+                        Marked signed by Admin
+                      </p>
+                    )}
+                  </div>
                 </div>
               </div>
               <Switch
                 checked={deal.nda_status === 'signed'}
                 onCheckedChange={handleNDAToggle}
-                disabled={!deal.contact_email}
+                disabled={updateNDA.isPending || !deal.contact_email}
                 className="data-[state=checked]:bg-emerald-600"
               />
             </div>
@@ -102,13 +129,20 @@ export function PipelineDetailOverview({ deal }: PipelineDetailOverviewProps) {
                 <div className={`w-2 h-2 rounded-full ${deal.fee_agreement_status === 'signed' ? 'bg-emerald-500' : deal.fee_agreement_status === 'sent' ? 'bg-amber-500' : 'bg-muted-foreground/40'}`} />
                 <div>
                   <span className="text-sm text-foreground">Fee Agreement</span>
-                  <p className="text-xs text-muted-foreground/70">{feeStatus.label}</p>
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground/70">{feeStatus.label}</p>
+                    {deal.fee_agreement_status === 'signed' && (
+                      <p className="text-xs text-muted-foreground/60">
+                        Marked signed by Admin
+                      </p>
+                    )}
+                  </div>
                 </div>
               </div>
               <Switch
                 checked={deal.fee_agreement_status === 'signed'}
                 onCheckedChange={handleFeeAgreementToggle}
-                disabled={!deal.contact_email}
+                disabled={updateFeeAgreement.isPending || !deal.contact_email}
                 className="data-[state=checked]:bg-emerald-600"
               />
             </div>
@@ -127,9 +161,13 @@ export function PipelineDetailOverview({ deal }: PipelineDetailOverviewProps) {
               </p>
             </div>
             
-            <Select value={deal.assigned_to || 'unassigned'} onValueChange={handleOwnerChange}>
+            <Select 
+              value={deal.assigned_to || 'unassigned'} 
+              onValueChange={handleOwnerChange}
+              disabled={adminProfilesLoading || updateDeal.isPending}
+            >
               <SelectTrigger className="w-40 h-8 text-xs border-border/60">
-                <SelectValue placeholder="Assign admin" />
+                <SelectValue placeholder={adminProfilesLoading ? "Loading..." : "Assign admin"} />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="unassigned">Unassigned</SelectItem>
