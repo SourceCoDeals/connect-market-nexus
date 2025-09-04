@@ -172,7 +172,7 @@ export function PipelineDetailPanel({ pipeline }: PipelineDetailPanelProps) {
         <Button 
           className="w-full" 
           size="sm"
-          onClick={() => pipeline.setDealModalOpen && pipeline.setDealModalOpen(true)}
+          disabled
         >
           View Full Details
         </Button>
