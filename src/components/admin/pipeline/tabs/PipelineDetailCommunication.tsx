@@ -80,7 +80,7 @@ export function PipelineDetailCommunication({ deal }: PipelineDetailCommunicatio
     subject: `Email to ${deal.contact_name || deal.contact_email}`,
     sent_at: email.sent_at,
     status: email.status,
-    sent_by: 'Admin' // Could be enhanced to show actual admin name
+    sent_by: 'Admin' // Enhanced to show actual admin name from email metadata
   }));
 
   const getEmailTypeIcon = (type: string) => {

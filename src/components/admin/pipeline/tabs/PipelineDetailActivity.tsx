@@ -50,7 +50,9 @@ export function PipelineDetailActivity({ deal }: PipelineDetailActivityProps) {
       title: activity.title,
       description: activity.description || activity.title,
       timestamp: activity.created_at,
-      user: 'Admin', // Could be enhanced with actual admin names
+      user: activity.admin?.email ? 
+        `${activity.admin.first_name || ''} ${activity.admin.last_name || ''}`.trim() || activity.admin.email :
+        'Admin',
       metadata: activity.metadata || {}
     }))
   ];

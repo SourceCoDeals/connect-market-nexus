@@ -10,6 +10,11 @@ interface DealActivity {
   description?: string;
   metadata?: any;
   created_at: string;
+  admin?: {
+    email: string;
+    first_name: string;
+    last_name: string;
+  };
 }
 
 export function useDealActivities(dealId: string) {

@@ -91,9 +91,9 @@ export function PipelineKanbanColumn({ stage, deals, onDealClick }: PipelineKanb
         className="flex-1 p-3 pt-0 overflow-y-auto"
       >
         <div className="space-y-3 min-h-full">
-          {deals.map((deal) => (
+          {deals.map((deal, index) => (
             <PipelineKanbanCard 
-              key={deal.deal_id}
+              key={`${deal.deal_id}-${index}`}
               deal={deal}
               onDealClick={onDealClick}
             />
