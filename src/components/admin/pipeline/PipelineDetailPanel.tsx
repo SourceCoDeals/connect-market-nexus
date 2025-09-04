@@ -166,20 +166,6 @@ export function PipelineDetailPanel({ pipeline }: PipelineDetailPanelProps) {
           </div>
         </div>
       </div>
-
-      {/* Actions */}
-      <div className="p-4 border-t space-y-2">
-        <Button 
-          className="w-full" 
-          size="sm"
-          disabled
-        >
-          View Full Details
-        </Button>
-        <Button variant="outline" className="w-full" size="sm">
-          Edit Deal
-        </Button>
-      </div>
     </div>
   );
 }
