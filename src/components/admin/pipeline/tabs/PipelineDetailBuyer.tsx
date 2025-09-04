@@ -1,11 +1,13 @@
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
-
-import { User, Building2, Mail, Phone, Calendar, Globe, MapPin, MessageSquare, Star } from 'lucide-react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { ChevronDown, ExternalLink } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Deal } from '@/hooks/admin/use-deals';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { getRelevantFieldsForBuyerType, FIELD_LABELS } from '@/lib/buyer-type-fields';
+import { BUYER_TYPE_OPTIONS } from '@/lib/signup-field-options';
 
 interface PipelineDetailBuyerProps {
   deal: Deal;
@@ -106,17 +108,65 @@ export function PipelineDetailBuyer({ deal }: PipelineDetailBuyerProps) {
       case 'privateEquity':
       case 'familyOffice':
       case 'corporate':
-        return { level: 'High', score: 95, color: 'text-emerald-600', bg: 'bg-emerald-50' };
+        return { level: 'High', score: 95, color: 'text-emerald-600' };
       case 'searchFund':
       case 'independentSponsor':
-        return { level: 'Medium', score: 75, color: 'text-amber-600', bg: 'bg-amber-50' };
+        return { level: 'Medium', score: 75, color: 'text-amber-600' };
       case 'individual':
-        if (score && score >= 70) return { level: 'High', score, color: 'text-emerald-600', bg: 'bg-emerald-50' };
-        if (score && score >= 40) return { level: 'Medium', score, color: 'text-amber-600', bg: 'bg-amber-50' };
-        return { level: 'Standard', score: score || 25, color: 'text-muted-foreground', bg: 'bg-muted/50' };
+        if (score && score >= 70) return { level: 'High', score, color: 'text-emerald-600' };
+        if (score && score >= 40) return { level: 'Medium', score, color: 'text-amber-600' };
+        return { level: 'Standard', score: score || 25, color: 'text-muted-foreground' };
       default:
-        return { level: 'Standard', score: 25, color: 'text-muted-foreground', bg: 'bg-muted/50' };
+        return { level: 'Standard', score: 25, color: 'text-muted-foreground' };
     }
+  };
+
+  const formatFieldValue = (key: string, value: any) => {
+    if (!value) return null;
+    
+    if (Array.isArray(value)) {
+      if (value.length === 0) return null;
+      return value.join(', ');
+    }
+    
+    if (typeof value === 'boolean') {
+      return value ? 'Yes' : 'No';
+    }
+    
+    if (typeof value === 'object') {
+      try {
+        return Object.values(value).filter(Boolean).join(', ') || null;
+      } catch {
+        return String(value);
+      }
+    }
+    
+    return String(value);
+  };
+
+  const renderClickableLink = (text: string, url?: string, type: 'email' | 'website' | 'phone' = 'website') => {
+    if (!url) return <span className="text-sm text-muted-foreground">{text}</span>;
+    
+    let href = url;
+    if (type === 'email' && !url.startsWith('mailto:')) {
+      href = `mailto:${url}`;
+    } else if (type === 'phone' && !url.startsWith('tel:')) {
+      href = `tel:${url}`;
+    } else if (type === 'website' && !url.startsWith('http')) {
+      href = `https://${url}`;
+    }
+    
+    return (
+      <a 
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-sm text-primary hover:text-primary/80 transition-colors inline-flex items-center gap-1"
+      >
+        {text}
+        <ExternalLink className="w-3 h-3" />
+      </a>
+    );
   };
 
   const buyerPriority = getBuyerPriority(deal.buyer_type, deal.buyer_priority_score);
@@ -126,11 +176,9 @@ export function PipelineDetailBuyer({ deal }: PipelineDetailBuyerProps) {
   return (
     <div className="flex-1 overflow-auto">
       <div className="px-8 space-y-8 pb-8">
-        {/* Buyer Profile - Apple Minimal */}
+        {/* Primary Buyer Intelligence */}
         <div className="space-y-6">
           <div className="space-y-4">
-            <h2 className="text-sm font-medium text-foreground">Buyer Profile</h2>
-            
             <div className="flex items-start gap-4">
               <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center flex-shrink-0">
                 <span className="text-sm font-medium text-primary">
@@ -145,234 +193,359 @@ export function PipelineDetailBuyer({ deal }: PipelineDetailBuyerProps) {
                   {deal.contact_company && (
                     <p className="text-sm text-muted-foreground">{deal.contact_company}</p>
                   )}
+                  {profile?.job_title && (
+                    <p className="text-sm text-muted-foreground/70">{profile.job_title}</p>
+                  )}
                 </div>
                 
                 <div className="flex items-center gap-3">
                   <span className="text-xs text-muted-foreground font-mono">
-                    {getBuyerTypeLabel(deal.buyer_type)}
+                    {getBuyerTypeLabel(deal.buyer_type || profile?.buyer_type)}
                   </span>
                   <span className="text-muted-foreground/40">·</span>
-                  <span className="text-xs text-muted-foreground font-mono">
-                    Score: {buyerPriority.score}
+                  <span className={`text-xs font-mono ${buyerPriority.color}`}>
+                    {buyerPriority.level} Priority ({buyerPriority.score})
                   </span>
                 </div>
               </div>
             </div>
-          </div>
 
-          {/* Contact Information - Clean Layout */}
-          <div className="space-y-3">
-            {deal.contact_email && (
-              <div className="flex items-center gap-3 py-2">
-                <span className="text-sm text-foreground w-16">Email</span>
-                <span className="text-sm text-muted-foreground font-mono">{deal.contact_email}</span>
-              </div>
-            )}
-            {deal.contact_phone && (
-              <div className="flex items-center gap-3 py-2">
-                <span className="text-sm text-foreground w-16">Phone</span>
-                <span className="text-sm text-muted-foreground font-mono">{deal.contact_phone}</span>
-              </div>
-            )}
-            {profile?.website && (
-              <div className="flex items-center gap-3 py-2">
-                <span className="text-sm text-foreground w-16">Website</span>
-                <span className="text-sm text-muted-foreground">{profile.website}</span>
-              </div>
-            )}
-            {profile?.linkedin_profile && (
-              <div className="flex items-center gap-3 py-2">
-                <span className="text-sm text-foreground w-16">LinkedIn</span>
-                <span className="text-sm text-muted-foreground">Profile Available</span>
-              </div>
-            )}
+            {/* Quick Contact Actions */}
+            <div className="flex items-center gap-3 pt-2">
+              {deal.contact_email && (
+                <a 
+                  href={`mailto:${deal.contact_email}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-3 py-1.5 bg-primary text-primary-foreground text-xs rounded-lg hover:bg-primary/90 transition-colors"
+                >
+                  Email
+                </a>
+              )}
+              {deal.contact_phone && (
+                <a 
+                  href={`tel:${deal.contact_phone}`}
+                  className="px-3 py-1.5 bg-muted text-foreground text-xs rounded-lg hover:bg-muted/80 transition-colors"
+                >
+                  Call
+                </a>
+              )}
+            </div>
           </div>
         </div>
 
-        {/* Original Message - Clean Layout */}
-        {buyerProfile?.user_message && (
-          <div className="space-y-4">
-            <h2 className="text-sm font-medium text-foreground">Original Message</h2>
-            
-            <div className="py-4 px-5 bg-muted/20 rounded-xl">
-              <p className="text-sm text-foreground leading-relaxed">{buyerProfile.user_message}</p>
-              <p className="text-xs text-muted-foreground font-mono mt-3">
-                {formatDistanceToNow(new Date(buyerProfile.created_at), { addSuffix: true })}
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* Investment Intelligence - Apple Clean */}
+        {/* Comprehensive Profile Data in Collapsible Sections */}
         {profile && (
-          <div className="space-y-4">
-            <h2 className="text-sm font-medium text-foreground">Investment Profile</h2>
-            
-            <div className="space-y-4">
-              {profile.buyer_type && (
-                <div className="flex items-center justify-between py-2">
-                  <span className="text-sm text-foreground">Buyer Type</span>
-                  <span className="text-sm text-muted-foreground font-mono">
-                    {getBuyerTypeLabel(profile.buyer_type)}
-                  </span>
+          <>
+            {/* Contact & Basic Info */}
+            <Collapsible defaultOpen>
+              <CollapsibleTrigger className="flex items-center justify-between w-full group">
+                <h2 className="text-sm font-medium text-foreground">Contact & Basic Information</h2>
+                <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
+              </CollapsibleTrigger>
+              <CollapsibleContent className="pt-4">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between py-2">
+                    <span className="text-sm text-foreground">Email</span>
+                    {renderClickableLink(profile.email, profile.email, 'email')}
+                  </div>
+                  {profile.phone_number && (
+                    <div className="flex items-center justify-between py-2">
+                      <span className="text-sm text-foreground">Phone</span>
+                      {renderClickableLink(profile.phone_number, profile.phone_number, 'phone')}
+                    </div>
+                  )}
+                  {profile.website && (
+                    <div className="flex items-center justify-between py-2">
+                      <span className="text-sm text-foreground">Website</span>
+                      {renderClickableLink(profile.website, profile.website, 'website')}
+                    </div>
+                  )}
+                  {profile.linkedin_profile && (
+                    <div className="flex items-center justify-between py-2">
+                      <span className="text-sm text-foreground">LinkedIn</span>
+                      {renderClickableLink('View Profile', profile.linkedin_profile, 'website')}
+                    </div>
+                  )}
+                  {profile.company && (
+                    <div className="flex items-center justify-between py-2">
+                      <span className="text-sm text-foreground">Company</span>
+                      <span className="text-sm text-muted-foreground">{profile.company}</span>
+                    </div>
+                  )}
+                  {profile.bio && (
+                    <div className="py-2">
+                      <span className="text-sm text-foreground block mb-2">Bio</span>
+                      <p className="text-sm text-muted-foreground leading-relaxed">{profile.bio}</p>
+                    </div>
+                  )}
                 </div>
-              )}
-              
-              {profile.target_deal_size_min && profile.target_deal_size_max && (
-                <div className="flex items-center justify-between py-2">
-                  <span className="text-sm text-foreground">Deal Size</span>
-                  <span className="text-sm text-muted-foreground font-mono">
-                    ${profile.target_deal_size_min}M - ${profile.target_deal_size_max}M
-                  </span>
-                </div>
-              )}
-              
-              {profile.fund_size && (
-                <div className="flex items-center justify-between py-2">
-                  <span className="text-sm text-foreground">Fund Size</span>
-                  <span className="text-sm text-muted-foreground font-mono">
-                    {profile.fund_size}
-                  </span>
-                </div>
-              )}
-              
-              {profile.job_title && (
-                <div className="flex items-center justify-between py-2">
-                  <span className="text-sm text-foreground">Title</span>
-                  <span className="text-sm text-muted-foreground">
-                    {profile.job_title}
-                  </span>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
+              </CollapsibleContent>
+            </Collapsible>
 
-        {/* Connection History - Simplified */}
-        <div className="space-y-4">
-          <h2 className="text-sm font-medium text-foreground">Connection History</h2>
-          
-          <div className="space-y-2">
-            <div className="flex items-center justify-between py-2">
-              <span className="text-sm text-foreground">Total Connections</span>
-              <span className="text-sm text-muted-foreground font-mono">
-                {connectionRequests.length}
-              </span>
-            </div>
-            
-            {connectionRequests.length > 0 && (
-              <div className="space-y-1">
-                {connectionRequests.slice(0, 3).map((request: any) => (
-                  <div key={request.id} className="flex items-center justify-between py-3 px-4 bg-muted/10 rounded-lg">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm text-foreground truncate">
-                        {request.listings?.title || 'Unknown Listing'}
-                      </p>
-                      <div className="flex items-center gap-3 mt-1">
-                        <span className="text-xs text-muted-foreground font-mono">
-                          {formatDistanceToNow(new Date(request.created_at), { addSuffix: true })}
-                        </span>
-                        {request.listings?.asking_price && (
-                          <>
-                            <span className="text-muted-foreground/40">·</span>
-                            <span className="text-xs text-muted-foreground font-mono">
-                              ${request.listings.asking_price.toLocaleString()}
-                            </span>
-                          </>
-                        )}
+            {/* Investment Profile */}
+            <Collapsible defaultOpen>
+              <CollapsibleTrigger className="flex items-center justify-between w-full group">
+                <h2 className="text-sm font-medium text-foreground">Investment Profile</h2>
+                <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
+              </CollapsibleTrigger>
+              <CollapsibleContent className="pt-4">
+                <div className="space-y-3">
+                  {profile.target_deal_size_min && profile.target_deal_size_max && (
+                    <div className="flex items-center justify-between py-2">
+                      <span className="text-sm text-foreground">Deal Size Range</span>
+                      <span className="text-sm text-muted-foreground font-mono">
+                        ${profile.target_deal_size_min}M - ${profile.target_deal_size_max}M
+                      </span>
+                    </div>
+                  )}
+                  {(profile.fund_size || profile.aum) && (
+                    <div className="flex items-center justify-between py-2">
+                      <span className="text-sm text-foreground">{profile.fund_size ? 'Fund Size' : 'AUM'}</span>
+                      <span className="text-sm text-muted-foreground font-mono">
+                        {profile.fund_size || profile.aum}
+                      </span>
+                    </div>
+                  )}
+                  
+                  {/* Business Categories */}
+                  {profile.business_categories && Array.isArray(profile.business_categories) && profile.business_categories.length > 0 && (
+                    <div className="py-2">
+                      <span className="text-sm text-foreground block mb-2">Target Industries</span>
+                      <div className="flex flex-wrap gap-1">
+                        {profile.business_categories.map((category: string, index: number) => (
+                          <Badge key={index} variant="secondary" className="text-xs">
+                            {category}
+                          </Badge>
+                        ))}
                       </div>
                     </div>
-                    <div className={`w-2 h-2 rounded-full ml-3 ${
-                      request.status === 'approved' ? 'bg-emerald-500' :
-                      request.status === 'rejected' ? 'bg-red-500' :
-                      request.status === 'on_hold' ? 'bg-amber-500' :
-                      'bg-muted-foreground/30'
-                    }`} />
+                  )}
+                  
+                  {/* Geographic Focus */}
+                  {profile.target_locations && Array.isArray(profile.target_locations) && profile.target_locations.length > 0 && (
+                    <div className="py-2">
+                      <span className="text-sm text-foreground block mb-2">Geographic Focus</span>
+                      <div className="flex flex-wrap gap-1">
+                        {profile.target_locations.map((location: string, index: number) => (
+                          <Badge key={index} variant="outline" className="text-xs">
+                            {location}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
+
+            {/* Buyer-Specific Details */}
+            {profile.buyer_type && (
+              <Collapsible>
+                <CollapsibleTrigger className="flex items-center justify-between w-full group">
+                  <h2 className="text-sm font-medium text-foreground">
+                    {getBuyerTypeLabel(profile.buyer_type)} Details
+                  </h2>
+                  <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
+                </CollapsibleTrigger>
+                <CollapsibleContent className="pt-4">
+                  <div className="space-y-3">
+                    {getRelevantFieldsForBuyerType(profile.buyer_type as any)
+                      .filter(field => !['first_name', 'last_name', 'email', 'company', 'website', 'linkedin_profile', 'phone_number', 'bio', 'buyer_type', 'business_categories', 'target_locations', 'target_deal_size_min', 'target_deal_size_max', 'fund_size', 'aum', 'job_title'].includes(field))
+                      .map(field => {
+                        const value = formatFieldValue(field, (profile as any)[field]);
+                        if (!value) return null;
+                        
+                        return (
+                          <div key={field} className="flex items-center justify-between py-2">
+                            <span className="text-sm text-foreground">
+                              {FIELD_LABELS[field] || field.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                            </span>
+                            <span className="text-sm text-muted-foreground text-right max-w-[60%]">
+                              {value}
+                            </span>
+                          </div>
+                        );
+                      })
+                      .filter(Boolean)}
                   </div>
-                ))}
-                {connectionRequests.length > 3 && (
-                  <div className="text-xs text-muted-foreground text-center py-2">
-                    +{connectionRequests.length - 3} more connections
+                </CollapsibleContent>
+              </Collapsible>
+            )}
+          </>
+        )}
+
+        {/* Original Message */}
+        {buyerProfile?.user_message && (
+          <Collapsible>
+            <CollapsibleTrigger className="flex items-center justify-between w-full group">
+              <h2 className="text-sm font-medium text-foreground">Original Message</h2>
+              <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
+            </CollapsibleTrigger>
+            <CollapsibleContent className="pt-4">
+              <div className="py-4 px-5 bg-muted/20 rounded-xl">
+                <p className="text-sm text-foreground leading-relaxed">{buyerProfile.user_message}</p>
+                <p className="text-xs text-muted-foreground font-mono mt-3">
+                  {formatDistanceToNow(new Date(buyerProfile.created_at), { addSuffix: true })}
+                </p>
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
+        )}
+
+        {/* Behavioral Intelligence */}
+        <Collapsible>
+          <CollapsibleTrigger className="flex items-center justify-between w-full group">
+            <h2 className="text-sm font-medium text-foreground">Connection & Activity History</h2>
+            <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
+          </CollapsibleTrigger>
+          <CollapsibleContent className="pt-4">
+            <div className="space-y-6">
+              {/* Connection Summary */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between py-2">
+                  <span className="text-sm text-foreground">Total Connections</span>
+                  <span className="text-sm text-muted-foreground font-mono">
+                    {connectionRequests.length}
+                  </span>
+                </div>
+                
+                {connectionRequests.length > 0 && (
+                  <div className="space-y-1">
+                    {connectionRequests.slice(0, 3).map((request: any) => (
+                      <div key={request.id} className="flex items-center justify-between py-3 px-4 bg-muted/10 rounded-lg">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm text-foreground truncate">
+                            {request.listings?.title || 'Unknown Listing'}
+                          </p>
+                          <div className="flex items-center gap-3 mt-1">
+                            <span className="text-xs text-muted-foreground font-mono">
+                              {formatDistanceToNow(new Date(request.created_at), { addSuffix: true })}
+                            </span>
+                            {request.listings?.asking_price && (
+                              <>
+                                <span className="text-muted-foreground/40">·</span>
+                                <span className="text-xs text-muted-foreground font-mono">
+                                  ${request.listings.asking_price.toLocaleString()}
+                                </span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                        <div className={`w-2 h-2 rounded-full ml-3 ${
+                          request.status === 'approved' ? 'bg-emerald-500' :
+                          request.status === 'rejected' ? 'bg-red-500' :
+                          request.status === 'on_hold' ? 'bg-amber-500' :
+                          'bg-muted-foreground/30'
+                        }`} />
+                      </div>
+                    ))}
+                    {connectionRequests.length > 3 && (
+                      <div className="text-xs text-muted-foreground text-center py-2">
+                        +{connectionRequests.length - 3} more connections
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
-            )}
-          </div>
-        </div>
 
-        {/* Saved Listings - Minimal */}
-        {savedListings.length > 0 && (
-          <div className="space-y-4">
-            <h2 className="text-sm font-medium text-foreground">Saved Listings</h2>
-            
-            <div className="space-y-2">
+              {/* Saved Listings */}
+              {savedListings.length > 0 && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between py-2">
+                    <span className="text-sm text-foreground">Saved Listings</span>
+                    <span className="text-sm text-muted-foreground font-mono">
+                      {savedListings.length}
+                    </span>
+                  </div>
+                  
+                  <div className="space-y-1">
+                    {savedListings.slice(0, 3).map((saved: any) => (
+                      <div key={saved.id} className="flex items-center justify-between py-3 px-4 bg-muted/10 rounded-lg">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm text-foreground truncate">
+                            {saved.listings?.title || 'Unknown Listing'}
+                          </p>
+                          <div className="flex items-center gap-3 mt-1">
+                            <span className="text-xs text-muted-foreground font-mono">
+                              {formatDistanceToNow(new Date(saved.created_at), { addSuffix: true })}
+                            </span>
+                            {saved.listings?.asking_price && (
+                              <>
+                                <span className="text-muted-foreground/40">·</span>
+                                <span className="text-xs text-muted-foreground font-mono">
+                                  ${saved.listings.asking_price.toLocaleString()}
+                                </span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    {savedListings.length > 3 && (
+                      <div className="text-xs text-muted-foreground text-center py-2">
+                        +{savedListings.length - 3} more saved listings
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
+
+        {/* Deal Timeline */}
+        <Collapsible>
+          <CollapsibleTrigger className="flex items-center justify-between w-full group">
+            <h2 className="text-sm font-medium text-foreground">Deal Timeline</h2>
+            <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
+          </CollapsibleTrigger>
+          <CollapsibleContent className="pt-4">
+            <div className="space-y-3">
               <div className="flex items-center justify-between py-2">
-                <span className="text-sm text-foreground">Total Saved</span>
-                <span className="text-sm text-muted-foreground font-mono">
-                  {savedListings.length}
+                <span className="text-sm text-foreground">Deal Created</span>
+                <span className="text-xs text-muted-foreground font-mono">
+                  {formatDistanceToNow(new Date(deal.deal_created_at), { addSuffix: true })}
                 </span>
               </div>
               
-              <div className="space-y-1">
-                {savedListings.slice(0, 3).map((saved: any) => (
-                  <div key={saved.id} className="flex items-center justify-between py-3 px-4 bg-muted/10 rounded-lg">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm text-foreground truncate">
-                        {saved.listings?.title || 'Unknown Listing'}
-                      </p>
-                      <div className="flex items-center gap-3 mt-1">
-                        <span className="text-xs text-muted-foreground font-mono">
-                          {formatDistanceToNow(new Date(saved.created_at), { addSuffix: true })}
-                        </span>
-                        {saved.listings?.asking_price && (
-                          <>
-                            <span className="text-muted-foreground/40">·</span>
-                            <span className="text-xs text-muted-foreground font-mono">
-                              ${saved.listings.asking_price.toLocaleString()}
-                            </span>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-                {savedListings.length > 3 && (
-                  <div className="text-xs text-muted-foreground text-center py-2">
-                    +{savedListings.length - 3} more saved
-                  </div>
-                )}
+              <div className="flex items-center justify-between py-2">
+                <span className="text-sm text-foreground">Current Stage</span>
+                <span className="text-xs text-muted-foreground font-mono">
+                  {deal.stage_name}
+                </span>
               </div>
+              
+              <div className="flex items-center justify-between py-2">
+                <span className="text-sm text-foreground">In Stage For</span>
+                <span className="text-xs text-muted-foreground font-mono">
+                  {formatDistanceToNow(new Date(deal.deal_stage_entered_at))}
+                </span>
+              </div>
+              
+              {profile?.onboarding_completed && (
+                <div className="flex items-center justify-between py-2">
+                  <span className="text-sm text-foreground">Onboarding</span>
+                  <span className="text-xs text-emerald-600 font-mono">Completed</span>
+                </div>
+              )}
+              
+              {profile?.nda_signed && (
+                <div className="flex items-center justify-between py-2">
+                  <span className="text-sm text-foreground">NDA Status</span>
+                  <span className="text-xs text-emerald-600 font-mono">Signed</span>
+                </div>
+              )}
+              
+              {profile?.fee_agreement_signed && (
+                <div className="flex items-center justify-between py-2">
+                  <span className="text-sm text-foreground">Fee Agreement</span>
+                  <span className="text-xs text-emerald-600 font-mono">Signed</span>
+                </div>
+              )}
             </div>
-          </div>
-        )}
-
-        {/* Timeline - Apple Style */}
-        <div className="space-y-4">
-          <h2 className="text-sm font-medium text-foreground">Timeline</h2>
-          
-          <div className="space-y-3">
-            <div className="flex items-center justify-between py-2">
-              <span className="text-sm text-foreground">Deal Created</span>
-              <span className="text-xs text-muted-foreground font-mono">
-                {formatDistanceToNow(new Date(deal.deal_created_at), { addSuffix: true })}
-              </span>
-            </div>
-            
-            <div className="flex items-center justify-between py-2">
-              <span className="text-sm text-foreground">Current Stage</span>
-              <span className="text-xs text-muted-foreground font-mono">
-                {deal.stage_name}
-              </span>
-            </div>
-            
-            <div className="flex items-center justify-between py-2">
-              <span className="text-sm text-foreground">In Stage For</span>
-              <span className="text-xs text-muted-foreground font-mono">
-                {formatDistanceToNow(new Date(deal.deal_stage_entered_at))}
-              </span>
-            </div>
-          </div>
-        </div>
+          </CollapsibleContent>
+        </Collapsible>
       </div>
     </div>
   );
