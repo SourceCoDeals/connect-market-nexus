@@ -21,12 +21,15 @@ export function PipelineDetailPanel({ pipeline }: PipelineDetailPanelProps) {
 
   if (!selectedDeal) {
     return (
-      <div className="w-96 border-l bg-muted/5 flex items-center justify-center">
-        <div className="text-center space-y-3">
-          <div className="w-12 h-12 mx-auto bg-muted/20 rounded-xl flex items-center justify-center">
-            <div className="w-6 h-6 bg-muted rounded" />
+      <div className="w-[600px] border-l bg-background flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className="w-16 h-16 mx-auto bg-muted/10 rounded-2xl flex items-center justify-center">
+            <div className="w-8 h-8 bg-muted/30 rounded-xl" />
           </div>
-          <p className="text-muted-foreground text-sm">Select a deal to view details</p>
+          <div className="space-y-1">
+            <p className="text-sm font-medium text-foreground">Select a deal</p>
+            <p className="text-xs text-muted-foreground">Choose from the pipeline to view details</p>
+          </div>
         </div>
       </div>
     );
@@ -37,108 +40,114 @@ export function PipelineDetailPanel({ pipeline }: PipelineDetailPanelProps) {
       case 'privateEquity':
       case 'familyOffice':
       case 'corporate':
-        return { level: 'High', score: 95, color: 'text-emerald-600', bg: 'bg-emerald-50' };
+        return { level: 'High Priority', score: 95, variant: 'high' };
       case 'searchFund':
       case 'independentSponsor':
-        return { level: 'Medium', score: 75, color: 'text-amber-600', bg: 'bg-amber-50' };
+        return { level: 'Medium Priority', score: 75, variant: 'medium' };
       case 'individual':
-        if (score && score >= 70) return { level: 'High', score, color: 'text-emerald-600', bg: 'bg-emerald-50' };
-        if (score && score >= 40) return { level: 'Medium', score, color: 'text-amber-600', bg: 'bg-amber-50' };
-        return { level: 'Standard', score: score || 25, color: 'text-muted-foreground', bg: 'bg-muted/50' };
+        if (score && score >= 70) return { level: 'High Priority', score, variant: 'high' };
+        if (score && score >= 40) return { level: 'Medium Priority', score, variant: 'medium' };
+        return { level: 'Standard', score: score || 25, variant: 'standard' };
       default:
-        return { level: 'Standard', score: 25, color: 'text-muted-foreground', bg: 'bg-muted/50' };
+        return { level: 'Standard', score: 25, variant: 'standard' };
+    }
+  };
+
+  const getBuyerTypeLabel = (buyerType?: string) => {
+    switch (buyerType) {
+      case 'privateEquity': return 'Private Equity';
+      case 'familyOffice': return 'Family Office';
+      case 'searchFund': return 'Search Fund';
+      case 'corporate': return 'Corporate';
+      case 'individual': return 'Individual';
+      case 'independentSponsor': return 'Independent Sponsor';
+      default: return 'Unknown';
     }
   };
 
   const buyerPriority = getBuyerPriority(selectedDeal.buyer_type, selectedDeal.buyer_priority_score);
 
   return (
-    <div className="w-[600px] border-l border-border/20 bg-background flex flex-col min-h-0">
-      {/* Clean Apple header */}
-      <div className="px-6 py-5 border-b border-border/20">
-        <div className="flex items-center justify-between">
-          <div className="space-y-2">
-            <div className="flex items-center gap-3">
-              <h3 className="font-medium text-lg text-foreground">
+    <div className="w-[600px] border-l bg-background flex flex-col min-h-0">
+      {/* Ultra-minimal Apple header */}
+      <div className="px-8 py-6">
+        <div className="flex items-start justify-between">
+          <div className="space-y-3 flex-1">
+            <div className="space-y-1">
+              <h1 className="text-xl font-medium text-foreground tracking-tight">
                 {selectedDeal.deal_title}
-              </h3>
-              <Badge 
-                variant="secondary" 
-                className={`text-xs font-medium px-2 py-1 ${buyerPriority.bg} ${buyerPriority.color} border-0`}
-              >
-                {buyerPriority.level} • {buyerPriority.score}
-              </Badge>
+              </h1>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">
+                  {selectedDeal.contact_name}
+                </span>
+                {selectedDeal.contact_company && (
+                  <>
+                    <span className="text-muted-foreground/40">·</span>
+                    <span className="text-sm text-muted-foreground">
+                      {selectedDeal.contact_company}
+                    </span>
+                  </>
+                )}
+              </div>
             </div>
-            <div className="flex items-center gap-3 text-sm text-muted-foreground">
-              <span>{selectedDeal.contact_name}</span>
-              {selectedDeal.contact_company && (
-                <>
-                  <span>•</span>
-                  <span>{selectedDeal.contact_company}</span>
-                </>
-              )}
+            
+            <div className="flex items-center gap-3">
+              <div className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium ${
+                buyerPriority.variant === 'high' ? 'bg-emerald-50 text-emerald-700' :
+                buyerPriority.variant === 'medium' ? 'bg-amber-50 text-amber-700' :
+                'bg-muted/50 text-muted-foreground'
+              }`}>
+                <div className={`w-1.5 h-1.5 rounded-full ${
+                  buyerPriority.variant === 'high' ? 'bg-emerald-500' :
+                  buyerPriority.variant === 'medium' ? 'bg-amber-500' :
+                  'bg-muted-foreground'
+                }`} />
+                {buyerPriority.level}
+              </div>
+              <span className="text-xs text-muted-foreground font-mono">
+                {getBuyerTypeLabel(selectedDeal.buyer_type)}
+              </span>
             </div>
           </div>
           
-          <div className="flex items-center gap-2">
-            {selectedDeal.contact_phone && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
-                onClick={() => window.open(`tel:${selectedDeal.contact_phone}`)}
-              >
-                Call
-              </Button>
-            )}
-            {selectedDeal.contact_email && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
-                onClick={() => window.open(`mailto:${selectedDeal.contact_email}`)}
-              >
-                Email
-              </Button>
-            )}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => pipeline.setSelectedDeal(null)}
-              className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => pipeline.setSelectedDeal(null)}
+            className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground rounded-full"
+          >
+            <X className="h-3.5 w-3.5" />
+          </Button>
         </div>
       </div>
 
-      {/* Clean tab navigation */}
+      {/* Minimal tab navigation */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
-        <div className="px-6 border-b border-border/20">
-          <TabsList className="grid w-full grid-cols-6 bg-transparent h-9 p-0">
-            <TabsTrigger value="overview" className="text-sm font-medium data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:bg-transparent rounded-none border-b-2 border-transparent">
+        <div className="px-8 mb-6">
+          <TabsList className="grid w-full grid-cols-6 bg-muted/30 h-10 rounded-lg p-1">
+            <TabsTrigger value="overview" className="text-xs font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-md">
               Overview
             </TabsTrigger>
-            <TabsTrigger value="buyer" className="text-sm font-medium data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:bg-transparent rounded-none border-b-2 border-transparent">
+            <TabsTrigger value="buyer" className="text-xs font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-md">
               Buyer
             </TabsTrigger>
-            <TabsTrigger value="documents" className="text-sm font-medium data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:bg-transparent rounded-none border-b-2 border-transparent">
-              Documents
-            </TabsTrigger>
-            <TabsTrigger value="tasks" className="text-sm font-medium data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:bg-transparent rounded-none border-b-2 border-transparent">
+            <TabsTrigger value="tasks" className="text-xs font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-md">
               Tasks
             </TabsTrigger>
-            <TabsTrigger value="communication" className="text-sm font-medium data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:bg-transparent rounded-none border-b-2 border-transparent">
+            <TabsTrigger value="documents" className="text-xs font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-md">
+              Documents
+            </TabsTrigger>
+            <TabsTrigger value="communication" className="text-xs font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-md">
               Email
             </TabsTrigger>
-            <TabsTrigger value="activity" className="text-sm font-medium data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:bg-transparent rounded-none border-b-2 border-transparent">
+            <TabsTrigger value="activity" className="text-xs font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-md">
               Activity
             </TabsTrigger>
           </TabsList>
         </div>
 
-        {/* Tab content with proper scrolling */}
+        {/* Tab content */}
         <div className="flex-1 overflow-hidden">
           <TabsContent value="overview" className="h-full mt-0 data-[state=active]:flex data-[state=active]:flex-col">
             <PipelineDetailOverview deal={selectedDeal} />
@@ -148,12 +157,12 @@ export function PipelineDetailPanel({ pipeline }: PipelineDetailPanelProps) {
             <PipelineDetailBuyer deal={selectedDeal} />
           </TabsContent>
           
-          <TabsContent value="documents" className="h-full mt-0 data-[state=active]:flex data-[state=active]:flex-col">
-            <PipelineDetailDocuments deal={selectedDeal} />
-          </TabsContent>
-          
           <TabsContent value="tasks" className="h-full mt-0 data-[state=active]:flex data-[state=active]:flex-col">
             <PipelineDetailTasks deal={selectedDeal} />
+          </TabsContent>
+          
+          <TabsContent value="documents" className="h-full mt-0 data-[state=active]:flex data-[state=active]:flex-col">
+            <PipelineDetailDocuments deal={selectedDeal} />
           </TabsContent>
           
           <TabsContent value="communication" className="h-full mt-0 data-[state=active]:flex data-[state=active]:flex-col">
