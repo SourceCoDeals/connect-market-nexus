@@ -1,6 +1,6 @@
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
-import { Card } from '@/components/ui/card';
+
 import { User, Building2, Mail, Phone, Calendar, Globe, MapPin, MessageSquare, Star } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Deal } from '@/hooks/admin/use-deals';
@@ -126,9 +126,9 @@ export function PipelineDetailBuyer({ deal }: PipelineDetailBuyerProps) {
   return (
     <div className="flex-1 overflow-auto">
       <div className="px-6 py-5 space-y-8">
-        {/* Buyer Profile - Clean */}
+        {/* Buyer Profile - Clean Apple Style */}
         <div className="space-y-4">
-          <h4 className="font-medium text-base text-foreground">Buyer Profile</h4>
+          <h4 className="font-medium text-sm text-foreground">Buyer Profile</h4>
           
           <div className="space-y-4">
             <div className="flex items-start gap-4">
@@ -154,7 +154,7 @@ export function PipelineDetailBuyer({ deal }: PipelineDetailBuyerProps) {
             </div>
 
             {/* Contact Information */}
-            <div className="space-y-2 border-t border-border/20 pt-4">
+            <div className="space-y-2 border-t border-border/10 pt-4">
               {deal.contact_email && (
                 <div className="flex items-center gap-3">
                   <Mail className="h-4 w-4 text-muted-foreground" />
@@ -186,11 +186,11 @@ export function PipelineDetailBuyer({ deal }: PipelineDetailBuyerProps) {
         {/* Original Connection Request Message */}
         {buyerProfile?.user_message && (
           <div className="space-y-4">
-            <h4 className="font-medium text-base text-foreground">Original Message</h4>
+            <h4 className="font-medium text-sm text-foreground">Original Message</h4>
             
-            <div className="border-l-2 border-primary/20 pl-4 py-2">
-              <p className="text-sm text-foreground italic">{buyerProfile.user_message}</p>
-              <p className="text-xs text-muted-foreground mt-2">
+            <div className="border-l border-primary/20 pl-4 py-3">
+              <p className="text-sm text-foreground">{buyerProfile.user_message}</p>
+              <p className="text-xs text-muted-foreground/70 mt-2">
                 Sent {formatDistanceToNow(new Date(buyerProfile.created_at), { addSuffix: true })}
               </p>
             </div>
@@ -199,168 +199,160 @@ export function PipelineDetailBuyer({ deal }: PipelineDetailBuyerProps) {
 
         {/* Buyer Intelligence */}
         {profile && (
-          <div className="space-y-6">
-            <h4 className="font-semibold text-base tracking-tight">Buyer Intelligence</h4>
+          <div className="space-y-4">
+            <h4 className="font-medium text-sm text-foreground">Buyer Intelligence</h4>
             
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Investment Profile */}
-              <Card className="p-6">
-                <div className="space-y-4">
-                  <h5 className="font-medium text-sm flex items-center gap-2">
-                    <Star className="h-4 w-4 text-amber-500" />
-                    Investment Profile
-                  </h5>
-                  
-                  <div className="space-y-3">
-                    {profile.buyer_type && (
-                      <div>
-                        <p className="text-xs text-muted-foreground">Buyer Type</p>
-                        <p className="text-sm font-medium">{getBuyerTypeLabel(profile.buyer_type)}</p>
-                      </div>
-                    )}
-                    {profile.target_deal_size_min && profile.target_deal_size_max && (
-                      <div>
-                        <p className="text-xs text-muted-foreground">Deal Size Range</p>
-                        <p className="text-sm font-medium">
-                          ${profile.target_deal_size_min}M - ${profile.target_deal_size_max}M
-                        </p>
-                      </div>
-                    )}
-                    {profile.fund_size && (
-                      <div>
-                        <p className="text-xs text-muted-foreground">Fund Size</p>
-                        <p className="text-sm font-medium">{profile.fund_size}</p>
-                      </div>
-                    )}
-                  </div>
+              <div className="space-y-4 border-l border-border/20 pl-4">
+                <h5 className="font-medium text-sm flex items-center gap-2">
+                  <Star className="h-4 w-4 text-amber-500" />
+                  Investment Profile
+                </h5>
+                
+                <div className="space-y-3">
+                  {profile.buyer_type && (
+                    <div>
+                      <p className="text-xs text-muted-foreground/70">Buyer Type</p>
+                      <p className="text-sm text-foreground">{getBuyerTypeLabel(profile.buyer_type)}</p>
+                    </div>
+                  )}
+                  {profile.target_deal_size_min && profile.target_deal_size_max && (
+                    <div>
+                      <p className="text-xs text-muted-foreground/70">Deal Size Range</p>
+                      <p className="text-sm text-foreground">
+                        ${profile.target_deal_size_min}M - ${profile.target_deal_size_max}M
+                      </p>
+                    </div>
+                  )}
+                  {profile.fund_size && (
+                    <div>
+                      <p className="text-xs text-muted-foreground/70">Fund Size</p>
+                      <p className="text-sm text-foreground">{profile.fund_size}</p>
+                    </div>
+                  )}
                 </div>
-              </Card>
+              </div>
 
               {/* Background */}
-              <Card className="p-6">
-                <div className="space-y-4">
-                  <h5 className="font-medium text-sm flex items-center gap-2">
-                    <Building2 className="h-4 w-4 text-blue-500" />
-                    Background
-                  </h5>
-                  
-                  <div className="space-y-3">
-                    {profile.job_title && (
-                      <div>
-                        <p className="text-xs text-muted-foreground">Title</p>
-                        <p className="text-sm font-medium">{profile.job_title}</p>
-                      </div>
-                    )}
-                    {profile.bio && (
-                      <div>
-                        <p className="text-xs text-muted-foreground">Bio</p>
-                        <p className="text-sm">{profile.bio}</p>
-                      </div>
-                    )}
-                  </div>
+              <div className="space-y-4 border-l border-border/20 pl-4">
+                <h5 className="font-medium text-sm flex items-center gap-2">
+                  <Building2 className="h-4 w-4 text-blue-500" />
+                  Background
+                </h5>
+                
+                <div className="space-y-3">
+                  {profile.job_title && (
+                    <div>
+                      <p className="text-xs text-muted-foreground/70">Title</p>
+                      <p className="text-sm text-foreground">{profile.job_title}</p>
+                    </div>
+                  )}
+                  {profile.bio && (
+                    <div>
+                      <p className="text-xs text-muted-foreground/70">Bio</p>
+                      <p className="text-sm text-foreground">{profile.bio}</p>
+                    </div>
+                  )}
                 </div>
-              </Card>
+              </div>
             </div>
           </div>
         )}
 
         {/* Connection History */}
-        <div className="space-y-6">
-          <h4 className="font-semibold text-base tracking-tight">Connection History</h4>
+        <div className="space-y-4">
+          <h4 className="font-medium text-sm text-foreground">Connection History</h4>
           
-          <Card className="p-6">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h5 className="font-medium text-sm">Previous Connections</h5>
-                <Badge variant="outline" className="text-xs">
-                  {connectionRequests.length} connection{connectionRequests.length !== 1 ? 's' : ''}
-                </Badge>
-              </div>
-              
-              {connectionRequests.length === 0 ? (
-                <div className="text-sm text-muted-foreground text-center py-4">
-                  No previous connection requests found
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {connectionRequests.slice(0, 5).map((request: any) => (
-                    <div key={request.id} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
-                      <div className="flex-1">
-                        <p className="text-sm font-medium">{request.listings?.title || 'Unknown Listing'}</p>
-                        <div className="flex items-center gap-4 mt-1">
-                          <p className="text-xs text-muted-foreground">
-                            {formatDistanceToNow(new Date(request.created_at), { addSuffix: true })}
-                          </p>
-                          {request.listings?.asking_price && (
-                            <p className="text-xs text-muted-foreground">
-                              ${request.listings.asking_price.toLocaleString()}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                      <Badge variant="outline" className={`text-xs ${
-                        request.status === 'approved' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
-                        request.status === 'rejected' ? 'bg-red-50 text-red-700 border-red-200' :
-                        request.status === 'on_hold' ? 'bg-amber-50 text-amber-700 border-amber-200' :
-                        'bg-muted border-border/60'
-                      }`}>
-                        {request.status}
-                      </Badge>
-                    </div>
-                  ))}
-                </div>
-              )}
+          <div className="border-l border-border/20 pl-4 space-y-4">
+            <div className="flex items-center justify-between">
+              <h5 className="font-medium text-sm">Previous Connections</h5>
+              <Badge variant="outline" className="text-xs border-border/40">
+                {connectionRequests.length} connection{connectionRequests.length !== 1 ? 's' : ''}
+              </Badge>
             </div>
-          </Card>
+            
+            {connectionRequests.length === 0 ? (
+              <div className="text-sm text-muted-foreground/70 py-3">
+                No previous connection requests found
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {connectionRequests.slice(0, 5).map((request: any) => (
+                  <div key={request.id} className="flex items-center justify-between p-3 bg-muted/20 rounded-lg border border-border/10">
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">{request.listings?.title || 'Unknown Listing'}</p>
+                      <div className="flex items-center gap-4 mt-1">
+                        <p className="text-xs text-muted-foreground/70">
+                          {formatDistanceToNow(new Date(request.created_at), { addSuffix: true })}
+                        </p>
+                        {request.listings?.asking_price && (
+                          <p className="text-xs text-muted-foreground/70">
+                            ${request.listings.asking_price.toLocaleString()}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <Badge variant="outline" className={`text-xs ${
+                      request.status === 'approved' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                      request.status === 'rejected' ? 'bg-red-50 text-red-700 border-red-200' :
+                      request.status === 'on_hold' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                      'bg-muted border-border/60'
+                    }`}>
+                      {request.status}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Saved Listings */}
-        <div className="space-y-6">
-          <h4 className="font-semibold text-base tracking-tight">Saved Listings</h4>
+        <div className="space-y-4">
+          <h4 className="font-medium text-sm text-foreground">Saved Listings</h4>
           
-          <Card className="p-6">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h5 className="font-medium text-sm">Favorites</h5>
-                <Badge variant="outline" className="text-xs">
-                  {savedListings.length} listing{savedListings.length !== 1 ? 's' : ''}
-                </Badge>
+          <div className="border-l border-border/20 pl-4 space-y-4">
+            <div className="flex items-center justify-between">
+              <h5 className="font-medium text-sm">Favorites</h5>
+              <Badge variant="outline" className="text-xs border-border/40">
+                {savedListings.length} listing{savedListings.length !== 1 ? 's' : ''}
+              </Badge>
+            </div>
+            
+            {savedListings.length === 0 ? (
+              <div className="text-sm text-muted-foreground/70 py-3">
+                No saved listings found
               </div>
-              
-              {savedListings.length === 0 ? (
-                <div className="text-sm text-muted-foreground text-center py-4">
-                  No saved listings found
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {savedListings.slice(0, 5).map((saved: any) => (
-                    <div key={saved.id} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
-                      <div className="flex-1">
-                        <p className="text-sm font-medium">{saved.listings?.title || 'Unknown Listing'}</p>
-                        <div className="flex items-center gap-4 mt-1">
-                          <p className="text-xs text-muted-foreground">
-                            Saved {formatDistanceToNow(new Date(saved.created_at), { addSuffix: true })}
+            ) : (
+              <div className="space-y-3">
+                {savedListings.slice(0, 5).map((saved: any) => (
+                  <div key={saved.id} className="flex items-center justify-between p-3 bg-muted/20 rounded-lg border border-border/10">
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">{saved.listings?.title || 'Unknown Listing'}</p>
+                      <div className="flex items-center gap-4 mt-1">
+                        <p className="text-xs text-muted-foreground/70">
+                          Saved {formatDistanceToNow(new Date(saved.created_at), { addSuffix: true })}
+                        </p>
+                        {saved.listings?.asking_price && (
+                          <p className="text-xs text-muted-foreground/70">
+                            ${saved.listings.asking_price.toLocaleString()}
                           </p>
-                          {saved.listings?.asking_price && (
-                            <p className="text-xs text-muted-foreground">
-                              ${saved.listings.asking_price.toLocaleString()}
-                            </p>
-                          )}
-                        </div>
+                        )}
                       </div>
                     </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </Card>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Engagement Timeline */}
-        <div className="space-y-6">
-          <h4 className="font-semibold text-base tracking-tight">Buyer Journey</h4>
+        {/* Buyer Journey */}
+        <div className="space-y-4">
+          <h4 className="font-medium text-sm text-foreground">Buyer Journey</h4>
           
-          <Card className="p-6">
+          <div className="border-l border-border/20 pl-4 space-y-4">
             <div className="space-y-4">
               <div className="flex items-start gap-3">
                 <div className="w-2 h-2 bg-primary rounded-full mt-2"></div>
@@ -402,7 +394,7 @@ export function PipelineDetailBuyer({ deal }: PipelineDetailBuyerProps) {
                 </div>
               )}
             </div>
-          </Card>
+          </div>
         </div>
       </div>
     </div>

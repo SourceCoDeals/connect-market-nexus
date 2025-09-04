@@ -187,14 +187,26 @@ export function PipelineDetailDocuments({ deal }: PipelineDetailDocumentsProps) 
           </div>
         </div>
 
-        {/* Email History - Placeholder for Enhancement */}
+        {/* Admin Attribution */}
         <div className="space-y-4">
-          <h4 className="font-medium text-sm text-foreground">Recent Activity</h4>
+          <h4 className="font-medium text-sm text-foreground">Administrative Notes</h4>
           
-          <div className="text-center py-8">
-            <div className="text-xs text-muted-foreground/60">
-              Email history and activity logs will appear here
-            </div>
+          <div className="border-l border-border/20 pl-4 space-y-2">
+            {deal.nda_status === 'signed' && (
+              <div className="text-xs text-muted-foreground/70">
+                NDA status last updated by admin
+              </div>
+            )}
+            {deal.fee_agreement_status === 'signed' && (
+              <div className="text-xs text-muted-foreground/70">
+                Fee Agreement status last updated by admin
+              </div>
+            )}
+            {deal.nda_status === 'not_sent' && deal.fee_agreement_status === 'not_sent' && (
+              <div className="text-xs text-muted-foreground/70">
+                Documents pending initial contact
+              </div>
+            )}
           </div>
         </div>
       </div>

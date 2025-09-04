@@ -1,14 +1,15 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Card } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
-import { User, Calendar, CheckCircle, Clock, AlertTriangle } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { CheckCircle, Clock, FileText, User, Calendar, Phone, Mail, AlertTriangle } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { Deal } from '@/hooks/admin/use-deals';
 import { useAdminProfiles } from '@/hooks/admin/use-admin-profiles';
 import { useUpdateDeal } from '@/hooks/admin/use-deals';
-import { Deal } from '@/hooks/admin/use-deals';
+import { useUpdateNDA, useLogNDAEmail } from '@/hooks/admin/use-nda';
+import { useUpdateFeeAgreement, useLogFeeAgreementEmail } from '@/hooks/admin/use-fee-agreement';
 
 interface PipelineDetailOverviewProps {
   deal: Deal;
@@ -27,21 +28,27 @@ export function PipelineDetailOverview({ deal }: PipelineDetailOverviewProps) {
     });
   };
 
+  // Real NDA and Fee Agreement hooks
+  const updateNDA = useUpdateNDA();
+  const updateFeeAgreement = useUpdateFeeAgreement();
+  const logNDAEmail = useLogNDAEmail();
+  const logFeeAgreementEmail = useLogFeeAgreementEmail();
+
   const handleNDAToggle = (checked: boolean) => {
-    // For now, we'll update the deal directly since we don't have userId
-    // This could be enhanced to fetch userId from connection_request_id
-    updateDeal.mutate({
-      dealId: deal.deal_id,
-      updates: { nda_status: checked ? 'signed' : 'not_sent' }
+    if (!deal.buyer_id) return;
+    
+    updateNDA.mutate({
+      userId: deal.buyer_id,
+      isSigned: checked
     });
   };
 
   const handleFeeAgreementToggle = (checked: boolean) => {
-    // For now, we'll update the deal directly since we don't have userId
-    // This could be enhanced to fetch userId from connection_request_id
-    updateDeal.mutate({
-      dealId: deal.deal_id,
-      updates: { fee_agreement_status: checked ? 'signed' : 'not_sent' }
+    if (!deal.buyer_id) return;
+    
+    updateFeeAgreement.mutate({
+      userId: deal.buyer_id,
+      isSigned: checked
     });
   };
 
