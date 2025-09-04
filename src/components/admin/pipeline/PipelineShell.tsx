@@ -71,7 +71,7 @@ export function PipelineShell() {
       </div>
       
       {/* Detail Panel */}
-      {(pipeline.isDetailPanelOpen || (!pipeline.isMobile && pipeline.selectedDeal)) && (
+      {(!pipeline.isMobile && pipeline.selectedDeal) && (
         <div className="pipeline-detail">
           <PipelineDetailPanel pipeline={pipeline} />
         </div>

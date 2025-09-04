@@ -18,7 +18,6 @@ export function usePipelineCore() {
   const [viewMode, setViewMode] = useState<ViewMode>('kanban');
   const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null);
   const [selectedDeals, setSelectedDeals] = useState<string[]>([]);
-  const [isDetailPanelOpen, setIsDetailPanelOpen] = useState(false);
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
   
   
@@ -124,17 +123,10 @@ export function usePipelineCore() {
   // Actions
   const handleDealSelect = (deal: Deal) => {
     setSelectedDeal(deal);
-    if (isMobile) {
-      setIsDetailPanelOpen(true);
-    }
   };
   
   const handleMultiSelect = (dealIds: string[]) => {
     setSelectedDeals(dealIds);
-  };
-  
-  const toggleDetailPanel = () => {
-    setIsDetailPanelOpen(!isDetailPanelOpen);
   };
   
   const toggleFilterPanel = () => {
@@ -147,7 +139,6 @@ export function usePipelineCore() {
     viewMode,
     selectedDeal,
     selectedDeals,
-    isDetailPanelOpen,
     isFilterPanelOpen,
     
     isMobile,
@@ -167,12 +158,10 @@ export function usePipelineCore() {
     setViewMode,
     setSelectedDeal,
     setSelectedDeals,
-    setIsDetailPanelOpen,
     setIsFilterPanelOpen,
     
     handleDealSelect,
     handleMultiSelect,
-    toggleDetailPanel,
     toggleFilterPanel,
     
   };
