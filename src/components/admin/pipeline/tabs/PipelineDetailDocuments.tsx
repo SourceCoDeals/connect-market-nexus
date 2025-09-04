@@ -74,8 +74,7 @@ export function PipelineDetailDocuments({ deal }: PipelineDetailDocumentsProps) 
     logFeeAgreementEmail.mutate({
       userId: deal.buyer_id,
       userEmail: deal.contact_email,
-      notes: 'Please review and sign the attached Fee Agreement.',
-      listingTitle: deal.deal_title
+      content: `Please review and sign the attached Fee Agreement for ${deal.deal_title}.`
     });
   };
 
