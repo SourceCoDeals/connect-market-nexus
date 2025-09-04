@@ -19,7 +19,8 @@ export function PipelineDetailOverview({ deal }: PipelineDetailOverviewProps) {
   const assignedAdmin = deal.assigned_to && allAdminProfiles ? allAdminProfiles[deal.assigned_to] : null;
   const updateDeal = useUpdateDeal();
 
-  const handleOwnerChange = (adminId: string | null) => {
+  const handleOwnerChange = (value: string) => {
+    const adminId = value === 'unassigned' ? null : value;
     updateDeal.mutate({
       dealId: deal.deal_id,
       updates: { assigned_to: adminId }
@@ -119,12 +120,12 @@ export function PipelineDetailOverview({ deal }: PipelineDetailOverviewProps) {
               </p>
             </div>
             
-            <Select value={deal.assigned_to || ''} onValueChange={handleOwnerChange}>
+            <Select value={deal.assigned_to || 'unassigned'} onValueChange={handleOwnerChange}>
               <SelectTrigger className="w-40 h-8 text-xs border-border/60">
                 <SelectValue placeholder="Assign admin" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Unassigned</SelectItem>
+                <SelectItem value="unassigned">Unassigned</SelectItem>
                 {allAdminProfiles && Object.values(allAdminProfiles).map((admin) => (
                   <SelectItem key={admin.id} value={admin.id}>
                     {admin.displayName}
