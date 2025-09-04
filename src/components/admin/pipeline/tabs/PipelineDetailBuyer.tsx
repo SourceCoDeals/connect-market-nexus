@@ -4,12 +4,38 @@ import { Card } from '@/components/ui/card';
 import { User, Building2, Mail, Phone, Calendar, Globe, MapPin } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Deal } from '@/hooks/admin/use-deals';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 
 interface PipelineDetailBuyerProps {
   deal: Deal;
 }
 
 export function PipelineDetailBuyer({ deal }: PipelineDetailBuyerProps) {
+  // Fetch connection requests for this buyer
+  const { data: connectionRequests = [] } = useQuery({
+    queryKey: ['buyer-connection-requests', deal.contact_email],
+    queryFn: async () => {
+      if (!deal.contact_email) return [];
+      
+      const { data, error } = await supabase
+        .from('connection_requests')
+        .select(`
+          *,
+          listings:listing_id(title, id)
+        `)
+        .eq('lead_email', deal.contact_email)
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!deal.contact_email,
+    staleTime: 2 * 60 * 1000,
+  });
+
+  // Note: Saved listings would require user_id which isn't available in Deal interface
+  // This would need to be fetched via connection_request -> user_id relationship
   const getBuyerTypeLabel = (buyerType?: string) => {
     switch (buyerType) {
       case 'privateEquity': return 'Private Equity';
@@ -159,12 +185,35 @@ export function PipelineDetailBuyer({ deal }: PipelineDetailBuyerProps) {
                 First contact: {formatDistanceToNow(new Date(deal.deal_created_at), { addSuffix: true })}
               </div>
               
-              {/* Placeholder for connection requests */}
+              {/* Real connection requests */}
               <div className="space-y-2">
-                <p className="text-xs text-muted-foreground">Previous Connections</p>
-                <div className="text-xs text-muted-foreground p-3 bg-muted/30 rounded-lg">
-                  No previous connection requests found for this buyer.
-                </div>
+                <p className="text-xs text-muted-foreground">Previous Connections ({connectionRequests.length})</p>
+                {connectionRequests.length === 0 ? (
+                  <div className="text-xs text-muted-foreground p-3 bg-muted/30 rounded-lg">
+                    No previous connection requests found for this buyer.
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {connectionRequests.slice(0, 3).map((request: any) => (
+                      <div key={request.id} className="flex items-center justify-between p-2 bg-muted/30 rounded-lg">
+                        <div className="flex-1">
+                          <p className="text-xs font-medium">{request.listings?.title || 'Unknown Listing'}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {formatDistanceToNow(new Date(request.created_at), { addSuffix: true })}
+                          </p>
+                        </div>
+                        <Badge variant="outline" className={`text-xs ${
+                          request.status === 'approved' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                          request.status === 'rejected' ? 'bg-red-50 text-red-700 border-red-200' :
+                          request.status === 'on_hold' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                          'bg-muted border-border/60'
+                        }`}>
+                          {request.status}
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </div>

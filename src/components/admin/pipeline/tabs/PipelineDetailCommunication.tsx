@@ -7,6 +7,9 @@ import { Input } from '@/components/ui/input';
 import { Mail, Send, Clock, Check, User, Calendar } from 'lucide-react';
 import { Deal } from '@/hooks/admin/use-deals';
 import { formatDistanceToNow } from 'date-fns';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+import { useDealEmails } from '@/hooks/admin/use-deal-emails';
 
 interface PipelineDetailCommunicationProps {
   deal: Deal;
@@ -18,33 +21,67 @@ export function PipelineDetailCommunication({ deal }: PipelineDetailCommunicatio
     subject: '',
     message: ''
   });
+  const [isLoading, setIsLoading] = useState(false);
+  const { toast } = useToast();
+  const { data: realEmailHistory = [], refetch: refetchEmails } = useDealEmails(deal.deal_id);
 
-  const handleSendEmail = () => {
-    // This would integrate with the existing email sending edge functions
-    console.log('Sending email:', emailData);
-    setEmailData({ subject: '', message: '' });
-    setShowCompose(false);
+  const handleSendEmail = async () => {
+    if (!deal.contact_email || !emailData.subject.trim() || !emailData.message.trim()) {
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      // Use the enhanced email delivery edge function
+      const { error } = await supabase.functions.invoke('enhanced-email-delivery', {
+        body: {
+          to: deal.contact_email,
+          subject: emailData.subject,
+          content: emailData.message,
+          email_type: 'custom',
+          correlation_id: `deal-${deal.deal_id}-${Date.now()}`,
+          metadata: {
+            deal_id: deal.deal_id,
+            deal_title: deal.deal_title,
+            contact_name: deal.contact_name
+          }
+        }
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      toast({
+        title: 'Email Sent',
+        description: `Email sent successfully to ${deal.contact_email}`,
+      });
+      
+      setEmailData({ subject: '', message: '' });
+      setShowCompose(false);
+      
+      // Refresh email history
+      setTimeout(() => refetchEmails(), 1000);
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: `Failed to send email: ${error.message}`,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  // Mock email history data - this would come from a real API
-  const emailHistory = [
-    {
-      id: '1',
-      type: 'nda',
-      subject: 'NDA for Business Acquisition Opportunity',
-      sent_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-      status: 'delivered',
-      sent_by: 'Bill Martin'
-    },
-    {
-      id: '2',
-      type: 'custom',
-      subject: 'Follow-up on Investment Opportunity',
-      sent_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-      status: 'delivered',
-      sent_by: 'Adam Haile'
-    }
-  ];
+  // Use real email history from the database
+  const emailHistory = realEmailHistory.map(email => ({
+    id: email.id,
+    type: email.email_type,
+    subject: `Email to ${deal.contact_name || deal.contact_email}`,
+    sent_at: email.sent_at,
+    status: email.status,
+    sent_by: 'Admin' // Could be enhanced to show actual admin name
+  }));
 
   const getEmailTypeIcon = (type: string) => {
     switch (type) {
@@ -144,12 +181,12 @@ export function PipelineDetailCommunication({ deal }: PipelineDetailCommunicatio
               <div className="flex gap-2">
                 <Button 
                   onClick={handleSendEmail}
-                  disabled={!emailData.subject.trim() || !emailData.message.trim()}
+                  disabled={!emailData.subject.trim() || !emailData.message.trim() || isLoading}
                   size="sm"
                   className="gap-2"
                 >
                   <Send className="h-4 w-4" />
-                  Send Email
+                  {isLoading ? 'Sending...' : 'Send Email'}
                 </Button>
                 <Button 
                   variant="outline" 

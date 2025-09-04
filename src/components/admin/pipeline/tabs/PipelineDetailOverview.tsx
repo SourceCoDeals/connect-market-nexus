@@ -14,7 +14,9 @@ interface PipelineDetailOverviewProps {
 }
 
 export function PipelineDetailOverview({ deal }: PipelineDetailOverviewProps) {
-  const { data: adminProfiles } = useAdminProfiles([deal.assigned_to]);
+  // Get all admin profiles for the dropdown, plus the currently assigned one
+  const { data: allAdminProfiles } = useAdminProfiles([]);
+  const { data: assignedAdminProfile } = useAdminProfiles([deal.assigned_to]);
   const updateDeal = useUpdateDeal();
 
   const formatCurrency = (value: number) => {
@@ -52,7 +54,7 @@ export function PipelineDetailOverview({ deal }: PipelineDetailOverviewProps) {
   };
 
   const buyerPriority = getBuyerPriority(deal.buyer_type, deal.buyer_priority_score);
-  const assignedAdmin = deal.assigned_to && adminProfiles ? adminProfiles[deal.assigned_to] : null;
+  const assignedAdmin = deal.assigned_to && assignedAdminProfile ? assignedAdminProfile[deal.assigned_to] : null;
 
   return (
     <div className="flex-1 overflow-auto">
@@ -128,10 +130,19 @@ export function PipelineDetailOverview({ deal }: PipelineDetailOverviewProps) {
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="unassigned">Unassigned</SelectItem>
-                {/* This would be populated with admin profiles */}
-                <SelectItem value="admin1">Bill Martin</SelectItem>
-                <SelectItem value="admin2">Adam Haile</SelectItem>
+                <SelectItem value="">Unassigned</SelectItem>
+                {allAdminProfiles && Object.values(allAdminProfiles).map((admin) => (
+                  <SelectItem key={admin.id} value={admin.id}>
+                    <div className="flex items-center gap-2">
+                      <div className="w-5 h-5 bg-primary/10 rounded-full flex items-center justify-center">
+                        <span className="text-xs font-medium text-primary">
+                          {admin.displayName.split(' ').map(n => n[0]).join('').toUpperCase()}
+                        </span>
+                      </div>
+                      <span>{admin.displayName}</span>
+                    </div>
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>

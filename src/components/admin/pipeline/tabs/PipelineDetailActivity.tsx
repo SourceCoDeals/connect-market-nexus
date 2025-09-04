@@ -4,6 +4,7 @@ import { Card } from '@/components/ui/card';
 import { ArrowRight, User, Calendar, FileText, CheckCircle, Mail, Edit } from 'lucide-react';
 import { Deal } from '@/hooks/admin/use-deals';
 import { formatDistanceToNow, format } from 'date-fns';
+import { useDealActivities } from '@/hooks/admin/use-deal-activities';
 
 interface PipelineDetailActivityProps {
   deal: Deal;
@@ -20,44 +21,40 @@ interface ActivityItem {
 }
 
 export function PipelineDetailActivity({ deal }: PipelineDetailActivityProps) {
-  // Mock activity data - this would come from a real activity log API
+  const { data: realActivities = [] } = useDealActivities(deal.deal_id);
+  
+  // Combine real activities with system-generated activities
   const activities: ActivityItem[] = [
+    // System activity for deal creation
     {
-      id: '1',
-      type: 'stage_change',
-      title: 'Deal moved to Qualification',
-      description: `Moved from "Initial Contact" to "${deal.stage_name}"`,
-      timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-      user: 'Bill Martin',
-      metadata: { from_stage: 'Initial Contact', to_stage: deal.stage_name }
-    },
-    {
-      id: '2',
-      type: 'document_signed',
-      title: 'NDA Signed',
-      description: `${deal.contact_name} signed the NDA`,
-      timestamp: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
-      user: 'System',
-      metadata: { document_type: 'NDA' }
-    },
-    {
-      id: '3',
-      type: 'email_sent',
-      title: 'Follow-up Email Sent',
-      description: `Sent follow-up email to ${deal.contact_email}`,
-      timestamp: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-      user: 'Adam Haile',
-      metadata: { email_type: 'follow_up' }
-    },
-    {
-      id: '4',
+      id: 'deal-created',
       type: 'deal_updated',
       title: 'Deal Created',
       description: `Deal created for ${deal.listing_title}`,
-      timestamp: deal.deal_created_at,
+      timestamp: deal.deal_created_at || new Date().toISOString(),
       user: 'System',
       metadata: { action: 'created' }
-    }
+    },
+    // System activity for current stage
+    {
+      id: 'stage-current',
+      type: 'stage_change',
+      title: `Deal in ${deal.stage_name}`,
+      description: `Deal currently in "${deal.stage_name}" stage`,
+      timestamp: deal.deal_stage_entered_at || deal.deal_created_at || new Date().toISOString(),
+      user: 'System',
+      metadata: { to_stage: deal.stage_name }
+    },
+    // Real activities from database
+    ...realActivities.map(activity => ({
+      id: activity.id,
+      type: activity.activity_type as ActivityItem['type'],
+      title: activity.title,
+      description: activity.description || activity.title,
+      timestamp: activity.created_at,
+      user: 'Admin', // Could be enhanced with actual admin names
+      metadata: activity.metadata || {}
+    }))
   ];
 
   const getActivityIcon = (type: string) => {
