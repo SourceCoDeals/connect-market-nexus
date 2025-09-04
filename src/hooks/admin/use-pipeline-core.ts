@@ -19,6 +19,7 @@ export function usePipelineCore() {
   const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null);
   const [selectedDeals, setSelectedDeals] = useState<string[]>([]);
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
+  const [dealModalOpen, setDealModalOpen] = useState(false);
   
   
   const isMobile = useIsMobile();
@@ -140,6 +141,7 @@ export function usePipelineCore() {
     selectedDeal,
     selectedDeals,
     isFilterPanelOpen,
+    dealModalOpen,
     
     isMobile,
     
@@ -159,6 +161,7 @@ export function usePipelineCore() {
     setSelectedDeal,
     setSelectedDeals,
     setIsFilterPanelOpen,
+    setDealModalOpen,
     
     handleDealSelect,
     handleMultiSelect,

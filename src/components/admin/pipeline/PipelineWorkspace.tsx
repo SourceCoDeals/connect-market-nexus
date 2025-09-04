@@ -3,6 +3,7 @@ import { usePipelineCore } from '@/hooks/admin/use-pipeline-core';
 import { PipelineKanbanView } from './views/PipelineKanbanView';
 import { PipelineListView } from './views/PipelineListView';
 import { PipelineTableView } from './views/PipelineTableView';
+import { DealDetailModal } from './DealDetailModal';
 
 interface PipelineWorkspaceProps {
   pipeline: ReturnType<typeof usePipelineCore>;
@@ -26,6 +27,12 @@ export function PipelineWorkspace({ pipeline }: PipelineWorkspaceProps) {
   return (
     <div className="h-full overflow-hidden bg-background">
       {renderView()}
+      
+      <DealDetailModal
+        deal={pipeline.selectedDeal}
+        open={pipeline.dealModalOpen}
+        onOpenChange={pipeline.setDealModalOpen}
+      />
     </div>
   );
 }
