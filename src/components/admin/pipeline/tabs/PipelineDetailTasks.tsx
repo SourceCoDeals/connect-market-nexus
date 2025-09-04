@@ -5,7 +5,7 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, CheckCircle2, Circle, Clock, User, Calendar, AlertTriangle } from 'lucide-react';
+import { Plus, CheckCircle2, Circle, Clock, User, Calendar, AlertTriangle, Check } from 'lucide-react';
 import { Deal } from '@/hooks/admin/use-deals';
 import { useDealTasks, useCreateDealTask, useUpdateDealTask, useCompleteDealTask, useDeleteDealTask, DealTask } from '@/hooks/admin/use-deal-tasks';
 import { useAdminProfiles } from '@/hooks/admin/use-admin-profiles';
@@ -100,176 +100,208 @@ export function PipelineDetailTasks({ deal }: PipelineDetailTasksProps) {
 
   return (
     <div className="flex-1 overflow-auto">
-      <div className="px-6 py-5 space-y-6">
-        {/* Task Summary - Apple Minimal */}
-        <div className="flex items-center justify-between py-2">
-          <div>
-            <h4 className="font-medium text-sm text-foreground">Task Progress</h4>
-            <p className="text-xs text-muted-foreground/70">
-              {completedTasks} of {totalTasks} completed
-            </p>
-          </div>
-          <div className="text-right">
-            <div className="text-lg font-semibold text-foreground">
-              {totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0}%
+      <div className="px-8 space-y-8 pb-8">
+        {/* Task Progress Summary - Apple Clean */}
+        <div className="space-y-4">
+          <h2 className="text-sm font-medium text-foreground">Task Progress</h2>
+          
+          <div className="flex items-center justify-between py-3">
+            <div className="space-y-1">
+              <p className="text-2xl font-light text-foreground">
+                {totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0}%
+              </p>
+              <p className="text-xs text-muted-foreground/70 font-mono">
+                {completedTasks} of {totalTasks} completed
+              </p>
+            </div>
+            
+            <div className="w-24 h-1 bg-muted/40 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-primary rounded-full transition-all duration-500"
+                style={{ width: `${totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0}%` }}
+              />
             </div>
           </div>
         </div>
 
-        {/* Create Task - Minimal */}
-        <div className="py-3">
+        {/* Add Task - Minimal */}
+        <div className="space-y-4">
           {!showCreateForm ? (
-            <Button 
+            <button 
               onClick={() => setShowCreateForm(true)}
-              variant="ghost" 
-              className="w-full justify-start gap-2 text-left font-normal"
+              className="w-full text-left py-4 px-6 border border-border/40 rounded-xl hover:border-border/60 transition-colors"
             >
-              <Plus className="h-4 w-4" />
-              Add Task
-            </Button>
+              <div className="flex items-center gap-3">
+                <div className="w-2 h-2 rounded-full bg-primary/40" />
+                <span className="text-sm text-muted-foreground">Add Task</span>
+              </div>
+            </button>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-6 p-6 border border-border/40 rounded-xl">
               <Input
                 placeholder="Task title"
                 value={newTask.title}
                 onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
-                className="text-sm"
+                className="border-0 bg-muted/20 focus:bg-muted/30"
               />
               
               <Textarea
                 placeholder="Description (optional)"
                 value={newTask.description}
                 onChange={(e) => setNewTask({ ...newTask, description: e.target.value })}
-                rows={2}
-                className="text-sm"
+                rows={3}
+                className="border-0 bg-muted/20 focus:bg-muted/30"
               />
               
-              <div className="grid grid-cols-3 gap-2">
-                <Select value={newTask.priority} onValueChange={(value: any) => setNewTask({ ...newTask, priority: value })}>
-                  <SelectTrigger className="h-8 text-xs">
-                    <SelectValue placeholder="Priority" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="low">Low</SelectItem>
-                    <SelectItem value="medium">Medium</SelectItem>
-                    <SelectItem value="high">High</SelectItem>
-                  </SelectContent>
-                </Select>
+              <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <label className="text-xs text-muted-foreground/70">Priority</label>
+                  <Select value={newTask.priority} onValueChange={(value: any) => setNewTask({ ...newTask, priority: value })}>
+                    <SelectTrigger className="border-0 bg-muted/20">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="low">Low</SelectItem>
+                      <SelectItem value="medium">Medium</SelectItem>
+                      <SelectItem value="high">High</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
                 
-                <Select value={newTask.assigned_to || 'unassigned'} onValueChange={(value) => setNewTask({ ...newTask, assigned_to: value === 'unassigned' ? '' : value })}>
-                  <SelectTrigger className="h-8 text-xs">
-                    <SelectValue placeholder="Assign" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="unassigned">Unassigned</SelectItem>
-                    {adminProfiles && Object.values(adminProfiles).map((admin) => (
-                      <SelectItem key={admin.id} value={admin.id}>
-                        {admin.displayName}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="space-y-2">
+                  <label className="text-xs text-muted-foreground/70">Assign to</label>
+                  <Select value={newTask.assigned_to || 'unassigned'} onValueChange={(value) => setNewTask({ ...newTask, assigned_to: value === 'unassigned' ? '' : value })}>
+                    <SelectTrigger className="border-0 bg-muted/20">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="unassigned">Unassigned</SelectItem>
+                      {adminProfiles && Object.values(adminProfiles).map((admin) => (
+                        <SelectItem key={admin.id} value={admin.id}>
+                          {admin.displayName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
                 
-                <Input
-                  type="date"
-                  value={newTask.due_date}
-                  onChange={(e) => setNewTask({ ...newTask, due_date: e.target.value })}
-                  className="h-8 text-xs"
-                />
+                <div className="space-y-2">
+                  <label className="text-xs text-muted-foreground/70">Due date</label>
+                  <Input
+                    type="date"
+                    value={newTask.due_date}
+                    onChange={(e) => setNewTask({ ...newTask, due_date: e.target.value })}
+                    className="border-0 bg-muted/20"
+                  />
+                </div>
               </div>
               
-              <div className="flex gap-2">
+              <div className="flex gap-3 pt-2">
                 <Button 
                   onClick={handleCreateTask}
                   disabled={!newTask.title.trim() || createTask.isPending}
-                  size="sm"
-                  className="h-7 text-xs"
+                  className="h-8 px-4 text-xs"
                 >
-                  Create
+                  Create Task
                 </Button>
-                <Button 
-                  variant="outline" 
+                <button 
                   onClick={() => setShowCreateForm(false)}
-                  size="sm"
-                  className="h-7 text-xs"
+                  className="h-8 px-4 text-xs text-muted-foreground hover:text-foreground transition-colors"
                 >
                   Cancel
-                </Button>
+                </button>
               </div>
             </div>
           )}
         </div>
 
-        {/* Tasks List - Clean Design */}
-        <div className="space-y-2">
+        {/* Tasks List - Apple Minimal */}
+        <div className="space-y-4">
+          <h2 className="text-sm font-medium text-foreground">Active Tasks</h2>
+          
           {isLoading ? (
-            <div className="text-center text-muted-foreground py-8 text-sm">Loading tasks...</div>
+            <div className="py-12 text-center">
+              <div className="text-sm text-muted-foreground/70">Loading tasks...</div>
+            </div>
           ) : sortedTasks.length === 0 ? (
-            <div className="text-center text-muted-foreground py-8">
-              <Circle className="h-6 w-6 mx-auto mb-2 opacity-50" />
-              <p className="text-sm">No tasks yet</p>
+            <div className="py-12 text-center space-y-3">
+              <div className="w-12 h-12 bg-muted/20 rounded-full flex items-center justify-center mx-auto">
+                <Circle className="h-5 w-5 text-muted-foreground/40" />
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm text-muted-foreground">No tasks yet</p>
+                <p className="text-xs text-muted-foreground/70">Create your first task to get started</p>
+              </div>
             </div>
           ) : (
-            sortedTasks.map((task) => {
-              const StatusIcon = getStatusIcon(task.status);
-              const isOverdue = task.due_date && new Date(task.due_date) < new Date() && task.status !== 'completed';
-              
-              return (
-                <div key={task.id} className={`py-4 ${task.status === 'completed' ? 'opacity-60' : ''}`}>
-                  <div className="flex items-start gap-3">
-                    <button
-                      onClick={() => task.status !== 'completed' && handleCompleteTask(task.id)}
-                      disabled={task.status === 'completed' || completeTask.isPending}
-                      className="mt-0.5"
-                    >
-                      <StatusIcon className={`h-4 w-4 ${
-                        task.status === 'completed' 
-                          ? 'text-emerald-600' 
-                          : 'text-muted-foreground hover:text-primary'
-                      }`} />
-                    </button>
-                    
-                    <div className="flex-1 space-y-1">
-                      <div className="flex items-center justify-between">
-                        <h5 className={`font-medium text-sm ${task.status === 'completed' ? 'line-through' : ''}`}>
-                          {task.title}
-                        </h5>
-                        <div className="flex items-center gap-2">
-                          <Badge variant="outline" className={`text-xs ${getPriorityColor(task.priority)} border-0 px-2 py-0`}>
-                            {task.priority}
-                          </Badge>
-                          {isOverdue && (
-                            <AlertTriangle className="h-3 w-3 text-red-500" />
-                          )}
+            <div className="space-y-2">
+              {sortedTasks.map((task) => {
+                const StatusIcon = getStatusIcon(task.status);
+                const isOverdue = task.due_date && new Date(task.due_date) < new Date() && task.status !== 'completed';
+                
+                return (
+                  <div key={task.id} className={`p-4 border border-border/20 rounded-xl ${task.status === 'completed' ? 'opacity-50' : ''}`}>
+                    <div className="flex items-start gap-4">
+                      <button
+                        onClick={() => task.status !== 'completed' && handleCompleteTask(task.id)}
+                        disabled={task.status === 'completed' || completeTask.isPending}
+                        className="mt-1"
+                      >
+                        <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+                          task.status === 'completed' 
+                            ? 'bg-emerald-500 border-emerald-500' 
+                            : 'border-muted-foreground/30 hover:border-primary'
+                        }`}>
+                          {task.status === 'completed' && <Check className="h-2 w-2 text-white" />}
                         </div>
-                      </div>
+                      </button>
                       
-                      {task.description && (
-                        <p className="text-xs text-muted-foreground">{task.description}</p>
-                      )}
-                      
-                      <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                        {task.assigned_to && (
-                          <div className="flex items-center gap-1">
-                            <User className="h-3 w-3" />
-                            <span>Assigned</span>
+                      <div className="flex-1 space-y-3">
+                        <div className="flex items-start justify-between">
+                          <div className="space-y-1">
+                            <h3 className={`text-sm font-medium ${task.status === 'completed' ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
+                              {task.title}
+                            </h3>
+                            {task.description && (
+                              <p className="text-xs text-muted-foreground/70">{task.description}</p>
+                            )}
                           </div>
-                        )}
-                        {task.due_date && (
-                          <div className={`flex items-center gap-1 ${isOverdue ? 'text-red-600' : ''}`}>
-                            <Calendar className="h-3 w-3" />
-                            <span>Due {formatDistanceToNow(new Date(task.due_date), { addSuffix: true })}</span>
+                          
+                          <div className="flex items-center gap-2">
+                            <span className={`text-xs font-mono px-2 py-1 rounded-md ${
+                              task.priority === 'high' ? 'bg-red-50 text-red-700' :
+                              task.priority === 'medium' ? 'bg-amber-50 text-amber-700' :
+                              'bg-emerald-50 text-emerald-700'
+                            }`}>
+                              {task.priority}
+                            </span>
+                            {isOverdue && (
+                              <div className="w-2 h-2 rounded-full bg-red-500" />
+                            )}
                           </div>
-                        )}
-                        <span>
-                          {formatDistanceToNow(new Date(task.created_at), { addSuffix: true })}
-                        </span>
+                        </div>
+                        
+                        <div className="flex items-center gap-6 text-xs text-muted-foreground/70">
+                          {task.assigned_to && adminProfiles && (
+                            <span className="font-mono">
+                              {adminProfiles[task.assigned_to]?.displayName || 'Assigned'}
+                            </span>
+                          )}
+                          {task.due_date && (
+                            <span className={`font-mono ${isOverdue ? 'text-red-600' : ''}`}>
+                              Due {formatDistanceToNow(new Date(task.due_date), { addSuffix: true })}
+                            </span>
+                          )}
+                          <span className="font-mono">
+                            {formatDistanceToNow(new Date(task.created_at), { addSuffix: true })}
+                          </span>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              );
-            })
+                );
+              })}
+            </div>
           )}
         </div>
       </div>

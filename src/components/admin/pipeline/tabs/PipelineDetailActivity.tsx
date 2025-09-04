@@ -101,127 +101,143 @@ export function PipelineDetailActivity({ deal }: PipelineDetailActivityProps) {
 
   return (
     <div className="flex-1 overflow-auto">
-      <div className="px-6 py-5 space-y-8">
-        {/* Activity Summary - Apple Minimal */}
+      <div className="px-8 space-y-8 pb-8">
+        {/* Activity Overview - Apple Clean */}
         <div className="space-y-4">
-          <h4 className="font-medium text-sm text-foreground">Activity Summary</h4>
+          <h2 className="text-sm font-medium text-foreground">Activity Overview</h2>
           
-          <div className="grid grid-cols-3 gap-6">
-            <div>
-              <div className="text-2xl font-semibold text-foreground">{activities.length}</div>
-              <div className="text-xs text-muted-foreground/70">Total Events</div>
+          <div className="grid grid-cols-3 gap-8">
+            <div className="text-center space-y-1">
+              <div className="text-2xl font-light text-foreground">{activities.length}</div>
+              <div className="text-xs text-muted-foreground/70 font-mono">Total Events</div>
             </div>
-            <div>
-              <div className="text-2xl font-semibold text-blue-600">
+            <div className="text-center space-y-1">
+              <div className="text-2xl font-light text-primary">
                 {activities.filter(a => a.type === 'stage_change').length}
               </div>
-              <div className="text-xs text-muted-foreground/70">Stage Changes</div>
+              <div className="text-xs text-muted-foreground/70 font-mono">Stage Changes</div>
             </div>
-            <div>
-              <div className="text-2xl font-semibold text-emerald-600">
+            <div className="text-center space-y-1">
+              <div className="text-2xl font-light text-emerald-600">
                 {activities.filter(a => a.type === 'document_signed').length}
               </div>
-              <div className="text-xs text-muted-foreground/70">Documents Signed</div>
+              <div className="text-xs text-muted-foreground/70 font-mono">Documents</div>
             </div>
           </div>
         </div>
 
-        {/* Deal Velocity - Clean Layout */}
+        {/* Deal Velocity - Minimal */}
         <div className="space-y-4">
-          <h4 className="font-medium text-sm text-foreground">Deal Velocity</h4>
+          <h2 className="text-sm font-medium text-foreground">Deal Velocity</h2>
           
-          <div className="grid grid-cols-2 gap-6">
-            <div>
-              <label className="text-xs text-muted-foreground/70">Time in Current Stage</label>
-              <p className="text-sm font-medium text-foreground">
-                {deal.deal_stage_entered_at ? formatDistanceToNow(new Date(deal.deal_stage_entered_at)) : 'Unknown'}
-              </p>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-8">
+              <div className="space-y-1">
+                <span className="text-xs text-muted-foreground/70 font-mono">Current Stage Time</span>
+                <p className="text-sm font-medium text-foreground">
+                  {deal.deal_stage_entered_at ? formatDistanceToNow(new Date(deal.deal_stage_entered_at)) : 'Unknown'}
+                </p>
+              </div>
+              
+              <div className="space-y-1">
+                <span className="text-xs text-muted-foreground/70 font-mono">Total Deal Age</span>
+                <p className="text-sm font-medium text-foreground">
+                  {deal.deal_created_at ? formatDistanceToNow(new Date(deal.deal_created_at)) : 'Unknown'}
+                </p>
+              </div>
             </div>
             
-            <div>
-              <label className="text-xs text-muted-foreground/70">Total Deal Age</label>
-              <p className="text-sm font-medium text-foreground">
-                {deal.deal_created_at ? formatDistanceToNow(new Date(deal.deal_created_at)) : 'Unknown'}
-              </p>
-            </div>
-          </div>
-          
-          <div>
-            <label className="text-xs text-muted-foreground/70">Stage Progress</label>
-            <div className="flex items-center gap-3 mt-1">
-              <div className="flex-1 bg-muted/40 rounded-full h-1.5">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground/70 font-mono">Pipeline Progress</span>
+                <span className="text-muted-foreground/70 font-mono">{deal.stage_name}</span>
+              </div>
+              <div className="w-full h-1 bg-muted/40 rounded-full overflow-hidden">
                 <div 
-                  className="bg-primary h-1.5 rounded-full transition-all duration-300"
-                  style={{ width: '60%' }} // This would be calculated based on stage position
+                  className="h-full bg-primary rounded-full transition-all duration-500"
+                  style={{ width: '60%' }}
                 />
               </div>
-              <span className="text-xs text-muted-foreground/70">60%</span>
             </div>
           </div>
         </div>
 
-        {/* Activity Timeline - Minimal Design */}
+        {/* Activity Timeline - Apple Minimal */}
         <div className="space-y-4">
-          <h4 className="font-medium text-sm text-foreground">Activity Timeline</h4>
+          <h2 className="text-sm font-medium text-foreground">Activity Timeline</h2>
           
           {sortedActivities.length === 0 ? (
-            <div className="text-center py-12">
-              <Calendar className="h-8 w-8 mx-auto mb-3 text-muted-foreground/40" />
-              <p className="text-sm text-muted-foreground/70">No activity recorded yet</p>
-              <p className="text-xs text-muted-foreground/50 mt-1">Activity will appear here as actions are taken</p>
+            <div className="py-12 text-center space-y-3">
+              <div className="w-12 h-12 bg-muted/20 rounded-full flex items-center justify-center mx-auto">
+                <Calendar className="h-5 w-5 text-muted-foreground/40" />
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm text-muted-foreground">No activity recorded yet</p>
+                <p className="text-xs text-muted-foreground/70">Activity will appear here as actions are taken</p>
+              </div>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-1">
               {sortedActivities.map((activity, index) => {
-                const ActivityIcon = getActivityIcon(activity.type);
                 const isRecent = new Date(activity.timestamp) > new Date(Date.now() - 24 * 60 * 60 * 1000);
                 
                 return (
-                  <div key={activity.id} className="flex items-start gap-4">
-                    {/* Timeline connector */}
-                    <div className="flex flex-col items-center">
-                      <div className={`w-2 h-2 rounded-full ${getActivityColor(activity.type)}`} />
-                      {index < sortedActivities.length - 1 && (
-                        <div className="w-px h-8 bg-border/20 mt-2" />
-                      )}
-                    </div>
-                    
-                    {/* Activity content */}
-                    <div className="flex-1 pb-6">
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <h5 className="font-medium text-sm text-foreground">{activity.title}</h5>
-                          <p className="text-xs text-muted-foreground/70 mt-0.5">{activity.description}</p>
-                        </div>
-                        
-                        {isRecent && (
-                          <div className="px-2 py-0.5 rounded-md text-xs font-medium bg-primary/10 text-primary">
-                            Recent
-                          </div>
+                  <div key={activity.id} className="py-4 border-b border-border/10 last:border-b-0">
+                    <div className="flex items-start gap-4">
+                      <div className="flex flex-col items-center">
+                        <div className={`w-1 h-1 rounded-full ${
+                          activity.type === 'stage_change' ? 'bg-primary' :
+                          activity.type === 'document_signed' ? 'bg-emerald-500' :
+                          activity.type === 'task_completed' ? 'bg-emerald-500' :
+                          activity.type === 'email_sent' ? 'bg-primary' :
+                          activity.type === 'deal_updated' ? 'bg-amber-500' :
+                          'bg-muted-foreground/40'
+                        }`} />
+                        {index < sortedActivities.length - 1 && (
+                          <div className="w-px h-8 bg-border/10 mt-3" />
                         )}
                       </div>
                       
-                      <div className="flex items-center justify-between mt-2 text-xs text-muted-foreground/60">
-                        <div className="flex items-center gap-4">
-                          <span>{activity.user}</span>
-                          <span>{activity.timestamp ? format(new Date(activity.timestamp), 'MMM d, yyyy') : 'Unknown'}</span>
+                      <div className="flex-1 space-y-2">
+                        <div className="flex items-start justify-between">
+                          <div className="space-y-1">
+                            <h3 className="text-sm font-medium text-foreground">{activity.title}</h3>
+                            <p className="text-xs text-muted-foreground/70">{activity.description}</p>
+                          </div>
+                          
+                          {isRecent && (
+                            <span className="text-xs px-2 py-1 rounded-md bg-primary/10 text-primary font-mono">
+                              Recent
+                            </span>
+                          )}
                         </div>
                         
-                        <span>{activity.timestamp ? formatDistanceToNow(new Date(activity.timestamp), { addSuffix: true }) : 'Unknown'}</span>
-                      </div>
-                      
-                      {/* Activity metadata */}
-                      {activity.metadata && activity.type === 'stage_change' && activity.metadata.from_stage && (
-                        <div className="flex items-center gap-2 mt-2">
-                          <div className="px-2 py-0.5 rounded text-xs bg-muted/60 text-muted-foreground">
-                            {activity.metadata.from_stage}
+                        <div className="flex items-center justify-between text-xs text-muted-foreground/70">
+                          <div className="flex items-center gap-4">
+                            <span className="font-mono">{activity.user}</span>
+                            <span className="font-mono">
+                              {activity.timestamp ? format(new Date(activity.timestamp), 'MMM d, yyyy') : 'Unknown'}
+                            </span>
                           </div>
-                          <ArrowRight className="h-3 w-3 text-muted-foreground/60" />
-                          <div className="px-2 py-0.5 rounded text-xs bg-primary/10 text-primary">
-                            {activity.metadata.to_stage}
-                          </div>
+                          
+                          <span className="font-mono">
+                            {activity.timestamp ? formatDistanceToNow(new Date(activity.timestamp), { addSuffix: true }) : 'Unknown'}
+                          </span>
                         </div>
-                      )}
+                        
+                        {/* Stage Change Metadata */}
+                        {activity.metadata && activity.type === 'stage_change' && activity.metadata.from_stage && (
+                          <div className="flex items-center gap-2 pt-1">
+                            <span className="text-xs px-2 py-1 rounded-md bg-muted/50 text-muted-foreground font-mono">
+                              {activity.metadata.from_stage}
+                            </span>
+                            <span className="text-muted-foreground/40">→</span>
+                            <span className="text-xs px-2 py-1 rounded-md bg-primary/10 text-primary font-mono">
+                              {activity.metadata.to_stage}
+                            </span>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 );
