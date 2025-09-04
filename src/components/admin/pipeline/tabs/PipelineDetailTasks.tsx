@@ -171,14 +171,17 @@ export function PipelineDetailTasks({ deal }: PipelineDetailTasksProps) {
                     </SelectContent>
                   </Select>
                   
-                  <Select value={newTask.assigned_to} onValueChange={(value) => setNewTask({ ...newTask, assigned_to: value })}>
+                  <Select value={newTask.assigned_to || 'unassigned'} onValueChange={(value) => setNewTask({ ...newTask, assigned_to: value === 'unassigned' ? '' : value })}>
                     <SelectTrigger>
                       <SelectValue placeholder="Assign to" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Unassigned</SelectItem>
-                      <SelectItem value="admin1">Bill Martin</SelectItem>
-                      <SelectItem value="admin2">Adam Haile</SelectItem>
+                      <SelectItem value="unassigned">Unassigned</SelectItem>
+                      {adminProfiles && Object.values(adminProfiles).map((admin) => (
+                        <SelectItem key={admin.id} value={admin.id}>
+                          {admin.displayName}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>

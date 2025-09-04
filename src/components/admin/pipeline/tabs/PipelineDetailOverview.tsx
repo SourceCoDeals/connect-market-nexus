@@ -28,7 +28,7 @@ export function PipelineDetailOverview({ deal }: PipelineDetailOverviewProps) {
     }).format(value);
   };
 
-  const handleOwnerChange = (adminId: string) => {
+  const handleOwnerChange = (adminId: string | null) => {
     updateDeal.mutate({
       dealId: deal.deal_id,
       updates: { assigned_to: adminId }
@@ -112,7 +112,7 @@ export function PipelineDetailOverview({ deal }: PipelineDetailOverviewProps) {
         <Card className="p-4 border-border/40">
           <div className="space-y-3">
             <p className="text-xs text-muted-foreground font-medium">Deal Owner</p>
-            <Select value={deal.assigned_to || ''} onValueChange={handleOwnerChange}>
+            <Select value={deal.assigned_to || 'unassigned'} onValueChange={(value) => handleOwnerChange(value === 'unassigned' ? null : value)}>
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Assign deal owner">
                   {assignedAdmin ? (
@@ -130,7 +130,7 @@ export function PipelineDetailOverview({ deal }: PipelineDetailOverviewProps) {
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Unassigned</SelectItem>
+                <SelectItem value="unassigned">Unassigned</SelectItem>
                 {allAdminProfiles && Object.values(allAdminProfiles).map((admin) => (
                   <SelectItem key={admin.id} value={admin.id}>
                     <div className="flex items-center gap-2">
