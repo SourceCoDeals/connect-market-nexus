@@ -53,49 +53,39 @@ export function PipelineDetailPanel({ pipeline }: PipelineDetailPanelProps) {
   const buyerPriority = getBuyerPriority(selectedDeal.buyer_type, selectedDeal.buyer_priority_score);
 
   return (
-    <div className="w-[800px] border-l bg-background flex flex-col min-h-0">
-      {/* Apple-inspired header with sophisticated layout */}
-      <div className="px-8 py-6 border-b border-border/30">
-        <div className="flex items-start justify-between">
-          <div className="flex items-start gap-6">
-            {/* Deal info */}
-            <div className="space-y-3">
-              <h3 className="font-semibold text-lg leading-tight text-foreground tracking-tight">
+    <div className="w-[600px] border-l border-border/20 bg-background flex flex-col min-h-0">
+      {/* Clean Apple header */}
+      <div className="px-6 py-5 border-b border-border/20">
+        <div className="flex items-center justify-between">
+          <div className="space-y-2">
+            <div className="flex items-center gap-3">
+              <h3 className="font-medium text-lg text-foreground">
                 {selectedDeal.deal_title}
               </h3>
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-primary"></div>
-                  <span className="text-sm text-muted-foreground">{selectedDeal.contact_name}</span>
-                </div>
-                {selectedDeal.contact_company && (
-                  <>
-                    <div className="w-1 h-1 rounded-full bg-muted-foreground/30"></div>
-                    <span className="text-sm text-muted-foreground">{selectedDeal.contact_company}</span>
-                  </>
-                )}
-              </div>
-            </div>
-            
-            {/* Buyer priority badge - compact in header */}
-            <div className="flex items-center gap-2">
               <Badge 
                 variant="secondary" 
-                className={`text-xs font-medium px-3 py-1 ${buyerPriority.bg} ${buyerPriority.color} border-0`}
+                className={`text-xs font-medium px-2 py-1 ${buyerPriority.bg} ${buyerPriority.color} border-0`}
               >
-                {buyerPriority.level} Priority • {buyerPriority.score}/100
+                {buyerPriority.level} • {buyerPriority.score}
               </Badge>
+            </div>
+            <div className="flex items-center gap-3 text-sm text-muted-foreground">
+              <span>{selectedDeal.contact_name}</span>
+              {selectedDeal.contact_company && (
+                <>
+                  <span>•</span>
+                  <span>{selectedDeal.contact_company}</span>
+                </>
+              )}
             </div>
           </div>
           
-          {/* Header actions */}
-          <div className="flex items-center gap-3">
-            {/* Quick contact actions */}
+          <div className="flex items-center gap-2">
             {selectedDeal.contact_phone && (
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-8 px-3 text-xs"
+                className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
                 onClick={() => window.open(`tel:${selectedDeal.contact_phone}`)}
               >
                 Call
@@ -105,20 +95,17 @@ export function PipelineDetailPanel({ pipeline }: PipelineDetailPanelProps) {
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-8 px-3 text-xs"
+                className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
                 onClick={() => window.open(`mailto:${selectedDeal.contact_email}`)}
               >
                 Email
               </Button>
             )}
-            
-            <div className="w-px h-4 bg-border/40"></div>
-            
             <Button
               variant="ghost"
               size="sm"
               onClick={() => pipeline.setSelectedDeal(null)}
-              className="h-8 w-8 p-0 hover:bg-muted/60"
+              className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
             >
               <X className="h-4 w-4" />
             </Button>
@@ -126,26 +113,26 @@ export function PipelineDetailPanel({ pipeline }: PipelineDetailPanelProps) {
         </div>
       </div>
 
-      {/* Tabs navigation - Apple sophistication */}
+      {/* Clean tab navigation */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
-        <div className="px-8 py-4 border-b border-border/30">
-          <TabsList className="grid w-full grid-cols-6 bg-muted/20 p-1 h-10 rounded-lg">
-            <TabsTrigger value="overview" className="text-sm font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground rounded-md">
+        <div className="px-6 border-b border-border/20">
+          <TabsList className="grid w-full grid-cols-6 bg-transparent h-9 p-0">
+            <TabsTrigger value="overview" className="text-sm font-medium data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:bg-transparent rounded-none border-b-2 border-transparent">
               Overview
             </TabsTrigger>
-            <TabsTrigger value="buyer" className="text-sm font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground rounded-md">
+            <TabsTrigger value="buyer" className="text-sm font-medium data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:bg-transparent rounded-none border-b-2 border-transparent">
               Buyer
             </TabsTrigger>
-            <TabsTrigger value="documents" className="text-sm font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground rounded-md">
+            <TabsTrigger value="documents" className="text-sm font-medium data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:bg-transparent rounded-none border-b-2 border-transparent">
               Documents
             </TabsTrigger>
-            <TabsTrigger value="tasks" className="text-sm font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground rounded-md">
+            <TabsTrigger value="tasks" className="text-sm font-medium data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:bg-transparent rounded-none border-b-2 border-transparent">
               Tasks
             </TabsTrigger>
-            <TabsTrigger value="communication" className="text-sm font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground rounded-md">
+            <TabsTrigger value="communication" className="text-sm font-medium data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:bg-transparent rounded-none border-b-2 border-transparent">
               Email
             </TabsTrigger>
-            <TabsTrigger value="activity" className="text-sm font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground rounded-md">
+            <TabsTrigger value="activity" className="text-sm font-medium data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:bg-transparent rounded-none border-b-2 border-transparent">
               Activity
             </TabsTrigger>
           </TabsList>

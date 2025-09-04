@@ -100,97 +100,81 @@ export function PipelineDetailTasks({ deal }: PipelineDetailTasksProps) {
 
   return (
     <div className="flex-1 overflow-auto">
-      <div className="p-6 space-y-6">
-        {/* Task Summary */}
-        <Card className="p-5 border-border/40">
-          <div className="flex items-center justify-between">
-            <div>
-              <h4 className="font-semibold text-sm">Task Progress</h4>
-              <p className="text-xs text-muted-foreground mt-1">
-                {completedTasks} of {totalTasks} tasks completed
-              </p>
-            </div>
-            <div className="text-right">
-              <div className="text-2xl font-bold text-foreground">
-                {totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0}%
-              </div>
-              <div className="text-xs text-muted-foreground">Complete</div>
+      <div className="p-6 space-y-4">
+        {/* Task Summary - Clean */}
+        <div className="flex items-center justify-between py-3 border-b border-border/20">
+          <div>
+            <h4 className="font-medium text-sm">Task Progress</h4>
+            <p className="text-xs text-muted-foreground">
+              {completedTasks} of {totalTasks} completed
+            </p>
+          </div>
+          <div className="text-right">
+            <div className="text-lg font-semibold text-foreground">
+              {totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0}%
             </div>
           </div>
-          
-          {totalTasks > 0 && (
-            <div className="mt-4">
-              <div className="w-full bg-muted/50 rounded-full h-2">
-                <div 
-                  className="bg-primary h-2 rounded-full transition-all duration-300"
-                  style={{ width: `${(completedTasks / totalTasks) * 100}%` }}
-                />
-              </div>
-            </div>
-          )}
-        </Card>
+        </div>
 
-        {/* Create Task */}
-        <Card className="p-5 border-border/40">
+        {/* Create Task - Minimal */}
+        <div className="py-3 border-b border-border/20">
           {!showCreateForm ? (
             <Button 
               onClick={() => setShowCreateForm(true)}
-              variant="outline" 
-              className="w-full justify-start gap-2"
+              variant="ghost" 
+              className="w-full justify-start gap-2 text-left font-normal"
             >
               <Plus className="h-4 w-4" />
-              Add New Task
+              Add Task
             </Button>
           ) : (
-            <div className="space-y-4">
-              <h4 className="font-semibold text-sm">Create New Task</h4>
+            <div className="space-y-3">
+              <Input
+                placeholder="Task title"
+                value={newTask.title}
+                onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
+                className="text-sm"
+              />
               
-              <div className="space-y-3">
-                <Input
-                  placeholder="Task title"
-                  value={newTask.title}
-                  onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
-                />
+              <Textarea
+                placeholder="Description (optional)"
+                value={newTask.description}
+                onChange={(e) => setNewTask({ ...newTask, description: e.target.value })}
+                rows={2}
+                className="text-sm"
+              />
+              
+              <div className="grid grid-cols-3 gap-2">
+                <Select value={newTask.priority} onValueChange={(value: any) => setNewTask({ ...newTask, priority: value })}>
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue placeholder="Priority" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="low">Low</SelectItem>
+                    <SelectItem value="medium">Medium</SelectItem>
+                    <SelectItem value="high">High</SelectItem>
+                  </SelectContent>
+                </Select>
                 
-                <Textarea
-                  placeholder="Task description (optional)"
-                  value={newTask.description}
-                  onChange={(e) => setNewTask({ ...newTask, description: e.target.value })}
-                  rows={3}
-                />
-                
-                <div className="grid grid-cols-2 gap-3">
-                  <Select value={newTask.priority} onValueChange={(value: any) => setNewTask({ ...newTask, priority: value })}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Priority" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="low">Low Priority</SelectItem>
-                      <SelectItem value="medium">Medium Priority</SelectItem>
-                      <SelectItem value="high">High Priority</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  
-                  <Select value={newTask.assigned_to || 'unassigned'} onValueChange={(value) => setNewTask({ ...newTask, assigned_to: value === 'unassigned' ? '' : value })}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Assign to" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="unassigned">Unassigned</SelectItem>
-                      {adminProfiles && Object.values(adminProfiles).map((admin) => (
-                        <SelectItem key={admin.id} value={admin.id}>
-                          {admin.displayName}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                <Select value={newTask.assigned_to || 'unassigned'} onValueChange={(value) => setNewTask({ ...newTask, assigned_to: value === 'unassigned' ? '' : value })}>
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue placeholder="Assign" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="unassigned">Unassigned</SelectItem>
+                    {adminProfiles && Object.values(adminProfiles).map((admin) => (
+                      <SelectItem key={admin.id} value={admin.id}>
+                        {admin.displayName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 
                 <Input
                   type="date"
-                  placeholder="Due date (optional)"
                   value={newTask.due_date}
                   onChange={(e) => setNewTask({ ...newTask, due_date: e.target.value })}
+                  className="h-8 text-xs"
                 />
               </div>
               
@@ -199,83 +183,76 @@ export function PipelineDetailTasks({ deal }: PipelineDetailTasksProps) {
                   onClick={handleCreateTask}
                   disabled={!newTask.title.trim() || createTask.isPending}
                   size="sm"
+                  className="h-7 text-xs"
                 >
-                  Create Task
+                  Create
                 </Button>
                 <Button 
                   variant="outline" 
                   onClick={() => setShowCreateForm(false)}
                   size="sm"
+                  className="h-7 text-xs"
                 >
                   Cancel
                 </Button>
               </div>
             </div>
           )}
-        </Card>
+        </div>
 
-        {/* Tasks List */}
-        <div className="space-y-3">
+        {/* Tasks List - Clean Design */}
+        <div className="space-y-2">
           {isLoading ? (
-            <Card className="p-5 border-border/40">
-              <div className="text-center text-muted-foreground">Loading tasks...</div>
-            </Card>
+            <div className="text-center text-muted-foreground py-8 text-sm">Loading tasks...</div>
           ) : sortedTasks.length === 0 ? (
-            <Card className="p-5 border-border/40">
-              <div className="text-center text-muted-foreground">
-                <Circle className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                <p>No tasks created yet</p>
-                <p className="text-xs mt-1">Create a task to get started</p>
-              </div>
-            </Card>
+            <div className="text-center text-muted-foreground py-8">
+              <Circle className="h-6 w-6 mx-auto mb-2 opacity-50" />
+              <p className="text-sm">No tasks yet</p>
+            </div>
           ) : (
             sortedTasks.map((task) => {
               const StatusIcon = getStatusIcon(task.status);
               const isOverdue = task.due_date && new Date(task.due_date) < new Date() && task.status !== 'completed';
               
               return (
-                <Card key={task.id} className={`p-4 border-border/40 ${task.status === 'completed' ? 'opacity-60' : ''}`}>
-                  <div className="space-y-3">
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-start gap-3 flex-1">
-                        <button
-                          onClick={() => task.status !== 'completed' && handleCompleteTask(task.id)}
-                          disabled={task.status === 'completed' || completeTask.isPending}
-                          className="mt-0.5"
-                        >
-                          <StatusIcon className={`h-5 w-5 ${
-                            task.status === 'completed' 
-                              ? 'text-emerald-600' 
-                              : 'text-muted-foreground hover:text-primary'
-                          }`} />
-                        </button>
-                        
-                        <div className="flex-1 space-y-1">
-                          <h5 className={`font-medium text-sm ${task.status === 'completed' ? 'line-through' : ''}`}>
-                            {task.title}
-                          </h5>
-                          {task.description && (
-                            <p className="text-xs text-muted-foreground">{task.description}</p>
+                <div key={task.id} className={`py-3 border-b border-border/20 ${task.status === 'completed' ? 'opacity-60' : ''}`}>
+                  <div className="flex items-start gap-3">
+                    <button
+                      onClick={() => task.status !== 'completed' && handleCompleteTask(task.id)}
+                      disabled={task.status === 'completed' || completeTask.isPending}
+                      className="mt-0.5"
+                    >
+                      <StatusIcon className={`h-4 w-4 ${
+                        task.status === 'completed' 
+                          ? 'text-emerald-600' 
+                          : 'text-muted-foreground hover:text-primary'
+                      }`} />
+                    </button>
+                    
+                    <div className="flex-1 space-y-1">
+                      <div className="flex items-center justify-between">
+                        <h5 className={`font-medium text-sm ${task.status === 'completed' ? 'line-through' : ''}`}>
+                          {task.title}
+                        </h5>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className={`text-xs ${getPriorityColor(task.priority)} border-0 px-2 py-0`}>
+                            {task.priority}
+                          </Badge>
+                          {isOverdue && (
+                            <AlertTriangle className="h-3 w-3 text-red-500" />
                           )}
                         </div>
                       </div>
                       
-                      <div className="flex items-center gap-2">
-                        <Badge variant="outline" className={`text-xs ${getPriorityColor(task.priority)} border-0`}>
-                          {task.priority}
-                        </Badge>
-                        {isOverdue && (
-                          <AlertTriangle className="h-4 w-4 text-red-500" />
-                        )}
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center justify-between text-xs text-muted-foreground">
-                      <div className="flex items-center gap-4">
+                      {task.description && (
+                        <p className="text-xs text-muted-foreground">{task.description}</p>
+                      )}
+                      
+                      <div className="flex items-center gap-4 text-xs text-muted-foreground">
                         {task.assigned_to && (
                           <div className="flex items-center gap-1">
                             <User className="h-3 w-3" />
-                            <span>Assigned to Admin</span>
+                            <span>Assigned</span>
                           </div>
                         )}
                         {task.due_date && (
@@ -284,14 +261,13 @@ export function PipelineDetailTasks({ deal }: PipelineDetailTasksProps) {
                             <span>Due {formatDistanceToNow(new Date(task.due_date), { addSuffix: true })}</span>
                           </div>
                         )}
+                        <span>
+                          {formatDistanceToNow(new Date(task.created_at), { addSuffix: true })}
+                        </span>
                       </div>
-                      
-                      <span>
-                        {task.status === 'completed' ? 'Completed' : 'Created'} {formatDistanceToNow(new Date(task.status === 'completed' ? task.completed_at || task.created_at : task.created_at), { addSuffix: true })}
-                      </span>
                     </div>
                   </div>
-                </Card>
+                </div>
               );
             })
           )}

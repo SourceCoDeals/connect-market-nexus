@@ -125,84 +125,75 @@ export function PipelineDetailBuyer({ deal }: PipelineDetailBuyerProps) {
 
   return (
     <div className="flex-1 overflow-auto">
-      <div className="p-8 space-y-8">
-        {/* Buyer Profile Header */}
-        <div className="space-y-6">
-          <h4 className="font-semibold text-base tracking-tight">Buyer Profile</h4>
+      <div className="p-6 space-y-6">
+        {/* Buyer Profile - Clean */}
+        <div className="space-y-4">
+          <h4 className="font-medium text-base text-foreground">Buyer Profile</h4>
           
-          <Card className="p-6">
-            <div className="space-y-6">
-              <div className="flex items-start justify-between">
-                <div className="flex items-start gap-4">
-                  <div className="w-16 h-16 bg-primary/10 rounded-xl flex items-center justify-center">
-                    <span className="text-xl font-semibold text-primary">
-                      {deal.contact_name?.split(' ').map(n => n[0]).join('').toUpperCase() || 'UN'}
-                    </span>
-                  </div>
-                  <div className="space-y-2">
-                    <h3 className="font-semibold text-lg">{deal.contact_name || 'Unknown Contact'}</h3>
-                    {deal.contact_company && (
-                      <p className="text-sm text-muted-foreground">{deal.contact_company}</p>
-                    )}
-                    <div className="flex items-center gap-3">
-                      <Badge variant="outline" className={`text-xs font-medium ${buyerPriority.bg} ${buyerPriority.color} border-0`}>
-                        {getBuyerTypeLabel(deal.buyer_type)}
-                      </Badge>
-                      <Badge variant="outline" className="text-xs border-border/60">
-                        Priority: {buyerPriority.score}/100
-                      </Badge>
-                    </div>
-                  </div>
+          <div className="space-y-4">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
+                <span className="text-lg font-medium text-primary">
+                  {deal.contact_name?.split(' ').map(n => n[0]).join('').toUpperCase() || 'UN'}
+                </span>
+              </div>
+              <div className="space-y-2 flex-1">
+                <h3 className="font-medium text-lg">{deal.contact_name || 'Unknown Contact'}</h3>
+                {deal.contact_company && (
+                  <p className="text-sm text-muted-foreground">{deal.contact_company}</p>
+                )}
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className={`text-xs font-medium ${buyerPriority.bg} ${buyerPriority.color} border-0`}>
+                    {getBuyerTypeLabel(deal.buyer_type)}
+                  </Badge>
+                  <Badge variant="outline" className="text-xs border-border/60">
+                    {buyerPriority.score}/100
+                  </Badge>
                 </div>
               </div>
-
-              {/* Contact Information */}
-              <div className="grid grid-cols-2 gap-4">
-                {deal.contact_email && (
-                  <div className="flex items-center gap-3">
-                    <Mail className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm">{deal.contact_email}</span>
-                  </div>
-                )}
-                {deal.contact_phone && (
-                  <div className="flex items-center gap-3">
-                    <Phone className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm">{deal.contact_phone}</span>
-                  </div>
-                )}
-                {profile?.website && (
-                  <div className="flex items-center gap-3">
-                    <Globe className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm">{profile.website}</span>
-                  </div>
-                )}
-                {profile?.linkedin_profile && (
-                  <div className="flex items-center gap-3">
-                    <User className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm">LinkedIn Profile</span>
-                  </div>
-                )}
-              </div>
             </div>
-          </Card>
+
+            {/* Contact Information */}
+            <div className="space-y-2 border-t border-border/20 pt-4">
+              {deal.contact_email && (
+                <div className="flex items-center gap-3">
+                  <Mail className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm">{deal.contact_email}</span>
+                </div>
+              )}
+              {deal.contact_phone && (
+                <div className="flex items-center gap-3">
+                  <Phone className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm">{deal.contact_phone}</span>
+                </div>
+              )}
+              {profile?.website && (
+                <div className="flex items-center gap-3">
+                  <Globe className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm">{profile.website}</span>
+                </div>
+              )}
+              {profile?.linkedin_profile && (
+                <div className="flex items-center gap-3">
+                  <User className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm">LinkedIn Profile</span>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Original Connection Request Message */}
         {buyerProfile?.user_message && (
           <div className="space-y-4">
-            <h4 className="font-semibold text-base tracking-tight">Original Message</h4>
+            <h4 className="font-medium text-base text-foreground">Original Message</h4>
             
-            <Card className="p-6">
-              <div className="flex items-start gap-3">
-                <MessageSquare className="h-4 w-4 text-muted-foreground mt-1" />
-                <div className="space-y-2">
-                  <p className="text-sm text-foreground">{buyerProfile.user_message}</p>
-                  <p className="text-xs text-muted-foreground">
-                    Sent {formatDistanceToNow(new Date(buyerProfile.created_at), { addSuffix: true })}
-                  </p>
-                </div>
-              </div>
-            </Card>
+            <div className="border-l-2 border-primary/20 pl-4 py-2">
+              <p className="text-sm text-foreground italic">{buyerProfile.user_message}</p>
+              <p className="text-xs text-muted-foreground mt-2">
+                Sent {formatDistanceToNow(new Date(buyerProfile.created_at), { addSuffix: true })}
+              </p>
+            </div>
           </div>
         )}
 
