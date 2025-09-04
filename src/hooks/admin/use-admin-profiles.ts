@@ -9,18 +9,16 @@ interface AdminUser {
   last_name: string;
 }
 
-export function useAdminProfiles(adminIds: (string | null | undefined)[]) {
-  const validIds = adminIds.filter((id): id is string => Boolean(id));
+export function useAdminProfiles(adminIds?: (string | null | undefined)[]) {
+  const validIds = adminIds ? adminIds.filter((id): id is string => Boolean(id)) : [];
   
   return useQuery({
     queryKey: ['admin-profiles', validIds],
     queryFn: async () => {
-      if (validIds.length === 0) return {};
-      
+      // If no specific IDs provided, fetch all admin profiles
       const { data, error } = await supabase
         .from('profiles')
         .select('id, email, first_name, last_name')
-        .in('id', validIds)
         .eq('is_admin', true);
       
       if (error) throw error;
@@ -40,7 +38,7 @@ export function useAdminProfiles(adminIds: (string | null | undefined)[]) {
       
       return profileMap;
     },
-    enabled: validIds.length > 0,
+    enabled: true,
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 }

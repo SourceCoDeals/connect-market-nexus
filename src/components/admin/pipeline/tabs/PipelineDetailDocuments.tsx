@@ -1,15 +1,10 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Card } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
-import { FileText, Mail, Check, X, Clock, User } from 'lucide-react';
+import { FileText, Mail, Check, Clock, User } from 'lucide-react';
 import { Deal } from '@/hooks/admin/use-deals';
-import { useUpdateNDA } from '@/hooks/admin/use-nda';
-import { useUpdateFeeAgreement } from '@/hooks/admin/use-fee-agreement';
-import { useLogNDAEmail } from '@/hooks/admin/use-nda';
-import { useLogFeeAgreementEmail } from '@/hooks/admin/use-fee-agreement';
-import { formatDistanceToNow } from 'date-fns';
+import { useUpdateNDA, useLogNDAEmail } from '@/hooks/admin/use-nda';
+import { useUpdateFeeAgreement, useLogFeeAgreementEmail } from '@/hooks/admin/use-fee-agreement';
 
 interface PipelineDetailDocumentsProps {
   deal: Deal;
@@ -27,33 +22,19 @@ export function PipelineDetailDocuments({ deal }: PipelineDetailDocumentsProps) 
         return { 
           icon: Check, 
           label: 'Signed', 
-          color: 'text-emerald-600', 
-          bg: 'bg-emerald-50',
-          border: 'border-emerald-200'
+          color: 'text-emerald-600'
         };
       case 'sent':
         return { 
           icon: Clock, 
           label: 'Sent', 
-          color: 'text-amber-600', 
-          bg: 'bg-amber-50',
-          border: 'border-amber-200'
-        };
-      case 'rejected':
-        return { 
-          icon: X, 
-          label: 'Rejected', 
-          color: 'text-red-600', 
-          bg: 'bg-red-50',
-          border: 'border-red-200'
+          color: 'text-amber-600'
         };
       default:
         return { 
           icon: FileText, 
           label: 'Not Sent', 
-          color: 'text-muted-foreground', 
-          bg: 'bg-muted/50',
-          border: 'border-border'
+          color: 'text-muted-foreground'
         };
     }
   };
@@ -79,15 +60,23 @@ export function PipelineDetailDocuments({ deal }: PipelineDetailDocumentsProps) 
   const handleSendNDA = () => {
     if (!deal.buyer_id || !deal.contact_email || !deal.contact_name) return;
     
-    // Simplified for now - would integrate with existing email system
-    console.log('Send NDA email to:', deal.contact_email);
+    logNDAEmail.mutate({
+      userId: deal.buyer_id,
+      userEmail: deal.contact_email,
+      notes: 'Please review and sign the attached NDA.',
+      listingTitle: deal.deal_title
+    });
   };
 
   const handleSendFeeAgreement = () => {
     if (!deal.buyer_id || !deal.contact_email || !deal.contact_name) return;
     
-    // Simplified for now - would integrate with existing email system
-    console.log('Send Fee Agreement email to:', deal.contact_email);
+    logFeeAgreementEmail.mutate({
+      userId: deal.buyer_id,
+      userEmail: deal.contact_email,
+      notes: 'Please review and sign the attached Fee Agreement.',
+      listingTitle: deal.deal_title
+    });
   };
 
   const ndaStatus = getStatusInfo(deal.nda_status);
@@ -95,148 +84,120 @@ export function PipelineDetailDocuments({ deal }: PipelineDetailDocumentsProps) 
 
   return (
     <div className="flex-1 overflow-auto">
-      <div className="p-6 space-y-6">
-        {/* NDA Section */}
-        <Card className={`p-5 border-border/40 ${ndaStatus.bg}/30`}>
-          <div className="space-y-4">
+      <div className="px-6 py-5 space-y-8">
+        {/* NDA Section - Apple Minimal */}
+        <div className="space-y-4">
+          <h4 className="font-medium text-sm text-foreground">Non-Disclosure Agreement</h4>
+          
+          <div className="flex items-center justify-between py-2">
+            <div className="flex items-center gap-3">
+              <div className={`w-2 h-2 rounded-full ${deal.nda_status === 'signed' ? 'bg-emerald-500' : deal.nda_status === 'sent' ? 'bg-amber-500' : 'bg-muted-foreground/40'}`} />
+              <div>
+                <span className="text-sm text-foreground">{ndaStatus.label}</span>
+                {deal.nda_status === 'signed' && (
+                  <p className="text-xs text-muted-foreground/70">Signed by {deal.contact_name}</p>
+                )}
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-3">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleSendNDA}
+                disabled={logNDAEmail.isPending || !deal.contact_email}
+                className="gap-2 h-8 text-xs border-border/60"
+              >
+                <Mail className="h-3 w-3" />
+                Send
+              </Button>
+              <Switch
+                checked={deal.nda_status === 'signed'}
+                onCheckedChange={handleNDAToggle}
+                disabled={updateNDA.isPending}
+                className="data-[state=checked]:bg-emerald-600"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Fee Agreement Section - Apple Minimal */}
+        <div className="space-y-4">
+          <h4 className="font-medium text-sm text-foreground">Fee Agreement</h4>
+          
+          <div className="flex items-center justify-between py-2">
+            <div className="flex items-center gap-3">
+              <div className={`w-2 h-2 rounded-full ${deal.fee_agreement_status === 'signed' ? 'bg-emerald-500' : deal.fee_agreement_status === 'sent' ? 'bg-amber-500' : 'bg-muted-foreground/40'}`} />
+              <div>
+                <span className="text-sm text-foreground">{feeStatus.label}</span>
+                {deal.fee_agreement_status === 'signed' && (
+                  <p className="text-xs text-muted-foreground/70">Signed by {deal.contact_name}</p>
+                )}
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-3">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleSendFeeAgreement}
+                disabled={logFeeAgreementEmail.isPending || !deal.contact_email}
+                className="gap-2 h-8 text-xs border-border/60"
+              >
+                <Mail className="h-3 w-3" />
+                Send
+              </Button>
+              <Switch
+                checked={deal.fee_agreement_status === 'signed'}
+                onCheckedChange={handleFeeAgreementToggle}
+                disabled={updateFeeAgreement.isPending}
+                className="data-[state=checked]:bg-emerald-600"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Document Workflow Progress - Clean */}
+        <div className="space-y-4">
+          <h4 className="font-medium text-sm text-foreground">Workflow Progress</h4>
+          
+          <div className="space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className={`p-2 ${ndaStatus.bg} rounded-lg`}>
-                  <ndaStatus.icon className={`h-4 w-4 ${ndaStatus.color}`} />
-                </div>
-                <div>
-                  <h4 className="font-semibold text-sm">Non-Disclosure Agreement</h4>
-                  <Badge variant="outline" className={`text-xs mt-1 ${ndaStatus.bg} ${ndaStatus.color} border-0`}>
-                    {ndaStatus.label}
-                  </Badge>
-                </div>
+                <div className={`w-2 h-2 rounded-full ${deal.nda_status === 'signed' ? 'bg-emerald-500' : 'bg-muted-foreground/40'}`} />
+                <span className="text-sm text-foreground">NDA Completion</span>
               </div>
-              
-              <div className="flex items-center gap-3">
-                <Switch
-                  checked={deal.nda_status === 'signed'}
-                  onCheckedChange={handleNDAToggle}
-                  disabled={updateNDA.isPending}
-                />
-              </div>
+              {deal.nda_status === 'signed' && <Check className="h-4 w-4 text-emerald-600" />}
             </div>
-
-            {/* NDA Details */}
-            <div className="space-y-3">
-              {deal.nda_status === 'signed' && (
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <User className="h-3 w-3" />
-                  <span>Signed by {deal.contact_name}</span>
-                </div>
-              )}
-              
-              <div className="flex gap-2">
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={handleSendNDA}
-                  disabled={logNDAEmail.isPending || !deal.contact_email}
-                  className="flex items-center gap-2"
-                >
-                  <Mail className="h-3 w-3" />
-                  Send NDA
-                </Button>
-                
-              </div>
-            </div>
-          </div>
-        </Card>
-
-        {/* Fee Agreement Section */}
-        <Card className={`p-5 border-border/40 ${feeStatus.bg}/30`}>
-          <div className="space-y-4">
+            
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className={`p-2 ${feeStatus.bg} rounded-lg`}>
-                  <feeStatus.icon className={`h-4 w-4 ${feeStatus.color}`} />
-                </div>
-                <div>
-                  <h4 className="font-semibold text-sm">Fee Agreement</h4>
-                  <Badge variant="outline" className={`text-xs mt-1 ${feeStatus.bg} ${feeStatus.color} border-0`}>
-                    {feeStatus.label}
-                  </Badge>
-                </div>
+                <div className={`w-2 h-2 rounded-full ${deal.fee_agreement_status === 'signed' ? 'bg-emerald-500' : 'bg-muted-foreground/40'}`} />
+                <span className="text-sm text-foreground">Fee Agreement Completion</span>
               </div>
-              
-              <div className="flex items-center gap-3">
-                <Switch
-                  checked={deal.fee_agreement_status === 'signed'}
-                  onCheckedChange={handleFeeAgreementToggle}
-                  disabled={updateFeeAgreement.isPending}
-                />
-              </div>
+              {deal.fee_agreement_status === 'signed' && <Check className="h-4 w-4 text-emerald-600" />}
             </div>
-
-            {/* Fee Agreement Details */}
-            <div className="space-y-3">
-              {deal.fee_agreement_status === 'signed' && (
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <User className="h-3 w-3" />
-                  <span>Signed by {deal.contact_name}</span>
-                </div>
-              )}
-              
-              <div className="flex gap-2">
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={handleSendFeeAgreement}
-                  disabled={logFeeAgreementEmail.isPending || !deal.contact_email}
-                  className="flex items-center gap-2"
-                >
-                  <Mail className="h-3 w-3" />
-                  Send Fee Agreement
-                </Button>
-                
-              </div>
-            </div>
-          </div>
-        </Card>
-
-        {/* Document Workflow */}
-        <Card className="p-5 border-border/40">
-          <div className="space-y-4">
-            <h4 className="font-semibold text-sm">Document Workflow</h4>
             
-            <div className="space-y-3">
+            <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className={`w-2 h-2 rounded-full ${deal.nda_status === 'signed' ? 'bg-emerald-500' : 'bg-muted'}`}></div>
-                <span className="text-sm">NDA Completion</span>
-                {deal.nda_status === 'signed' && <Check className="h-4 w-4 text-emerald-600" />}
+                <div className={`w-2 h-2 rounded-full ${deal.nda_status === 'signed' && deal.fee_agreement_status === 'signed' ? 'bg-emerald-500' : 'bg-muted-foreground/40'}`} />
+                <span className="text-sm text-foreground">Ready for Detailed Discussions</span>
               </div>
-              
-              <div className="flex items-center gap-3">
-                <div className={`w-2 h-2 rounded-full ${deal.fee_agreement_status === 'signed' ? 'bg-emerald-500' : 'bg-muted'}`}></div>
-                <span className="text-sm">Fee Agreement Completion</span>
-                {deal.fee_agreement_status === 'signed' && <Check className="h-4 w-4 text-emerald-600" />}
-              </div>
-              
-              <div className="flex items-center gap-3">
-                <div className={`w-2 h-2 rounded-full ${deal.nda_status === 'signed' && deal.fee_agreement_status === 'signed' ? 'bg-emerald-500' : 'bg-muted'}`}></div>
-                <span className="text-sm">Ready for Detailed Discussions</span>
-                {deal.nda_status === 'signed' && deal.fee_agreement_status === 'signed' && <Check className="h-4 w-4 text-emerald-600" />}
-              </div>
+              {deal.nda_status === 'signed' && deal.fee_agreement_status === 'signed' && <Check className="h-4 w-4 text-emerald-600" />}
             </div>
           </div>
-        </Card>
+        </div>
 
-        {/* Email History */}
-        <Card className="p-5 border-border/40">
-          <div className="space-y-4">
-            <h4 className="font-semibold text-sm">Document Email History</h4>
-            
-            <div className="space-y-3">
-              <div className="text-xs text-muted-foreground p-3 bg-muted/30 rounded-lg">
-                No document emails sent yet.
-              </div>
+        {/* Email History - Placeholder for Enhancement */}
+        <div className="space-y-4">
+          <h4 className="font-medium text-sm text-foreground">Recent Activity</h4>
+          
+          <div className="text-center py-8">
+            <div className="text-xs text-muted-foreground/60">
+              Email history and activity logs will appear here
             </div>
           </div>
-        </Card>
+        </div>
       </div>
     </div>
   );

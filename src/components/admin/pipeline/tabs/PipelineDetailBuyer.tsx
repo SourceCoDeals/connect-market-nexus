@@ -125,7 +125,7 @@ export function PipelineDetailBuyer({ deal }: PipelineDetailBuyerProps) {
 
   return (
     <div className="flex-1 overflow-auto">
-      <div className="p-6 space-y-6">
+      <div className="px-6 py-5 space-y-8">
         {/* Buyer Profile - Clean */}
         <div className="space-y-4">
           <h4 className="font-medium text-base text-foreground">Buyer Profile</h4>

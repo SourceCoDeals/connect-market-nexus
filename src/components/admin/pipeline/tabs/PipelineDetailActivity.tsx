@@ -1,6 +1,4 @@
 import React from 'react';
-import { Badge } from '@/components/ui/badge';
-import { Card } from '@/components/ui/card';
 import { ArrowRight, User, Calendar, FileText, CheckCircle, Mail, Edit } from 'lucide-react';
 import { Deal } from '@/hooks/admin/use-deals';
 import { formatDistanceToNow, format } from 'date-fns';
@@ -79,19 +77,19 @@ export function PipelineDetailActivity({ deal }: PipelineDetailActivityProps) {
   const getActivityColor = (type: string) => {
     switch (type) {
       case 'stage_change':
-        return 'text-blue-600 bg-blue-50';
+        return 'bg-blue-500';
       case 'document_signed':
-        return 'text-emerald-600 bg-emerald-50';
+        return 'bg-emerald-500';
       case 'task_completed':
-        return 'text-green-600 bg-green-50';
+        return 'bg-green-500';
       case 'email_sent':
-        return 'text-purple-600 bg-purple-50';
+        return 'bg-purple-500';
       case 'deal_updated':
-        return 'text-amber-600 bg-amber-50';
+        return 'bg-amber-500';
       case 'follow_up':
-        return 'text-indigo-600 bg-indigo-50';
+        return 'bg-indigo-500';
       default:
-        return 'text-muted-foreground bg-muted/50';
+        return 'bg-muted-foreground/40';
     }
   };
 
@@ -101,145 +99,129 @@ export function PipelineDetailActivity({ deal }: PipelineDetailActivityProps) {
 
   return (
     <div className="flex-1 overflow-auto">
-      <div className="p-6 space-y-6">
-        {/* Activity Summary */}
-        <Card className="p-5 border-border/40">
-          <div className="grid grid-cols-3 gap-4">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-foreground">{activities.length}</div>
-              <div className="text-xs text-muted-foreground">Total Events</div>
+      <div className="px-6 py-5 space-y-8">
+        {/* Activity Summary - Apple Minimal */}
+        <div className="space-y-4">
+          <h4 className="font-medium text-sm text-foreground">Activity Summary</h4>
+          
+          <div className="grid grid-cols-3 gap-6">
+            <div>
+              <div className="text-2xl font-semibold text-foreground">{activities.length}</div>
+              <div className="text-xs text-muted-foreground/70">Total Events</div>
             </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-blue-600">
+            <div>
+              <div className="text-2xl font-semibold text-blue-600">
                 {activities.filter(a => a.type === 'stage_change').length}
               </div>
-              <div className="text-xs text-muted-foreground">Stage Changes</div>
+              <div className="text-xs text-muted-foreground/70">Stage Changes</div>
             </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-emerald-600">
+            <div>
+              <div className="text-2xl font-semibold text-emerald-600">
                 {activities.filter(a => a.type === 'document_signed').length}
               </div>
-              <div className="text-xs text-muted-foreground">Documents Signed</div>
+              <div className="text-xs text-muted-foreground/70">Documents Signed</div>
             </div>
           </div>
-        </Card>
+        </div>
 
-        {/* Deal Velocity */}
-        <Card className="p-5 border-border/40">
-          <div className="space-y-3">
-            <h4 className="font-semibold text-sm">Deal Velocity</h4>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <p className="text-xs text-muted-foreground font-medium">Time in Current Stage</p>
-                <p className="text-sm font-medium">
-                  {deal.deal_stage_entered_at ? formatDistanceToNow(new Date(deal.deal_stage_entered_at)) : 'Unknown'}
-                </p>
-              </div>
-              
-              <div className="space-y-2">
-                <p className="text-xs text-muted-foreground font-medium">Total Deal Age</p>
-                <p className="text-sm font-medium">
-                  {deal.deal_created_at ? formatDistanceToNow(new Date(deal.deal_created_at)) : 'Unknown'}
-                </p>
-              </div>
+        {/* Deal Velocity - Clean Layout */}
+        <div className="space-y-4">
+          <h4 className="font-medium text-sm text-foreground">Deal Velocity</h4>
+          
+          <div className="grid grid-cols-2 gap-6">
+            <div>
+              <label className="text-xs text-muted-foreground/70">Time in Current Stage</label>
+              <p className="text-sm font-medium text-foreground">
+                {deal.deal_stage_entered_at ? formatDistanceToNow(new Date(deal.deal_stage_entered_at)) : 'Unknown'}
+              </p>
             </div>
             
-            <div className="space-y-2">
-              <p className="text-xs text-muted-foreground font-medium">Stage Progress</p>
-              <div className="flex items-center gap-2">
-                <div className="flex-1 bg-muted/50 rounded-full h-2">
-                  <div 
-                    className="bg-primary h-2 rounded-full transition-all duration-300"
-                    style={{ width: '60%' }} // This would be calculated based on stage position
-                  />
-                </div>
-                <span className="text-xs text-muted-foreground">60%</span>
-              </div>
+            <div>
+              <label className="text-xs text-muted-foreground/70">Total Deal Age</label>
+              <p className="text-sm font-medium text-foreground">
+                {deal.deal_created_at ? formatDistanceToNow(new Date(deal.deal_created_at)) : 'Unknown'}
+              </p>
             </div>
           </div>
-        </Card>
+          
+          <div>
+            <label className="text-xs text-muted-foreground/70">Stage Progress</label>
+            <div className="flex items-center gap-3 mt-1">
+              <div className="flex-1 bg-muted/40 rounded-full h-1.5">
+                <div 
+                  className="bg-primary h-1.5 rounded-full transition-all duration-300"
+                  style={{ width: '60%' }} // This would be calculated based on stage position
+                />
+              </div>
+              <span className="text-xs text-muted-foreground/70">60%</span>
+            </div>
+          </div>
+        </div>
 
-        {/* Activity Timeline */}
-        <div className="space-y-3">
-          <h4 className="font-semibold text-sm">Activity Timeline</h4>
+        {/* Activity Timeline - Minimal Design */}
+        <div className="space-y-4">
+          <h4 className="font-medium text-sm text-foreground">Activity Timeline</h4>
           
           {sortedActivities.length === 0 ? (
-            <Card className="p-5 border-border/40">
-              <div className="text-center text-muted-foreground">
-                <Calendar className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                <p>No activity recorded yet</p>
-                <p className="text-xs mt-1">Activity will appear here as actions are taken</p>
-              </div>
-            </Card>
+            <div className="text-center py-12">
+              <Calendar className="h-8 w-8 mx-auto mb-3 text-muted-foreground/40" />
+              <p className="text-sm text-muted-foreground/70">No activity recorded yet</p>
+              <p className="text-xs text-muted-foreground/50 mt-1">Activity will appear here as actions are taken</p>
+            </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-4">
               {sortedActivities.map((activity, index) => {
                 const ActivityIcon = getActivityIcon(activity.type);
                 const isRecent = new Date(activity.timestamp) > new Date(Date.now() - 24 * 60 * 60 * 1000);
                 
                 return (
-                  <Card key={activity.id} className={`p-4 border-border/40 ${isRecent ? 'ring-1 ring-primary/20' : ''}`}>
-                    <div className="flex items-start gap-4">
-                      {/* Timeline connector */}
-                      <div className="flex flex-col items-center">
-                        <div className={`p-2 rounded-lg ${getActivityColor(activity.type)}`}>
-                          <ActivityIcon className="h-4 w-4" />
+                  <div key={activity.id} className="flex items-start gap-4">
+                    {/* Timeline connector */}
+                    <div className="flex flex-col items-center">
+                      <div className={`w-2 h-2 rounded-full ${getActivityColor(activity.type)}`} />
+                      {index < sortedActivities.length - 1 && (
+                        <div className="w-px h-8 bg-border/20 mt-2" />
+                      )}
+                    </div>
+                    
+                    {/* Activity content */}
+                    <div className="flex-1 pb-6">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <h5 className="font-medium text-sm text-foreground">{activity.title}</h5>
+                          <p className="text-xs text-muted-foreground/70 mt-0.5">{activity.description}</p>
                         </div>
-                        {index < sortedActivities.length - 1 && (
-                          <div className="w-px h-8 bg-border/40 mt-2" />
+                        
+                        {isRecent && (
+                          <div className="px-2 py-0.5 rounded-md text-xs font-medium bg-primary/10 text-primary">
+                            Recent
+                          </div>
                         )}
                       </div>
                       
-                      {/* Activity content */}
-                      <div className="flex-1 space-y-2">
-                        <div className="flex items-start justify-between">
-                          <div className="space-y-1">
-                            <h5 className="font-medium text-sm">{activity.title}</h5>
-                            <p className="text-xs text-muted-foreground">{activity.description}</p>
-                          </div>
-                          
-                          {isRecent && (
-                            <Badge variant="outline" className="text-xs bg-primary/10 text-primary border-primary/20">
-                              Recent
-                            </Badge>
-                          )}
+                      <div className="flex items-center justify-between mt-2 text-xs text-muted-foreground/60">
+                        <div className="flex items-center gap-4">
+                          <span>{activity.user}</span>
+                          <span>{activity.timestamp ? format(new Date(activity.timestamp), 'MMM d, yyyy') : 'Unknown'}</span>
                         </div>
                         
-                        <div className="flex items-center justify-between text-xs text-muted-foreground">
-                          <div className="flex items-center gap-4">
-                            <div className="flex items-center gap-1">
-                              <User className="h-3 w-3" />
-                              <span>{activity.user}</span>
-                            </div>
-                             <div className="flex items-center gap-1">
-                               <Calendar className="h-3 w-3" />
-                               <span>{activity.timestamp ? format(new Date(activity.timestamp), 'MMM d, yyyy') : 'Unknown'}</span>
-                             </div>
-                          </div>
-                          
-                          <span>{activity.timestamp ? formatDistanceToNow(new Date(activity.timestamp), { addSuffix: true }) : 'Unknown'}</span>
-                        </div>
-                        
-                        {/* Activity metadata */}
-                        {activity.metadata && (
-                          <div className="mt-2">
-                            {activity.type === 'stage_change' && activity.metadata.from_stage && (
-                              <div className="flex items-center gap-2 text-xs">
-                                <Badge variant="outline" className="text-xs border-border/60">
-                                  {activity.metadata.from_stage}
-                                </Badge>
-                                <ArrowRight className="h-3 w-3 text-muted-foreground" />
-                                <Badge variant="outline" className="text-xs bg-primary/10 text-primary border-primary/20">
-                                  {activity.metadata.to_stage}
-                                </Badge>
-                              </div>
-                            )}
-                          </div>
-                        )}
+                        <span>{activity.timestamp ? formatDistanceToNow(new Date(activity.timestamp), { addSuffix: true }) : 'Unknown'}</span>
                       </div>
+                      
+                      {/* Activity metadata */}
+                      {activity.metadata && activity.type === 'stage_change' && activity.metadata.from_stage && (
+                        <div className="flex items-center gap-2 mt-2">
+                          <div className="px-2 py-0.5 rounded text-xs bg-muted/60 text-muted-foreground">
+                            {activity.metadata.from_stage}
+                          </div>
+                          <ArrowRight className="h-3 w-3 text-muted-foreground/60" />
+                          <div className="px-2 py-0.5 rounded text-xs bg-primary/10 text-primary">
+                            {activity.metadata.to_stage}
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  </Card>
+                  </div>
                 );
               })}
             </div>

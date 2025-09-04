@@ -26,7 +26,7 @@ export function PipelineDetailTasks({ deal }: PipelineDetailTasksProps) {
   });
 
   const { data: tasks = [], isLoading } = useDealTasks(deal.deal_id);
-  const { data: adminProfiles } = useAdminProfiles([]);
+  const { data: adminProfiles } = useAdminProfiles();
   const createTask = useCreateDealTask();
   const updateTask = useUpdateDealTask();
   const completeTask = useCompleteDealTask();
@@ -100,12 +100,12 @@ export function PipelineDetailTasks({ deal }: PipelineDetailTasksProps) {
 
   return (
     <div className="flex-1 overflow-auto">
-      <div className="p-6 space-y-4">
-        {/* Task Summary - Clean */}
-        <div className="flex items-center justify-between py-3 border-b border-border/20">
+      <div className="px-6 py-5 space-y-6">
+        {/* Task Summary - Apple Minimal */}
+        <div className="flex items-center justify-between py-2">
           <div>
-            <h4 className="font-medium text-sm">Task Progress</h4>
-            <p className="text-xs text-muted-foreground">
+            <h4 className="font-medium text-sm text-foreground">Task Progress</h4>
+            <p className="text-xs text-muted-foreground/70">
               {completedTasks} of {totalTasks} completed
             </p>
           </div>
@@ -117,7 +117,7 @@ export function PipelineDetailTasks({ deal }: PipelineDetailTasksProps) {
         </div>
 
         {/* Create Task - Minimal */}
-        <div className="py-3 border-b border-border/20">
+        <div className="py-3">
           {!showCreateForm ? (
             <Button 
               onClick={() => setShowCreateForm(true)}
@@ -215,7 +215,7 @@ export function PipelineDetailTasks({ deal }: PipelineDetailTasksProps) {
               const isOverdue = task.due_date && new Date(task.due_date) < new Date() && task.status !== 'completed';
               
               return (
-                <div key={task.id} className={`py-3 border-b border-border/20 ${task.status === 'completed' ? 'opacity-60' : ''}`}>
+                <div key={task.id} className={`py-4 ${task.status === 'completed' ? 'opacity-60' : ''}`}>
                   <div className="flex items-start gap-3">
                     <button
                       onClick={() => task.status !== 'completed' && handleCompleteTask(task.id)}
