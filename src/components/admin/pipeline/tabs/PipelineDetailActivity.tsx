@@ -136,14 +136,14 @@ export function PipelineDetailActivity({ deal }: PipelineDetailActivityProps) {
               <div className="space-y-2">
                 <p className="text-xs text-muted-foreground font-medium">Time in Current Stage</p>
                 <p className="text-sm font-medium">
-                  {formatDistanceToNow(new Date(deal.deal_stage_entered_at))}
+                  {deal.deal_stage_entered_at ? formatDistanceToNow(new Date(deal.deal_stage_entered_at)) : 'Unknown'}
                 </p>
               </div>
               
               <div className="space-y-2">
                 <p className="text-xs text-muted-foreground font-medium">Total Deal Age</p>
                 <p className="text-sm font-medium">
-                  {formatDistanceToNow(new Date(deal.created_at))}
+                  {deal.deal_created_at ? formatDistanceToNow(new Date(deal.deal_created_at)) : 'Unknown'}
                 </p>
               </div>
             </div>
@@ -215,13 +215,13 @@ export function PipelineDetailActivity({ deal }: PipelineDetailActivityProps) {
                               <User className="h-3 w-3" />
                               <span>{activity.user}</span>
                             </div>
-                            <div className="flex items-center gap-1">
-                              <Calendar className="h-3 w-3" />
-                              <span>{format(new Date(activity.timestamp), 'MMM d, yyyy')}</span>
-                            </div>
+                             <div className="flex items-center gap-1">
+                               <Calendar className="h-3 w-3" />
+                               <span>{activity.timestamp ? format(new Date(activity.timestamp), 'MMM d, yyyy') : 'Unknown'}</span>
+                             </div>
                           </div>
                           
-                          <span>{formatDistanceToNow(new Date(activity.timestamp), { addSuffix: true })}</span>
+                          <span>{activity.timestamp ? formatDistanceToNow(new Date(activity.timestamp), { addSuffix: true }) : 'Unknown'}</span>
                         </div>
                         
                         {/* Activity metadata */}
