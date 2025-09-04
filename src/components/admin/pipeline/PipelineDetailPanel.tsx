@@ -45,7 +45,7 @@ import { useBuyerProfile, useDocumentLogs } from '@/hooks/admin/use-deal-real-da
 import { formatDistanceToNow, format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { BuyerProfileSection } from './BuyerProfileSection';
-import { CleanQuickActions } from './CleanQuickActions';
+
 
 interface PipelineDetailPanelProps {
   pipeline: ReturnType<typeof usePipelineCore>;
@@ -214,66 +214,35 @@ export function PipelineDetailPanel({ pipeline }: PipelineDetailPanelProps) {
   return (
     <div className="relative h-full bg-white border-l" style={{ width: '640px' }}>
       <div className="flex flex-col h-full">
-        {/* Apple/Stripe Clean Header */}
-        <div className="flex-shrink-0 px-8 py-6 border-b border-gray-100">
-          <div className="space-y-1">
-            <h1 className="text-lg font-semibold text-gray-900">
-              {selectedDeal.listing_title || 'Business Opportunity'}
-            </h1>
-            <p className="text-sm text-gray-600">
-              {selectedDeal.contact_company || 'No company specified'}
-            </p>
+        <div className="h-12 border-b bg-background px-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <h2 className="text-sm font-medium text-foreground truncate">
+              {selectedDeal.listing_title || selectedDeal.buyer_name || 'Untitled Deal'}
+            </h2>
+            <span className="text-xs text-muted-foreground">
+              {selectedDeal.deal_value ? formatCurrency(selectedDeal.deal_value) : 'Value TBD'}
+            </span>
+            <span className="text-xs text-muted-foreground">
+              {selectedDeal.deal_probability || 0}%
+            </span>
           </div>
-
-          {/* Essential Metrics - Single Row */}
-          <div className="mt-4 flex items-center gap-8 text-sm">
-            <div className="flex items-center gap-2">
-              <span className="text-gray-500">Stage</span>
-              <span className="font-medium text-gray-900">{selectedDeal.stage_name || 'Unknown'}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-gray-500">Days in Stage</span>
-              <span className="font-medium text-gray-900">{daysInStage}d</span>
-            </div>
+          
+          <div className="text-xs text-muted-foreground">
+            {daysInStage}d
           </div>
         </div>
 
-        {/* Clean Tab Navigation */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
-          <div className="border-b border-gray-100 px-8">
-            <TabsList className="grid w-64 grid-cols-4 bg-transparent p-0 h-auto">
-              <TabsTrigger 
-                value="overview" 
-                className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-blue-600 rounded-none px-4 py-3 text-sm font-medium text-gray-500 data-[state=active]:text-blue-600"
-              >
-                Overview
-              </TabsTrigger>
-              <TabsTrigger 
-                value="contact" 
-                className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-blue-600 rounded-none px-4 py-3 text-sm font-medium text-gray-500 data-[state=active]:text-blue-600"
-              >
-                Contact
-              </TabsTrigger>
-              <TabsTrigger 
-                value="tasks" 
-                className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-blue-600 rounded-none px-4 py-3 text-sm font-medium text-gray-500 data-[state=active]:text-blue-600"
-              >
-                Tasks
-              </TabsTrigger>
-              <TabsTrigger 
-                value="activity" 
-                className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-blue-600 rounded-none px-4 py-3 text-sm font-medium text-gray-500 data-[state=active]:text-blue-600"
-              >
-                Activity
-              </TabsTrigger>
+        <div className="flex-1 overflow-y-auto">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full">
+            <TabsList className="grid w-full grid-cols-4 mx-4 mt-3 mb-2 h-8">
+              <TabsTrigger value="overview" className="text-xs h-7">Overview</TabsTrigger>
+              <TabsTrigger value="contact" className="text-xs h-7">Contact</TabsTrigger>
+              <TabsTrigger value="tasks" className="text-xs h-7">Tasks</TabsTrigger>
+              <TabsTrigger value="activity" className="text-xs h-7">Activity</TabsTrigger>
             </TabsList>
-          </div>
 
-          <div className="flex-1 overflow-hidden">
-            {/* Overview Tab - Clean Apple/Stripe Design */}
-            <TabsContent value="overview" className="p-8 space-y-8 h-full overflow-y-auto mt-0">
-              {/* Unified Apple/Stripe Design */}
-              <BuyerProfileSection 
+            <TabsContent value="overview" className="flex-1 p-4 pt-2">
+              <BuyerProfileSection
                 buyerProfile={buyerProfile}
                 selectedDeal={selectedDeal}
                 onEmailContact={handleEmailContact}
@@ -539,8 +508,8 @@ export function PipelineDetailPanel({ pipeline }: PipelineDetailPanelProps) {
                 dealId={selectedDeal.deal_id}
               />
             </TabsContent>
-          </div>
-        </Tabs>
+          </Tabs>
+        </div>
       </div>
     </div>
   );

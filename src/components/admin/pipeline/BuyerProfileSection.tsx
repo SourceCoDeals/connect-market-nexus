@@ -1,10 +1,7 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Mail, Phone, MessageSquare } from 'lucide-react';
+import { Mail, Phone, MessageSquare, FileCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { BuyerPriorityScore } from './BuyerPriorityScore';
-import { BuyerMessageHero } from './BuyerMessageHero';
 
 interface BuyerProfileSectionProps {
   buyerProfile?: any;
@@ -30,6 +27,20 @@ function getBuyerTypeLabel(buyerType?: string) {
   }
 }
 
+function getPriorityScore(buyerType?: string) {
+  if (!buyerType) return 1;
+  const type = buyerType.toLowerCase().replace(/[^a-z]/g, '');
+  switch (type) {
+    case 'privateequity': return 5;
+    case 'familyoffice': return 4;
+    case 'searchfund': return 4;
+    case 'corporate': return 3;
+    case 'independentsponsor': return 3;
+    case 'individual': return 1;
+    default: return 1;
+  }
+}
+
 export function BuyerProfileSection({ 
   buyerProfile, 
   selectedDeal, 
@@ -39,131 +50,108 @@ export function BuyerProfileSection({
   onLogNote 
 }: BuyerProfileSectionProps) {
   
-  // Apple/Stripe Level Restructure - Phase 1-5 Implementation
-  if (selectedDeal) {
-    return (
-      <div className={cn("space-y-8", className)}>
-        {/* Phase 1: Hero Message Architecture */}
-        <BuyerMessageHero 
-          message={selectedDeal?.buyer_message}
-          buyerName={buyerProfile?.buyerInfo?.name || selectedDeal?.buyer_name}
-          isLoading={!buyerProfile && !selectedDeal}
-        />
+  if (!selectedDeal) return null;
 
-        {/* Phase 3: Minimal Buyer Profile Card */}
-        <div className="bg-card border border-border rounded-xl p-6 shadow-sm">
-          <div className="flex items-start justify-between mb-6">
-            <div className="min-w-0 flex-1">
-              <h3 className="text-lg font-semibold text-foreground truncate">
-                {buyerProfile?.buyerInfo?.name || selectedDeal?.buyer_name || 'Unknown Buyer'}
-              </h3>
-              <p className="text-sm text-muted-foreground truncate">
-                {buyerProfile?.buyerInfo?.company || selectedDeal?.buyer_company || 'No company specified'}
-              </p>
-            </div>
-            <BuyerPriorityScore 
-              buyerType={buyerProfile?.buyerInfo?.buyer_type || selectedDeal?.buyer_type}
-            />
+  const buyerName = buyerProfile?.buyerInfo?.name || selectedDeal?.buyer_name || 'Unknown Buyer';
+  const company = buyerProfile?.buyerInfo?.company || selectedDeal?.buyer_company;
+  const email = buyerProfile?.buyerInfo?.email || selectedDeal?.buyer_email;
+  const phone = buyerProfile?.buyerInfo?.phone_number;
+  const buyerType = buyerProfile?.buyerInfo?.buyer_type || selectedDeal?.buyer_type;
+  const investment = buyerProfile?.criteriaData?.investment_range || buyerProfile?.criteriaData?.fund_size_range;
+  const message = selectedDeal?.buyer_message;
+  const priorityScore = getPriorityScore(buyerType);
+
+  return (
+    <div className={cn("space-y-4", className)}>
+      {/* Header with essential buyer info */}
+      <div className="flex items-start justify-between">
+        <div className="min-w-0 flex-1">
+          <h3 className="text-base font-medium text-foreground truncate">{buyerName}</h3>
+          {company && (
+            <p className="text-sm text-muted-foreground truncate">{company}</p>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-muted-foreground">
+            {getBuyerTypeLabel(buyerType)}
+          </span>
+          <div className="w-1.5 h-1.5 rounded-full bg-primary" />
+          <span className="text-xs font-medium text-foreground">{priorityScore}</span>
+        </div>
+      </div>
+
+      {/* Interest message if available */}
+      {message && (
+        <div className="border-l-2 border-primary/20 pl-4 py-2">
+          <p className="text-sm text-foreground/80 italic">"{message}"</p>
+        </div>
+      )}
+
+      {/* Investment criteria if available */}
+      {investment && (
+        <div className="text-xs text-muted-foreground">
+          Investment Range: {investment}
+        </div>
+      )}
+
+      {/* Unified Action Bar */}
+      <div className="flex items-center justify-between pt-2 border-t">
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onEmailContact}
+            className="h-8 px-3 text-xs"
+            disabled={!email}
+          >
+            <Mail className="w-3 h-3 mr-1.5" />
+            Email
+          </Button>
+          
+          {phone && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onPhoneContact}
+              className="h-8 px-3 text-xs"
+            >
+              <Phone className="w-3 h-3 mr-1.5" />
+              Call
+            </Button>
+          )}
+
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onLogNote}
+            className="h-8 px-3 text-xs"
+          >
+            <MessageSquare className="w-3 h-3 mr-1.5" />
+            Note
+          </Button>
+        </div>
+
+        {/* Document status - minimal indicators */}
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-muted-foreground">NDA</span>
+            <div className={cn(
+              "w-2 h-2 rounded-full",
+              selectedDeal?.nda_status === 'signed' ? 'bg-green-500' :
+              selectedDeal?.nda_status === 'sent' ? 'bg-yellow-500' : 'bg-muted'
+            )} />
           </div>
-
-          {/* Essential Contact Information Grid */}
-          <div className="grid grid-cols-2 gap-6 text-sm mb-6">
-            <div className="space-y-1">
-              <span className="text-muted-foreground text-xs uppercase tracking-wide">Email</span>
-              <p className="text-foreground font-medium truncate">
-                {buyerProfile?.buyerInfo?.email || selectedDeal?.buyer_email || 'Not provided'}
-              </p>
-            </div>
-            <div className="space-y-1">
-              <span className="text-muted-foreground text-xs uppercase tracking-wide">Type</span>
-              <p className="text-foreground font-medium">
-                {getBuyerTypeLabel(buyerProfile?.buyerInfo?.buyer_type || selectedDeal?.buyer_type)}
-              </p>
-            </div>
-            {buyerProfile?.buyerInfo?.phone_number && (
-              <div className="space-y-1">
-                <span className="text-muted-foreground text-xs uppercase tracking-wide">Phone</span>
-                <p className="text-foreground font-medium">{buyerProfile.buyerInfo.phone_number}</p>
-              </div>
-            )}
-            {(buyerProfile?.criteriaData?.fund_size_range || buyerProfile?.criteriaData?.investment_range) && (
-              <div className="space-y-1">
-                <span className="text-muted-foreground text-xs uppercase tracking-wide">Investment Range</span>
-                <p className="text-foreground font-medium text-xs">
-                  {buyerProfile.criteriaData.investment_range || buyerProfile.criteriaData.fund_size_range}
-                </p>
-              </div>
-            )}
-          </div>
-
-          {/* Phase 2: Unified Actions Interface */}
-          <div className="border-t border-border pt-6">
-            <div className="flex items-center justify-between">
-              {/* Primary Actions */}
-              <div className="flex items-center gap-3">
-                <Button
-                  variant="default"
-                  size="sm"
-                  onClick={onEmailContact}
-                  className="h-9 px-4 shadow-sm"
-                >
-                  <Mail className="w-4 h-4 mr-2" />
-                  Email
-                </Button>
-                
-                {buyerProfile?.buyerInfo?.phone_number && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={onPhoneContact}
-                    className="h-9 px-4"
-                  >
-                    <Phone className="w-4 h-4 mr-2" />
-                    Call
-                  </Button>
-                )}
-
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={onLogNote}
-                  className="h-9 px-4"
-                >
-                  <MessageSquare className="w-4 h-4 mr-2" />
-                  Note
-                </Button>
-              </div>
-
-              {/* Document Status Indicators */}
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-muted-foreground">NDA</span>
-                  <Badge 
-                    variant={selectedDeal?.nda_status === 'signed' ? 'default' : 'outline'} 
-                    className="text-xs px-2 py-0.5"
-                  >
-                    {selectedDeal?.nda_status === 'signed' ? 'Signed' : 
-                     selectedDeal?.nda_status === 'sent' ? 'Sent' : 'Pending'}
-                  </Badge>
-                </div>
-                
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-muted-foreground">Fee Agreement</span>
-                  <Badge 
-                    variant={selectedDeal?.fee_agreement_status === 'signed' ? 'default' : 'outline'} 
-                    className="text-xs px-2 py-0.5"
-                  >
-                    {selectedDeal?.fee_agreement_status === 'signed' ? 'Signed' : 
-                     selectedDeal?.fee_agreement_status === 'sent' ? 'Sent' : 'Pending'}
-                  </Badge>
-                </div>
-              </div>
-            </div>
+          
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-muted-foreground">Fee</span>
+            <div className={cn(
+              "w-2 h-2 rounded-full",
+              selectedDeal?.fee_agreement_status === 'signed' ? 'bg-green-500' :
+              selectedDeal?.fee_agreement_status === 'sent' ? 'bg-yellow-500' : 'bg-muted'
+            )} />
           </div>
         </div>
       </div>
-    );
-  }
-
-  return null;
+    </div>
+  );
 }
