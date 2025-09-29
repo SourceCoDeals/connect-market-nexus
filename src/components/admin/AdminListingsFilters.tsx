@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/select";
 import { X, RotateCcw, ArrowUpDown } from "lucide-react";
 import { AdminListing } from "@/types/admin";
+import { STATUS_TAG_LABELS } from "@/constants/statusTags";
 
 interface AdminListingsFiltersProps {
   filters: {
@@ -159,15 +160,15 @@ export function AdminListingsFilters({
             <SelectTrigger className="h-9">
               <SelectValue placeholder="All Status Tags" />
             </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Status Tags</SelectItem>
-              <SelectItem value="none">No Tag</SelectItem>
-              {uniqueStatusTags.map((tag) => (
-                <SelectItem key={tag} value={tag}>
-                  {tag}
-                </SelectItem>
-              ))}
-            </SelectContent>
+              <SelectContent className="bg-popover text-popover-foreground border shadow-lg z-50">
+                <SelectItem value="all">All Status Tags</SelectItem>
+                <SelectItem value="none">No Tag</SelectItem>
+                {uniqueStatusTags.map((tag) => (
+                  <SelectItem key={tag} value={tag}>
+                    {tag}
+                  </SelectItem>
+                ))}
+              </SelectContent>
           </Select>
         </div>
 

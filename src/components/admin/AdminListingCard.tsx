@@ -19,6 +19,8 @@ import { AdminListing } from "@/types/admin";
 import ListingStatusTag from "@/components/listing/ListingStatusTag";
 import { formatCurrency } from "@/lib/utils";
 import { StatusTagEditor } from "./StatusTagEditor";
+import { StatusTagSwitcher } from "./StatusTagSwitcher";
+import { StatusTagValue } from "@/constants/statusTags";
 
 interface AdminListingCardProps {
   listing: AdminListing;
@@ -64,9 +66,19 @@ export function AdminListingCard({
                 <div className="flex items-center gap-2 mb-1">
                   <h3 className="font-medium text-foreground truncate">{listing.title}</h3>
                   {listing.status_tag && (
-                    <ListingStatusTag status={listing.status_tag} className="scale-75" />
+                    <ListingStatusTag status={listing.status_tag} className="scale-75 relative top-0 left-0" />
                   )}
                 </div>
+                {onStatusTagChange && (
+                  <div className="mt-2">
+                    <StatusTagSwitcher
+                      currentValue={listing.status_tag}
+                      onChange={(value) => onStatusTagChange(listing.id, value)}
+                      compact
+                      className="w-40"
+                    />
+                  </div>
+                )}
                 {listing.internal_company_name && (
                   <p className="text-sm text-muted-foreground font-medium bg-sourceco/5 px-2 py-0.5 rounded inline-block">
                     {listing.internal_company_name}
@@ -154,7 +166,7 @@ export function AdminListingCard({
   }
 
   return (
-    <Card className="group hover:shadow-lg transition-all duration-300 border-0 shadow-sm bg-card overflow-hidden">
+    <Card className="group hover:shadow-md transition-all duration-200 border border-border/50 shadow-sm bg-card overflow-hidden rounded-lg">
       {/* Image Container with Status Tag Overlay */}
       <div className="relative h-48 bg-gradient-to-br from-sourceco/5 to-sourceco/10 flex items-center justify-center">
         {listing.image_url ? (
@@ -207,19 +219,11 @@ export function AdminListingCard({
 
       {/* Status Tag Switcher */}
       {onStatusTagChange && (
-        <div className="px-4 py-2 bg-sourceco/5 border-t">
-          <select
-            value={listing.status_tag || ""}
-            onChange={(e) => onStatusTagChange(listing.id, e.target.value || null)}
-            className="w-full text-sm bg-white border border-sourceco/20 rounded px-3 py-1.5 text-foreground focus:outline-none focus:ring-2 focus:ring-sourceco/30 focus:border-sourceco"
-          >
-            <option value="">No Status Tag</option>
-            <option value="just_listed">Just Listed</option>
-            <option value="reviewing_buyers">Reviewing Buyers</option>
-            <option value="in_diligence">In Diligence</option>
-            <option value="under_loi">Under LOI</option>
-            <option value="accepted_offer">Accepted Offer</option>
-          </select>
+        <div className="px-4 py-3 bg-muted/20 border-t border-border/50">
+          <StatusTagSwitcher
+            currentValue={listing.status_tag}
+            onChange={(value) => onStatusTagChange(listing.id, value)}
+          />
         </div>
       )}
 

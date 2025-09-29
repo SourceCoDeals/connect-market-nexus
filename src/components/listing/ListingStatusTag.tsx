@@ -1,5 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { STATUS_TAG_LABELS } from "@/constants/statusTags";
 
 interface ListingStatusTagProps {
   status: string | null;
@@ -8,34 +9,24 @@ interface ListingStatusTagProps {
 
 const STATUS_CONFIG = {
   just_listed: {
-    label: "Just Listed",
-    variant: "default" as const,
-    className:
-      "bg-[linear-gradient(135deg,_hsl(var(--primary)),_hsl(var(--primary)/0.85))] text-primary-foreground border-[color:hsl(var(--primary)/0.2)] shadow-[0_8px_24px_-8px_hsl(var(--primary)/0.45)]",
+    colorToken: "primary",
+    dotColor: "hsl(var(--primary))",
   },
   reviewing_buyers: {
-    label: "Just Listed",
-    variant: "default" as const,
-    className:
-      "bg-[linear-gradient(135deg,_hsl(var(--primary)),_hsl(var(--primary)/0.85))] text-primary-foreground border-[color:hsl(var(--primary)/0.2)] shadow-[0_8px_24px_-8px_hsl(var(--primary)/0.45)]",
+    colorToken: "accent", 
+    dotColor: "hsl(var(--accent))",
   },
   in_diligence: {
-    label: "In Diligence",
-    variant: "default" as const,
-    className:
-      "bg-[linear-gradient(135deg,_hsl(var(--accent)),_hsl(var(--accent)/0.85))] text-accent-foreground border-[color:hsl(var(--accent)/0.2)] shadow-[0_8px_24px_-8px_hsl(var(--accent)/0.45)]",
+    colorToken: "secondary",
+    dotColor: "hsl(var(--secondary))",
   },
   under_loi: {
-    label: "Under LOI",
-    variant: "default" as const,
-    className:
-      "bg-[linear-gradient(135deg,_hsl(var(--secondary)),_hsl(var(--secondary)/0.85))] text-secondary-foreground border-[color:hsl(var(--secondary)/0.2)] shadow-[0_8px_24px_-8px_hsl(var(--secondary)/0.3)]",
+    colorToken: "warning",
+    dotColor: "hsl(var(--warning))",
   },
   accepted_offer: {
-    label: "Accepted Offer",
-    variant: "default" as const,
-    className:
-      "bg-[linear-gradient(135deg,_hsl(var(--destructive)),_hsl(var(--destructive)/0.85))] text-destructive-foreground border-[color:hsl(var(--destructive)/0.2)] shadow-[0_8px_24px_-8px_hsl(var(--destructive)/0.4)]",
+    colorToken: "success",
+    dotColor: "hsl(var(--success))",
   },
 } as const;
 
@@ -45,22 +36,26 @@ const ListingStatusTag = ({ status, className }: ListingStatusTagProps) => {
   }
 
   const config = STATUS_CONFIG[status as keyof typeof STATUS_CONFIG];
+  const label = STATUS_TAG_LABELS[status] || status;
 
   return (
     <Badge
-      variant={config.variant}
+      variant="outline"
       className={cn(
-        "absolute top-3 left-3 z-10 px-3 py-1.5 text-[10px] md:text-xs font-semibold rounded-full border",
-        "transition-all duration-300 ease-out",
+        "absolute top-3 left-3 z-10 px-2.5 py-1 text-[10px] md:text-xs font-medium rounded-md",
+        "bg-popover text-foreground border shadow-sm",
+        "transition-all duration-200 ease-out",
         "backdrop-blur-sm",
         "hover:scale-105",
-        "shadow-sm",
-        "animate-fade-in",
-        config.className,
+        "flex items-center gap-1.5",
         className
       )}
     >
-      {config.label}
+      <div 
+        className="w-1.5 h-1.5 rounded-full" 
+        style={{ backgroundColor: config.dotColor }}
+      />
+      {label}
     </Badge>
   );
 };

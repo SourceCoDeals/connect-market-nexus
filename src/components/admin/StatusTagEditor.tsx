@@ -45,7 +45,7 @@ export function StatusTagEditor({ currentStatus, onStatusChange, className }: St
             <Edit3 className="h-3 w-3 text-white" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-48">
+        <DropdownMenuContent align="end" className="w-48 bg-popover text-popover-foreground border shadow-lg z-50">
           <DropdownMenuItem 
             onClick={() => onStatusChange(null)}
             className="text-destructive"
@@ -75,7 +75,7 @@ export function StatusTagEditor({ currentStatus, onStatusChange, className }: St
         <SelectTrigger className="w-40 h-8">
           <SelectValue placeholder="Set status..." />
         </SelectTrigger>
-        <SelectContent>
+        <SelectContent className="bg-popover text-popover-foreground border shadow-lg z-50">
           <SelectItem value="">No Status</SelectItem>
           {STATUS_OPTIONS.map((option) => (
             <SelectItem key={option.value} value={option.value}>
