@@ -1,4 +1,3 @@
-
 import { ImageIcon } from "lucide-react";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { Badge } from "@/components/ui/badge";
@@ -36,8 +35,8 @@ const ListingCardImage = ({ imageUrl: initialImageUrl, title, viewType }: Listin
   };
 
   return (
-    <div className={viewType === "list" ? "w-1/4 min-w-[180px] relative" : "relative"}>
-      <AspectRatio ratio={viewType === "list" ? 4/3 : 16/9} className="bg-muted">
+    <div className={viewType === "list" ? "w-1/4 min-w-[180px]" : ""}>
+      <AspectRatio ratio={viewType === "list" ? 4/3 : 16/9} className="bg-muted relative">
         {imageError || !imageUrl ? (
           <div className="w-full h-full flex items-center justify-center bg-gray-100">
             <ImageIcon className="h-8 w-8 text-gray-400" />
@@ -50,12 +49,12 @@ const ListingCardImage = ({ imageUrl: initialImageUrl, title, viewType }: Listin
             onError={handleImageError}
           />
         )}
+        <div className="absolute top-2 right-2">
+          <Badge className="bg-primary text-white opacity-0 group-hover:opacity-100 transition-opacity">
+            <ArrowRight className="h-3 w-3" />
+          </Badge>
+        </div>
       </AspectRatio>
-      <div className="absolute top-2 right-2">
-        <Badge className="bg-primary text-white opacity-0 group-hover:opacity-100 transition-opacity">
-          <ArrowRight className="h-3 w-3" />
-        </Badge>
-      </div>
     </div>
   );
 };

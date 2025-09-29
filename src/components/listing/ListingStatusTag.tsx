@@ -7,15 +7,10 @@ interface ListingStatusTagProps {
 }
 
 const STATUS_CONFIG = {
-  just_added: {
-    label: "Just Added",
+  just_listed: {
+    label: "Just Listed",
     variant: "default" as const,
     className: "bg-gradient-to-r from-emerald-500 to-emerald-600 text-white border-emerald-500/20 shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 font-medium tracking-wide",
-  },
-  reviewing_buyers: {
-    label: "Reviewing Buyers", 
-    variant: "secondary" as const,
-    className: "bg-gradient-to-r from-blue-500 to-blue-600 text-white border-blue-500/20 shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 font-medium tracking-wide",
   },
   in_diligence: {
     label: "In Diligence",

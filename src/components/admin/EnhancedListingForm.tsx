@@ -429,8 +429,7 @@ export function EnhancedListingForm({
                             </FormControl>
                             <SelectContent>
                               <SelectItem value="none">No Tag</SelectItem>
-                              <SelectItem value="just_added">Just Added</SelectItem>
-                              <SelectItem value="reviewing_buyers">Reviewing Buyers</SelectItem>
+                              <SelectItem value="just_listed">Just Listed</SelectItem>
                               <SelectItem value="in_diligence">In Diligence</SelectItem>
                               <SelectItem value="under_loi">Under LOI</SelectItem>
                               <SelectItem value="accepted_offer">Accepted Offer</SelectItem>

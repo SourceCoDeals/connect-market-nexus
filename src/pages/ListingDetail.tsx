@@ -154,7 +154,6 @@ const ListingDetail = () => {
             
             {/* Hero Image */}
             <div className="relative w-full h-[240px] border border-sourceco-form bg-sourceco-form overflow-hidden mb-6 rounded-lg">
-              <ListingStatusTag status={listing.status_tag} />
               {imageUrl ? (
                 <img
                   src={imageUrl}
@@ -171,6 +170,7 @@ const ListingDetail = () => {
                   <ImageIcon className="h-12 w-12 text-slate-500" />
                 </div>
               )}
+              <ListingStatusTag status={listing.status_tag} />
             </div>
 
             {/* Header Section - Correct Hierarchy */}
