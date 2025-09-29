@@ -3,6 +3,8 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "@/hooks/use-toast";
 import { z } from "zod";
+import bradDaughertyImage from '@/assets/brad-daugherty.png';
+import sfcLogo from '@/assets/sfc-logo.png';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -1745,31 +1747,36 @@ const Signup = () => {
                   <div className="flex items-start space-x-3">
                     <div className="w-10 h-10 rounded-full overflow-hidden bg-muted flex-shrink-0">
                       <img 
-                        src="/lovable-uploads/252f5573-94e8-40ff-a88d-685794544b28.png" 
-                        alt="Mellisa Berry"
+                        src={bradDaughertyImage} 
+                        alt="Brad Daughterty"
                         className="w-full h-full object-cover"
                       />
                     </div>
-                    <div className="space-y-2">
+                    <div className="space-y-2 flex-1 relative">
                       <blockquote className="text-sm text-foreground leading-relaxed italic">
-                        "We sourced three acquisitions through SourceCo in six months—deals we 
-                        never would have found through traditional channels. The quality of opportunities 
-                        and direct seller access changed our entire sourcing strategy."
+                        "SourceCo's technology-driven sourcing process consistently delivered a robust pipeline of qualified opportunities, resulting in multiple LOIs and a closed deal with more to come. Their team clearly understood our investment thesis and effectively conveyed our value to owners."
                       </blockquote>
                       <div className="space-y-1">
                         <div className="text-xs font-medium text-foreground">
-                          Mellisa Berry
+                          Brad Daughterty
                         </div>
                         <div className="text-xs text-muted-foreground">
-                          Partner, <a 
-                            href="https://www.newheritagecapital.com" 
+                          Chief Financial Officer, <a 
+                            href="https://sportsfacilities.com/" 
                             target="_blank" 
                             rel="noopener noreferrer"
                             className="hover:underline transition-all duration-200"
                           >
-                            New Heritage Capital
+                            Sports Facilities Companies
                           </a>
                         </div>
+                      </div>
+                      <div className="absolute bottom-0 right-0">
+                        <img 
+                          src={sfcLogo} 
+                          alt="Sports Facilities Companies"
+                          className="h-6 w-auto opacity-70"
+                        />
                       </div>
                     </div>
                   </div>
