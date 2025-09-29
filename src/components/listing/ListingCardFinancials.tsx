@@ -42,21 +42,6 @@ const ListingCardFinancials = ({ revenue, ebitda, description = "", formatCurren
         </div>
       </div>
       
-      {/* Strategic indicators */}
-      {(extractedMetrics.marketPosition || extractedMetrics.strategicAssets?.length) && (
-        <div className="flex flex-wrap gap-1 pt-2 border-t border-border/30">
-          {extractedMetrics.marketPosition && (
-            <Badge variant="secondary" className="text-xs px-2 py-0.5 h-auto">
-              {extractedMetrics.marketPosition.split(' ')[0]}
-            </Badge>
-          )}
-          {extractedMetrics.strategicAssets?.slice(0, 2).map((asset, index) => (
-            <Badge key={index} variant="outline" className="text-xs px-2 py-0.5 h-auto">
-              {asset.charAt(0).toUpperCase() + asset.slice(1)}
-            </Badge>
-          ))}
-        </div>
-      )}
     </div>
   );
 };
