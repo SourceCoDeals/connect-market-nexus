@@ -106,7 +106,7 @@ const convertListingToFormInput = (listing?: AdminListing): ListingFormInput => 
     description_json: listing?.description_json || null,
     owner_notes: listing?.owner_notes || "",
     status: listing?.status || "active",
-    status_tag: listing?.status_tag || "none",
+    status_tag: listing?.status_tag ?? null,
     
     // Admin-only internal fields
     internal_company_name: listing?.internal_company_name || "",
@@ -193,6 +193,7 @@ export function ListingForm({
         description_json: formData.description_json,
         owner_notes: formData.owner_notes,
         status: formData.status,
+        status_tag: formData.status_tag && formData.status_tag !== "none" ? formData.status_tag : null,
         
         // Admin-only internal fields
         internal_company_name: formData.internal_company_name,
