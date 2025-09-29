@@ -69,8 +69,8 @@
     --ring: 222.2 84% 4.9%;
     --radius: 0.5rem;
     
-    /* Premium design tokens - Investment grade sophistication */
-    --premium-primary: 43 38% 56%; /* SourceCo gold */
+    /* Premium design tokens - Updated to SourceCo colors */
+    --premium-primary: 43 38% 56%; /* SourceCo gold instead of blue */
     --premium-primary-foreground: 0 0% 100%;
     --premium-accent: 43 48% 66%; /* Lighter SourceCo gold */
     --premium-accent-foreground: 222 84% 4.9%;
@@ -78,22 +78,6 @@
     --premium-secondary-foreground: 43 38% 56%;
     --premium-border: 43 38% 56%;
     --premium-shadow: 43 38% 56%;
-    
-    /* Ultra-sophisticated card system */
-    --card-premium: 0 0% 100%;
-    --card-premium-border: 220 13% 91%;
-    --card-premium-shadow: 0 1px 3px 0 hsl(0 0% 0% / 0.1), 0 1px 2px 0 hsl(0 0% 0% / 0.06);
-    --card-premium-shadow-hover: 0 10px 15px -3px hsl(0 0% 0% / 0.1), 0 4px 6px -2px hsl(0 0% 0% / 0.05);
-    
-    /* Investment-grade status indicators */
-    --status-active: 34 197 94; /* Emerald 500 */
-    --status-active-bg: 240 253 244; /* Emerald 50 */
-    --status-inactive: 156 163 175; /* Gray 400 */
-    --status-inactive-bg: 249 250 251; /* Gray 50 */
-    
-    /* Professional gradients */
-    --gradient-card: linear-gradient(180deg, hsl(0 0% 100%) 0%, hsl(0 0% 99%) 100%);
-    --gradient-subtle: linear-gradient(135deg, hsl(var(--sourceco-background)) 0%, hsl(50 43% 96%) 100%);
     
     /* Premium gradients - SourceCo themed */
     --gradient-premium: linear-gradient(135deg, hsl(var(--premium-primary)), hsl(43 48% 46%));
@@ -332,58 +316,4 @@
 /* Custom sections styling */
 .custom-section {
   @apply bg-sourceco-background p-6 border border-sourceco-form space-y-3;
-}
-
-/* Investment-grade admin components */
-.admin-card {
-  @apply bg-gradient-to-b from-white to-gray-50/30 border border-gray-200/50 
-         shadow-sm hover:shadow-md transition-all duration-300 rounded-xl 
-         backdrop-blur-sm;
-}
-
-.admin-card-premium {
-  background: hsl(var(--card-premium));
-  border: 1px solid hsl(var(--card-premium-border));
-  box-shadow: var(--card-premium-shadow);
-  border-radius: 0.75rem;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.admin-card-premium:hover {
-  box-shadow: var(--card-premium-shadow-hover);
-  transform: translateY(-1px);
-}
-
-.status-badge-premium {
-  @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium 
-         border backdrop-blur-sm;
-}
-
-.status-active {
-  background-color: hsl(var(--status-active-bg));
-  color: hsl(var(--status-active));
-  border-color: hsl(var(--status-active) / 0.2);
-}
-
-.status-inactive {
-  background-color: hsl(var(--status-inactive-bg));
-  color: hsl(var(--status-inactive));
-  border-color: hsl(var(--status-inactive) / 0.2);
-}
-
-.financial-metric {
-  @apply bg-gradient-to-br from-gray-50 to-gray-100/50 border border-gray-200/50 
-         rounded-lg p-3 text-center backdrop-blur-sm;
-}
-
-.action-button-primary {
-  @apply bg-gradient-to-r from-sourceco to-sourceco-accent 
-         text-sourceco-foreground hover:from-sourceco/90 hover:to-sourceco-accent/90
-         shadow-sm hover:shadow-md transition-all duration-200 font-medium;
-}
-
-.admin-search-bar {
-  @apply bg-white/70 backdrop-blur-sm border border-gray-200/50 
-         focus:border-sourceco/50 focus:ring-2 focus:ring-sourceco/20
-         transition-all duration-200;
 }

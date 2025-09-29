@@ -189,76 +189,69 @@ const EnhancedAdminListings = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-sourceco-background via-white to-gray-50/30">
-      <div className="max-w-7xl mx-auto p-8 space-y-8">
-        {/* Investment-Grade Header */}
-        <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-8">
-          <div className="space-y-3">
-            <div className="flex items-center gap-3">
-              <div className="w-2 h-8 bg-gradient-to-b from-sourceco to-sourceco-accent rounded-full"></div>
-              <h1 className="text-4xl font-light text-foreground tracking-tight">
-                Listings Management
-              </h1>
-            </div>
-            <p className="text-muted-foreground text-lg leading-relaxed ml-5">
-              Enterprise-grade listing management with sophisticated controls and analytics
+    <div className="min-h-screen bg-sourceco-background">
+      <div className="max-w-7xl mx-auto p-6 space-y-6">
+        {/* Header */}
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+          <div>
+            <h1 className="text-3xl font-light text-foreground tracking-tight">
+              Listings Management
+            </h1>
+            <p className="text-muted-foreground mt-1">
+              Manage and monitor marketplace listings with enterprise-grade tools
             </p>
           </div>
           <Button 
             onClick={() => setIsCreateFormOpen(true)} 
-            className="action-button-primary px-8 py-3 text-base rounded-lg"
+            className="bg-sourceco text-sourceco-foreground hover:bg-sourceco/90 px-6 py-2.5 font-medium"
           >
-            <Plus className="h-5 w-5 mr-2" />
-            Create New Listing
+            <Plus className="h-4 w-4 mr-2" />
+            Add New Listing
           </Button>
         </div>
 
-        {/* Sophisticated Search & Control Panel */}
-        <div className="admin-card-premium p-6 backdrop-blur-sm">
-          <div className="flex flex-col lg:flex-row gap-6">
-            {/* Enhanced Search */}
+        {/* Search and Controls */}
+        <div className="bg-card rounded-lg border shadow-sm p-6">
+          <div className="flex flex-col lg:flex-row gap-4">
+            {/* Search */}
             <div className="relative flex-1">
-              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-muted-foreground h-5 w-5" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
               <Input
-                placeholder="Search by company name, listing title, deal ID, or location..."
-                className="admin-search-bar pl-12 h-12 text-base rounded-lg"
+                placeholder="Search listings, companies, deal IDs..."
+                className="pl-10 h-10 bg-background"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
             
-            {/* Premium Controls */}
-            <div className="flex items-center gap-4">
+            {/* Controls */}
+            <div className="flex items-center gap-3">
               <Button
                 variant="outline"
                 onClick={() => setIsFiltersOpen(!isFiltersOpen)}
-                className="h-12 px-6 rounded-lg border-gray-200/50 bg-white/70 backdrop-blur-sm
-                          hover:bg-white hover:border-sourceco/30 transition-all duration-200"
+                className="h-10"
               >
                 <Filter className="h-4 w-4 mr-2" />
-                Advanced Filters
+                Filters
                 {Object.values(filters).some(f => f !== "all" && f !== "") && (
-                  <div className="ml-2 h-5 w-5 rounded-full bg-sourceco/20 text-sourceco 
-                               flex items-center justify-center text-xs font-semibold">
+                  <Badge variant="secondary" className="ml-2 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs">
                     {Object.values(filters).filter(f => f !== "all" && f !== "").length}
-                  </div>
+                  </Badge>
                 )}
               </Button>
               
               <ViewSwitcher viewMode={viewMode} onViewChange={setViewMode} />
               
               {selectedListings.size > 0 && (
-                <div className="flex items-center gap-3 px-4 py-2 bg-gradient-to-r from-sourceco/10 to-sourceco-accent/10 
-                             border border-sourceco/20 rounded-lg backdrop-blur-sm">
-                  <span className="text-sm font-semibold text-sourceco">
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-sourceco/10 border border-sourceco/20 rounded-lg">
+                  <span className="text-sm font-medium text-sourceco">
                     {selectedListings.size} selected
                   </span>
-                  <div className="h-4 w-px bg-sourceco/20"></div>
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={() => handleBulkAction("activate")}
-                    className="h-8 px-3 text-xs font-medium text-emerald-700 hover:bg-emerald-50"
+                    className="h-7 px-2 text-xs"
                   >
                     Activate
                   </Button>
@@ -266,7 +259,7 @@ const EnhancedAdminListings = () => {
                     variant="ghost"
                     size="sm"
                     onClick={() => handleBulkAction("deactivate")}
-                    className="h-8 px-3 text-xs font-medium text-amber-700 hover:bg-amber-50"
+                    className="h-7 px-2 text-xs"
                   >
                     Deactivate
                   </Button>
@@ -274,7 +267,7 @@ const EnhancedAdminListings = () => {
                     variant="ghost"
                     size="sm"
                     onClick={() => handleBulkAction("delete")}
-                    className="h-8 px-3 text-xs font-medium text-red-700 hover:bg-red-50"
+                    className="h-7 px-2 text-xs text-destructive hover:text-destructive"
                   >
                     Delete
                   </Button>
