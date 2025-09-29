@@ -17,6 +17,7 @@ export interface AdminListing {
   files?: string[];
   image_url?: string | null;
   status: 'active' | 'inactive';
+  status_tag?: string | null;
   
   // Deal identifier for tracking
   deal_identifier?: string;
@@ -56,6 +57,7 @@ export interface CreateListingData {
   tags?: string[];
   owner_notes?: string;
   status?: 'active' | 'inactive';
+  status_tag?: string | null;
   
   // Deal identifier for tracking
   deal_identifier?: string;

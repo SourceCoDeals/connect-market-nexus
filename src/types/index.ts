@@ -149,6 +149,7 @@ export interface Listing {
   updated_at: string;
   image_url?: string | null;
   status: ListingStatus;
+  status_tag?: string | null;
   
   // Internal admin fields
   deal_identifier?: string | null;

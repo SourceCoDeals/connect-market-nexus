@@ -29,6 +29,7 @@ import { ExecutiveSummaryGenerator } from "@/components/listing-detail/Executive
 import { PersonalNotesWidget } from "@/components/listing-detail/PersonalNotesWidget";
 import { DealComparisonWidget } from "@/components/listing-detail/DealComparisonWidget";
 import { ListingBadges } from "@/components/listing-detail/ListingBadges";
+import ListingStatusTag from "@/components/listing/ListingStatusTag";
 
 
 const ListingDetail = () => {
@@ -152,7 +153,8 @@ const ListingDetail = () => {
           <div className="col-span-9 space-y-0">
             
             {/* Hero Image */}
-            <div className="w-full h-[240px] border border-sourceco-form bg-sourceco-form overflow-hidden mb-6 rounded-lg">
+            <div className="relative w-full h-[240px] border border-sourceco-form bg-sourceco-form overflow-hidden mb-6 rounded-lg">
+              <ListingStatusTag status={listing.status_tag} />
               {imageUrl ? (
                 <img
                   src={imageUrl}

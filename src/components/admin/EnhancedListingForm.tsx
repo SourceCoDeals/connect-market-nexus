@@ -35,7 +35,7 @@ import { parseCurrency, formatNumber } from "@/lib/currency-utils";
 import { useAdmin } from "@/hooks/use-admin";
 import { LocationSelect } from "@/components/ui/location-select";
 
-// Enhanced schema with investor-focused fields
+  // Enhanced schema with investor-focused fields
 const enhancedListingFormSchema = z.object({
   // Basic information
   title: z.string().min(5, "Title must be at least 5 characters").max(100),
@@ -52,6 +52,7 @@ const enhancedListingFormSchema = z.object({
   description_json: z.any().optional(),
   owner_notes: z.string().optional(),
   status: z.enum(["active", "inactive"]).default("active"),
+  status_tag: z.enum(["just_added", "reviewing_buyers", "in_diligence", "under_loi", "accepted_offer"]).nullable().optional(),
   
   // Investment thesis
   investment_thesis: z.string().optional(),
@@ -94,6 +95,7 @@ type EnhancedListingFormInput = {
   description_json?: any;
   owner_notes?: string;
   status: "active" | "inactive";
+  status_tag?: string | null;
   investment_thesis?: string;
   ownership_structure?: "individual" | "family" | "corporate" | "private_equity";
   seller_motivation?: "retirement" | "succession" | "growth_capital" | "liquidity_event";
@@ -130,6 +132,7 @@ const convertListingToFormInput = (listing?: AdminListing): EnhancedListingFormI
     description_json: listing?.description_json || null,
     owner_notes: listing?.owner_notes || "",
     status: listing?.status || "active",
+    status_tag: listing?.status_tag || null,
     investment_thesis: listing?.investment_thesis || "",
     ownership_structure: listing?.ownership_structure as any,
     seller_motivation: listing?.seller_motivation as any,
@@ -399,6 +402,35 @@ export function EnhancedListingForm({
                             <SelectContent>
                               <SelectItem value="active">Active</SelectItem>
                               <SelectItem value="inactive">Inactive</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="status_tag"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Status Tag</FormLabel>
+                          <FormDescription>
+                            Optional tag to display on listing card and detail page
+                          </FormDescription>
+                          <Select onValueChange={field.onChange} defaultValue={field.value || ""}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="No tag selected" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="">No Tag</SelectItem>
+                              <SelectItem value="just_added">Just Added</SelectItem>
+                              <SelectItem value="reviewing_buyers">Reviewing Buyers</SelectItem>
+                              <SelectItem value="in_diligence">In Diligence</SelectItem>
+                              <SelectItem value="under_loi">Under LOI</SelectItem>
+                              <SelectItem value="accepted_offer">Accepted Offer</SelectItem>
                             </SelectContent>
                           </Select>
                           <FormMessage />

@@ -11,6 +11,7 @@ import ListingCardBadges from "./listing/ListingCardBadges";
 import ListingCardTitle from "./listing/ListingCardTitle";
 import ListingCardFinancials from "./listing/ListingCardFinancials";
 import ListingCardActions from "./listing/ListingCardActions";
+import ListingStatusTag from "./listing/ListingStatusTag";
 
 interface ListingCardProps {
   listing: Listing;
@@ -68,11 +69,14 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
             viewType === "list" ? "flex-row w-full" : ""
           } h-full`}
         >
+        <div className="relative">
           <ListingCardImage 
             imageUrl={listing.image_url} 
             title={listing.title}
-            viewType={viewType} 
+            viewType={viewType}
           />
+          <ListingStatusTag status={listing.status_tag} />
+        </div>
           
           <div className={`flex flex-col ${viewType === "list" ? "w-2/4" : ""} flex-1`}>
             <CardContent

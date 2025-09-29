@@ -1315,6 +1315,7 @@ export type Database = {
           seller_involvement_preference: string | null
           seller_motivation: string | null
           status: string
+          status_tag: string | null
           tags: string[] | null
           timeline_preference: string | null
           title: string
@@ -1355,6 +1356,7 @@ export type Database = {
           seller_involvement_preference?: string | null
           seller_motivation?: string | null
           status?: string
+          status_tag?: string | null
           tags?: string[] | null
           timeline_preference?: string | null
           title: string
@@ -1395,6 +1397,7 @@ export type Database = {
           seller_involvement_preference?: string | null
           seller_motivation?: string | null
           status?: string
+          status_tag?: string | null
           tags?: string[] | null
           timeline_preference?: string | null
           title?: string
