@@ -154,162 +154,185 @@ export function AdminListingCard({
   }
 
   return (
-    <Card className="group hover:shadow-lg transition-all duration-300 border-0 shadow-sm bg-card overflow-hidden">
-      {/* Image Container with Status Tag Overlay */}
-      <div className="relative h-48 bg-gradient-to-br from-sourceco/5 to-sourceco/10 flex items-center justify-center">
+    <Card className="admin-card-premium group overflow-hidden">
+      {/* Premium Image Container */}
+      <div className="relative h-52 bg-gradient-to-br from-gray-100 to-gray-50 flex items-center justify-center overflow-hidden">
         {listing.image_url ? (
           <img 
             src={listing.image_url} 
             alt={listing.title}
-            className="w-full h-full object-cover"
+            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
           />
         ) : (
-          <Building2 className="h-12 w-12 text-sourceco/40" />
+          <div className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-50 flex items-center justify-center">
+            <Building2 className="h-16 w-16 text-gray-300" />
+          </div>
         )}
         
-        {/* Status Tag Overlay */}
+        {/* Premium Status Tag Overlay */}
         {listing.status_tag && (
-          <div className="absolute top-3 left-3">
-            <ListingStatusTag status={listing.status_tag} />
+          <div className="absolute top-4 left-4">
+            <div className="bg-white/95 backdrop-blur-sm border border-white/50 rounded-lg px-3 py-1.5 shadow-sm">
+              <ListingStatusTag status={listing.status_tag} />
+            </div>
           </div>
         )}
 
-        {/* Status Tag Editor */}
-        {onStatusTagChange && (
-          <StatusTagEditor
-            currentStatus={listing.status_tag}
-            onStatusChange={(status) => onStatusTagChange(listing.id, status)}
-          />
-        )}
-
-        {/* Selection Checkbox */}
-        <div className="absolute top-3 right-3">
-          <Checkbox
-            checked={isSelected}
-            onCheckedChange={onSelect}
-            className="bg-white/90 border-white/90 data-[state=checked]:bg-sourceco data-[state=checked]:border-sourceco shadow-sm"
-          />
+        {/* Selection Checkbox - Premium Style */}
+        <div className="absolute top-4 right-4">
+          <div className="bg-white/95 backdrop-blur-sm border border-white/50 rounded-lg p-1 shadow-sm">
+            <Checkbox
+              checked={isSelected}
+              onCheckedChange={onSelect}
+              className="data-[state=checked]:bg-sourceco data-[state=checked]:border-sourceco"
+            />
+          </div>
         </div>
 
-        {/* Status Badge */}
-        <div className="absolute bottom-3 right-3">
-          <Badge 
-            variant={listing.status === "active" ? "default" : "secondary"}
-            className={listing.status === "active" 
-              ? "bg-emerald-500 text-white border-0" 
-              : "bg-slate-500 text-white border-0"
-            }
-          >
-            {listing.status}
-          </Badge>
+        {/* Sophisticated Status Indicator */}
+        <div className="absolute bottom-4 right-4">
+          <div className={`status-badge-premium ${listing.status === "active" ? "status-active" : "status-inactive"}`}>
+            <div className={`w-2 h-2 rounded-full ${listing.status === "active" ? "bg-emerald-500" : "bg-gray-400"}`}></div>
+            <span className="capitalize font-medium">{listing.status}</span>
+          </div>
         </div>
       </div>
 
-      {/* Status Tag Switcher */}
+      {/* Sophisticated Status Tag Switcher */}
       {onStatusTagChange && (
-        <div className="px-4 py-2 bg-sourceco/5 border-t">
-          <select
-            value={listing.status_tag || ""}
-            onChange={(e) => onStatusTagChange(listing.id, e.target.value || null)}
-            className="w-full text-sm bg-white border border-sourceco/20 rounded px-3 py-1.5 text-foreground focus:outline-none focus:ring-2 focus:ring-sourceco/30 focus:border-sourceco"
-          >
-            <option value="">No Status Tag</option>
-            <option value="just_listed">Just Listed</option>
-            <option value="reviewing_buyers">Reviewing Buyers</option>
-            <option value="in_diligence">In Diligence</option>
-            <option value="under_loi">Under LOI</option>
-            <option value="accepted_offer">Accepted Offer</option>
-          </select>
+        <div className="px-6 py-4 bg-gradient-to-r from-gray-50/50 to-white border-t border-gray-100">
+          <div className="space-y-2">
+            <label className="text-xs font-semibold text-gray-600 uppercase tracking-wider">
+              Deal Status
+            </label>
+            <select
+              value={listing.status_tag || ""}
+              onChange={(e) => onStatusTagChange(listing.id, e.target.value || null)}
+              className="w-full text-sm bg-white/80 backdrop-blur-sm border border-gray-200 rounded-lg px-4 py-2.5 
+                       text-gray-700 focus:outline-none focus:ring-2 focus:ring-sourceco/30 focus:border-sourceco
+                       transition-all duration-200 font-medium"
+            >
+              <option value="">Select Status</option>
+              <option value="just_listed">🆕 Just Listed</option>
+              <option value="reviewing_buyers">👀 Reviewing Buyers</option>
+              <option value="in_diligence">🔍 In Diligence</option>
+              <option value="under_loi">📝 Under LOI</option>
+              <option value="accepted_offer">✅ Accepted Offer</option>
+            </select>
+          </div>
         </div>
       )}
 
-      <CardHeader className="pb-3">
-        <div className="space-y-3">
-          {/* Title and Company */}
-          <div>
-            <h3 className="font-semibold text-lg text-foreground leading-tight mb-1">
+      <CardHeader className="pb-4 px-6 pt-6">
+        <div className="space-y-4">
+          {/* Investment-Grade Title Section */}
+          <div className="space-y-3">
+            <h3 className="text-xl font-light text-gray-900 leading-tight tracking-tight">
               {listing.title}
             </h3>
             {listing.internal_company_name && (
-              <p className="text-sm font-medium text-sourceco bg-sourceco/10 px-2 py-1 rounded-md inline-block">
-                {listing.internal_company_name}
-              </p>
+              <div className="inline-flex items-center gap-2 bg-gradient-to-r from-sourceco/10 to-sourceco-accent/10 
+                           border border-sourceco/20 px-3 py-1.5 rounded-lg">
+                <div className="w-2 h-2 rounded-full bg-sourceco/60"></div>
+                <span className="text-sm font-semibold text-sourceco">
+                  {listing.internal_company_name}
+                </span>
+              </div>
             )}
           </div>
 
-          {/* Categories and Location */}
-          <div className="flex flex-wrap gap-1.5">
+          {/* Sophisticated Metadata */}
+          <div className="flex flex-wrap gap-2">
             {displayCategories.slice(0, 2).map((cat, index) => (
-              <Badge key={index} variant="outline" className="text-xs bg-background">
+              <div key={index} className="inline-flex items-center gap-1.5 px-2.5 py-1 
+                                        bg-gray-50 border border-gray-200 rounded-md text-xs font-medium text-gray-600">
                 {cat}
-              </Badge>
+              </div>
             ))}
             {displayCategories.length > 2 && (
-              <Badge variant="outline" className="text-xs bg-background">
-                +{displayCategories.length - 2}
-              </Badge>
+              <div className="inline-flex items-center px-2.5 py-1 bg-gray-50 border border-gray-200 
+                           rounded-md text-xs font-medium text-gray-500">
+                +{displayCategories.length - 2} more
+              </div>
             )}
-            <Badge variant="outline" className="text-xs bg-background">
-              <MapPin className="h-3 w-3 mr-1" />
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 
+                         bg-blue-50 border border-blue-200 rounded-md text-xs font-medium text-blue-700">
+              <MapPin className="h-3 w-3" />
               {listing.location}
-            </Badge>
+            </div>
             {listing.deal_identifier && (
-              <Badge variant="outline" className="text-xs font-mono bg-background">
+              <div className="inline-flex items-center px-2.5 py-1 bg-amber-50 border border-amber-200 
+                           rounded-md text-xs font-mono font-semibold text-amber-700">
                 {listing.deal_identifier}
-              </Badge>
+              </div>
             )}
           </div>
         </div>
       </CardHeader>
 
-      <CardContent className="pt-0 space-y-4">
-        {/* Financial Metrics */}
+      <CardContent className="pt-0 px-6 space-y-6">
+        {/* Investment-Grade Financial Metrics */}
         <div className="grid grid-cols-2 gap-4">
-          <div className="text-center p-3 bg-sourceco/5 rounded-lg">
-            <div className="text-sm text-muted-foreground mb-1 flex items-center justify-center gap-1">
-              <DollarSign className="h-3 w-3" />
+          <div className="financial-metric group cursor-default">
+            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 
+                         flex items-center justify-center gap-1.5">
+              <DollarSign className="h-3.5 w-3.5" />
               Revenue
             </div>
-            <div className="text-lg font-semibold text-foreground">
+            <div className="text-xl font-light text-gray-900 tracking-tight">
               {formatCurrency(revenue)}
             </div>
           </div>
-          <div className="text-center p-3 bg-sourceco/5 rounded-lg">
-            <div className="text-sm text-muted-foreground mb-1 flex items-center justify-center gap-1">
-              <TrendingUp className="h-3 w-3" />
+          <div className="financial-metric group cursor-default">
+            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 
+                         flex items-center justify-center gap-1.5">
+              <TrendingUp className="h-3.5 w-3.5" />
               EBITDA
             </div>
-            <div className="text-lg font-semibold text-foreground">
+            <div className="text-xl font-light text-gray-900 tracking-tight">
               {formatCurrency(ebitda)}
             </div>
           </div>
         </div>
 
-        {/* Meta Information */}
-        <div className="flex items-center gap-4 text-xs text-muted-foreground">
-          <div className="flex items-center gap-1">
-            <Calendar className="h-3 w-3" />
-            {new Date(listing.created_at).toLocaleDateString()}
-          </div>
-          <div className="flex items-center gap-1">
-            <Activity className="h-3 w-3" />
-            Last updated {new Date(listing.updated_at).toLocaleDateString()}
+        {/* Sophisticated Meta Information */}
+        <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+          <div className="flex items-center gap-4 text-xs text-gray-500">
+            <div className="flex items-center gap-1.5">
+              <Calendar className="h-3.5 w-3.5" />
+              <span className="font-medium">
+                {new Date(listing.created_at).toLocaleDateString('en-US', { 
+                  month: 'short', 
+                  day: 'numeric', 
+                  year: 'numeric' 
+                })}
+              </span>
+            </div>
+            <div className="w-px h-3 bg-gray-300"></div>
+            <div className="flex items-center gap-1.5">
+              <Activity className="h-3.5 w-3.5" />
+              <span>Updated {new Date(listing.updated_at).toLocaleDateString('en-US', { 
+                month: 'short', 
+                day: 'numeric'
+              })}</span>
+            </div>
           </div>
         </div>
 
-        {/* Primary Actions */}
-        <div className="flex gap-2 pt-2">
+        {/* Investment-Grade Action Panel */}
+        <div className="flex gap-3 pt-4">
           <Button
             onClick={onEdit}
-            className="flex-1 bg-sourceco text-sourceco-foreground hover:bg-sourceco/90"
+            className="action-button-primary flex-1 h-11 rounded-lg font-medium"
           >
             <Edit className="h-4 w-4 mr-2" />
-            Edit
+            Edit Listing
           </Button>
           <Button
             variant="outline"
             onClick={onToggleStatus}
-            className="px-3"
+            className="px-4 h-11 rounded-lg border-gray-200 bg-white/70 backdrop-blur-sm
+                     hover:bg-white hover:border-gray-300 transition-all duration-200"
           >
             {listing.status === "active" ? (
               <EyeOff className="h-4 w-4" />
@@ -319,23 +342,36 @@ export function AdminListingCard({
           </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="px-3">
+              <Button 
+                variant="outline" 
+                className="px-4 h-11 rounded-lg border-gray-200 bg-white/70 backdrop-blur-sm
+                         hover:bg-white hover:border-gray-300 transition-all duration-200"
+              >
                 <MoreHorizontal className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => window.open(`/listing/${listing.id}`, '_blank')}>
-                <ExternalLink className="h-4 w-4 mr-2" />
+            <DropdownMenuContent align="end" className="w-56 bg-white/95 backdrop-blur-sm border-gray-200">
+              <DropdownMenuItem 
+                onClick={() => window.open(`/listing/${listing.id}`, '_blank')}
+                className="h-10"
+              >
+                <ExternalLink className="h-4 w-4 mr-3" />
                 View Public Page
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setIsExpanded(!isExpanded)}>
-                <Activity className="h-4 w-4 mr-2" />
+              <DropdownMenuItem 
+                onClick={() => setIsExpanded(!isExpanded)}
+                className="h-10"
+              >
+                <Activity className="h-4 w-4 mr-3" />
                 {isExpanded ? 'Hide' : 'Show'} Details
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={onDelete} className="text-destructive">
-                <Trash2 className="h-4 w-4 mr-2" />
-                Delete
+              <DropdownMenuItem 
+                onClick={onDelete} 
+                className="text-red-600 hover:text-red-700 hover:bg-red-50 h-10"
+              >
+                <Trash2 className="h-4 w-4 mr-3" />
+                Delete Listing
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
