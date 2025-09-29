@@ -29,7 +29,6 @@ interface AdminListingCardProps {
   onToggleStatus: () => void;
   onDelete: () => void;
   onStatusTagChange?: (listingId: string, statusTag: string | null) => void;
-  onStatusChange?: (listingId: string, status: 'active' | 'inactive') => void;
 }
 
 export function AdminListingCard({
@@ -41,7 +40,6 @@ export function AdminListingCard({
   onToggleStatus,
   onDelete,
   onStatusTagChange,
-  onStatusChange,
 }: AdminListingCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -106,33 +104,6 @@ export function AdminListingCard({
                 <div className="text-xs text-muted-foreground">EBITDA</div>
               </div>
 
-              {/* Status with Quick Edit */}
-              <div className="text-center">
-                {onStatusChange ? (
-                  <select 
-                    value={listing.status} 
-                    onChange={(e) => onStatusChange(listing.id, e.target.value as 'active' | 'inactive')}
-                    className={`text-xs font-medium px-2 py-1 rounded cursor-pointer border ${
-                      listing.status === "active" 
-                        ? "bg-emerald-100 text-emerald-800 border-emerald-200" 
-                        : "bg-slate-100 text-slate-600 border-slate-200"
-                    }`}
-                  >
-                    <option value="active">Active</option>
-                    <option value="inactive">Inactive</option>
-                  </select>
-                ) : (
-                  <Badge 
-                    variant={listing.status === "active" ? "default" : "secondary"}
-                    className={listing.status === "active" 
-                      ? "bg-emerald-100 text-emerald-800 border-emerald-200" 
-                      : "bg-slate-100 text-slate-600 border-slate-200"
-                    }
-                  >
-                    {listing.status}
-                  </Badge>
-                )}
-              </div>
               {/* Actions */}
               <div className="flex items-center justify-end gap-2">
                 <Button
@@ -220,34 +191,37 @@ export function AdminListingCard({
           />
         </div>
 
-        {/* Status Badge with Quick Edit */}
-        <div className="absolute bottom-3 right-3 flex items-center gap-2">
-          {onStatusChange ? (
-            <select 
-              value={listing.status} 
-              onChange={(e) => onStatusChange(listing.id, e.target.value as 'active' | 'inactive')}
-              className={`text-xs font-medium px-2 py-1 rounded-md border-0 cursor-pointer ${
-                listing.status === "active" 
-                  ? "bg-emerald-500 text-white" 
-                  : "bg-slate-500 text-white"
-              }`}
-            >
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-            </select>
-          ) : (
-            <Badge 
-              variant={listing.status === "active" ? "default" : "secondary"}
-              className={listing.status === "active" 
-                ? "bg-emerald-500 text-white border-0" 
-                : "bg-slate-500 text-white border-0"
-              }
-            >
-              {listing.status}
-            </Badge>
-          )}
+        {/* Status Badge */}
+        <div className="absolute bottom-3 right-3">
+          <Badge 
+            variant={listing.status === "active" ? "default" : "secondary"}
+            className={listing.status === "active" 
+              ? "bg-emerald-500 text-white border-0" 
+              : "bg-slate-500 text-white border-0"
+            }
+          >
+            {listing.status}
+          </Badge>
         </div>
       </div>
+
+      {/* Status Tag Switcher */}
+      {onStatusTagChange && (
+        <div className="px-4 py-2 bg-sourceco/5 border-t">
+          <select
+            value={listing.status_tag || ""}
+            onChange={(e) => onStatusTagChange(listing.id, e.target.value || null)}
+            className="w-full text-sm bg-white border border-sourceco/20 rounded px-3 py-1.5 text-foreground focus:outline-none focus:ring-2 focus:ring-sourceco/30 focus:border-sourceco"
+          >
+            <option value="">No Status Tag</option>
+            <option value="just_listed">Just Listed</option>
+            <option value="reviewing_buyers">Reviewing Buyers</option>
+            <option value="in_diligence">In Diligence</option>
+            <option value="under_loi">Under LOI</option>
+            <option value="accepted_offer">Accepted Offer</option>
+          </select>
+        </div>
+      )}
 
       <CardHeader className="pb-3">
         <div className="space-y-3">
@@ -310,7 +284,6 @@ export function AdminListingCard({
             </div>
           </div>
         </div>
-
 
         {/* Meta Information */}
         <div className="flex items-center gap-4 text-xs text-muted-foreground">
