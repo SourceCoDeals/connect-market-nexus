@@ -27,7 +27,7 @@ export function StatusTagSwitcher({
   if (compact) {
     return (
       <Select value={currentValue || "none"} onValueChange={handleSelectChange}>
-        <SelectTrigger className={cn("h-8 text-xs bg-popover border shadow-sm", className)}>
+        <SelectTrigger className={cn("h-9 text-xs bg-popover border shadow-sm", className)}>
           <SelectValue />
         </SelectTrigger>
         <SelectContent className="bg-popover text-popover-foreground border shadow-lg z-50">
@@ -48,11 +48,11 @@ export function StatusTagSwitcher({
         type="single"
         value={currentValue || "none"}
         onValueChange={handleToggleChange}
-        className="grid grid-cols-3 lg:grid-cols-6 w-full gap-1"
+        className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 w-full gap-2 p-1"
       >
         <ToggleGroupItem
           value="none"
-          className="h-8 text-xs bg-muted/50 hover:bg-muted text-muted-foreground data-[state=on]:bg-card data-[state=on]:text-foreground data-[state=on]:border-border data-[state=on]:shadow-sm"
+          className="h-9 px-3 text-xs bg-muted/50 hover:bg-muted text-muted-foreground data-[state=on]:bg-card data-[state=on]:text-foreground data-[state=on]:border-border data-[state=on]:shadow-sm transition-all"
         >
           None
         </ToggleGroupItem>
@@ -60,7 +60,7 @@ export function StatusTagSwitcher({
           <ToggleGroupItem
             key={tag.value}
             value={tag.value}
-            className="h-8 text-xs bg-muted/50 hover:bg-muted text-muted-foreground data-[state=on]:bg-card data-[state=on]:text-foreground data-[state=on]:border-border data-[state=on]:shadow-sm"
+            className="h-9 px-3 text-xs bg-muted/50 hover:bg-muted text-muted-foreground data-[state=on]:bg-card data-[state=on]:text-foreground data-[state=on]:border-border data-[state=on]:shadow-sm transition-all"
           >
             {tag.label}
           </ToggleGroupItem>

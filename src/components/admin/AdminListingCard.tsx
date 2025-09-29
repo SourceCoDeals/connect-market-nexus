@@ -70,12 +70,13 @@ export function AdminListingCard({
                   )}
                 </div>
                 {onStatusTagChange && (
-                  <div className="mt-2">
+                  <div className="mt-3">
+                    <div className="text-xs font-medium text-muted-foreground mb-1">Status Tag</div>
                     <StatusTagSwitcher
                       currentValue={listing.status_tag}
                       onChange={(value) => onStatusTagChange(listing.id, value)}
                       compact
-                      className="w-40"
+                      className="w-48"
                     />
                   </div>
                 )}
@@ -219,7 +220,8 @@ export function AdminListingCard({
 
       {/* Status Tag Switcher */}
       {onStatusTagChange && (
-        <div className="px-4 py-3 bg-muted/20 border-t border-border/50">
+        <div className="px-4 py-4 bg-muted/20 border-t border-border/50">
+          <div className="text-xs font-medium text-muted-foreground mb-2">Status Tag</div>
           <StatusTagSwitcher
             currentValue={listing.status_tag}
             onChange={(value) => onStatusTagChange(listing.id, value)}
