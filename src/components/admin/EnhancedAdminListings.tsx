@@ -339,6 +339,9 @@ const EnhancedAdminListings = () => {
                   }
                 }}
                 onStatusTagChange={handleStatusTagChange}
+                onStatusChange={(listingId, status) => {
+                  toggleStatus({ id: listingId, status });
+                }}
               />
             ))}
             

@@ -29,6 +29,7 @@ interface AdminListingCardProps {
   onToggleStatus: () => void;
   onDelete: () => void;
   onStatusTagChange?: (listingId: string, statusTag: string | null) => void;
+  onStatusChange?: (listingId: string, status: 'active' | 'inactive') => void;
 }
 
 export function AdminListingCard({
@@ -40,6 +41,7 @@ export function AdminListingCard({
   onToggleStatus,
   onDelete,
   onStatusTagChange,
+  onStatusChange,
 }: AdminListingCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -104,20 +106,35 @@ export function AdminListingCard({
                 <div className="text-xs text-muted-foreground">EBITDA</div>
               </div>
 
+              {/* Status with Quick Edit */}
+              <div className="text-center">
+                {onStatusChange ? (
+                  <select 
+                    value={listing.status} 
+                    onChange={(e) => onStatusChange(listing.id, e.target.value as 'active' | 'inactive')}
+                    className={`text-xs font-medium px-2 py-1 rounded cursor-pointer border ${
+                      listing.status === "active" 
+                        ? "bg-emerald-100 text-emerald-800 border-emerald-200" 
+                        : "bg-slate-100 text-slate-600 border-slate-200"
+                    }`}
+                  >
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                  </select>
+                ) : (
+                  <Badge 
+                    variant={listing.status === "active" ? "default" : "secondary"}
+                    className={listing.status === "active" 
+                      ? "bg-emerald-100 text-emerald-800 border-emerald-200" 
+                      : "bg-slate-100 text-slate-600 border-slate-200"
+                    }
+                  >
+                    {listing.status}
+                  </Badge>
+                )}
+              </div>
               {/* Actions */}
               <div className="flex items-center justify-end gap-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={onToggleStatus}
-                  className="h-8 w-8 p-0"
-                >
-                  {listing.status === "active" ? (
-                    <EyeOff className="h-4 w-4" />
-                  ) : (
-                    <Eye className="h-4 w-4" />
-                  )}
-                </Button>
                 <Button
                   variant="ghost"
                   size="sm"
@@ -203,17 +220,32 @@ export function AdminListingCard({
           />
         </div>
 
-        {/* Status Badge */}
-        <div className="absolute bottom-3 right-3">
-          <Badge 
-            variant={listing.status === "active" ? "default" : "secondary"}
-            className={listing.status === "active" 
-              ? "bg-emerald-500 text-white border-0" 
-              : "bg-slate-500 text-white border-0"
-            }
-          >
-            {listing.status}
-          </Badge>
+        {/* Status Badge with Quick Edit */}
+        <div className="absolute bottom-3 right-3 flex items-center gap-2">
+          {onStatusChange ? (
+            <select 
+              value={listing.status} 
+              onChange={(e) => onStatusChange(listing.id, e.target.value as 'active' | 'inactive')}
+              className={`text-xs font-medium px-2 py-1 rounded-md border-0 cursor-pointer ${
+                listing.status === "active" 
+                  ? "bg-emerald-500 text-white" 
+                  : "bg-slate-500 text-white"
+              }`}
+            >
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+          ) : (
+            <Badge 
+              variant={listing.status === "active" ? "default" : "secondary"}
+              className={listing.status === "active" 
+                ? "bg-emerald-500 text-white border-0" 
+                : "bg-slate-500 text-white border-0"
+              }
+            >
+              {listing.status}
+            </Badge>
+          )}
         </div>
       </div>
 
@@ -279,14 +311,6 @@ export function AdminListingCard({
           </div>
         </div>
 
-        {/* Description */}
-        <div className="text-sm text-muted-foreground line-clamp-2">
-          {listing.description_html ? (
-            <div dangerouslySetInnerHTML={{ __html: listing.description_html }} className="prose prose-sm max-w-none" />
-          ) : (
-            <p>{listing.description}</p>
-          )}
-        </div>
 
         {/* Meta Information */}
         <div className="flex items-center gap-4 text-xs text-muted-foreground">
