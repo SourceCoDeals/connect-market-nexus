@@ -18,6 +18,7 @@ import {
 import { AdminListing } from "@/types/admin";
 import ListingStatusTag from "@/components/listing/ListingStatusTag";
 import { formatCurrency } from "@/lib/utils";
+import { StatusTagEditor } from "./StatusTagEditor";
 
 interface AdminListingCardProps {
   listing: AdminListing;
@@ -27,6 +28,7 @@ interface AdminListingCardProps {
   onEdit: () => void;
   onToggleStatus: () => void;
   onDelete: () => void;
+  onStatusTagChange?: (listingId: string, statusTag: string | null) => void;
 }
 
 export function AdminListingCard({
@@ -37,6 +39,7 @@ export function AdminListingCard({
   onEdit,
   onToggleStatus,
   onDelete,
+  onStatusTagChange,
 }: AdminListingCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -181,6 +184,14 @@ export function AdminListingCard({
           <div className="absolute top-3 left-3">
             <ListingStatusTag status={listing.status_tag} />
           </div>
+        )}
+
+        {/* Status Tag Editor */}
+        {onStatusTagChange && (
+          <StatusTagEditor
+            currentStatus={listing.status_tag}
+            onStatusChange={(status) => onStatusTagChange(listing.id, status)}
+          />
         )}
 
         {/* Selection Checkbox */}

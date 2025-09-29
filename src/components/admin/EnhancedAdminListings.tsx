@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Plus, Search, Filter, MoreHorizontal, Eye, EyeOff, Edit, Trash2, Calendar, DollarSign, Building2, Activity } from "lucide-react";
 import { AdminListingCard } from "./AdminListingCard";
 import { AdminListingsFilters } from "./AdminListingsFilters";
-import { AdminListingsStats } from "./AdminListingsStats";
+
 import { ListingForm } from "./ListingForm";
 import { AdminListing } from "@/types/admin";
 import { ViewSwitcher } from "./ViewSwitcher";
@@ -155,6 +155,16 @@ const EnhancedAdminListings = () => {
     }
   };
 
+  const handleStatusTagChange = (listingId: string, statusTag: string | null) => {
+    const listing = listings.find(l => l.id === listingId);
+    if (listing) {
+      updateListing({ 
+        id: listingId, 
+        listing: { ...listing, status_tag: statusTag }
+      });
+    }
+  };
+
   const handleFormClose = () => {
     setIsCreateFormOpen(false);
     setEditingListing(null);
@@ -199,9 +209,6 @@ const EnhancedAdminListings = () => {
             Add New Listing
           </Button>
         </div>
-
-        {/* Stats Dashboard */}
-        <AdminListingsStats listings={listings} />
 
         {/* Search and Controls */}
         <div className="bg-card rounded-lg border shadow-sm p-6">
@@ -331,6 +338,7 @@ const EnhancedAdminListings = () => {
                     deleteListing(listing.id);
                   }
                 }}
+                onStatusTagChange={handleStatusTagChange}
               />
             ))}
             
