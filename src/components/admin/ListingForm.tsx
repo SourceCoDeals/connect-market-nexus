@@ -195,13 +195,13 @@ export function ListingForm({
         status: formData.status,
         status_tag: formData.status_tag && formData.status_tag !== "none" ? formData.status_tag : null,
         
-        // Admin-only internal fields
-        internal_company_name: formData.internal_company_name,
-        internal_primary_owner: formData.internal_primary_owner,
-        internal_salesforce_link: formData.internal_salesforce_link,
-        internal_deal_memo_link: formData.internal_deal_memo_link,
-        internal_contact_info: formData.internal_contact_info,
-        internal_notes: formData.internal_notes,
+        // Admin-only internal fields - ensure they're properly passed
+        internal_company_name: formData.internal_company_name || null,
+        internal_primary_owner: formData.internal_primary_owner || null,
+        internal_salesforce_link: formData.internal_salesforce_link || null,
+        internal_deal_memo_link: formData.internal_deal_memo_link || null,
+        internal_contact_info: formData.internal_contact_info || null,
+        internal_notes: formData.internal_notes || null,
       };
       
       // Only pass the image if it's been changed

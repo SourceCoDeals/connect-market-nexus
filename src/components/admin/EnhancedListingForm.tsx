@@ -82,6 +82,14 @@ const enhancedListingFormSchema = z.object({
     title: z.string(),
     description: z.string()
   })).optional(),
+  
+  // Admin-only internal fields
+  internal_company_name: z.string().optional(),
+  internal_primary_owner: z.string().optional(),
+  internal_salesforce_link: z.string().optional(),
+  internal_deal_memo_link: z.string().optional(),
+  internal_contact_info: z.string().optional(),
+  internal_notes: z.string().optional(),
 });
 
 type EnhancedListingFormInput = {
@@ -110,6 +118,14 @@ type EnhancedListingFormInput = {
   market_rank?: string;
   geographic_coverage?: string;
   custom_sections?: { title: string; description: string; }[];
+  
+  // Admin-only internal fields
+  internal_company_name?: string;
+  internal_primary_owner?: string;
+  internal_salesforce_link?: string;
+  internal_deal_memo_link?: string;
+  internal_contact_info?: string;
+  internal_notes?: string;
 };
 
 type EnhancedListingFormValues = z.infer<typeof enhancedListingFormSchema>;
@@ -147,6 +163,14 @@ const convertListingToFormInput = (listing?: AdminListing): EnhancedListingFormI
     market_rank: listing?.market_position?.rank || "",
     geographic_coverage: listing?.market_position?.coverage || "",
     custom_sections: (listing as any)?.custom_sections || [],
+    
+    // Admin-only internal fields
+    internal_company_name: listing?.internal_company_name || "",
+    internal_primary_owner: listing?.internal_primary_owner || "",
+    internal_salesforce_link: listing?.internal_salesforce_link || "",
+    internal_deal_memo_link: listing?.internal_deal_memo_link || "",
+    internal_contact_info: listing?.internal_contact_info || "",
+    internal_notes: listing?.internal_notes || "",
   };
 };
 
@@ -225,6 +249,14 @@ export function EnhancedListingForm({
         status: formData.status,
         status_tag: formData.status_tag && formData.status_tag !== "none" ? formData.status_tag : null,
         investment_thesis: formData.investment_thesis,
+        
+        // Admin-only internal fields - ensure they're properly passed
+        internal_company_name: formData.internal_company_name || null,
+        internal_primary_owner: formData.internal_primary_owner || null,
+        internal_salesforce_link: formData.internal_salesforce_link || null,
+        internal_deal_memo_link: formData.internal_deal_memo_link || null,
+        internal_contact_info: formData.internal_contact_info || null,
+        internal_notes: formData.internal_notes || null,
         ownership_structure: formData.ownership_structure,
         seller_motivation: formData.seller_motivation,
         management_depth: formData.management_depth,

@@ -27,22 +27,62 @@ const AdminListings = () => {
   
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [sortBy, setSortBy] = useState("created_at");
+  const [sortOrder, setSortOrder] = useState("desc");
   const [isCreateFormOpen, setIsCreateFormOpen] = useState(false);
   const [editingListing, setEditingListing] = useState<AdminListing | null>(null);
   const [expandedListings, setExpandedListings] = useState<Set<string>>(new Set());
   
-  const filteredListings = listings.filter((listing) => {
-    const matchesSearch = searchQuery === "" || 
-      listing.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      listing.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      listing.categories.some(cat => cat.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      listing.category?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      listing.location.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    const matchesStatus = statusFilter === "all" || listing.status === statusFilter;
-    
-    return matchesSearch && matchesStatus;
-  });
+  const filteredAndSortedListings = listings
+    .filter((listing) => {
+      const matchesSearch = searchQuery === "" || 
+        listing.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        listing.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        listing.categories.some(cat => cat.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        listing.category?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        listing.location.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        listing.internal_company_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        listing.deal_identifier?.toLowerCase().includes(searchQuery.toLowerCase());
+      
+      const matchesStatus = statusFilter === "all" || listing.status === statusFilter;
+      
+      return matchesSearch && matchesStatus;
+    })
+    .sort((a, b) => {
+      let aValue, bValue;
+      
+      switch (sortBy) {
+        case "created_at":
+          aValue = new Date(a.created_at).getTime();
+          bValue = new Date(b.created_at).getTime();
+          break;
+        case "title":
+          aValue = a.title.toLowerCase();
+          bValue = b.title.toLowerCase();
+          break;
+        case "internal_company_name":
+          aValue = (a.internal_company_name || "").toLowerCase();
+          bValue = (b.internal_company_name || "").toLowerCase();
+          break;
+        case "revenue":
+          aValue = Number(a.revenue) || 0;
+          bValue = Number(b.revenue) || 0;
+          break;
+        case "status":
+          aValue = a.status;
+          bValue = b.status;
+          break;
+        default:
+          aValue = a.created_at;
+          bValue = b.created_at;
+      }
+      
+      if (sortOrder === "asc") {
+        return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
+      } else {
+        return aValue > bValue ? -1 : aValue < bValue ? 1 : 0;
+      }
+    });
 
   const toggleExpanded = (listingId: string) => {
     const newExpanded = new Set(expandedListings);
@@ -128,22 +168,45 @@ const AdminListings = () => {
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
             <Input
-              placeholder="Search listings..."
+              placeholder="Search by title, description, company name, deal ID..."
               className="pl-10"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Filter by status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="active">Active</SelectItem>
-              <SelectItem value="inactive">Inactive</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger>
+                <SelectValue placeholder="Filter by status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="inactive">Inactive</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={sortBy} onValueChange={setSortBy}>
+              <SelectTrigger>
+                <SelectValue placeholder="Sort by" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="created_at">Date Added</SelectItem>
+                <SelectItem value="title">Title</SelectItem>
+                <SelectItem value="internal_company_name">Company Name</SelectItem>
+                <SelectItem value="revenue">Revenue</SelectItem>
+                <SelectItem value="status">Status</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={sortOrder} onValueChange={setSortOrder}>
+              <SelectTrigger>
+                <SelectValue placeholder="Order" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="desc">Descending</SelectItem>
+                <SelectItem value="asc">Ascending</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </div>
 
@@ -161,7 +224,7 @@ const AdminListings = () => {
 
       {searchQuery && (
         <div className="text-sm text-muted-foreground">
-          Found {filteredListings.length} listing{filteredListings.length !== 1 ? 's' : ''} matching "{searchQuery}"
+          Found {filteredAndSortedListings.length} listing{filteredAndSortedListings.length !== 1 ? 's' : ''} matching "{searchQuery}"
         </div>
       )}
 
@@ -179,7 +242,7 @@ const AdminListings = () => {
         </div>
       ) : (
         <div className="grid gap-4 md:gap-6">
-          {filteredListings.map((listing) => {
+          {filteredAndSortedListings.map((listing) => {
             const displayCategories = listing.categories || (listing.category ? [listing.category] : []);
             
             return (
@@ -190,6 +253,11 @@ const AdminListings = () => {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-2 flex-wrap">
                           <CardTitle className="text-lg md:text-xl">{listing.title}</CardTitle>
+                          {listing.internal_company_name && (
+                            <span className="text-sm text-muted-foreground font-medium bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded">
+                              {listing.internal_company_name}
+                            </span>
+                          )}
                           <Badge 
                             variant={listing.status === "active" ? "default" : "secondary"}
                             className={listing.status === "active" ? "bg-green-100 text-green-800 text-xs" : "text-xs"}
@@ -202,6 +270,9 @@ const AdminListings = () => {
                             <Badge key={index} variant="outline" className="text-xs">{cat}</Badge>
                           ))}
                           <Badge variant="outline" className="text-xs">{listing.location}</Badge>
+                          {listing.deal_identifier && (
+                            <Badge variant="outline" className="text-xs font-mono">{listing.deal_identifier}</Badge>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -320,7 +391,7 @@ const AdminListings = () => {
             );
           })}
           
-          {filteredListings.length === 0 && (
+          {filteredAndSortedListings.length === 0 && (
             <Card>
               <CardContent className="p-8 text-center">
                 <h3 className="text-lg font-medium mb-2">No listings found</h3>
