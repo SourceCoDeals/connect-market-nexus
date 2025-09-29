@@ -50,7 +50,7 @@ const listingFormSchema = z.object({
   description_json: z.any().optional(),
   owner_notes: z.string().optional(),
   status: z.enum(["active", "inactive"]).default("active"),
-  status_tag: z.enum(["just_added", "reviewing_buyers", "in_diligence", "under_loi", "accepted_offer"]).nullable().optional(),
+  status_tag: z.string().nullable().optional(),
   
   // Admin-only internal fields
   internal_company_name: z.string().optional(),
@@ -73,7 +73,7 @@ type ListingFormInput = {
   description_json?: any;
   owner_notes?: string;
   status: "active" | "inactive";
-  status_tag?: string | null;
+  status_tag?: string;
   
   // Admin-only internal fields
   internal_company_name?: string;
@@ -106,7 +106,7 @@ const convertListingToFormInput = (listing?: AdminListing): ListingFormInput => 
     description_json: listing?.description_json || null,
     owner_notes: listing?.owner_notes || "",
     status: listing?.status || "active",
-    status_tag: listing?.status_tag || null,
+    status_tag: listing?.status_tag || "none",
     
     // Admin-only internal fields
     internal_company_name: listing?.internal_company_name || "",
@@ -364,8 +364,8 @@ export function ListingForm({
             <FormItem>
               <FormLabel>Status Tag</FormLabel>
               <Select
-                onValueChange={field.onChange}
-                defaultValue={field.value || ""}
+                onValueChange={(value) => field.onChange(value === "none" ? null : value)}
+                defaultValue={field.value || "none"}
               >
                 <FormControl>
                   <SelectTrigger>
@@ -373,7 +373,7 @@ export function ListingForm({
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  <SelectItem value="">No Tag</SelectItem>
+                  <SelectItem value="none">No Tag</SelectItem>
                   <SelectItem value="just_added">Just Added</SelectItem>
                   <SelectItem value="reviewing_buyers">Reviewing Buyers</SelectItem>
                   <SelectItem value="in_diligence">In Diligence</SelectItem>

@@ -52,7 +52,7 @@ const enhancedListingFormSchema = z.object({
   description_json: z.any().optional(),
   owner_notes: z.string().optional(),
   status: z.enum(["active", "inactive"]).default("active"),
-  status_tag: z.enum(["just_added", "reviewing_buyers", "in_diligence", "under_loi", "accepted_offer"]).nullable().optional(),
+  status_tag: z.string().nullable().optional(),
   
   // Investment thesis
   investment_thesis: z.string().optional(),
@@ -95,7 +95,7 @@ type EnhancedListingFormInput = {
   description_json?: any;
   owner_notes?: string;
   status: "active" | "inactive";
-  status_tag?: string | null;
+  status_tag?: string;
   investment_thesis?: string;
   ownership_structure?: "individual" | "family" | "corporate" | "private_equity";
   seller_motivation?: "retirement" | "succession" | "growth_capital" | "liquidity_event";
@@ -132,7 +132,7 @@ const convertListingToFormInput = (listing?: AdminListing): EnhancedListingFormI
     description_json: listing?.description_json || null,
     owner_notes: listing?.owner_notes || "",
     status: listing?.status || "active",
-    status_tag: listing?.status_tag || null,
+    status_tag: listing?.status_tag || "none",
     investment_thesis: listing?.investment_thesis || "",
     ownership_structure: listing?.ownership_structure as any,
     seller_motivation: listing?.seller_motivation as any,
@@ -418,14 +418,17 @@ export function EnhancedListingForm({
                           <FormDescription>
                             Optional tag to display on listing card and detail page
                           </FormDescription>
-                          <Select onValueChange={field.onChange} defaultValue={field.value || ""}>
+                          <Select 
+                            onValueChange={(value) => field.onChange(value === "none" ? null : value)} 
+                            defaultValue={field.value || "none"}
+                          >
                             <FormControl>
                               <SelectTrigger>
                                 <SelectValue placeholder="No tag selected" />
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              <SelectItem value="">No Tag</SelectItem>
+                              <SelectItem value="none">No Tag</SelectItem>
                               <SelectItem value="just_added">Just Added</SelectItem>
                               <SelectItem value="reviewing_buyers">Reviewing Buyers</SelectItem>
                               <SelectItem value="in_diligence">In Diligence</SelectItem>
