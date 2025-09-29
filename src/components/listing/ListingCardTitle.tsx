@@ -38,12 +38,7 @@ const ListingCardTitle = ({
           </div>
         );
       default:
-        return (
-          <div className="flex items-center gap-1 text-gray-600">
-            <AlertCircle className="h-4 w-4" />
-            <span className="text-xs font-medium">Status Unknown</span>
-          </div>
-        );
+        return null;
     }
   };
 
