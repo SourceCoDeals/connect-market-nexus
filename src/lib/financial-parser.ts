@@ -19,9 +19,7 @@ export interface ExtractedFinancials {
     confidence: number;
   };
   revenueModel?: string;
-  marketPosition?: string;
   growthDrivers?: string[];
-  strategicAssets?: string[];
   competitiveAdvantages?: string[];
   marketTrends?: string[];
   riskFactors?: string[];
@@ -273,40 +271,6 @@ export function extractFinancialMetrics(description: string): ExtractedFinancial
     }
   }
   
-  // Market position analysis
-  const positionIndicators = [
-    { pattern: /market leader|leading position|#1|dominant/i, position: 'Market Leading Position' },
-    { pattern: /established|well[\s-]known|recognized/i, position: 'Established Market Position' },
-    { pattern: /regional leader|regional presence/i, position: 'Strong Regional Position' },
-    { pattern: /niche|specialized|boutique/i, position: 'Niche Market Position' },
-  ];
-  
-  for (const { pattern, position } of positionIndicators) {
-    if (pattern.test(description)) {
-      metrics.marketPosition = position;
-      break;
-    }
-  }
-  
-  // Growth drivers analysis
-  const growthKeywords = [
-    'market expansion', 'geographic expansion', 'digital transformation', 'automation',
-    'new products', 'acquisitions', 'organic growth', 'market consolidation',
-    'infrastructure investment', 'technology upgrade', 'customer base growth'
-  ];
-  metrics.growthDrivers = growthKeywords.filter(keyword => 
-    lowerDesc.includes(keyword.toLowerCase())
-  );
-  
-  // Strategic assets analysis
-  const assetKeywords = [
-    'proprietary technology', 'patents', 'equipment', 'fleet', 'real estate',
-    'customer relationships', 'long-term contracts', 'licenses', 'certifications',
-    'brand recognition', 'distribution network', 'manufacturing facility'
-  ];
-  metrics.strategicAssets = assetKeywords.filter(keyword => 
-    lowerDesc.includes(keyword.toLowerCase())
-  );
   
   // Competitive advantages
   const advantageKeywords = [
@@ -412,11 +376,6 @@ export function generateRiskAssessment(
     if (riskLevel === 'Low') riskLevel = 'Low-Medium';
   }
   
-  // Mitigation factors
-  if (extractedMetrics.strategicAssets?.length > 0) {
-    mitigationFactors.push(`Strategic assets provide competitive protection: ${extractedMetrics.strategicAssets.slice(0, 2).join(', ')}`);
-    confidence += 0.1;
-  }
   
   if (extractedMetrics.competitiveAdvantages?.length > 0) {
     mitigationFactors.push(`Competitive advantages reduce market risk`);
@@ -427,11 +386,6 @@ export function generateRiskAssessment(
     mitigationFactors.push('Recurring revenue model provides cash flow predictability');
     if (riskLevel === 'Medium-High') riskLevel = 'Medium';
     else if (riskLevel === 'Medium') riskLevel = 'Low-Medium';
-  }
-  
-  if (extractedMetrics.marketPosition?.includes('Leading')) {
-    mitigationFactors.push('Market leading position provides defensive characteristics');
-    confidence += 0.1;
   }
   
   return {
@@ -457,12 +411,7 @@ export function generateCustomInvestmentThesis(
   const riskAssessment = generateRiskAssessment(description, category, revenue, ebitda, extractedMetrics);
   
   // Generate overview based on extracted insights
-  let overview = '';
-  if (extractedMetrics.marketPosition) {
-    overview = `${extractedMetrics.marketPosition.replace(' Position', '')} business `;
-  } else {
-    overview = 'Well-positioned business ';
-  }
+  let overview = 'Well-positioned business ';
   
   if (extractedMetrics.revenueModel) {
     overview += `with ${extractedMetrics.revenueModel.toLowerCase()} `;
@@ -480,10 +429,6 @@ export function generateCustomInvestmentThesis(
   
   // Key strengths from extracted data
   const keyStrengths: string[] = [];
-  
-  if (extractedMetrics.strategicAssets?.length > 0) {
-    keyStrengths.push(`Strategic assets: ${extractedMetrics.strategicAssets.slice(0, 2).join(', ')}`);
-  }
   
   if (extractedMetrics.competitiveAdvantages?.length > 0) {
     keyStrengths.push(`Competitive advantages in ${extractedMetrics.competitiveAdvantages.slice(0, 2).join(', ')}`);
@@ -521,14 +466,13 @@ export function generateCustomInvestmentThesis(
   }
   
   // Market position
-  let marketPosition = extractedMetrics.marketPosition || 'Established market participant';
+  let marketPosition = 'Established market participant';
   if (location) {
     marketPosition += ` with strong ${location} presence`;
   }
   
   // Calculate confidence
   let confidence = 0.6;
-  if (extractedMetrics.strategicAssets?.length > 0) confidence += 0.1;
   if (extractedMetrics.competitiveAdvantages?.length > 0) confidence += 0.1;
   if (extractedMetrics.growthDrivers?.length > 0) confidence += 0.1;
   if (revenue > 0 && ebitda > 0) confidence += 0.1;

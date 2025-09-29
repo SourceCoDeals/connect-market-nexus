@@ -126,42 +126,25 @@ const InvestorFinancialDashboard = ({
         </CardContent>
       </Card>
 
-      {/* Strategic Assets & Opportunities */}
-      {(extractedMetrics.strategicAssets?.length || extractedMetrics.growthDrivers?.length) && (
+      {/* Growth Opportunities */}
+      {extractedMetrics.growthDrivers?.length && (
         <Card className="bg-gradient-to-br from-background to-muted/10 border-border/50 shadow-sm">
           <CardHeader className="pb-4">
             <div className="flex items-center gap-2">
               <Calculator className="h-5 w-5 text-primary" />
-              <CardTitle className="text-xl">Strategic Value Drivers</CardTitle>
+              <CardTitle className="text-xl">Growth Opportunities</CardTitle>
             </div>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {extractedMetrics.strategicAssets && extractedMetrics.strategicAssets.length > 0 && (
-                <div>
-                  <h4 className="font-medium text-sm mb-3 text-primary">Strategic Assets</h4>
-                  <div className="space-y-2">
-                    {extractedMetrics.strategicAssets.map((asset, index) => (
-                      <Badge key={index} variant="secondary" className="text-xs mr-2 mb-1">
-                        {asset.charAt(0).toUpperCase() + asset.slice(1)}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              )}
-              
-              {extractedMetrics.growthDrivers && extractedMetrics.growthDrivers.length > 0 && (
-                <div>
-                  <h4 className="font-medium text-sm mb-3 text-primary">Growth Catalysts</h4>
-                  <div className="space-y-2">
-                    {extractedMetrics.growthDrivers.map((driver, index) => (
-                      <Badge key={index} variant="outline" className="text-xs mr-2 mb-1">
-                        {driver.charAt(0).toUpperCase() + driver.slice(1)}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              )}
+            <div>
+              <h4 className="font-medium text-sm mb-3 text-primary">Growth Drivers</h4>
+              <div className="space-y-2">
+                {extractedMetrics.growthDrivers.map((driver, index) => (
+                  <Badge key={index} variant="secondary" className="text-xs mr-2 mb-1">
+                    {driver.charAt(0).toUpperCase() + driver.slice(1)}
+                  </Badge>
+                ))}
+              </div>
             </div>
           </CardContent>
         </Card>
