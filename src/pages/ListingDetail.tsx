@@ -153,23 +153,25 @@ const ListingDetail = () => {
           <div className="col-span-9 space-y-0">
             
             {/* Hero Image */}
-            <div className="relative w-full h-[240px] border border-sourceco-form bg-sourceco-form overflow-hidden mb-6 rounded-lg">
-              {imageUrl ? (
-                <img
-                  src={imageUrl}
-                  alt={listing.title}
-                  className="w-full h-full object-cover"
-                  onError={(e) => {
-                    const target = e.target as HTMLImageElement;
-                    target.onerror = null;
-                    target.src = DEFAULT_IMAGE;
-                  }}
-                />
-              ) : (
-                <div className="w-full h-full bg-sourceco-form flex items-center justify-center">
-                  <ImageIcon className="h-12 w-12 text-slate-500" />
-                </div>
-              )}
+            <div className="relative w-full h-[240px] border border-sourceco-form bg-sourceco-form mb-6 rounded-lg">
+              <div className="w-full h-full overflow-hidden rounded-lg">
+                {imageUrl ? (
+                  <img
+                    src={imageUrl}
+                    alt={listing.title}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.onerror = null;
+                      target.src = DEFAULT_IMAGE;
+                    }}
+                  />
+                ) : (
+                  <div className="w-full h-full bg-sourceco-form flex items-center justify-center">
+                    <ImageIcon className="h-12 w-12 text-slate-500" />
+                  </div>
+                )}
+              </div>
               <ListingStatusTag status={listing.status_tag} />
             </div>
 
