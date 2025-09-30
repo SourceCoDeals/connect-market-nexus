@@ -240,7 +240,7 @@ export function ImprovedListingEditor({
           "flex-1 overflow-y-auto transition-all duration-300",
           showPreview ? "lg:mr-[460px]" : "mr-0"
         )}>
-          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="max-w-6xl mx-auto px-6 sm:px-8 lg:px-12 py-8">
             <Form {...form}>
               <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-8">
                 <EditorBasicInfoSection form={form} />

@@ -68,82 +68,12 @@ export function EnhancedMultiCategorySelect({
   };
 
   return (
-    <div className="space-y-4">
-      {/* Quick Select Options */}
-      <div className="space-y-2">
-        <div className="text-sm font-medium text-muted-foreground">Quick Select:</div>
-        <div className="flex flex-wrap gap-2">
-          {quickSelectOptions.map((option) => (
-            <Button
-              key={option.label}
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => handleQuickSelect(option.categories)}
-              className="text-xs"
-            >
-              {option.label}
-            </Button>
-          ))}
-        </div>
-      </div>
-
-      {/* Main Selection */}
-      <MultiSelect
-        options={options}
-        selected={value}
-        onSelectedChange={onValueChange}
-        placeholder={value.length > 0 ? `${value.length} industries selected` : placeholder}
-        className={className}
-      />
-
-      {/* Industry Descriptions Toggle */}
-      <Collapsible open={showDescriptions} onOpenChange={setShowDescriptions}>
-        <CollapsibleTrigger asChild>
-          <Button type="button" variant="ghost" size="sm" className="w-full justify-between text-xs">
-            <span className="flex items-center gap-1">
-              <Info className="h-3 w-3" />
-              Industry Examples & Descriptions
-            </span>
-            {showDescriptions ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-          </Button>
-        </CollapsibleTrigger>
-        <CollapsibleContent className="space-y-3 pt-2">
-          <div className="grid gap-2 text-xs">
-            <div className="font-medium text-muted-foreground">Popular Categories:</div>
-            {popularCategories.map((category) => (
-              <div key={category} className="space-y-1">
-                <div className="font-medium">{category}</div>
-                <div className="text-muted-foreground pl-2">
-                  {INDUSTRY_DESCRIPTIONS[category as keyof typeof INDUSTRY_DESCRIPTIONS] || 'Various businesses in this sector'}
-                </div>
-              </div>
-            ))}
-          </div>
-        </CollapsibleContent>
-      </Collapsible>
-
-      {/* Selected Categories Display */}
-      {value.length > 0 && (
-        <div className="space-y-2">
-          <div className="text-sm font-medium text-muted-foreground">Selected ({value.length}):</div>
-          <div className="flex flex-wrap gap-1">
-            {value.map((category) => (
-              <Badge key={category} variant="secondary" className="text-xs cursor-pointer hover:bg-secondary/80">
-                {category}
-                <button
-                  type="button"
-                  onClick={() => onValueChange(value.filter(v => v !== category))}
-                  className="ml-1 hover:text-destructive"
-                  aria-label={`Remove ${category}`}
-                >
-                  ×
-                </button>
-              </Badge>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
+    <MultiSelect
+      options={options}
+      selected={value}
+      onSelectedChange={onValueChange}
+      placeholder={value.length > 0 ? `${value.length} industries selected` : placeholder}
+      className={className}
+    />
   );
 }
