@@ -35,7 +35,9 @@ export const useUpdateLeadNDAStatus = () => {
     },
     onSuccess: async (_, { requestId, value }) => {
       queryClient.invalidateQueries({ queryKey: ['connection-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['connection-request-details'] });
       queryClient.invalidateQueries({ queryKey: ['deals'] });
+      queryClient.invalidateQueries({ queryKey: ['deal-activities'] });
       
       // Log activity if this connection request has a deal
       const { data: deal } = await supabase
@@ -88,7 +90,9 @@ export const useUpdateLeadNDAEmailStatus = () => {
     },
     onSuccess: async (_, { requestId, value }) => {
       queryClient.invalidateQueries({ queryKey: ['connection-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['connection-request-details'] });
       queryClient.invalidateQueries({ queryKey: ['deals'] });
+      queryClient.invalidateQueries({ queryKey: ['deal-activities'] });
       
       // Log activity if this connection request has a deal
       const { data: deal } = await supabase
@@ -141,7 +145,9 @@ export const useUpdateLeadFeeAgreementStatus = () => {
     },
     onSuccess: async (_, { requestId, value }) => {
       queryClient.invalidateQueries({ queryKey: ['connection-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['connection-request-details'] });
       queryClient.invalidateQueries({ queryKey: ['deals'] });
+      queryClient.invalidateQueries({ queryKey: ['deal-activities'] });
       
       // Log activity if this connection request has a deal
       const { data: deal } = await supabase
@@ -194,7 +200,9 @@ export const useUpdateLeadFeeAgreementEmailStatus = () => {
     },
     onSuccess: async (_, { requestId, value }) => {
       queryClient.invalidateQueries({ queryKey: ['connection-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['connection-request-details'] });
       queryClient.invalidateQueries({ queryKey: ['deals'] });
+      queryClient.invalidateQueries({ queryKey: ['deal-activities'] });
       
       // Log activity if this connection request has a deal
       const { data: deal } = await supabase

@@ -7,18 +7,26 @@ import { useUpdateLeadNDAStatus, useUpdateLeadFeeAgreementStatus, useUpdateLeadN
 import { useConnectionRequestDetails } from '@/hooks/admin/use-connection-request-details';
 import { DocumentHistory } from '../DocumentHistory';
 import { ConnectionRequestNotes } from '../ConnectionRequestNotes';
+import { useQueryClient } from '@tanstack/react-query';
+import { format } from 'date-fns';
 
 interface PipelineDetailDocumentsProps {
   deal: Deal;
 }
 
 export function PipelineDetailDocuments({ deal }: PipelineDetailDocumentsProps) {
+  const queryClient = useQueryClient();
   const updateNDA = useUpdateLeadNDAStatus();
   const updateFeeAgreement = useUpdateLeadFeeAgreementStatus();
   const logNDAEmail = useUpdateLeadNDAEmailStatus();
   const logFeeAgreementEmail = useUpdateLeadFeeAgreementEmailStatus();
   
   const { data: requestDetails } = useConnectionRequestDetails(deal.connection_request_id);
+  
+  const getAdminName = (admin?: { first_name: string; last_name: string; email: string }) => {
+    if (!admin) return null;
+    return `${admin.first_name} ${admin.last_name}`;
+  };
 
   const getStatusInfo = (status?: string) => {
     switch (status) {
@@ -52,6 +60,11 @@ export function PipelineDetailDocuments({ deal }: PipelineDetailDocumentsProps) 
     updateNDA.mutate({
       requestId: deal.connection_request_id,
       value: checked
+    }, {
+      onSuccess: () => {
+        // Force refresh of connection request details to show admin attribution
+        queryClient.invalidateQueries({ queryKey: ['connection-request-details', deal.connection_request_id] });
+      }
     });
   };
 
@@ -64,6 +77,10 @@ export function PipelineDetailDocuments({ deal }: PipelineDetailDocumentsProps) 
     updateFeeAgreement.mutate({
       requestId: deal.connection_request_id,
       value: checked
+    }, {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ['connection-request-details', deal.connection_request_id] });
+      }
     });
   };
 
@@ -76,6 +93,10 @@ export function PipelineDetailDocuments({ deal }: PipelineDetailDocumentsProps) 
     logNDAEmail.mutate({
       requestId: deal.connection_request_id,
       value: true
+    }, {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ['connection-request-details', deal.connection_request_id] });
+      }
     });
   };
 
@@ -88,6 +109,10 @@ export function PipelineDetailDocuments({ deal }: PipelineDetailDocumentsProps) 
     logFeeAgreementEmail.mutate({
       requestId: deal.connection_request_id,
       value: true
+    }, {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ['connection-request-details', deal.connection_request_id] });
+      }
     });
   };
 
@@ -125,12 +150,39 @@ export function PipelineDetailDocuments({ deal }: PipelineDetailDocumentsProps) 
                 />
               </div>
               
+              {/* Admin Attribution for NDA Signed */}
+              {requestDetails?.lead_nda_signed && requestDetails?.nda_signed_by_admin && (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground/70">
+                  <User className="w-3 h-3" />
+                  <span>Marked by {getAdminName(requestDetails.nda_signed_by_admin)}</span>
+                  {requestDetails.lead_nda_signed_at && (
+                    <span className="font-mono">
+                      {format(new Date(requestDetails.lead_nda_signed_at), 'MMM d')}
+                    </span>
+                  )}
+                </div>
+              )}
+              
+              {/* Admin Attribution for NDA Email */}
+              {requestDetails?.lead_nda_email_sent && requestDetails?.nda_email_sent_by_admin && (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground/70">
+                  <Mail className="w-3 h-3" />
+                  <span>Sent by {getAdminName(requestDetails.nda_email_sent_by_admin)}</span>
+                  {requestDetails.lead_nda_email_sent_at && (
+                    <span className="font-mono">
+                      {format(new Date(requestDetails.lead_nda_email_sent_at), 'MMM d')}
+                    </span>
+                  )}
+                </div>
+              )}
+              
               <button 
                 onClick={handleSendNDA}
                 disabled={logNDAEmail.isPending || !deal.contact_email}
                 className="w-full py-2 text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+                title={!deal.contact_email ? 'No email address available' : 'Mark as sent (tracking only)'}
               >
-                Send NDA
+                {logNDAEmail.isPending ? 'Logging...' : 'Mark NDA Email as Sent'}
               </button>
             </div>
 
@@ -157,12 +209,39 @@ export function PipelineDetailDocuments({ deal }: PipelineDetailDocumentsProps) 
                 />
               </div>
               
+              {/* Admin Attribution for Fee Agreement Signed */}
+              {requestDetails?.lead_fee_agreement_signed && requestDetails?.fee_signed_by_admin && (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground/70">
+                  <User className="w-3 h-3" />
+                  <span>Marked by {getAdminName(requestDetails.fee_signed_by_admin)}</span>
+                  {requestDetails.lead_fee_agreement_signed_at && (
+                    <span className="font-mono">
+                      {format(new Date(requestDetails.lead_fee_agreement_signed_at), 'MMM d')}
+                    </span>
+                  )}
+                </div>
+              )}
+              
+              {/* Admin Attribution for Fee Agreement Email */}
+              {requestDetails?.lead_fee_agreement_email_sent && requestDetails?.fee_email_sent_by_admin && (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground/70">
+                  <Mail className="w-3 h-3" />
+                  <span>Sent by {getAdminName(requestDetails.fee_email_sent_by_admin)}</span>
+                  {requestDetails.lead_fee_agreement_email_sent_at && (
+                    <span className="font-mono">
+                      {format(new Date(requestDetails.lead_fee_agreement_email_sent_at), 'MMM d')}
+                    </span>
+                  )}
+                </div>
+              )}
+              
               <button 
                 onClick={handleSendFeeAgreement}
                 disabled={logFeeAgreementEmail.isPending || !deal.contact_email}
                 className="w-full py-2 text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+                title={!deal.contact_email ? 'No email address available' : 'Mark as sent (tracking only)'}
               >
-                Send Fee Agreement
+                {logFeeAgreementEmail.isPending ? 'Logging...' : 'Mark Fee Agreement as Sent'}
               </button>
             </div>
           </div>
