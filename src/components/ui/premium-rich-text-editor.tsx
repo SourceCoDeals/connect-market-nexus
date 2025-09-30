@@ -32,6 +32,8 @@ export function PremiumRichTextEditor({ content, onChange }: PremiumRichTextEdit
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [wordCount, setWordCount] = useState(0);
   const [charCount, setCharCount] = useState(0);
+  const [showFloatingMenu, setShowFloatingMenu] = useState(false);
+  const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
 
   const editor = useEditor({
     extensions: [
@@ -81,6 +83,23 @@ export function PremiumRichTextEditor({ content, onChange }: PremiumRichTextEdit
       setCharCount(text.length);
       
       onChange(html, json);
+    },
+    onSelectionUpdate: ({ editor }) => {
+      const { from, to } = editor.state.selection;
+      const hasSelection = from !== to;
+      
+      if (hasSelection) {
+        const start = editor.view.coordsAtPos(from);
+        const end = editor.view.coordsAtPos(to);
+        
+        setMenuPosition({
+          top: start.top - 60,
+          left: (start.left + end.left) / 2,
+        });
+        setShowFloatingMenu(true);
+      } else {
+        setShowFloatingMenu(false);
+      }
     },
   });
 
@@ -354,6 +373,68 @@ export function PremiumRichTextEditor({ content, onChange }: PremiumRichTextEdit
         isFullscreen ? "h-[calc(100vh-8rem)]" : "max-h-[600px]"
       )}>
         <EditorContent editor={editor} />
+        
+        {/* Floating Toolbar on Text Selection */}
+        {showFloatingMenu && (
+          <div
+            className="fixed z-50 flex items-center gap-0.5 p-1.5 rounded-lg border border-border bg-background shadow-2xl"
+            style={{
+              top: `${menuPosition.top}px`,
+              left: `${menuPosition.left}px`,
+              transform: 'translateX(-50%)',
+            }}
+          >
+            <ToolbarButton
+              onClick={() => editor.chain().focus().toggleBold().run()}
+              active={editor.isActive('bold')}
+              title="Bold"
+            >
+              <Bold className="h-4 w-4" />
+            </ToolbarButton>
+
+            <ToolbarButton
+              onClick={() => editor.chain().focus().toggleItalic().run()}
+              active={editor.isActive('italic')}
+              title="Italic"
+            >
+              <Italic className="h-4 w-4" />
+            </ToolbarButton>
+
+            <ToolbarButton
+              onClick={() => editor.chain().focus().toggleUnderline().run()}
+              active={editor.isActive('underline')}
+              title="Underline"
+            >
+              <UnderlineIcon className="h-4 w-4" />
+            </ToolbarButton>
+
+            <ToolbarButton
+              onClick={() => editor.chain().focus().toggleStrike().run()}
+              active={editor.isActive('strike')}
+              title="Strikethrough"
+            >
+              <StrikethroughIcon className="h-4 w-4" />
+            </ToolbarButton>
+
+            <Separator orientation="vertical" className="h-6 mx-1" />
+
+            <ToolbarButton
+              onClick={setLink}
+              active={editor.isActive('link')}
+              title="Link"
+            >
+              <LinkIcon className="h-4 w-4" />
+            </ToolbarButton>
+
+            <ToolbarButton
+              onClick={() => editor.chain().focus().toggleHighlight().run()}
+              active={editor.isActive('highlight')}
+              title="Highlight"
+            >
+              <Highlighter className="h-4 w-4" />
+            </ToolbarButton>
+          </div>
+        )}
       </div>
 
       {/* Writing Guidelines */}
