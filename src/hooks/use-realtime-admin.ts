@@ -51,6 +51,21 @@ export function useRealtimeAdmin() {
             description: 'A new connection request requires review',
           });
           queryClient.invalidateQueries({ queryKey: ['admin-connection-requests'] });
+          queryClient.refetchQueries({ queryKey: ['connection-requests'], type: 'active' });
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'connection_requests'
+        },
+        (payload) => {
+          console.log('🔄 Connection request updated:', payload);
+          queryClient.refetchQueries({ queryKey: ['connection-requests'], type: 'active' });
+          queryClient.refetchQueries({ queryKey: ['connection-request-details'], type: 'active' });
+          queryClient.refetchQueries({ queryKey: ['deals'], type: 'active' });
         }
       )
       .on(
