@@ -7,7 +7,7 @@ import { Plus, Search, Filter, MoreHorizontal, Eye, EyeOff, Edit, Trash2, Calend
 import { AdminListingCard } from "./AdminListingCard";
 import { AdminListingsFilters } from "./AdminListingsFilters";
 
-import { ListingForm } from "./ListingForm";
+import { WizardListingForm } from "./wizard/WizardListingForm";
 import { AdminListing } from "@/types/admin";
 import { ViewSwitcher } from "./ViewSwitcher";
 
@@ -173,17 +173,13 @@ const EnhancedAdminListings = () => {
 
   if (isCreateFormOpen || editingListing) {
     return (
-      <div className="p-6 max-w-4xl mx-auto">
-        <ListingForm
-          listing={editingListing}
+      <div className="p-6">
+        <WizardListingForm
+          listing={editingListing || undefined}
           onSubmit={handleFormSubmit}
           isLoading={isCreating || isUpdating}
+          onCancel={handleFormClose}
         />
-        <div className="mt-6">
-          <Button variant="outline" onClick={handleFormClose}>
-            Cancel
-          </Button>
-        </div>
       </div>
     );
   }
