@@ -10,23 +10,23 @@ interface ListingStatusTagProps {
 const STATUS_CONFIG = {
   just_listed: {
     colorToken: "sourceco",
-    bgClass: "bg-sourceco text-sourceco-foreground border border-sourceco/30",
+    bgClass: "bg-sourceco text-white border border-sourceco/20 shadow-sm",
   },
   reviewing_buyers: {
     colorToken: "sourceco", 
-    bgClass: "bg-sourceco-accent text-sourceco-accent-foreground border border-sourceco-accent/30",
+    bgClass: "bg-amber-600 text-white border border-amber-600/20 shadow-sm",
   },
   in_diligence: {
     colorToken: "sourceco",
-    bgClass: "bg-sourceco-muted text-sourceco-muted-foreground border border-sourceco-muted/30",
+    bgClass: "bg-amber-700 text-white border border-amber-700/20 shadow-sm",
   },
   under_loi: {
     colorToken: "sourceco",
-    bgClass: "bg-sourceco text-sourceco-foreground border border-sourceco/30",
+    bgClass: "bg-amber-800 text-white border border-amber-800/20 shadow-sm",
   },
   accepted_offer: {
     colorToken: "sourceco",
-    bgClass: "bg-sourceco-accent text-sourceco-accent-foreground border border-sourceco-accent/30",
+    bgClass: "bg-emerald-600 text-white border border-emerald-600/20 shadow-sm",
   },
 } as const;
 
@@ -42,8 +42,7 @@ const ListingStatusTag = ({ status, className }: ListingStatusTagProps) => {
     <Badge
       variant="default"
       className={cn(
-        "absolute top-2 left-2 z-20 px-4 py-1.5 text-xs font-semibold rounded-md",
-        "shadow-sm",
+        "absolute -top-2 left-3 z-20 px-4 py-1.5 text-xs font-semibold rounded-md uppercase tracking-wide",
         config.bgClass,
         className
       )}
