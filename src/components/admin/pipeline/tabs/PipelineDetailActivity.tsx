@@ -12,7 +12,7 @@ interface PipelineDetailActivityProps {
 
 interface ActivityItem {
   id: string;
-  type: 'stage_change' | 'document_signed' | 'document_email_sent' | 'task_completed' | 'task_created' | 'task_assigned' | 'email_sent' | 'assignment_changed' | 'deal_updated' | 'follow_up';
+  type: 'stage_change' | 'nda_status_changed' | 'nda_email_sent' | 'fee_agreement_status_changed' | 'fee_agreement_email_sent' | 'task_completed' | 'task_created' | 'task_assigned' | 'email_sent' | 'assignment_changed' | 'deal_updated' | 'follow_up';
   title: string;
   description: string;
   timestamp: string;
@@ -64,9 +64,11 @@ export function PipelineDetailActivity({ deal }: PipelineDetailActivityProps) {
     switch (type) {
       case 'stage_change':
         return ArrowRight;
-      case 'document_signed':
+      case 'nda_status_changed':
+      case 'fee_agreement_status_changed':
         return FileText;
-      case 'document_email_sent':
+      case 'nda_email_sent':
+      case 'fee_agreement_email_sent':
         return Mail;
       case 'task_completed':
         return CheckCircle;
@@ -91,9 +93,11 @@ export function PipelineDetailActivity({ deal }: PipelineDetailActivityProps) {
     switch (type) {
       case 'stage_change':
         return 'bg-blue-500';
-      case 'document_signed':
+      case 'nda_status_changed':
+      case 'fee_agreement_status_changed':
         return 'bg-emerald-500';
-      case 'document_email_sent':
+      case 'nda_email_sent':
+      case 'fee_agreement_email_sent':
         return 'bg-purple-500';
       case 'task_completed':
         return 'bg-green-500';
@@ -171,7 +175,7 @@ export function PipelineDetailActivity({ deal }: PipelineDetailActivityProps) {
             </div>
             <div className="text-center space-y-1">
               <div className="text-2xl font-light text-emerald-600">
-                {activities.filter(a => a.type === 'document_signed').length}
+                {activities.filter(a => ['nda_status_changed', 'fee_agreement_status_changed'].includes(a.type)).length}
               </div>
               <div className="text-xs text-muted-foreground/70 font-mono">Documents</div>
             </div>
@@ -239,9 +243,9 @@ export function PipelineDetailActivity({ deal }: PipelineDetailActivityProps) {
                       <div className="flex flex-col items-center">
                         <div className={`w-1 h-1 rounded-full ${
                           activity.type === 'stage_change' ? 'bg-primary' :
-                          activity.type === 'document_signed' ? 'bg-emerald-500' :
+                          ['nda_status_changed', 'fee_agreement_status_changed'].includes(activity.type) ? 'bg-emerald-500' :
                           activity.type === 'task_completed' ? 'bg-emerald-500' :
-                          activity.type === 'email_sent' ? 'bg-primary' :
+                          ['email_sent', 'nda_email_sent', 'fee_agreement_email_sent'].includes(activity.type) ? 'bg-primary' :
                           activity.type === 'deal_updated' ? 'bg-amber-500' :
                           'bg-muted-foreground/40'
                         }`} />
@@ -294,7 +298,7 @@ export function PipelineDetailActivity({ deal }: PipelineDetailActivityProps) {
                             )}
                             
                             {/* Document Actions */}
-                            {(activity.type === 'document_signed' || activity.type === 'document_email_sent') && activity.metadata.document_type && (
+                            {(['nda_status_changed', 'fee_agreement_status_changed', 'nda_email_sent', 'fee_agreement_email_sent'].includes(activity.type)) && activity.metadata.document_type && (
                               <div className="flex items-center gap-2">
                                 <span className="text-xs text-muted-foreground/70">Document:</span>
                                 <span className="text-xs px-2 py-1 rounded-md bg-muted/50 text-foreground font-mono uppercase">

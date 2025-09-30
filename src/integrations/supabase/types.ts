@@ -2475,25 +2475,25 @@ export type Database = {
       update_lead_fee_agreement_email_status: {
         Args:
           | { admin_notes?: string; is_sent: boolean; request_id: string }
-          | { request_id: string; value: boolean }
+          | { p_request_id: string; p_value: boolean }
         Returns: boolean
       }
       update_lead_fee_agreement_status: {
         Args:
           | { admin_notes?: string; is_signed: boolean; request_id: string }
-          | { request_id: string; value: boolean }
+          | { p_request_id: string; p_value: boolean }
         Returns: boolean
       }
       update_lead_nda_email_status: {
         Args:
           | { admin_notes?: string; is_sent: boolean; request_id: string }
-          | { request_id: string; value: boolean }
+          | { p_request_id: string; p_value: boolean }
         Returns: boolean
       }
       update_lead_nda_status: {
         Args:
           | { admin_notes?: string; is_signed: boolean; request_id: string }
-          | { request_id: string; value: boolean }
+          | { p_request_id: string; p_value: boolean }
         Returns: boolean
       }
       update_nda_email_status: {

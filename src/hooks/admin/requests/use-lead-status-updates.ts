@@ -14,8 +14,8 @@ export const useUpdateLeadNDAStatus = () => {
   return useMutation({
     mutationFn: async ({ requestId, value }: LeadRequestParams) => {
       const { data, error } = await supabase.rpc('update_lead_nda_status', {
-        request_id: requestId,
-        value: value,
+        p_request_id: requestId,
+        p_value: value,
       });
       if (error) throw error;
       return data;
@@ -64,7 +64,7 @@ export const useUpdateLeadNDAStatus = () => {
       if (deal) {
         await logDealActivity({
           dealId: deal.id,
-          activityType: 'document_signed',
+          activityType: 'nda_status_changed',
           title: value ? 'NDA Signed' : 'NDA Status Revoked',
           description: value 
             ? `NDA marked as signed for ${deal.contact_name || 'contact'}`
@@ -84,8 +84,8 @@ export const useUpdateLeadNDAEmailStatus = () => {
   return useMutation({
     mutationFn: async ({ requestId, value }: LeadRequestParams) => {
       const { data, error } = await supabase.rpc('update_lead_nda_email_status', {
-        request_id: requestId,
-        value: value,
+        p_request_id: requestId,
+        p_value: value,
       });
       if (error) throw error;
       return data;
@@ -134,7 +134,7 @@ export const useUpdateLeadNDAEmailStatus = () => {
       if (deal) {
         await logDealActivity({
           dealId: deal.id,
-          activityType: 'document_email_sent',
+          activityType: 'nda_email_sent',
           title: value ? 'NDA Email Sent' : 'NDA Email Status Revoked',
           description: value 
             ? `NDA email sent to ${deal.contact_name || 'contact'}`
@@ -154,8 +154,8 @@ export const useUpdateLeadFeeAgreementStatus = () => {
   return useMutation({
     mutationFn: async ({ requestId, value }: LeadRequestParams) => {
       const { data, error } = await supabase.rpc('update_lead_fee_agreement_status', {
-        request_id: requestId,
-        value: value,
+        p_request_id: requestId,
+        p_value: value,
       });
       if (error) throw error;
       return data;
@@ -204,7 +204,7 @@ export const useUpdateLeadFeeAgreementStatus = () => {
       if (deal) {
         await logDealActivity({
           dealId: deal.id,
-          activityType: 'document_signed',
+          activityType: 'fee_agreement_status_changed',
           title: value ? 'Fee Agreement Signed' : 'Fee Agreement Status Revoked',
           description: value 
             ? `Fee Agreement marked as signed for ${deal.contact_name || 'contact'}`
@@ -224,8 +224,8 @@ export const useUpdateLeadFeeAgreementEmailStatus = () => {
   return useMutation({
     mutationFn: async ({ requestId, value }: LeadRequestParams) => {
       const { data, error } = await supabase.rpc('update_lead_fee_agreement_email_status', {
-        request_id: requestId,
-        value: value,
+        p_request_id: requestId,
+        p_value: value,
       });
       if (error) throw error;
       return data;
@@ -274,7 +274,7 @@ export const useUpdateLeadFeeAgreementEmailStatus = () => {
       if (deal) {
         await logDealActivity({
           dealId: deal.id,
-          activityType: 'document_email_sent',
+          activityType: 'fee_agreement_email_sent',
           title: value ? 'Fee Agreement Email Sent' : 'Fee Agreement Email Status Revoked',
           description: value 
             ? `Fee Agreement email sent to ${deal.contact_name || 'contact'}`

@@ -2,8 +2,10 @@ import { supabase } from '@/integrations/supabase/client';
 
 export type DealActivityType = 
   | 'stage_change'
-  | 'document_signed'
-  | 'document_email_sent'
+  | 'nda_status_changed'
+  | 'nda_email_sent'
+  | 'fee_agreement_status_changed'
+  | 'fee_agreement_email_sent'
   | 'task_created'
   | 'task_completed'
   | 'task_assigned'

@@ -27,8 +27,10 @@ export function CompleteAuditTrail({ deal }: CompleteAuditTrailProps) {
   const activityTypes = [
     { value: 'all', label: 'All Activities' },
     { value: 'stage_change', label: 'Stage Changes' },
-    { value: 'document_signed', label: 'Documents Signed' },
-    { value: 'document_email_sent', label: 'Emails Sent' },
+    { value: 'nda_status_changed', label: 'NDA Status Changes' },
+    { value: 'nda_email_sent', label: 'NDA Emails' },
+    { value: 'fee_agreement_status_changed', label: 'Fee Agreement Status Changes' },
+    { value: 'fee_agreement_email_sent', label: 'Fee Agreement Emails' },
     { value: 'task_created', label: 'Tasks Created' },
     { value: 'task_completed', label: 'Tasks Completed' },
     { value: 'task_assigned', label: 'Tasks Assigned' },
@@ -79,7 +81,7 @@ export function CompleteAuditTrail({ deal }: CompleteAuditTrailProps) {
         </div>
         <div className="p-4 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
           <div className="text-2xl font-semibold text-emerald-600">
-            {activities.filter(a => a.activity_type === 'document_signed').length}
+            {activities.filter(a => ['nda_status_changed', 'fee_agreement_status_changed'].includes(a.activity_type)).length}
           </div>
           <div className="text-xs text-muted-foreground">Documents</div>
         </div>
@@ -115,8 +117,8 @@ export function CompleteAuditTrail({ deal }: CompleteAuditTrailProps) {
                     <div className="flex items-center gap-2">
                       <span className={`px-2 py-1 rounded text-xs font-medium ${
                         activity.activity_type === 'stage_change' ? 'bg-primary/10 text-primary' :
-                        activity.activity_type === 'document_signed' ? 'bg-emerald-500/10 text-emerald-600' :
-                        activity.activity_type === 'document_email_sent' ? 'bg-purple-500/10 text-purple-600' :
+                        ['nda_status_changed', 'fee_agreement_status_changed'].includes(activity.activity_type) ? 'bg-emerald-500/10 text-emerald-600' :
+                        ['nda_email_sent', 'fee_agreement_email_sent'].includes(activity.activity_type) ? 'bg-purple-500/10 text-purple-600' :
                         activity.activity_type.includes('task') ? 'bg-blue-500/10 text-blue-600' :
                         'bg-muted text-muted-foreground'
                       }`}>
