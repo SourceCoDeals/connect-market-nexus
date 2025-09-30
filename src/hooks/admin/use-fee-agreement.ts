@@ -86,6 +86,9 @@ export const useUpdateFeeAgreement = () => {
       // Invalidate queries to get fresh data from backend
       queryClient.invalidateQueries({ queryKey: ['admin-users'] });
       queryClient.invalidateQueries({ queryKey: ['connection-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['connection-request-details'] });
+      queryClient.invalidateQueries({ queryKey: ['deals'] });
+      queryClient.invalidateQueries({ queryKey: ['deal-activities'] });
       toast({
         title: "Fee agreement status updated",
         description: "The fee agreement status has been successfully updated.",
@@ -162,6 +165,9 @@ export const useUpdateFeeAgreementEmailSent = () => {
       // Invalidate queries to get fresh data from backend
       queryClient.invalidateQueries({ queryKey: ['admin-users'] });
       queryClient.invalidateQueries({ queryKey: ['connection-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['connection-request-details'] });
+      queryClient.invalidateQueries({ queryKey: ['deals'] });
+      queryClient.invalidateQueries({ queryKey: ['deal-activities'] });
       toast({
         title: "Fee agreement email status updated",
         description: "The fee agreement email status has been successfully updated.",

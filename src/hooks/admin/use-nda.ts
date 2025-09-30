@@ -87,6 +87,9 @@ export const useUpdateNDA = () => {
       // Invalidate queries to get fresh data from backend
       queryClient.invalidateQueries({ queryKey: ['admin-users'] });
       queryClient.invalidateQueries({ queryKey: ['connection-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['connection-request-details'] });
+      queryClient.invalidateQueries({ queryKey: ['deals'] });
+      queryClient.invalidateQueries({ queryKey: ['deal-activities'] });
       toast({
         title: "NDA status updated",
         description: "The NDA status has been successfully updated.",
@@ -163,6 +166,9 @@ export const useUpdateNDAEmailSent = () => {
       // Invalidate queries to get fresh data from backend
       queryClient.invalidateQueries({ queryKey: ['admin-users'] });
       queryClient.invalidateQueries({ queryKey: ['connection-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['connection-request-details'] });
+      queryClient.invalidateQueries({ queryKey: ['deals'] });
+      queryClient.invalidateQueries({ queryKey: ['deal-activities'] });
       toast({
         title: "NDA email status updated",
         description: "The NDA email status has been successfully updated.",
