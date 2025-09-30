@@ -28,7 +28,6 @@ import { CreateDealAlertDialog } from "@/components/deal-alerts/CreateDealAlertD
 import { ExecutiveSummaryGenerator } from "@/components/listing-detail/ExecutiveSummaryGenerator";
 import { PersonalNotesWidget } from "@/components/listing-detail/PersonalNotesWidget";
 import { DealComparisonWidget } from "@/components/listing-detail/DealComparisonWidget";
-import { ListingBadges } from "@/components/listing-detail/ListingBadges";
 import ListingStatusTag from "@/components/listing/ListingStatusTag";
 
 
@@ -177,14 +176,6 @@ const ListingDetail = () => {
 
             {/* Header Section - Correct Hierarchy */}
             <div className="space-y-4 mb-8">
-              {/* Listing Badges */}
-              <ListingBadges 
-                createdAt={listing.created_at}
-                revenue={listing.revenue}
-                ebitda={listing.ebitda}
-                category={listing.category}
-              />
-              
               {/* Title */}
               <h1 className="document-title">{listing.title}</h1>
               
