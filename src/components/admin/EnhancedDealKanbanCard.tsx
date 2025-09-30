@@ -4,6 +4,8 @@ import { CSS } from '@dnd-kit/utilities';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Deal } from '@/hooks/admin/use-deals';
+import { useAdminProfile } from '@/hooks/admin/use-admin-profiles';
+import { User } from 'lucide-react';
 
 interface EnhancedDealKanbanCardProps {
   deal: Deal;
@@ -19,6 +21,8 @@ export function EnhancedDealKanbanCard({ deal, isDragging, onClick }: EnhancedDe
     transform,
     transition,
   } = useSortable({ id: deal.deal_id });
+
+  const assignedAdmin = useAdminProfile(deal.assigned_to);
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -128,6 +132,14 @@ export function EnhancedDealKanbanCard({ deal, isDragging, onClick }: EnhancedDe
             Fee Agreement
           </Badge>
         </div>
+
+        {/* Deal Owner */}
+        {assignedAdmin && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground border-t pt-3">
+            <User className="h-4 w-4" />
+            <span className="truncate">{assignedAdmin.displayName}</span>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

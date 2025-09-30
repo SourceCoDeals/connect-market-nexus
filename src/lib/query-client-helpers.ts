@@ -30,3 +30,7 @@ export const invalidateConnectionRequests = (queryClient: QueryClient) => {
 export const invalidateUserProfile = (queryClient: QueryClient, userId?: string) => {
   return safeInvalidateQueries(queryClient, INVALIDATION_PATTERNS.userProfile(userId));
 };
+
+export const invalidateConnectionRequestDetails = (queryClient: QueryClient) => {
+  return queryClient.invalidateQueries({ queryKey: ['connection-request-details'] });
+};

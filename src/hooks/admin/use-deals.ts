@@ -209,6 +209,7 @@ export function useUpdateDeal() {
     onSuccess: async (_, { dealId, updates }) => {
       queryClient.invalidateQueries({ queryKey: ['deals'] });
       queryClient.invalidateQueries({ queryKey: ['deal-activities'] });
+      queryClient.invalidateQueries({ queryKey: ['connection-request-details'] });
       
       // Log assignment changes
       if (updates.assigned_to !== undefined) {
