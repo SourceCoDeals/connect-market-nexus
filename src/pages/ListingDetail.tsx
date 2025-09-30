@@ -343,14 +343,89 @@ const ListingDetail = () => {
 
           {/* Right Column - 25% Premium Sticky Sidebar */}
           <div className="col-span-3">
-            {isAdmin && !userViewEnabled ? (
-              <AdminListingSidebar 
-                listing={listing}
-                onUserViewToggle={setUserViewEnabled}
-                userViewEnabled={userViewEnabled}
-                onEditModeToggle={setEditModeEnabled}
-                editModeEnabled={editModeEnabled}
-              />
+            {isAdmin ? (
+              <>
+                <AdminListingSidebar 
+                  listing={listing}
+                  onUserViewToggle={setUserViewEnabled}
+                  userViewEnabled={userViewEnabled}
+                  onEditModeToggle={setEditModeEnabled}
+                  editModeEnabled={editModeEnabled}
+                />
+                
+                {/* Show user view components when toggled */}
+                {userViewEnabled && (
+                  <div className="sticky top-6 space-y-6 mt-6">
+                    {/* Interested in This Deal? - Premium CTA */}
+                    <div className="bg-white border border-sourceco-form rounded-lg p-4 shadow-sm">
+                      <div className="text-center space-y-3">
+                        <div className="space-y-1">
+                          <h3 className="text-sm font-semibold text-slate-900">Interested in This Deal?</h3>
+                          <p className="text-xs text-slate-600">
+                            Get full access to detailed financials and business metrics
+                          </p>
+                        </div>
+                        
+                        <ConnectionButton 
+                          connectionExists={connectionExists}
+                          connectionStatus={connectionStatusValue}
+                          isRequesting={isRequesting}
+                          isAdmin={false}
+                          handleRequestConnection={handleRequestConnection}
+                          listingTitle={listing.title}
+                        />
+                        
+                        {/* Save Listing CTA */}
+                        <Button
+                          variant="outline"
+                          className="w-full h-8 bg-white border-sourceco-accent text-sourceco-accent hover:bg-sourceco-accent hover:text-white text-xs font-medium transition-all duration-300 rounded-md"
+                          onClick={handleToggleSave}
+                          disabled={isSaving || isSavedLoading}
+                        >
+                          <Bookmark
+                            className={`h-3 w-3 mr-1.5 ${
+                              isSaved ? "fill-current" : ""
+                            }`}
+                          />
+                          {isSaved ? "Saved" : "Save Listing"}
+                        </Button>
+                        
+                        {/* Download Executive Summary */}
+                        <div className="pt-3 border-t border-slate-100">
+                          <div className="flex justify-center">
+                            <ExecutiveSummaryGenerator listing={listing} />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Deal Alerts */}
+                    <div className="bg-white border border-sourceco-form rounded-lg p-4 shadow-sm">
+                      <div className="space-y-3">
+                        <div className="text-center space-y-1">
+                          <h4 className="text-sm font-semibold text-slate-900">Get Notified</h4>
+                          <p className="text-xs text-slate-600">
+                            Set up deal alerts based on your investment criteria
+                          </p>
+                        </div>
+                        <CreateDealAlertDialog
+                          trigger={
+                            <button className="w-full h-8 bg-white border border-sourceco-accent text-sourceco-accent hover:bg-sourceco-accent hover:text-white text-xs font-medium transition-all duration-300 flex items-center justify-center gap-2 rounded-md">
+                              <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-5 5-5-5h5v-5a7.5 7.5 0 1 0-15 0v5h5"/>
+                              </svg>
+                              Set Up Deal Alerts
+                            </button>
+                          }
+                        />
+                      </div>
+                    </div>
+
+                    {/* Personal Notes Widget */}
+                    <PersonalNotesWidget listingId={id!} />
+                  </div>
+                )}
+              </>
             ) : (
               <div className="sticky top-6 space-y-6">
                 {/* Interested in This Deal? - Premium CTA */}
@@ -367,7 +442,7 @@ const ListingDetail = () => {
                       connectionExists={connectionExists}
                       connectionStatus={connectionStatusValue}
                       isRequesting={isRequesting}
-                      isAdmin={isAdmin && !userViewEnabled}
+                      isAdmin={false}
                       handleRequestConnection={handleRequestConnection}
                       listingTitle={listing.title}
                     />
