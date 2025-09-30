@@ -62,9 +62,43 @@ export function useCreateDealTask() {
       if (error) throw error;
       return data;
     },
+    onMutate: async (taskData) => {
+      // Cancel outgoing queries
+      await queryClient.cancelQueries({ queryKey: ['deal-tasks', taskData.deal_id] });
+      await queryClient.cancelQueries({ queryKey: ['deals'] });
+
+      // Snapshot previous data
+      const previousTasks = queryClient.getQueryData(['deal-tasks', taskData.deal_id]);
+      const previousDeals = queryClient.getQueryData(['deals']);
+
+      // Optimistically add new task
+      const optimisticTask = {
+        id: `temp-${Date.now()}`,
+        ...taskData,
+        status: 'pending' as const,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+
+      queryClient.setQueryData(['deal-tasks', taskData.deal_id], (old: any) => 
+        old ? [optimisticTask, ...old] : [optimisticTask]
+      );
+
+      // Update deal task count
+      queryClient.setQueryData(['deals'], (old: any) => {
+        if (!old) return old;
+        return old.map((deal: any) => 
+          deal.deal_id === taskData.deal_id 
+            ? { ...deal, pending_task_count: (deal.pending_task_count || 0) + 1 }
+            : deal
+        );
+      });
+
+      return { previousTasks, previousDeals };
+    },
     onSuccess: async (data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['deal-tasks'] });
-      queryClient.invalidateQueries({ queryKey: ['deals'] });
+      queryClient.refetchQueries({ queryKey: ['deal-tasks', variables.deal_id], type: 'active' });
+      queryClient.refetchQueries({ queryKey: ['deals'], type: 'active' });
       queryClient.invalidateQueries({ queryKey: ['deal-activities'] });
       
       // Log activity
@@ -85,7 +119,15 @@ export function useCreateDealTask() {
         description: 'Task has been created successfully.',
       });
     },
-    onError: (error) => {
+    onError: (error, variables, context) => {
+      // Rollback optimistic updates
+      if (context?.previousTasks) {
+        queryClient.setQueryData(['deal-tasks', variables.deal_id], context.previousTasks);
+      }
+      if (context?.previousDeals) {
+        queryClient.setQueryData(['deals'], context.previousDeals);
+      }
+      
       toast({
         title: 'Error',
         description: `Failed to create task: ${error.message}`,
@@ -176,9 +218,40 @@ export function useCompleteDealTask() {
       if (error) throw error;
       return data;
     },
+    onMutate: async (taskId) => {
+      // Cancel outgoing queries
+      await queryClient.cancelQueries({ queryKey: ['deal-tasks'] });
+      await queryClient.cancelQueries({ queryKey: ['deals'] });
+
+      // Snapshot previous data
+      const previousTasksCache: any = {};
+      queryClient.getQueriesData({ queryKey: ['deal-tasks'] }).forEach(([key, data]) => {
+        previousTasksCache[JSON.stringify(key)] = data;
+      });
+      const previousDeals = queryClient.getQueryData(['deals']);
+
+      // Optimistically update task status
+      queryClient.getQueriesData({ queryKey: ['deal-tasks'] }).forEach(([key, data]) => {
+        queryClient.setQueryData(key, (old: any) => {
+          if (!old) return old;
+          return old.map((task: any) =>
+            task.id === taskId
+              ? {
+                  ...task,
+                  status: 'completed',
+                  completed_at: new Date().toISOString(),
+                  updated_at: new Date().toISOString(),
+                }
+              : task
+          );
+        });
+      });
+
+      return { previousTasksCache, previousDeals };
+    },
     onSuccess: async (data) => {
-      queryClient.invalidateQueries({ queryKey: ['deal-tasks'] });
-      queryClient.invalidateQueries({ queryKey: ['deals'] });
+      queryClient.refetchQueries({ queryKey: ['deal-tasks'], type: 'active' });
+      queryClient.refetchQueries({ queryKey: ['deals'], type: 'active' });
       queryClient.invalidateQueries({ queryKey: ['deal-activities'] });
       
       // Log activity
@@ -195,7 +268,17 @@ export function useCompleteDealTask() {
         description: 'Task has been marked as completed.',
       });
     },
-    onError: (error) => {
+    onError: (error, taskId, context) => {
+      // Rollback optimistic updates
+      if (context?.previousTasksCache) {
+        Object.entries(context.previousTasksCache).forEach(([key, data]) => {
+          queryClient.setQueryData(JSON.parse(key), data);
+        });
+      }
+      if (context?.previousDeals) {
+        queryClient.setQueryData(['deals'], context.previousDeals);
+      }
+      
       toast({
         title: 'Error',
         description: `Failed to complete task: ${error.message}`,
