@@ -139,13 +139,20 @@ export function EnhancedDealsKanbanBoard({ onCreateDeal, onManageStages, onDealC
     
     // Find the deal being moved
     const deal = filteredAndSortedDeals.find(d => d.deal_id === dealId);
-    if (!deal || deal.stage_id === newStageId) {
+    const targetStage = stages.find(s => s.id === newStageId);
+    
+    if (!deal || !targetStage || deal.stage_id === newStageId) {
       setActiveId(null);
       return;
     }
 
     // Update the deal stage
-    updateDealStage.mutate({ dealId, stageId: newStageId });
+    updateDealStage.mutate({ 
+      dealId, 
+      stageId: newStageId,
+      fromStage: deal.stage_name || undefined,
+      toStage: targetStage.name
+    });
     setActiveId(null);
   };
 

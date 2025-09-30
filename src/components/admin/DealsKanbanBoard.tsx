@@ -124,6 +124,8 @@ export function DealsKanbanBoard({
       updateDealStage.mutate({
         dealId: activeDeal.deal_id,
         stageId: targetStage.id,
+        fromStage: activeDeal.stage_name || undefined,
+        toStage: targetStage.name
       });
     }
 

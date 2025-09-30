@@ -120,22 +120,55 @@ export function useUpdateDealStage() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async ({ dealId, stageId }: { dealId: string; stageId: string }) => {
-      const { data, error } = await supabase
+    mutationFn: async ({ dealId, stageId, fromStage, toStage }: { 
+      dealId: string; 
+      stageId: string;
+      fromStage?: string;
+      toStage?: string;
+    }) => {
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      // Update deal stage
+      const { data: dealData, error: dealError } = await supabase
         .from('deals')
         .update({ 
           stage_id: stageId,
+          stage_entered_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         })
         .eq('id', dealId)
         .select()
         .single();
       
-      if (error) throw error;
-      return data;
+      if (dealError) throw dealError;
+      
+      // Log activity
+      const { error: activityError } = await supabase
+        .from('deal_activities')
+        .insert({
+          deal_id: dealId,
+          admin_id: user?.id,
+          activity_type: 'stage_change',
+          title: `Moved to ${toStage || 'new stage'}`,
+          description: fromStage 
+            ? `Deal moved from "${fromStage}" to "${toStage}"`
+            : `Deal moved to "${toStage}"`,
+          metadata: {
+            from_stage: fromStage,
+            to_stage: toStage,
+            from_stage_id: dealData.stage_id,
+            to_stage_id: stageId
+          }
+        });
+      
+      if (activityError) console.error('Failed to log activity:', activityError);
+      
+      return dealData;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['deals'] });
+      queryClient.invalidateQueries({ queryKey: ['deal-activities'] });
       toast({
         title: 'Deal Updated',
         description: 'Deal stage has been updated successfully.',

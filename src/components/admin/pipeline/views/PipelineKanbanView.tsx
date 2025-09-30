@@ -54,12 +54,19 @@ export function PipelineKanbanView({ pipeline }: PipelineKanbanViewProps) {
     const newStageId = over.id as string;
     
     const deal = pipeline.deals.find(d => d.deal_id === dealId);
-    if (!deal || deal.stage_id === newStageId) {
+    const targetStage = pipeline.stages.find(s => s.id === newStageId);
+    
+    if (!deal || !targetStage || deal.stage_id === newStageId) {
       setActiveId(null);
       return;
     }
     
-    updateDealStage.mutate({ dealId, stageId: newStageId });
+    updateDealStage.mutate({ 
+      dealId, 
+      stageId: newStageId,
+      fromStage: deal.stage_name || undefined,
+      toStage: targetStage.name
+    });
     setActiveId(null);
   };
   
