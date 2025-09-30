@@ -9,24 +9,24 @@ interface ListingStatusTagProps {
 
 const STATUS_CONFIG = {
   just_listed: {
-    colorToken: "success",
-    bgClass: "bg-success text-success-foreground border border-success/20",
+    colorToken: "sourceco",
+    bgClass: "bg-sourceco text-sourceco-foreground border border-sourceco/30",
   },
   reviewing_buyers: {
-    colorToken: "sourceco",
-    bgClass: "bg-sourceco-accent text-sourceco-accent-foreground border border-sourceco-accent/20",
+    colorToken: "sourceco", 
+    bgClass: "bg-sourceco-accent text-sourceco-accent-foreground border border-sourceco-accent/30",
   },
   in_diligence: {
-    colorToken: "warning", 
-    bgClass: "bg-warning text-warning-foreground border border-warning/20",
+    colorToken: "sourceco",
+    bgClass: "bg-sourceco-muted text-sourceco-muted-foreground border border-sourceco-muted/30",
   },
   under_loi: {
     colorToken: "sourceco",
-    bgClass: "bg-sourceco text-sourceco-foreground border border-sourceco/20",
+    bgClass: "bg-sourceco text-sourceco-foreground border border-sourceco/30",
   },
   accepted_offer: {
-    colorToken: "success",
-    bgClass: "bg-success text-success-foreground border border-success/20",
+    colorToken: "sourceco",
+    bgClass: "bg-sourceco-accent text-sourceco-accent-foreground border border-sourceco-accent/30",
   },
 } as const;
 
@@ -42,8 +42,7 @@ const ListingStatusTag = ({ status, className }: ListingStatusTagProps) => {
     <Badge
       variant="default"
       className={cn(
-        "absolute -top-2 -left-2 z-20 px-3 py-1 text-[10px] md:text-xs font-semibold rounded-md",
-        "transition-all duration-300 ease-out",
+        "absolute top-2 left-2 z-20 px-4 py-1.5 text-xs font-semibold rounded-md",
         "shadow-sm",
         config.bgClass,
         className
