@@ -1,5 +1,4 @@
 import { useEditor, EditorContent } from '@tiptap/react';
-import { BubbleMenu } from '@tiptap/react/menus';
 import StarterKit from '@tiptap/starter-kit';
 import { Table } from '@tiptap/extension-table';
 import { TableRow } from '@tiptap/extension-table-row';
@@ -355,62 +354,6 @@ export function PremiumRichTextEditor({ content, onChange }: PremiumRichTextEdit
         isFullscreen ? "h-[calc(100vh-8rem)]" : "max-h-[600px]"
       )}>
         <EditorContent editor={editor} />
-        
-        {/* Floating Bubble Menu */}
-        <BubbleMenu 
-          editor={editor}
-          className="flex items-center gap-0.5 p-1 rounded-lg border border-border bg-background shadow-lg"
-        >
-          <ToolbarButton
-            onClick={() => editor.chain().focus().toggleBold().run()}
-            active={editor.isActive('bold')}
-            title="Bold"
-          >
-            <Bold className="h-4 w-4" />
-          </ToolbarButton>
-
-          <ToolbarButton
-            onClick={() => editor.chain().focus().toggleItalic().run()}
-            active={editor.isActive('italic')}
-            title="Italic"
-          >
-            <Italic className="h-4 w-4" />
-          </ToolbarButton>
-
-          <ToolbarButton
-            onClick={() => editor.chain().focus().toggleUnderline().run()}
-            active={editor.isActive('underline')}
-            title="Underline"
-          >
-            <UnderlineIcon className="h-4 w-4" />
-          </ToolbarButton>
-
-          <ToolbarButton
-            onClick={() => editor.chain().focus().toggleStrike().run()}
-            active={editor.isActive('strike')}
-            title="Strikethrough"
-          >
-            <StrikethroughIcon className="h-4 w-4" />
-          </ToolbarButton>
-
-          <Separator orientation="vertical" className="h-6 mx-1" />
-
-          <ToolbarButton
-            onClick={setLink}
-            active={editor.isActive('link')}
-            title="Link"
-          >
-            <LinkIcon className="h-4 w-4" />
-          </ToolbarButton>
-
-          <ToolbarButton
-            onClick={() => editor.chain().focus().toggleHighlight().run()}
-            active={editor.isActive('highlight')}
-            title="Highlight"
-          >
-            <Highlighter className="h-4 w-4" />
-          </ToolbarButton>
-        </BubbleMenu>
       </div>
 
       {/* Writing Guidelines */}
