@@ -3,11 +3,12 @@ import { useDraggable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Mail, Phone, Edit, CheckSquare, Clock, Building2, Calendar, FileCheck, FileX } from 'lucide-react';
+import { Mail, Phone, Edit, CheckSquare, Clock, Building2, Calendar, FileCheck, FileX, User } from 'lucide-react';
 import { Deal } from '@/hooks/admin/use-deals';
 import { useLogDealContact } from '@/hooks/admin/use-deal-contact';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
+import { useAdminProfile } from '@/hooks/admin/use-admin-profiles';
 
 interface PipelineKanbanCardProps {
   deal: Deal;
@@ -32,6 +33,7 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
     transform: CSS.Translate.toString(transform),
   };
 
+// Apple/Stripe-style design helpers - Clean, minimal approach
   // Apple/Stripe-style design helpers - Clean, minimal approach
   const getBuyerTypeColor = (buyerType?: string) => {
     if (!buyerType) return 'bg-gray-50 text-gray-600 border-gray-200';
@@ -148,7 +150,7 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
   const buyerPriority = getBuyerPriority(actualBuyerType, deal.buyer_priority_score);
   const ndaStatus = getStatusIndicator(deal.nda_status);
   const feeStatus = getStatusIndicator(deal.fee_agreement_status);
-
+  const assignedAdmin = useAdminProfile(deal.assigned_to);
   // Key information display - Clean data extraction
   const listingTitle = deal.listing_title || 'Business Acquisition Opportunity';
   
@@ -301,7 +303,13 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
         <div className="text-xs text-gray-600">
           Contact: {contactName}
         </div>
-
+        {/* Deal Owner */}
+        {assignedAdmin && (
+          <div className="text-xs text-gray-600 flex items-center gap-1">
+            <User className="w-3.5 h-3.5 text-gray-400" />
+            <span>Owner: {assignedAdmin.displayName}</span>
+          </div>
+        )}
 
         {/* Document Status - Clean Apple/Stripe design */}
         <div className="flex items-center gap-4 text-xs">
