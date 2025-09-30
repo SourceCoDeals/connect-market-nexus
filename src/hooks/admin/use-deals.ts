@@ -212,7 +212,7 @@ export function useUpdateDeal() {
         queryClient.invalidateQueries({ queryKey: ['deals'] }),
         queryClient.invalidateQueries({ queryKey: ['deal-activities'] }),
         queryClient.invalidateQueries({ queryKey: ['connection-request-details'] }),
-        queryClient.invalidateQueries({ queryKey: ['admin-profiles'] }), // For deal owner name updates
+        queryClient.refetchQueries({ queryKey: ['admin-profiles'] }), // Force refetch for immediate owner name update
       ]);
       
       // Log assignment changes
