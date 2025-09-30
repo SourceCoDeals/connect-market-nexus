@@ -116,7 +116,7 @@ const CleanTierDisplay = ({ user, leadRole }: { user: any; leadRole?: string }) 
 
 // Decision Details Component
 function DecisionDetails({ adminId, timestamp, action }: { adminId: string; timestamp: string | null; action: string }) {
-  const { data: adminProfiles } = useAdminProfiles([adminId]);
+  const { data: adminProfiles } = useAdminProfiles();
   const admin = adminProfiles?.[adminId];
   
   return (

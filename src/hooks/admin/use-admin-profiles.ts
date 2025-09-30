@@ -9,13 +9,11 @@ interface AdminUser {
   last_name: string;
 }
 
-export function useAdminProfiles(adminIds?: (string | null | undefined)[]) {
-  const validIds = adminIds ? adminIds.filter((id): id is string => Boolean(id)) : [];
-  
+export function useAdminProfiles() {
   return useQuery({
-    queryKey: ['admin-profiles', validIds],
+    queryKey: ['admin-profiles'],
     queryFn: async () => {
-      // If no specific IDs provided, fetch all admin profiles
+      // Fetch all admin profiles
       const { data, error } = await supabase
         .from('profiles')
         .select('id, email, first_name, last_name')
@@ -39,11 +37,11 @@ export function useAdminProfiles(adminIds?: (string | null | undefined)[]) {
       return profileMap;
     },
     enabled: true,
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 1000, // 1 second for faster updates
   });
 }
 
 export function useAdminProfile(adminId: string | null | undefined) {
-  const { data } = useAdminProfiles([adminId]);
+  const { data } = useAdminProfiles();
   return adminId && data ? data[adminId] : null;
 }

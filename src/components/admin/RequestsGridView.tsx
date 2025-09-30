@@ -84,8 +84,7 @@ const BuyerCard = ({
   const updateStatus = useUpdateConnectionRequestStatus();
   
   // Fetch admin profiles for decision makers
-  const adminIds = [request.approved_by, request.rejected_by, request.on_hold_by];
-  const { data: adminProfiles } = useAdminProfiles(adminIds);
+  const { data: adminProfiles } = useAdminProfiles();
 
   return (
     <Card className="h-full border border-border/50 hover:border-border transition-colors">

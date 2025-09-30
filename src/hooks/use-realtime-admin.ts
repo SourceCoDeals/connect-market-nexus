@@ -117,6 +117,19 @@ export function useRealtimeAdmin() {
           queryClient.invalidateQueries({ queryKey: ['admin-users'] });
         }
       )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'deals'
+        },
+        (payload) => {
+          console.log('💼 Deal updated:', payload);
+          queryClient.refetchQueries({ queryKey: ['deals'], type: 'active' });
+          queryClient.invalidateQueries({ queryKey: ['deal-activities'] });
+        }
+      )
       .subscribe((status) => {
         console.log('📡 Consolidated admin notifications realtime status:', status);
         setIsConnected(status === 'SUBSCRIBED');

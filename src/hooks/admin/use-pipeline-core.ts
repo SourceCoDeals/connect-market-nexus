@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useDeals, useDealStages, Deal } from '@/hooks/admin/use-deals';
 import { useDealFilters } from '@/hooks/admin/use-deal-filters';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -133,6 +133,15 @@ export function usePipelineCore() {
     setIsFilterPanelOpen(!isFilterPanelOpen);
   };
   
+  // Keep selectedDeal in sync with latest deals data
+  useEffect(() => {
+    if (selectedDeal && filteredAndSortedDeals) {
+      const updatedDeal = filteredAndSortedDeals.find(d => d.deal_id === selectedDeal.deal_id);
+      if (updatedDeal && JSON.stringify(updatedDeal) !== JSON.stringify(selectedDeal)) {
+        setSelectedDeal(updatedDeal);
+      }
+    }
+  }, [filteredAndSortedDeals, selectedDeal]);
   
   return {
     // State

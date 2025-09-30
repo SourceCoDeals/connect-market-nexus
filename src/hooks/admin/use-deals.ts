@@ -206,15 +206,27 @@ export function useUpdateDeal() {
       if (error) throw error;
       return data;
     },
-    onSuccess: async (_, { dealId, updates }) => {
-      // Invalidate all related queries for immediate updates
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['deals'] }),
-        queryClient.invalidateQueries({ queryKey: ['deal-activities'] }),
-        queryClient.invalidateQueries({ queryKey: ['connection-request-details'] }),
-        queryClient.refetchQueries({ queryKey: ['admin-profiles'] }), // Force refetch for immediate owner name update
-      ]);
+    onMutate: async ({ dealId, updates }) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['deals'] });
       
+      // Snapshot previous value
+      const previousDeals = queryClient.getQueryData<Deal[]>(['deals']);
+      
+      // Optimistically update the cache
+      if (previousDeals) {
+        queryClient.setQueryData<Deal[]>(['deals'], (old) => 
+          old?.map(deal => 
+            deal.deal_id === dealId 
+              ? { ...deal, ...updates }
+              : deal
+          ) ?? []
+        );
+      }
+      
+      return { previousDeals };
+    },
+    onSuccess: async (_, { dealId, updates }) => {
       // Log assignment changes
       if (updates.assigned_to !== undefined) {
         const { data: adminProfiles } = await supabase
@@ -241,12 +253,26 @@ export function useUpdateDeal() {
         description: 'Deal has been updated successfully.',
       });
     },
-    onError: (error) => {
+    onError: (error, _, context) => {
+      // Rollback on error
+      if (context?.previousDeals) {
+        queryClient.setQueryData(['deals'], context.previousDeals);
+      }
+      
       toast({
         title: 'Error',
         description: `Failed to update deal: ${error.message}`,
         variant: 'destructive',
       });
+    },
+    onSettled: async () => {
+      // Refetch to ensure consistency
+      await Promise.all([
+        queryClient.refetchQueries({ queryKey: ['deals'], type: 'active' }),
+        queryClient.invalidateQueries({ queryKey: ['deal-activities'] }),
+        queryClient.invalidateQueries({ queryKey: ['connection-request-details'] }),
+        queryClient.refetchQueries({ queryKey: ['admin-profiles'] }),
+      ]);
     },
   });
 }
