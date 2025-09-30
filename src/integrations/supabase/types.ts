@@ -2232,6 +2232,7 @@ export type Database = {
           buyer_priority_score: number
           buyer_type: string
           completed_tasks: number
+          connection_request_id: string
           contact_company: string
           contact_email: string
           contact_name: string

@@ -59,7 +59,7 @@ export interface Deal {
   buyer_name?: string;
   buyer_email?: string;
   buyer_company?: string;
-  buyer_type?: string; // Changed to string to match database
+  buyer_type?: string;
   buyer_priority_score?: number;
   
   // Real contact tracking
@@ -67,6 +67,9 @@ export interface Deal {
   last_contact_type?: 'email' | 'phone' | 'meeting' | 'note';
   next_followup_due?: string;
   followup_overdue?: boolean;
+  
+  // Connection request ID for document management
+  connection_request_id?: string;
 }
 
 export interface DealStage {

@@ -3,19 +3,17 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { FileText, Mail, Check, Clock, User } from 'lucide-react';
 import { Deal } from '@/hooks/admin/use-deals';
-import { useUpdateNDA, useLogNDAEmail } from '@/hooks/admin/use-nda';
-import { useUpdateFeeAgreement, useLogFeeAgreementEmail } from '@/hooks/admin/use-fee-agreement';
-import { supabase } from '@/integrations/supabase/client';
+import { useUpdateLeadNDAStatus, useUpdateLeadFeeAgreementStatus, useUpdateLeadNDAEmailStatus, useUpdateLeadFeeAgreementEmailStatus } from '@/hooks/admin/requests/use-lead-status-updates';
 
 interface PipelineDetailDocumentsProps {
   deal: Deal;
 }
 
 export function PipelineDetailDocuments({ deal }: PipelineDetailDocumentsProps) {
-  const updateNDA = useUpdateNDA();
-  const updateFeeAgreement = useUpdateFeeAgreement();
-  const logNDAEmail = useLogNDAEmail();
-  const logFeeAgreementEmail = useLogFeeAgreementEmail();
+  const updateNDA = useUpdateLeadNDAStatus();
+  const updateFeeAgreement = useUpdateLeadFeeAgreementStatus();
+  const logNDAEmail = useUpdateLeadNDAEmailStatus();
+  const logFeeAgreementEmail = useUpdateLeadFeeAgreementEmailStatus();
 
   const getStatusInfo = (status?: string) => {
     switch (status) {
@@ -40,67 +38,51 @@ export function PipelineDetailDocuments({ deal }: PipelineDetailDocumentsProps) 
     }
   };
 
-  // Get buyer_id from deal or fetch via connection request
-  const getBuyerId = async () => {
-    if (deal.buyer_id) return deal.buyer_id;
-    
-    // If no buyer_id, try to find via connection request
-    if (deal.contact_email) {
-      const { data: connectionRequest } = await supabase
-        .from('connection_requests')
-        .select('user_id')
-        .eq('lead_email', deal.contact_email)
-        .single();
-      
-      return connectionRequest?.user_id;
-    }
-    return null;
-  };
-
   const handleNDAToggle = async (checked: boolean) => {
-    const buyerId = await getBuyerId();
-    if (!buyerId) return;
+    if (!deal.connection_request_id) {
+      console.error('No connection request ID available');
+      return;
+    }
     
     updateNDA.mutate({
-      userId: buyerId,
-      isSigned: checked
+      requestId: deal.connection_request_id,
+      value: checked
     });
   };
 
   const handleFeeAgreementToggle = async (checked: boolean) => {
-    const buyerId = await getBuyerId();
-    if (!buyerId) return;
+    if (!deal.connection_request_id) {
+      console.error('No connection request ID available');
+      return;
+    }
     
     updateFeeAgreement.mutate({
-      userId: buyerId,
-      isSigned: checked
+      requestId: deal.connection_request_id,
+      value: checked
     });
   };
 
   const handleSendNDA = async () => {
-    if (!deal.contact_email || !deal.contact_name) return;
-    
-    const buyerId = await getBuyerId();
-    if (!buyerId) return;
+    if (!deal.connection_request_id) {
+      console.error('No connection request ID available');
+      return;
+    }
     
     logNDAEmail.mutate({
-      userId: buyerId,
-      userEmail: deal.contact_email,
-      notes: 'Please review and sign the attached NDA.',
-      listingTitle: deal.deal_title
+      requestId: deal.connection_request_id,
+      value: true
     });
   };
 
   const handleSendFeeAgreement = async () => {
-    if (!deal.contact_email || !deal.contact_name) return;
-    
-    const buyerId = await getBuyerId();
-    if (!buyerId) return;
+    if (!deal.connection_request_id) {
+      console.error('No connection request ID available');
+      return;
+    }
     
     logFeeAgreementEmail.mutate({
-      userId: buyerId,
-      userEmail: deal.contact_email,
-      content: `Please review and sign the attached Fee Agreement for ${deal.deal_title}.`
+      requestId: deal.connection_request_id,
+      value: true
     });
   };
 
