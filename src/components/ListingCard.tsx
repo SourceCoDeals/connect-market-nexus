@@ -52,14 +52,14 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
       <Link to={`/listing/${listing.id}`} className="block h-full">
         <Card 
           className={`
-            h-full overflow-hidden cursor-pointer transition-all duration-200 
+            h-full cursor-pointer transition-all duration-200 
             hover:shadow-lg hover:shadow-black/5 hover:-translate-y-1
             ${viewType === "list" 
               ? "flex flex-row items-stretch" 
               : "flex flex-col"
             } h-full`}
           >
-          <div className="relative">
+          <div className="relative overflow-hidden rounded-t-lg">
             <ListingCardImage 
               imageUrl={listing.image_url} 
               title={listing.title}

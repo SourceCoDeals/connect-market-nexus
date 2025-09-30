@@ -166,9 +166,9 @@ export function AdminListingCard({
   }
 
   return (
-    <Card className="group hover:shadow-md transition-all duration-200 border border-border/50 shadow-sm bg-card overflow-hidden rounded-lg">
+    <Card className="group hover:shadow-md transition-all duration-200 border border-border/50 shadow-sm bg-card rounded-lg">
       {/* Image Container with Status Tag Overlay */}
-      <div className="relative h-48 bg-gradient-to-br from-sourceco/5 to-sourceco/10 flex items-center justify-center">
+      <div className="relative h-48 bg-gradient-to-br from-sourceco/5 to-sourceco/10 flex items-center justify-center overflow-hidden rounded-t-lg">
         {listing.image_url ? (
           <img 
             src={listing.image_url} 
@@ -181,7 +181,7 @@ export function AdminListingCard({
         
         {/* Status Tag Overlay */}
         {listing.status_tag && (
-          <div className="absolute top-3 left-3">
+          <div className="absolute -top-2 -left-2">
             <ListingStatusTag status={listing.status_tag} />
           </div>
         )}
