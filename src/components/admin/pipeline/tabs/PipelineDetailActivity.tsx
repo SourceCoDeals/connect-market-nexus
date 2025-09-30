@@ -1,8 +1,10 @@
-import React from 'react';
-import { ArrowRight, User, Calendar, FileText, CheckCircle, Mail, Edit } from 'lucide-react';
+import React, { useState } from 'react';
+import { ArrowRight, User, Calendar, FileText, CheckCircle, Mail, Edit, Shield, LayoutList } from 'lucide-react';
 import { Deal } from '@/hooks/admin/use-deals';
 import { formatDistanceToNow, format } from 'date-fns';
 import { useDealActivities } from '@/hooks/admin/use-deal-activities';
+import { CompleteAuditTrail } from '../CompleteAuditTrail';
+import { Button } from '@/components/ui/button';
 
 interface PipelineDetailActivityProps {
   deal: Deal;
@@ -20,6 +22,7 @@ interface ActivityItem {
 
 export function PipelineDetailActivity({ deal }: PipelineDetailActivityProps) {
   const { data: realActivities = [] } = useDealActivities(deal.deal_id);
+  const [viewMode, setViewMode] = useState<'timeline' | 'audit'>('timeline');
   
   // Combine real activities with system-generated activities
   const activities: ActivityItem[] = [
@@ -115,9 +118,42 @@ export function PipelineDetailActivity({ deal }: PipelineDetailActivityProps) {
     new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
   );
 
+  // Show audit trail view
+  if (viewMode === 'audit') {
+    return (
+      <div className="flex-1 overflow-auto">
+        <div className="pb-4 px-8">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setViewMode('timeline')}
+            className="gap-2"
+          >
+            <LayoutList className="w-4 h-4" />
+            Back to Timeline
+          </Button>
+        </div>
+        <CompleteAuditTrail deal={deal} />
+      </div>
+    );
+  }
+
   return (
     <div className="flex-1 overflow-auto">
       <div className="px-8 space-y-8 pb-8">
+        {/* View Toggle */}
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-medium text-foreground">Activity Timeline</h2>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setViewMode('audit')}
+            className="gap-2"
+          >
+            <Shield className="w-4 h-4" />
+            Complete Audit Trail
+          </Button>
+        </div>
         {/* Activity Overview - Apple Clean */}
         <div className="space-y-4">
           <h2 className="text-sm font-medium text-foreground">Activity Overview</h2>
@@ -241,16 +277,49 @@ export function PipelineDetailActivity({ deal }: PipelineDetailActivityProps) {
                           </span>
                         </div>
                         
-                        {/* Stage Change Metadata */}
-                        {activity.metadata && activity.type === 'stage_change' && activity.metadata.from_stage && (
-                          <div className="flex items-center gap-2 pt-1">
-                            <span className="text-xs px-2 py-1 rounded-md bg-muted/50 text-muted-foreground font-mono">
-                              {activity.metadata.from_stage}
-                            </span>
-                            <span className="text-muted-foreground/40">→</span>
-                            <span className="text-xs px-2 py-1 rounded-md bg-primary/10 text-primary font-mono">
-                              {activity.metadata.to_stage}
-                            </span>
+                        {/* Activity Metadata Display */}
+                        {activity.metadata && (
+                          <div className="pt-2 space-y-1">
+                            {/* Stage Change */}
+                            {activity.type === 'stage_change' && activity.metadata.from_stage && (
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs px-2 py-1 rounded-md bg-muted/50 text-muted-foreground font-mono">
+                                  {activity.metadata.from_stage}
+                                </span>
+                                <span className="text-muted-foreground/40">→</span>
+                                <span className="text-xs px-2 py-1 rounded-md bg-primary/10 text-primary font-mono">
+                                  {activity.metadata.to_stage}
+                                </span>
+                              </div>
+                            )}
+                            
+                            {/* Document Actions */}
+                            {(activity.type === 'document_signed' || activity.type === 'document_email_sent') && activity.metadata.document_type && (
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs text-muted-foreground/70">Document:</span>
+                                <span className="text-xs px-2 py-1 rounded-md bg-muted/50 text-foreground font-mono uppercase">
+                                  {activity.metadata.document_type.replace('_', ' ')}
+                                </span>
+                              </div>
+                            )}
+                            
+                            {/* Task Actions */}
+                            {(activity.type === 'task_created' || activity.type === 'task_completed' || activity.type === 'task_assigned') && (
+                              <div className="space-y-1">
+                                {activity.metadata.priority && (
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs text-muted-foreground/70">Priority:</span>
+                                    <span className={`text-xs px-2 py-1 rounded-md font-mono ${
+                                      activity.metadata.priority === 'high' ? 'bg-red-100 text-red-700' :
+                                      activity.metadata.priority === 'medium' ? 'bg-amber-100 text-amber-700' :
+                                      'bg-blue-100 text-blue-700'
+                                    }`}>
+                                      {activity.metadata.priority}
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>

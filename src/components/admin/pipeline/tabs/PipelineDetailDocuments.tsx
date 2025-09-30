@@ -4,6 +4,9 @@ import { Switch } from '@/components/ui/switch';
 import { FileText, Mail, Check, Clock, User } from 'lucide-react';
 import { Deal } from '@/hooks/admin/use-deals';
 import { useUpdateLeadNDAStatus, useUpdateLeadFeeAgreementStatus, useUpdateLeadNDAEmailStatus, useUpdateLeadFeeAgreementEmailStatus } from '@/hooks/admin/requests/use-lead-status-updates';
+import { useConnectionRequestDetails } from '@/hooks/admin/use-connection-request-details';
+import { DocumentHistory } from '../DocumentHistory';
+import { ConnectionRequestNotes } from '../ConnectionRequestNotes';
 
 interface PipelineDetailDocumentsProps {
   deal: Deal;
@@ -14,6 +17,8 @@ export function PipelineDetailDocuments({ deal }: PipelineDetailDocumentsProps) 
   const updateFeeAgreement = useUpdateLeadFeeAgreementStatus();
   const logNDAEmail = useUpdateLeadNDAEmailStatus();
   const logFeeAgreementEmail = useUpdateLeadFeeAgreementEmailStatus();
+  
+  const { data: requestDetails } = useConnectionRequestDetails(deal.connection_request_id);
 
   const getStatusInfo = (status?: string) => {
     switch (status) {
@@ -269,6 +274,20 @@ export function PipelineDetailDocuments({ deal }: PipelineDetailDocumentsProps) 
                 )}
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Document History */}
+        {requestDetails && (
+          <div className="border-t border-border/20 pt-6">
+            <DocumentHistory details={requestDetails} />
+          </div>
+        )}
+
+        {/* Connection Request Notes */}
+        {requestDetails && (
+          <div className="border-t border-border/20 pt-6">
+            <ConnectionRequestNotes details={requestDetails} />
           </div>
         )}
       </div>

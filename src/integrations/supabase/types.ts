@@ -299,13 +299,17 @@ export type Database = {
           lead_email: string | null
           lead_fee_agreement_email_sent: boolean | null
           lead_fee_agreement_email_sent_at: string | null
+          lead_fee_agreement_email_sent_by: string | null
           lead_fee_agreement_signed: boolean | null
           lead_fee_agreement_signed_at: string | null
+          lead_fee_agreement_signed_by: string | null
           lead_name: string | null
           lead_nda_email_sent: boolean | null
           lead_nda_email_sent_at: string | null
+          lead_nda_email_sent_by: string | null
           lead_nda_signed: boolean | null
           lead_nda_signed_at: string | null
+          lead_nda_signed_by: string | null
           lead_phone: string | null
           lead_role: string | null
           listing_id: string
@@ -344,13 +348,17 @@ export type Database = {
           lead_email?: string | null
           lead_fee_agreement_email_sent?: boolean | null
           lead_fee_agreement_email_sent_at?: string | null
+          lead_fee_agreement_email_sent_by?: string | null
           lead_fee_agreement_signed?: boolean | null
           lead_fee_agreement_signed_at?: string | null
+          lead_fee_agreement_signed_by?: string | null
           lead_name?: string | null
           lead_nda_email_sent?: boolean | null
           lead_nda_email_sent_at?: string | null
+          lead_nda_email_sent_by?: string | null
           lead_nda_signed?: boolean | null
           lead_nda_signed_at?: string | null
+          lead_nda_signed_by?: string | null
           lead_phone?: string | null
           lead_role?: string | null
           listing_id: string
@@ -389,13 +397,17 @@ export type Database = {
           lead_email?: string | null
           lead_fee_agreement_email_sent?: boolean | null
           lead_fee_agreement_email_sent_at?: string | null
+          lead_fee_agreement_email_sent_by?: string | null
           lead_fee_agreement_signed?: boolean | null
           lead_fee_agreement_signed_at?: string | null
+          lead_fee_agreement_signed_by?: string | null
           lead_name?: string | null
           lead_nda_email_sent?: boolean | null
           lead_nda_email_sent_at?: string | null
+          lead_nda_email_sent_by?: string | null
           lead_nda_signed?: boolean | null
           lead_nda_signed_at?: string | null
+          lead_nda_signed_by?: string | null
           lead_phone?: string | null
           lead_role?: string | null
           listing_id?: string
