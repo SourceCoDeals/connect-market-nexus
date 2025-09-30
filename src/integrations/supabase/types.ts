@@ -2461,19 +2461,27 @@ export type Database = {
         Returns: boolean
       }
       update_lead_fee_agreement_email_status: {
-        Args: { admin_notes?: string; is_sent: boolean; request_id: string }
+        Args:
+          | { admin_notes?: string; is_sent: boolean; request_id: string }
+          | { email_sent: boolean; request_id: string }
         Returns: boolean
       }
       update_lead_fee_agreement_status: {
-        Args: { admin_notes?: string; is_signed: boolean; request_id: string }
+        Args:
+          | { admin_notes?: string; is_signed: boolean; request_id: string }
+          | { is_signed: boolean; request_id: string }
         Returns: boolean
       }
       update_lead_nda_email_status: {
-        Args: { admin_notes?: string; is_sent: boolean; request_id: string }
+        Args:
+          | { admin_notes?: string; is_sent: boolean; request_id: string }
+          | { email_sent: boolean; request_id: string }
         Returns: boolean
       }
       update_lead_nda_status: {
-        Args: { admin_notes?: string; is_signed: boolean; request_id: string }
+        Args:
+          | { admin_notes?: string; is_signed: boolean; request_id: string }
+          | { is_signed: boolean; request_id: string }
         Returns: boolean
       }
       update_nda_email_status: {

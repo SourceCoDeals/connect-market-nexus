@@ -34,6 +34,7 @@ export const useUpdateLeadNDAStatus = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['connection-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['deals'] });
       toast({ title: 'Lead NDA status updated' });
     },
   });
@@ -46,7 +47,7 @@ export const useUpdateLeadNDAEmailStatus = () => {
     mutationFn: async ({ requestId, value }: LeadRequestParams) => {
       const { data, error } = await supabase.rpc('update_lead_nda_email_status', {
         request_id: requestId,
-        is_sent: value,
+        email_sent: value,
       });
       if (error) throw error;
       return data;
@@ -66,6 +67,7 @@ export const useUpdateLeadNDAEmailStatus = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['connection-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['deals'] });
       toast({ title: 'Lead NDA email status updated' });
     },
   });
@@ -98,6 +100,7 @@ export const useUpdateLeadFeeAgreementStatus = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['connection-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['deals'] });
       toast({ title: 'Lead fee agreement status updated' });
     },
   });
@@ -110,7 +113,7 @@ export const useUpdateLeadFeeAgreementEmailStatus = () => {
     mutationFn: async ({ requestId, value }: LeadRequestParams) => {
       const { data, error } = await supabase.rpc('update_lead_fee_agreement_email_status', {
         request_id: requestId,
-        is_sent: value,
+        email_sent: value,
       });
       if (error) throw error;
       return data;
@@ -130,6 +133,7 @@ export const useUpdateLeadFeeAgreementEmailStatus = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['connection-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['deals'] });
       toast({ title: 'Lead fee agreement email status updated' });
     },
   });
