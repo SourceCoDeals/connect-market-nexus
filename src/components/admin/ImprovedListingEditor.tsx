@@ -234,13 +234,13 @@ export function ImprovedListingEditor({
       </div>
 
       {/* Two-panel layout */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden relative">
         {/* Main Editor Panel */}
         <div className={cn(
           "flex-1 overflow-y-auto transition-all duration-300",
-          showPreview ? "mr-[480px]" : "mr-0"
+          showPreview ? "lg:mr-[420px]" : "mr-0"
         )}>
-          <div className="max-w-4xl mx-auto px-8 py-8">
+          <div className="max-w-3xl mx-auto px-4 md:px-6 lg:px-8 py-6">
             <Form {...form}>
               <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-8">
                 <EditorBasicInfoSection form={form} />

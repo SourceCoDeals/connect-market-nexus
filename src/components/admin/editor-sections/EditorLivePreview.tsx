@@ -68,8 +68,8 @@ export function EditorLivePreview({ formValues, imagePreview }: EditorLivePrevie
   const quality = calculateQuality();
 
   return (
-    <div className="fixed right-0 top-0 w-[480px] h-full bg-muted/30 border-l border-border overflow-y-auto">
-      <div className="p-6 space-y-6">
+    <div className="hidden lg:block fixed right-0 top-0 w-[420px] h-full bg-muted/30 border-l border-border overflow-y-auto">
+      <div className="p-5 space-y-5">
         {/* Quality Score */}
         <div className="bg-background rounded-lg border border-border p-5 space-y-4">
           <div className="flex items-center justify-between">
@@ -94,91 +94,96 @@ export function EditorLivePreview({ formValues, imagePreview }: EditorLivePrevie
         </div>
 
         {/* Live Preview */}
-        <div className="bg-background rounded-lg border border-border overflow-hidden">
-          <div className="p-4 border-b border-border bg-muted/50">
+        <div className="bg-background rounded-lg border border-border overflow-hidden shadow-sm">
+          <div className="px-4 py-3 border-b border-border bg-muted/50">
             <h3 className="text-sm font-medium text-foreground">Live Preview</h3>
-            <p className="text-xs text-muted-foreground mt-1">How buyers will see this listing</p>
+            <p className="text-xs text-muted-foreground mt-0.5">How buyers will see this listing</p>
           </div>
           
-          <div className="p-4 space-y-4">
-            {/* Image */}
-            {imagePreview ? (
-              <div className="aspect-video rounded-md overflow-hidden bg-muted">
-                <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
-              </div>
-            ) : (
-              <div className="aspect-video rounded-md bg-muted flex items-center justify-center">
-                <p className="text-sm text-muted-foreground">No image uploaded</p>
-              </div>
-            )}
+          <div className="p-0">
+            {/* Card Preview - matching ListingCard exactly */}
+            <div className="bg-background rounded-lg border border-border overflow-hidden m-4 transition-all duration-200 hover:shadow-lg hover:shadow-black/5">
+              <div className="relative">
+                {/* Image */}
+                {imagePreview ? (
+                  <div className="aspect-video overflow-hidden rounded-t-lg bg-muted">
+                    <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
+                  </div>
+                ) : (
+                  <div className="aspect-video rounded-t-lg bg-muted flex items-center justify-center">
+                    <p className="text-sm text-muted-foreground">No image uploaded</p>
+                  </div>
+                )}
 
-            {/* Status Tag */}
-            {formValues.status_tag && formValues.status_tag !== "none" && (
-              <Badge className="bg-sourceco-accent text-sourceco-accent-foreground">
-                {formValues.status_tag.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-              </Badge>
-            )}
-
-            {/* Title */}
-            <h2 className="text-xl font-medium text-foreground line-clamp-2">
-              {formValues.title || "Untitled Business"}
-            </h2>
-
-            {/* Categories */}
-            {formValues.categories && formValues.categories.length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {formValues.categories.map((cat: string, idx: number) => (
-                  <Badge key={idx} variant="outline" className="bg-muted">
-                    <Building2 className="h-3 w-3 mr-1" />
-                    {cat}
+                {/* Status Tag - positioned exactly like real listing */}
+                {formValues.status_tag && formValues.status_tag !== "none" && (
+                  <Badge 
+                    variant="default"
+                    className="absolute -top-2 left-3 z-20 px-3 py-1.5 text-xs font-medium rounded-lg uppercase tracking-wide flex items-center gap-1.5 shadow-lg bg-slate-800 text-white border border-slate-700/50 backdrop-blur-sm"
+                  >
+                    {formValues.status_tag === "just_listed" && "Just Listed"}
+                    {formValues.status_tag === "reviewing_buyers" && "Reviewing Buyers"}
+                    {formValues.status_tag === "in_diligence" && "In Diligence"}
+                    {formValues.status_tag === "under_loi" && "Under LOI"}
+                    {formValues.status_tag === "accepted_offer" && "Accepted Offer"}
                   </Badge>
-                ))}
+                )}
               </div>
-            )}
 
-            {/* Location */}
-            {formValues.location && (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <MapPin className="h-4 w-4" />
-                {formValues.location}
+              <div className="p-4 space-y-3">
+                {/* Categories & Location Badges */}
+                <div className="flex flex-wrap gap-2">
+                  {formValues.categories && formValues.categories.length > 0 && (
+                    <>
+                      {formValues.categories.slice(0, 2).map((cat: string, idx: number) => (
+                        <Badge key={idx} variant="secondary" className="text-xs font-normal bg-secondary/50">
+                          <Building2 className="h-3 w-3 mr-1" />
+                          {cat}
+                        </Badge>
+                      ))}
+                    </>
+                  )}
+                  {formValues.location && (
+                    <Badge variant="secondary" className="text-xs font-normal bg-secondary/50">
+                      <MapPin className="h-3 w-3 mr-1" />
+                      {formValues.location}
+                    </Badge>
+                  )}
+                </div>
+
+                {/* Title */}
+                <h2 className="text-lg font-medium text-foreground line-clamp-2 leading-tight">
+                  {formValues.title || "Untitled Business"}
+                </h2>
+
+                {/* Financials */}
+                <div className="flex gap-4 pt-1">
+                  {formValues.revenue && (
+                    <div>
+                      <div className="text-xs text-muted-foreground mb-0.5">Revenue</div>
+                      <p className="text-sm font-semibold text-foreground">
+                        ${formValues.revenue}M
+                      </p>
+                    </div>
+                  )}
+                  {formValues.ebitda && (
+                    <div>
+                      <div className="text-xs text-muted-foreground mb-0.5">EBITDA</div>
+                      <p className="text-sm font-semibold text-foreground">
+                        ${formValues.ebitda}M
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Description Preview */}
+                {formValues.description_html && (
+                  <div className="text-sm text-muted-foreground line-clamp-3 leading-relaxed">
+                    <div dangerouslySetInnerHTML={{ __html: formValues.description_html }} />
+                  </div>
+                )}
               </div>
-            )}
-
-            {/* Financials */}
-            <div className="grid grid-cols-2 gap-3 pt-2">
-              {formValues.revenue && (
-                <div className="p-3 rounded-md bg-muted/50 border border-border">
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
-                    <DollarSign className="h-3 w-3" />
-                    Revenue
-                  </div>
-                  <p className="text-sm font-medium text-foreground">
-                    ${formValues.revenue}M
-                  </p>
-                </div>
-              )}
-              {formValues.ebitda && (
-                <div className="p-3 rounded-md bg-muted/50 border border-border">
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
-                    <TrendingUp className="h-3 w-3" />
-                    EBITDA
-                  </div>
-                  <p className="text-sm font-medium text-foreground">
-                    ${formValues.ebitda}M
-                  </p>
-                </div>
-              )}
             </div>
-
-            {/* Description Preview */}
-            {formValues.description_html && (
-              <div className="prose prose-sm max-w-none">
-                <div 
-                  className="text-sm text-muted-foreground line-clamp-4"
-                  dangerouslySetInnerHTML={{ __html: formValues.description_html }}
-                />
-              </div>
-            )}
           </div>
         </div>
       </div>

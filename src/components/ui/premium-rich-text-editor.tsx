@@ -4,14 +4,21 @@ import { Table } from '@tiptap/extension-table';
 import { TableRow } from '@tiptap/extension-table-row';
 import { TableCell } from '@tiptap/extension-table-cell';
 import { TableHeader } from '@tiptap/extension-table-header';
+import Underline from '@tiptap/extension-underline';
+import Link from '@tiptap/extension-link';
+import Highlight from '@tiptap/extension-highlight';
+import { TextStyle } from '@tiptap/extension-text-style';
+import { Color } from '@tiptap/extension-color';
 import { 
   Bold, Italic, List, ListOrdered, Heading1, Heading2, Heading3,
-  Table as TableIcon, Minus, Undo, Redo, Quote, Type, Maximize2
+  Table as TableIcon, Minus, Undo, Redo, Quote, Type, Maximize2,
+  Underline as UnderlineIcon, Link as LinkIcon, Highlighter,
+  Strikethrough as StrikethroughIcon
 } from 'lucide-react';
 import { Button } from './button';
 import { Separator } from './separator';
 import { cn } from '@/lib/utils';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 interface PremiumRichTextEditorProps {
   content: string;
@@ -36,6 +43,18 @@ export function PremiumRichTextEditor({ content, onChange }: PremiumRichTextEdit
       TableRow,
       TableHeader,
       TableCell,
+      Underline,
+      Link.configure({
+        openOnClick: false,
+        HTMLAttributes: {
+          class: 'text-sourceco-accent underline cursor-pointer',
+        },
+      }),
+      Highlight.configure({
+        multicolor: true,
+      }),
+      TextStyle,
+      Color,
     ],
     content,
     editorProps: {
@@ -61,18 +80,35 @@ export function PremiumRichTextEditor({ content, onChange }: PremiumRichTextEdit
     }
   }, [content, editor]);
 
+  const setLink = useCallback(() => {
+    if (!editor) return;
+    
+    const previousUrl = editor.getAttributes('link').href;
+    const url = window.prompt('URL', previousUrl);
+
+    if (url === null) return;
+
+    if (url === '') {
+      editor.chain().focus().extendMarkRange('link').unsetLink().run();
+      return;
+    }
+
+    editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
+  }, [editor]);
+
   if (!editor) {
     return null;
   }
 
-  const ToolbarButton = ({ onClick, active, children, title }: any) => (
+  const ToolbarButton = ({ onClick, active, children, title, disabled }: any) => (
     <Button
       type="button"
       variant="ghost"
       size="sm"
       onClick={onClick}
+      disabled={disabled}
       className={cn(
-        "h-8 w-8 p-0",
+        "h-8 w-8 p-0 hover:bg-sourceco-muted/50",
         active && "bg-sourceco-muted text-sourceco-accent"
       )}
       title={title}
@@ -86,9 +122,10 @@ export function PremiumRichTextEditor({ content, onChange }: PremiumRichTextEdit
       "rounded-lg border border-border bg-background overflow-hidden transition-all",
       isFullscreen && "fixed inset-4 z-50 shadow-2xl"
     )}>
-      {/* Toolbar */}
-      <div className="flex items-center justify-between px-4 py-2 border-b border-border bg-muted/30 flex-wrap gap-2">
-        <div className="flex items-center gap-1 flex-wrap">
+      {/* Main Toolbar */}
+      <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-muted/30 flex-wrap gap-2">
+        <div className="flex items-center gap-0.5 flex-wrap">
+          {/* Headings */}
           <ToolbarButton
             onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
             active={editor.isActive('heading', { level: 1 })}
@@ -123,10 +160,11 @@ export function PremiumRichTextEditor({ content, onChange }: PremiumRichTextEdit
 
           <Separator orientation="vertical" className="h-6 mx-1" />
 
+          {/* Text formatting */}
           <ToolbarButton
             onClick={() => editor.chain().focus().toggleBold().run()}
             active={editor.isActive('bold')}
-            title="Bold"
+            title="Bold (Ctrl+B)"
           >
             <Bold className="h-4 w-4" />
           </ToolbarButton>
@@ -134,12 +172,30 @@ export function PremiumRichTextEditor({ content, onChange }: PremiumRichTextEdit
           <ToolbarButton
             onClick={() => editor.chain().focus().toggleItalic().run()}
             active={editor.isActive('italic')}
-            title="Italic"
+            title="Italic (Ctrl+I)"
           >
             <Italic className="h-4 w-4" />
           </ToolbarButton>
 
+          <ToolbarButton
+            onClick={() => editor.chain().focus().toggleUnderline().run()}
+            active={editor.isActive('underline')}
+            title="Underline (Ctrl+U)"
+          >
+            <UnderlineIcon className="h-4 w-4" />
+          </ToolbarButton>
+
+          <ToolbarButton
+            onClick={() => editor.chain().focus().toggleStrike().run()}
+            active={editor.isActive('strike')}
+            title="Strikethrough"
+          >
+            <StrikethroughIcon className="h-4 w-4" />
+          </ToolbarButton>
+
           <Separator orientation="vertical" className="h-6 mx-1" />
+
+          {/* Lists */}
 
           <ToolbarButton
             onClick={() => editor.chain().focus().toggleBulletList().run()}
@@ -167,6 +223,26 @@ export function PremiumRichTextEditor({ content, onChange }: PremiumRichTextEdit
 
           <Separator orientation="vertical" className="h-6 mx-1" />
 
+          {/* Advanced formatting */}
+          <ToolbarButton
+            onClick={setLink}
+            active={editor.isActive('link')}
+            title="Insert Link"
+          >
+            <LinkIcon className="h-4 w-4" />
+          </ToolbarButton>
+
+          <ToolbarButton
+            onClick={() => editor.chain().focus().toggleHighlight().run()}
+            active={editor.isActive('highlight')}
+            title="Highlight"
+          >
+            <Highlighter className="h-4 w-4" />
+          </ToolbarButton>
+
+          <Separator orientation="vertical" className="h-6 mx-1" />
+
+          {/* Insert elements */}
           <ToolbarButton
             onClick={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}
             title="Insert Table"
@@ -183,10 +259,11 @@ export function PremiumRichTextEditor({ content, onChange }: PremiumRichTextEdit
 
           <Separator orientation="vertical" className="h-6 mx-1" />
 
+          {/* History */}
           <ToolbarButton
             onClick={() => editor.chain().focus().undo().run()}
             disabled={!editor.can().undo()}
-            title="Undo"
+            title="Undo (Ctrl+Z)"
           >
             <Undo className="h-4 w-4" />
           </ToolbarButton>
@@ -194,7 +271,7 @@ export function PremiumRichTextEditor({ content, onChange }: PremiumRichTextEdit
           <ToolbarButton
             onClick={() => editor.chain().focus().redo().run()}
             disabled={!editor.can().redo()}
-            title="Redo"
+            title="Redo (Ctrl+Y)"
           >
             <Redo className="h-4 w-4" />
           </ToolbarButton>
