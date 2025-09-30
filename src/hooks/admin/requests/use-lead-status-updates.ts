@@ -15,22 +15,37 @@ export const useUpdateLeadNDAStatus = () => {
     mutationFn: async ({ requestId, value }: LeadRequestParams) => {
       const { data, error } = await supabase.rpc('update_lead_nda_status', {
         request_id: requestId,
-        is_signed: value,
+        value: value,
       });
       if (error) throw error;
       return data;
     },
     onMutate: async ({ requestId, value }) => {
       await queryClient.cancelQueries({ queryKey: ['connection-requests'] });
-      const previous = queryClient.getQueryData<any>(['connection-requests']);
+      await queryClient.cancelQueries({ queryKey: ['deals'] });
+      
+      const previousRequests = queryClient.getQueryData<any>(['connection-requests']);
+      const previousDeals = queryClient.getQueryData<any>(['deals']);
+      
       queryClient.setQueryData(['connection-requests'], (old: any) => {
         if (!old) return old;
         return old.map((r: any) => r.id === requestId ? { ...r, lead_nda_signed: value, lead_nda_signed_at: value ? new Date().toISOString() : null } : r);
       });
-      return { previous };
+      
+      queryClient.setQueryData(['deals'], (old: any) => {
+        if (!old) return old;
+        return old.map((deal: any) => 
+          deal.connection_request_id === requestId 
+            ? { ...deal, nda_status: value ? 'signed' : 'not_sent' }
+            : deal
+        );
+      });
+      
+      return { previousRequests, previousDeals };
     },
     onError: (_err, _vars, ctx) => {
-      if (ctx?.previous) queryClient.setQueryData(['connection-requests'], ctx.previous);
+      if (ctx?.previousRequests) queryClient.setQueryData(['connection-requests'], ctx.previousRequests);
+      if (ctx?.previousDeals) queryClient.setQueryData(['deals'], ctx.previousDeals);
       toast({ variant: 'destructive', title: 'Update failed', description: 'Could not update lead NDA signed status' });
     },
     onSuccess: async (_, { requestId, value }) => {
@@ -70,22 +85,37 @@ export const useUpdateLeadNDAEmailStatus = () => {
     mutationFn: async ({ requestId, value }: LeadRequestParams) => {
       const { data, error } = await supabase.rpc('update_lead_nda_email_status', {
         request_id: requestId,
-        email_sent: value,
+        value: value,
       });
       if (error) throw error;
       return data;
     },
     onMutate: async ({ requestId, value }) => {
       await queryClient.cancelQueries({ queryKey: ['connection-requests'] });
-      const previous = queryClient.getQueryData<any>(['connection-requests']);
+      await queryClient.cancelQueries({ queryKey: ['deals'] });
+      
+      const previousRequests = queryClient.getQueryData<any>(['connection-requests']);
+      const previousDeals = queryClient.getQueryData<any>(['deals']);
+      
       queryClient.setQueryData(['connection-requests'], (old: any) => {
         if (!old) return old;
         return old.map((r: any) => r.id === requestId ? { ...r, lead_nda_email_sent: value, lead_nda_email_sent_at: value ? new Date().toISOString() : null } : r);
       });
-      return { previous };
+      
+      queryClient.setQueryData(['deals'], (old: any) => {
+        if (!old) return old;
+        return old.map((deal: any) => 
+          deal.connection_request_id === requestId 
+            ? { ...deal, nda_status: value ? 'sent' : 'not_sent' }
+            : deal
+        );
+      });
+      
+      return { previousRequests, previousDeals };
     },
     onError: (_err, _vars, ctx) => {
-      if (ctx?.previous) queryClient.setQueryData(['connection-requests'], ctx.previous);
+      if (ctx?.previousRequests) queryClient.setQueryData(['connection-requests'], ctx.previousRequests);
+      if (ctx?.previousDeals) queryClient.setQueryData(['deals'], ctx.previousDeals);
       toast({ variant: 'destructive', title: 'Update failed', description: 'Could not update lead NDA email status' });
     },
     onSuccess: async (_, { requestId, value }) => {
@@ -125,22 +155,37 @@ export const useUpdateLeadFeeAgreementStatus = () => {
     mutationFn: async ({ requestId, value }: LeadRequestParams) => {
       const { data, error } = await supabase.rpc('update_lead_fee_agreement_status', {
         request_id: requestId,
-        is_signed: value,
+        value: value,
       });
       if (error) throw error;
       return data;
     },
     onMutate: async ({ requestId, value }) => {
       await queryClient.cancelQueries({ queryKey: ['connection-requests'] });
-      const previous = queryClient.getQueryData<any>(['connection-requests']);
+      await queryClient.cancelQueries({ queryKey: ['deals'] });
+      
+      const previousRequests = queryClient.getQueryData<any>(['connection-requests']);
+      const previousDeals = queryClient.getQueryData<any>(['deals']);
+      
       queryClient.setQueryData(['connection-requests'], (old: any) => {
         if (!old) return old;
         return old.map((r: any) => r.id === requestId ? { ...r, lead_fee_agreement_signed: value, lead_fee_agreement_signed_at: value ? new Date().toISOString() : null } : r);
       });
-      return { previous };
+      
+      queryClient.setQueryData(['deals'], (old: any) => {
+        if (!old) return old;
+        return old.map((deal: any) => 
+          deal.connection_request_id === requestId 
+            ? { ...deal, fee_agreement_status: value ? 'signed' : 'not_sent' }
+            : deal
+        );
+      });
+      
+      return { previousRequests, previousDeals };
     },
     onError: (_err, _vars, ctx) => {
-      if (ctx?.previous) queryClient.setQueryData(['connection-requests'], ctx.previous);
+      if (ctx?.previousRequests) queryClient.setQueryData(['connection-requests'], ctx.previousRequests);
+      if (ctx?.previousDeals) queryClient.setQueryData(['deals'], ctx.previousDeals);
       toast({ variant: 'destructive', title: 'Update failed', description: 'Could not update lead fee agreement signed status' });
     },
     onSuccess: async (_, { requestId, value }) => {
@@ -180,22 +225,37 @@ export const useUpdateLeadFeeAgreementEmailStatus = () => {
     mutationFn: async ({ requestId, value }: LeadRequestParams) => {
       const { data, error } = await supabase.rpc('update_lead_fee_agreement_email_status', {
         request_id: requestId,
-        email_sent: value,
+        value: value,
       });
       if (error) throw error;
       return data;
     },
     onMutate: async ({ requestId, value }) => {
       await queryClient.cancelQueries({ queryKey: ['connection-requests'] });
-      const previous = queryClient.getQueryData<any>(['connection-requests']);
+      await queryClient.cancelQueries({ queryKey: ['deals'] });
+      
+      const previousRequests = queryClient.getQueryData<any>(['connection-requests']);
+      const previousDeals = queryClient.getQueryData<any>(['deals']);
+      
       queryClient.setQueryData(['connection-requests'], (old: any) => {
         if (!old) return old;
         return old.map((r: any) => r.id === requestId ? { ...r, lead_fee_agreement_email_sent: value, lead_fee_agreement_email_sent_at: value ? new Date().toISOString() : null } : r);
       });
-      return { previous };
+      
+      queryClient.setQueryData(['deals'], (old: any) => {
+        if (!old) return old;
+        return old.map((deal: any) => 
+          deal.connection_request_id === requestId 
+            ? { ...deal, fee_agreement_status: value ? 'sent' : 'not_sent' }
+            : deal
+        );
+      });
+      
+      return { previousRequests, previousDeals };
     },
     onError: (_err, _vars, ctx) => {
-      if (ctx?.previous) queryClient.setQueryData(['connection-requests'], ctx.previous);
+      if (ctx?.previousRequests) queryClient.setQueryData(['connection-requests'], ctx.previousRequests);
+      if (ctx?.previousDeals) queryClient.setQueryData(['deals'], ctx.previousDeals);
       toast({ variant: 'destructive', title: 'Update failed', description: 'Could not update lead fee agreement email status' });
     },
     onSuccess: async (_, { requestId, value }) => {
