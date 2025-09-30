@@ -59,12 +59,14 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
               : "flex flex-col"
             } h-full`}
           >
-          <div className="relative overflow-hidden rounded-t-lg">
-            <ListingCardImage 
-              imageUrl={listing.image_url} 
-              title={listing.title}
-              viewType={viewType}
-            />
+          <div className="relative rounded-t-lg">
+            <div className="overflow-hidden rounded-t-lg">
+              <ListingCardImage 
+                imageUrl={listing.image_url} 
+                title={listing.title}
+                viewType={viewType}
+              />
+            </div>
             <ListingStatusTag status={listing.status_tag} />
           </div>
             

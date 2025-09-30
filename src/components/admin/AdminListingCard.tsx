@@ -168,16 +168,18 @@ export function AdminListingCard({
   return (
     <Card className="group hover:shadow-md transition-all duration-200 border border-border/50 shadow-sm bg-card rounded-lg">
       {/* Image Container with Status Tag Overlay */}
-      <div className="relative h-48 bg-gradient-to-br from-sourceco/5 to-sourceco/10 flex items-center justify-center overflow-hidden rounded-t-lg">
-        {listing.image_url ? (
-          <img 
-            src={listing.image_url} 
-            alt={listing.title}
-            className="w-full h-full object-cover"
-          />
-        ) : (
-          <Building2 className="h-12 w-12 text-sourceco/40" />
-        )}
+      <div className="relative h-48 rounded-t-lg">
+        <div className="h-full bg-gradient-to-br from-sourceco/5 to-sourceco/10 flex items-center justify-center overflow-hidden rounded-t-lg">
+          {listing.image_url ? (
+            <img 
+              src={listing.image_url} 
+              alt={listing.title}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <Building2 className="h-12 w-12 text-sourceco/40" />
+          )}
+        </div>
         
         {/* Status Tag Overlay */}
         {listing.status_tag && (
