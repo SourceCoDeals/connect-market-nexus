@@ -343,7 +343,7 @@ const ListingDetail = () => {
 
           {/* Right Column - 25% Premium Sticky Sidebar */}
           <div className="col-span-3">
-            {isAdmin ? (
+            {isAdmin && !userViewEnabled ? (
               <AdminListingSidebar 
                 listing={listing}
                 onUserViewToggle={setUserViewEnabled}

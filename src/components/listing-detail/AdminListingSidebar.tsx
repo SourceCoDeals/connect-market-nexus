@@ -167,15 +167,13 @@ export function AdminListingSidebar({
       )}
 
       {/* Help Text */}
-      {!userViewEnabled && (
-        <div className="bg-sourceco-background border border-sourceco-form rounded-lg p-3">
-          <p className="text-xs text-slate-600">
-            {editModeEnabled 
-              ? "Edit mode active: Click any content to edit directly on the page." 
-              : "Toggle Edit Mode to make changes to this listing."}
-          </p>
-        </div>
-      )}
+      <div className="bg-sourceco-background border border-sourceco-form rounded-lg p-3">
+        <p className="text-xs text-slate-600">
+          {editModeEnabled 
+            ? "Edit mode active: Click any content to edit directly on the page." 
+            : "Toggle Edit Mode to make changes to this listing."}
+        </p>
+      </div>
     </div>
   );
 }
