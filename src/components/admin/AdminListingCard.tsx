@@ -75,7 +75,6 @@ export function AdminListingCard({
                     <StatusTagSwitcher
                       currentValue={listing.status_tag}
                       onChange={(value) => onStatusTagChange(listing.id, value)}
-                      compact
                       className="w-48"
                     />
                   </div>
