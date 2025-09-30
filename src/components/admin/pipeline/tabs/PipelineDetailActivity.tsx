@@ -10,7 +10,7 @@ interface PipelineDetailActivityProps {
 
 interface ActivityItem {
   id: string;
-  type: 'stage_change' | 'document_signed' | 'task_completed' | 'email_sent' | 'deal_updated' | 'follow_up';
+  type: 'stage_change' | 'document_signed' | 'document_email_sent' | 'task_completed' | 'task_created' | 'task_assigned' | 'email_sent' | 'assignment_changed' | 'deal_updated' | 'follow_up';
   title: string;
   description: string;
   timestamp: string;
@@ -63,10 +63,18 @@ export function PipelineDetailActivity({ deal }: PipelineDetailActivityProps) {
         return ArrowRight;
       case 'document_signed':
         return FileText;
+      case 'document_email_sent':
+        return Mail;
       case 'task_completed':
         return CheckCircle;
+      case 'task_created':
+        return Calendar;
+      case 'task_assigned':
+        return User;
       case 'email_sent':
         return Mail;
+      case 'assignment_changed':
+        return User;
       case 'deal_updated':
         return Edit;
       case 'follow_up':
@@ -82,10 +90,18 @@ export function PipelineDetailActivity({ deal }: PipelineDetailActivityProps) {
         return 'bg-blue-500';
       case 'document_signed':
         return 'bg-emerald-500';
+      case 'document_email_sent':
+        return 'bg-purple-500';
       case 'task_completed':
         return 'bg-green-500';
+      case 'task_created':
+        return 'bg-blue-400';
+      case 'task_assigned':
+        return 'bg-indigo-500';
       case 'email_sent':
         return 'bg-purple-500';
+      case 'assignment_changed':
+        return 'bg-indigo-600';
       case 'deal_updated':
         return 'bg-amber-500';
       case 'follow_up':

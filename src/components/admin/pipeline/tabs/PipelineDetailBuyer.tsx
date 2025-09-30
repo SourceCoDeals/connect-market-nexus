@@ -55,7 +55,7 @@ export function PipelineDetailBuyer({ deal }: PipelineDetailBuyerProps) {
         .from('connection_requests')
         .select(`
           *,
-          listings:listing_id(title, id, asking_price, location)
+          listings:listing_id(title, id, revenue, location)
         `)
         .eq('lead_email', deal.contact_email)
         .order('created_at', { ascending: false });
@@ -77,7 +77,7 @@ export function PipelineDetailBuyer({ deal }: PipelineDetailBuyerProps) {
         .from('saved_listings')
         .select(`
           *,
-          listings:listing_id(title, id, asking_price, location)
+          listings:listing_id(title, id, revenue, location)
         `)
         .eq('user_id', buyerProfile.user_id)
         .order('created_at', { ascending: false });
@@ -422,11 +422,11 @@ export function PipelineDetailBuyer({ deal }: PipelineDetailBuyerProps) {
                             <span className="text-xs text-muted-foreground font-mono">
                               {formatDistanceToNow(new Date(request.created_at), { addSuffix: true })}
                             </span>
-                            {request.listings?.asking_price && (
+                            {request.listings?.revenue && (
                               <>
                                 <span className="text-muted-foreground/40">·</span>
                                 <span className="text-xs text-muted-foreground font-mono">
-                                  ${request.listings.asking_price.toLocaleString()}
+                                  ${request.listings.revenue.toLocaleString()} revenue
                                 </span>
                               </>
                             )}
@@ -470,11 +470,11 @@ export function PipelineDetailBuyer({ deal }: PipelineDetailBuyerProps) {
                             <span className="text-xs text-muted-foreground font-mono">
                               {formatDistanceToNow(new Date(saved.created_at), { addSuffix: true })}
                             </span>
-                            {saved.listings?.asking_price && (
+                            {saved.listings?.revenue && (
                               <>
                                 <span className="text-muted-foreground/40">·</span>
                                 <span className="text-xs text-muted-foreground font-mono">
-                                  ${saved.listings.asking_price.toLocaleString()}
+                                  ${saved.listings.revenue.toLocaleString()} revenue
                                 </span>
                               </>
                             )}

@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { logDealActivity } from '@/lib/deal-activity-logger';
 
 export interface Deal {
   deal_id: string;
@@ -205,8 +206,31 @@ export function useUpdateDeal() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
+    onSuccess: async (_, { dealId, updates }) => {
       queryClient.invalidateQueries({ queryKey: ['deals'] });
+      queryClient.invalidateQueries({ queryKey: ['deal-activities'] });
+      
+      // Log assignment changes
+      if (updates.assigned_to !== undefined) {
+        const { data: adminProfiles } = await supabase
+          .from('profiles')
+          .select('email, first_name, last_name')
+          .eq('id', updates.assigned_to)
+          .maybeSingle();
+        
+        const assignedToName = adminProfiles 
+          ? `${adminProfiles.first_name} ${adminProfiles.last_name}` 
+          : 'Unassigned';
+        
+        await logDealActivity({
+          dealId,
+          activityType: 'assignment_changed',
+          title: 'Deal Reassigned',
+          description: `Deal assigned to ${assignedToName}`,
+          metadata: { assigned_to: updates.assigned_to }
+        });
+      }
+      
       toast({
         title: 'Deal Updated',
         description: 'Deal has been updated successfully.',

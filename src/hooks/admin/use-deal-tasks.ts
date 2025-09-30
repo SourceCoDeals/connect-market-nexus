@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { logDealActivity } from '@/lib/deal-activity-logger';
 
 export interface DealTask {
   id: string;
@@ -61,9 +62,24 @@ export function useCreateDealTask() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
+    onSuccess: async (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['deal-tasks'] });
       queryClient.invalidateQueries({ queryKey: ['deals'] });
+      queryClient.invalidateQueries({ queryKey: ['deal-activities'] });
+      
+      // Log activity
+      await logDealActivity({
+        dealId: variables.deal_id,
+        activityType: 'task_created',
+        title: 'Task Created',
+        description: `Created task: ${variables.title}`,
+        metadata: { 
+          task_id: data.id,
+          priority: variables.priority,
+          assigned_to: variables.assigned_to 
+        }
+      });
+      
       toast({
         title: 'Task Created',
         description: 'Task has been created successfully.',
@@ -98,9 +114,32 @@ export function useUpdateDealTask() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
+    onSuccess: async (data, { taskId, updates }) => {
       queryClient.invalidateQueries({ queryKey: ['deal-tasks'] });
       queryClient.invalidateQueries({ queryKey: ['deals'] });
+      queryClient.invalidateQueries({ queryKey: ['deal-activities'] });
+      
+      // Log assignment changes
+      if (updates.assigned_to !== undefined) {
+        const { data: adminProfiles } = await supabase
+          .from('profiles')
+          .select('email, first_name, last_name')
+          .eq('id', updates.assigned_to)
+          .maybeSingle();
+        
+        const assignedToName = adminProfiles 
+          ? `${adminProfiles.first_name} ${adminProfiles.last_name}` 
+          : 'Unassigned';
+        
+        await logDealActivity({
+          dealId: data.deal_id,
+          activityType: 'task_assigned',
+          title: 'Task Reassigned',
+          description: `Task "${data.title}" assigned to ${assignedToName}`,
+          metadata: { task_id: taskId, assigned_to: updates.assigned_to }
+        });
+      }
+      
       toast({
         title: 'Task Updated',
         description: 'Task has been updated successfully.',
@@ -137,9 +176,20 @@ export function useCompleteDealTask() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
+    onSuccess: async (data) => {
       queryClient.invalidateQueries({ queryKey: ['deal-tasks'] });
       queryClient.invalidateQueries({ queryKey: ['deals'] });
+      queryClient.invalidateQueries({ queryKey: ['deal-activities'] });
+      
+      // Log activity
+      await logDealActivity({
+        dealId: data.deal_id,
+        activityType: 'task_completed',
+        title: 'Task Completed',
+        description: `Completed task: ${data.title}`,
+        metadata: { task_id: data.id }
+      });
+      
       toast({
         title: 'Task Completed',
         description: 'Task has been marked as completed.',

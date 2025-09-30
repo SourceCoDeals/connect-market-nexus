@@ -8,8 +8,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { Deal } from '@/hooks/admin/use-deals';
 import { useAdminProfiles } from '@/hooks/admin/use-admin-profiles';
 import { useUpdateDeal } from '@/hooks/admin/use-deals';
-import { useUpdateNDA, useLogNDAEmail } from '@/hooks/admin/use-nda';
-import { useUpdateFeeAgreement, useLogFeeAgreementEmail } from '@/hooks/admin/use-fee-agreement';
+import { useUpdateLeadNDAStatus, useUpdateLeadFeeAgreementStatus } from '@/hooks/admin/requests/use-lead-status-updates';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
 
@@ -22,52 +21,6 @@ export function PipelineDetailOverview({ deal }: PipelineDetailOverviewProps) {
   const assignedAdmin = deal.assigned_to && allAdminProfiles ? allAdminProfiles[deal.assigned_to] : null;
   const updateDeal = useUpdateDeal();
 
-  // Fetch NDA admin attribution
-  const { data: ndaAdminInfo } = useQuery({
-    queryKey: ['nda-admin-info', deal.buyer_id],
-    queryFn: async () => {
-      if (!deal.buyer_id || deal.nda_status !== 'signed') return null;
-      
-      const { data } = await supabase
-        .from('nda_logs')
-        .select(`
-          created_at,
-          admin_id
-        `)
-        .eq('user_id', deal.buyer_id)
-        .eq('action_type', 'signed')
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
-      
-      return data;
-    },
-    enabled: !!deal.buyer_id && deal.nda_status === 'signed'
-  });
-
-  // Fetch Fee Agreement admin attribution
-  const { data: feeAdminInfo } = useQuery({
-    queryKey: ['fee-admin-info', deal.buyer_id],
-    queryFn: async () => {
-      if (!deal.buyer_id || deal.fee_agreement_status !== 'signed') return null;
-      
-      const { data } = await supabase
-        .from('fee_agreement_logs')
-        .select(`
-          created_at,
-          admin_id
-        `)
-        .eq('user_id', deal.buyer_id)
-        .eq('action_type', 'signed')
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
-      
-      return data;
-    },
-    enabled: !!deal.buyer_id && deal.fee_agreement_status === 'signed'
-  });
-
   const handleOwnerChange = (value: string) => {
     const adminId = value === 'unassigned' ? null : value;
     updateDeal.mutate({
@@ -76,46 +29,25 @@ export function PipelineDetailOverview({ deal }: PipelineDetailOverviewProps) {
     });
   };
 
-  // Real NDA and Fee Agreement hooks with proper buyer_id handling
-  const updateNDA = useUpdateNDA();
-  const updateFeeAgreement = useUpdateFeeAgreement();
-  const logNDAEmail = useLogNDAEmail();
-  const logFeeAgreementEmail = useLogFeeAgreementEmail();
+  // Use new hooks that update connection_requests
+  const updateLeadNDA = useUpdateLeadNDAStatus();
+  const updateLeadFeeAgreement = useUpdateLeadFeeAgreementStatus();
 
-  // Get buyer_id from deal or fetch via connection request
-  const getBuyerId = async () => {
-    if (deal.buyer_id) return deal.buyer_id;
+  const handleNDAToggle = (checked: boolean) => {
+    if (!deal.connection_request_id) return;
     
-    // If no buyer_id, try to find via connection request
-    if (deal.contact_email) {
-      const { data: connectionRequest } = await supabase
-        .from('connection_requests')
-        .select('user_id')
-        .eq('lead_email', deal.contact_email)
-        .single();
-      
-      return connectionRequest?.user_id;
-    }
-    return null;
-  };
-
-  const handleNDAToggle = async (checked: boolean) => {
-    const buyerId = await getBuyerId();
-    if (!buyerId) return;
-    
-    updateNDA.mutate({
-      userId: buyerId,
-      isSigned: checked
+    updateLeadNDA.mutate({
+      requestId: deal.connection_request_id,
+      value: checked
     });
   };
 
-  const handleFeeAgreementToggle = async (checked: boolean) => {
-    const buyerId = await getBuyerId();
-    if (!buyerId) return;
+  const handleFeeAgreementToggle = (checked: boolean) => {
+    if (!deal.connection_request_id) return;
     
-    updateFeeAgreement.mutate({
-      userId: buyerId,
-      isSigned: checked
+    updateLeadFeeAgreement.mutate({
+      requestId: deal.connection_request_id,
+      value: checked
     });
   };
 
@@ -201,21 +133,13 @@ export function PipelineDetailOverview({ deal }: PipelineDetailOverviewProps) {
                       {deal.nda_status === 'signed' ? 'Signed' :
                        deal.nda_status === 'sent' ? 'Sent' : 'Not Sent'}
                     </span>
-                    {ndaAdminInfo?.admin_id && allAdminProfiles?.[ndaAdminInfo.admin_id] && (
-                      <>
-                        <span className="text-muted-foreground/40">·</span>
-                        <span className="text-xs text-muted-foreground font-mono">
-                          {allAdminProfiles[ndaAdminInfo.admin_id].displayName}
-                        </span>
-                      </>
-                    )}
                   </div>
                 </div>
               </div>
               <Switch
                 checked={deal.nda_status === 'signed'}
                 onCheckedChange={handleNDAToggle}
-                disabled={updateNDA.isPending || !deal.contact_email}
+                disabled={updateLeadNDA.isPending || !deal.connection_request_id}
                 className="scale-75"
               />
             </div>
@@ -236,21 +160,13 @@ export function PipelineDetailOverview({ deal }: PipelineDetailOverviewProps) {
                       {deal.fee_agreement_status === 'signed' ? 'Signed' :
                        deal.fee_agreement_status === 'sent' ? 'Sent' : 'Not Sent'}
                     </span>
-                    {feeAdminInfo?.admin_id && allAdminProfiles?.[feeAdminInfo.admin_id] && (
-                      <>
-                        <span className="text-muted-foreground/40">·</span>
-                        <span className="text-xs text-muted-foreground font-mono">
-                          {allAdminProfiles[feeAdminInfo.admin_id].displayName}
-                        </span>
-                      </>
-                    )}
                   </div>
                 </div>
               </div>
               <Switch
                 checked={deal.fee_agreement_status === 'signed'}
                 onCheckedChange={handleFeeAgreementToggle}
-                disabled={updateFeeAgreement.isPending || !deal.contact_email}
+                disabled={updateLeadFeeAgreement.isPending || !deal.connection_request_id}
                 className="scale-75"
               />
             </div>

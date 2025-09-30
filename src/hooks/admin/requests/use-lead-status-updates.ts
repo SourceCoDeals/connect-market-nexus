@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { logDealActivity } from '@/lib/deal-activity-logger';
 
 interface LeadRequestParams {
   requestId: string;
@@ -32,9 +33,29 @@ export const useUpdateLeadNDAStatus = () => {
       if (ctx?.previous) queryClient.setQueryData(['connection-requests'], ctx.previous);
       toast({ variant: 'destructive', title: 'Update failed', description: 'Could not update lead NDA signed status' });
     },
-    onSuccess: () => {
+    onSuccess: async (_, { requestId, value }) => {
       queryClient.invalidateQueries({ queryKey: ['connection-requests'] });
       queryClient.invalidateQueries({ queryKey: ['deals'] });
+      
+      // Log activity if this connection request has a deal
+      const { data: deal } = await supabase
+        .from('deals')
+        .select('id, contact_name')
+        .eq('connection_request_id', requestId)
+        .maybeSingle();
+      
+      if (deal) {
+        await logDealActivity({
+          dealId: deal.id,
+          activityType: 'document_signed',
+          title: value ? 'NDA Signed' : 'NDA Status Revoked',
+          description: value 
+            ? `NDA marked as signed for ${deal.contact_name || 'contact'}`
+            : `NDA signature revoked for ${deal.contact_name || 'contact'}`,
+          metadata: { document_type: 'nda', signed: value }
+        });
+      }
+      
       toast({ title: 'Lead NDA status updated' });
     },
   });
@@ -65,9 +86,29 @@ export const useUpdateLeadNDAEmailStatus = () => {
       if (ctx?.previous) queryClient.setQueryData(['connection-requests'], ctx.previous);
       toast({ variant: 'destructive', title: 'Update failed', description: 'Could not update lead NDA email status' });
     },
-    onSuccess: () => {
+    onSuccess: async (_, { requestId, value }) => {
       queryClient.invalidateQueries({ queryKey: ['connection-requests'] });
       queryClient.invalidateQueries({ queryKey: ['deals'] });
+      
+      // Log activity if this connection request has a deal
+      const { data: deal } = await supabase
+        .from('deals')
+        .select('id, contact_name')
+        .eq('connection_request_id', requestId)
+        .maybeSingle();
+      
+      if (deal) {
+        await logDealActivity({
+          dealId: deal.id,
+          activityType: 'document_email_sent',
+          title: value ? 'NDA Email Sent' : 'NDA Email Status Revoked',
+          description: value 
+            ? `NDA email sent to ${deal.contact_name || 'contact'}`
+            : `NDA email status revoked for ${deal.contact_name || 'contact'}`,
+          metadata: { document_type: 'nda', email_sent: value }
+        });
+      }
+      
       toast({ title: 'Lead NDA email status updated' });
     },
   });
@@ -98,9 +139,29 @@ export const useUpdateLeadFeeAgreementStatus = () => {
       if (ctx?.previous) queryClient.setQueryData(['connection-requests'], ctx.previous);
       toast({ variant: 'destructive', title: 'Update failed', description: 'Could not update lead fee agreement signed status' });
     },
-    onSuccess: () => {
+    onSuccess: async (_, { requestId, value }) => {
       queryClient.invalidateQueries({ queryKey: ['connection-requests'] });
       queryClient.invalidateQueries({ queryKey: ['deals'] });
+      
+      // Log activity if this connection request has a deal
+      const { data: deal } = await supabase
+        .from('deals')
+        .select('id, contact_name')
+        .eq('connection_request_id', requestId)
+        .maybeSingle();
+      
+      if (deal) {
+        await logDealActivity({
+          dealId: deal.id,
+          activityType: 'document_signed',
+          title: value ? 'Fee Agreement Signed' : 'Fee Agreement Status Revoked',
+          description: value 
+            ? `Fee Agreement marked as signed for ${deal.contact_name || 'contact'}`
+            : `Fee Agreement signature revoked for ${deal.contact_name || 'contact'}`,
+          metadata: { document_type: 'fee_agreement', signed: value }
+        });
+      }
+      
       toast({ title: 'Lead fee agreement status updated' });
     },
   });
@@ -131,9 +192,29 @@ export const useUpdateLeadFeeAgreementEmailStatus = () => {
       if (ctx?.previous) queryClient.setQueryData(['connection-requests'], ctx.previous);
       toast({ variant: 'destructive', title: 'Update failed', description: 'Could not update lead fee agreement email status' });
     },
-    onSuccess: () => {
+    onSuccess: async (_, { requestId, value }) => {
       queryClient.invalidateQueries({ queryKey: ['connection-requests'] });
       queryClient.invalidateQueries({ queryKey: ['deals'] });
+      
+      // Log activity if this connection request has a deal
+      const { data: deal } = await supabase
+        .from('deals')
+        .select('id, contact_name')
+        .eq('connection_request_id', requestId)
+        .maybeSingle();
+      
+      if (deal) {
+        await logDealActivity({
+          dealId: deal.id,
+          activityType: 'document_email_sent',
+          title: value ? 'Fee Agreement Email Sent' : 'Fee Agreement Email Status Revoked',
+          description: value 
+            ? `Fee Agreement email sent to ${deal.contact_name || 'contact'}`
+            : `Fee Agreement email status revoked for ${deal.contact_name || 'contact'}`,
+          metadata: { document_type: 'fee_agreement', email_sent: value }
+        });
+      }
+      
       toast({ title: 'Lead fee agreement email status updated' });
     },
   });
