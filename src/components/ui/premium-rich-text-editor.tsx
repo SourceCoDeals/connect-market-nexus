@@ -9,11 +9,14 @@ import Link from '@tiptap/extension-link';
 import Highlight from '@tiptap/extension-highlight';
 import { TextStyle } from '@tiptap/extension-text-style';
 import { Color } from '@tiptap/extension-color';
+import TextAlign from '@tiptap/extension-text-align';
+import Image from '@tiptap/extension-image';
 import { 
   Bold, Italic, List, ListOrdered, Heading1, Heading2, Heading3,
   Table as TableIcon, Minus, Undo, Redo, Quote, Type, Maximize2,
   Underline as UnderlineIcon, Link as LinkIcon, Highlighter,
-  Strikethrough as StrikethroughIcon
+  Strikethrough as StrikethroughIcon, AlignLeft, AlignCenter,
+  AlignRight, AlignJustify, Image as ImageIcon
 } from 'lucide-react';
 import { Button } from './button';
 import { Separator } from './separator';
@@ -55,6 +58,13 @@ export function PremiumRichTextEditor({ content, onChange }: PremiumRichTextEdit
       }),
       TextStyle,
       Color,
+      TextAlign.configure({
+        types: ['heading', 'paragraph'],
+      }),
+      Image.configure({
+        inline: true,
+        allowBase64: true,
+      }),
     ],
     content,
     editorProps: {
@@ -94,6 +104,14 @@ export function PremiumRichTextEditor({ content, onChange }: PremiumRichTextEdit
     }
 
     editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
+  }, [editor]);
+
+  const addImage = useCallback(() => {
+    if (!editor) return;
+    const url = window.prompt('Image URL');
+    if (url) {
+      editor.chain().focus().setImage({ src: url }).run();
+    }
   }, [editor]);
 
   if (!editor) {
@@ -242,7 +260,46 @@ export function PremiumRichTextEditor({ content, onChange }: PremiumRichTextEdit
 
           <Separator orientation="vertical" className="h-6 mx-1" />
 
+          {/* Text Alignment */}
+          <ToolbarButton
+            onClick={() => editor.chain().focus().setTextAlign('left').run()}
+            active={editor.isActive({ textAlign: 'left' })}
+            title="Align Left"
+          >
+            <AlignLeft className="h-4 w-4" />
+          </ToolbarButton>
+          <ToolbarButton
+            onClick={() => editor.chain().focus().setTextAlign('center').run()}
+            active={editor.isActive({ textAlign: 'center' })}
+            title="Align Center"
+          >
+            <AlignCenter className="h-4 w-4" />
+          </ToolbarButton>
+          <ToolbarButton
+            onClick={() => editor.chain().focus().setTextAlign('right').run()}
+            active={editor.isActive({ textAlign: 'right' })}
+            title="Align Right"
+          >
+            <AlignRight className="h-4 w-4" />
+          </ToolbarButton>
+          <ToolbarButton
+            onClick={() => editor.chain().focus().setTextAlign('justify').run()}
+            active={editor.isActive({ textAlign: 'justify' })}
+            title="Align Justify"
+          >
+            <AlignJustify className="h-4 w-4" />
+          </ToolbarButton>
+
+          <Separator orientation="vertical" className="h-6 mx-1" />
+
           {/* Insert elements */}
+          <ToolbarButton
+            onClick={addImage}
+            title="Insert Image"
+          >
+            <ImageIcon className="h-4 w-4" />
+          </ToolbarButton>
+
           <ToolbarButton
             onClick={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}
             title="Insert Table"

@@ -104,7 +104,7 @@ export function ImprovedListingEditor({
   const [imagePreview, setImagePreview] = useState<string | null>(listing?.image_url || null);
   const [isImageChanged, setIsImageChanged] = useState(false);
   const [imageError, setImageError] = useState<string | null>(null);
-  const [showPreview, setShowPreview] = useState(true);
+  const [showPreview, setShowPreview] = useState(false);
 
   const form = useForm<ListingFormInput>({
     resolver: zodResolver(listingFormSchema),
@@ -238,9 +238,9 @@ export function ImprovedListingEditor({
         {/* Main Editor Panel */}
         <div className={cn(
           "flex-1 overflow-y-auto transition-all duration-300",
-          showPreview ? "lg:mr-[420px]" : "mr-0"
+          showPreview ? "lg:mr-[460px]" : "mr-0"
         )}>
-          <div className="max-w-3xl mx-auto px-4 md:px-6 lg:px-8 py-6">
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <Form {...form}>
               <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-8">
                 <EditorBasicInfoSection form={form} />
@@ -260,10 +260,12 @@ export function ImprovedListingEditor({
 
         {/* Live Preview Panel */}
         {showPreview && (
-          <EditorLivePreview
-            formValues={form.watch()}
-            imagePreview={imagePreview}
-          />
+          <div className="hidden lg:block fixed top-16 right-0 w-[460px] h-[calc(100vh-4rem)] bg-muted/30 border-l border-border overflow-y-auto z-40">
+            <EditorLivePreview
+              formValues={form.watch()}
+              imagePreview={imagePreview}
+            />
+          </div>
         )}
       </div>
     </div>

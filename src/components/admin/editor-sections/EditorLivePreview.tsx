@@ -1,6 +1,14 @@
 import { Badge } from "@/components/ui/badge";
 import { DollarSign, MapPin, Building2, TrendingUp, CheckCircle2, AlertCircle } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
+import { Check } from "lucide-react";
+import ListingStatusTag from "@/components/listing/ListingStatusTag";
+import ListingCardBadges from "@/components/listing/ListingCardBadges";
+import ListingCardTitle from "@/components/listing/ListingCardTitle";
+import ListingCardFinancials from "@/components/listing/ListingCardFinancials";
+import { RichTextDisplay } from "@/components/ui/rich-text-display";
+import { formatCurrency } from "@/lib/currency-utils";
+import { Card, CardContent } from "@/components/ui/card";
 
 interface EditorLivePreviewProps {
   formValues: any;
@@ -68,8 +76,7 @@ export function EditorLivePreview({ formValues, imagePreview }: EditorLivePrevie
   const quality = calculateQuality();
 
   return (
-    <div className="hidden lg:block fixed right-0 top-0 w-[420px] h-full bg-muted/30 border-l border-border overflow-y-auto">
-      <div className="p-5 space-y-5">
+    <div className="p-5 space-y-5">
         {/* Quality Score */}
         <div className="bg-background rounded-lg border border-border p-5 space-y-4">
           <div className="flex items-center justify-between">
@@ -100,93 +107,62 @@ export function EditorLivePreview({ formValues, imagePreview }: EditorLivePrevie
             <p className="text-xs text-muted-foreground mt-0.5">How buyers will see this listing</p>
           </div>
           
-          <div className="p-0">
+          <div className="p-4">
             {/* Card Preview - matching ListingCard exactly */}
-            <div className="bg-background rounded-lg border border-border overflow-hidden m-4 transition-all duration-200 hover:shadow-lg hover:shadow-black/5">
-              <div className="relative">
-                {/* Image */}
-                {imagePreview ? (
-                  <div className="aspect-video overflow-hidden rounded-t-lg bg-muted">
-                    <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
-                  </div>
-                ) : (
-                  <div className="aspect-video rounded-t-lg bg-muted flex items-center justify-center">
-                    <p className="text-sm text-muted-foreground">No image uploaded</p>
-                  </div>
-                )}
-
-                {/* Status Tag - positioned exactly like real listing */}
-                {formValues.status_tag && formValues.status_tag !== "none" && (
-                  <Badge 
-                    variant="default"
-                    className="absolute -top-2 left-3 z-20 px-3 py-1.5 text-xs font-medium rounded-lg uppercase tracking-wide flex items-center gap-1.5 shadow-lg bg-slate-800 text-white border border-slate-700/50 backdrop-blur-sm"
-                  >
-                    {formValues.status_tag === "just_listed" && "Just Listed"}
-                    {formValues.status_tag === "reviewing_buyers" && "Reviewing Buyers"}
-                    {formValues.status_tag === "in_diligence" && "In Diligence"}
-                    {formValues.status_tag === "under_loi" && "Under LOI"}
-                    {formValues.status_tag === "accepted_offer" && "Accepted Offer"}
-                  </Badge>
-                )}
-              </div>
-
-              <div className="p-4 space-y-3">
-                {/* Categories & Location Badges */}
-                <div className="flex flex-wrap gap-2">
-                  {formValues.categories && formValues.categories.length > 0 && (
-                    <>
-                      {formValues.categories.slice(0, 2).map((cat: string, idx: number) => (
-                        <Badge key={idx} variant="secondary" className="text-xs font-normal bg-secondary/50">
-                          <Building2 className="h-3 w-3 mr-1" />
-                          {cat}
-                        </Badge>
-                      ))}
-                    </>
-                  )}
-                  {formValues.location && (
-                    <Badge variant="secondary" className="text-xs font-normal bg-secondary/50">
-                      <MapPin className="h-3 w-3 mr-1" />
-                      {formValues.location}
-                    </Badge>
-                  )}
-                </div>
-
-                {/* Title */}
-                <h2 className="text-lg font-medium text-foreground line-clamp-2 leading-tight">
-                  {formValues.title || "Untitled Business"}
-                </h2>
-
-                {/* Financials */}
-                <div className="flex gap-4 pt-1">
-                  {formValues.revenue && (
-                    <div>
-                      <div className="text-xs text-muted-foreground mb-0.5">Revenue</div>
-                      <p className="text-sm font-semibold text-foreground">
-                        ${formValues.revenue}M
-                      </p>
-                    </div>
-                  )}
-                  {formValues.ebitda && (
-                    <div>
-                      <div className="text-xs text-muted-foreground mb-0.5">EBITDA</div>
-                      <p className="text-sm font-semibold text-foreground">
-                        ${formValues.ebitda}M
-                      </p>
+            <Card className="cursor-pointer transition-all duration-200 hover:shadow-lg hover:shadow-black/5 hover:-translate-y-1">
+              <div className="relative rounded-t-lg">
+                <div className="overflow-hidden rounded-t-lg">
+                  {imagePreview ? (
+                    <img
+                      src={imagePreview}
+                      alt={formValues.title || "Listing preview"}
+                      className="w-full h-48 object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-48 bg-muted flex items-center justify-center">
+                      <span className="text-sm text-muted-foreground">No image selected</span>
                     </div>
                   )}
                 </div>
-
-                {/* Description Preview */}
-                {formValues.description_html && (
-                  <div className="text-sm text-muted-foreground line-clamp-3 leading-relaxed">
-                    <div dangerouslySetInnerHTML={{ __html: formValues.description_html }} />
-                  </div>
-                )}
+                <ListingStatusTag status={formValues.status_tag || null} />
               </div>
-            </div>
+              
+              <CardContent className="p-4 md:p-6">
+                <div>
+                  <ListingCardBadges
+                    categories={formValues.categories || []}
+                    location={formValues.location?.[0] || ""}
+                    category={formValues.categories?.[0] || ""}
+                  />
+                  
+                  <ListingCardTitle
+                    title={formValues.title || "Untitled Listing"}
+                    connectionExists={false}
+                    connectionStatus=""
+                  />
+                  
+                  <ListingCardFinancials
+                    revenue={formValues.revenue ? parseFloat(formValues.revenue.toString()) : 0}
+                    ebitda={formValues.ebitda ? parseFloat(formValues.ebitda.toString()) : 0}
+                    description={formValues.description || ""}
+                    formatCurrency={formatCurrency}
+                  />
+                </div>
+                
+                {/* Rich description preview */}
+                <div className="mt-3 text-sm text-muted-foreground line-clamp-3">
+                  {formValues.description_html ? (
+                    <RichTextDisplay content={formValues.description_html} />
+                  ) : formValues.description ? (
+                    <span>{formValues.description}</span>
+                  ) : (
+                    <span className="italic">No description yet...</span>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </div>
       </div>
-    </div>
   );
 }
