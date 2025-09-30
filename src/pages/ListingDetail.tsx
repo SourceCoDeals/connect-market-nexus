@@ -30,6 +30,8 @@ import { PersonalNotesWidget } from "@/components/listing-detail/PersonalNotesWi
 import { DealComparisonWidget } from "@/components/listing-detail/DealComparisonWidget";
 import ListingStatusTag from "@/components/listing/ListingStatusTag";
 import { AdminListingSidebar } from "@/components/listing-detail/AdminListingSidebar";
+import { EditableTitle } from "@/components/listing-detail/EditableTitle";
+import { EditableDescription } from "@/components/listing-detail/EditableDescription";
 
 
 const ListingDetail = () => {
@@ -37,6 +39,7 @@ const ListingDetail = () => {
   const { user } = useAuth();
   const [showDealAlerts, setShowDealAlerts] = useState(false);
   const [userViewEnabled, setUserViewEnabled] = useState(false);
+  const [editModeEnabled, setEditModeEnabled] = useState(false);
   const { 
     useListing, 
     useRequestConnection, 
@@ -180,7 +183,11 @@ const ListingDetail = () => {
             {/* Header Section - Correct Hierarchy */}
             <div className="space-y-4 mb-8">
               {/* Title */}
-              <h1 className="document-title">{listing.title}</h1>
+              <EditableTitle
+                listingId={listing.id}
+                initialValue={listing.title}
+                isEditing={isAdmin && editModeEnabled && !userViewEnabled}
+              />
               
               {/* Location, Category & Listed Date */}
               <div className="flex items-center gap-4 text-sm text-slate-500">
@@ -220,13 +227,12 @@ const ListingDetail = () => {
             <div className="document-section py-6">
               <div className="space-y-4">
                 <span className="document-label">Business Overview</span>
-                <div className="prose prose-slate max-w-none text-sm [&_p]:text-sm [&_div]:text-sm [&_span]:text-sm">
-                  {listing.description_html ? (
-                    <RichTextDisplay content={listing.description_html} />
-                  ) : (
-                    <p className="text-sm leading-relaxed text-slate-700">{listing.description}</p>
-                  )}
-                </div>
+                <EditableDescription
+                  listingId={listing.id}
+                  initialHtml={listing.description_html}
+                  initialPlain={listing.description}
+                  isEditing={isAdmin && editModeEnabled && !userViewEnabled}
+                />
               </div>
             </div>
 
@@ -337,11 +343,13 @@ const ListingDetail = () => {
 
           {/* Right Column - 25% Premium Sticky Sidebar */}
           <div className="col-span-3">
-            {showAdminView ? (
+            {isAdmin ? (
               <AdminListingSidebar 
                 listing={listing}
                 onUserViewToggle={setUserViewEnabled}
                 userViewEnabled={userViewEnabled}
+                onEditModeToggle={setEditModeEnabled}
+                editModeEnabled={editModeEnabled}
               />
             ) : (
               <div className="sticky top-6 space-y-6">
@@ -359,7 +367,7 @@ const ListingDetail = () => {
                       connectionExists={connectionExists}
                       connectionStatus={connectionStatusValue}
                       isRequesting={isRequesting}
-                      isAdmin={false}
+                      isAdmin={isAdmin && !userViewEnabled}
                       handleRequestConnection={handleRequestConnection}
                       listingTitle={listing.title}
                     />
