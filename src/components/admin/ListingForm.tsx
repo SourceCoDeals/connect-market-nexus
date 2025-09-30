@@ -6,33 +6,10 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { AdminListing } from "@/types/admin";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { CurrencyInput } from "@/components/ui/currency-input";
-import { MultiSelect } from "@/components/ui/multi-select";
-import { ImageUpload } from "@/components/ui/image-upload";
-import { RichTextEditorEnhanced } from "@/components/ui/rich-text-editor-enhanced";
-import { LocationSelect } from "@/components/ui/location-select";
-import { STANDARDIZED_CATEGORIES } from "@/lib/financial-parser";
-import { Loader2 } from "lucide-react";
-import { InternalCompanyInfoSection } from "./InternalCompanyInfoSection";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Form } from "@/components/ui/form";
+import { PremiumListingEditor } from "./listing-editor/PremiumListingEditor";
+import { X, Save } from "lucide-react";
 import { parseCurrency, formatNumber } from "@/lib/currency-utils";
-import { useAdmin } from "@/hooks/use-admin";
 
 // Form schema with categories array instead of single category
 const listingFormSchema = z.object({
@@ -91,6 +68,7 @@ interface ListingFormProps {
   onSubmit: (data: ListingFormValues & { description_html?: string; description_json?: any }, image?: File | null) => Promise<void>;
   listing?: AdminListing;
   isLoading?: boolean;
+  onClose?: () => void;
 }
 
 // Helper function to convert AdminListing to form input format
@@ -122,66 +100,21 @@ export function ListingForm({
   onSubmit,
   listing,
   isLoading = false,
+  onClose,
 }: ListingFormProps) {
-  const { useCategories } = useAdmin();
-  const { data: categories = [] } = useCategories();
-  
-  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(
     listing?.image_url || null
   );
-  const [isImageChanged, setIsImageChanged] = useState(false);
-  const [imageError, setImageError] = useState<string | null>(null);
 
   const form = useForm<ListingFormInput>({
     resolver: zodResolver(listingFormSchema),
     defaultValues: convertListingToFormInput(listing),
   });
 
-  const handleImageSelect = (file: File | null) => {
-    if (file) {
-      // Validate file
-      if (file.size > 5 * 1024 * 1024) {
-        setImageError("Image file size must be less than 5MB");
-        return;
-      }
-      if (!file.type.startsWith("image/")) {
-        setImageError("Please select a valid image file (JPEG, PNG, WebP, GIF)");
-        return;
-      }
-      
-      setImageError(null);
-      setSelectedImage(file);
-      setIsImageChanged(true);
-      
-      // Create image preview
-      const reader = new FileReader();
-      reader.onload = () => {
-        setImagePreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handleRemoveImage = () => {
-    setSelectedImage(null);
-    setImagePreview(null);
-    setIsImageChanged(true);
-    setImageError(null);
-  };
 
   const handleSubmit = async (formData: ListingFormInput) => {
     try {
-      if (imageError) {
-        toast({
-          variant: "destructive",
-          title: "Image Error",
-          description: imageError,
-        });
-        return;
-      }
-      
-      // Transform the form data to match ListingFormValues type
       const transformedData: ListingFormValues & { description_html?: string; description_json?: any } = {
         title: formData.title,
         categories: formData.categories,
@@ -195,7 +128,6 @@ export function ListingForm({
         status: formData.status,
         status_tag: formData.status_tag && formData.status_tag !== "none" ? formData.status_tag : null,
         
-        // Admin-only internal fields - ensure they're properly passed
         internal_company_name: formData.internal_company_name || null,
         internal_primary_owner: formData.internal_primary_owner || null,
         internal_salesforce_link: formData.internal_salesforce_link || null,
@@ -204,15 +136,12 @@ export function ListingForm({
         internal_notes: formData.internal_notes || null,
       };
       
-      // Only pass the image if it's been changed
-      await onSubmit(transformedData, isImageChanged ? selectedImage : undefined);
+      await onSubmit(transformedData, imageFile);
       
       if (!listing) {
-        // Reset form after successful submission for new listings
         form.reset();
-        setSelectedImage(null);
+        setImageFile(null);
         setImagePreview(null);
-        setIsImageChanged(false);
       }
     } catch (error: any) {
       console.error("Error submitting listing:", error);
@@ -224,247 +153,31 @@ export function ListingForm({
     }
   };
 
-  // Use standardized categories for consistency
-  const categoryOptions = STANDARDIZED_CATEGORIES.map(category => ({
-    value: category,
-    label: category,
-  }));
-
   return (
-    <Form {...form}>
-      <form
-        onSubmit={form.handleSubmit(handleSubmit)}
-        className="space-y-4 sm:space-y-5"
-      >
-        <FormField
-          control={form.control}
-          name="title"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel className="text-sm font-medium">Business Title</FormLabel>
-              <FormControl>
-                <Input 
-                  placeholder="E.g., Profitable SaaS Business" 
-                  className="h-11" 
-                  {...field} 
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5">
-          <FormField
-            control={form.control}
-            name="categories"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel className="text-sm font-medium">Categories (Select up to 2)</FormLabel>
-                <FormControl>
-                  <MultiSelect
-                    options={categoryOptions}
-                    selected={field.value}
-                    onSelectedChange={field.onChange}
-                    placeholder="Select categories..."
-                    maxSelected={2}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
+    <div className="h-full flex flex-col bg-background">
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(handleSubmit)} className="h-full flex flex-col">
+          <PremiumListingEditor
+            form={form}
+            imageFile={imageFile}
+            setImageFile={setImageFile}
+            imagePreview={imagePreview}
+            setImagePreview={setImagePreview}
+            isEditMode={!!listing}
           />
-
-          <FormField
-            control={form.control}
-            name="location"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel className="text-sm font-medium">Location</FormLabel>
-                <FormControl>
-                  <LocationSelect
-                    value={field.value}
-                    onValueChange={field.onChange}
-                    placeholder="Select location..."
-                    className="h-11"
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5">
-          <FormField
-            control={form.control}
-            name="revenue"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel className="text-sm font-medium">Annual Revenue</FormLabel>
-                <FormControl>
-                  <CurrencyInput
-                    placeholder="Enter annual revenue"
-                    className="h-11"
-                    {...field}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="ebitda"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel className="text-sm font-medium">Annual EBITDA</FormLabel>
-                <FormControl>
-                  <CurrencyInput
-                    placeholder="Enter annual EBITDA"
-                    className="h-11"
-                    {...field}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-
-        <FormField
-          control={form.control}
-          name="status"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Status</FormLabel>
-              <Select
-                onValueChange={field.onChange}
-                defaultValue={field.value}
-              >
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="inactive">Inactive</SelectItem>
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="status_tag"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Status Tag</FormLabel>
-              <Select
-                onValueChange={(value) => field.onChange(value === "none" ? null : value)}
-                defaultValue={field.value || "none"}
-              >
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="No tag selected" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  <SelectItem value="none">No Tag</SelectItem>
-                  <SelectItem value="just_listed">Just Listed</SelectItem>
-                  <SelectItem value="in_diligence">In Diligence</SelectItem>
-                  <SelectItem value="under_loi">Under LOI</SelectItem>
-                  <SelectItem value="accepted_offer">Accepted Offer</SelectItem>
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <div className="space-y-4">
-          <FormLabel className="text-base font-semibold">Business Description</FormLabel>
           
-          <FormField
-            control={form.control}
-            name="description_html"
-            render={({ field }) => (
-              <FormItem>
-                <FormControl>
-                  <RichTextEditorEnhanced
-                    content={field.value || form.getValues('description') || ''}
-                    onChange={(html, json) => {
-                      field.onChange(html);
-                      form.setValue('description_json', json);
-                      // Keep plain text description for backwards compatibility
-                      const tempDiv = document.createElement('div');
-                      tempDiv.innerHTML = html;
-                      const plainText = tempDiv.textContent || tempDiv.innerText || '';
-                      form.setValue('description', plainText);
-                    }}
-                    placeholder="Create a compelling business description using our professional tools..."
-                    className="min-h-[500px]"
-                    characterLimit={20000}
-                    autoSave={true}
-                    showWordCount={true}
-                    showPreview={true}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-
-        <FormField
-          control={form.control}
-          name="owner_notes"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Additional Notes (Internal)</FormLabel>
-              <FormControl>
-                <Textarea
-                  placeholder="Any additional notes visible only to admins..."
-                  className="min-h-[80px]"
-                  {...field}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <div className="space-y-3">
-          <FormLabel>Listing Image</FormLabel>
-          <ImageUpload
-            onImageSelect={handleImageSelect}
-            currentImageUrl={imagePreview}
-            onRemoveImage={handleRemoveImage}
-            error={imageError}
-          />
-        </div>
-
-        {/* Admin-only Internal Company Information */}
-        <InternalCompanyInfoSection 
-          control={form.control} 
-          dealIdentifier={listing?.deal_identifier}
-        />
-
-        <div className="flex flex-col sm:flex-row sm:justify-end pt-6">
-          <Button 
-            type="submit" 
-            disabled={isLoading || !!imageError}
-            className="w-full sm:w-auto h-11 touch-manipulation"
-          >
-            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {listing ? "Update Listing" : "Create Listing"}
-          </Button>
-        </div>
-      </form>
-    </Form>
+          <div className="border-t bg-card/50 backdrop-blur-sm px-6 py-4 flex items-center justify-between">
+            <Button type="button" variant="ghost" onClick={onClose}>
+              <X className="w-4 h-4 mr-2" />
+              Cancel
+            </Button>
+            <Button type="submit" disabled={isLoading} size="lg">
+              <Save className="w-4 h-4 mr-2" />
+              {isLoading ? "Saving..." : listing ? "Update Listing" : "Publish Listing"}
+            </Button>
+          </div>
+        </form>
+      </Form>
+    </div>
   );
 }

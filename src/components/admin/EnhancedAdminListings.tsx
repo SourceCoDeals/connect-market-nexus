@@ -6,10 +6,10 @@ import { Badge } from "@/components/ui/badge";
 import { Plus, Search, Filter, MoreHorizontal, Eye, EyeOff, Edit, Trash2, Calendar, DollarSign, Building2, Activity } from "lucide-react";
 import { AdminListingCard } from "./AdminListingCard";
 import { AdminListingsFilters } from "./AdminListingsFilters";
-
 import { ListingForm } from "./ListingForm";
 import { AdminListing } from "@/types/admin";
 import { ViewSwitcher } from "./ViewSwitcher";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 
 const EnhancedAdminListings = () => {
   const { useListings, useToggleListingStatus, useDeleteListing, useCreateListing, useUpdateListing } = useAdmin();
@@ -171,25 +171,20 @@ const EnhancedAdminListings = () => {
     refetch();
   };
 
-  if (isCreateFormOpen || editingListing) {
-    return (
-      <div className="p-6 max-w-4xl mx-auto">
-        <ListingForm
-          listing={editingListing}
-          onSubmit={handleFormSubmit}
-          isLoading={isCreating || isUpdating}
-        />
-        <div className="mt-6">
-          <Button variant="outline" onClick={handleFormClose}>
-            Cancel
-          </Button>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-sourceco-background">
+      <Dialog open={isCreateFormOpen || !!editingListing} onOpenChange={(open) => !open && handleFormClose()}>
+        <DialogContent className="max-w-[95vw] h-[95vh] p-0 gap-0">
+          <ListingForm
+            listing={editingListing || undefined}
+            onSubmit={handleFormSubmit}
+            isLoading={isCreating || isUpdating}
+            onClose={handleFormClose}
+          />
+        </DialogContent>
+      </Dialog>
+
       <div className="max-w-7xl mx-auto p-6 space-y-6">
         {/* Header */}
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
