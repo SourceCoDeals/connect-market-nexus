@@ -207,9 +207,13 @@ export function useUpdateDeal() {
       return data;
     },
     onSuccess: async (_, { dealId, updates }) => {
-      queryClient.invalidateQueries({ queryKey: ['deals'] });
-      queryClient.invalidateQueries({ queryKey: ['deal-activities'] });
-      queryClient.invalidateQueries({ queryKey: ['connection-request-details'] });
+      // Invalidate all related queries for immediate updates
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['deals'] }),
+        queryClient.invalidateQueries({ queryKey: ['deal-activities'] }),
+        queryClient.invalidateQueries({ queryKey: ['connection-request-details'] }),
+        queryClient.invalidateQueries({ queryKey: ['admin-profiles'] }), // For deal owner name updates
+      ]);
       
       // Log assignment changes
       if (updates.assigned_to !== undefined) {
