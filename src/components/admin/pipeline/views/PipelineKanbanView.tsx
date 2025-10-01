@@ -9,11 +9,13 @@ import {
   useSensor,
   useSensors,
   DragOverlay,
+  closestCorners,
 } from '@dnd-kit/core';
 import { usePipelineCore } from '@/hooks/admin/use-pipeline-core';
 import { useUpdateDealStage } from '@/hooks/admin/use-deals';
 import { PipelineKanbanColumn } from './PipelineKanbanColumn';
 import { PipelineKanbanCard } from './PipelineKanbanCard';
+import { PipelineKanbanCardOverlay } from './PipelineKanbanCardOverlay';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
@@ -44,25 +46,34 @@ export function PipelineKanbanView({ pipeline }: PipelineKanbanViewProps) {
   
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
-    
+
     if (!over || !pipeline.deals) {
       setActiveId(null);
       return;
     }
-    
-    const dealId = active.id as string;
-    const newStageId = over.id as string;
-    
+
+    const dealId = String(active.id);
+    const overId = String(over.id);
+
+    // Determine destination stage id
+    let newStageId = overId;
+
+    // If dropping over a deal card, map to that deal's current stage
+    const overDeal = pipeline.deals.find(d => d.deal_id === overId);
+    if (overDeal) {
+      newStageId = overDeal.stage_id;
+    }
+
     const deal = pipeline.deals.find(d => d.deal_id === dealId);
     const targetStage = pipeline.stages.find(s => s.id === newStageId);
-    
+
     if (!deal || !targetStage || deal.stage_id === newStageId) {
       setActiveId(null);
       return;
     }
-    
-    updateDealStage.mutate({ 
-      dealId, 
+
+    updateDealStage.mutate({
+      dealId,
       stageId: newStageId,
       fromStage: deal.stage_name || undefined,
       toStage: targetStage.name
@@ -98,6 +109,7 @@ export function PipelineKanbanView({ pipeline }: PipelineKanbanViewProps) {
     <div className="h-full flex flex-col">
       <DndContext
         sensors={sensors}
+        collisionDetection={closestCorners}
         onDragStart={handleDragStart}
         onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
@@ -161,13 +173,7 @@ export function PipelineKanbanView({ pipeline }: PipelineKanbanViewProps) {
             const activeDeal = pipeline.deals.find(d => d.deal_id === activeId);
             if (!activeDeal) return null;
             return (
-              <div className="rotate-3 scale-105">
-                <PipelineKanbanCard 
-                  deal={activeDeal} 
-                  isDragging
-                  onDealClick={() => {}}
-                />
-              </div>
+              <PipelineKanbanCardOverlay deal={activeDeal} />
             );
           })() : null}
         </DragOverlay>
