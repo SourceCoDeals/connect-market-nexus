@@ -19,6 +19,14 @@ export function PipelineDetailPanel({ pipeline }: PipelineDetailPanelProps) {
   const { selectedDeal } = pipeline;
   const [activeTab, setActiveTab] = useState('overview');
 
+  console.log('[Pipeline Detail Panel] Rendering with selectedDeal', { 
+    hasSelectedDeal: !!selectedDeal,
+    dealId: selectedDeal?.deal_id,
+    title: selectedDeal?.deal_title,
+    contact: selectedDeal?.contact_name,
+    company: selectedDeal?.contact_company
+  });
+
   if (!selectedDeal) {
     return (
       <div className="w-[600px] border-l bg-background flex items-center justify-center">

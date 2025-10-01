@@ -153,6 +153,12 @@ export function usePipelineCore() {
   
   // Actions
   const handleDealSelect = (deal: Deal) => {
+    console.log('[Pipeline Core] handleDealSelect called', { 
+      dealId: deal.deal_id, 
+      title: deal.deal_title,
+      contact: deal.contact_name,
+      company: deal.contact_company 
+    });
     setSelectedDeal(deal);
   };
   
@@ -169,10 +175,14 @@ export function usePipelineCore() {
     if (selectedDeal && filteredAndSortedDeals) {
       const updatedDeal = filteredAndSortedDeals.find(d => d.deal_id === selectedDeal.deal_id);
       if (updatedDeal && JSON.stringify(updatedDeal) !== JSON.stringify(selectedDeal)) {
+        console.log('[Pipeline Core] selectedDeal sync effect updating', { 
+          oldTitle: selectedDeal.deal_title,
+          newTitle: updatedDeal.deal_title 
+        });
         setSelectedDeal(updatedDeal);
       }
     }
-  }, [filteredAndSortedDeals, selectedDeal]);
+  }, [filteredAndSortedDeals]);
   
   return {
     // State
