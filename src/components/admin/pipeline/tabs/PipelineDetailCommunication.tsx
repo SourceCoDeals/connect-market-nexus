@@ -14,6 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useDealEmails } from '@/hooks/admin/use-deal-emails';
 import { useUpdateDealFollowup } from '@/hooks/admin/use-deal-followup';
 import { useQueryClient } from '@tanstack/react-query';
+import { useAdminProfiles } from '@/hooks/admin/use-admin-profiles';
 
 interface PipelineDetailCommunicationProps {
   deal: Deal;
@@ -30,6 +31,7 @@ export function PipelineDetailCommunication({ deal }: PipelineDetailCommunicatio
   const queryClient = useQueryClient();
   const { data: realEmailHistory = [], refetch: refetchEmails } = useDealEmails(deal.deal_id);
   const updateDealFollowup = useUpdateDealFollowup();
+  const { data: allAdminProfiles } = useAdminProfiles();
 
   // Local state for follow-up toggles
   const [followedUp, setFollowedUp] = useState(deal.followed_up || false);
@@ -199,6 +201,9 @@ export function PipelineDetailCommunication({ deal }: PipelineDetailCommunicatio
                 {followedUp && deal.followed_up_at && (
                   <p className="text-xs text-muted-foreground/60 font-mono">
                     {formatDistanceToNow(new Date(deal.followed_up_at), { addSuffix: true })}
+                    {deal.followed_up_by && allAdminProfiles?.[deal.followed_up_by] && (
+                      <span className="ml-1">by {allAdminProfiles[deal.followed_up_by].displayName}</span>
+                    )}
                   </p>
                 )}
               </div>
@@ -221,6 +226,9 @@ export function PipelineDetailCommunication({ deal }: PipelineDetailCommunicatio
                 {negativeFollowedUp && deal.negative_followed_up_at && (
                   <p className="text-xs text-muted-foreground/60 font-mono">
                     {formatDistanceToNow(new Date(deal.negative_followed_up_at), { addSuffix: true })}
+                    {deal.negative_followed_up_by && allAdminProfiles?.[deal.negative_followed_up_by] && (
+                      <span className="ml-1">by {allAdminProfiles[deal.negative_followed_up_by].displayName}</span>
+                    )}
                   </p>
                 )}
               </div>

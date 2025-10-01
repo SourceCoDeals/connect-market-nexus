@@ -210,6 +210,14 @@ export function PipelineDetailOverview({ deal }: PipelineDetailOverviewProps) {
                 <p className="text-xs text-muted-foreground">
                   Ready for owner introduction
                 </p>
+                {followedUp && deal.followed_up_at && (
+                  <p className="text-xs text-muted-foreground/60 font-mono">
+                    {formatDateSafely(deal.followed_up_at)}
+                    {deal.followed_up_by && allAdminProfiles?.[deal.followed_up_by] && (
+                      <span className="ml-1">by {allAdminProfiles[deal.followed_up_by].displayName}</span>
+                    )}
+                  </p>
+                )}
               </div>
               <Switch
                 id="positive-followup-overview"
@@ -229,6 +237,14 @@ export function PipelineDetailOverview({ deal }: PipelineDetailOverviewProps) {
                 <p className="text-xs text-muted-foreground">
                   Send rejection to buyer
                 </p>
+                {negativeFollowedUp && deal.negative_followed_up_at && (
+                  <p className="text-xs text-muted-foreground/60 font-mono">
+                    {formatDateSafely(deal.negative_followed_up_at)}
+                    {deal.negative_followed_up_by && allAdminProfiles?.[deal.negative_followed_up_by] && (
+                      <span className="ml-1">by {allAdminProfiles[deal.negative_followed_up_by].displayName}</span>
+                    )}
+                  </p>
+                )}
               </div>
               <Switch
                 id="negative-followup-overview"
