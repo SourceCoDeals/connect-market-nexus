@@ -1,20 +1,25 @@
 import { useMemo, useState } from 'react';
 import { Deal } from './use-deals';
 
-export type DealStatusFilter = 'all' | 'new_inquiry' | 'qualified' | 'due_diligence' | 'under_contract' | 'closed';
+export type DealStatusFilter = 'all' | 'new_inquiry' | 'approved' | 'info_sent' | 'buyer_seller_call' | 'due_diligence' | 'loi_submitted' | 'closed';
 export type BuyerTypeFilter = 'all' | 'privateEquity' | 'familyOffice' | 'searchFund' | 'corporate' | 'individual' | 'independentSponsor' | 'advisor' | 'businessOwner';
 export type ListingFilter = 'all' | string;
-export type AdminFilter = 'all' | 'unassigned' | string;
+export type CompanyFilter = 'all' | string;
+export type AdminFilter = 'all' | 'unassigned' | 'assigned_to_me' | string;
 export type DocumentStatusFilter = 'all' | 'nda_signed' | 'fee_signed' | 'both_signed' | 'none_signed' | 'overdue_followup';
-export type SortOption = 'newest' | 'oldest' | 'priority' | 'value' | 'probability' | 'stage_entered';
+export type DateRangeFilter = { start: Date | null; end: Date | null };
+export type SortOption = 'newest' | 'oldest' | 'priority' | 'value' | 'probability' | 'stage_entered' | 'last_activity';
 
-export function useDealFilters(deals: Deal[]) {
+export function useDealFilters(deals: Deal[], currentAdminId?: string) {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<DealStatusFilter>('all');
   const [buyerTypeFilter, setBuyerTypeFilter] = useState<BuyerTypeFilter>('all');
   const [listingFilter, setListingFilter] = useState<ListingFilter>('all');
+  const [companyFilter, setCompanyFilter] = useState<CompanyFilter>('all');
   const [adminFilter, setAdminFilter] = useState<AdminFilter>('all');
   const [documentStatusFilter, setDocumentStatusFilter] = useState<DocumentStatusFilter>('all');
+  const [createdDateRange, setCreatedDateRange] = useState<DateRangeFilter>({ start: null, end: null });
+  const [lastActivityRange, setLastActivityRange] = useState<DateRangeFilter>({ start: null, end: null });
   const [sortOption, setSortOption] = useState<SortOption>('newest');
 
   const filteredAndSortedDeals = useMemo(() => {
@@ -33,20 +38,26 @@ export function useDealFilters(deals: Deal[]) {
       );
     }
 
-    // Status filter
+    // Status filter - updated for new stages
     if (statusFilter !== 'all') {
       switch (statusFilter) {
         case 'new_inquiry':
           filtered = filtered.filter(d => d.stage_name === 'New Inquiry');
           break;
-        case 'qualified':
-          filtered = filtered.filter(d => d.stage_name === 'Qualified');
+        case 'approved':
+          filtered = filtered.filter(d => d.stage_name === 'Approved');
+          break;
+        case 'info_sent':
+          filtered = filtered.filter(d => d.stage_name === 'Info Sent');
+          break;
+        case 'buyer_seller_call':
+          filtered = filtered.filter(d => d.stage_name === 'Buyer/Seller Call');
           break;
         case 'due_diligence':
           filtered = filtered.filter(d => d.stage_name === 'Due Diligence');
           break;
-        case 'under_contract':
-          filtered = filtered.filter(d => d.stage_name === 'Under Contract');
+        case 'loi_submitted':
+          filtered = filtered.filter(d => d.stage_name === 'LOI Submitted');
           break;
         case 'closed':
           filtered = filtered.filter(d => d.stage_name && ['Closed Won', 'Closed Lost'].includes(d.stage_name));
@@ -64,13 +75,43 @@ export function useDealFilters(deals: Deal[]) {
       filtered = filtered.filter(d => d.listing_id === listingFilter);
     }
 
-    // Admin filter
+    // Company filter
+    if (companyFilter !== 'all') {
+      filtered = filtered.filter(d => 
+        d.buyer_company?.toLowerCase() === companyFilter.toLowerCase() ||
+        d.contact_company?.toLowerCase() === companyFilter.toLowerCase()
+      );
+    }
+
+    // Admin filter - enhanced with 'assigned_to_me'
     if (adminFilter !== 'all') {
       if (adminFilter === 'unassigned') {
         filtered = filtered.filter(d => !d.assigned_to);
+      } else if (adminFilter === 'assigned_to_me' && currentAdminId) {
+        filtered = filtered.filter(d => d.assigned_to === currentAdminId);
       } else {
         filtered = filtered.filter(d => d.assigned_to === adminFilter);
       }
+    }
+
+    // Created date range filter
+    if (createdDateRange.start || createdDateRange.end) {
+      filtered = filtered.filter(d => {
+        const createdDate = new Date(d.deal_created_at);
+        if (createdDateRange.start && createdDate < createdDateRange.start) return false;
+        if (createdDateRange.end && createdDate > createdDateRange.end) return false;
+        return true;
+      });
+    }
+
+    // Last activity date range filter
+    if (lastActivityRange.start || lastActivityRange.end) {
+      filtered = filtered.filter(d => {
+        const activityDate = new Date(d.deal_updated_at);
+        if (lastActivityRange.start && activityDate < lastActivityRange.start) return false;
+        if (lastActivityRange.end && activityDate > lastActivityRange.end) return false;
+        return true;
+      });
     }
 
     // Document status filter
@@ -94,7 +135,7 @@ export function useDealFilters(deals: Deal[]) {
       }
     }
 
-    // Sorting
+    // Sorting - added last_activity option
     const sorted = [...filtered].sort((a, b) => {
       switch (sortOption) {
         case 'newest':
@@ -109,29 +150,48 @@ export function useDealFilters(deals: Deal[]) {
           return b.deal_probability - a.deal_probability;
         case 'stage_entered':
           return new Date(b.deal_stage_entered_at).getTime() - new Date(a.deal_stage_entered_at).getTime();
+        case 'last_activity':
+          return new Date(b.deal_updated_at).getTime() - new Date(a.deal_updated_at).getTime();
         default:
           return 0;
       }
     });
 
     return sorted;
-  }, [deals, searchQuery, statusFilter, buyerTypeFilter, listingFilter, adminFilter, documentStatusFilter, sortOption]);
+  }, [deals, searchQuery, statusFilter, buyerTypeFilter, listingFilter, companyFilter, adminFilter, documentStatusFilter, createdDateRange, lastActivityRange, sortOption, currentAdminId]);
+
+  // Get unique companies for filter dropdown
+  const uniqueCompanies = useMemo(() => {
+    const companies = new Set<string>();
+    deals.forEach(deal => {
+      if (deal.buyer_company) companies.add(deal.buyer_company);
+      if (deal.contact_company) companies.add(deal.contact_company);
+    });
+    return Array.from(companies).sort();
+  }, [deals]);
 
   return {
     searchQuery,
     statusFilter,
     buyerTypeFilter,
     listingFilter,
+    companyFilter,
     adminFilter,
     documentStatusFilter,
+    createdDateRange,
+    lastActivityRange,
     sortOption,
     filteredAndSortedDeals,
+    uniqueCompanies,
     setSearchQuery,
     setStatusFilter,
     setBuyerTypeFilter,
     setListingFilter,
+    setCompanyFilter,
     setAdminFilter,
     setDocumentStatusFilter,
+    setCreatedDateRange,
+    setLastActivityRange,
     setSortOption,
   };
 }

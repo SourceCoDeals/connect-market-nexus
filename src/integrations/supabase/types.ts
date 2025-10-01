@@ -2233,53 +2233,52 @@ export type Database = {
       get_deals_with_details: {
         Args: Record<PropertyKey, never>
         Returns: {
-          activity_count: number
           assigned_admin_email: string
           assigned_admin_name: string
           assigned_to: string
           buyer_company: string
           buyer_email: string
-          buyer_id: string
           buyer_name: string
+          buyer_phone: string
           buyer_priority_score: number
           buyer_type: string
-          completed_tasks: number
+          completed_tasks_count: number
           connection_request_id: string
           contact_company: string
           contact_email: string
           contact_name: string
           contact_phone: string
           contact_role: string
-          deal_created_at: string
-          deal_description: string
-          deal_expected_close_date: string
-          deal_id: string
-          deal_priority: string
-          deal_probability: number
-          deal_source: string
-          deal_stage_entered_at: string
-          deal_title: string
-          deal_updated_at: string
-          deal_value: number
+          created_at: string
+          description: string
+          expected_close_date: string
           fee_agreement_status: string
           followed_up: boolean
           followed_up_at: string
-          followup_overdue: boolean
-          last_contact_at: string
-          last_contact_type: string
+          followed_up_by: string
+          id: string
+          last_activity_at: string
+          listing_category: string
           listing_ebitda: number
           listing_id: string
           listing_location: string
           listing_revenue: number
           listing_title: string
+          metadata: Json
           nda_status: string
-          next_followup_due: string
-          pending_tasks: number
+          pending_tasks_count: number
+          priority: string
+          probability: number
+          source: string
           stage_color: string
+          stage_entered_at: string
           stage_id: string
           stage_name: string
           stage_position: number
-          total_tasks: number
+          title: string
+          total_activities_count: number
+          updated_at: string
+          value: number
         }[]
       }
       get_feedback_analytics: {

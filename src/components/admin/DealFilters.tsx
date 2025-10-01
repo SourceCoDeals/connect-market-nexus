@@ -35,12 +35,12 @@ import {
 } from "lucide-react";
 import { Deal } from "@/hooks/admin/use-deals";
 
-export type DealStatusFilter = 'all' | 'new_inquiry' | 'qualified' | 'due_diligence' | 'under_contract' | 'closed';
+export type DealStatusFilter = 'all' | 'new_inquiry' | 'approved' | 'info_sent' | 'buyer_seller_call' | 'due_diligence' | 'loi_submitted' | 'closed';
 export type BuyerTypeFilter = 'all' | 'privateEquity' | 'familyOffice' | 'searchFund' | 'corporate' | 'individual' | 'independentSponsor' | 'advisor' | 'businessOwner';
 export type ListingFilter = 'all' | string; // listing ID
-export type AdminFilter = 'all' | 'unassigned' | string; // admin ID
+export type AdminFilter = 'all' | 'unassigned' | 'assigned_to_me' | string; // admin ID
 export type DocumentStatusFilter = 'all' | 'nda_signed' | 'fee_signed' | 'both_signed' | 'none_signed' | 'overdue_followup';
-export type SortOption = 'newest' | 'oldest' | 'priority' | 'value' | 'probability' | 'stage_entered';
+export type SortOption = 'newest' | 'oldest' | 'priority' | 'value' | 'probability' | 'stage_entered' | 'last_activity';
 
 interface DealFiltersProps {
   deals: Deal[];
@@ -82,10 +82,12 @@ export function DealFilters({
   const statusCounts = {
     all: deals.length,
     new_inquiry: deals.filter(d => d.stage_name === 'New Inquiry').length,
-    qualified: deals.filter(d => d.stage_name === 'Qualified').length,
+    approved: deals.filter(d => d.stage_name === 'Approved').length,
+    info_sent: deals.filter(d => d.stage_name === 'Info Sent').length,
+    buyer_seller_call: deals.filter(d => d.stage_name === 'Buyer/Seller Call').length,
     due_diligence: deals.filter(d => d.stage_name === 'Due Diligence').length,
-    under_contract: deals.filter(d => d.stage_name === 'Under Contract').length,
-    closed: deals.filter(d => ['Closed Won', 'Closed Lost'].includes(d.stage_name)).length,
+    loi_submitted: deals.filter(d => d.stage_name === 'LOI Submitted').length,
+    closed: deals.filter(d => ['Closed Won', 'Closed Lost'].includes(d.stage_name || '')).length,
   };
 
   const buyerTypeCounts = {
@@ -110,9 +112,11 @@ export function DealFilters({
   const statusOptions = [
     { value: 'all', label: 'All Deals', icon: Target, count: statusCounts.all },
     { value: 'new_inquiry', label: 'New Inquiry', icon: Clock, count: statusCounts.new_inquiry },
-    { value: 'qualified', label: 'Qualified', icon: CheckCircle2, count: statusCounts.qualified },
+    { value: 'approved', label: 'Approved', icon: CheckCircle2, count: statusCounts.approved },
+    { value: 'info_sent', label: 'Info Sent', icon: FileCheck, count: statusCounts.info_sent },
+    { value: 'buyer_seller_call', label: 'Buyer/Seller Call', icon: Users, count: statusCounts.buyer_seller_call },
     { value: 'due_diligence', label: 'Due Diligence', icon: AlertTriangle, count: statusCounts.due_diligence },
-    { value: 'under_contract', label: 'Under Contract', icon: FileCheck, count: statusCounts.under_contract },
+    { value: 'loi_submitted', label: 'LOI Submitted', icon: ShieldCheck, count: statusCounts.loi_submitted },
     { value: 'closed', label: 'Closed', icon: XCircle, count: statusCounts.closed },
   ] as const;
 
@@ -144,6 +148,7 @@ export function DealFilters({
     { value: 'value', label: 'Deal Value', icon: DollarSign },
     { value: 'probability', label: 'Probability', icon: Target },
     { value: 'stage_entered', label: 'Stage Entry', icon: Clock },
+    { value: 'last_activity', label: 'Last Activity', icon: Clock },
   ] as const;
 
   return (

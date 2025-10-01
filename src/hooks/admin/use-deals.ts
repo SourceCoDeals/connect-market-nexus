@@ -28,6 +28,7 @@ export interface Deal {
   listing_revenue: number;
   listing_ebitda: number;
   listing_location: string;
+  listing_category?: string;
   
   // Contact information
   contact_name?: string;
@@ -51,9 +52,13 @@ export interface Deal {
   total_tasks: number;
   pending_tasks: number;
   completed_tasks: number;
+  pending_tasks_count?: number;
+  completed_tasks_count?: number;
   
   // Activity count
   activity_count: number;
+  total_activities_count?: number;
+  last_activity_at?: string;
   
   // Enhanced buyer information (from profiles)
   buyer_id?: string;
@@ -61,6 +66,7 @@ export interface Deal {
   buyer_email?: string;
   buyer_company?: string;
   buyer_type?: string;
+  buyer_phone?: string;
   buyer_priority_score?: number;
   
   // Real contact tracking
@@ -97,7 +103,67 @@ export function useDeals() {
         console.error('Deals RPC Error:', error);
         throw error;
       }
-      return data as Deal[];
+      
+      // Map RPC response to Deal interface
+      return (data || []).map((row: any) => ({
+        deal_id: row.id,
+        deal_title: row.title,
+        deal_description: row.description,
+        deal_value: row.value || 0,
+        deal_priority: row.priority || 'medium',
+        deal_probability: row.probability || 50,
+        deal_expected_close_date: row.expected_close_date,
+        deal_source: row.source || 'manual',
+        deal_created_at: row.created_at,
+        deal_updated_at: row.updated_at,
+        deal_stage_entered_at: row.stage_entered_at,
+        
+        stage_id: row.stage_id,
+        stage_name: row.stage_name,
+        stage_color: row.stage_color,
+        stage_position: row.stage_position,
+        
+        listing_id: row.listing_id,
+        listing_title: row.listing_title,
+        listing_revenue: row.listing_revenue || 0,
+        listing_ebitda: row.listing_ebitda || 0,
+        listing_location: row.listing_location,
+        listing_category: row.listing_category,
+        
+        contact_name: row.contact_name,
+        contact_email: row.contact_email,
+        contact_company: row.contact_company,
+        contact_phone: row.contact_phone,
+        contact_role: row.contact_role,
+        
+        nda_status: row.nda_status || 'not_sent',
+        fee_agreement_status: row.fee_agreement_status || 'not_sent',
+        followed_up: row.followed_up || false,
+        followed_up_at: row.followed_up_at,
+        
+        assigned_to: row.assigned_to,
+        assigned_admin_name: row.assigned_admin_name,
+        assigned_admin_email: row.assigned_admin_email,
+        
+        total_tasks: Number(row.pending_tasks_count || 0) + Number(row.completed_tasks_count || 0),
+        pending_tasks: Number(row.pending_tasks_count || 0),
+        completed_tasks: Number(row.completed_tasks_count || 0),
+        pending_tasks_count: Number(row.pending_tasks_count || 0),
+        completed_tasks_count: Number(row.completed_tasks_count || 0),
+        
+        activity_count: Number(row.total_activities_count || 0),
+        total_activities_count: Number(row.total_activities_count || 0),
+        last_activity_at: row.last_activity_at,
+        
+        buyer_name: row.buyer_name,
+        buyer_email: row.buyer_email,
+        buyer_company: row.buyer_company,
+        buyer_type: row.buyer_type,
+        buyer_phone: row.buyer_phone,
+        buyer_priority_score: row.buyer_priority_score || 0,
+        
+        connection_request_id: row.connection_request_id,
+      })) as Deal[];
     },
     staleTime: 30000, // 30 seconds
   });
