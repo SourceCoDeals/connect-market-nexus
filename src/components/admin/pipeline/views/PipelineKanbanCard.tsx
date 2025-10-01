@@ -172,12 +172,12 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
     if (deal.deal_created_at) {
       const daysSinceCreation = Math.floor((new Date().getTime() - new Date(deal.deal_created_at).getTime()) / (1000 * 60 * 60 * 24));
       // Add some realistic variation based on deal ID to avoid all showing same number
-      const variation = (parseInt(deal.deal_id.slice(-2), 16) % 14) + 1; // 1-14 days variation
+      const variation = deal.deal_id ? (parseInt(deal.deal_id.slice(-2), 16) % 14) + 1 : 3; // 1-14 days variation
       return Math.min(daysSinceCreation, variation);
     }
     
     // Final fallback with ID-based variation
-    return (parseInt(deal.deal_id.slice(-1), 16) % 7) + 1; // 1-7 days
+    return deal.deal_id ? (parseInt(deal.deal_id.slice(-1), 16) % 7) + 1 : 2; // 1-7 days
   })();
   
   const daysInStageText = `${daysInStage}d in ${deal.stage_name}`;
