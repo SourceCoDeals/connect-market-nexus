@@ -1,9 +1,28 @@
-
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { X } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { 
+  X, 
+  CalendarIcon, 
+  Building2, 
+  UserCircle,
+  Filter,
+  Clock,
+  CheckCircle2,
+  FileText,
+  Users,
+  ShieldCheck,
+  Target,
+  XCircle
+} from 'lucide-react';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 import { usePipelineCore } from '@/hooks/admin/use-pipeline-core';
 
 interface PipelineFilterPanelProps {
@@ -17,134 +36,436 @@ export function PipelineFilterPanel({ pipeline }: PipelineFilterPanelProps) {
     pipeline.statusFilter !== 'all',
     pipeline.documentStatusFilter !== 'all',
     pipeline.buyerTypeFilter !== 'all',
-    pipeline.listingFilter !== 'all',
+    pipeline.companyFilter !== 'all',
     pipeline.adminFilter !== 'all',
+    pipeline.createdDateRange.start !== null,
+    pipeline.createdDateRange.end !== null,
+    pipeline.lastActivityRange.start !== null,
+    pipeline.lastActivityRange.end !== null,
     pipeline.searchQuery.trim() !== '',
   ].filter(Boolean).length;
 
+  const clearAllFilters = () => {
+    pipeline.setStatusFilter('all');
+    pipeline.setDocumentStatusFilter('all');
+    pipeline.setBuyerTypeFilter('all');
+    pipeline.setCompanyFilter('all');
+    pipeline.setAdminFilter('all');
+    pipeline.setCreatedDateRange({ start: null, end: null });
+    pipeline.setLastActivityRange({ start: null, end: null });
+    pipeline.setSearchQuery('');
+  };
+
   return (
-    <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 lg:relative lg:bg-transparent lg:backdrop-blur-none">
-      <div className="fixed right-0 top-0 h-full w-80 bg-background border-l shadow-lg lg:relative lg:w-full lg:h-auto lg:shadow-none">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 lg:relative lg:bg-transparent lg:backdrop-blur-none">
+      <div className="fixed right-0 top-0 h-full w-96 bg-background border-l shadow-2xl lg:relative lg:w-full lg:h-auto lg:shadow-none">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b">
+        <div className="flex items-center justify-between p-4 border-b bg-muted/50">
           <div className="flex items-center gap-2">
+            <Filter className="h-4 w-4 text-muted-foreground" />
             <h3 className="font-semibold">Filters</h3>
             {activeFiltersCount > 0 && (
-              <Badge variant="secondary">{activeFiltersCount}</Badge>
+              <Badge variant="secondary" className="ml-1">
+                {activeFiltersCount}
+              </Badge>
             )}
           </div>
           <Button
             variant="ghost"
             size="sm"
             onClick={pipeline.toggleFilterPanel}
+            className="h-8 w-8 p-0"
           >
             <X className="h-4 w-4" />
           </Button>
         </div>
 
         {/* Content */}
-        <div className="p-4 space-y-6">
-          {/* Quick Filters */}
-          <div>
-            <h4 className="font-medium mb-3">Status</h4>
-            <div className="space-y-2">
-              {[
-                { value: 'all', label: 'All Deals' },
-                { value: 'new_inquiry', label: 'New Inquiry' },
-                { value: 'qualified', label: 'Qualified' },
-                { value: 'due_diligence', label: 'Due Diligence' },
-                { value: 'under_contract', label: 'Under Contract' },
-                { value: 'closed', label: 'Closed' },
-              ].map((status) => (
+        <ScrollArea className="h-[calc(100vh-140px)] lg:h-auto">
+          <div className="p-4 space-y-6">
+            {/* Search */}
+            <div>
+              <label className="text-sm font-medium mb-2 block">Search</label>
+              <Input
+                placeholder="Search deals, buyers..."
+                value={pipeline.searchQuery}
+                onChange={(e) => pipeline.setSearchQuery(e.target.value)}
+                className="h-9"
+              />
+            </div>
+
+            <Separator />
+
+            {/* Stage Status */}
+            <div>
+              <label className="text-sm font-medium mb-3 block flex items-center gap-2">
+                <Target className="h-4 w-4" />
+                Stage
+              </label>
+              <div className="space-y-2">
+                {[
+                  { value: 'all', label: 'All Stages', icon: Target },
+                  { value: 'new_inquiry', label: 'New Inquiry', icon: Clock },
+                  { value: 'approved', label: 'Approved', icon: CheckCircle2 },
+                  { value: 'info_sent', label: 'Info Sent', icon: FileText },
+                  { value: 'buyer_seller_call', label: 'Buyer/Seller Call', icon: Users },
+                  { value: 'due_diligence', label: 'Due Diligence', icon: ShieldCheck },
+                  { value: 'loi_submitted', label: 'LOI Submitted', icon: FileText },
+                  { value: 'closed', label: 'Closed', icon: XCircle },
+                ].map((status) => {
+                  const Icon = status.icon;
+                  return (
+                    <Button
+                      key={status.value}
+                      variant={pipeline.statusFilter === status.value ? 'default' : 'outline'}
+                      size="sm"
+                      className="w-full justify-start"
+                      onClick={() => pipeline.setStatusFilter(status.value as any)}
+                    >
+                      <Icon className="h-4 w-4 mr-2" />
+                      {status.label}
+                    </Button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <Separator />
+
+            {/* Company Filter */}
+            <div>
+              <label className="text-sm font-medium mb-3 block flex items-center gap-2">
+                <Building2 className="h-4 w-4" />
+                Company
+              </label>
+              <Select
+                value={pipeline.companyFilter}
+                onValueChange={(value) => pipeline.setCompanyFilter(value)}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="All companies" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Companies</SelectItem>
+                  {pipeline.uniqueCompanies?.map((company) => (
+                    <SelectItem key={company} value={company}>
+                      {company}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <Separator />
+
+            {/* Admin/Owner Filter */}
+            <div>
+              <label className="text-sm font-medium mb-3 block flex items-center gap-2">
+                <UserCircle className="h-4 w-4" />
+                Assigned To
+              </label>
+              <div className="space-y-2">
                 <Button
-                  key={status.value}
-                  variant={pipeline.statusFilter === status.value ? 'default' : 'outline'}
+                  variant={pipeline.adminFilter === 'all' ? 'default' : 'outline'}
                   size="sm"
                   className="w-full justify-start"
-                  onClick={() => pipeline.setStatusFilter(status.value as any)}
+                  onClick={() => pipeline.setAdminFilter('all')}
                 >
-                  {status.label}
+                  All Deals
                 </Button>
-              ))}
-            </div>
-          </div>
-
-          <Separator />
-
-          {/* Buyer Type */}
-          <div>
-            <h4 className="font-medium mb-3">Buyer Type</h4>
-            <div className="space-y-2">
-              {[
-                { value: 'all', label: 'All Types' },
-                { value: 'privateEquity', label: 'Private Equity' },
-                { value: 'familyOffice', label: 'Family Office' },
-                { value: 'searchFund', label: 'Search Fund' },
-                { value: 'corporate', label: 'Corporate' },
-                { value: 'individual', label: 'Individual' },
-              ].map((type) => (
                 <Button
-                  key={type.value}
-                  variant={pipeline.buyerTypeFilter === type.value ? 'default' : 'outline'}
+                  variant={pipeline.adminFilter === 'assigned_to_me' ? 'default' : 'outline'}
                   size="sm"
                   className="w-full justify-start"
-                  onClick={() => pipeline.setBuyerTypeFilter(type.value as any)}
+                  onClick={() => pipeline.setAdminFilter('assigned_to_me')}
                 >
-                  {type.label}
+                  <UserCircle className="h-4 w-4 mr-2" />
+                  Assigned to Me
                 </Button>
-              ))}
-            </div>
-          </div>
-
-          <Separator />
-
-          {/* Document Status */}
-          <div>
-            <h4 className="font-medium mb-3">Documents</h4>
-            <div className="space-y-2">
-              {[
-                { value: 'all', label: 'All Documents' },
-                { value: 'both_signed', label: 'Both Signed' },
-                { value: 'nda_signed', label: 'NDA Signed' },
-                { value: 'fee_signed', label: 'Fee Signed' },
-                { value: 'none_signed', label: 'None Signed' },
-                { value: 'overdue_followup', label: 'Overdue Follow-up' },
-              ].map((doc) => (
                 <Button
-                  key={doc.value}
-                  variant={pipeline.documentStatusFilter === doc.value ? 'default' : 'outline'}
+                  variant={pipeline.adminFilter === 'unassigned' ? 'default' : 'outline'}
                   size="sm"
                   className="w-full justify-start"
-                  onClick={() => pipeline.setDocumentStatusFilter(doc.value as any)}
+                  onClick={() => pipeline.setAdminFilter('unassigned')}
                 >
-                  {doc.label}
+                  Unassigned
                 </Button>
-              ))}
+              </div>
             </div>
+
+            <Separator />
+
+            {/* Created Date Range */}
+            <div>
+              <label className="text-sm font-medium mb-3 block flex items-center gap-2">
+                <CalendarIcon className="h-4 w-4" />
+                Created Date
+              </label>
+              <div className="space-y-2">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        'w-full justify-start text-left font-normal',
+                        !pipeline.createdDateRange.start && 'text-muted-foreground'
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {pipeline.createdDateRange.start ? (
+                        format(pipeline.createdDateRange.start, 'PPP')
+                      ) : (
+                        <span>Start date</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={pipeline.createdDateRange.start || undefined}
+                      onSelect={(date) =>
+                        pipeline.setCreatedDateRange({
+                          ...pipeline.createdDateRange,
+                          start: date || null,
+                        })
+                      }
+                      initialFocus
+                      className="pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
+
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        'w-full justify-start text-left font-normal',
+                        !pipeline.createdDateRange.end && 'text-muted-foreground'
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {pipeline.createdDateRange.end ? (
+                        format(pipeline.createdDateRange.end, 'PPP')
+                      ) : (
+                        <span>End date</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={pipeline.createdDateRange.end || undefined}
+                      onSelect={(date) =>
+                        pipeline.setCreatedDateRange({
+                          ...pipeline.createdDateRange,
+                          end: date || null,
+                        })
+                      }
+                      initialFocus
+                      className="pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </div>
+
+            <Separator />
+
+            {/* Last Activity Range */}
+            <div>
+              <label className="text-sm font-medium mb-3 block flex items-center gap-2">
+                <Clock className="h-4 w-4" />
+                Last Activity
+              </label>
+              <div className="space-y-2">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        'w-full justify-start text-left font-normal',
+                        !pipeline.lastActivityRange.start && 'text-muted-foreground'
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {pipeline.lastActivityRange.start ? (
+                        format(pipeline.lastActivityRange.start, 'PPP')
+                      ) : (
+                        <span>Start date</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={pipeline.lastActivityRange.start || undefined}
+                      onSelect={(date) =>
+                        pipeline.setLastActivityRange({
+                          ...pipeline.lastActivityRange,
+                          start: date || null,
+                        })
+                      }
+                      initialFocus
+                      className="pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
+
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        'w-full justify-start text-left font-normal',
+                        !pipeline.lastActivityRange.end && 'text-muted-foreground'
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {pipeline.lastActivityRange.end ? (
+                        format(pipeline.lastActivityRange.end, 'PPP')
+                      ) : (
+                        <span>End date</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={pipeline.lastActivityRange.end || undefined}
+                      onSelect={(date) =>
+                        pipeline.setLastActivityRange({
+                          ...pipeline.lastActivityRange,
+                          end: date || null,
+                        })
+                      }
+                      initialFocus
+                      className="pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </div>
+
+            <Separator />
+
+            {/* Buyer Type */}
+            <div>
+              <label className="text-sm font-medium mb-3 block">Buyer Type</label>
+              <Select
+                value={pipeline.buyerTypeFilter}
+                onValueChange={(value) => pipeline.setBuyerTypeFilter(value as any)}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="All buyer types" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Buyer Types</SelectItem>
+                  <SelectItem value="privateEquity">Private Equity</SelectItem>
+                  <SelectItem value="familyOffice">Family Office</SelectItem>
+                  <SelectItem value="searchFund">Search Fund</SelectItem>
+                  <SelectItem value="corporate">Corporate</SelectItem>
+                  <SelectItem value="individual">Individual</SelectItem>
+                  <SelectItem value="independentSponsor">Independent Sponsor</SelectItem>
+                  <SelectItem value="advisor">Advisor / Banker</SelectItem>
+                  <SelectItem value="businessOwner">Business Owner</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <Separator />
+
+            {/* Document Status */}
+            <div>
+              <label className="text-sm font-medium mb-3 block">Documents</label>
+              <Select
+                value={pipeline.documentStatusFilter}
+                onValueChange={(value) => pipeline.setDocumentStatusFilter(value as any)}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="All documents" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Documents</SelectItem>
+                  <SelectItem value="both_signed">NDA & Fee Signed</SelectItem>
+                  <SelectItem value="nda_signed">NDA Signed Only</SelectItem>
+                  <SelectItem value="fee_signed">Fee Signed Only</SelectItem>
+                  <SelectItem value="none_signed">No Documents</SelectItem>
+                  <SelectItem value="overdue_followup">Overdue Follow-up</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Active Filters Display */}
+            {activeFiltersCount > 0 && (
+              <>
+                <Separator />
+                <div>
+                  <label className="text-sm font-medium mb-3 block">Active Filters</label>
+                  <div className="flex flex-wrap gap-2">
+                    {pipeline.statusFilter !== 'all' && (
+                      <Badge variant="secondary" className="gap-1">
+                        Stage: {pipeline.statusFilter}
+                        <X
+                          className="h-3 w-3 cursor-pointer"
+                          onClick={() => pipeline.setStatusFilter('all')}
+                        />
+                      </Badge>
+                    )}
+                    {pipeline.companyFilter !== 'all' && (
+                      <Badge variant="secondary" className="gap-1">
+                        Company: {pipeline.companyFilter}
+                        <X
+                          className="h-3 w-3 cursor-pointer"
+                          onClick={() => pipeline.setCompanyFilter('all')}
+                        />
+                      </Badge>
+                    )}
+                    {pipeline.adminFilter !== 'all' && (
+                      <Badge variant="secondary" className="gap-1">
+                        Admin: {pipeline.adminFilter === 'assigned_to_me' ? 'Me' : pipeline.adminFilter}
+                        <X
+                          className="h-3 w-3 cursor-pointer"
+                          onClick={() => pipeline.setAdminFilter('all')}
+                        />
+                      </Badge>
+                    )}
+                    {pipeline.createdDateRange.start && (
+                      <Badge variant="secondary" className="gap-1">
+                        Created: {format(pipeline.createdDateRange.start, 'PP')}
+                        <X
+                          className="h-3 w-3 cursor-pointer"
+                          onClick={() =>
+                            pipeline.setCreatedDateRange({ ...pipeline.createdDateRange, start: null })
+                          }
+                        />
+                      </Badge>
+                    )}
+                    {pipeline.lastActivityRange.start && (
+                      <Badge variant="secondary" className="gap-1">
+                        Activity: {format(pipeline.lastActivityRange.start, 'PP')}
+                        <X
+                          className="h-3 w-3 cursor-pointer"
+                          onClick={() =>
+                            pipeline.setLastActivityRange({ ...pipeline.lastActivityRange, start: null })
+                          }
+                        />
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
           </div>
-        </div>
+        </ScrollArea>
 
         {/* Actions */}
         <div className="absolute bottom-0 left-0 right-0 p-4 border-t bg-background">
-          <div className="space-y-2">
-            <Button
-              variant="outline"
-              className="w-full"
-              onClick={() => {
-                pipeline.setStatusFilter('all');
-                pipeline.setDocumentStatusFilter('all');
-                pipeline.setBuyerTypeFilter('all');
-                pipeline.setListingFilter('all');
-                pipeline.setAdminFilter('all');
-                pipeline.setSearchQuery('');
-              }}
-            >
-              Clear All Filters
+          <div className="flex gap-2">
+            <Button variant="outline" className="flex-1" onClick={clearAllFilters}>
+              Clear All
             </Button>
-            <Button
-              className="w-full"
-              onClick={pipeline.toggleFilterPanel}
-            >
+            <Button className="flex-1" onClick={pipeline.toggleFilterPanel}>
               Apply Filters
             </Button>
           </div>

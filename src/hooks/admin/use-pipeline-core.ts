@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { useDeals, useDealStages, Deal } from '@/hooks/admin/use-deals';
 import { useDealFilters } from '@/hooks/admin/use-deal-filters';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { supabase } from '@/integrations/supabase/client';
 
 export type ViewMode = 'kanban' | 'list' | 'table';
 
@@ -19,9 +20,18 @@ export function usePipelineCore() {
   const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null);
   const [selectedDeals, setSelectedDeals] = useState<string[]>([]);
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
-  
+  const [currentAdminId, setCurrentAdminId] = useState<string | undefined>(undefined);
   
   const isMobile = useIsMobile();
+  
+  // Get current admin ID
+  useEffect(() => {
+    const getCurrentUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setCurrentAdminId(user?.id);
+    };
+    getCurrentUser();
+  }, []);
   
   // Data fetching
   const { data: deals, isLoading: dealsLoading, error: dealsError } = useDeals();
@@ -38,7 +48,7 @@ export function usePipelineCore() {
   });
   
   // Filtering
-  const filterHook = useDealFilters(deals || []);
+  const filterHook = useDealFilters(deals || [], currentAdminId);
   const { filteredAndSortedDeals } = filterHook;
   
   // Group deals by stage
