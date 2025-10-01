@@ -288,12 +288,14 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
             <h3 className="text-sm font-medium text-gray-900 leading-tight truncate">
               {listingTitle}
             </h3>
-            <div className="flex items-center gap-2">
-              <Building2 className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
-            <span className="text-xs text-gray-600 truncate">{companyName}</span>
-            <Badge className={cn("text-xs px-2 py-0.5 font-medium border rounded-md", getBuyerTypeColor(actualBuyerType))}>
-              {getBuyerTypeLabel(actualBuyerType)}
-            </Badge>
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex items-center gap-1.5">
+                <Building2 className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+                <span className="text-xs text-gray-600 truncate">{companyName}</span>
+              </div>
+              <Badge className={cn("text-xs px-2 py-0.5 font-medium border rounded-md", getBuyerTypeColor(actualBuyerType))}>
+                {getBuyerTypeLabel(actualBuyerType)}
+              </Badge>
             </div>
           </div>
           <div className={cn("w-2 h-2 rounded-full ml-3 mt-0.5 flex-shrink-0", buyerPriority.dot)} />

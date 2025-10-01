@@ -7,6 +7,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { 
   X, 
   CalendarIcon, 
@@ -82,8 +83,8 @@ export function PipelineFilterPanel({ pipeline }: PipelineFilterPanelProps) {
 
         {/* Content */}
         <ScrollArea className="h-[calc(100vh-140px)] lg:h-auto">
-          <div className="p-4 space-y-6">
-            {/* Search */}
+          <div className="p-4 space-y-4">
+            {/* Search - Always visible */}
             <div>
               <label className="text-sm font-medium mb-2 block">Search</label>
               <Input
@@ -94,307 +95,325 @@ export function PipelineFilterPanel({ pipeline }: PipelineFilterPanelProps) {
               />
             </div>
 
-            <Separator />
+            {/* Collapsible Filter Sections */}
+            <Accordion type="multiple" defaultValue={['stage', 'company', 'admin']} className="space-y-2">
+              {/* Stage Status */}
+              <AccordionItem value="stage" className="border rounded-lg px-4">
+                <AccordionTrigger className="text-sm font-medium hover:no-underline py-3">
+                  <div className="flex items-center gap-2">
+                    <Target className="h-4 w-4" />
+                    Stage
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent className="pb-4">
+                  <div className="space-y-2">
+                    {[
+                      { value: 'all', label: 'All Stages', icon: Target },
+                      { value: 'new_inquiry', label: 'New Inquiry', icon: Clock },
+                      { value: 'approved', label: 'Approved', icon: CheckCircle2 },
+                      { value: 'info_sent', label: 'Info Sent', icon: FileText },
+                      { value: 'buyer_seller_call', label: 'Buyer/Seller Call', icon: Users },
+                      { value: 'due_diligence', label: 'Due Diligence', icon: ShieldCheck },
+                      { value: 'loi_submitted', label: 'LOI Submitted', icon: FileText },
+                      { value: 'closed', label: 'Closed', icon: XCircle },
+                    ].map((status) => {
+                      const Icon = status.icon;
+                      return (
+                        <Button
+                          key={status.value}
+                          variant={pipeline.statusFilter === status.value ? 'default' : 'outline'}
+                          size="sm"
+                          className="w-full justify-start"
+                          onClick={() => pipeline.setStatusFilter(status.value as any)}
+                        >
+                          <Icon className="h-4 w-4 mr-2" />
+                          {status.label}
+                        </Button>
+                      );
+                    })}
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
 
-            {/* Stage Status */}
-            <div>
-              <label className="text-sm font-medium mb-3 block flex items-center gap-2">
-                <Target className="h-4 w-4" />
-                Stage
-              </label>
-              <div className="space-y-2">
-                {[
-                  { value: 'all', label: 'All Stages', icon: Target },
-                  { value: 'new_inquiry', label: 'New Inquiry', icon: Clock },
-                  { value: 'approved', label: 'Approved', icon: CheckCircle2 },
-                  { value: 'info_sent', label: 'Info Sent', icon: FileText },
-                  { value: 'buyer_seller_call', label: 'Buyer/Seller Call', icon: Users },
-                  { value: 'due_diligence', label: 'Due Diligence', icon: ShieldCheck },
-                  { value: 'loi_submitted', label: 'LOI Submitted', icon: FileText },
-                  { value: 'closed', label: 'Closed', icon: XCircle },
-                ].map((status) => {
-                  const Icon = status.icon;
-                  return (
+              {/* Company Filter */}
+              <AccordionItem value="company" className="border rounded-lg px-4">
+                <AccordionTrigger className="text-sm font-medium hover:no-underline py-3">
+                  <div className="flex items-center gap-2">
+                    <Building2 className="h-4 w-4" />
+                    Company
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent className="pb-4">
+                  <Select
+                    value={pipeline.companyFilter}
+                    onValueChange={(value) => pipeline.setCompanyFilter(value)}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="All companies" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Companies</SelectItem>
+                      {pipeline.uniqueCompanies?.map((company) => (
+                        <SelectItem key={company} value={company}>
+                          {company}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </AccordionContent>
+              </AccordionItem>
+
+              {/* Admin/Owner Filter */}
+              <AccordionItem value="admin" className="border rounded-lg px-4">
+                <AccordionTrigger className="text-sm font-medium hover:no-underline py-3">
+                  <div className="flex items-center gap-2">
+                    <UserCircle className="h-4 w-4" />
+                    Assigned To
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent className="pb-4">
+                  <div className="space-y-2">
                     <Button
-                      key={status.value}
-                      variant={pipeline.statusFilter === status.value ? 'default' : 'outline'}
+                      variant={pipeline.adminFilter === 'all' ? 'default' : 'outline'}
                       size="sm"
                       className="w-full justify-start"
-                      onClick={() => pipeline.setStatusFilter(status.value as any)}
+                      onClick={() => pipeline.setAdminFilter('all')}
                     >
-                      <Icon className="h-4 w-4 mr-2" />
-                      {status.label}
+                      All Deals
                     </Button>
-                  );
-                })}
-              </div>
-            </div>
-
-            <Separator />
-
-            {/* Company Filter */}
-            <div>
-              <label className="text-sm font-medium mb-3 block flex items-center gap-2">
-                <Building2 className="h-4 w-4" />
-                Company
-              </label>
-              <Select
-                value={pipeline.companyFilter}
-                onValueChange={(value) => pipeline.setCompanyFilter(value)}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="All companies" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Companies</SelectItem>
-                  {pipeline.uniqueCompanies?.map((company) => (
-                    <SelectItem key={company} value={company}>
-                      {company}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <Separator />
-
-            {/* Admin/Owner Filter */}
-            <div>
-              <label className="text-sm font-medium mb-3 block flex items-center gap-2">
-                <UserCircle className="h-4 w-4" />
-                Assigned To
-              </label>
-              <div className="space-y-2">
-                <Button
-                  variant={pipeline.adminFilter === 'all' ? 'default' : 'outline'}
-                  size="sm"
-                  className="w-full justify-start"
-                  onClick={() => pipeline.setAdminFilter('all')}
-                >
-                  All Deals
-                </Button>
-                <Button
-                  variant={pipeline.adminFilter === 'assigned_to_me' ? 'default' : 'outline'}
-                  size="sm"
-                  className="w-full justify-start"
-                  onClick={() => pipeline.setAdminFilter('assigned_to_me')}
-                >
-                  <UserCircle className="h-4 w-4 mr-2" />
-                  Assigned to Me
-                </Button>
-                <Button
-                  variant={pipeline.adminFilter === 'unassigned' ? 'default' : 'outline'}
-                  size="sm"
-                  className="w-full justify-start"
-                  onClick={() => pipeline.setAdminFilter('unassigned')}
-                >
-                  Unassigned
-                </Button>
-              </div>
-            </div>
-
-            <Separator />
-
-            {/* Created Date Range */}
-            <div>
-              <label className="text-sm font-medium mb-3 block flex items-center gap-2">
-                <CalendarIcon className="h-4 w-4" />
-                Created Date
-              </label>
-              <div className="space-y-2">
-                <Popover>
-                  <PopoverTrigger asChild>
                     <Button
-                      variant="outline"
-                      className={cn(
-                        'w-full justify-start text-left font-normal',
-                        !pipeline.createdDateRange.start && 'text-muted-foreground'
-                      )}
+                      variant={pipeline.adminFilter === 'assigned_to_me' ? 'default' : 'outline'}
+                      size="sm"
+                      className="w-full justify-start"
+                      onClick={() => pipeline.setAdminFilter('assigned_to_me')}
                     >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {pipeline.createdDateRange.start ? (
-                        format(pipeline.createdDateRange.start, 'PPP')
-                      ) : (
-                        <span>Start date</span>
-                      )}
+                      <UserCircle className="h-4 w-4 mr-2" />
+                      Assigned to Me
                     </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={pipeline.createdDateRange.start || undefined}
-                      onSelect={(date) =>
-                        pipeline.setCreatedDateRange({
-                          ...pipeline.createdDateRange,
-                          start: date || null,
-                        })
-                      }
-                      initialFocus
-                      className="pointer-events-auto"
-                    />
-                  </PopoverContent>
-                </Popover>
-
-                <Popover>
-                  <PopoverTrigger asChild>
                     <Button
-                      variant="outline"
-                      className={cn(
-                        'w-full justify-start text-left font-normal',
-                        !pipeline.createdDateRange.end && 'text-muted-foreground'
-                      )}
+                      variant={pipeline.adminFilter === 'unassigned' ? 'default' : 'outline'}
+                      size="sm"
+                      className="w-full justify-start"
+                      onClick={() => pipeline.setAdminFilter('unassigned')}
                     >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {pipeline.createdDateRange.end ? (
-                        format(pipeline.createdDateRange.end, 'PPP')
-                      ) : (
-                        <span>End date</span>
-                      )}
+                      Unassigned
                     </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={pipeline.createdDateRange.end || undefined}
-                      onSelect={(date) =>
-                        pipeline.setCreatedDateRange({
-                          ...pipeline.createdDateRange,
-                          end: date || null,
-                        })
-                      }
-                      initialFocus
-                      className="pointer-events-auto"
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-            </div>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
 
-            <Separator />
+              {/* Date Filters */}
+              <AccordionItem value="dates" className="border rounded-lg px-4">
+                <AccordionTrigger className="text-sm font-medium hover:no-underline py-3">
+                  <div className="flex items-center gap-2">
+                    <CalendarIcon className="h-4 w-4" />
+                    Date Ranges
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent className="pb-4 space-y-4">
+                  {/* Created Date Range */}
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">Created Date</label>
+                    <div className="space-y-2">
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className={cn(
+                              'w-full justify-start text-left font-normal',
+                              !pipeline.createdDateRange.start && 'text-muted-foreground'
+                            )}
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {pipeline.createdDateRange.start ? (
+                              format(pipeline.createdDateRange.start, 'PPP')
+                            ) : (
+                              <span>Start date</span>
+                            )}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={pipeline.createdDateRange.start || undefined}
+                            onSelect={(date) =>
+                              pipeline.setCreatedDateRange({
+                                ...pipeline.createdDateRange,
+                                start: date || null,
+                              })
+                            }
+                            initialFocus
+                            className="pointer-events-auto"
+                          />
+                        </PopoverContent>
+                      </Popover>
 
-            {/* Last Activity Range */}
-            <div>
-              <label className="text-sm font-medium mb-3 block flex items-center gap-2">
-                <Clock className="h-4 w-4" />
-                Last Activity
-              </label>
-              <div className="space-y-2">
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        'w-full justify-start text-left font-normal',
-                        !pipeline.lastActivityRange.start && 'text-muted-foreground'
-                      )}
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className={cn(
+                              'w-full justify-start text-left font-normal',
+                              !pipeline.createdDateRange.end && 'text-muted-foreground'
+                            )}
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {pipeline.createdDateRange.end ? (
+                              format(pipeline.createdDateRange.end, 'PPP')
+                            ) : (
+                              <span>End date</span>
+                            )}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={pipeline.createdDateRange.end || undefined}
+                            onSelect={(date) =>
+                              pipeline.setCreatedDateRange({
+                                ...pipeline.createdDateRange,
+                                end: date || null,
+                              })
+                            }
+                            initialFocus
+                            className="pointer-events-auto"
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* Last Activity Range */}
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">Last Activity</label>
+                    <div className="space-y-2">
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className={cn(
+                              'w-full justify-start text-left font-normal',
+                              !pipeline.lastActivityRange.start && 'text-muted-foreground'
+                            )}
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {pipeline.lastActivityRange.start ? (
+                              format(pipeline.lastActivityRange.start, 'PPP')
+                            ) : (
+                              <span>Start date</span>
+                            )}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={pipeline.lastActivityRange.start || undefined}
+                            onSelect={(date) =>
+                              pipeline.setLastActivityRange({
+                                ...pipeline.lastActivityRange,
+                                start: date || null,
+                              })
+                            }
+                            initialFocus
+                            className="pointer-events-auto"
+                          />
+                        </PopoverContent>
+                      </Popover>
+
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className={cn(
+                              'w-full justify-start text-left font-normal',
+                              !pipeline.lastActivityRange.end && 'text-muted-foreground'
+                            )}
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {pipeline.lastActivityRange.end ? (
+                              format(pipeline.lastActivityRange.end, 'PPP')
+                            ) : (
+                              <span>End date</span>
+                            )}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={pipeline.lastActivityRange.end || undefined}
+                            onSelect={(date) =>
+                              pipeline.setLastActivityRange({
+                                ...pipeline.lastActivityRange,
+                                end: date || null,
+                              })
+                            }
+                            initialFocus
+                            className="pointer-events-auto"
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+
+              {/* Additional Filters */}
+              <AccordionItem value="additional" className="border rounded-lg px-4">
+                <AccordionTrigger className="text-sm font-medium hover:no-underline py-3">
+                  Additional Filters
+                </AccordionTrigger>
+                <AccordionContent className="pb-4 space-y-4">
+                  {/* Buyer Type */}
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">Buyer Type</label>
+                    <Select
+                      value={pipeline.buyerTypeFilter}
+                      onValueChange={(value) => pipeline.setBuyerTypeFilter(value as any)}
                     >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {pipeline.lastActivityRange.start ? (
-                        format(pipeline.lastActivityRange.start, 'PPP')
-                      ) : (
-                        <span>Start date</span>
-                      )}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={pipeline.lastActivityRange.start || undefined}
-                      onSelect={(date) =>
-                        pipeline.setLastActivityRange({
-                          ...pipeline.lastActivityRange,
-                          start: date || null,
-                        })
-                      }
-                      initialFocus
-                      className="pointer-events-auto"
-                    />
-                  </PopoverContent>
-                </Popover>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="All buyer types" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Buyer Types</SelectItem>
+                        <SelectItem value="privateEquity">Private Equity</SelectItem>
+                        <SelectItem value="familyOffice">Family Office</SelectItem>
+                        <SelectItem value="searchFund">Search Fund</SelectItem>
+                        <SelectItem value="corporate">Corporate</SelectItem>
+                        <SelectItem value="individual">Individual</SelectItem>
+                        <SelectItem value="independentSponsor">Independent Sponsor</SelectItem>
+                        <SelectItem value="advisor">Advisor / Banker</SelectItem>
+                        <SelectItem value="businessOwner">Business Owner</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        'w-full justify-start text-left font-normal',
-                        !pipeline.lastActivityRange.end && 'text-muted-foreground'
-                      )}
+                  <Separator />
+
+                  {/* Document Status */}
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">Documents</label>
+                    <Select
+                      value={pipeline.documentStatusFilter}
+                      onValueChange={(value) => pipeline.setDocumentStatusFilter(value as any)}
                     >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {pipeline.lastActivityRange.end ? (
-                        format(pipeline.lastActivityRange.end, 'PPP')
-                      ) : (
-                        <span>End date</span>
-                      )}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={pipeline.lastActivityRange.end || undefined}
-                      onSelect={(date) =>
-                        pipeline.setLastActivityRange({
-                          ...pipeline.lastActivityRange,
-                          end: date || null,
-                        })
-                      }
-                      initialFocus
-                      className="pointer-events-auto"
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-            </div>
-
-            <Separator />
-
-            {/* Buyer Type */}
-            <div>
-              <label className="text-sm font-medium mb-3 block">Buyer Type</label>
-              <Select
-                value={pipeline.buyerTypeFilter}
-                onValueChange={(value) => pipeline.setBuyerTypeFilter(value as any)}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="All buyer types" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Buyer Types</SelectItem>
-                  <SelectItem value="privateEquity">Private Equity</SelectItem>
-                  <SelectItem value="familyOffice">Family Office</SelectItem>
-                  <SelectItem value="searchFund">Search Fund</SelectItem>
-                  <SelectItem value="corporate">Corporate</SelectItem>
-                  <SelectItem value="individual">Individual</SelectItem>
-                  <SelectItem value="independentSponsor">Independent Sponsor</SelectItem>
-                  <SelectItem value="advisor">Advisor / Banker</SelectItem>
-                  <SelectItem value="businessOwner">Business Owner</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <Separator />
-
-            {/* Document Status */}
-            <div>
-              <label className="text-sm font-medium mb-3 block">Documents</label>
-              <Select
-                value={pipeline.documentStatusFilter}
-                onValueChange={(value) => pipeline.setDocumentStatusFilter(value as any)}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="All documents" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Documents</SelectItem>
-                  <SelectItem value="both_signed">NDA & Fee Signed</SelectItem>
-                  <SelectItem value="nda_signed">NDA Signed Only</SelectItem>
-                  <SelectItem value="fee_signed">Fee Signed Only</SelectItem>
-                  <SelectItem value="none_signed">No Documents</SelectItem>
-                  <SelectItem value="overdue_followup">Overdue Follow-up</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="All documents" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Documents</SelectItem>
+                        <SelectItem value="both_signed">NDA & Fee Signed</SelectItem>
+                        <SelectItem value="nda_signed">NDA Signed Only</SelectItem>
+                        <SelectItem value="fee_signed">Fee Signed Only</SelectItem>
+                        <SelectItem value="none_signed">No Documents</SelectItem>
+                        <SelectItem value="overdue_followup">Overdue Follow-up</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
 
             {/* Active Filters Display */}
             {activeFiltersCount > 0 && (

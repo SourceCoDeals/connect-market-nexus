@@ -3,6 +3,23 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -22,6 +39,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 import { 
   Plus, 
   GripVertical, 
@@ -51,6 +69,169 @@ const STAGE_COLORS = [
   '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'
 ];
 
+// Sortable Stage Card Component
+interface SortableStageCardProps {
+  stage: DealStage;
+  isEditing: boolean;
+  onEdit: () => void;
+  onDelete: () => void;
+  onSave: (data: StageFormData) => void;
+  onCancel: () => void;
+  editForm: any;
+}
+
+function SortableStageCard({ stage, isEditing, onEdit, onDelete, onSave, onCancel, editForm }: SortableStageCardProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: stage.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <Card ref={setNodeRef} style={style} className={cn("relative", isDragging && "shadow-lg")}>
+      {isEditing ? (
+        <CardContent className="p-4">
+          <Form {...editForm}>
+            <form onSubmit={editForm.handleSubmit(onSave)} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={editForm.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Stage Name</FormLabel>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={editForm.control}
+                  name="color"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Color</FormLabel>
+                      <div className="flex gap-2 flex-wrap">
+                        {STAGE_COLORS.map((color) => (
+                          <button
+                            key={color}
+                            type="button"
+                            className={`w-8 h-8 rounded-full border-2 ${
+                              field.value === color ? 'border-foreground' : 'border-border'
+                            }`}
+                            style={{ backgroundColor: color }}
+                            onClick={() => field.onChange(color)}
+                          />
+                        ))}
+                      </div>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <FormField
+                control={editForm.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Description</FormLabel>
+                    <FormControl>
+                      <Textarea 
+                        className="min-h-[80px]"
+                        {...field} 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="flex justify-end space-x-2">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  size="sm"
+                  onClick={onCancel}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+                <Button type="submit" size="sm">
+                  <Check className="h-4 w-4" />
+                </Button>
+              </div>
+            </form>
+          </Form>
+        </CardContent>
+      ) : (
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3 flex-1">
+              <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing">
+                <GripVertical className="h-5 w-5 text-muted-foreground" />
+              </div>
+              <div 
+                className="w-4 h-4 rounded-full flex-shrink-0"
+                style={{ backgroundColor: stage.color }}
+              />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h4 className="font-medium">{stage.name}</h4>
+                  <Badge variant="outline" className="text-xs">
+                    Position {stage.position + 1}
+                  </Badge>
+                  {stage.is_default && (
+                    <Badge variant="secondary" className="text-xs">
+                      Default
+                    </Badge>
+                  )}
+                </div>
+                {stage.description && (
+                  <p className="text-sm text-muted-foreground mt-1 truncate">
+                    {stage.description}
+                  </p>
+                )}
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onEdit}
+              >
+                <Edit className="h-4 w-4" />
+              </Button>
+              {!stage.is_default && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={onDelete}
+                  className="text-destructive hover:text-destructive"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      )}
+    </Card>
+  );
+}
+
 export const StageManagementModal = ({ open, onOpenChange }: StageManagementModalProps) => {
   const { data: stages = [], isLoading } = useDealStages();
   const createStageMutation = useCreateDealStage();
@@ -59,6 +240,18 @@ export const StageManagementModal = ({ open, onOpenChange }: StageManagementModa
   
   const [editingStage, setEditingStage] = useState<DealStage | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [localStages, setLocalStages] = useState<DealStage[]>([]);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  React.useEffect(() => {
+    setLocalStages([...stages].sort((a, b) => a.position - b.position));
+  }, [stages]);
 
   const form = useForm<StageFormData>({
     resolver: zodResolver(stageSchema),
@@ -126,7 +319,35 @@ export const StageManagementModal = ({ open, onOpenChange }: StageManagementModa
     }
   };
 
-  const sortedStages = [...stages].sort((a, b) => a.position - b.position);
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (!over || active.id === over.id) {
+      return;
+    }
+
+    const oldIndex = localStages.findIndex((stage) => stage.id === active.id);
+    const newIndex = localStages.findIndex((stage) => stage.id === over.id);
+
+    const newOrder = arrayMove(localStages, oldIndex, newIndex);
+    setLocalStages(newOrder);
+
+    // Update positions in database
+    try {
+      for (let i = 0; i < newOrder.length; i++) {
+        if (newOrder[i].position !== i) {
+          await updateStageMutation.mutateAsync({
+            stageId: newOrder[i].id,
+            updates: { position: i },
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Failed to update stage positions:', error);
+      // Revert on error
+      setLocalStages([...stages].sort((a, b) => a.position - b.position));
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -240,151 +461,38 @@ export const StageManagementModal = ({ open, onOpenChange }: StageManagementModa
               </Card>
             )}
 
-            {/* Existing Stages */}
-            <div className="space-y-3">
-              {sortedStages.map((stage, index) => (
-                <Card key={stage.id} className="relative">
-                  {editingStage?.id === stage.id ? (
-                    <CardContent className="p-4">
-                      <Form {...editForm}>
-                        <form onSubmit={editForm.handleSubmit(onEditSubmit)} className="space-y-4">
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <FormField
-                              control={editForm.control}
-                              name="name"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Stage Name</FormLabel>
-                                  <FormControl>
-                                    <Input {...field} />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
+            {/* Existing Stages with Drag & Drop */}
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext
+                items={localStages.map(s => s.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                <div className="space-y-3">
+                  {localStages.map((stage) => (
+                    <SortableStageCard
+                      key={stage.id}
+                      stage={stage}
+                      isEditing={editingStage?.id === stage.id}
+                      onEdit={() => setEditingStage(stage)}
+                      onDelete={() => handleDeleteStage(stage.id)}
+                      onSave={onEditSubmit}
+                      onCancel={() => setEditingStage(null)}
+                      editForm={editForm}
+                    />
+                  ))}
 
-                            <FormField
-                              control={editForm.control}
-                              name="color"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Color</FormLabel>
-                                  <div className="flex gap-2 flex-wrap">
-                                    {STAGE_COLORS.map((color) => (
-                                      <button
-                                        key={color}
-                                        type="button"
-                                        className={`w-8 h-8 rounded-full border-2 ${
-                                          field.value === color ? 'border-foreground' : 'border-border'
-                                        }`}
-                                        style={{ backgroundColor: color }}
-                                        onClick={() => field.onChange(color)}
-                                      />
-                                    ))}
-                                  </div>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                          </div>
-
-                          <FormField
-                            control={editForm.control}
-                            name="description"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Description</FormLabel>
-                                <FormControl>
-                                  <Textarea 
-                                    className="min-h-[80px]"
-                                    {...field} 
-                                  />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-
-                          <div className="flex justify-end space-x-2">
-                            <Button 
-                              type="button" 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => setEditingStage(null)}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                            <Button 
-                              type="submit" 
-                              size="sm"
-                              disabled={updateStageMutation.isPending}
-                            >
-                              <Check className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </form>
-                      </Form>
-                    </CardContent>
-                  ) : (
-                    <CardContent className="p-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <GripVertical className="h-5 w-5 text-muted-foreground cursor-grab" />
-                          <div 
-                            className="w-4 h-4 rounded-full"
-                            style={{ backgroundColor: stage.color }}
-                          />
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <h4 className="font-medium">{stage.name}</h4>
-                              <Badge variant="outline" className="text-xs">
-                                Position {stage.position + 1}
-                              </Badge>
-                              {stage.is_default && (
-                                <Badge variant="secondary" className="text-xs">
-                                  Default
-                                </Badge>
-                              )}
-                            </div>
-                            {stage.description && (
-                              <p className="text-sm text-muted-foreground mt-1">
-                                {stage.description}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                        
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setEditingStage(stage)}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          {!stage.is_default && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleDeleteStage(stage.id)}
-                              className="text-destructive hover:text-destructive"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          )}
-                         </div>
-                       </div>
-                     </CardContent>
-                   )}
-                 </Card>
-               ))}
-
-              {sortedStages.length === 0 && !isLoading && (
-                <div className="text-center py-8 text-muted-foreground">
-                  <p>No stages found. Create your first stage to get started.</p>
+                  {localStages.length === 0 && !isLoading && (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <p>No stages found. Create your first stage to get started.</p>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
+              </SortableContext>
+            </DndContext>
           </div>
         </div>
 
