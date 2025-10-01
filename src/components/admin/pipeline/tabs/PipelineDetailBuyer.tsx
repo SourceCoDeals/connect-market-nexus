@@ -13,6 +13,17 @@ interface PipelineDetailBuyerProps {
   deal: Deal;
 }
 
+// Date safety helpers
+const isValidDate = (value: any) => {
+  if (!value) return false;
+  const date = new Date(value);
+  return !isNaN(date.getTime());
+};
+const safeTimeAgo = (value: any, options?: Parameters<typeof formatDistanceToNow>[1]) => {
+  return isValidDate(value)
+    ? formatDistanceToNow(new Date(value), { addSuffix: true, ...(options || {}) })
+    : 'Unknown';
+};
 export function PipelineDetailBuyer({ deal }: PipelineDetailBuyerProps) {
   // Fetch full buyer profile via connection request
   const { data: buyerProfile } = useQuery({
@@ -386,7 +397,7 @@ export function PipelineDetailBuyer({ deal }: PipelineDetailBuyerProps) {
               <div className="py-4 px-5 bg-muted/20 rounded-xl">
                 <p className="text-sm text-foreground leading-relaxed">{buyerProfile.user_message}</p>
                 <p className="text-xs text-muted-foreground font-mono mt-3">
-                  {formatDistanceToNow(new Date(buyerProfile.created_at), { addSuffix: true })}
+                  {safeTimeAgo(buyerProfile.created_at)}
                 </p>
               </div>
             </CollapsibleContent>
@@ -420,7 +431,7 @@ export function PipelineDetailBuyer({ deal }: PipelineDetailBuyerProps) {
                           </p>
                           <div className="flex items-center gap-3 mt-1">
                             <span className="text-xs text-muted-foreground font-mono">
-                              {formatDistanceToNow(new Date(request.created_at), { addSuffix: true })}
+                              {safeTimeAgo(request.created_at)}
                             </span>
                             {request.listings?.revenue && (
                               <>
@@ -468,7 +479,7 @@ export function PipelineDetailBuyer({ deal }: PipelineDetailBuyerProps) {
                           </p>
                           <div className="flex items-center gap-3 mt-1">
                             <span className="text-xs text-muted-foreground font-mono">
-                              {formatDistanceToNow(new Date(saved.created_at), { addSuffix: true })}
+                              {safeTimeAgo(saved.created_at)}
                             </span>
                             {saved.listings?.revenue && (
                               <>
@@ -505,7 +516,7 @@ export function PipelineDetailBuyer({ deal }: PipelineDetailBuyerProps) {
               <div className="flex items-center justify-between py-2">
                 <span className="text-sm text-foreground">Deal Created</span>
                 <span className="text-xs text-muted-foreground font-mono">
-                  {formatDistanceToNow(new Date(deal.deal_created_at), { addSuffix: true })}
+                  {safeTimeAgo(deal.deal_created_at)}
                 </span>
               </div>
               
@@ -519,7 +530,7 @@ export function PipelineDetailBuyer({ deal }: PipelineDetailBuyerProps) {
               <div className="flex items-center justify-between py-2">
                 <span className="text-sm text-foreground">In Stage For</span>
                 <span className="text-xs text-muted-foreground font-mono">
-                  {formatDistanceToNow(new Date(deal.deal_stage_entered_at))}
+                  {safeTimeAgo(deal.deal_stage_entered_at, { addSuffix: false })}
                 </span>
               </div>
               
