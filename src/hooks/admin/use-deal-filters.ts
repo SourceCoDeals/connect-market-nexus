@@ -25,16 +25,20 @@ export function useDealFilters(deals: Deal[], currentAdminId?: string) {
   const filteredAndSortedDeals = useMemo(() => {
     let filtered = deals;
 
-    // Search filter
+    // Search filter - comprehensive search across all key fields
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(deal => 
         deal.deal_title?.toLowerCase().includes(query) ||
         deal.listing_title?.toLowerCase().includes(query) ||
+        deal.listing_real_company_name?.toLowerCase().includes(query) ||
         deal.buyer_name?.toLowerCase().includes(query) ||
         deal.buyer_company?.toLowerCase().includes(query) ||
         deal.contact_name?.toLowerCase().includes(query) ||
-        deal.contact_email?.toLowerCase().includes(query)
+        deal.contact_email?.toLowerCase().includes(query) ||
+        deal.contact_company?.toLowerCase().includes(query) ||
+        deal.contact_phone?.toLowerCase().includes(query) ||
+        deal.stage_name?.toLowerCase().includes(query)
       );
     }
 
