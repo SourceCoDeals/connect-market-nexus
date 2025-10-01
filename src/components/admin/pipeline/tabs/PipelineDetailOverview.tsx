@@ -201,156 +201,163 @@ export function PipelineDetailOverview({ deal }: PipelineDetailOverviewProps) {
         <div className="space-y-4">
           <h2 className="text-sm font-medium text-foreground">Communication</h2>
           
-          <div className="space-y-1 p-4 border border-border/40 rounded-xl">
-            <div className="flex items-center justify-between py-2">
-              <div className="space-y-0.5">
-                <Label htmlFor="positive-followup-overview" className="text-sm text-foreground cursor-pointer">
-                  Positive Follow-up
-                </Label>
-                <p className="text-xs text-muted-foreground">
-                  Ready for owner introduction
-                </p>
-                {followedUp && deal.followed_up_at && (
-                  <p className="text-xs text-muted-foreground/60 font-mono">
-                    {formatDateSafely(deal.followed_up_at)}
-                    {deal.followed_up_by && allAdminProfiles?.[deal.followed_up_by] && (
-                      <span className="ml-1">by {allAdminProfiles[deal.followed_up_by].displayName}</span>
-                    )}
-                  </p>
-                )}
-              </div>
-              <Switch
-                id="positive-followup-overview"
-                checked={followedUp}
-                onCheckedChange={(checked) => handleFollowupToggle('positive', checked)}
-                className="scale-75"
-              />
-            </div>
-            
-            <div className="h-px bg-border/10 mx-2" />
-            
-            <div className="flex items-center justify-between py-2">
-              <div className="space-y-0.5">
-                <Label htmlFor="negative-followup-overview" className="text-sm text-foreground cursor-pointer">
-                  Rejection Notice
-                </Label>
-                <p className="text-xs text-muted-foreground">
-                  Send rejection to buyer
-                </p>
-                {negativeFollowedUp && deal.negative_followed_up_at && (
-                  <p className="text-xs text-muted-foreground/60 font-mono">
-                    {formatDateSafely(deal.negative_followed_up_at)}
-                    {deal.negative_followed_up_by && allAdminProfiles?.[deal.negative_followed_up_by] && (
-                      <span className="ml-1">by {allAdminProfiles[deal.negative_followed_up_by].displayName}</span>
-                    )}
-                  </p>
-                )}
-              </div>
-              <Switch
-                id="negative-followup-overview"
-                checked={negativeFollowedUp}
-                onCheckedChange={(checked) => handleFollowupToggle('negative', checked)}
-                className="scale-75"
-              />
-            </div>
-            
-            {otherDeals.length > 0 && (
-              <>
-                <div className="h-px bg-border/10 mx-2 my-2" />
-                <div className="pt-2 space-y-2">
-                  <Label className="text-xs text-muted-foreground">
-                    Also update for {deal.contact_name || deal.contact_email}:
+          <div className="grid grid-cols-2 gap-4">
+            {/* Positive Follow-up */}
+            <div className="p-4 border border-border/40 rounded-xl">
+              <div className="flex items-start justify-between mb-2">
+                <div className="space-y-0.5 flex-1">
+                  <Label htmlFor="positive-followup-overview" className="text-sm text-foreground cursor-pointer">
+                    Positive Follow-up
                   </Label>
-                  <div className="space-y-1.5">
-                    {otherDeals.map((otherDeal) => (
-                      <div key={otherDeal.id} className="flex items-center gap-2">
-                        <Checkbox
-                          id={`deal-overview-${otherDeal.id}`}
-                          checked={selectedOtherDeals.includes(otherDeal.id)}
-                          onCheckedChange={(checked) => {
-                            if (checked) {
-                              setSelectedOtherDeals([...selectedOtherDeals, otherDeal.id]);
-                            } else {
-                              setSelectedOtherDeals(selectedOtherDeals.filter(id => id !== otherDeal.id));
-                            }
-                          }}
-                        />
-                        <label
-                          htmlFor={`deal-overview-${otherDeal.id}`}
-                          className="text-xs text-foreground cursor-pointer flex items-center gap-2"
-                        >
-                          {otherDeal.listing_real_company_name || otherDeal.listing_title || otherDeal.deal_title}
-                          {otherDeal.followed_up && (
-                            <Badge variant="outline" className="text-xs">
-                              <CheckCheck className="h-2.5 w-2.5 mr-1" />
-                              Followed
-                            </Badge>
-                          )}
-                        </label>
-                      </div>
-                    ))}
-                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Ready for owner introduction
+                  </p>
                 </div>
-              </>
-            )}
+                <Switch
+                  id="positive-followup-overview"
+                  checked={followedUp}
+                  onCheckedChange={(checked) => handleFollowupToggle('positive', checked)}
+                  className="scale-75"
+                />
+              </div>
+              {followedUp && deal.followed_up_at && (
+                <p className="text-xs text-muted-foreground/60 font-mono mt-2">
+                  {formatDateSafely(deal.followed_up_at)}
+                  {deal.followed_up_by && allAdminProfiles?.[deal.followed_up_by] && (
+                    <span className="ml-1">by {allAdminProfiles[deal.followed_up_by].displayName}</span>
+                  )}
+                </p>
+              )}
+            </div>
+
+            {/* Rejection Notice */}
+            <div className="p-4 border border-border/40 rounded-xl">
+              <div className="flex items-start justify-between mb-2">
+                <div className="space-y-0.5 flex-1">
+                  <Label htmlFor="negative-followup-overview" className="text-sm text-foreground cursor-pointer">
+                    Rejection Notice
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    Send rejection to buyer
+                  </p>
+                </div>
+                <Switch
+                  id="negative-followup-overview"
+                  checked={negativeFollowedUp}
+                  onCheckedChange={(checked) => handleFollowupToggle('negative', checked)}
+                  className="scale-75"
+                />
+              </div>
+              {negativeFollowedUp && deal.negative_followed_up_at && (
+                <p className="text-xs text-muted-foreground/60 font-mono mt-2">
+                  {formatDateSafely(deal.negative_followed_up_at)}
+                  {deal.negative_followed_up_by && allAdminProfiles?.[deal.negative_followed_up_by] && (
+                    <span className="ml-1">by {allAdminProfiles[deal.negative_followed_up_by].displayName}</span>
+                  )}
+                </p>
+              )}
+            </div>
           </div>
+            
+          {otherDeals.length > 0 && (
+            <div className="pt-2 px-4 border border-border/40 rounded-xl">
+              <div className="py-3 space-y-2">
+                <Label className="text-xs text-muted-foreground">
+                  Also update for {deal.contact_name || deal.contact_email}:
+                </Label>
+                <div className="space-y-1.5">
+                  {otherDeals.map((otherDeal) => (
+                    <div key={otherDeal.id} className="flex items-center gap-2">
+                      <Checkbox
+                        id={`deal-overview-${otherDeal.id}`}
+                        checked={selectedOtherDeals.includes(otherDeal.id)}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            setSelectedOtherDeals([...selectedOtherDeals, otherDeal.id]);
+                          } else {
+                            setSelectedOtherDeals(selectedOtherDeals.filter(id => id !== otherDeal.id));
+                          }
+                        }}
+                      />
+                      <label
+                        htmlFor={`deal-overview-${otherDeal.id}`}
+                        className="text-xs text-foreground cursor-pointer flex items-center gap-2"
+                      >
+                        {otherDeal.listing_real_company_name || otherDeal.listing_title || otherDeal.deal_title}
+                        {otherDeal.followed_up && (
+                          <Badge variant="outline" className="text-xs">
+                            <CheckCheck className="h-2.5 w-2.5 mr-1" />
+                            Followed
+                          </Badge>
+                        )}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Engagement Status - Second Priority */}
         <div className="space-y-4">
           <h2 className="text-sm font-medium text-foreground">Documents</h2>
           
-          <div className="space-y-1">
-            <div className="flex items-center justify-between py-3">
-              <div className="flex items-center gap-3">
-                <div className={`w-2 h-2 rounded-full ${
-                  deal.nda_status === 'signed' ? 'bg-emerald-500' :
-                  deal.nda_status === 'sent' ? 'bg-amber-500' :
-                  'bg-muted-foreground/30'
-                }`} />
-                <div className="space-y-0.5">
-                  <span className="text-sm text-foreground">NDA</span>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground">
-                      {deal.nda_status === 'signed' ? 'Signed' :
-                       deal.nda_status === 'sent' ? 'Sent' : 'Not Sent'}
-                    </span>
+          <div className="grid grid-cols-2 gap-4">
+            {/* NDA */}
+            <div className="p-4 border border-border/40 rounded-xl">
+              <div className="flex items-start justify-between mb-2">
+                <div className="flex items-center gap-3 flex-1">
+                  <div className={`w-2 h-2 rounded-full ${
+                    deal.nda_status === 'signed' ? 'bg-emerald-500' :
+                    deal.nda_status === 'sent' ? 'bg-amber-500' :
+                    'bg-muted-foreground/30'
+                  }`} />
+                  <div className="space-y-0.5">
+                    <span className="text-sm text-foreground">NDA</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">
+                        {deal.nda_status === 'signed' ? 'Signed' :
+                         deal.nda_status === 'sent' ? 'Sent' : 'Not Sent'}
+                      </span>
+                    </div>
                   </div>
                 </div>
+                <Switch
+                  checked={deal.nda_status === 'signed'}
+                  onCheckedChange={handleNDAToggle}
+                  disabled={updateLeadNDA.isPending || !deal.connection_request_id}
+                  className="scale-75"
+                />
               </div>
-              <Switch
-                checked={deal.nda_status === 'signed'}
-                onCheckedChange={handleNDAToggle}
-                disabled={updateLeadNDA.isPending || !deal.connection_request_id}
-                className="scale-75"
-              />
             </div>
 
-            <div className="h-px bg-border/10 mx-5" />
-
-            <div className="flex items-center justify-between py-3">
-              <div className="flex items-center gap-3">
-                <div className={`w-2 h-2 rounded-full ${
-                  deal.fee_agreement_status === 'signed' ? 'bg-emerald-500' :
-                  deal.fee_agreement_status === 'sent' ? 'bg-amber-500' :
-                  'bg-muted-foreground/30'
-                }`} />
-                <div className="space-y-0.5">
-                  <span className="text-sm text-foreground">Fee Agreement</span>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground">
-                      {deal.fee_agreement_status === 'signed' ? 'Signed' :
-                       deal.fee_agreement_status === 'sent' ? 'Sent' : 'Not Sent'}
-                    </span>
+            {/* Fee Agreement */}
+            <div className="p-4 border border-border/40 rounded-xl">
+              <div className="flex items-start justify-between mb-2">
+                <div className="flex items-center gap-3 flex-1">
+                  <div className={`w-2 h-2 rounded-full ${
+                    deal.fee_agreement_status === 'signed' ? 'bg-emerald-500' :
+                    deal.fee_agreement_status === 'sent' ? 'bg-amber-500' :
+                    'bg-muted-foreground/30'
+                  }`} />
+                  <div className="space-y-0.5">
+                    <span className="text-sm text-foreground">Fee Agreement</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">
+                        {deal.fee_agreement_status === 'signed' ? 'Signed' :
+                         deal.fee_agreement_status === 'sent' ? 'Sent' : 'Not Sent'}
+                      </span>
+                    </div>
                   </div>
                 </div>
+                <Switch
+                  checked={deal.fee_agreement_status === 'signed'}
+                  onCheckedChange={handleFeeAgreementToggle}
+                  disabled={updateLeadFeeAgreement.isPending || !deal.connection_request_id}
+                  className="scale-75"
+                />
               </div>
-              <Switch
-                checked={deal.fee_agreement_status === 'signed'}
-                onCheckedChange={handleFeeAgreementToggle}
-                disabled={updateLeadFeeAgreement.isPending || !deal.connection_request_id}
-                className="scale-75"
-              />
             </div>
           </div>
         </div>
