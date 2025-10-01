@@ -1,15 +1,19 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
-import { Mail, Send, Clock, Check, User, Calendar } from 'lucide-react';
+import { Mail, Send, Clock, Check, User, Calendar, CheckCheck, XCircle } from 'lucide-react';
 import { Deal } from '@/hooks/admin/use-deals';
 import { formatDistanceToNow } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useDealEmails } from '@/hooks/admin/use-deal-emails';
+import { useUpdateDealFollowup } from '@/hooks/admin/use-deal-followup';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface PipelineDetailCommunicationProps {
   deal: Deal;
@@ -23,7 +27,39 @@ export function PipelineDetailCommunication({ deal }: PipelineDetailCommunicatio
   });
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const { data: realEmailHistory = [], refetch: refetchEmails } = useDealEmails(deal.deal_id);
+  const updateDealFollowup = useUpdateDealFollowup();
+
+  // Local state for follow-up toggles
+  const [followedUp, setFollowedUp] = useState(deal.followed_up || false);
+  const [negativeFollowedUp, setNegativeFollowedUp] = useState(false); // Deals don't have negative_followed_up yet
+
+  // State for other deals from same buyer
+  const [otherDeals, setOtherDeals] = useState<any[]>([]);
+  const [selectedOtherDeals, setSelectedOtherDeals] = useState<string[]>([]);
+
+  // Fetch other deals from same buyer
+  useEffect(() => {
+    const fetchOtherDeals = async () => {
+      if (!deal.connection_request_id || !deal.contact_email) return;
+
+      const { data: allDeals } = await supabase
+        .from('deals')
+        .select('id, deal_title, listing_title, listing_real_company_name, stage_id, followed_up')
+        .eq('contact_email', deal.contact_email)
+        .neq('id', deal.deal_id);
+
+      setOtherDeals(allDeals || []);
+    };
+
+    fetchOtherDeals();
+  }, [deal.deal_id, deal.connection_request_id, deal.contact_email]);
+
+  // Sync local state with deal updates
+  useEffect(() => {
+    setFollowedUp(deal.followed_up || false);
+  }, [deal.followed_up]);
 
   const handleSendEmail = async () => {
     if (!deal.contact_email || !emailData.subject.trim() || !emailData.message.trim()) {
@@ -108,12 +144,130 @@ export function PipelineDetailCommunication({ deal }: PipelineDetailCommunicatio
     }
   };
 
+  const handleFollowupToggle = async (type: 'positive' | 'negative', newValue: boolean) => {
+    if (type === 'positive') {
+      setFollowedUp(newValue);
+    } else {
+      setNegativeFollowedUp(newValue);
+    }
+
+    // Get connection request IDs to update (current + selected others)
+    const requestIdsToUpdate: string[] = [];
+    
+    if (deal.connection_request_id) {
+      requestIdsToUpdate.push(deal.connection_request_id);
+    }
+
+    // Add selected other deals' connection requests
+    const { data: selectedDealsData } = await supabase
+      .from('deals')
+      .select('connection_request_id')
+      .in('id', selectedOtherDeals);
+
+    if (selectedDealsData) {
+      requestIdsToUpdate.push(...selectedDealsData
+        .map(d => d.connection_request_id)
+        .filter((id): id is string => !!id));
+    }
+
+    updateDealFollowup.mutate({
+      dealId: deal.deal_id,
+      connectionRequestIds: requestIdsToUpdate,
+      isFollowedUp: newValue,
+      followupType: type
+    });
+  };
+
   return (
     <div className="flex-1 overflow-auto">
       <div className="px-8 space-y-8 pb-8">
+        {/* Follow-up Toggles */}
+        <div className="space-y-4">
+          <h2 className="text-sm font-medium text-foreground">Follow-up Status</h2>
+          
+          <div className="space-y-4 p-6 border border-border/40 rounded-xl">
+            {/* Positive Follow-up */}
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <Label htmlFor="positive-followup" className="text-sm font-medium text-foreground cursor-pointer">
+                  Positive Follow-up
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Mark as ready for owner introduction
+                </p>
+                {followedUp && deal.followed_up_at && (
+                  <p className="text-xs text-muted-foreground/60 font-mono">
+                    {formatDistanceToNow(new Date(deal.followed_up_at), { addSuffix: true })}
+                  </p>
+                )}
+              </div>
+              <Switch
+                id="positive-followup"
+                checked={followedUp}
+                onCheckedChange={(checked) => handleFollowupToggle('positive', checked)}
+              />
+            </div>
+
+            {/* Negative Follow-up */}
+            <div className="flex items-center justify-between pt-4 border-t border-border/20">
+              <div className="space-y-1">
+                <Label htmlFor="negative-followup" className="text-sm font-medium text-foreground cursor-pointer">
+                  Rejection Notice
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Send rejection notice to buyer
+                </p>
+              </div>
+              <Switch
+                id="negative-followup"
+                checked={negativeFollowedUp}
+                onCheckedChange={(checked) => handleFollowupToggle('negative', checked)}
+              />
+            </div>
+
+            {/* Other deals from same buyer */}
+            {otherDeals.length > 0 && (
+              <div className="pt-4 border-t border-border/20 space-y-3">
+                <Label className="text-xs text-muted-foreground">
+                  Also update these deals from {deal.contact_name || deal.contact_email}:
+                </Label>
+                <div className="space-y-2">
+                  {otherDeals.map((otherDeal) => (
+                    <div key={otherDeal.id} className="flex items-center gap-2">
+                      <Checkbox
+                        id={`deal-${otherDeal.id}`}
+                        checked={selectedOtherDeals.includes(otherDeal.id)}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            setSelectedOtherDeals([...selectedOtherDeals, otherDeal.id]);
+                          } else {
+                            setSelectedOtherDeals(selectedOtherDeals.filter(id => id !== otherDeal.id));
+                          }
+                        }}
+                      />
+                      <label
+                        htmlFor={`deal-${otherDeal.id}`}
+                        className="text-sm text-foreground cursor-pointer flex items-center gap-2"
+                      >
+                        {otherDeal.listing_real_company_name || otherDeal.listing_title || otherDeal.deal_title}
+                        {otherDeal.followed_up && (
+                          <Badge variant="outline" className="text-xs">
+                            <CheckCheck className="h-3 w-3 mr-1" />
+                            Followed up
+                          </Badge>
+                        )}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* Communication Overview - Apple Clean */}
         <div className="space-y-4">
-          <h2 className="text-sm font-medium text-foreground">Communication Overview</h2>
+          <h2 className="text-sm font-medium text-foreground">Email Communication</h2>
           
           <div className="grid grid-cols-3 gap-8">
             <div className="text-center space-y-1">
