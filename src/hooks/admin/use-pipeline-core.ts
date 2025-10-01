@@ -18,7 +18,7 @@ export interface PipelineMetrics {
 
 export function usePipelineCore() {
   const [viewMode, setViewMode] = useState<ViewMode>('kanban');
-  const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null);
+  const [selectedDealId, setSelectedDealId] = useState<string | null>(null);
   const [selectedDeals, setSelectedDeals] = useState<string[]>([]);
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
   const [currentAdminId, setCurrentAdminId] = useState<string | undefined>(undefined);
@@ -71,6 +71,12 @@ export function usePipelineCore() {
   // Filtering
   const filterHook = useDealFilters(deals || [], currentAdminId);
   const { filteredAndSortedDeals } = filterHook;
+
+  // Derive selected deal from id for absolute correctness
+  const selectedDeal = useMemo(() => {
+    if (!filteredAndSortedDeals || !selectedDealId) return null;
+    return filteredAndSortedDeals.find(d => d.deal_id === selectedDealId) || null;
+  }, [filteredAndSortedDeals, selectedDealId]);
   
   // Group deals by stage
   const dealsByStage = useMemo(() => {
@@ -159,7 +165,7 @@ export function usePipelineCore() {
       contact: deal.contact_name,
       company: deal.contact_company 
     });
-    setSelectedDeal(deal);
+    setSelectedDealId(deal.deal_id);
   };
   
   const handleMultiSelect = (dealIds: string[]) => {
@@ -169,21 +175,9 @@ export function usePipelineCore() {
   const toggleFilterPanel = () => {
     setIsFilterPanelOpen(!isFilterPanelOpen);
   };
-  
-  // Keep selectedDeal in sync with latest deals data
-  useEffect(() => {
-    if (selectedDeal && filteredAndSortedDeals) {
-      const updatedDeal = filteredAndSortedDeals.find(d => d.deal_id === selectedDeal.deal_id);
-      if (updatedDeal && JSON.stringify(updatedDeal) !== JSON.stringify(selectedDeal)) {
-        console.log('[Pipeline Core] selectedDeal sync effect updating', { 
-          oldTitle: selectedDeal.deal_title,
-          newTitle: updatedDeal.deal_title 
-        });
-        setSelectedDeal(updatedDeal);
-      }
-    }
-  }, [filteredAndSortedDeals]);
-  
+  const setSelectedDeal = (deal: Deal | null) => {
+    setSelectedDealId(deal?.deal_id ?? null);
+  };
   return {
     // State
     viewMode,
