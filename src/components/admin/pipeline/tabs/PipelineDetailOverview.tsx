@@ -21,6 +21,22 @@ export function PipelineDetailOverview({ deal }: PipelineDetailOverviewProps) {
   const assignedAdmin = deal.assigned_to && allAdminProfiles ? allAdminProfiles[deal.assigned_to] : null;
   const updateDeal = useUpdateDeal();
 
+  // Date validation helper
+  const isValidDate = (value?: string | null) => {
+    if (!value) return false;
+    const time = new Date(value).getTime();
+    return !isNaN(time);
+  };
+
+  const formatDateSafely = (value?: string | null) => {
+    if (!isValidDate(value)) return 'N/A';
+    try {
+      return formatDistanceToNow(new Date(value!), { addSuffix: true });
+    } catch (error) {
+      return 'N/A';
+    }
+  };
+
   const handleOwnerChange = (value: string) => {
     const adminId = value === 'unassigned' ? null : value;
     updateDeal.mutate({
@@ -202,14 +218,14 @@ export function PipelineDetailOverview({ deal }: PipelineDetailOverviewProps) {
             <div className="flex items-center justify-between py-2">
               <span className="text-sm text-foreground">Stage Duration</span>
               <span className="text-xs text-muted-foreground font-mono">
-                {formatDistanceToNow(new Date(deal.deal_stage_entered_at))}
+                {formatDateSafely(deal.deal_stage_entered_at)}
               </span>
             </div>
             
             <div className="flex items-center justify-between py-2">
               <span className="text-sm text-foreground">Deal Age</span>
               <span className="text-xs text-muted-foreground font-mono">
-                {formatDistanceToNow(new Date(deal.deal_created_at))}
+                {formatDateSafely(deal.deal_created_at)}
               </span>
             </div>
           </div>
