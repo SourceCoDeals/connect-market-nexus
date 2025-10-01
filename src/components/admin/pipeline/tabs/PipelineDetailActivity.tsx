@@ -5,6 +5,7 @@ import { formatDistanceToNow, format } from 'date-fns';
 import { useDealActivities } from '@/hooks/admin/use-deal-activities';
 import { CompleteAuditTrail } from '../CompleteAuditTrail';
 import { Button } from '@/components/ui/button';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface PipelineDetailActivityProps {
   deal: Deal;
@@ -233,105 +234,107 @@ export function PipelineDetailActivity({ deal }: PipelineDetailActivityProps) {
               </div>
             </div>
           ) : (
-            <div className="space-y-1">
-              {sortedActivities.map((activity, index) => {
-                const isRecent = new Date(activity.timestamp) > new Date(Date.now() - 24 * 60 * 60 * 1000);
-                
-                return (
-                  <div key={activity.id} className="py-4 border-b border-border/10 last:border-b-0">
-                    <div className="flex items-start gap-4">
-                      <div className="flex flex-col items-center">
-                        <div className={`w-1 h-1 rounded-full ${
-                          activity.type === 'stage_change' ? 'bg-primary' :
-                          ['nda_status_changed', 'fee_agreement_status_changed'].includes(activity.type) ? 'bg-emerald-500' :
-                          activity.type === 'task_completed' ? 'bg-emerald-500' :
-                          ['email_sent', 'nda_email_sent', 'fee_agreement_email_sent'].includes(activity.type) ? 'bg-primary' :
-                          activity.type === 'deal_updated' ? 'bg-amber-500' :
-                          'bg-muted-foreground/40'
-                        }`} />
-                        {index < sortedActivities.length - 1 && (
-                          <div className="w-px h-8 bg-border/10 mt-3" />
-                        )}
-                      </div>
-                      
-                      <div className="flex-1 space-y-2">
-                        <div className="flex items-start justify-between">
-                          <div className="space-y-1">
-                            <h3 className="text-sm font-medium text-foreground">{activity.title}</h3>
-                            <p className="text-xs text-muted-foreground/70">{activity.description}</p>
-                          </div>
-                          
-                          {isRecent && (
-                            <span className="text-xs px-2 py-1 rounded-md bg-primary/10 text-primary font-mono">
-                              Recent
-                            </span>
+            <ScrollArea className="h-[400px] pr-4">
+              <div className="space-y-1">
+                {sortedActivities.map((activity, index) => {
+                  const isRecent = new Date(activity.timestamp) > new Date(Date.now() - 24 * 60 * 60 * 1000);
+                  
+                  return (
+                    <div key={activity.id} className="py-4 border-b border-border/10 last:border-b-0">
+                      <div className="flex items-start gap-4">
+                        <div className="flex flex-col items-center">
+                          <div className={`w-1 h-1 rounded-full ${
+                            activity.type === 'stage_change' ? 'bg-primary' :
+                            ['nda_status_changed', 'fee_agreement_status_changed'].includes(activity.type) ? 'bg-emerald-500' :
+                            activity.type === 'task_completed' ? 'bg-emerald-500' :
+                            ['email_sent', 'nda_email_sent', 'fee_agreement_email_sent'].includes(activity.type) ? 'bg-primary' :
+                            activity.type === 'deal_updated' ? 'bg-amber-500' :
+                            'bg-muted-foreground/40'
+                          }`} />
+                          {index < sortedActivities.length - 1 && (
+                            <div className="w-px h-8 bg-border/10 mt-3" />
                           )}
                         </div>
                         
-                        <div className="flex items-center justify-between text-xs text-muted-foreground/70">
-                          <div className="flex items-center gap-4">
-                            <span className="font-mono">{activity.user}</span>
+                        <div className="flex-1 space-y-2">
+                          <div className="flex items-start justify-between">
+                            <div className="space-y-1">
+                              <h3 className="text-sm font-medium text-foreground">{activity.title}</h3>
+                              <p className="text-xs text-muted-foreground/70">{activity.description}</p>
+                            </div>
+                            
+                            {isRecent && (
+                              <span className="text-xs px-2 py-1 rounded-md bg-primary/10 text-primary font-mono">
+                                Recent
+                              </span>
+                            )}
+                          </div>
+                          
+                          <div className="flex items-center justify-between text-xs text-muted-foreground/70">
+                            <div className="flex items-center gap-4">
+                              <span className="font-mono">{activity.user}</span>
+                              <span className="font-mono">
+                                {activity.timestamp ? format(new Date(activity.timestamp), 'MMM d, yyyy') : 'Unknown'}
+                              </span>
+                            </div>
+                            
                             <span className="font-mono">
-                              {activity.timestamp ? format(new Date(activity.timestamp), 'MMM d, yyyy') : 'Unknown'}
+                              {activity.timestamp ? formatDistanceToNow(new Date(activity.timestamp), { addSuffix: true }) : 'Unknown'}
                             </span>
                           </div>
                           
-                          <span className="font-mono">
-                            {activity.timestamp ? formatDistanceToNow(new Date(activity.timestamp), { addSuffix: true }) : 'Unknown'}
-                          </span>
+                          {/* Activity Metadata Display */}
+                          {activity.metadata && (
+                            <div className="pt-2 space-y-1">
+                              {/* Stage Change */}
+                              {activity.type === 'stage_change' && activity.metadata.from_stage && (
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs px-2 py-1 rounded-md bg-muted/50 text-muted-foreground font-mono">
+                                    {activity.metadata.from_stage}
+                                  </span>
+                                  <span className="text-muted-foreground/40">→</span>
+                                  <span className="text-xs px-2 py-1 rounded-md bg-primary/10 text-primary font-mono">
+                                    {activity.metadata.to_stage}
+                                  </span>
+                                </div>
+                              )}
+                              
+                              {/* Document Actions */}
+                              {(['nda_status_changed', 'fee_agreement_status_changed', 'nda_email_sent', 'fee_agreement_email_sent'].includes(activity.type)) && activity.metadata.document_type && (
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs text-muted-foreground/70">Document:</span>
+                                  <span className="text-xs px-2 py-1 rounded-md bg-muted/50 text-foreground font-mono uppercase">
+                                    {activity.metadata.document_type.replace('_', ' ')}
+                                  </span>
+                                </div>
+                              )}
+                              
+                              {/* Task Actions */}
+                              {(activity.type === 'task_created' || activity.type === 'task_completed' || activity.type === 'task_assigned') && (
+                                <div className="space-y-1">
+                                  {activity.metadata.priority && (
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-xs text-muted-foreground/70">Priority:</span>
+                                      <span className={`text-xs px-2 py-1 rounded-md font-mono ${
+                                        activity.metadata.priority === 'high' ? 'bg-red-100 text-red-700' :
+                                        activity.metadata.priority === 'medium' ? 'bg-amber-100 text-amber-700' :
+                                        'bg-blue-100 text-blue-700'
+                                      }`}>
+                                        {activity.metadata.priority}
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
-                        
-                        {/* Activity Metadata Display */}
-                        {activity.metadata && (
-                          <div className="pt-2 space-y-1">
-                            {/* Stage Change */}
-                            {activity.type === 'stage_change' && activity.metadata.from_stage && (
-                              <div className="flex items-center gap-2">
-                                <span className="text-xs px-2 py-1 rounded-md bg-muted/50 text-muted-foreground font-mono">
-                                  {activity.metadata.from_stage}
-                                </span>
-                                <span className="text-muted-foreground/40">→</span>
-                                <span className="text-xs px-2 py-1 rounded-md bg-primary/10 text-primary font-mono">
-                                  {activity.metadata.to_stage}
-                                </span>
-                              </div>
-                            )}
-                            
-                            {/* Document Actions */}
-                            {(['nda_status_changed', 'fee_agreement_status_changed', 'nda_email_sent', 'fee_agreement_email_sent'].includes(activity.type)) && activity.metadata.document_type && (
-                              <div className="flex items-center gap-2">
-                                <span className="text-xs text-muted-foreground/70">Document:</span>
-                                <span className="text-xs px-2 py-1 rounded-md bg-muted/50 text-foreground font-mono uppercase">
-                                  {activity.metadata.document_type.replace('_', ' ')}
-                                </span>
-                              </div>
-                            )}
-                            
-                            {/* Task Actions */}
-                            {(activity.type === 'task_created' || activity.type === 'task_completed' || activity.type === 'task_assigned') && (
-                              <div className="space-y-1">
-                                {activity.metadata.priority && (
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-xs text-muted-foreground/70">Priority:</span>
-                                    <span className={`text-xs px-2 py-1 rounded-md font-mono ${
-                                      activity.metadata.priority === 'high' ? 'bg-red-100 text-red-700' :
-                                      activity.metadata.priority === 'medium' ? 'bg-amber-100 text-amber-700' :
-                                      'bg-blue-100 text-blue-700'
-                                    }`}>
-                                      {activity.metadata.priority}
-                                    </span>
-                                  </div>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        )}
                       </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            </ScrollArea>
           )}
         </div>
       </div>

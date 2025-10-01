@@ -70,9 +70,17 @@ export function PipelineShell() {
         />
       </div>
       
+      {/* Backdrop Overlay */}
+      {(!pipeline.isMobile && pipeline.selectedDeal) && (
+        <div 
+          className="fixed inset-0 bg-black/30 z-40 animate-fade-in"
+          onClick={() => pipeline.setSelectedDeal(null)}
+        />
+      )}
+      
       {/* Detail Panel */}
       {(!pipeline.isMobile && pipeline.selectedDeal) && (
-        <div className="pipeline-detail">
+        <div className="pipeline-detail relative z-50">
           <PipelineDetailPanel pipeline={pipeline} />
         </div>
       )}
