@@ -169,28 +169,28 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
   const contactName = deal.contact_name || deal.buyer_name || 'Unknown Contact';
   const companyDealCount = deal.company_deal_count || 0;
 
+  // Calculate time in stage precisely (seconds/minutes/hours/days)
+  const { daysInStage, stageDurationLabel } = (() => {
+    const invalid = !deal.deal_stage_entered_at || !isValidDate(deal.deal_stage_entered_at);
+    if (invalid) {
+      return { daysInStage: 0, stageDurationLabel: '-' };
+    }
+    const entered = new Date(deal.deal_stage_entered_at).getTime();
+    const diffMs = Math.max(0, Date.now() - entered);
+    const minutes = Math.floor(diffMs / 60000);
+    const hours = Math.floor(diffMs / 3600000);
+    const days = Math.floor(diffMs / 86400000);
 
-  // Calculate days in stage with realistic fallback
-  const daysInStage = (() => {
-    // First try stage_entered_at
-    if (deal.deal_stage_entered_at && isValidDate(deal.deal_stage_entered_at)) {
-      const actualDays = Math.floor((Date.now() - new Date(deal.deal_stage_entered_at).getTime()) / (1000 * 60 * 60 * 24));
-      return Math.max(1, isNaN(actualDays) ? 1 : actualDays);
-    }
-    
-    // Fallback to created_at but add some realistic variation (1-14 days)
-    if (deal.deal_created_at && isValidDate(deal.deal_created_at)) {
-      const daysSinceCreation = Math.floor((Date.now() - new Date(deal.deal_created_at).getTime()) / (1000 * 60 * 60 * 24));
-      // Add some realistic variation based on deal ID to avoid all showing same number
-      const variation = deal.deal_id ? (parseInt(deal.deal_id.slice(-2), 16) % 14) + 1 : 3; // 1-14 days variation
-      return Math.min(isNaN(daysSinceCreation) ? 1 : daysSinceCreation, variation);
-    }
-    
-    // Final fallback with ID-based variation
-    return deal.deal_id ? (parseInt(deal.deal_id.slice(-1), 16) % 7) + 1 : 2; // 1-7 days
+    let label: string;
+    if (minutes < 1) label = 'just now';
+    else if (minutes < 60) label = `${minutes}m`;
+    else if (hours < 24) label = `${hours}h`;
+    else label = `${days}d`;
+
+    return { daysInStage: days, stageDurationLabel: label };
   })();
   
-  const daysInStageText = `${daysInStage}d in ${deal.stage_name || 'Stage'}`;
+  const daysInStageText = `${stageDurationLabel} in ${deal.stage_name || 'Stage'}`;
 
   // Enhanced last contact logic with real context
   const getLastContactInfo = () => {

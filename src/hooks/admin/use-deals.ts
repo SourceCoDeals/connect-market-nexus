@@ -110,67 +110,84 @@ export function useDeals() {
       // Map RPC response to Deal interface
       return (data || []).map((row: any, index: number) => {
         if (index === 0) {
-          console.log('[useDeals] First RPC row:', { id: row.id, title: row.title, keys: Object.keys(row).slice(0, 15) });
+          console.log('[useDeals] First RPC row:', {
+            keys: Object.keys(row),
+            sample: {
+              deal_id: row.deal_id ?? row.id,
+              deal_title: row.deal_title ?? row.title,
+              deal_stage_entered_at: row.deal_stage_entered_at ?? row.stage_entered_at,
+              deal_created_at: row.deal_created_at ?? row.created_at
+            }
+          });
         }
         return {
-        deal_id: row.id || row.deal_id || row.connection_request_id || row.listing_id,
-        deal_title: row.title || row.deal_title || row.listing_title || 'Deal',
-        deal_description: row.description,
-        deal_value: row.value || 0,
-        deal_priority: row.priority || 'medium',
-        deal_probability: row.probability || 50,
-        deal_expected_close_date: row.expected_close_date,
-        deal_source: row.source || 'manual',
-        deal_created_at: row.created_at,
-        deal_updated_at: row.updated_at,
-        deal_stage_entered_at: row.stage_entered_at,
-        
-        stage_id: row.stage_id,
-        stage_name: row.stage_name,
-        stage_color: row.stage_color,
-        stage_position: row.stage_position,
-        
-        listing_id: row.listing_id,
-        listing_title: row.listing_title,
-        listing_revenue: row.listing_revenue || 0,
-        listing_ebitda: row.listing_ebitda || 0,
-        listing_location: row.listing_location,
-        listing_category: row.listing_category,
-        
-        contact_name: row.contact_name,
-        contact_email: row.contact_email,
-        contact_company: row.contact_company,
-        contact_phone: row.contact_phone,
-        contact_role: row.contact_role,
-        
-        nda_status: row.nda_status || 'not_sent',
-        fee_agreement_status: row.fee_agreement_status || 'not_sent',
-        followed_up: row.followed_up || false,
-        followed_up_at: row.followed_up_at,
-        
-        assigned_to: row.assigned_to,
-        assigned_admin_name: row.assigned_admin_name,
-        assigned_admin_email: row.assigned_admin_email,
-        
-        total_tasks: Number(row.pending_tasks_count || 0) + Number(row.completed_tasks_count || 0),
-        pending_tasks: Number(row.pending_tasks_count || 0),
-        completed_tasks: Number(row.completed_tasks_count || 0),
-        pending_tasks_count: Number(row.pending_tasks_count || 0),
-        completed_tasks_count: Number(row.completed_tasks_count || 0),
-        
-        activity_count: Number(row.total_activities_count || 0),
-        total_activities_count: Number(row.total_activities_count || 0),
-        last_activity_at: row.last_activity_at,
-        
-        buyer_name: row.buyer_name,
-        buyer_email: row.buyer_email,
-        buyer_company: row.buyer_company,
-        buyer_type: row.buyer_type,
-        buyer_phone: row.buyer_phone,
-        buyer_priority_score: row.buyer_priority_score || 0,
-        
+          // Core deal fields (prefer new RPC names, fallback to old)
+          deal_id: row.deal_id ?? row.id ?? row.connection_request_id ?? row.listing_id,
+          deal_title: row.deal_title ?? row.title ?? row.listing_title ?? 'Deal',
+          deal_description: row.deal_description ?? row.description,
+          deal_value: Number(row.deal_value ?? row.value ?? 0),
+          deal_priority: row.deal_priority ?? row.priority ?? 'medium',
+          deal_probability: Number(row.deal_probability ?? row.probability ?? 50),
+          deal_expected_close_date: row.deal_expected_close_date ?? row.expected_close_date,
+          deal_source: row.deal_source ?? row.source ?? 'manual',
+          deal_created_at: row.deal_created_at ?? row.created_at,
+          deal_updated_at: row.deal_updated_at ?? row.updated_at,
+          deal_stage_entered_at: row.deal_stage_entered_at ?? row.stage_entered_at ?? row.deal_created_at ?? row.created_at,
+          
+          // Stage
+          stage_id: row.stage_id,
+          stage_name: row.stage_name,
+          stage_color: row.stage_color,
+          stage_position: row.stage_position,
+          
+          // Listing
+          listing_id: row.listing_id,
+          listing_title: row.listing_title,
+          listing_revenue: Number(row.listing_revenue ?? 0),
+          listing_ebitda: Number(row.listing_ebitda ?? 0),
+          listing_location: row.listing_location,
+          listing_category: row.listing_category,
+          
+          // Contact
+          contact_name: row.contact_name,
+          contact_email: row.contact_email,
+          contact_company: row.contact_company,
+          contact_phone: row.contact_phone,
+          contact_role: row.contact_role,
+          
+          // Document/status
+          nda_status: row.nda_status ?? 'not_sent',
+          fee_agreement_status: row.fee_agreement_status ?? 'not_sent',
+          followed_up: (row.followed_up ?? row.deal_followed_up) ?? false,
+          followed_up_at: row.followed_up_at ?? row.deal_followed_up_at,
+          
+          // Assignment
+          assigned_to: row.assigned_to,
+          assigned_admin_name: row.assigned_admin_name,
+          assigned_admin_email: row.assigned_admin_email,
+          
+          // Tasks and activity
+          total_tasks: Number(row.total_tasks ?? row.total_tasks_count ?? 0),
+          pending_tasks: Number(row.pending_tasks ?? row.pending_tasks_count ?? 0),
+          completed_tasks: Number(row.completed_tasks ?? row.completed_tasks_count ?? 0),
+          pending_tasks_count: Number(row.pending_tasks ?? row.pending_tasks_count ?? 0),
+          completed_tasks_count: Number(row.completed_tasks ?? row.completed_tasks_count ?? 0),
+          
+          activity_count: Number(row.activity_count ?? row.total_activities ?? row.total_activities_count ?? 0),
+          total_activities_count: Number(row.activity_count ?? row.total_activities ?? row.total_activities_count ?? 0),
+          last_activity_at: row.last_activity_at,
+          
+          // Buyer
+          buyer_name: row.buyer_name,
+          buyer_email: row.buyer_email,
+          buyer_company: row.buyer_company,
+          buyer_type: row.buyer_type,
+          buyer_phone: row.buyer_phone,
+          buyer_priority_score: Number(row.buyer_priority_score ?? row.deal_buyer_priority_score ?? 0),
+          
+          // Extras
           connection_request_id: row.connection_request_id,
-          company_deal_count: row.company_deal_count,
+          company_deal_count: Number(row.company_deal_count ?? 0),
           buyer_id: row.buyer_id,
           last_contact_at: row.last_contact_at,
           last_contact_type: row.last_contact_type,
