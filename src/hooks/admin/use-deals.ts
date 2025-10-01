@@ -225,12 +225,11 @@ export function useUpdateDealStage() {
           activity_type: 'stage_change',
           title: `Moved to ${toStage || 'new stage'}`,
           description: fromStage 
-            ? `Deal moved from "${fromStage}" to "${toStage}"`
-            : `Deal moved to "${toStage}"`,
+            ? `Deal moved from \"${fromStage}\" to \"${toStage}\"`
+            : `Deal moved to \"${toStage}\"`,
           metadata: {
             from_stage: fromStage,
             to_stage: toStage,
-            from_stage_id: dealData.stage_id,
             to_stage_id: stageId
           }
         });
@@ -238,6 +237,22 @@ export function useUpdateDealStage() {
       if (activityError) console.error('Failed to log activity:', activityError);
       
       return dealData;
+    },
+    onMutate: async ({ dealId, stageId, toStage }) => {
+      // cancel ongoing refetches
+      await queryClient.cancelQueries({ queryKey: ['deals'] });
+      const previousDeals = queryClient.getQueryData<Deal[]>(['deals']);
+      const nowIso = new Date().toISOString();
+      if (previousDeals) {
+        queryClient.setQueryData<Deal[]>(['deals'], (old) =>
+          (old || []).map((d) =>
+            d.deal_id === dealId
+              ? { ...d, stage_id: stageId, stage_name: toStage ?? d.stage_name, deal_stage_entered_at: nowIso, deal_updated_at: nowIso }
+              : d
+          )
+        );
+      }
+      return { previousDeals };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['deals'] });
@@ -247,7 +262,10 @@ export function useUpdateDealStage() {
         description: 'Deal stage has been updated successfully.',
       });
     },
-    onError: (error) => {
+    onError: (error, _vars, context) => {
+      if (context?.previousDeals) {
+        queryClient.setQueryData(['deals'], context.previousDeals);
+      }
       toast({
         title: 'Error',
         description: `Failed to update deal stage: ${error.message}`,
@@ -265,9 +283,18 @@ export function useUpdateDeal() {
 
   return useMutation({
     mutationFn: async ({ dealId, updates }: { dealId: string; updates: any }) => {
+      // Sanitize updates: strip undefined, convert 'undefined' or empty string for UUIDs to null
+      const safeUpdates = Object.fromEntries(
+        Object.entries(updates || {}).filter(([, v]) => v !== undefined).map(([k, v]) => {
+          if (v === 'undefined') return [k, null];
+          if (k === 'assigned_to' && (v === '' || v === undefined)) return [k, null];
+          return [k, v];
+        })
+      );
+
       const { data, error } = await supabase
         .from('deals')
-        .update(updates)
+        .update(safeUpdates)
         .eq('id', dealId)
         .select()
         .single();

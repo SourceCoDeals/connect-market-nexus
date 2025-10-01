@@ -55,14 +55,8 @@ export function PipelineKanbanView({ pipeline }: PipelineKanbanViewProps) {
     const dealId = String(active.id);
     const overId = String(over.id);
 
-    // Determine destination stage id
-    let newStageId = overId;
-
-    // If dropping over a deal card, map to that deal's current stage
-    const overDeal = pipeline.deals.find(d => d.deal_id === overId);
-    if (overDeal) {
-      newStageId = overDeal.stage_id;
-    }
+    // Destination stage is the droppable column id
+    const newStageId = overId;
 
     const deal = pipeline.deals.find(d => d.deal_id === dealId);
     const targetStage = pipeline.stages.find(s => s.id === newStageId);
