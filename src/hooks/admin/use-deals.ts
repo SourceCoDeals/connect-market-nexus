@@ -164,6 +164,8 @@ export function useDeals() {
           fee_agreement_status: row.fee_agreement_status ?? 'not_sent',
           followed_up: (row.followed_up ?? row.deal_followed_up) ?? false,
           followed_up_at: row.followed_up_at ?? row.deal_followed_up_at,
+          negative_followed_up: (row.negative_followed_up ?? row.deal_negative_followed_up) ?? false,
+          negative_followed_up_at: row.negative_followed_up_at ?? row.deal_negative_followed_up_at,
           
           // Assignment
           assigned_to: row.assigned_to,

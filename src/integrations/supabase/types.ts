@@ -2329,6 +2329,9 @@ export type Database = {
           deal_followed_up_by: string
           deal_id: string
           deal_metadata: Json
+          deal_negative_followed_up: boolean
+          deal_negative_followed_up_at: string
+          deal_negative_followed_up_by: string
           deal_priority: string
           deal_probability: number
           deal_source: string
@@ -2340,8 +2343,11 @@ export type Database = {
           last_activity_at: string
           last_contact_at: string
           listing_category: string
+          listing_ebitda: number
           listing_id: string
+          listing_location: string
           listing_real_company_name: string
+          listing_revenue: number
           listing_title: string
           nda_status: string
           pending_tasks: number
