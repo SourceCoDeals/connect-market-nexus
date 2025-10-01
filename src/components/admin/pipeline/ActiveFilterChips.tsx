@@ -1,0 +1,182 @@
+import React from 'react';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { X } from 'lucide-react';
+import { format } from 'date-fns';
+import { usePipelineCore } from '@/hooks/admin/use-pipeline-core';
+
+interface ActiveFilterChipsProps {
+  pipeline: ReturnType<typeof usePipelineCore>;
+}
+
+export function ActiveFilterChips({ pipeline }: ActiveFilterChipsProps) {
+  const activeFilters: Array<{ key: string; label: string; onRemove: () => void }> = [];
+
+  // Search query
+  if (pipeline.searchQuery.trim()) {
+    activeFilters.push({
+      key: 'search',
+      label: `Search: "${pipeline.searchQuery}"`,
+      onRemove: () => pipeline.setSearchQuery(''),
+    });
+  }
+
+  // Stage filter
+  if (pipeline.statusFilter !== 'all') {
+    const stageLabels: Record<string, string> = {
+      'new_inquiry': 'New Inquiry',
+      'approved': 'Approved',
+      'info_sent': 'Info Sent',
+      'buyer_seller_call': 'Buyer/Seller Call',
+      'due_diligence': 'Due Diligence',
+      'loi_submitted': 'LOI Submitted',
+      'closed': 'Closed',
+    };
+    activeFilters.push({
+      key: 'stage',
+      label: `Stage: ${stageLabels[pipeline.statusFilter] || pipeline.statusFilter}`,
+      onRemove: () => pipeline.setStatusFilter('all'),
+    });
+  }
+
+  // Document status filter
+  if (pipeline.documentStatusFilter !== 'all') {
+    const docLabels: Record<string, string> = {
+      'both_signed': 'Both Docs Signed',
+      'nda_signed': 'NDA Signed',
+      'fee_signed': 'Fee Signed',
+      'none_signed': 'No Docs Signed',
+      'overdue_followup': 'Overdue Follow-up',
+    };
+    activeFilters.push({
+      key: 'docs',
+      label: `Docs: ${docLabels[pipeline.documentStatusFilter] || pipeline.documentStatusFilter}`,
+      onRemove: () => pipeline.setDocumentStatusFilter('all'),
+    });
+  }
+
+  // Buyer type filter
+  if (pipeline.buyerTypeFilter !== 'all') {
+    const buyerLabels: Record<string, string> = {
+      'privateEquity': 'Private Equity',
+      'familyOffice': 'Family Office',
+      'searchFund': 'Search Fund',
+      'corporate': 'Corporate',
+      'individual': 'Individual',
+      'independentSponsor': 'Independent Sponsor',
+      'advisor': 'Advisor',
+      'businessOwner': 'Business Owner',
+    };
+    activeFilters.push({
+      key: 'buyer',
+      label: `Buyer: ${buyerLabels[pipeline.buyerTypeFilter] || pipeline.buyerTypeFilter}`,
+      onRemove: () => pipeline.setBuyerTypeFilter('all'),
+    });
+  }
+
+  // Company filter
+  if (pipeline.companyFilter !== 'all') {
+    activeFilters.push({
+      key: 'company',
+      label: `Company: ${pipeline.companyFilter}`,
+      onRemove: () => pipeline.setCompanyFilter('all'),
+    });
+  }
+
+  // Admin filter
+  if (pipeline.adminFilter !== 'all') {
+    let adminLabel = '';
+    if (pipeline.adminFilter === 'unassigned') {
+      adminLabel = 'Unassigned';
+    } else if (pipeline.adminFilter === 'assigned_to_me') {
+      adminLabel = 'Assigned to Me';
+    } else {
+      adminLabel = `Owner: ${pipeline.adminFilter}`;
+    }
+    activeFilters.push({
+      key: 'admin',
+      label: adminLabel,
+      onRemove: () => pipeline.setAdminFilter('all'),
+    });
+  }
+
+  // Created date range
+  if (pipeline.createdDateRange.start || pipeline.createdDateRange.end) {
+    let dateLabel = 'Created: ';
+    if (pipeline.createdDateRange.start && pipeline.createdDateRange.end) {
+      dateLabel += `${format(pipeline.createdDateRange.start, 'MMM d')} - ${format(pipeline.createdDateRange.end, 'MMM d')}`;
+    } else if (pipeline.createdDateRange.start) {
+      dateLabel += `After ${format(pipeline.createdDateRange.start, 'MMM d, yyyy')}`;
+    } else if (pipeline.createdDateRange.end) {
+      dateLabel += `Before ${format(pipeline.createdDateRange.end, 'MMM d, yyyy')}`;
+    }
+    activeFilters.push({
+      key: 'created',
+      label: dateLabel,
+      onRemove: () => pipeline.setCreatedDateRange({ start: null, end: null }),
+    });
+  }
+
+  // Last activity range
+  if (pipeline.lastActivityRange.start || pipeline.lastActivityRange.end) {
+    let dateLabel = 'Activity: ';
+    if (pipeline.lastActivityRange.start && pipeline.lastActivityRange.end) {
+      dateLabel += `${format(pipeline.lastActivityRange.start, 'MMM d')} - ${format(pipeline.lastActivityRange.end, 'MMM d')}`;
+    } else if (pipeline.lastActivityRange.start) {
+      dateLabel += `After ${format(pipeline.lastActivityRange.start, 'MMM d, yyyy')}`;
+    } else if (pipeline.lastActivityRange.end) {
+      dateLabel += `Before ${format(pipeline.lastActivityRange.end, 'MMM d, yyyy')}`;
+    }
+    activeFilters.push({
+      key: 'activity',
+      label: dateLabel,
+      onRemove: () => pipeline.setLastActivityRange({ start: null, end: null }),
+    });
+  }
+
+  if (activeFilters.length === 0) return null;
+
+  const clearAllFilters = () => {
+    pipeline.setStatusFilter('all');
+    pipeline.setDocumentStatusFilter('all');
+    pipeline.setBuyerTypeFilter('all');
+    pipeline.setCompanyFilter('all');
+    pipeline.setAdminFilter('all');
+    pipeline.setCreatedDateRange({ start: null, end: null });
+    pipeline.setLastActivityRange({ start: null, end: null });
+    pipeline.setSearchQuery('');
+  };
+
+  return (
+    <div className="flex items-center gap-2 flex-wrap p-2 bg-muted/30 border-b">
+      <span className="text-xs font-medium text-muted-foreground">Active Filters:</span>
+      {activeFilters.map((filter) => (
+        <Badge
+          key={filter.key}
+          variant="secondary"
+          className="gap-1 pr-1 text-xs"
+        >
+          {filter.label}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-4 w-4 p-0 hover:bg-destructive hover:text-destructive-foreground"
+            onClick={filter.onRemove}
+          >
+            <X className="h-3 w-3" />
+          </Button>
+        </Badge>
+      ))}
+      {activeFilters.length > 1 && (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-6 text-xs"
+          onClick={clearAllFilters}
+        >
+          Clear all
+        </Button>
+      )}
+    </div>
+  );
+}

@@ -4,6 +4,7 @@ import { PipelineHeader } from './PipelineHeader';
 import { PipelineWorkspace } from './PipelineWorkspace';
 import { PipelineDetailPanel } from './PipelineDetailPanel';
 import { PipelineFilterPanel } from './PipelineFilterPanel';
+import { ActiveFilterChips } from './ActiveFilterChips';
 import { Skeleton } from '@/components/ui/skeleton';
 
 
@@ -61,6 +62,8 @@ export function PipelineShell() {
         <PipelineHeader 
           pipeline={pipeline} 
         />
+        {/* Active Filter Chips */}
+        <ActiveFilterChips pipeline={pipeline} />
       </div>
 
       {/* Main Workspace */}
