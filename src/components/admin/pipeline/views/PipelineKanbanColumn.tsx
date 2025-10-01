@@ -111,13 +111,22 @@ export function PipelineKanbanColumn({ stage, deals, onDealClick }: PipelineKanb
       >
         <SortableContext items={sortableItems} strategy={verticalListSortingStrategy}>
           <div className="space-y-3 min-h-full">
-            {deals.map((deal) => (
-              <PipelineKanbanCard 
-                key={deal.deal_id}
-                deal={deal}
-                onDealClick={onDealClick}
-              />
-            ))}
+            {deals.map((deal) => {
+              console.log('[Pipeline Column] Rendering card for deal:', {
+                deal_id: deal.deal_id,
+                deal_title: deal.deal_title,
+                contact_name: deal.contact_name,
+                has_deal_id: 'deal_id' in deal,
+                keys: Object.keys(deal).slice(0, 10)
+              });
+              return (
+                <PipelineKanbanCard 
+                  key={deal.deal_id}
+                  deal={deal}
+                  onDealClick={onDealClick}
+                />
+              );
+            })}
           
           {/* Add Deal Button */}
           <Button
