@@ -35,6 +35,11 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
 
 // Apple/Stripe-style design helpers - Clean, minimal approach
   // Apple/Stripe-style design helpers - Clean, minimal approach
+  const isValidDate = (value?: string | null) => {
+    if (!value) return false;
+    const time = new Date(value).getTime();
+    return !Number.isNaN(time);
+  };
   const getBuyerTypeColor = (buyerType?: string) => {
     if (!buyerType) return 'bg-gray-50 text-gray-600 border-gray-200';
     
@@ -163,30 +168,30 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
   // Calculate days in stage with realistic fallback
   const daysInStage = (() => {
     // First try stage_entered_at
-    if (deal.deal_stage_entered_at) {
-      const actualDays = Math.floor((new Date().getTime() - new Date(deal.deal_stage_entered_at).getTime()) / (1000 * 60 * 60 * 24));
-      return Math.max(1, actualDays);
+    if (deal.deal_stage_entered_at && isValidDate(deal.deal_stage_entered_at)) {
+      const actualDays = Math.floor((Date.now() - new Date(deal.deal_stage_entered_at).getTime()) / (1000 * 60 * 60 * 24));
+      return Math.max(1, isNaN(actualDays) ? 1 : actualDays);
     }
     
     // Fallback to created_at but add some realistic variation (1-14 days)
-    if (deal.deal_created_at) {
-      const daysSinceCreation = Math.floor((new Date().getTime() - new Date(deal.deal_created_at).getTime()) / (1000 * 60 * 60 * 24));
+    if (deal.deal_created_at && isValidDate(deal.deal_created_at)) {
+      const daysSinceCreation = Math.floor((Date.now() - new Date(deal.deal_created_at).getTime()) / (1000 * 60 * 60 * 24));
       // Add some realistic variation based on deal ID to avoid all showing same number
       const variation = deal.deal_id ? (parseInt(deal.deal_id.slice(-2), 16) % 14) + 1 : 3; // 1-14 days variation
-      return Math.min(daysSinceCreation, variation);
+      return Math.min(isNaN(daysSinceCreation) ? 1 : daysSinceCreation, variation);
     }
     
     // Final fallback with ID-based variation
     return deal.deal_id ? (parseInt(deal.deal_id.slice(-1), 16) % 7) + 1 : 2; // 1-7 days
   })();
   
-  const daysInStageText = `${daysInStage}d in ${deal.stage_name}`;
+  const daysInStageText = `${daysInStage}d in ${deal.stage_name || 'Stage'}`;
 
   // Enhanced last contact logic with real context
   const getLastContactInfo = () => {
     const lastContactDate = deal.last_contact_at || deal.followed_up_at;
     
-    if (!lastContactDate) {
+    if (!lastContactDate || !isValidDate(lastContactDate)) {
       return {
         text: 'No contact yet',
         isOverdue: daysInStage > 3,
@@ -194,7 +199,7 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
       };
     }
     
-    const daysSinceContact = Math.floor((new Date().getTime() - new Date(lastContactDate).getTime()) / (1000 * 60 * 60 * 24));
+    const daysSinceContact = Math.floor((Date.now() - new Date(lastContactDate).getTime()) / (1000 * 60 * 60 * 24));
     
     return {
       text: formatDistanceToNow(new Date(lastContactDate), { addSuffix: true }),
@@ -220,13 +225,16 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
 
   // Last activity tracking
   const getLastActivity = () => {
-    if (deal.last_contact_at) {
+    if (deal.last_contact_at && isValidDate(deal.last_contact_at)) {
       return `Contact: ${formatDistanceToNow(new Date(deal.last_contact_at), { addSuffix: true })}`;
     }
-    if (deal.followed_up_at) {
+    if (deal.followed_up_at && isValidDate(deal.followed_up_at)) {
       return `Follow-up: ${formatDistanceToNow(new Date(deal.followed_up_at), { addSuffix: true })}`;
     }
-    return `Created: ${formatDistanceToNow(new Date(deal.deal_created_at), { addSuffix: true })}`;
+    if (deal.deal_created_at && isValidDate(deal.deal_created_at)) {
+      return `Created: ${formatDistanceToNow(new Date(deal.deal_created_at), { addSuffix: true })}`;
+    }
+    return 'Recently created';
   };
 
   const lastActivity = getLastActivity();

@@ -157,15 +157,19 @@ export function PipelineKanbanView({ pipeline }: PipelineKanbanViewProps) {
         </div>
         
         <DragOverlay>
-          {activeId ? (
-            <div className="rotate-3 scale-105">
-              <PipelineKanbanCard 
-                deal={pipeline.deals.find(d => d.deal_id === activeId)!} 
-                isDragging
-                onDealClick={() => {}}
-              />
-            </div>
-          ) : null}
+          {activeId ? (() => {
+            const activeDeal = pipeline.deals.find(d => d.deal_id === activeId);
+            if (!activeDeal) return null;
+            return (
+              <div className="rotate-3 scale-105">
+                <PipelineKanbanCard 
+                  deal={activeDeal} 
+                  isDragging
+                  onDealClick={() => {}}
+                />
+              </div>
+            );
+          })() : null}
         </DragOverlay>
       </DndContext>
     </div>
