@@ -4,7 +4,7 @@ import { Deal } from './use-deals';
 export type DealStatusFilter = 'all' | 'new_inquiry' | 'approved' | 'info_sent' | 'buyer_seller_call' | 'due_diligence' | 'loi_submitted' | 'closed';
 export type BuyerTypeFilter = 'all' | 'privateEquity' | 'familyOffice' | 'searchFund' | 'corporate' | 'individual' | 'independentSponsor' | 'advisor' | 'businessOwner';
 export type ListingFilter = 'all' | string;
-export type CompanyFilter = 'all' | string;
+export type CompanyFilter = string[]; // Changed to array for multiselect
 export type AdminFilter = 'all' | 'unassigned' | 'assigned_to_me' | string;
 export type DocumentStatusFilter = 'all' | 'nda_signed' | 'fee_signed' | 'both_signed' | 'none_signed' | 'overdue_followup';
 export type DateRangeFilter = { start: Date | null; end: Date | null };
@@ -15,7 +15,7 @@ export function useDealFilters(deals: Deal[], currentAdminId?: string) {
   const [statusFilter, setStatusFilter] = useState<DealStatusFilter>('all');
   const [buyerTypeFilter, setBuyerTypeFilter] = useState<BuyerTypeFilter>('all');
   const [listingFilter, setListingFilter] = useState<ListingFilter>('all');
-  const [companyFilter, setCompanyFilter] = useState<CompanyFilter>('all');
+  const [companyFilter, setCompanyFilter] = useState<CompanyFilter>([]);
   const [adminFilter, setAdminFilter] = useState<AdminFilter>('all');
   const [documentStatusFilter, setDocumentStatusFilter] = useState<DocumentStatusFilter>('all');
   const [createdDateRange, setCreatedDateRange] = useState<DateRangeFilter>({ start: null, end: null });
@@ -75,12 +75,16 @@ export function useDealFilters(deals: Deal[], currentAdminId?: string) {
       filtered = filtered.filter(d => d.listing_id === listingFilter);
     }
 
-    // Company filter
-    if (companyFilter !== 'all') {
-      filtered = filtered.filter(d => 
-        d.buyer_company?.toLowerCase() === companyFilter.toLowerCase() ||
-        d.contact_company?.toLowerCase() === companyFilter.toLowerCase()
-      );
+    // Company filter (multi-select)
+    if (companyFilter.length > 0) {
+      filtered = filtered.filter(d => {
+        const buyerCompany = d.buyer_company?.toLowerCase();
+        const contactCompany = d.contact_company?.toLowerCase();
+        return companyFilter.some(company => 
+          buyerCompany === company.toLowerCase() || 
+          contactCompany === company.toLowerCase()
+        );
+      });
     }
 
     // Admin filter - enhanced with 'assigned_to_me'
@@ -170,6 +174,19 @@ export function useDealFilters(deals: Deal[], currentAdminId?: string) {
     return Array.from(companies).sort();
   }, [deals]);
 
+  // Get unique listings for filter dropdown
+  const uniqueListings = useMemo(() => {
+    const listings = new Map<string, string>();
+    deals.forEach(deal => {
+      if (deal.listing_id && deal.listing_title) {
+        listings.set(deal.listing_id, deal.listing_title);
+      }
+    });
+    return Array.from(listings.entries())
+      .map(([id, title]) => ({ id, title }))
+      .sort((a, b) => a.title.localeCompare(b.title));
+  }, [deals]);
+
   return {
     searchQuery,
     statusFilter,
@@ -183,6 +200,7 @@ export function useDealFilters(deals: Deal[], currentAdminId?: string) {
     sortOption,
     filteredAndSortedDeals,
     uniqueCompanies,
+    uniqueListings,
     setSearchQuery,
     setStatusFilter,
     setBuyerTypeFilter,

@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { MultiSelect } from '@/components/ui/multi-select';
 import {
   Select,
   SelectContent,
@@ -33,15 +34,13 @@ import {
   Menu,
   X,
   CalendarIcon,
-  Building2,
-  UserCircle,
-  Target,
   ChevronDown,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { usePipelineCore, ViewMode } from '@/hooks/admin/use-pipeline-core';
 import { PipelineViewSwitcher } from './PipelineViewSwitcher';
+import { useAdminProfiles } from '@/hooks/admin/use-admin-profiles';
 
 
 interface PipelineHeaderProps {
@@ -50,6 +49,7 @@ interface PipelineHeaderProps {
 
 export function PipelineHeader({ pipeline }: PipelineHeaderProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { data: adminProfiles } = useAdminProfiles();
 
   const viewIcons = {
     kanban: Kanban,
@@ -62,8 +62,9 @@ export function PipelineHeader({ pipeline }: PipelineHeaderProps) {
     pipeline.statusFilter !== 'all',
     pipeline.documentStatusFilter !== 'all',
     pipeline.buyerTypeFilter !== 'all',
-    pipeline.companyFilter !== 'all',
+    pipeline.companyFilter.length > 0,
     pipeline.adminFilter !== 'all',
+    pipeline.listingFilter !== 'all',
     pipeline.createdDateRange.start !== null,
     pipeline.createdDateRange.end !== null,
     pipeline.lastActivityRange.start !== null,
@@ -171,10 +172,7 @@ export function PipelineHeader({ pipeline }: PipelineHeaderProps) {
           onValueChange={(value) => pipeline.setStatusFilter(value as any)}
         >
           <SelectTrigger className="w-[140px] h-9">
-            <div className="flex items-center gap-2">
-              <Target className="h-4 w-4" />
-              <SelectValue placeholder="Stage" />
-            </div>
+            <SelectValue placeholder="All Stages" />
           </SelectTrigger>
           <SelectContent className="bg-background z-[100]">
             <SelectItem value="all">All Stages</SelectItem>
@@ -194,34 +192,45 @@ export function PipelineHeader({ pipeline }: PipelineHeaderProps) {
           onValueChange={(value) => pipeline.setAdminFilter(value)}
         >
           <SelectTrigger className="w-[140px] h-9">
-            <div className="flex items-center gap-2">
-              <UserCircle className="h-4 w-4" />
-              <SelectValue placeholder="Deal owner" />
-            </div>
+            <SelectValue placeholder="All Deals" />
           </SelectTrigger>
-          <SelectContent className="bg-background z-[100]">
+          <SelectContent className="bg-background z-[100] max-h-[300px]">
             <SelectItem value="all">All Deals</SelectItem>
             <SelectItem value="assigned_to_me">Assigned to Me</SelectItem>
             <SelectItem value="unassigned">Unassigned</SelectItem>
+            {adminProfiles && Object.values(adminProfiles).map((admin) => (
+              <SelectItem key={admin.id} value={admin.id}>
+                {admin.first_name} {admin.last_name}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
 
-        {/* Company Filter */}
+        {/* Company Filter (Multi-select) */}
+        <MultiSelect
+          options={pipeline.uniqueCompanies?.map(company => ({ 
+            value: company, 
+            label: company 
+          })) || []}
+          selected={pipeline.companyFilter}
+          onSelectedChange={pipeline.setCompanyFilter}
+          placeholder="All Companies"
+          className="w-[180px] h-9"
+        />
+
+        {/* Deal/Listing Filter */}
         <Select
-          value={pipeline.companyFilter}
-          onValueChange={(value) => pipeline.setCompanyFilter(value)}
+          value={pipeline.listingFilter}
+          onValueChange={(value) => pipeline.setListingFilter(value)}
         >
-          <SelectTrigger className="w-[140px] h-9">
-            <div className="flex items-center gap-2">
-              <Building2 className="h-4 w-4" />
-              <SelectValue placeholder="Company" />
-            </div>
+          <SelectTrigger className="w-[180px] h-9">
+            <SelectValue placeholder="All Deals" />
           </SelectTrigger>
           <SelectContent className="bg-background z-[100] max-h-[300px]">
-            <SelectItem value="all">All Companies</SelectItem>
-            {pipeline.uniqueCompanies?.map((company) => (
-              <SelectItem key={company} value={company}>
-                {company}
+            <SelectItem value="all">All Deals</SelectItem>
+            {pipeline.uniqueListings?.map((listing) => (
+              <SelectItem key={listing.id} value={listing.id}>
+                {listing.title}
               </SelectItem>
             ))}
           </SelectContent>

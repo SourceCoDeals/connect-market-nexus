@@ -74,12 +74,14 @@ export function ActiveFilterChips({ pipeline }: ActiveFilterChipsProps) {
     });
   }
 
-  // Company filter
-  if (pipeline.companyFilter !== 'all') {
-    activeFilters.push({
-      key: 'company',
-      label: `Company: ${pipeline.companyFilter}`,
-      onRemove: () => pipeline.setCompanyFilter('all'),
+  // Company filter (multi-select)
+  if (pipeline.companyFilter.length > 0) {
+    pipeline.companyFilter.forEach(company => {
+      activeFilters.push({
+        key: `company-${company}`,
+        label: `Company: ${company}`,
+        onRemove: () => pipeline.setCompanyFilter(pipeline.companyFilter.filter(c => c !== company)),
+      });
     });
   }
 
@@ -140,7 +142,7 @@ export function ActiveFilterChips({ pipeline }: ActiveFilterChipsProps) {
     pipeline.setStatusFilter('all');
     pipeline.setDocumentStatusFilter('all');
     pipeline.setBuyerTypeFilter('all');
-    pipeline.setCompanyFilter('all');
+    pipeline.setCompanyFilter([]);
     pipeline.setAdminFilter('all');
     pipeline.setCreatedDateRange({ start: null, end: null });
     pipeline.setLastActivityRange({ start: null, end: null });

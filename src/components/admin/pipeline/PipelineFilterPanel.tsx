@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { MultiSelect } from '@/components/ui/multi-select';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { 
@@ -54,7 +55,7 @@ export function PipelineFilterPanel({ pipeline }: PipelineFilterPanelProps) {
     pipeline.statusFilter !== 'all',
     pipeline.documentStatusFilter !== 'all',
     pipeline.buyerTypeFilter !== 'all',
-    pipeline.companyFilter !== 'all',
+    pipeline.companyFilter.length > 0,
     pipeline.adminFilter !== 'all',
     pipeline.createdDateRange.start !== null,
     pipeline.createdDateRange.end !== null,
@@ -67,7 +68,7 @@ export function PipelineFilterPanel({ pipeline }: PipelineFilterPanelProps) {
     pipeline.setStatusFilter('all');
     pipeline.setDocumentStatusFilter('all');
     pipeline.setBuyerTypeFilter('all');
-    pipeline.setCompanyFilter('all');
+    pipeline.setCompanyFilter([]);
     pipeline.setAdminFilter('all');
     pipeline.setCreatedDateRange({ start: null, end: null });
     pipeline.setLastActivityRange({ start: null, end: null });
@@ -229,25 +230,24 @@ export function PipelineFilterPanel({ pipeline }: PipelineFilterPanelProps) {
                   <div className="flex items-center gap-2">
                     <Building2 className="h-4 w-4" />
                     Company
+                    {pipeline.companyFilter.length > 0 && (
+                      <Badge variant="secondary" className="ml-auto">
+                        {pipeline.companyFilter.length}
+                      </Badge>
+                    )}
                   </div>
                 </AccordionTrigger>
                 <AccordionContent className="pb-4">
-                  <Select
-                    value={pipeline.companyFilter}
-                    onValueChange={(value) => pipeline.setCompanyFilter(value)}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="All companies" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Companies</SelectItem>
-                      {pipeline.uniqueCompanies?.map((company) => (
-                        <SelectItem key={company} value={company}>
-                          {company}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <MultiSelect
+                    options={pipeline.uniqueCompanies?.map(company => ({ 
+                      value: company, 
+                      label: company 
+                    })) || []}
+                    selected={pipeline.companyFilter}
+                    onSelectedChange={pipeline.setCompanyFilter}
+                    placeholder="All companies"
+                    className="w-full"
+                  />
                 </AccordionContent>
               </AccordionItem>
 
@@ -519,15 +519,17 @@ export function PipelineFilterPanel({ pipeline }: PipelineFilterPanelProps) {
                         />
                       </Badge>
                     )}
-                    {pipeline.companyFilter !== 'all' && (
-                      <Badge variant="secondary" className="gap-1">
-                        Company: {pipeline.companyFilter}
-                        <X
-                          className="h-3 w-3 cursor-pointer"
-                          onClick={() => pipeline.setCompanyFilter('all')}
-                        />
-                      </Badge>
-                    )}
+                    {pipeline.companyFilter.length > 0 && 
+                      pipeline.companyFilter.map(company => (
+                        <Badge key={company} variant="secondary" className="gap-1">
+                          Company: {company}
+                          <X
+                            className="h-3 w-3 cursor-pointer"
+                            onClick={() => pipeline.setCompanyFilter(pipeline.companyFilter.filter(c => c !== company))}
+                          />
+                        </Badge>
+                      ))
+                    }
                     {pipeline.adminFilter !== 'all' && (
                       <Badge variant="secondary" className="gap-1">
                         Admin: {pipeline.adminFilter === 'assigned_to_me' ? 'Me' : pipeline.adminFilter}
