@@ -108,7 +108,11 @@ export function useDeals() {
       }
       
       // Map RPC response to Deal interface
-      return (data || []).map((row: any) => ({
+      return (data || []).map((row: any, index: number) => {
+        if (index === 0) {
+          console.log('[useDeals] First RPC row:', { id: row.id, title: row.title, keys: Object.keys(row).slice(0, 15) });
+        }
+        return {
         deal_id: row.id,
         deal_title: row.title,
         deal_description: row.description,
@@ -165,8 +169,13 @@ export function useDeals() {
         buyer_phone: row.buyer_phone,
         buyer_priority_score: row.buyer_priority_score || 0,
         
-        connection_request_id: row.connection_request_id,
-      })) as Deal[];
+          connection_request_id: row.connection_request_id,
+          company_deal_count: row.company_deal_count,
+          buyer_id: row.buyer_id,
+          last_contact_at: row.last_contact_at,
+          last_contact_type: row.last_contact_type,
+        };
+      }) as Deal[];
     },
     staleTime: 30000, // 30 seconds
   });
