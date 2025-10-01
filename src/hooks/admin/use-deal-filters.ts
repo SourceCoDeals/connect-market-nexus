@@ -164,14 +164,32 @@ export function useDealFilters(deals: Deal[], currentAdminId?: string) {
     return sorted;
   }, [deals, searchQuery, statusFilter, buyerTypeFilter, listingFilter, companyFilter, adminFilter, documentStatusFilter, createdDateRange, lastActivityRange, sortOption, currentAdminId]);
 
-  // Get unique companies for filter dropdown
+  // Get unique companies for filter dropdown with listing title context
   const uniqueCompanies = useMemo(() => {
-    const companies = new Set<string>();
+    const companiesMap = new Map<string, { label: string; value: string }>();
+    
     deals.forEach(deal => {
-      if (deal.buyer_company) companies.add(deal.buyer_company);
-      if (deal.contact_company) companies.add(deal.contact_company);
+      const companyName = deal.buyer_company || deal.contact_company;
+      const listingTitle = deal.listing_title;
+      
+      if (companyName) {
+        const displayLabel = listingTitle 
+          ? `${listingTitle} / ${companyName}`
+          : companyName;
+        
+        // Use company name as the value for filtering
+        if (!companiesMap.has(companyName)) {
+          companiesMap.set(companyName, {
+            label: displayLabel,
+            value: companyName
+          });
+        }
+      }
     });
-    return Array.from(companies).sort();
+    
+    return Array.from(companiesMap.values()).sort((a, b) => 
+      a.label.localeCompare(b.label)
+    );
   }, [deals]);
 
   // Get unique listings for filter dropdown

@@ -208,10 +208,7 @@ export function PipelineHeader({ pipeline }: PipelineHeaderProps) {
 
         {/* Company Filter (Multi-select) */}
         <MultiSelect
-          options={pipeline.uniqueCompanies?.map(company => ({ 
-            value: company, 
-            label: company 
-          })) || []}
+          options={pipeline.uniqueCompanies || []}
           selected={pipeline.companyFilter}
           onSelectedChange={pipeline.setCompanyFilter}
           placeholder="All Companies"

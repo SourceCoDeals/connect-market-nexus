@@ -239,10 +239,7 @@ export function PipelineFilterPanel({ pipeline }: PipelineFilterPanelProps) {
                 </AccordionTrigger>
                 <AccordionContent className="pb-4">
                   <MultiSelect
-                    options={pipeline.uniqueCompanies?.map(company => ({ 
-                      value: company, 
-                      label: company 
-                    })) || []}
+                    options={pipeline.uniqueCompanies || []}
                     selected={pipeline.companyFilter}
                     onSelectedChange={pipeline.setCompanyFilter}
                     placeholder="All companies"

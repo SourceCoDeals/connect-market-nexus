@@ -76,11 +76,15 @@ export function ActiveFilterChips({ pipeline }: ActiveFilterChipsProps) {
 
   // Company filter (multi-select)
   if (pipeline.companyFilter.length > 0) {
-    pipeline.companyFilter.forEach(company => {
+    pipeline.companyFilter.forEach(companyValue => {
+      // Find the display label for this company value
+      const companyObj = pipeline.uniqueCompanies?.find(c => c.value === companyValue);
+      const displayLabel = companyObj?.label || companyValue;
+      
       activeFilters.push({
-        key: `company-${company}`,
-        label: `Company: ${company}`,
-        onRemove: () => pipeline.setCompanyFilter(pipeline.companyFilter.filter(c => c !== company)),
+        key: `company-${companyValue}`,
+        label: `Company: ${displayLabel}`,
+        onRemove: () => pipeline.setCompanyFilter(pipeline.companyFilter.filter(c => c !== companyValue)),
       });
     });
   }
