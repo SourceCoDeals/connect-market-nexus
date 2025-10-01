@@ -75,14 +75,12 @@ export function useDealFilters(deals: Deal[], currentAdminId?: string) {
       filtered = filtered.filter(d => d.listing_id === listingFilter);
     }
 
-    // Company filter (multi-select)
+    // Company filter (multi-select) - filter by real company name
     if (companyFilter.length > 0) {
       filtered = filtered.filter(d => {
-        const buyerCompany = d.buyer_company?.toLowerCase();
-        const contactCompany = d.contact_company?.toLowerCase();
+        const realCompany = d.listing_real_company_name?.toLowerCase();
         return companyFilter.some(company => 
-          buyerCompany === company.toLowerCase() || 
-          contactCompany === company.toLowerCase()
+          realCompany === company.toLowerCase()
         );
       });
     }
@@ -164,24 +162,24 @@ export function useDealFilters(deals: Deal[], currentAdminId?: string) {
     return sorted;
   }, [deals, searchQuery, statusFilter, buyerTypeFilter, listingFilter, companyFilter, adminFilter, documentStatusFilter, createdDateRange, lastActivityRange, sortOption, currentAdminId]);
 
-  // Get unique companies for filter dropdown with listing title context
+  // Get unique companies for filter dropdown - use real company name only
   const uniqueCompanies = useMemo(() => {
     const companiesMap = new Map<string, { label: string; value: string }>();
     
     deals.forEach(deal => {
-      const companyName = deal.buyer_company || deal.contact_company;
+      const realCompanyName = deal.listing_real_company_name?.trim();
       const listingTitle = deal.listing_title;
       
-      if (companyName) {
+      if (realCompanyName) {
         const displayLabel = listingTitle 
-          ? `${listingTitle} / ${companyName}`
-          : companyName;
+          ? `${listingTitle} / ${realCompanyName}`
+          : realCompanyName;
         
-        // Use company name as the value for filtering
-        if (!companiesMap.has(companyName)) {
-          companiesMap.set(companyName, {
+        // Use real company name as the value for filtering
+        if (!companiesMap.has(realCompanyName)) {
+          companiesMap.set(realCompanyName, {
             label: displayLabel,
-            value: companyName
+            value: realCompanyName
           });
         }
       }

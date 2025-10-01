@@ -83,8 +83,8 @@ export function PipelineDetailPanel({ pipeline }: PipelineDetailPanelProps) {
           <div className="space-y-3 flex-1">
             <div className="space-y-1">
               <h1 className="text-xl font-medium text-foreground tracking-tight">
-                {(selectedDeal.listing_real_company_name || selectedDeal.contact_company || selectedDeal.buyer_company)
-                  ? `${selectedDeal.listing_real_company_name || selectedDeal.contact_company || selectedDeal.buyer_company} / ${selectedDeal.deal_title}`
+                {selectedDeal.listing_real_company_name?.trim()
+                  ? `${selectedDeal.listing_real_company_name} / ${selectedDeal.deal_title}`
                   : selectedDeal.deal_title
                 }
               </h1>

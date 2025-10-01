@@ -164,9 +164,8 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
   // Key information display - Clean data extraction
   const listingTitle = deal.listing_title || 'Business Acquisition Opportunity';
   
-  // Company name hierarchy - prefer real listing company name, fallback to contact/buyer
-  const realCompany = (deal.listing_real_company_name || '').trim();
-  const companyName = realCompany || deal.contact_company || deal.buyer_company || '';
+  // Only use real listing company name (admin-only internal name), show nothing if missing
+  const companyName = (deal.listing_real_company_name || '').trim();
   const contactName = deal.contact_name || deal.buyer_name || 'Unknown Contact';
   const companyDealCount = deal.company_deal_count || 0;
 
