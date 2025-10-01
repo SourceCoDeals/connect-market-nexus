@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { useDroppable } from '@dnd-kit/core';
-import { SortableContext } from '@dnd-kit/sortable';
+import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -109,7 +109,7 @@ export function PipelineKanbanColumn({ stage, deals, onDealClick }: PipelineKanb
       <CardContent 
         className="flex-1 p-3 pt-0 overflow-y-auto"
       >
-        <SortableContext items={sortableItems}>
+        <SortableContext items={sortableItems} strategy={verticalListSortingStrategy}>
           <div className="space-y-3 min-h-full">
             {deals.map((deal) => (
               <PipelineKanbanCard 

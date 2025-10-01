@@ -37,7 +37,9 @@ export function PipelineKanbanView({ pipeline }: PipelineKanbanViewProps) {
   );
   
   const handleDragStart = (event: DragStartEvent) => {
-    setActiveId(event.active.id as string);
+    const id = String(event.active.id);
+    console.log('[Pipeline DnD] dragStart', { activeId: id });
+    setActiveId(id);
   };
   
   const handleDragOver = (event: DragOverEvent) => {
@@ -47,19 +49,20 @@ export function PipelineKanbanView({ pipeline }: PipelineKanbanViewProps) {
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
 
+    const activeIdStr = String(active?.id ?? '');
+    const overIdStr = String(over?.id ?? '');
+    console.log('[Pipeline DnD] dragEnd', { activeId: activeIdStr, overId: overIdStr });
+
     if (!over || !pipeline.deals) {
       setActiveId(null);
       return;
     }
 
-    const activeIdStr = String(active.id);
-    const overIdStr = String(over.id);
-    
     // Extract deal ID from active (format: "deal:uuid")
     const dealId = activeIdStr.startsWith('deal:') ? activeIdStr.slice(5) : activeIdStr;
-    
+
     // Determine destination stage ID
-    let destStageId: string;
+    let destStageId: string | null = null;
     if (overIdStr.startsWith('stage:')) {
       // Dropped directly on column
       destStageId = overIdStr.slice(6);
@@ -67,18 +70,18 @@ export function PipelineKanbanView({ pipeline }: PipelineKanbanViewProps) {
       // Dropped on another deal - find that deal's stage
       const overDealId = overIdStr.slice(5);
       const overDeal = pipeline.deals.find(d => d.deal_id === overDealId);
-      if (!overDeal) {
-        setActiveId(null);
-        return;
-      }
-      destStageId = overDeal.stage_id;
-    } else {
+      destStageId = overDeal?.stage_id || null;
+    }
+
+    if (!destStageId) {
       setActiveId(null);
       return;
     }
 
     const deal = pipeline.deals.find(d => d.deal_id === dealId);
     const targetStage = pipeline.stages.find(s => s.id === destStageId);
+
+    console.log('[Pipeline DnD] move', { dealId, fromStage: deal?.stage_name, toStage: targetStage?.name });
 
     if (!deal || !targetStage || deal.stage_id === destStageId) {
       setActiveId(null);
@@ -185,6 +188,7 @@ export function PipelineKanbanView({ pipeline }: PipelineKanbanViewProps) {
           {activeId ? (() => {
             const dealId = String(activeId).startsWith('deal:') ? String(activeId).slice(5) : String(activeId);
             const activeDeal = pipeline.deals.find(d => d.deal_id === dealId);
+            console.log('[Pipeline DnD] overlay render', { activeId, dealId, found: !!activeDeal });
             if (!activeDeal) return null;
             return (
               <PipelineKanbanCardOverlay deal={activeDeal} />

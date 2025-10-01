@@ -291,7 +291,7 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
         buyerPriority.level === 'High' && "ring-1 ring-emerald-200/50 shadow-emerald-100/20",
         buyerPriority.level === 'Medium' && "ring-1 ring-amber-200/50 shadow-amber-100/20"
       )}
-      onClick={() => !isBeingDragged && onDealClick(deal)}
+      onClick={() => { if (isBeingDragged) return; console.log('[Pipeline] Card click', { id: deal.deal_id, title: deal.deal_title, contact: deal.contact_name }); onDealClick(deal); }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
