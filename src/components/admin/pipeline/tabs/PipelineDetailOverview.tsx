@@ -9,8 +9,12 @@ import { Deal } from '@/hooks/admin/use-deals';
 import { useAdminProfiles } from '@/hooks/admin/use-admin-profiles';
 import { useUpdateDeal } from '@/hooks/admin/use-deals';
 import { useUpdateLeadNDAStatus, useUpdateLeadFeeAgreementStatus } from '@/hooks/admin/requests/use-lead-status-updates';
+import { useUpdateDealFollowup } from '@/hooks/admin/use-deal-followup';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
+import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
+import { CheckCheck } from 'lucide-react';
 
 interface PipelineDetailOverviewProps {
   deal: Deal;
@@ -20,6 +24,35 @@ export function PipelineDetailOverview({ deal }: PipelineDetailOverviewProps) {
   const { data: allAdminProfiles, isLoading: adminProfilesLoading } = useAdminProfiles();
   const assignedAdmin = deal.assigned_to && allAdminProfiles ? allAdminProfiles[deal.assigned_to] : null;
   const updateDeal = useUpdateDeal();
+  const updateDealFollowup = useUpdateDealFollowup();
+  
+  const [followedUp, setFollowedUp] = React.useState(deal.followed_up || false);
+  const [negativeFollowedUp, setNegativeFollowedUp] = React.useState(deal.negative_followed_up || false);
+  const [otherDeals, setOtherDeals] = React.useState<any[]>([]);
+  const [selectedOtherDeals, setSelectedOtherDeals] = React.useState<string[]>([]);
+  
+  // Fetch other deals from same buyer
+  React.useEffect(() => {
+    const fetchOtherDeals = async () => {
+      if (!deal.connection_request_id || !deal.contact_email) return;
+
+      const { data: allDeals } = await supabase
+        .from('deals')
+        .select('id, deal_title, listing_title, listing_real_company_name, stage_id, followed_up, negative_followed_up')
+        .eq('contact_email', deal.contact_email)
+        .neq('id', deal.deal_id);
+
+      setOtherDeals(allDeals || []);
+    };
+
+    fetchOtherDeals();
+  }, [deal.deal_id, deal.connection_request_id, deal.contact_email]);
+  
+  // Sync local state
+  React.useEffect(() => {
+    setFollowedUp(deal.followed_up || false);
+    setNegativeFollowedUp(deal.negative_followed_up || false);
+  }, [deal.followed_up, deal.negative_followed_up]);
 
   // Date validation helper
   const isValidDate = (value?: string | null) => {
@@ -64,6 +97,40 @@ export function PipelineDetailOverview({ deal }: PipelineDetailOverviewProps) {
     updateLeadFeeAgreement.mutate({
       requestId: deal.connection_request_id,
       value: checked
+    });
+  };
+  
+  const handleFollowupToggle = async (type: 'positive' | 'negative', newValue: boolean) => {
+    if (type === 'positive') {
+      setFollowedUp(newValue);
+    } else {
+      setNegativeFollowedUp(newValue);
+    }
+
+    // Get connection request IDs to update (current + selected others)
+    const requestIdsToUpdate: string[] = [];
+    
+    if (deal.connection_request_id) {
+      requestIdsToUpdate.push(deal.connection_request_id);
+    }
+
+    // Add selected other deals' connection requests
+    const { data: selectedDealsData } = await supabase
+      .from('deals')
+      .select('connection_request_id')
+      .in('id', selectedOtherDeals);
+
+    if (selectedDealsData) {
+      requestIdsToUpdate.push(...selectedDealsData
+        .map(d => d.connection_request_id)
+        .filter((id): id is string => !!id));
+    }
+
+    updateDealFollowup.mutate({
+      dealId: deal.deal_id,
+      connectionRequestIds: requestIdsToUpdate,
+      isFollowedUp: newValue,
+      followupType: type
     });
   };
 
@@ -130,9 +197,92 @@ export function PipelineDetailOverview({ deal }: PipelineDetailOverviewProps) {
           </div>
         </div>
 
+        {/* Communication & Follow-up */}
+        <div className="space-y-4">
+          <h2 className="text-sm font-medium text-foreground">Communication</h2>
+          
+          <div className="space-y-1 p-4 border border-border/40 rounded-xl">
+            <div className="flex items-center justify-between py-2">
+              <div className="space-y-0.5">
+                <Label htmlFor="positive-followup-overview" className="text-sm text-foreground cursor-pointer">
+                  Positive Follow-up
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Ready for owner introduction
+                </p>
+              </div>
+              <Switch
+                id="positive-followup-overview"
+                checked={followedUp}
+                onCheckedChange={(checked) => handleFollowupToggle('positive', checked)}
+                className="scale-75"
+              />
+            </div>
+            
+            <div className="h-px bg-border/10 mx-2" />
+            
+            <div className="flex items-center justify-between py-2">
+              <div className="space-y-0.5">
+                <Label htmlFor="negative-followup-overview" className="text-sm text-foreground cursor-pointer">
+                  Rejection Notice
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Send rejection to buyer
+                </p>
+              </div>
+              <Switch
+                id="negative-followup-overview"
+                checked={negativeFollowedUp}
+                onCheckedChange={(checked) => handleFollowupToggle('negative', checked)}
+                className="scale-75"
+              />
+            </div>
+            
+            {otherDeals.length > 0 && (
+              <>
+                <div className="h-px bg-border/10 mx-2 my-2" />
+                <div className="pt-2 space-y-2">
+                  <Label className="text-xs text-muted-foreground">
+                    Also update for {deal.contact_name || deal.contact_email}:
+                  </Label>
+                  <div className="space-y-1.5">
+                    {otherDeals.map((otherDeal) => (
+                      <div key={otherDeal.id} className="flex items-center gap-2">
+                        <Checkbox
+                          id={`deal-overview-${otherDeal.id}`}
+                          checked={selectedOtherDeals.includes(otherDeal.id)}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setSelectedOtherDeals([...selectedOtherDeals, otherDeal.id]);
+                            } else {
+                              setSelectedOtherDeals(selectedOtherDeals.filter(id => id !== otherDeal.id));
+                            }
+                          }}
+                        />
+                        <label
+                          htmlFor={`deal-overview-${otherDeal.id}`}
+                          className="text-xs text-foreground cursor-pointer flex items-center gap-2"
+                        >
+                          {otherDeal.listing_real_company_name || otherDeal.listing_title || otherDeal.deal_title}
+                          {otherDeal.followed_up && (
+                            <Badge variant="outline" className="text-xs">
+                              <CheckCheck className="h-2.5 w-2.5 mr-1" />
+                              Followed
+                            </Badge>
+                          )}
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+
         {/* Engagement Status - Second Priority */}
         <div className="space-y-4">
-          <h2 className="text-sm font-medium text-foreground">Engagement Status</h2>
+          <h2 className="text-sm font-medium text-foreground">Documents</h2>
           
           <div className="space-y-1">
             <div className="flex items-center justify-between py-3">

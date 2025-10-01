@@ -43,6 +43,8 @@ export interface Deal {
   fee_agreement_status: 'not_sent' | 'sent' | 'signed' | 'declined';
   followed_up: boolean;
   followed_up_at?: string;
+  negative_followed_up: boolean;
+  negative_followed_up_at?: string;
   
   // Assignment information
   assigned_to?: string;

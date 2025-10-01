@@ -785,6 +785,9 @@ export type Database = {
           listing_id: string | null
           metadata: Json | null
           nda_status: string | null
+          negative_followed_up: boolean | null
+          negative_followed_up_at: string | null
+          negative_followed_up_by: string | null
           priority: string | null
           probability: number | null
           source: string | null
@@ -815,6 +818,9 @@ export type Database = {
           listing_id?: string | null
           metadata?: Json | null
           nda_status?: string | null
+          negative_followed_up?: boolean | null
+          negative_followed_up_at?: string | null
+          negative_followed_up_by?: string | null
           priority?: string | null
           probability?: number | null
           source?: string | null
@@ -845,6 +851,9 @@ export type Database = {
           listing_id?: string | null
           metadata?: Json | null
           nda_status?: string | null
+          negative_followed_up?: boolean | null
+          negative_followed_up_at?: string | null
+          negative_followed_up_by?: string | null
           priority?: string | null
           probability?: number | null
           source?: string | null

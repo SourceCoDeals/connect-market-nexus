@@ -33,7 +33,7 @@ export function PipelineDetailCommunication({ deal }: PipelineDetailCommunicatio
 
   // Local state for follow-up toggles
   const [followedUp, setFollowedUp] = useState(deal.followed_up || false);
-  const [negativeFollowedUp, setNegativeFollowedUp] = useState(false); // Deals don't have negative_followed_up yet
+  const [negativeFollowedUp, setNegativeFollowedUp] = useState(deal.negative_followed_up || false);
 
   // State for other deals from same buyer
   const [otherDeals, setOtherDeals] = useState<any[]>([]);
@@ -59,7 +59,8 @@ export function PipelineDetailCommunication({ deal }: PipelineDetailCommunicatio
   // Sync local state with deal updates
   useEffect(() => {
     setFollowedUp(deal.followed_up || false);
-  }, [deal.followed_up]);
+    setNegativeFollowedUp(deal.negative_followed_up || false);
+  }, [deal.followed_up, deal.negative_followed_up]);
 
   const handleSendEmail = async () => {
     if (!deal.contact_email || !emailData.subject.trim() || !emailData.message.trim()) {
@@ -217,6 +218,11 @@ export function PipelineDetailCommunication({ deal }: PipelineDetailCommunicatio
                 <p className="text-xs text-muted-foreground">
                   Send rejection notice to buyer
                 </p>
+                {negativeFollowedUp && deal.negative_followed_up_at && (
+                  <p className="text-xs text-muted-foreground/60 font-mono">
+                    {formatDistanceToNow(new Date(deal.negative_followed_up_at), { addSuffix: true })}
+                  </p>
+                )}
               </div>
               <Switch
                 id="negative-followup"
