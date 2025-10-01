@@ -17,6 +17,12 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import {
   Search,
   Filter,
   MoreVertical,
@@ -26,10 +32,16 @@ import {
   Table,
   Menu,
   X,
+  CalendarIcon,
+  Building2,
+  UserCircle,
+  Target,
+  ChevronDown,
 } from 'lucide-react';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 import { usePipelineCore, ViewMode } from '@/hooks/admin/use-pipeline-core';
 import { PipelineViewSwitcher } from './PipelineViewSwitcher';
-import { useState as useReactState } from 'react';
 
 
 interface PipelineHeaderProps {
@@ -45,9 +57,23 @@ export function PipelineHeader({ pipeline }: PipelineHeaderProps) {
     table: Table,
   };
 
+  // Count active filters for badge
+  const activeFiltersCount = [
+    pipeline.statusFilter !== 'all',
+    pipeline.documentStatusFilter !== 'all',
+    pipeline.buyerTypeFilter !== 'all',
+    pipeline.companyFilter !== 'all',
+    pipeline.adminFilter !== 'all',
+    pipeline.createdDateRange.start !== null,
+    pipeline.createdDateRange.end !== null,
+    pipeline.lastActivityRange.start !== null,
+    pipeline.lastActivityRange.end !== null,
+  ].filter(Boolean).length;
+
   return (
     <div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="flex items-center justify-between p-4">
+      {/* First Row - Main Actions */}
+      <div className="flex items-center justify-between p-4 border-b">
         {/* Left section */}
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
@@ -57,9 +83,16 @@ export function PipelineHeader({ pipeline }: PipelineHeaderProps) {
             </Badge>
           </div>
 
+          {/* Pipeline View Switcher - Desktop only */}
+          <div className="hidden md:block">
+            <PipelineViewSwitcher
+              currentViewId={pipeline.currentViewId || undefined}
+              onViewChange={pipeline.setCurrentViewId}
+            />
+          </div>
 
           {/* Desktop Search */}
-          <div className="relative hidden md:block">
+          <div className="relative hidden lg:block">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
             <Input
               placeholder="Search deals..."
@@ -72,12 +105,6 @@ export function PipelineHeader({ pipeline }: PipelineHeaderProps) {
 
         {/* Desktop Actions */}
         <div className="hidden md:flex items-center gap-3">
-          {/* Pipeline View Switcher */}
-          <PipelineViewSwitcher
-            currentViewId={pipeline.currentViewId || undefined}
-            onViewChange={pipeline.setCurrentViewId}
-          />
-          
           {/* View Mode Selector */}
           <Select value={pipeline.viewMode} onValueChange={(value) => pipeline.setViewMode(value as ViewMode)}>
             <SelectTrigger className="w-32">
@@ -104,17 +131,6 @@ export function PipelineHeader({ pipeline }: PipelineHeaderProps) {
               </SelectItem>
             </SelectContent>
           </Select>
-
-
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={pipeline.toggleFilterPanel}
-            className="gap-2"
-          >
-            <Filter className="h-4 w-4" />
-            Filters
-          </Button>
 
           <Button size="sm" className="gap-2">
             <Plus className="h-4 w-4" />
@@ -145,6 +161,185 @@ export function PipelineHeader({ pipeline }: PipelineHeaderProps) {
             {isMobileMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
           </Button>
         </div>
+      </div>
+
+      {/* Second Row - Filters Bar (Desktop) */}
+      <div className="hidden md:flex items-center gap-2 px-4 py-3 overflow-x-auto">
+        {/* Stage Filter */}
+        <Select
+          value={pipeline.statusFilter}
+          onValueChange={(value) => pipeline.setStatusFilter(value as any)}
+        >
+          <SelectTrigger className="w-[140px] h-9">
+            <div className="flex items-center gap-2">
+              <Target className="h-4 w-4" />
+              <SelectValue placeholder="Stage" />
+            </div>
+          </SelectTrigger>
+          <SelectContent className="bg-background z-[100]">
+            <SelectItem value="all">All Stages</SelectItem>
+            <SelectItem value="new_inquiry">New Inquiry</SelectItem>
+            <SelectItem value="approved">Approved</SelectItem>
+            <SelectItem value="info_sent">Info Sent</SelectItem>
+            <SelectItem value="buyer_seller_call">Buyer/Seller Call</SelectItem>
+            <SelectItem value="due_diligence">Due Diligence</SelectItem>
+            <SelectItem value="loi_submitted">LOI Submitted</SelectItem>
+            <SelectItem value="closed">Closed</SelectItem>
+          </SelectContent>
+        </Select>
+
+        {/* Deal Owner Filter */}
+        <Select
+          value={pipeline.adminFilter}
+          onValueChange={(value) => pipeline.setAdminFilter(value)}
+        >
+          <SelectTrigger className="w-[140px] h-9">
+            <div className="flex items-center gap-2">
+              <UserCircle className="h-4 w-4" />
+              <SelectValue placeholder="Deal owner" />
+            </div>
+          </SelectTrigger>
+          <SelectContent className="bg-background z-[100]">
+            <SelectItem value="all">All Deals</SelectItem>
+            <SelectItem value="assigned_to_me">Assigned to Me</SelectItem>
+            <SelectItem value="unassigned">Unassigned</SelectItem>
+          </SelectContent>
+        </Select>
+
+        {/* Company Filter */}
+        <Select
+          value={pipeline.companyFilter}
+          onValueChange={(value) => pipeline.setCompanyFilter(value)}
+        >
+          <SelectTrigger className="w-[140px] h-9">
+            <div className="flex items-center gap-2">
+              <Building2 className="h-4 w-4" />
+              <SelectValue placeholder="Company" />
+            </div>
+          </SelectTrigger>
+          <SelectContent className="bg-background z-[100] max-h-[300px]">
+            <SelectItem value="all">All Companies</SelectItem>
+            {pipeline.uniqueCompanies?.map((company) => (
+              <SelectItem key={company} value={company}>
+                {company}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {/* Created Date Filter */}
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              className={cn(
+                'h-9 gap-2',
+                (pipeline.createdDateRange.start || pipeline.createdDateRange.end) && 'bg-primary/10'
+              )}
+            >
+              <CalendarIcon className="h-4 w-4" />
+              Create date
+              {(pipeline.createdDateRange.start || pipeline.createdDateRange.end) && (
+                <Badge variant="secondary" className="ml-1 h-5 px-1 text-xs">1</Badge>
+              )}
+              <ChevronDown className="h-3 w-3 ml-auto" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-4 bg-background z-[100]" align="start">
+            <div className="space-y-3">
+              <div className="text-sm font-medium">Created Date Range</div>
+              <div className="space-y-2">
+                <Calendar
+                  mode="single"
+                  selected={pipeline.createdDateRange.start || undefined}
+                  onSelect={(date) =>
+                    pipeline.setCreatedDateRange({
+                      ...pipeline.createdDateRange,
+                      start: date || null,
+                    })
+                  }
+                  className="rounded-md border"
+                />
+                {pipeline.createdDateRange.start && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => pipeline.setCreatedDateRange({ start: null, end: null })}
+                    className="w-full"
+                  >
+                    Clear dates
+                  </Button>
+                )}
+              </div>
+            </div>
+          </PopoverContent>
+        </Popover>
+
+        {/* Last Activity Filter */}
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              className={cn(
+                'h-9 gap-2',
+                (pipeline.lastActivityRange.start || pipeline.lastActivityRange.end) && 'bg-primary/10'
+              )}
+            >
+              <CalendarIcon className="h-4 w-4" />
+              Last activity
+              {(pipeline.lastActivityRange.start || pipeline.lastActivityRange.end) && (
+                <Badge variant="secondary" className="ml-1 h-5 px-1 text-xs">1</Badge>
+              )}
+              <ChevronDown className="h-3 w-3 ml-auto" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-4 bg-background z-[100]" align="start">
+            <div className="space-y-3">
+              <div className="text-sm font-medium">Last Activity Range</div>
+              <div className="space-y-2">
+                <Calendar
+                  mode="single"
+                  selected={pipeline.lastActivityRange.start || undefined}
+                  onSelect={(date) =>
+                    pipeline.setLastActivityRange({
+                      ...pipeline.lastActivityRange,
+                      start: date || null,
+                    })
+                  }
+                  className="rounded-md border"
+                />
+                {pipeline.lastActivityRange.start && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => pipeline.setLastActivityRange({ start: null, end: null })}
+                    className="w-full"
+                  >
+                    Clear dates
+                  </Button>
+                )}
+              </div>
+            </div>
+          </PopoverContent>
+        </Popover>
+
+        {/* All Filters Button */}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={pipeline.toggleFilterPanel}
+          className="h-9 gap-2"
+        >
+          <Filter className="h-4 w-4" />
+          All filters
+          {activeFiltersCount > 0 && (
+            <Badge variant="secondary" className="ml-1 h-5 px-1 text-xs">
+              {activeFiltersCount}
+            </Badge>
+          )}
+        </Button>
       </div>
 
       {/* Mobile Menu */}
@@ -187,6 +382,11 @@ export function PipelineHeader({ pipeline }: PipelineHeaderProps) {
             >
               <Filter className="h-4 w-4 mr-2" />
               Filters
+              {activeFiltersCount > 0 && (
+                <Badge variant="secondary" className="ml-2">
+                  {activeFiltersCount}
+                </Badge>
+              )}
             </Button>
           </div>
 
