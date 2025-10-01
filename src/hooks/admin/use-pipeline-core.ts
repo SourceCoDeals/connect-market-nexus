@@ -3,6 +3,7 @@ import { useDeals, useDealStages, Deal } from '@/hooks/admin/use-deals';
 import { useDealFilters } from '@/hooks/admin/use-deal-filters';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { supabase } from '@/integrations/supabase/client';
+import { usePipelineViews } from './use-pipeline-views';
 
 export type ViewMode = 'kanban' | 'list' | 'table';
 
@@ -36,14 +37,33 @@ export function usePipelineCore() {
   
   // Data fetching
   const { data: deals, isLoading: dealsLoading, error: dealsError } = useDeals();
-  const { data: stages, isLoading: stagesLoading, error: stagesError } = useDealStages();
+  const { data: allStages, isLoading: stagesLoading, error: stagesError } = useDealStages();
+  const { data: pipelineViews = [] } = usePipelineViews();
+  
+  // Filter stages based on current view
+  const stages = useMemo(() => {
+    if (!allStages) return [];
+    
+    // If no view selected or views not loaded, show all stages
+    if (!currentViewId || pipelineViews.length === 0) return allStages;
+    
+    // Find the selected view
+    const selectedView = pipelineViews.find(v => v.id === currentViewId);
+    if (!selectedView || !selectedView.stage_config) return allStages;
+    
+    // Filter stages based on view's stage_config
+    const stageIds = selectedView.stage_config.map((config: any) => config.stageId);
+    return allStages.filter(stage => stageIds.includes(stage.id));
+  }, [allStages, currentViewId, pipelineViews]);
   
   // Debug logging
   console.log('Pipeline Core Debug:', {
     dealsLoading,
     stagesLoading,
     dealsCount: deals?.length || 0,
-    stagesCount: stages?.length || 0,
+    allStagesCount: allStages?.length || 0,
+    filteredStagesCount: stages?.length || 0,
+    currentViewId,
     dealsError: dealsError?.message,
     stagesError: stagesError?.message
   });
