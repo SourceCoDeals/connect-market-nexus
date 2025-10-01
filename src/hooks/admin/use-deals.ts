@@ -113,8 +113,8 @@ export function useDeals() {
           console.log('[useDeals] First RPC row:', { id: row.id, title: row.title, keys: Object.keys(row).slice(0, 15) });
         }
         return {
-        deal_id: row.id,
-        deal_title: row.title,
+        deal_id: row.id || row.deal_id || row.connection_request_id || row.listing_id,
+        deal_title: row.title || row.deal_title || row.listing_title || 'Deal',
         deal_description: row.description,
         deal_value: row.value || 0,
         deal_priority: row.priority || 'medium',
