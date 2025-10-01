@@ -81,7 +81,13 @@ export function PipelineKanbanView({ pipeline }: PipelineKanbanViewProps) {
     const deal = pipeline.deals.find(d => d.deal_id === dealId);
     const targetStage = pipeline.stages.find(s => s.id === destStageId);
 
-    console.log('[Pipeline DnD] move', { dealId, fromStage: deal?.stage_name, toStage: targetStage?.name });
+    console.log('[Pipeline DnD] move', { 
+      dealId, 
+      dealTitle: deal?.deal_title,
+      fromStage: deal?.stage_name, 
+      toStage: targetStage?.name,
+      currentStageEnteredAt: deal?.deal_stage_entered_at 
+    });
 
     if (!deal || !targetStage || deal.stage_id === destStageId) {
       setActiveId(null);

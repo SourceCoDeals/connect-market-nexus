@@ -208,12 +208,14 @@ export function useUpdateDealStage() {
       fromStage?: string;
       toStage?: string;
     }) => {
+      console.log('[useUpdateDealStage] Calling RPC with:', { dealId, stageId });
       // Use atomic RPC function for stage move
       const { data, error } = await supabase.rpc('move_deal_stage', {
         deal_id: dealId,
         new_stage_id: stageId
       });
       
+      console.log('[useUpdateDealStage] RPC result:', { data, error: error?.message });
       if (error) throw error;
       return data;
     },
