@@ -29,6 +29,7 @@ export interface Deal {
   listing_ebitda: number;
   listing_location: string;
   listing_category?: string;
+  listing_real_company_name?: string;
   
   // Contact information
   contact_name?: string;

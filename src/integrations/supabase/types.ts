@@ -2332,6 +2332,7 @@ export type Database = {
           last_contact_at: string
           listing_category: string
           listing_id: string
+          listing_real_company_name: string
           listing_title: string
           nda_status: string
           pending_tasks: number

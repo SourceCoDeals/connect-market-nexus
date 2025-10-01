@@ -164,8 +164,9 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
   // Key information display - Clean data extraction
   const listingTitle = deal.listing_title || 'Business Acquisition Opportunity';
   
-  // Company name hierarchy - prioritize buyer company, fallback to contact company
-  const companyName = deal.contact_company || deal.buyer_company || 'Private Investor';
+  // Company name hierarchy - prefer real listing company name, fallback to contact/buyer
+  const realCompany = (deal.listing_real_company_name || '').trim();
+  const companyName = realCompany || deal.contact_company || deal.buyer_company || '';
   const contactName = deal.contact_name || deal.buyer_name || 'Unknown Contact';
   const companyDealCount = deal.company_deal_count || 0;
 
@@ -324,7 +325,7 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
         <div className="flex items-start justify-between">
           <div className="flex-1 min-w-0 space-y-1">
             <h3 className="text-sm font-medium text-gray-900 leading-tight truncate">
-              {companyName} / {listingTitle}
+              {companyName ? `${companyName} / ${listingTitle}` : listingTitle}
             </h3>
             <div className="flex items-center gap-2 flex-wrap">
               <div className="flex items-center gap-1.5">

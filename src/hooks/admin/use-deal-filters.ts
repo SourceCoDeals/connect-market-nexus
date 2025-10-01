@@ -192,12 +192,14 @@ export function useDealFilters(deals: Deal[], currentAdminId?: string) {
     );
   }, [deals]);
 
-  // Get unique listings for filter dropdown
+  // Get unique listings for filter dropdown (show real company name when available)
   const uniqueListings = useMemo(() => {
     const listings = new Map<string, string>();
     deals.forEach(deal => {
       if (deal.listing_id && deal.listing_title) {
-        listings.set(deal.listing_id, deal.listing_title);
+        const realName = deal.listing_real_company_name?.trim();
+        const display = realName ? `${deal.listing_title} / ${realName}` : deal.listing_title;
+        listings.set(deal.listing_id, display);
       }
     });
     return Array.from(listings.entries())
