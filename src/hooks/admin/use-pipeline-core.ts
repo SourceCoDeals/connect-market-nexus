@@ -74,8 +74,19 @@ export function usePipelineCore() {
 
   // Derive selected deal from id for absolute correctness
   const selectedDeal = useMemo(() => {
+    console.log('[Pipeline Core] Deriving selectedDeal', { 
+      selectedDealId, 
+      hasDeals: !!filteredAndSortedDeals,
+      dealsCount: filteredAndSortedDeals?.length 
+    });
     if (!filteredAndSortedDeals || !selectedDealId) return null;
-    return filteredAndSortedDeals.find(d => d.deal_id === selectedDealId) || null;
+    const found = filteredAndSortedDeals.find(d => d.deal_id === selectedDealId);
+    console.log('[Pipeline Core] Found deal?', { 
+      selectedDealId, 
+      found: !!found,
+      title: found?.deal_title 
+    });
+    return found || null;
   }, [filteredAndSortedDeals, selectedDealId]);
   
   // Group deals by stage
