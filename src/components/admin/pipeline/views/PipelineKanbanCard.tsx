@@ -324,7 +324,7 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
         <div className="flex items-start justify-between">
           <div className="flex-1 min-w-0 space-y-1">
             <h3 className="text-sm font-medium text-gray-900 leading-tight truncate">
-              {listingTitle}
+              {companyName} / {listingTitle}
             </h3>
             <div className="flex items-center gap-2 flex-wrap">
               <div className="flex items-center gap-1.5">
