@@ -166,7 +166,25 @@ export function PipelineHeader({ pipeline }: PipelineHeaderProps) {
 
       {/* Second Row - Filters Bar (Desktop) */}
       <div className="hidden md:flex items-center gap-2 px-4 py-3 overflow-x-auto">
-        {/* Stage Filter */}
+        {/* Deal/Listing Filter - NOW FIRST */}
+        <Select
+          value={pipeline.listingFilter}
+          onValueChange={(value) => pipeline.setListingFilter(value)}
+        >
+          <SelectTrigger className="w-[180px] h-9">
+            <SelectValue placeholder="All Listings" />
+          </SelectTrigger>
+          <SelectContent className="bg-background z-[100] max-h-[300px]">
+            <SelectItem value="all">All Listings</SelectItem>
+            {pipeline.uniqueListings?.map((listing) => (
+              <SelectItem key={listing.id} value={listing.id}>
+                {listing.title}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {/* Stage Filter - NOW SECOND */}
         <Select
           value={pipeline.statusFilter}
           onValueChange={(value) => pipeline.setStatusFilter(value as any)}
@@ -186,6 +204,15 @@ export function PipelineHeader({ pipeline }: PipelineHeaderProps) {
           </SelectContent>
         </Select>
 
+        {/* Buyer Company Filter (Multi-select) - NOW THIRD, filters by BUYER's company */}
+        <MultiSelect
+          options={pipeline.uniqueCompanies || []}
+          selected={pipeline.companyFilter}
+          onSelectedChange={pipeline.setCompanyFilter}
+          placeholder="All Buyer Companies"
+          className="w-[200px] h-9"
+        />
+
         {/* Deal Owner Filter */}
         <Select
           value={pipeline.adminFilter}
@@ -201,33 +228,6 @@ export function PipelineHeader({ pipeline }: PipelineHeaderProps) {
             {adminProfiles && Object.values(adminProfiles).map((admin) => (
               <SelectItem key={admin.id} value={admin.id}>
                 {admin.first_name} {admin.last_name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        {/* Company Filter (Multi-select) */}
-        <MultiSelect
-          options={pipeline.uniqueCompanies || []}
-          selected={pipeline.companyFilter}
-          onSelectedChange={pipeline.setCompanyFilter}
-          placeholder="All Companies"
-          className="w-[180px] h-9"
-        />
-
-        {/* Deal/Listing Filter */}
-        <Select
-          value={pipeline.listingFilter}
-          onValueChange={(value) => pipeline.setListingFilter(value)}
-        >
-          <SelectTrigger className="w-[180px] h-9">
-            <SelectValue placeholder="All Deals" />
-          </SelectTrigger>
-          <SelectContent className="bg-background z-[100] max-h-[300px]">
-            <SelectItem value="all">All Deals</SelectItem>
-            {pipeline.uniqueListings?.map((listing) => (
-              <SelectItem key={listing.id} value={listing.id}>
-                {listing.title}
               </SelectItem>
             ))}
           </SelectContent>

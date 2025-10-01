@@ -79,12 +79,12 @@ export function useDealFilters(deals: Deal[], currentAdminId?: string) {
       filtered = filtered.filter(d => d.listing_id === listingFilter);
     }
 
-    // Company filter (multi-select) - filter by real company name
+    // Company filter (multi-select) - filter by BUYER's company name
     if (companyFilter.length > 0) {
       filtered = filtered.filter(d => {
-        const realCompany = d.listing_real_company_name?.toLowerCase();
+        const buyerCompany = d.buyer_company?.toLowerCase();
         return companyFilter.some(company => 
-          realCompany === company.toLowerCase()
+          buyerCompany === company.toLowerCase()
         );
       });
     }
@@ -166,32 +166,41 @@ export function useDealFilters(deals: Deal[], currentAdminId?: string) {
     return sorted;
   }, [deals, searchQuery, statusFilter, buyerTypeFilter, listingFilter, companyFilter, adminFilter, documentStatusFilter, createdDateRange, lastActivityRange, sortOption, currentAdminId]);
 
-  // Get unique companies for filter dropdown - use real company name only
+  // Get unique BUYER companies for filter dropdown
   const uniqueCompanies = useMemo(() => {
-    const companiesMap = new Map<string, { label: string; value: string }>();
+    const companiesMap = new Map<string, { label: string; value: string; userCount: number; users: Set<string> }>();
     
     deals.forEach(deal => {
-      const realCompanyName = deal.listing_real_company_name?.trim();
-      const listingTitle = deal.listing_title;
+      const buyerCompany = deal.buyer_company?.trim();
+      const buyerName = deal.buyer_name;
+      const buyerId = deal.buyer_id;
       
-      if (realCompanyName) {
-        const displayLabel = listingTitle 
-          ? `${listingTitle} / ${realCompanyName}`
-          : realCompanyName;
-        
-        // Use real company name as the value for filtering
-        if (!companiesMap.has(realCompanyName)) {
-          companiesMap.set(realCompanyName, {
-            label: displayLabel,
-            value: realCompanyName
+      if (buyerCompany) {
+        if (!companiesMap.has(buyerCompany)) {
+          companiesMap.set(buyerCompany, {
+            label: buyerCompany,
+            value: buyerCompany,
+            userCount: 0,
+            users: new Set()
           });
+        }
+        
+        // Track unique users from this company
+        const companyData = companiesMap.get(buyerCompany)!;
+        if (buyerId) {
+          companyData.users.add(buyerId);
+          companyData.userCount = companyData.users.size;
         }
       }
     });
     
-    return Array.from(companiesMap.values()).sort((a, b) => 
-      a.label.localeCompare(b.label)
-    );
+    // Convert to final format with user count if > 1
+    return Array.from(companiesMap.values())
+      .map(({ label, value, userCount }) => ({
+        label: userCount > 1 ? `${label} (${userCount} users)` : label,
+        value
+      }))
+      .sort((a, b) => a.label.localeCompare(b.label));
   }, [deals]);
 
   // Get unique listings for filter dropdown (show real company name when available)

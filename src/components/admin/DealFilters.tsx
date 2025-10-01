@@ -201,7 +201,39 @@ export function DealFilters({
 
         {/* Right Side - Advanced Filters & Sort */}
         <div className="flex items-center gap-2 flex-shrink-0">
-          {/* Listing Filter */}
+          {/* Stage Filter - Now First */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm" className="h-9 px-2.5 text-sm text-muted-foreground hover:text-foreground border border-border/50 whitespace-nowrap">
+                <span className="hidden sm:inline">Stage</span>
+                <span className="sm:hidden">Stage</span>
+                {statusFilter !== 'all' && (
+                  <span className="ml-1.5 text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded">
+                    {statusCounts[statusFilter as keyof typeof statusCounts]}
+                  </span>
+                )}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel>Filter by Stage</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {statusOptions.map((option) => (
+                <DropdownMenuCheckboxItem
+                  key={option.value}
+                  checked={statusFilter === option.value}
+                  onCheckedChange={() => onStatusFilterChange(option.value as DealStatusFilter)}
+                  className="flex items-center justify-between"
+                >
+                  <span>{option.label}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {option.count}
+                  </span>
+                </DropdownMenuCheckboxItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {/* Listing Filter - Now Second */}
           <Select value={listingFilter} onValueChange={onListingFilterChange}>
             <SelectTrigger className="w-32 lg:w-40 h-9 border-border/50 bg-background text-sm">
               <SelectValue placeholder="Listings" />
