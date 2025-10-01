@@ -42,6 +42,7 @@ export function PipelineKanbanColumn({ stage, deals, onDealClick }: PipelineKanb
   
   return (
     <Card 
+      ref={setNodeRef}
       className={`h-full flex flex-col transition-colors duration-200 ${
         isOver ? 'ring-2 ring-primary/50 bg-primary/5' : 'bg-card/50'
       }`}
@@ -103,7 +104,6 @@ export function PipelineKanbanColumn({ stage, deals, onDealClick }: PipelineKanb
       
       {/* Deals List */}
       <CardContent 
-        ref={setNodeRef}
         className="flex-1 p-3 pt-0 overflow-y-auto"
       >
         <div className="space-y-3 min-h-full">
