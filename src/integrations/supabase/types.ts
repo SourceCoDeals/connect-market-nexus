@@ -2438,6 +2438,10 @@ export type Database = {
         }
         Returns: string
       }
+      move_deal_stage: {
+        Args: { deal_id: string; new_stage_id: string }
+        Returns: boolean
+      }
       preview_profile_data_restoration: {
         Args: Record<PropertyKey, never>
         Returns: {

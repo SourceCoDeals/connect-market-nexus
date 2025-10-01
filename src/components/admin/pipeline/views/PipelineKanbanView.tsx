@@ -31,7 +31,7 @@ export function PipelineKanbanView({ pipeline }: PipelineKanbanViewProps) {
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 8,
+        distance: 6,
       },
     })
   );
@@ -52,23 +52,42 @@ export function PipelineKanbanView({ pipeline }: PipelineKanbanViewProps) {
       return;
     }
 
-    const dealId = String(active.id);
-    const overId = String(over.id);
-
-    // Destination stage is the droppable column id
-    const newStageId = overId;
+    const activeIdStr = String(active.id);
+    const overIdStr = String(over.id);
+    
+    // Extract deal ID from active (format: "deal:uuid")
+    const dealId = activeIdStr.startsWith('deal:') ? activeIdStr.slice(5) : activeIdStr;
+    
+    // Determine destination stage ID
+    let destStageId: string;
+    if (overIdStr.startsWith('stage:')) {
+      // Dropped directly on column
+      destStageId = overIdStr.slice(6);
+    } else if (overIdStr.startsWith('deal:')) {
+      // Dropped on another deal - find that deal's stage
+      const overDealId = overIdStr.slice(5);
+      const overDeal = pipeline.deals.find(d => d.deal_id === overDealId);
+      if (!overDeal) {
+        setActiveId(null);
+        return;
+      }
+      destStageId = overDeal.stage_id;
+    } else {
+      setActiveId(null);
+      return;
+    }
 
     const deal = pipeline.deals.find(d => d.deal_id === dealId);
-    const targetStage = pipeline.stages.find(s => s.id === newStageId);
+    const targetStage = pipeline.stages.find(s => s.id === destStageId);
 
-    if (!deal || !targetStage || deal.stage_id === newStageId) {
+    if (!deal || !targetStage || deal.stage_id === destStageId) {
       setActiveId(null);
       return;
     }
 
     updateDealStage.mutate({
       dealId,
-      stageId: newStageId,
+      stageId: destStageId,
       fromStage: deal.stage_name || undefined,
       toStage: targetStage.name
     });
@@ -164,7 +183,8 @@ export function PipelineKanbanView({ pipeline }: PipelineKanbanViewProps) {
         
         <DragOverlay>
           {activeId ? (() => {
-            const activeDeal = pipeline.deals.find(d => d.deal_id === activeId);
+            const dealId = String(activeId).startsWith('deal:') ? String(activeId).slice(5) : String(activeId);
+            const activeDeal = pipeline.deals.find(d => d.deal_id === dealId);
             if (!activeDeal) return null;
             return (
               <PipelineKanbanCardOverlay deal={activeDeal} />

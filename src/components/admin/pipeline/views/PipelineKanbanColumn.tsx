@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { useDroppable } from '@dnd-kit/core';
+import { SortableContext } from '@dnd-kit/sortable';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -27,8 +28,10 @@ interface PipelineKanbanColumnProps {
 
 export function PipelineKanbanColumn({ stage, deals, onDealClick }: PipelineKanbanColumnProps) {
   const { setNodeRef, isOver } = useDroppable({
-    id: stage.id,
+    id: `stage:${stage.id}`,
   });
+  
+  const sortableItems = deals.map(d => `deal:${d.deal_id}`);
   
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -106,14 +109,15 @@ export function PipelineKanbanColumn({ stage, deals, onDealClick }: PipelineKanb
       <CardContent 
         className="flex-1 p-3 pt-0 overflow-y-auto"
       >
-        <div className="space-y-3 min-h-full">
-          {deals.map((deal, index) => (
-            <PipelineKanbanCard 
-              key={deal.deal_id}
-              deal={deal}
-              onDealClick={onDealClick}
-            />
-          ))}
+        <SortableContext items={sortableItems}>
+          <div className="space-y-3 min-h-full">
+            {deals.map((deal) => (
+              <PipelineKanbanCard 
+                key={deal.deal_id}
+                deal={deal}
+                onDealClick={onDealClick}
+              />
+            ))}
           
           {/* Add Deal Button */}
           <Button
@@ -128,11 +132,12 @@ export function PipelineKanbanColumn({ stage, deals, onDealClick }: PipelineKanb
           {/* Empty State */}
           {deals.length === 0 && (
             <div className="flex flex-col items-center justify-center py-8 text-center text-muted-foreground">
-              <div className="text-sm opacity-75">No deals</div>
+            <div className="text-sm opacity-75">No deals</div>
               <div className="text-xs mt-1 opacity-50">Drag deals here</div>
             </div>
           )}
-        </div>
+          </div>
+        </SortableContext>
       </CardContent>
     </Card>
   );

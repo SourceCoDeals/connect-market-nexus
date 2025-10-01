@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useDraggable } from '@dnd-kit/core';
+import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -25,13 +25,18 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
     listeners,
     setNodeRef,
     transform,
-  } = useDraggable({
-    id: deal.deal_id,
+    transition,
+    isDragging: isSortableDragging,
+  } = useSortable({
+    id: `deal:${deal.deal_id}`,
   });
 
   const style = {
-    transform: CSS.Translate.toString(transform),
+    transform: CSS.Transform.toString(transform),
+    transition,
   };
+  
+  const isBeingDragged = isDragging || isSortableDragging;
 
 // Apple/Stripe-style design helpers - Clean, minimal approach
   // Apple/Stripe-style design helpers - Clean, minimal approach
@@ -282,11 +287,11 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
         "bg-white/95 backdrop-blur-sm border border-border/60 rounded-xl shadow-sm",
         "hover:shadow-lg hover:shadow-black/5 hover:border-border hover:-translate-y-1",
         "hover:bg-white/98 hover:backdrop-blur-md",
-        isDragging && "rotate-1 shadow-xl shadow-black/10 scale-[1.02] z-50 border-primary/30 bg-white",
+        isBeingDragged && "rotate-1 shadow-xl shadow-black/10 scale-[1.02] z-50 border-primary/30 bg-white opacity-50",
         buyerPriority.level === 'High' && "ring-1 ring-emerald-200/50 shadow-emerald-100/20",
         buyerPriority.level === 'Medium' && "ring-1 ring-amber-200/50 shadow-amber-100/20"
       )}
-      onClick={() => !isDragging && onDealClick(deal)}
+      onClick={() => !isBeingDragged && onDealClick(deal)}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
@@ -402,7 +407,7 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
         </div>
 
         {/* Premium Quick Actions on Hover */}
-        {isHovered && !isDragging && (
+        {isHovered && !isBeingDragged && (
           <div className="absolute top-3 right-3 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-all duration-200">
             <button
               onClick={handleEmailClick}
