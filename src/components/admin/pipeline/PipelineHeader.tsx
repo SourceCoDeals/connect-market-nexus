@@ -38,22 +38,11 @@ interface PipelineHeaderProps {
 
 export function PipelineHeader({ pipeline }: PipelineHeaderProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [currentViewId, setCurrentViewId] = useState<string>();
 
   const viewIcons = {
     kanban: Kanban,
     list: List,
     table: Table,
-  };
-
-  const handleViewChange = (viewId: string) => {
-    setCurrentViewId(viewId);
-    // Pipeline views can customize stage visibility in future
-  };
-
-  const handleCreateView = () => {
-    // Open view creation modal (to be implemented)
-    console.log('Create new pipeline view');
   };
 
   return (
@@ -85,9 +74,8 @@ export function PipelineHeader({ pipeline }: PipelineHeaderProps) {
         <div className="hidden md:flex items-center gap-3">
           {/* Pipeline View Switcher */}
           <PipelineViewSwitcher
-            currentViewId={currentViewId}
-            onViewChange={handleViewChange}
-            onCreateView={handleCreateView}
+            currentViewId={pipeline.currentViewId || undefined}
+            onViewChange={pipeline.setCurrentViewId}
           />
           
           {/* View Mode Selector */}

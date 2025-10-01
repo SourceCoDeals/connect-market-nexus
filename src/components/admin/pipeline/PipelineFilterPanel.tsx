@@ -98,8 +98,8 @@ export function PipelineFilterPanel({ pipeline }: PipelineFilterPanelProps) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 lg:relative lg:bg-transparent lg:backdrop-blur-none">
-      <div className="fixed right-0 top-0 h-full w-96 bg-background border-l shadow-2xl lg:relative lg:w-full lg:h-auto lg:shadow-none">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 lg:relative lg:bg-transparent lg:backdrop-blur-none lg:z-auto">
+      <div className="fixed right-0 top-0 h-full w-full sm:w-96 bg-background border-l shadow-2xl lg:relative lg:w-full lg:h-auto lg:shadow-none overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b bg-muted/50">
           <div className="flex items-center gap-2">
@@ -170,8 +170,8 @@ export function PipelineFilterPanel({ pipeline }: PipelineFilterPanelProps) {
         </div>
 
         {/* Content */}
-        <ScrollArea className="h-[calc(100vh-140px)] lg:h-auto">
-          <div className="p-4 space-y-4">
+        <ScrollArea className="h-[calc(100vh-140px)] lg:h-[600px]">
+          <div className="p-3 sm:p-4 space-y-3 sm:space-y-4">
             {/* Search - Always visible */}
             <div>
               <label className="text-sm font-medium mb-2 block">Search</label>

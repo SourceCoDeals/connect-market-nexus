@@ -300,10 +300,10 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
             <div className="flex items-center gap-2 flex-wrap">
               <div className="flex items-center gap-1.5">
                 <Building2 className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
-                <span className="text-xs text-gray-600 truncate">{companyName}</span>
+                <span className="text-xs font-medium text-gray-700 truncate">{companyName}</span>
                 {companyDealCount > 1 && (
-                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 bg-blue-50 text-blue-700 border-blue-200">
-                    {companyDealCount} deals
+                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 bg-blue-50 text-blue-700 border-blue-200 font-semibold">
+                    {companyDealCount} active
                   </Badge>
                 )}
               </div>
