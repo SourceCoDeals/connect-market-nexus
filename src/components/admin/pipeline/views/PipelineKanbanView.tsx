@@ -54,6 +54,7 @@ export function PipelineKanbanView({ pipeline }: PipelineKanbanViewProps) {
     const newStageId = over.id as string;
     
     const deal = pipeline.deals.find(d => d.deal_id === dealId);
+    // Use ALL stages (not just displayStages) for drag target validation
     const targetStage = pipeline.stages.find(s => s.id === newStageId);
     
     if (!deal || !targetStage || deal.stage_id === newStageId) {
@@ -140,18 +141,29 @@ export function PipelineKanbanView({ pipeline }: PipelineKanbanViewProps) {
                 height: '100%'
               }}
             >
-              {pipeline.stageMetrics.map((stage) => (
-                <div 
-                  key={stage.id}
-                  className="flex-shrink-0 w-64 sm:w-72 lg:w-80"
-                >
-                  <PipelineKanbanColumn
-                    stage={stage}
-                    deals={pipeline.dealsByStage[stage.id] || []}
-                    onDealClick={pipeline.handleDealSelect}
-                  />
-                </div>
-              ))}
+              {(pipeline.displayStages || pipeline.stages).map((stage) => {
+                const stageDeals = pipeline.dealsByStage[stage.id] || [];
+                const metrics = pipeline.stageMetrics[stage.id] || { count: 0, totalValue: 0, avgProbability: 0 };
+                
+                return (
+                  <div 
+                    key={stage.id}
+                    className="flex-shrink-0 w-64 sm:w-72 lg:w-80"
+                  >
+                    <PipelineKanbanColumn
+                      stage={{
+                        ...stage,
+                        dealCount: metrics.count,
+                        totalValue: metrics.totalValue,
+                        avgProbability: metrics.avgProbability,
+                        deals: stageDeals
+                      }}
+                      deals={stageDeals}
+                      onDealClick={pipeline.handleDealSelect}
+                    />
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
