@@ -77,6 +77,9 @@ export interface Deal {
   
   // Connection request ID for document management
   connection_request_id?: string;
+  
+  // Company grouping
+  company_deal_count?: number;
 }
 
 export interface DealStage {

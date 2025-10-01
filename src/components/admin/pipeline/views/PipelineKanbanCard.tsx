@@ -157,6 +157,7 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
   // Company name hierarchy - prioritize buyer company, fallback to contact company
   const companyName = deal.contact_company || deal.buyer_company || 'Private Investor';
   const contactName = deal.contact_name || deal.buyer_name || 'Unknown Contact';
+  const companyDealCount = deal.company_deal_count || 0;
 
 
   // Calculate days in stage with realistic fallback
@@ -292,6 +293,11 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
               <div className="flex items-center gap-1.5">
                 <Building2 className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
                 <span className="text-xs text-gray-600 truncate">{companyName}</span>
+                {companyDealCount > 1 && (
+                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 bg-blue-50 text-blue-700 border-blue-200">
+                    {companyDealCount} deals
+                  </Badge>
+                )}
               </div>
               <Badge className={cn("text-xs px-2 py-0.5 font-medium border rounded-md", getBuyerTypeColor(actualBuyerType))}>
                 {getBuyerTypeLabel(actualBuyerType)}

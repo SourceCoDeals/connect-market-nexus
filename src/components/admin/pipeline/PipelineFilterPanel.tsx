@@ -9,6 +9,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { 
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu';
+import { 
   X, 
   CalendarIcon, 
   Building2, 
@@ -20,17 +27,27 @@ import {
   Users,
   ShieldCheck,
   Target,
-  XCircle
+  XCircle,
+  Save,
+  MoreVertical,
+  Trash2,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { usePipelineCore } from '@/hooks/admin/use-pipeline-core';
+import { useFilterPresets, useDeleteFilterPreset } from '@/hooks/admin/use-filter-presets';
+import { SaveFilterPresetDialog } from './SaveFilterPresetDialog';
+import { useState as useReactState } from 'react';
 
 interface PipelineFilterPanelProps {
   pipeline: ReturnType<typeof usePipelineCore>;
 }
 
 export function PipelineFilterPanel({ pipeline }: PipelineFilterPanelProps) {
+  const [isSavePresetOpen, setIsSavePresetOpen] = useReactState(false);
+  const { data: presets = [] } = useFilterPresets();
+  const deletePreset = useDeleteFilterPreset();
+  
   if (!pipeline.isFilterPanelOpen) return null;
 
   const activeFiltersCount = [
@@ -57,6 +74,29 @@ export function PipelineFilterPanel({ pipeline }: PipelineFilterPanelProps) {
     pipeline.setSearchQuery('');
   };
 
+  const getCurrentFilters = () => ({
+    statusFilter: pipeline.statusFilter,
+    documentStatusFilter: pipeline.documentStatusFilter,
+    buyerTypeFilter: pipeline.buyerTypeFilter,
+    companyFilter: pipeline.companyFilter,
+    adminFilter: pipeline.adminFilter,
+    createdDateRange: pipeline.createdDateRange,
+    lastActivityRange: pipeline.lastActivityRange,
+    searchQuery: pipeline.searchQuery,
+  });
+
+  const loadPreset = (preset: any) => {
+    const filters = preset.filters;
+    if (filters.statusFilter) pipeline.setStatusFilter(filters.statusFilter);
+    if (filters.documentStatusFilter) pipeline.setDocumentStatusFilter(filters.documentStatusFilter);
+    if (filters.buyerTypeFilter) pipeline.setBuyerTypeFilter(filters.buyerTypeFilter);
+    if (filters.companyFilter) pipeline.setCompanyFilter(filters.companyFilter);
+    if (filters.adminFilter) pipeline.setAdminFilter(filters.adminFilter);
+    if (filters.createdDateRange) pipeline.setCreatedDateRange(filters.createdDateRange);
+    if (filters.lastActivityRange) pipeline.setLastActivityRange(filters.lastActivityRange);
+    if (filters.searchQuery) pipeline.setSearchQuery(filters.searchQuery);
+  };
+
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 lg:relative lg:bg-transparent lg:backdrop-blur-none">
       <div className="fixed right-0 top-0 h-full w-96 bg-background border-l shadow-2xl lg:relative lg:w-full lg:h-auto lg:shadow-none">
@@ -71,14 +111,62 @@ export function PipelineFilterPanel({ pipeline }: PipelineFilterPanelProps) {
               </Badge>
             )}
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={pipeline.toggleFilterPanel}
-            className="h-8 w-8 p-0"
-          >
-            <X className="h-4 w-4" />
-          </Button>
+          <div className="flex items-center gap-2">
+            {/* Saved Presets */}
+            {presets.length > 0 && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                    <MoreVertical className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <div className="px-2 py-1.5 text-sm font-semibold">Saved Presets</div>
+                  <DropdownMenuSeparator />
+                  {presets.map((preset) => (
+                    <DropdownMenuItem
+                      key={preset.id}
+                      onSelect={() => loadPreset(preset)}
+                      className="flex items-center justify-between"
+                    >
+                      <span>{preset.name}</span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 w-6 p-0 hover:bg-destructive hover:text-destructive-foreground"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deletePreset.mutate(preset.id);
+                        }}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+            
+            {/* Save Current Filters */}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 w-8 p-0"
+              onClick={() => setIsSavePresetOpen(true)}
+              title="Save current filters"
+            >
+              <Save className="h-4 w-4" />
+            </Button>
+            
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={pipeline.toggleFilterPanel}
+              className="h-8 w-8 p-0"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
 
         {/* Content */}
@@ -490,6 +578,13 @@ export function PipelineFilterPanel({ pipeline }: PipelineFilterPanelProps) {
           </div>
         </div>
       </div>
+      
+      {/* Save Preset Dialog */}
+      <SaveFilterPresetDialog
+        open={isSavePresetOpen}
+        onOpenChange={setIsSavePresetOpen}
+        currentFilters={getCurrentFilters()}
+      />
     </div>
   );
 }

@@ -1105,6 +1105,36 @@ export type Database = {
         }
         Relationships: []
       }
+      filter_presets: {
+        Row: {
+          created_at: string
+          filters: Json
+          id: string
+          is_default: boolean | null
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          filters?: Json
+          id?: string
+          is_default?: boolean | null
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          filters?: Json
+          id?: string
+          is_default?: boolean | null
+          name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       inbound_leads: {
         Row: {
           company_name: string | null
@@ -1550,6 +1580,39 @@ export type Database = {
           token?: string
           used?: boolean | null
           user_id?: string
+        }
+        Relationships: []
+      }
+      pipeline_views: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean | null
+          is_default: boolean | null
+          name: string
+          stage_config: Json
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_default?: boolean | null
+          name: string
+          stage_config?: Json
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_default?: boolean | null
+          name?: string
+          stage_config?: Json
+          updated_at?: string
         }
         Relationships: []
       }
@@ -2233,52 +2296,51 @@ export type Database = {
       get_deals_with_details: {
         Args: Record<PropertyKey, never>
         Returns: {
-          assigned_admin_email: string
-          assigned_admin_name: string
           assigned_to: string
           buyer_company: string
           buyer_email: string
+          buyer_id: string
           buyer_name: string
           buyer_phone: string
-          buyer_priority_score: number
           buyer_type: string
-          completed_tasks_count: number
+          company_deal_count: number
+          completed_tasks: number
           connection_request_id: string
           contact_company: string
           contact_email: string
           contact_name: string
           contact_phone: string
           contact_role: string
-          created_at: string
-          description: string
-          expected_close_date: string
+          deal_buyer_priority_score: number
+          deal_created_at: string
+          deal_description: string
+          deal_expected_close_date: string
+          deal_followed_up: boolean
+          deal_followed_up_at: string
+          deal_followed_up_by: string
+          deal_id: string
+          deal_metadata: Json
+          deal_priority: string
+          deal_probability: number
+          deal_source: string
+          deal_stage_entered_at: string
+          deal_title: string
+          deal_updated_at: string
+          deal_value: number
           fee_agreement_status: string
-          followed_up: boolean
-          followed_up_at: string
-          followed_up_by: string
-          id: string
           last_activity_at: string
+          last_contact_at: string
           listing_category: string
-          listing_ebitda: number
           listing_id: string
-          listing_location: string
-          listing_revenue: number
           listing_title: string
-          metadata: Json
           nda_status: string
-          pending_tasks_count: number
-          priority: string
-          probability: number
-          source: string
+          pending_tasks: number
           stage_color: string
-          stage_entered_at: string
           stage_id: string
           stage_name: string
           stage_position: number
-          title: string
-          total_activities_count: number
-          updated_at: string
-          value: number
+          total_activities: number
+          total_tasks: number
         }[]
       }
       get_feedback_analytics: {
