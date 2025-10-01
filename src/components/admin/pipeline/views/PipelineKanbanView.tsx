@@ -35,6 +35,7 @@ export function PipelineKanbanView({ pipeline }: PipelineKanbanViewProps) {
   );
   
   const handleDragStart = (event: DragStartEvent) => {
+    console.log('Kanban DnD: drag start', { activeId: event.active.id });
     setActiveId(event.active.id as string);
   };
   
@@ -44,8 +45,10 @@ export function PipelineKanbanView({ pipeline }: PipelineKanbanViewProps) {
   
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
+    console.log('Kanban DnD: drag end', { active: active?.id, over: over?.id });
     
     if (!over || !pipeline.deals) {
+      console.log('Kanban DnD: no drop target or no deals');
       setActiveId(null);
       return;
     }
@@ -57,11 +60,19 @@ export function PipelineKanbanView({ pipeline }: PipelineKanbanViewProps) {
     // Use ALL stages (not just displayStages) for drag target validation
     const targetStage = pipeline.stages.find(s => s.id === newStageId);
     
-    if (!deal || !targetStage || deal.stage_id === newStageId) {
+    if (!deal || !targetStage) {
+      console.log('Kanban DnD: invalid deal or target stage', { dealFound: !!deal, targetFound: !!targetStage });
+      setActiveId(null);
+      return;
+    }
+
+    if (deal.stage_id === newStageId) {
+      console.log('Kanban DnD: dropped in same stage, ignoring');
       setActiveId(null);
       return;
     }
     
+    console.log('Kanban DnD: updating deal stage', { dealId, fromStage: deal.stage_name, toStage: targetStage.name });
     updateDealStage.mutate({ 
       dealId, 
       stageId: newStageId,
@@ -143,7 +154,10 @@ export function PipelineKanbanView({ pipeline }: PipelineKanbanViewProps) {
             >
               {(pipeline.displayStages || pipeline.stages).map((stage) => {
                 const stageDeals = pipeline.dealsByStage[stage.id] || [];
-                const metrics = pipeline.stageMetrics[stage.id] || { count: 0, totalValue: 0, avgProbability: 0 };
+                const metricsEntry = Array.isArray(pipeline.stageMetrics)
+                  ? (pipeline.stageMetrics as any[]).find((m: any) => m.id === stage.id)
+                  : undefined;
+                const metrics = metricsEntry || { dealCount: stageDeals.length, totalValue: 0, avgProbability: 0 };
                 
                 return (
                   <div 
@@ -153,7 +167,7 @@ export function PipelineKanbanView({ pipeline }: PipelineKanbanViewProps) {
                     <PipelineKanbanColumn
                       stage={{
                         ...stage,
-                        dealCount: metrics.count,
+                        dealCount: metrics.dealCount,
                         totalValue: metrics.totalValue,
                         avgProbability: metrics.avgProbability,
                         deals: stageDeals
