@@ -148,7 +148,8 @@ export function useDeals() {
           listing_ebitda: Number(row.listing_ebitda ?? 0),
           listing_location: row.listing_location,
           listing_category: row.listing_category,
-          
+          listing_real_company_name: row.listing_real_company_name ?? row.internal_company_name,
+
           // Contact
           contact_name: row.contact_name,
           contact_email: row.contact_email,

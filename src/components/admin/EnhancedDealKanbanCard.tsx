@@ -101,7 +101,9 @@ export function EnhancedDealKanbanCard({ deal, isDragging, onClick }: EnhancedDe
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
             <h3 className="font-semibold text-base text-foreground truncate leading-tight">
-              {deal.buyer_company || deal.contact_company || deal.buyer_name || deal.contact_name || 'Unknown Company'}
+              {deal.listing_real_company_name?.trim()
+                ? `${deal.listing_real_company_name} / ${(deal.listing_title || deal.deal_title || '').trim()}`
+                : (deal.listing_title || deal.deal_title || 'Untitled Deal')}
             </h3>
             <p className="text-sm text-muted-foreground truncate mt-1">
               {deal.contact_name || deal.buyer_name}
