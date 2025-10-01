@@ -9,13 +9,11 @@ import {
   useSensor,
   useSensors,
   DragOverlay,
-  closestCorners,
 } from '@dnd-kit/core';
 import { usePipelineCore } from '@/hooks/admin/use-pipeline-core';
 import { useUpdateDealStage } from '@/hooks/admin/use-deals';
 import { PipelineKanbanColumn } from './PipelineKanbanColumn';
 import { PipelineKanbanCard } from './PipelineKanbanCard';
-import { PipelineKanbanCardOverlay } from './PipelineKanbanCardOverlay';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
@@ -37,7 +35,6 @@ export function PipelineKanbanView({ pipeline }: PipelineKanbanViewProps) {
   );
   
   const handleDragStart = (event: DragStartEvent) => {
-    console.log('Kanban DnD: drag start', { activeId: event.active.id });
     setActiveId(event.active.id as string);
   };
   
@@ -47,44 +44,23 @@ export function PipelineKanbanView({ pipeline }: PipelineKanbanViewProps) {
   
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
-    console.log('Kanban DnD: drag end', { active: active?.id, over: over?.id });
     
     if (!over || !pipeline.deals) {
-      console.log('Kanban DnD: no drop target or no deals');
       setActiveId(null);
       return;
     }
     
-    const dealId = String(active.id);
-    const overId = String(over.id);
-    
-    // Default to treating the drop target as a stage id
-    let newStageId = overId;
-    
-    // If overId matches a deal id, derive the target stage from that deal
-    const overDeal = pipeline.deals.find(d => d.deal_id === overId);
-    if (overDeal?.stage_id) {
-      newStageId = overDeal.stage_id;
-      console.log('Kanban DnD: over matched a deal; derived stage', { overDealId: overId, derivedStageId: newStageId });
-    }
+    const dealId = active.id as string;
+    const newStageId = over.id as string;
     
     const deal = pipeline.deals.find(d => d.deal_id === dealId);
-    // Use ALL stages (not just displayStages) for drag target validation
     const targetStage = pipeline.stages.find(s => s.id === newStageId);
     
-    if (!deal || !targetStage) {
-      console.log('Kanban DnD: invalid deal or target stage', { dealFound: !!deal, targetFound: !!targetStage });
-      setActiveId(null);
-      return;
-    }
-
-    if (deal.stage_id === newStageId) {
-      console.log('Kanban DnD: dropped in same stage, ignoring');
+    if (!deal || !targetStage || deal.stage_id === newStageId) {
       setActiveId(null);
       return;
     }
     
-    console.log('Kanban DnD: updating deal stage', { dealId, fromStage: deal.stage_name, toStage: targetStage.name });
     updateDealStage.mutate({ 
       dealId, 
       stageId: newStageId,
@@ -122,7 +98,6 @@ export function PipelineKanbanView({ pipeline }: PipelineKanbanViewProps) {
     <div className="h-full flex flex-col">
       <DndContext
         sensors={sensors}
-        collisionDetection={closestCorners}
         onDragStart={handleDragStart}
         onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
@@ -165,32 +140,18 @@ export function PipelineKanbanView({ pipeline }: PipelineKanbanViewProps) {
                 height: '100%'
               }}
             >
-              {(pipeline.displayStages || pipeline.stages).map((stage) => {
-                const stageDeals = pipeline.dealsByStage[stage.id] || [];
-                const metricsEntry = Array.isArray(pipeline.stageMetrics)
-                  ? (pipeline.stageMetrics as any[]).find((m: any) => m.id === stage.id)
-                  : undefined;
-                const metrics = metricsEntry || { dealCount: stageDeals.length, totalValue: 0, avgProbability: 0 };
-                
-                return (
-                  <div 
-                    key={stage.id}
-                    className="flex-shrink-0 w-64 sm:w-72 lg:w-80"
-                  >
-                    <PipelineKanbanColumn
-                      stage={{
-                        ...stage,
-                        dealCount: metrics.dealCount,
-                        totalValue: metrics.totalValue,
-                        avgProbability: metrics.avgProbability,
-                        deals: stageDeals
-                      }}
-                      deals={stageDeals}
-                      onDealClick={pipeline.handleDealSelect}
-                    />
-                  </div>
-                );
-              })}
+              {pipeline.stageMetrics.map((stage) => (
+                <div 
+                  key={stage.id}
+                  className="flex-shrink-0 w-64 sm:w-72 lg:w-80"
+                >
+                  <PipelineKanbanColumn
+                    stage={stage}
+                    deals={pipeline.dealsByStage[stage.id] || []}
+                    onDealClick={pipeline.handleDealSelect}
+                  />
+                </div>
+              ))}
             </div>
           </div>
         </div>
@@ -200,7 +161,13 @@ export function PipelineKanbanView({ pipeline }: PipelineKanbanViewProps) {
             const activeDeal = pipeline.deals.find(d => d.deal_id === activeId);
             if (!activeDeal) return null;
             return (
-              <PipelineKanbanCardOverlay deal={activeDeal} />
+              <div className="rotate-3 scale-105">
+                <PipelineKanbanCard 
+                  deal={activeDeal} 
+                  isDragging
+                  onDealClick={() => {}}
+                />
+              </div>
             );
           })() : null}
         </DragOverlay>

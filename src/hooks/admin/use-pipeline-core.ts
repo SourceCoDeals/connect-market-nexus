@@ -40,8 +40,8 @@ export function usePipelineCore() {
   const { data: allStages, isLoading: stagesLoading, error: stagesError } = useDealStages();
   const { data: pipelineViews = [] } = usePipelineViews();
   
-  // Filter stages for DISPLAY based on current view
-  const displayStages = useMemo(() => {
+  // Filter stages based on current view
+  const stages = useMemo(() => {
     if (!allStages) return [];
     
     // If no view selected or views not loaded, show all stages
@@ -56,16 +56,13 @@ export function usePipelineCore() {
     return allStages.filter(stage => stageIds.includes(stage.id));
   }, [allStages, currentViewId, pipelineViews]);
   
-  // Keep ALL stages available for drag-and-drop operations
-  const stages = allStages || [];
-  
   // Debug logging
   console.log('Pipeline Core Debug:', {
     dealsLoading,
     stagesLoading,
     dealsCount: deals?.length || 0,
     allStagesCount: allStages?.length || 0,
-    displayStagesCount: displayStages?.length || 0,
+    filteredStagesCount: stages?.length || 0,
     currentViewId,
     dealsError: dealsError?.message,
     stagesError: stagesError?.message
@@ -189,8 +186,7 @@ export function usePipelineCore() {
     
     // Data
     deals: filteredAndSortedDeals || [],
-    stages: allStages || [], // All stages for drag-and-drop
-    displayStages: displayStages || [], // Filtered stages for display
+    stages: stages || [],
     dealsByStage,
     metrics,
     stageMetrics,
