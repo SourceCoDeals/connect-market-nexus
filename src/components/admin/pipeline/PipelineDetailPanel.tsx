@@ -2,7 +2,13 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { X } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { X, MoreVertical, Trash2 } from 'lucide-react';
 import { usePipelineCore } from '@/hooks/admin/use-pipeline-core';
 import { PipelineDetailOverview } from './tabs/PipelineDetailOverview';
 import { PipelineDetailBuyer } from './tabs/PipelineDetailBuyer';
@@ -10,6 +16,7 @@ import { PipelineDetailDocuments } from './tabs/PipelineDetailDocuments';
 import { PipelineDetailTasks } from './tabs/PipelineDetailTasks';
 import { PipelineDetailCommunication } from './tabs/PipelineDetailCommunication';
 import { PipelineDetailActivity } from './tabs/PipelineDetailActivity';
+import { DeleteDealDialog } from '@/components/admin/deals/DeleteDealDialog';
 
 interface PipelineDetailPanelProps {
   pipeline: ReturnType<typeof usePipelineCore>;
@@ -18,6 +25,7 @@ interface PipelineDetailPanelProps {
 export function PipelineDetailPanel({ pipeline }: PipelineDetailPanelProps) {
   const { selectedDeal } = pipeline;
   const [activeTab, setActiveTab] = useState('overview');
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   console.log('[Pipeline Detail Panel] Rendering with selectedDeal', { 
     hasSelectedDeal: !!selectedDeal,
@@ -122,16 +130,47 @@ export function PipelineDetailPanel({ pipeline }: PipelineDetailPanelProps) {
             </div>
           </div>
           
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => pipeline.setSelectedDeal(null)}
-            className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground rounded-full"
-          >
-            <X className="h-3.5 w-3.5" />
-          </Button>
+          <div className="flex items-center gap-1">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground rounded-full"
+                >
+                  <MoreVertical className="h-3.5 w-3.5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  className="text-destructive focus:text-destructive"
+                  onClick={() => setDeleteDialogOpen(true)}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete Deal
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => pipeline.setSelectedDeal(null)}
+              className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground rounded-full"
+            >
+              <X className="h-3.5 w-3.5" />
+            </Button>
+          </div>
         </div>
       </div>
+
+      {/* Delete confirmation dialog */}
+      <DeleteDealDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        deal={selectedDeal}
+        onDeleted={() => pipeline.setSelectedDeal(null)}
+      />
 
       {/* Minimal tab navigation */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">

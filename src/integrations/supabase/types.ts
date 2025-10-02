@@ -659,6 +659,7 @@ export type Database = {
           is_default: boolean | null
           name: string
           position: number
+          stage_type: string | null
           updated_at: string | null
         }
         Insert: {
@@ -672,6 +673,7 @@ export type Database = {
           is_default?: boolean | null
           name: string
           position: number
+          stage_type?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -685,6 +687,7 @@ export type Database = {
           is_default?: boolean | null
           name?: string
           position?: number
+          stage_type?: string | null
           updated_at?: string | null
         }
         Relationships: []
@@ -777,6 +780,7 @@ export type Database = {
           contact_phone: string | null
           contact_role: string | null
           created_at: string | null
+          deleted_at: string | null
           description: string | null
           expected_close_date: string | null
           fee_agreement_status: string | null
@@ -810,6 +814,7 @@ export type Database = {
           contact_phone?: string | null
           contact_role?: string | null
           created_at?: string | null
+          deleted_at?: string | null
           description?: string | null
           expected_close_date?: string | null
           fee_agreement_status?: string | null
@@ -843,6 +848,7 @@ export type Database = {
           contact_phone?: string | null
           contact_role?: string | null
           created_at?: string | null
+          deleted_at?: string | null
           description?: string | null
           expected_close_date?: string | null
           fee_agreement_status?: string | null
@@ -2482,6 +2488,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      restore_deal: {
+        Args: { deal_id: string }
+        Returns: boolean
+      }
       restore_profile_data_automated: {
         Args: Record<PropertyKey, never>
         Returns: {
@@ -2491,6 +2501,10 @@ export type Database = {
           profile_id: string
           restoration_type: string
         }[]
+      }
+      soft_delete_deal: {
+        Args: { deal_id: string; deletion_reason?: string }
+        Returns: boolean
       }
       soft_delete_listing: {
         Args: { listing_id: string }

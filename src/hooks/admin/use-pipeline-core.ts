@@ -35,9 +35,9 @@ export function usePipelineCore() {
     getCurrentUser();
   }, []);
   
-  // Data fetching
+  // Data fetching - exclude closed stages from main pipeline
   const { data: deals, isLoading: dealsLoading, error: dealsError } = useDeals();
-  const { data: allStages, isLoading: stagesLoading, error: stagesError } = useDealStages();
+  const { data: allStages, isLoading: stagesLoading, error: stagesError } = useDealStages(false); // Exclude closed stages
   const { data: pipelineViews = [] } = usePipelineViews();
   
   // Filter stages based on current view

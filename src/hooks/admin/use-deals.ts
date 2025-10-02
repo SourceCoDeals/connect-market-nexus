@@ -96,6 +96,7 @@ export interface DealStage {
   is_active: boolean;
   is_default: boolean;
   default_probability?: number;
+  stage_type?: 'active' | 'closed_won' | 'closed_lost';
   created_at: string;
   updated_at: string;
 }
@@ -209,15 +210,21 @@ export function useDeals() {
   });
 }
 
-export function useDealStages() {
+export function useDealStages(includeClosedStages = true) {
   return useQuery({
-    queryKey: ['deal-stages'],
+    queryKey: ['deal-stages', includeClosedStages],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('deal_stages')
         .select('*')
-        .eq('is_active', true)
-        .order('position');
+        .eq('is_active', true);
+      
+      // Filter out closed stages unless explicitly requested
+      if (!includeClosedStages) {
+        query = query.eq('stage_type', 'active');
+      }
+      
+      const { data, error } = await query.order('position');
       if (error) throw error;
       return data as DealStage[];
     },
@@ -500,6 +507,69 @@ export function useDeleteDealStage() {
       toast({
         title: 'Error',
         description: `Failed to delete stage: ${error.message}`,
+        variant: 'destructive',
+      });
+    },
+  });
+}
+
+// Soft delete deal
+export function useSoftDeleteDeal() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ dealId, reason }: { dealId: string; reason?: string }) => {
+      const { data, error } = await supabase.rpc('soft_delete_deal', {
+        deal_id: dealId,
+        deletion_reason: reason || null,
+      });
+      
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['deals'] });
+      toast({
+        title: 'Deal Deleted',
+        description: 'Deal has been moved to deleted items.',
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error',
+        description: `Failed to delete deal: ${error.message}`,
+        variant: 'destructive',
+      });
+    },
+  });
+}
+
+// Restore deleted deal
+export function useRestoreDeal() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (dealId: string) => {
+      const { data, error } = await supabase.rpc('restore_deal', {
+        deal_id: dealId,
+      });
+      
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['deals'] });
+      toast({
+        title: 'Deal Restored',
+        description: 'Deal has been restored successfully.',
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error',
+        description: `Failed to restore deal: ${error.message}`,
         variant: 'destructive',
       });
     },
