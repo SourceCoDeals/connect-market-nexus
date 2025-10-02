@@ -48,12 +48,12 @@ import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useDealStages, useCreateDeal } from '@/hooks/admin/use-deals';
 import { useListingsQuery } from '@/hooks/admin/listings/use-listings-query';
-import { useAdminUsers } from '@/hooks/admin/use-admin-users';
+import { useAdminProfiles } from '@/hooks/admin/use-admin-profiles';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
 import { logDealActivity } from '@/lib/deal-activity-logger';
-import { User } from '@/types';
 import { useToast } from '@/hooks/use-toast';
+import { startOfToday } from 'date-fns';
 
 // Schema
 const createDealSchema = z.object({
@@ -70,7 +70,7 @@ const createDealSchema = z.object({
   value: z.number().min(0).optional(),
   probability: z.number().min(0).max(100).optional(),
   expected_close_date: z.date().optional(),
-  assigned_to: z.string().uuid().optional(),
+  assigned_to: z.union([z.string().uuid(), z.literal('')]).optional(),
 });
 
 type CreateDealFormData = z.infer<typeof createDealSchema>;
@@ -92,8 +92,8 @@ interface DuplicateDeal {
 export function CreateDealModal({ open, onOpenChange, prefilledStageId, onDealCreated }: CreateDealModalProps) {
   const { data: stages } = useDealStages();
   const { data: listings } = useListingsQuery('active');
-  const adminUsersHook = useAdminUsers();
-  const { data: adminUsers } = adminUsersHook.useUsers();
+  const { data: adminProfilesMap } = useAdminProfiles();
+  const adminUsers = adminProfilesMap ? Object.values(adminProfilesMap) : [];
   const createDealMutation = useCreateDeal();
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -168,13 +168,15 @@ export function CreateDealModal({ open, onOpenChange, prefilledStageId, onDealCr
 
   const createDeal = async (data: CreateDealFormData) => {
     try {
-      const newDeal = await createDealMutation.mutateAsync({
+      const payload: any = {
         ...data,
         source: 'manual',
         nda_status: 'not_sent',
         fee_agreement_status: 'not_sent',
         buyer_priority_score: 0,
-      } as any);
+        assigned_to: data.assigned_to && data.assigned_to !== '' ? data.assigned_to : null,
+      };
+      const newDeal = await createDealMutation.mutateAsync(payload);
 
       // Log activity
       if (newDeal?.id) {
@@ -524,7 +526,7 @@ export function CreateDealModal({ open, onOpenChange, prefilledStageId, onDealCr
                               mode="single"
                               selected={field.value}
                               onSelect={field.onChange}
-                              disabled={(date) => date < new Date()}
+                              disabled={(date) => date < startOfToday()}
                               initialFocus
                             />
                           </PopoverContent>
@@ -548,7 +550,6 @@ export function CreateDealModal({ open, onOpenChange, prefilledStageId, onDealCr
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="">Unassigned</SelectItem>
                           {adminUsers?.map((admin) => (
                             <SelectItem key={admin.id} value={admin.id}>
                               {admin.first_name} {admin.last_name}
