@@ -12,6 +12,7 @@ export interface Deal {
   deal_probability: number;
   deal_expected_close_date?: string;
   deal_source: string;
+  source?: string; // Aliased for convenience
   deal_created_at: string;
   deal_updated_at: string;
   deal_stage_entered_at: string;
@@ -137,6 +138,7 @@ export function useDeals() {
           deal_probability: Number(row.deal_probability ?? row.probability ?? 50),
           deal_expected_close_date: row.deal_expected_close_date ?? row.expected_close_date,
           deal_source: row.deal_source ?? row.source ?? 'manual',
+          source: row.deal_source ?? row.source ?? 'manual', // Alias for convenience
           deal_created_at: row.deal_created_at ?? row.created_at,
           deal_updated_at: row.deal_updated_at ?? row.updated_at,
           deal_stage_entered_at: row.deal_stage_entered_at ?? row.stage_entered_at ?? row.deal_created_at ?? row.created_at,

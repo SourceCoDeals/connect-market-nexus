@@ -3,11 +3,12 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { CheckSquare, Clock, Building2, User } from 'lucide-react';
+import { CheckSquare, Clock, Building2, User, Globe, FileText, Zap } from 'lucide-react';
 import { Deal } from '@/hooks/admin/use-deals';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
 import { useAdminProfile } from '@/hooks/admin/use-admin-profiles';
+import { useDealStages } from '@/hooks/admin/use-deals';
 
 interface PipelineKanbanCardProps {
   deal: Deal;
@@ -33,6 +34,7 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
   };
   
   const isBeingDragged = isDragging || isSortableDragging;
+  const { data: stages } = useDealStages(true); // Include closed stages to get total count
 
 // Apple/Stripe-style design helpers - Clean, minimal approach
   // Apple/Stripe-style design helpers - Clean, minimal approach
@@ -223,6 +225,42 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
 
   const lastActivity = getLastActivity();
 
+  // Calculate progression bar - current stage position out of total active stages
+  const getProgressionData = () => {
+    if (!stages) return { current: 0, total: 9, percentage: 0 };
+    
+    const activeStages = stages.filter(s => s.stage_type === 'active');
+    const totalStages = activeStages.length + 2; // +2 for closed won/lost
+    const currentStage = activeStages.find(s => s.id === deal.stage_id);
+    const currentPosition = currentStage ? currentStage.position + 1 : 0;
+    
+    return {
+      current: currentPosition,
+      total: totalStages,
+      percentage: (currentPosition / totalStages) * 100
+    };
+  };
+
+  const progression = getProgressionData();
+
+  // Get source badge info
+  const getSourceBadge = () => {
+    const source = deal.source || 'manual';
+    switch (source) {
+      case 'marketplace':
+        return { icon: Globe, label: 'Marketplace', color: 'bg-blue-500/10 text-blue-700 border-blue-500/20' };
+      case 'webflow':
+        return { icon: FileText, label: 'Webflow', color: 'bg-purple-500/10 text-purple-700 border-purple-500/20' };
+      case 'manual':
+        return { icon: Zap, label: 'Manual', color: 'bg-orange-500/10 text-orange-700 border-orange-500/20' };
+      default:
+        return { icon: Globe, label: source, color: 'bg-muted/50 text-muted-foreground border-border/50' };
+    }
+  };
+
+  const sourceBadge = getSourceBadge();
+  const SourceIcon = sourceBadge.icon;
+
   const handleCardClick = () => {
     if (isBeingDragged) {
       console.log('[Pipeline Card] Click ignored - card is being dragged');
@@ -257,6 +295,20 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
       onClick={handleCardClick}
     >
       <CardContent className="p-4 space-y-3">
+        {/* Progression Bar */}
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+            <span className="font-medium">Stage {progression.current} of {progression.total}</span>
+            <span className="font-medium">{Math.round(progression.percentage)}%</span>
+          </div>
+          <div className="w-full h-1.5 bg-muted/30 rounded-full overflow-hidden">
+            <div 
+              className="h-full bg-gradient-to-r from-primary to-primary/80 transition-all duration-300 rounded-full"
+              style={{ width: `${progression.percentage}%` }}
+            />
+          </div>
+        </div>
+
         {/* Header with priority indicator and clean typography */}
         <div className="flex items-start justify-between">
           <div className="flex-1 min-w-0 space-y-1">
@@ -275,6 +327,10 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
               </div>
               <Badge className={cn("text-[10px] px-2 py-0.5 font-semibold border", getBuyerTypeColor(actualBuyerType))}>
                 {getBuyerTypeLabel(actualBuyerType)}
+              </Badge>
+              <Badge className={cn("text-[10px] px-2 py-0.5 font-semibold border flex items-center gap-1", sourceBadge.color)}>
+                <SourceIcon className="w-2.5 h-2.5" />
+                {sourceBadge.label}
               </Badge>
             </div>
           </div>
