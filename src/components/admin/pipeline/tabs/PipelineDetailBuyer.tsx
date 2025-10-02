@@ -428,6 +428,9 @@ export function PipelineDetailBuyer({ deal }: PipelineDetailBuyerProps) {
                         <div className="flex-1 min-w-0">
                           <p className="text-sm text-foreground truncate">
                             {request.listings?.title || 'Unknown Listing'}
+                            {request.listings?.real_company_name && (
+                              <span className="text-muted-foreground"> / {request.listings.real_company_name}</span>
+                            )}
                           </p>
                           <div className="flex items-center gap-3 mt-1">
                             <span className="text-xs text-muted-foreground font-mono">

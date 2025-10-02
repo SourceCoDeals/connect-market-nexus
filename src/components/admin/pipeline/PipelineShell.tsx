@@ -35,12 +35,13 @@ export function PipelineShell() {
         .pipeline-shell {
           display: grid;
           grid-template-areas: 
-            "header header"
-            "workspace detail";
-          grid-template-columns: 1fr auto;
+            "header"
+            "workspace";
+          grid-template-columns: 1fr;
           grid-template-rows: auto 1fr;
           height: 100vh;
           background: hsl(var(--background));
+          position: relative;
         }
         
         @media (max-width: 1024px) {
@@ -83,7 +84,7 @@ export function PipelineShell() {
       
       {/* Detail Panel */}
       {(!pipeline.isMobile && pipeline.selectedDeal) && (
-        <div className="pipeline-detail relative z-50">
+        <div className="fixed top-0 right-0 bottom-0 z-50 flex justify-end">
           <PipelineDetailPanel pipeline={pipeline} />
         </div>
       )}
