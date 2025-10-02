@@ -19,6 +19,20 @@ export function PipelineShell() {
     setPrefilledStageId(stageId);
     setIsCreateDealModalOpen(true);
   };
+
+  const handleDealCreated = (dealId: string) => {
+    // Auto-select the newly created deal to open its detail panel
+    const createdDeal = pipeline.deals.find(d => d.deal_id === dealId);
+    if (createdDeal) {
+      pipeline.setSelectedDeal(createdDeal);
+    } else {
+      // If not found immediately (due to query timing), wait a bit and try again
+      setTimeout(() => {
+        const deal = pipeline.deals.find(d => d.deal_id === dealId);
+        if (deal) pipeline.setSelectedDeal(deal);
+      }, 500);
+    }
+  };
   
   if (pipeline.isLoading) {
     return (
@@ -107,6 +121,7 @@ export function PipelineShell() {
         open={isCreateDealModalOpen}
         onOpenChange={setIsCreateDealModalOpen}
         prefilledStageId={prefilledStageId}
+        onDealCreated={handleDealCreated}
       />
     </div>
   );

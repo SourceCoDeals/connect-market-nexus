@@ -53,6 +53,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
 import { logDealActivity } from '@/lib/deal-activity-logger';
 import { User } from '@/types';
+import { useToast } from '@/hooks/use-toast';
 
 // Schema
 const createDealSchema = z.object({
@@ -78,6 +79,7 @@ interface CreateDealModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   prefilledStageId?: string;
+  onDealCreated?: (dealId: string) => void;
 }
 
 interface DuplicateDeal {
@@ -87,13 +89,14 @@ interface DuplicateDeal {
   created_at: string;
 }
 
-export function CreateDealModal({ open, onOpenChange, prefilledStageId }: CreateDealModalProps) {
+export function CreateDealModal({ open, onOpenChange, prefilledStageId, onDealCreated }: CreateDealModalProps) {
   const { data: stages } = useDealStages();
   const { data: listings } = useListingsQuery('active');
   const adminUsersHook = useAdminUsers();
   const { data: adminUsers } = adminUsersHook.useUsers();
   const createDealMutation = useCreateDeal();
   const queryClient = useQueryClient();
+  const { toast } = useToast();
   
   const [duplicates, setDuplicates] = useState<DuplicateDeal[]>([]);
   const [showDuplicateWarning, setShowDuplicateWarning] = useState(false);
@@ -168,6 +171,9 @@ export function CreateDealModal({ open, onOpenChange, prefilledStageId }: Create
       const newDeal = await createDealMutation.mutateAsync({
         ...data,
         source: 'manual',
+        nda_status: 'not_sent',
+        fee_agreement_status: 'not_sent',
+        buyer_priority_score: 0,
       } as any);
 
       // Log activity
@@ -184,11 +190,23 @@ export function CreateDealModal({ open, onOpenChange, prefilledStageId }: Create
       queryClient.invalidateQueries({ queryKey: ['deals'] });
       queryClient.invalidateQueries({ queryKey: ['deal-stages'] });
 
+      // Show success toast (useCreateDeal already shows one, so we suppress it)
+      toast({
+        title: 'Deal Created',
+        description: `"${data.title}" has been added to your pipeline.`,
+      });
+
+      // Auto-select the newly created deal
+      if (newDeal?.id && onDealCreated) {
+        onDealCreated(newDeal.id);
+      }
+
       // Reset and close
       form.reset();
       onOpenChange(false);
     } catch (error) {
       console.error('Error creating deal:', error);
+      // Error toast already shown by useCreateDeal
     }
   };
 
@@ -210,7 +228,7 @@ export function CreateDealModal({ open, onOpenChange, prefilledStageId }: Create
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl max-h-[90vh] md:max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Create New Deal</DialogTitle>
             <DialogDescription>
@@ -231,7 +249,11 @@ export function CreateDealModal({ open, onOpenChange, prefilledStageId }: Create
                     <FormItem>
                       <FormLabel>Deal Title *</FormLabel>
                       <FormControl>
-                        <Input placeholder="e.g., Acquisition opportunity with ABC Corp" {...field} />
+                        <Input 
+                          placeholder="e.g., Acquisition opportunity with ABC Corp" 
+                          autoFocus
+                          {...field} 
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

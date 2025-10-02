@@ -398,10 +398,7 @@ export function useCreateDeal() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['deals'] });
-      toast({
-        title: 'Deal Created',
-        description: 'Deal has been created successfully.',
-      });
+      // Toast is now handled in CreateDealModal for better control
     },
     onError: (error) => {
       toast({
