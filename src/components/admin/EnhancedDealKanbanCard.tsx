@@ -87,10 +87,10 @@ export function EnhancedDealKanbanCard({ deal, isDragging, onClick }: EnhancedDe
     <Card 
       ref={setNodeRef}
       style={style}
-      className={`cursor-pointer transition-all duration-200 border ${
+      className={`cursor-pointer transition-all duration-200 border-2 ${
         isDragging 
-          ? 'shadow-lg shadow-black/10 border-primary bg-white/95 backdrop-blur-sm scale-[1.02] z-50' 
-          : 'bg-white/95 backdrop-blur-sm border-border/40 hover:border-border hover:bg-white hover:shadow-md hover:shadow-black/5 hover:-translate-y-0.5'
+          ? 'shadow-xl shadow-black/15 border-[hsl(var(--sourceco-primary))] bg-white scale-[1.02] z-50 opacity-95' 
+          : 'bg-white border-border/60 hover:border-[hsl(var(--sourceco-primary))]/40 hover:shadow-lg hover:shadow-black/5 hover:-translate-y-0.5'
       }`}
       {...attributes}
       {...listeners}
