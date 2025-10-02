@@ -429,7 +429,18 @@ export function PipelineDetailBuyer({ deal }: PipelineDetailBuyerProps) {
                           <p className="text-sm text-foreground truncate">
                             {request.listings?.title || 'Unknown Listing'}
                             {request.listings?.internal_company_name && (
-                              <span className="text-muted-foreground"> / {request.listings.internal_company_name}</span>
+                              <span className="text-muted-foreground">
+                                {' / '}
+                                <a
+                                  href={`/listing/${request.listings.id}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="hover:text-foreground hover:underline transition-colors"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  {request.listings.internal_company_name}
+                                </a>
+                              </span>
                             )}
                           </p>
                           <div className="flex items-center gap-3 mt-1">
@@ -480,7 +491,18 @@ export function PipelineDetailBuyer({ deal }: PipelineDetailBuyerProps) {
                           <p className="text-sm text-foreground truncate">
                             {saved.listings?.title || 'Unknown Listing'}
                             {saved.listings?.internal_company_name && (
-                              <span className="text-muted-foreground"> / {saved.listings.internal_company_name}</span>
+                              <span className="text-muted-foreground">
+                                {' / '}
+                                <a
+                                  href={`/listing/${saved.listings.id}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="hover:text-foreground hover:underline transition-colors"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  {saved.listings.internal_company_name}
+                                </a>
+                              </span>
                             )}
                           </p>
                           <div className="flex items-center gap-3 mt-1">
