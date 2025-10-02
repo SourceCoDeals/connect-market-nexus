@@ -66,7 +66,7 @@ export function PipelineDetailBuyer({ deal }: PipelineDetailBuyerProps) {
         .from('connection_requests')
         .select(`
           *,
-          listings:listing_id(title, id, revenue, location)
+          listings:listing_id(title, id, revenue, location, real_company_name)
         `)
         .eq('lead_email', deal.contact_email)
         .order('created_at', { ascending: false });
@@ -88,7 +88,7 @@ export function PipelineDetailBuyer({ deal }: PipelineDetailBuyerProps) {
         .from('saved_listings')
         .select(`
           *,
-          listings:listing_id(title, id, revenue, location)
+          listings:listing_id(title, id, revenue, location, real_company_name)
         `)
         .eq('user_id', buyerProfile.user_id)
         .order('created_at', { ascending: false });
@@ -479,6 +479,9 @@ export function PipelineDetailBuyer({ deal }: PipelineDetailBuyerProps) {
                         <div className="flex-1 min-w-0">
                           <p className="text-sm text-foreground truncate">
                             {saved.listings?.title || 'Unknown Listing'}
+                            {saved.listings?.real_company_name && (
+                              <span className="text-muted-foreground"> / {saved.listings.real_company_name}</span>
+                            )}
                           </p>
                           <div className="flex items-center gap-3 mt-1">
                             <span className="text-xs text-muted-foreground font-mono">

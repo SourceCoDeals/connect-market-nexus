@@ -29,7 +29,7 @@ export function PipelineDetailPanel({ pipeline }: PipelineDetailPanelProps) {
 
   if (!selectedDeal) {
     return (
-      <div className="w-full max-w-4xl border-l bg-background flex items-center justify-center shadow-2xl">
+      <div className="w-[800px] border-l bg-background flex items-center justify-center shadow-2xl flex-shrink-0">
         <div className="text-center space-y-4">
           <div className="w-16 h-16 mx-auto bg-muted/10 rounded-2xl flex items-center justify-center">
             <div className="w-8 h-8 bg-muted/30 rounded-xl" />
@@ -76,7 +76,7 @@ export function PipelineDetailPanel({ pipeline }: PipelineDetailPanelProps) {
   const buyerPriority = getBuyerPriority(selectedDeal.buyer_type, selectedDeal.buyer_priority_score);
 
   return (
-    <div className="w-full max-w-4xl border-l bg-background flex flex-col min-h-0 shadow-2xl">
+    <div className="w-[800px] border-l bg-background flex flex-col min-h-0 shadow-2xl flex-shrink-0">
       {/* Ultra-minimal Apple header */}
       <div className="px-8 py-6">
         <div className="flex items-start justify-between">
