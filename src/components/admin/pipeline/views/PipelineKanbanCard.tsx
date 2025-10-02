@@ -291,8 +291,8 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
       {...attributes}
       className={cn(
         "group relative mb-3 cursor-pointer transition-all duration-200 ease-out",
-        "bg-gradient-to-br from-white to-gray-50/30 border-2 border-border/70 rounded-lg shadow-md",
-        "hover:shadow-xl hover:shadow-black/8 hover:border-[hsl(var(--sourceco-primary))]/50 hover:-translate-y-0.5 hover:from-white hover:to-white",
+        "bg-white border-2 border-border/70 rounded-lg shadow-md",
+        "hover:shadow-xl hover:shadow-black/8 hover:border-[hsl(var(--sourceco-primary))]/50 hover:-translate-y-0.5",
         isBeingDragged && "shadow-2xl shadow-black/20 scale-[1.02] z-50 border-[hsl(var(--sourceco-primary))] bg-white opacity-95"
       )}
       onClick={handleCardClick}
@@ -311,7 +311,7 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
                 <Building2 className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
                 <span className="text-xs font-medium text-gray-700 truncate">{companyName}</span>
                 {companyDealCount > 1 && (
-                  <Badge className="text-[10px] px-2 py-0.5 h-4.5 bg-[hsl(var(--sourceco-primary))] text-white border-0 font-bold shadow-sm">
+                  <Badge className="text-[10px] px-2 py-0.5 h-4.5 bg-muted/40 text-foreground border border-border font-semibold">
                     {companyDealCount} active
                   </Badge>
                 )}
