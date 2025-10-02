@@ -46,24 +46,24 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
     return !Number.isNaN(time);
   };
   const getBuyerTypeColor = (buyerType?: string) => {
-    if (!buyerType) return 'bg-[hsl(var(--buyer-individual))] text-[hsl(var(--buyer-individual-foreground))] border-[hsl(var(--buyer-individual-border))]';
+    if (!buyerType) return 'bg-gray-50 text-gray-600 border-gray-200';
     
     const type = buyerType.toLowerCase().replace(/[^a-z]/g, '');
     switch (type) {
       case 'privateequity':
-        return 'bg-[hsl(var(--buyer-pe))] text-[hsl(var(--buyer-pe-foreground))] border-[hsl(var(--buyer-pe-border))]';
+        return 'bg-gray-50 text-gray-700 border-gray-200';
       case 'familyoffice':
-        return 'bg-[hsl(var(--buyer-family))] text-[hsl(var(--buyer-family-foreground))] border-[hsl(var(--buyer-family-border))]';
+        return 'bg-gray-50 text-gray-700 border-gray-200';
       case 'searchfund':
-        return 'bg-[hsl(var(--buyer-search))] text-[hsl(var(--buyer-search-foreground))] border-[hsl(var(--buyer-search-border))]';
+        return 'bg-gray-50 text-gray-700 border-gray-200';
       case 'corporate':
-        return 'bg-[hsl(var(--buyer-corporate))] text-[hsl(var(--buyer-corporate-foreground))] border-[hsl(var(--buyer-corporate-border))]';
+        return 'bg-gray-50 text-gray-700 border-gray-200';
       case 'individual':
-        return 'bg-[hsl(var(--buyer-individual))] text-[hsl(var(--buyer-individual-foreground))] border-[hsl(var(--buyer-individual-border))]';
+        return 'bg-gray-50 text-gray-700 border-gray-200';
       case 'independentsponsor':
-        return 'bg-[hsl(var(--buyer-sponsor))] text-[hsl(var(--buyer-sponsor-foreground))] border-[hsl(var(--buyer-sponsor-border))]';
+        return 'bg-gray-50 text-gray-700 border-gray-200';
       default:
-        return 'bg-[hsl(var(--buyer-individual))] text-[hsl(var(--buyer-individual-foreground))] border-[hsl(var(--buyer-individual-border))]';
+        return 'bg-gray-50 text-gray-700 border-gray-200';
     }
   };
 
@@ -93,27 +93,27 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
     switch (status) {
       case 'signed':
         return { 
-          color: 'bg-[hsl(var(--status-signed-border))]', 
+          color: 'bg-emerald-500', 
           label: 'Signed',
-          textColor: 'text-[hsl(var(--status-signed-foreground))]'
+          textColor: 'text-emerald-700'
         };
       case 'sent':
         return { 
-          color: 'bg-[hsl(var(--status-sent-border))]', 
+          color: 'bg-amber-500', 
           label: 'Sent',
-          textColor: 'text-[hsl(var(--status-sent-foreground))]'
+          textColor: 'text-amber-700'
         };
       case 'declined':
         return { 
-          color: 'bg-[hsl(var(--status-declined-border))]', 
+          color: 'bg-red-500', 
           label: 'Declined',
-          textColor: 'text-[hsl(var(--status-declined-foreground))]'
+          textColor: 'text-red-700'
         };
       default:
         return { 
-          color: 'bg-[hsl(var(--status-pending-border))]', 
+          color: 'bg-gray-400', 
           label: 'Not Sent',
-          textColor: 'text-[hsl(var(--status-pending-foreground))]'
+          textColor: 'text-gray-600'
         };
     }
   };
@@ -124,16 +124,16 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
       case 'privateEquity':
       case 'familyOffice':
       case 'corporate':
-        return { level: 'High', dot: 'bg-[hsl(var(--status-signed-border))]' };
+        return { level: 'High', dot: 'bg-emerald-500' };
       case 'searchFund':
       case 'independentSponsor':
-        return { level: 'Medium', dot: 'bg-[hsl(var(--status-sent-border))]' };
+        return { level: 'Medium', dot: 'bg-amber-500' };
       case 'individual':
-        if (score && score >= 70) return { level: 'High', dot: 'bg-[hsl(var(--status-signed-border))]' };
-        if (score && score >= 40) return { level: 'Medium', dot: 'bg-[hsl(var(--status-sent-border))]' };
-        return { level: 'Standard', dot: 'bg-[hsl(var(--status-pending-border))]' };
+        if (score && score >= 70) return { level: 'High', dot: 'bg-emerald-500' };
+        if (score && score >= 40) return { level: 'Medium', dot: 'bg-amber-500' };
+        return { level: 'Standard', dot: 'bg-gray-400' };
       default:
-        return { level: 'Standard', dot: 'bg-[hsl(var(--status-pending-border))]' };
+        return { level: 'Standard', dot: 'bg-gray-400' };
     }
   };
 
@@ -308,12 +308,12 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
       {...attributes}
       className={cn(
         "group relative mb-3 cursor-pointer transition-all duration-300 ease-out",
-        "bg-white/95 backdrop-blur-sm border border-border/40 rounded-lg shadow-sm",
-        "hover:shadow-md hover:shadow-black/5 hover:border-border hover:-translate-y-0.5",
-        "hover:bg-white hover:backdrop-blur-md",
-        isBeingDragged && "shadow-lg shadow-black/10 scale-[1.02] z-50 border-[hsl(var(--sourceco-primary))] bg-white/95 opacity-90",
-        buyerPriority.level === 'High' && "ring-1 ring-[hsl(var(--status-signed-border))]/20",
-        buyerPriority.level === 'Medium' && "ring-1 ring-[hsl(var(--status-sent-border))]/20"
+        "bg-white/95 backdrop-blur-sm border border-border/60 rounded-xl shadow-sm",
+        "hover:shadow-lg hover:shadow-black/5 hover:border-border hover:-translate-y-1",
+        "hover:bg-white/98 hover:backdrop-blur-md",
+        isBeingDragged && "rotate-1 shadow-xl shadow-black/10 scale-[1.02] z-50 border-primary/30 bg-white opacity-50",
+        buyerPriority.level === 'High' && "ring-1 ring-emerald-200/50 shadow-emerald-100/20",
+        buyerPriority.level === 'Medium' && "ring-1 ring-amber-200/50 shadow-amber-100/20"
       )}
       onClick={handleCardClick}
       onMouseEnter={() => setIsHovered(true)}
@@ -336,7 +336,7 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
                   </Badge>
                 )}
               </div>
-              <Badge className={cn("text-[10px] px-2 py-0.5 font-semibold border", getBuyerTypeColor(actualBuyerType))}>
+              <Badge className={cn("text-xs px-2 py-0.5 font-medium border rounded-md", getBuyerTypeColor(actualBuyerType))}>
                 {getBuyerTypeLabel(actualBuyerType)}
               </Badge>
             </div>
@@ -360,13 +360,13 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
         <div className="flex items-center gap-4 text-xs">
           <div className="flex items-center gap-1.5">
             <div className={cn('w-1.5 h-1.5 rounded-full', 
-              deal.nda_status === 'signed' ? 'bg-[hsl(var(--status-signed-border))]' :
-              deal.nda_status === 'sent' ? 'bg-[hsl(var(--status-sent-border))]' : 'bg-[hsl(var(--status-pending-border))]'
+              deal.nda_status === 'signed' ? 'bg-emerald-500' :
+              deal.nda_status === 'sent' ? 'bg-slate-400' : 'bg-slate-300'
             )} />
-            <span className="text-muted-foreground">NDA:</span>
+            <span className="text-slate-500">NDA:</span>
             <span className={cn('font-medium',
-              deal.nda_status === 'signed' ? 'text-[hsl(var(--status-signed-foreground))]' :
-              deal.nda_status === 'sent' ? 'text-[hsl(var(--status-sent-foreground))]' : 'text-[hsl(var(--status-pending-foreground))]'
+              deal.nda_status === 'signed' ? 'text-emerald-700' :
+              deal.nda_status === 'sent' ? 'text-slate-600' : 'text-slate-500'
             )}>
               {ndaStatus.label}
             </span>
@@ -374,13 +374,13 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
           
           <div className="flex items-center gap-1.5">
             <div className={cn('w-1.5 h-1.5 rounded-full',
-              deal.fee_agreement_status === 'signed' ? 'bg-[hsl(var(--status-signed-border))]' :
-              deal.fee_agreement_status === 'sent' ? 'bg-[hsl(var(--status-sent-border))]' : 'bg-[hsl(var(--status-pending-border))]'
+              deal.fee_agreement_status === 'signed' ? 'bg-emerald-500' :
+              deal.fee_agreement_status === 'sent' ? 'bg-slate-400' : 'bg-slate-300'
             )} />
-            <span className="text-muted-foreground">Fee:</span>
+            <span className="text-slate-500">Fee:</span>
             <span className={cn('font-medium',
-              deal.fee_agreement_status === 'signed' ? 'text-[hsl(var(--status-signed-foreground))]' :
-              deal.fee_agreement_status === 'sent' ? 'text-[hsl(var(--status-sent-foreground))]' : 'text-[hsl(var(--status-pending-foreground))]'
+              deal.fee_agreement_status === 'signed' ? 'text-emerald-700' :
+              deal.fee_agreement_status === 'sent' ? 'text-slate-600' : 'text-slate-500'
             )}>
               {feeStatus.label}
             </span>
@@ -406,9 +406,9 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
         {/* Next Action & Last Activity */}
         <div className="space-y-2 text-xs">
           <div className="flex items-center gap-1.5">
-            <div className="w-1.5 h-1.5 rounded-full bg-[hsl(var(--sourceco-primary))]" />
+            <div className="w-1.5 h-1.5 rounded-full bg-primary/60" />
             <span className="text-muted-foreground">Next:</span>
-            <span className="font-medium text-foreground">{nextAction}</span>
+            <span className="font-medium text-primary">{nextAction}</span>
           </div>
           <div className="flex items-center gap-1.5">
             <Clock className="w-3 h-3 text-muted-foreground" />
@@ -436,25 +436,25 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
             <button
               onClick={handleEmailClick}
               disabled={logContact.isPending}
-              className="h-7 w-7 p-0 bg-white border border-border rounded-md shadow-sm hover:shadow-md flex items-center justify-center transition-all duration-200 hover:bg-[hsl(var(--sourceco-muted))]"
+              className="h-7 w-7 p-0 bg-white border border-gray-200 rounded-md shadow-sm hover:shadow-md flex items-center justify-center transition-all duration-200 hover:bg-gray-50"
               title="Send Email"
             >
-              <Mail className="h-3 w-3 text-muted-foreground" />
+              <Mail className="h-3 w-3 text-gray-500" />
             </button>
             <button
               onClick={handlePhoneClick}
               disabled={logContact.isPending}
-              className="h-7 w-7 p-0 bg-white border border-border rounded-md shadow-sm hover:shadow-md flex items-center justify-center transition-all duration-200 hover:bg-[hsl(var(--sourceco-muted))]"
+              className="h-7 w-7 p-0 bg-white border border-gray-200 rounded-md shadow-sm hover:shadow-md flex items-center justify-center transition-all duration-200 hover:bg-gray-50"
               title="Log Call"
             >
-              <Phone className="h-3 w-3 text-muted-foreground" />
+              <Phone className="h-3 w-3 text-gray-500" />
             </button>
             <button
               onClick={handleEditClick}
-              className="h-7 w-7 p-0 bg-white border border-border rounded-md shadow-sm hover:shadow-md flex items-center justify-center transition-all duration-200 hover:bg-[hsl(var(--sourceco-muted))]"
+              className="h-7 w-7 p-0 bg-white border border-gray-200 rounded-md shadow-sm hover:shadow-md flex items-center justify-center transition-all duration-200 hover:bg-gray-50"
               title="View Details"
             >
-              <Edit className="h-3 w-3 text-muted-foreground" />
+              <Edit className="h-3 w-3 text-gray-500" />
             </button>
           </div>
         )}
