@@ -89,8 +89,8 @@ export function EnhancedDealKanbanCard({ deal, isDragging, onClick }: EnhancedDe
       style={style}
       className={`cursor-pointer transition-all duration-200 border-2 ${
         isDragging 
-          ? 'shadow-xl shadow-black/15 border-[hsl(var(--sourceco-primary))] bg-white scale-[1.02] z-50 opacity-95' 
-          : 'bg-white border-border/60 hover:border-[hsl(var(--sourceco-primary))]/40 hover:shadow-lg hover:shadow-black/5 hover:-translate-y-0.5'
+          ? 'shadow-2xl shadow-black/20 border-[hsl(var(--sourceco-primary))] bg-white scale-[1.02] z-50 opacity-95' 
+          : 'bg-gradient-to-br from-white to-gray-50/30 border-border/70 hover:border-[hsl(var(--sourceco-primary))]/50 hover:shadow-xl hover:shadow-black/8 hover:-translate-y-0.5 hover:from-white hover:to-white'
       }`}
       {...attributes}
       {...listeners}
