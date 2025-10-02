@@ -45,9 +45,10 @@ import { useAdminProfiles } from '@/hooks/admin/use-admin-profiles';
 
 interface PipelineHeaderProps {
   pipeline: ReturnType<typeof usePipelineCore>;
+  onOpenCreateDeal: () => void;
 }
 
-export function PipelineHeader({ pipeline }: PipelineHeaderProps) {
+export function PipelineHeader({ pipeline, onOpenCreateDeal }: PipelineHeaderProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { data: adminProfiles } = useAdminProfiles();
 
@@ -133,7 +134,7 @@ export function PipelineHeader({ pipeline }: PipelineHeaderProps) {
             </SelectContent>
           </Select>
 
-          <Button size="sm" className="gap-2">
+          <Button size="sm" className="gap-2" onClick={onOpenCreateDeal}>
             <Plus className="h-4 w-4" />
             New Deal
           </Button>
@@ -396,7 +397,7 @@ export function PipelineHeader({ pipeline }: PipelineHeaderProps) {
             </Button>
           </div>
 
-          <Button size="sm" className="w-full">
+          <Button size="sm" className="w-full" onClick={onOpenCreateDeal}>
             <Plus className="h-4 w-4 mr-2" />
             New Deal
           </Button>

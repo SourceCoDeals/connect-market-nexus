@@ -21,9 +21,10 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface PipelineKanbanViewProps {
   pipeline: ReturnType<typeof usePipelineCore>;
+  onOpenCreateDeal?: (stageId?: string) => void;
 }
 
-export function PipelineKanbanView({ pipeline }: PipelineKanbanViewProps) {
+export function PipelineKanbanView({ pipeline, onOpenCreateDeal }: PipelineKanbanViewProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [scrollPosition, setScrollPosition] = useState(0);
   const updateDealStage = useUpdateDealStage();
@@ -183,6 +184,7 @@ export function PipelineKanbanView({ pipeline }: PipelineKanbanViewProps) {
                     stage={stage}
                     deals={pipeline.dealsByStage[stage.id] || []}
                     onDealClick={pipeline.handleDealSelect}
+                    onOpenCreateDeal={onOpenCreateDeal}
                   />
                 </div>
               ))}

@@ -24,9 +24,10 @@ interface PipelineKanbanColumnProps {
   stage: StageWithMetrics;
   deals: Deal[];
   onDealClick: (deal: Deal) => void;
+  onOpenCreateDeal?: (stageId: string) => void;
 }
 
-export function PipelineKanbanColumn({ stage, deals, onDealClick }: PipelineKanbanColumnProps) {
+export function PipelineKanbanColumn({ stage, deals, onDealClick, onOpenCreateDeal }: PipelineKanbanColumnProps) {
   const { setNodeRef, isOver } = useDroppable({
     id: `stage:${stage.id}`,
   });
@@ -99,6 +100,7 @@ export function PipelineKanbanColumn({ stage, deals, onDealClick }: PipelineKanb
           <Button
             variant="ghost"
             className="w-full h-12 border-2 border-dashed border-border/50 text-muted-foreground hover:text-foreground hover:border-border transition-colors"
+            onClick={() => onOpenCreateDeal?.(stage.id)}
           >
             <Plus className="h-4 w-4 mr-2" />
             <span className="hidden sm:inline">Add Deal</span>

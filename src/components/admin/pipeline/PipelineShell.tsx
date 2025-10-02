@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { usePipelineCore } from '@/hooks/admin/use-pipeline-core';
 import { PipelineHeader } from './PipelineHeader';
 import { PipelineWorkspace } from './PipelineWorkspace';
@@ -6,11 +6,19 @@ import { PipelineDetailPanel } from './PipelineDetailPanel';
 import { PipelineFilterPanel } from './PipelineFilterPanel';
 import { ActiveFilterChips } from './ActiveFilterChips';
 import { Skeleton } from '@/components/ui/skeleton';
+import { CreateDealModal } from '@/components/admin/CreateDealModal';
 
 
 
 export function PipelineShell() {
   const pipeline = usePipelineCore();
+  const [isCreateDealModalOpen, setIsCreateDealModalOpen] = useState(false);
+  const [prefilledStageId, setPrefilledStageId] = useState<string | undefined>(undefined);
+
+  const handleOpenCreateDeal = (stageId?: string) => {
+    setPrefilledStageId(stageId);
+    setIsCreateDealModalOpen(true);
+  };
   
   if (pipeline.isLoading) {
     return (
@@ -61,7 +69,8 @@ export function PipelineShell() {
       {/* Header */}
       <div className="pipeline-header">
         <PipelineHeader 
-          pipeline={pipeline} 
+          pipeline={pipeline}
+          onOpenCreateDeal={() => handleOpenCreateDeal()}
         />
         {/* Active Filter Chips */}
         <ActiveFilterChips pipeline={pipeline} />
@@ -70,7 +79,8 @@ export function PipelineShell() {
       {/* Main Workspace */}
       <div className="pipeline-workspace">
         <PipelineWorkspace 
-          pipeline={pipeline} 
+          pipeline={pipeline}
+          onOpenCreateDeal={handleOpenCreateDeal}
         />
       </div>
       
@@ -91,6 +101,13 @@ export function PipelineShell() {
       
       {/* Filter Panel Overlay */}
       <PipelineFilterPanel pipeline={pipeline} />
+
+      {/* Create Deal Modal */}
+      <CreateDealModal 
+        open={isCreateDealModalOpen}
+        onOpenChange={setIsCreateDealModalOpen}
+        prefilledStageId={prefilledStageId}
+      />
     </div>
   );
 }
