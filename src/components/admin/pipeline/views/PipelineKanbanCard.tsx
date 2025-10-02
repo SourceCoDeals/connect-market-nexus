@@ -225,19 +225,32 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
 
   const lastActivity = getLastActivity();
 
-  // Calculate progression bar - current stage position out of total active stages
+  // Calculate progression bar - current stage position out of 12 total stages
   const getProgressionData = () => {
-    if (!stages) return { current: 0, total: 9, percentage: 0 };
+    if (!stages) return { current: 0, total: 12, percentage: 0 };
     
+    // We have 12 stages total: 10 active stages (positions 0-9) + Closed Won (10) + Closed Lost (11)
     const activeStages = stages.filter(s => s.stage_type === 'active');
-    const totalStages = activeStages.length + 2; // +2 for closed won/lost
+    const totalStages = activeStages.length + 2; // +2 for closed won/lost (should be 12)
+    
+    // Find current stage and get its position
     const currentStage = activeStages.find(s => s.id === deal.stage_id);
-    const currentPosition = currentStage ? currentStage.position + 1 : 0;
+    
+    // Check if it's a closed stage
+    const closedStage = stages.find(s => s.id === deal.stage_id && s.stage_type !== 'active');
+    
+    let currentPosition = 0;
+    if (currentStage) {
+      currentPosition = currentStage.position + 1; // +1 because positions are 0-indexed
+    } else if (closedStage) {
+      // If it's Closed Won or Closed Lost, use their positions
+      currentPosition = closedStage.position + 1;
+    }
     
     return {
       current: currentPosition,
       total: totalStages,
-      percentage: (currentPosition / totalStages) * 100
+      percentage: totalStages > 0 ? (currentPosition / totalStages) * 100 : 0
     };
   };
 
