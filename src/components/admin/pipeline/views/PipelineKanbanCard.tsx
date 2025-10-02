@@ -46,25 +46,8 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
     return !Number.isNaN(time);
   };
   const getBuyerTypeColor = (buyerType?: string) => {
-    if (!buyerType) return 'bg-gray-50 text-gray-600 border-gray-200';
-    
-    const type = buyerType.toLowerCase().replace(/[^a-z]/g, '');
-    switch (type) {
-      case 'privateequity':
-        return 'bg-gray-50 text-gray-700 border-gray-200';
-      case 'familyoffice':
-        return 'bg-gray-50 text-gray-700 border-gray-200';
-      case 'searchfund':
-        return 'bg-gray-50 text-gray-700 border-gray-200';
-      case 'corporate':
-        return 'bg-gray-50 text-gray-700 border-gray-200';
-      case 'individual':
-        return 'bg-gray-50 text-gray-700 border-gray-200';
-      case 'independentsponsor':
-        return 'bg-gray-50 text-gray-700 border-gray-200';
-      default:
-        return 'bg-gray-50 text-gray-700 border-gray-200';
-    }
+    // Uniform styling for all buyer types - clean and minimal
+    return 'bg-muted/50 text-muted-foreground border-border/50';
   };
 
   const getBuyerTypeLabel = (buyerType?: string) => {
@@ -93,27 +76,27 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
     switch (status) {
       case 'signed':
         return { 
-          color: 'bg-emerald-500', 
+          color: 'bg-secondary', 
           label: 'Signed',
-          textColor: 'text-emerald-700'
+          textColor: 'text-secondary-foreground'
         };
       case 'sent':
         return { 
-          color: 'bg-amber-500', 
+          color: 'bg-accent', 
           label: 'Sent',
-          textColor: 'text-amber-700'
+          textColor: 'text-accent-foreground'
         };
       case 'declined':
         return { 
-          color: 'bg-red-500', 
+          color: 'bg-destructive/60', 
           label: 'Declined',
-          textColor: 'text-red-700'
+          textColor: 'text-destructive-foreground'
         };
       default:
         return { 
-          color: 'bg-gray-400', 
+          color: 'bg-muted', 
           label: 'Not Sent',
-          textColor: 'text-gray-600'
+          textColor: 'text-muted-foreground'
         };
     }
   };
@@ -124,16 +107,16 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
       case 'privateEquity':
       case 'familyOffice':
       case 'corporate':
-        return { level: 'High', dot: 'bg-emerald-500' };
+        return { level: 'High', dot: 'bg-primary' };
       case 'searchFund':
       case 'independentSponsor':
-        return { level: 'Medium', dot: 'bg-amber-500' };
+        return { level: 'Medium', dot: 'bg-accent' };
       case 'individual':
-        if (score && score >= 70) return { level: 'High', dot: 'bg-emerald-500' };
-        if (score && score >= 40) return { level: 'Medium', dot: 'bg-amber-500' };
-        return { level: 'Standard', dot: 'bg-gray-400' };
+        if (score && score >= 70) return { level: 'High', dot: 'bg-primary' };
+        if (score && score >= 40) return { level: 'Medium', dot: 'bg-accent' };
+        return { level: 'Standard', dot: 'bg-muted-foreground' };
       default:
-        return { level: 'Standard', dot: 'bg-gray-400' };
+        return { level: 'Standard', dot: 'bg-muted-foreground' };
     }
   };
 
@@ -307,13 +290,11 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
       {...listeners}
       {...attributes}
       className={cn(
-        "group relative mb-3 cursor-pointer transition-all duration-300 ease-out",
-        "bg-white/95 backdrop-blur-sm border border-border/60 rounded-xl shadow-sm",
-        "hover:shadow-lg hover:shadow-black/5 hover:border-border hover:-translate-y-1",
-        "hover:bg-white/98 hover:backdrop-blur-md",
-        isBeingDragged && "rotate-1 shadow-xl shadow-black/10 scale-[1.02] z-50 border-primary/30 bg-white opacity-50",
-        buyerPriority.level === 'High' && "ring-1 ring-emerald-200/50 shadow-emerald-100/20",
-        buyerPriority.level === 'Medium' && "ring-1 ring-amber-200/50 shadow-amber-100/20"
+        "group relative mb-3 cursor-pointer transition-all duration-200 ease-out",
+        "bg-white/95 backdrop-blur-sm border border-border/40 rounded-lg shadow-sm",
+        "hover:shadow-md hover:shadow-black/5 hover:border-border hover:-translate-y-0.5",
+        "hover:bg-white",
+        isBeingDragged && "shadow-lg shadow-black/10 scale-[1.02] z-50 border-primary bg-white/95 opacity-90"
       )}
       onClick={handleCardClick}
       onMouseEnter={() => setIsHovered(true)}
@@ -336,7 +317,7 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
                   </Badge>
                 )}
               </div>
-              <Badge className={cn("text-xs px-2 py-0.5 font-medium border rounded-md", getBuyerTypeColor(actualBuyerType))}>
+              <Badge className={cn("text-[10px] px-2 py-0.5 font-semibold border", getBuyerTypeColor(actualBuyerType))}>
                 {getBuyerTypeLabel(actualBuyerType)}
               </Badge>
             </div>
@@ -356,32 +337,20 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
           </div>
         )}
 
-        {/* Document Status - Clean Apple/Stripe design */}
+        {/* Document Status - Clean design with brand colors */}
         <div className="flex items-center gap-4 text-xs">
           <div className="flex items-center gap-1.5">
-            <div className={cn('w-1.5 h-1.5 rounded-full', 
-              deal.nda_status === 'signed' ? 'bg-emerald-500' :
-              deal.nda_status === 'sent' ? 'bg-slate-400' : 'bg-slate-300'
-            )} />
-            <span className="text-slate-500">NDA:</span>
-            <span className={cn('font-medium',
-              deal.nda_status === 'signed' ? 'text-emerald-700' :
-              deal.nda_status === 'sent' ? 'text-slate-600' : 'text-slate-500'
-            )}>
+            <div className={cn('w-1.5 h-1.5 rounded-full', ndaStatus.color)} />
+            <span className="text-muted-foreground">NDA:</span>
+            <span className={cn('font-medium', ndaStatus.textColor)}>
               {ndaStatus.label}
             </span>
           </div>
           
           <div className="flex items-center gap-1.5">
-            <div className={cn('w-1.5 h-1.5 rounded-full',
-              deal.fee_agreement_status === 'signed' ? 'bg-emerald-500' :
-              deal.fee_agreement_status === 'sent' ? 'bg-slate-400' : 'bg-slate-300'
-            )} />
-            <span className="text-slate-500">Fee:</span>
-            <span className={cn('font-medium',
-              deal.fee_agreement_status === 'signed' ? 'text-emerald-700' :
-              deal.fee_agreement_status === 'sent' ? 'text-slate-600' : 'text-slate-500'
-            )}>
+            <div className={cn('w-1.5 h-1.5 rounded-full', feeStatus.color)} />
+            <span className="text-muted-foreground">Fee:</span>
+            <span className={cn('font-medium', feeStatus.textColor)}>
               {feeStatus.label}
             </span>
           </div>
@@ -392,10 +361,10 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
           <div className="flex items-center gap-1.5 text-xs">
             <CheckSquare className={cn(
               'h-3 w-3',
-              taskInfo.pending === 0 ? 'text-gray-700' : 'text-gray-400'
+              taskInfo.pending === 0 ? 'text-foreground' : 'text-muted-foreground'
             )} />
             <span className={cn('font-medium',
-              taskInfo.pending === 0 ? 'text-gray-700' : 'text-gray-500'
+              taskInfo.pending === 0 ? 'text-foreground' : 'text-muted-foreground'
             )}>
               {taskInfo.pending === 0 ? `${taskInfo.total} tasks completed` : 
                `${taskInfo.pending}/${taskInfo.total} tasks pending`}
@@ -423,8 +392,8 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
           </span>
           <span className={cn(
             'truncate font-medium',
-            lastContactInfo.isOverdue && 'text-amber-600',
-            lastContactInfo.context === 'contact_needed' && 'text-slate-500'
+            lastContactInfo.isOverdue && 'text-accent-foreground',
+            lastContactInfo.context === 'contact_needed' && 'text-muted-foreground'
           )}>
             {lastContactInfo.text}
           </span>
@@ -436,25 +405,25 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
             <button
               onClick={handleEmailClick}
               disabled={logContact.isPending}
-              className="h-7 w-7 p-0 bg-white border border-gray-200 rounded-md shadow-sm hover:shadow-md flex items-center justify-center transition-all duration-200 hover:bg-gray-50"
+              className="h-7 w-7 p-0 bg-white border border-border/40 rounded-md shadow-sm hover:shadow-md flex items-center justify-center transition-all duration-200 hover:bg-accent/10"
               title="Send Email"
             >
-              <Mail className="h-3 w-3 text-gray-500" />
+              <Mail className="h-3 w-3 text-muted-foreground" />
             </button>
             <button
               onClick={handlePhoneClick}
               disabled={logContact.isPending}
-              className="h-7 w-7 p-0 bg-white border border-gray-200 rounded-md shadow-sm hover:shadow-md flex items-center justify-center transition-all duration-200 hover:bg-gray-50"
+              className="h-7 w-7 p-0 bg-white border border-border/40 rounded-md shadow-sm hover:shadow-md flex items-center justify-center transition-all duration-200 hover:bg-accent/10"
               title="Log Call"
             >
-              <Phone className="h-3 w-3 text-gray-500" />
+              <Phone className="h-3 w-3 text-muted-foreground" />
             </button>
             <button
               onClick={handleEditClick}
-              className="h-7 w-7 p-0 bg-white border border-gray-200 rounded-md shadow-sm hover:shadow-md flex items-center justify-center transition-all duration-200 hover:bg-gray-50"
+              className="h-7 w-7 p-0 bg-white border border-border/40 rounded-md shadow-sm hover:shadow-md flex items-center justify-center transition-all duration-200 hover:bg-accent/10"
               title="View Details"
             >
-              <Edit className="h-3 w-3 text-gray-500" />
+              <Edit className="h-3 w-3 text-muted-foreground" />
             </button>
           </div>
         )}

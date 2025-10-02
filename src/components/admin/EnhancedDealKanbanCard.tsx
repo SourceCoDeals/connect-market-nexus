@@ -32,17 +32,17 @@ export function EnhancedDealKanbanCard({ deal, isDragging, onClick }: EnhancedDe
   const getBuyerTypeStyles = (buyerType?: string) => {
     switch (buyerType) {
       case 'privateEquity': 
-        return 'bg-[rgb(221,214,254)] text-[rgb(88,28,135)] border-[rgb(168,85,247)]';
+        return 'bg-secondary/50 text-secondary-foreground border-secondary';
       case 'familyOffice': 
-        return 'bg-[rgb(191,219,254)] text-[rgb(30,64,175)] border-[rgb(59,130,246)]';
+        return 'bg-accent/50 text-accent-foreground border-accent';
       case 'searchFund': 
-        return 'bg-[rgb(187,247,208)] text-[rgb(22,101,52)] border-[rgb(34,197,94)]';
+        return 'bg-muted text-muted-foreground border-border';
       case 'corporate': 
-        return 'bg-[rgb(254,215,170)] text-[rgb(154,52,18)] border-[rgb(251,146,60)]';
+        return 'bg-secondary/30 text-secondary-foreground border-secondary/60';
       case 'independentSponsor': 
-        return 'bg-[rgb(199,210,254)] text-[rgb(55,48,163)] border-[rgb(129,140,248)]';
+        return 'bg-accent/30 text-accent-foreground border-accent/60';
       case 'individual': 
-        return 'bg-[rgb(229,231,235)] text-[rgb(55,65,81)] border-[rgb(156,163,175)]';
+        return 'bg-muted/70 text-muted-foreground border-border/70';
       default: 
         return 'bg-muted text-muted-foreground border-border';
     }
@@ -51,20 +51,20 @@ export function EnhancedDealKanbanCard({ deal, isDragging, onClick }: EnhancedDe
   const getDocumentStatusStyles = (status: string) => {
     switch (status) {
       case 'signed': 
-        return 'bg-[rgb(134,239,172)] text-[rgb(5,46,22)] border-[rgb(34,197,94)]';
+        return 'bg-secondary/60 text-secondary-foreground border-secondary';
       case 'sent': 
-        return 'bg-[rgb(253,224,71)] text-[rgb(69,26,3)] border-[rgb(234,179,8)]';
+        return 'bg-accent/50 text-accent-foreground border-accent';
       case 'declined': 
-        return 'bg-[rgb(252,165,165)] text-[rgb(69,10,10)] border-[rgb(239,68,68)]';
+        return 'bg-destructive/20 text-destructive-foreground border-destructive/40';
       default: 
-        return 'bg-[rgb(226,232,240)] text-[rgb(51,65,85)] border-[rgb(148,163,184)]';
+        return 'bg-muted text-muted-foreground border-border';
     }
   };
 
   const getTimeInStageColor = (daysInStage: number) => {
-    if (daysInStage <= 3) return 'text-success';
-    if (daysInStage <= 7) return 'text-warning';
-    return 'text-destructive';
+    if (daysInStage <= 3) return 'text-secondary-foreground';
+    if (daysInStage <= 7) return 'text-accent-foreground';
+    return 'text-foreground';
   };
 
   const getDaysInStage = () => {
@@ -87,10 +87,10 @@ export function EnhancedDealKanbanCard({ deal, isDragging, onClick }: EnhancedDe
     <Card 
       ref={setNodeRef}
       style={style}
-      className={`cursor-pointer transition-all duration-200 hover:shadow-md border-l-4 ${
+      className={`cursor-pointer transition-all duration-200 border ${
         isDragging 
-          ? 'shadow-xl border-primary/60 bg-background/95 backdrop-blur-sm scale-105' 
-          : 'border-border/20 hover:border-primary/40 hover:bg-accent/30'
+          ? 'shadow-lg shadow-black/10 border-primary bg-white/95 backdrop-blur-sm scale-[1.02] z-50' 
+          : 'bg-white/95 backdrop-blur-sm border-border/40 hover:border-border hover:bg-white hover:shadow-md hover:shadow-black/5 hover:-translate-y-0.5'
       }`}
       {...attributes}
       {...listeners}
