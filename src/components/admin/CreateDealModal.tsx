@@ -385,7 +385,12 @@ export function CreateDealModal({ open, onOpenChange, prefilledStageId, onDealCr
 
               {/* Contact Information */}
               <div className="space-y-4">
-                <h3 className="text-sm font-semibold text-foreground">Contact Information</h3>
+                <div>
+                  <h3 className="text-sm font-semibold text-foreground">Contact Information</h3>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Details about the buyer/prospect interested in this listing. No user account will be created.
+                  </p>
+                </div>
                 
                 <div className="grid grid-cols-2 gap-4">
                   <FormField
@@ -535,7 +540,7 @@ export function CreateDealModal({ open, onOpenChange, prefilledStageId, onDealCr
                   name="assigned_to"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Assign To</FormLabel>
+                      <FormLabel>Assign Deal Owner (Admin)</FormLabel>
                       <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger>
@@ -543,6 +548,7 @@ export function CreateDealModal({ open, onOpenChange, prefilledStageId, onDealCr
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
+                          <SelectItem value="">Unassigned</SelectItem>
                           {adminUsers?.map((admin) => (
                             <SelectItem key={admin.id} value={admin.id}>
                               {admin.first_name} {admin.last_name}
@@ -550,6 +556,9 @@ export function CreateDealModal({ open, onOpenChange, prefilledStageId, onDealCr
                           ))}
                         </SelectContent>
                       </Select>
+                      <p className="text-xs text-muted-foreground">
+                        Which admin team member will manage this deal?
+                      </p>
                       <FormMessage />
                     </FormItem>
                   )}
