@@ -70,39 +70,6 @@ export function PipelineKanbanColumn({ stage, deals, onDealClick }: PipelineKanb
           </Button>
         </div>
         
-        {/* Stage Metrics - Enhanced with Company Stats */}
-        {stage.dealCount > 0 && (
-          <div className="space-y-2">
-            <div className="flex justify-between text-xs">
-              <span className="text-muted-foreground">Value</span>
-              <span className="font-medium text-foreground">
-                {formatCurrency(stage.totalValue)}
-              </span>
-            </div>
-            <div className="flex justify-between text-xs">
-              <span className="text-muted-foreground">Avg Prob</span>
-              <span className="font-medium text-foreground">
-                {stage.avgProbability.toFixed(0)}%
-              </span>
-            </div>
-            {(() => {
-              const uniqueCompanies = new Set(
-                deals.map(d => d.contact_company || d.buyer_company).filter(Boolean)
-              );
-              if (uniqueCompanies.size > 0) {
-                return (
-                  <div className="flex justify-between text-xs pt-1 border-t border-border/50">
-                    <span className="text-muted-foreground">Companies</span>
-                    <span className="font-medium text-foreground">
-                      {uniqueCompanies.size}
-                    </span>
-                  </div>
-                );
-              }
-              return null;
-            })()}
-          </div>
-        )}
       </CardHeader>
       
       {/* Deals List */}
