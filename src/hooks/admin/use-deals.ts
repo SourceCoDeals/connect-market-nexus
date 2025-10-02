@@ -95,6 +95,7 @@ export interface DealStage {
   color: string;
   is_active: boolean;
   is_default: boolean;
+  default_probability?: number;
   created_at: string;
   updated_at: string;
 }

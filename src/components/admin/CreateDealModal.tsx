@@ -16,6 +16,7 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
+  FormDescription,
 } from '@/components/ui/form';
 import {
   Select,
@@ -129,6 +130,18 @@ export function CreateDealModal({ open, onOpenChange, prefilledStageId, onDealCr
       form.setValue('stage_id', prefilledStageId);
     }
   }, [prefilledStageId, form]);
+
+  // Watch for stage changes to auto-populate probability
+  const selectedStageId = form.watch('stage_id');
+  
+  useEffect(() => {
+    if (selectedStageId && stages) {
+      const selectedStage = stages.find(stage => stage.id === selectedStageId);
+      if (selectedStage && selectedStage.default_probability !== undefined) {
+        form.setValue('probability', selectedStage.default_probability);
+      }
+    }
+  }, [selectedStageId, stages, form]);
 
   // Check for duplicates
   const checkDuplicates = async (email: string, listingId: string): Promise<DuplicateDeal[]> => {
@@ -484,13 +497,16 @@ export function CreateDealModal({ open, onOpenChange, prefilledStageId, onDealCr
                           <Input 
                             type="number" 
                             min="0" 
-                            max="100"
-                            placeholder="50" 
+                            max="100" 
+                            placeholder="Auto-set by stage"
                             {...field}
                             onChange={e => field.onChange(e.target.value ? parseInt(e.target.value) : undefined)}
-                            value={field.value || ''}
+                            value={field.value ?? ''}
                           />
                         </FormControl>
+                        <FormDescription className="text-xs">
+                          Auto-populated based on selected pipeline stage
+                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
