@@ -1,11 +1,10 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Mail, Phone, Edit, CheckSquare, Clock, Building2, Calendar, FileCheck, FileX, User } from 'lucide-react';
+import { CheckSquare, Clock, Building2, User } from 'lucide-react';
 import { Deal } from '@/hooks/admin/use-deals';
-import { useLogDealContact } from '@/hooks/admin/use-deal-contact';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
 import { useAdminProfile } from '@/hooks/admin/use-admin-profiles';
@@ -17,9 +16,6 @@ interface PipelineKanbanCardProps {
 }
 
 export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKanbanCardProps) {
-  const [isHovered, setIsHovered] = useState(false);
-  const logContact = useLogDealContact();
-  
   const {
     attributes,
     listeners,
@@ -227,43 +223,6 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
 
   const lastActivity = getLastActivity();
 
-  // Quick action handlers with real contact logging
-  const handleEmailClick = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    try {
-      await logContact.mutateAsync({
-        dealId: deal.deal_id,
-        contactType: 'email',
-        details: { recipient: deal.contact_email || deal.buyer_email }
-      });
-    } catch (error) {
-      console.error('Failed to log email contact:', error);
-    }
-  };
-
-  const handlePhoneClick = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    try {
-      await logContact.mutateAsync({
-        dealId: deal.deal_id,
-        contactType: 'phone',
-        details: { phone: deal.contact_phone }
-      });
-    } catch (error) {
-      console.error('Failed to log phone contact:', error);
-    }
-  };
-
-  const handleEditClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    console.log('[Pipeline Card] Edit button clicked', {
-      dealId: deal.deal_id,
-      title: deal.deal_title,
-      contact: deal.contact_name
-    });
-    onDealClick(deal);
-  };
-
   const handleCardClick = () => {
     if (isBeingDragged) {
       console.log('[Pipeline Card] Click ignored - card is being dragged');
@@ -290,14 +249,12 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
       {...listeners}
       {...attributes}
       className={cn(
-        "group relative mb-3 cursor-pointer transition-all duration-200 ease-out",
-        "bg-white border-2 border-border/70 rounded-lg shadow-md",
-        "hover:shadow-xl hover:shadow-black/8 hover:border-[hsl(var(--sourceco-primary))]/50 hover:-translate-y-0.5",
-        isBeingDragged && "shadow-2xl shadow-black/20 scale-[1.02] z-50 border-[hsl(var(--sourceco-primary))] bg-white opacity-95"
+        "group relative mb-3 cursor-pointer transition-all duration-200",
+        "bg-card border border-border rounded-xl shadow-sm",
+        "hover:shadow-lg hover:border-border/80 hover:-translate-y-0.5",
+        isBeingDragged && "shadow-2xl shadow-black/10 scale-[1.02] z-50 border-primary/30 bg-card opacity-95"
       )}
       onClick={handleCardClick}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
     >
       <CardContent className="p-4 space-y-3">
         {/* Header with priority indicator and clean typography */}
@@ -398,34 +355,6 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
           </span>
         </div>
 
-        {/* Premium Quick Actions on Hover */}
-        {isHovered && !isBeingDragged && (
-          <div className="absolute top-3 right-3 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-all duration-200">
-            <button
-              onClick={handleEmailClick}
-              disabled={logContact.isPending}
-              className="h-7 w-7 p-0 bg-white border border-border/40 rounded-md shadow-sm hover:shadow-md flex items-center justify-center transition-all duration-200 hover:bg-accent/10"
-              title="Send Email"
-            >
-              <Mail className="h-3 w-3 text-muted-foreground" />
-            </button>
-            <button
-              onClick={handlePhoneClick}
-              disabled={logContact.isPending}
-              className="h-7 w-7 p-0 bg-white border border-border/40 rounded-md shadow-sm hover:shadow-md flex items-center justify-center transition-all duration-200 hover:bg-accent/10"
-              title="Log Call"
-            >
-              <Phone className="h-3 w-3 text-muted-foreground" />
-            </button>
-            <button
-              onClick={handleEditClick}
-              className="h-7 w-7 p-0 bg-white border border-border/40 rounded-md shadow-sm hover:shadow-md flex items-center justify-center transition-all duration-200 hover:bg-accent/10"
-              title="View Details"
-            >
-              <Edit className="h-3 w-3 text-muted-foreground" />
-            </button>
-          </div>
-        )}
       </CardContent>
     </Card>
   );
