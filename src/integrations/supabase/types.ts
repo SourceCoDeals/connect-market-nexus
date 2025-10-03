@@ -641,6 +641,51 @@ export type Database = {
         }
         Relationships: []
       }
+      deal_comments: {
+        Row: {
+          admin_id: string
+          comment_text: string
+          created_at: string
+          deal_id: string
+          id: string
+          mentioned_admins: string[]
+          updated_at: string
+        }
+        Insert: {
+          admin_id: string
+          comment_text: string
+          created_at?: string
+          deal_id: string
+          id?: string
+          mentioned_admins?: string[]
+          updated_at?: string
+        }
+        Update: {
+          admin_id?: string
+          comment_text?: string
+          created_at?: string
+          deal_id?: string
+          id?: string
+          mentioned_admins?: string[]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deal_comments_admin_id_fkey"
+            columns: ["admin_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deal_comments_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       deal_contacts: {
         Row: {
           admin_id: string
