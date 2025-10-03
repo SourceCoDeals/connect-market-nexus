@@ -348,30 +348,28 @@ export function PipelineDetailBuyer({ deal }: PipelineDetailBuyerProps) {
               {/* Direct Connections Tab */}
               <TabsContent value="direct" className="mt-4">
                 <div className="space-y-2">
-                  {connectionRequests.filter((r: any) => !associatedRequests.some((a: any) => a.id === r.id)).length === 0 ? (
+                  {connectionRequests.length === 0 ? (
                     <p className="text-sm text-muted-foreground py-4 text-center">No direct connection history</p>
                   ) : (
-                    connectionRequests
-                      .filter((r: any) => !associatedRequests.some((a: any) => a.id === r.id))
-                      .map((req: any) => (
-                        <div key={req.id} className="p-3 border border-border/40 rounded-lg hover:border-border/60 transition-colors">
-                          <div className="flex items-start justify-between">
-                            <div className="space-y-1">
-                              <p className="text-sm font-medium text-foreground">
-                                {req.listings?.internal_company_name || req.listings?.title || 'Unknown Listing'}
-                              </p>
-                              <p className="text-xs text-muted-foreground">
-                                {req.listings?.location && `${req.listings.location} · `}
-                                {req.listings?.revenue && `$${(req.listings.revenue / 1000000).toFixed(1)}M revenue · `}
-                                {req.created_at && formatDistanceToNow(new Date(req.created_at), { addSuffix: true })}
-                              </p>
-                            </div>
-                            <Badge variant={req.status === 'approved' ? 'default' : 'secondary'} className="text-xs">
-                              {req.status}
-                            </Badge>
+                    connectionRequests.map((req: any) => (
+                      <div key={req.id} className="p-3 border border-border/40 rounded-lg hover:border-border/60 transition-colors">
+                        <div className="flex items-start justify-between">
+                          <div className="space-y-1">
+                            <p className="text-sm font-medium text-foreground">
+                              {req.listings?.internal_company_name || req.listings?.title || 'Unknown Listing'}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {req.listings?.location && `${req.listings.location} · `}
+                              {req.listings?.revenue && `$${(req.listings.revenue / 1000000).toFixed(1)}M revenue · `}
+                              {req.created_at && formatDistanceToNow(new Date(req.created_at), { addSuffix: true })}
+                            </p>
                           </div>
+                          <Badge variant={req.status === 'approved' ? 'default' : 'secondary'} className="text-xs">
+                            {req.status}
+                          </Badge>
                         </div>
-                      ))
+                      </div>
+                    ))
                   )}
                 </div>
               </TabsContent>

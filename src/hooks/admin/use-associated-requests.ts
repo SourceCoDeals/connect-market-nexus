@@ -103,7 +103,7 @@ export function useAssociatedRequests(
         // Step 1: Find profiles with this company
         const { data: profiles } = await supabase
           .from('profiles')
-          .select('id')
+          .select('id, email')
           .eq('company', contactCompany)
           .eq('approval_status', 'approved');
 
@@ -160,22 +160,8 @@ export function useAssociatedRequests(
 
         if (dealsError) throw dealsError;
 
-        // Filter out the current contact's email from both sources
-        const filteredCR = (crData || []).filter((req: any) => {
-          if (primaryRequestId && req.id === primaryRequestId) return false;
-          if (!contactEmail) return true;
-          const reqEmail = (req.lead_email || '').toLowerCase();
-          return reqEmail !== contactEmail.toLowerCase();
-        });
-
-        const filteredDeals = (dealsData || []).filter((deal: any) => {
-          if (!contactEmail) return true;
-          const dealEmail = (deal.contact_email || '').toLowerCase();
-          return dealEmail !== contactEmail.toLowerCase();
-        });
-
-        // Enrich connection requests with user profiles for any marketplace users
-        const userIds = Array.from(new Set(filteredCR.map((r: any) => r.user_id).filter(Boolean)));
+        // Step 4: Enrich connection requests with user profiles FIRST (before filtering)
+        const userIds = Array.from(new Set((crData || []).map((r: any) => r.user_id).filter(Boolean)));
         let profileMap = new Map<string, any>();
         if (userIds.length > 0) {
           const { data: profs } = await supabase
@@ -184,6 +170,26 @@ export function useAssociatedRequests(
             .in('id', userIds as string[]);
           (profs || []).forEach((p: any) => profileMap.set(p.id, p));
         }
+
+        // Step 5: Filter out the current contact's email from both sources
+        // IMPORTANT: Check both lead_email AND user email from profile
+        const filteredCR = (crData || []).filter((req: any) => {
+          if (primaryRequestId && req.id === primaryRequestId) return false;
+          if (!contactEmail) return true;
+          
+          const reqLeadEmail = (req.lead_email || '').toLowerCase();
+          const reqUserEmail = req.user_id && profileMap.get(req.user_id)?.email?.toLowerCase();
+          const currentEmail = contactEmail.toLowerCase();
+          
+          // Exclude if EITHER the lead_email OR the user's profile email matches the current contact
+          return reqLeadEmail !== currentEmail && reqUserEmail !== currentEmail;
+        });
+
+        const filteredDeals = (dealsData || []).filter((deal: any) => {
+          if (!contactEmail) return true;
+          const dealEmail = (deal.contact_email || '').toLowerCase();
+          return dealEmail !== contactEmail.toLowerCase();
+        });
 
         // Map connection requests
         const associatedFromCR: AssociatedRequest[] = filteredCR.map((req: any) => {
