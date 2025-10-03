@@ -250,7 +250,40 @@ function SortableStageCard({ stage, isEditing, onEdit, onDelete, onSave, onCance
   );
 }
 
-// Wrapper component to safely use hooks per stage\nfunction StageRow({\n  stage,\n  isEditing,\n  onEdit,\n  onDelete,\n  onSave,\n  onCancel,\n  editForm,\n}: {\n  stage: DealStage;\n  isEditing: boolean;\n  onEdit: () => void;\n  onDelete: (dealCount: number) => void;\n  onSave: (data: StageFormData) => void;\n  onCancel: () => void;\n  editForm: any;\n}) {\n  const { data: dealCount = 0 } = useStageDealCount(stage.id);\n  return (\n    <SortableStageCard\n      stage={stage}\n      isEditing={isEditing}\n      onEdit={onEdit}\n      onDelete={() => onDelete(dealCount)}\n      onSave={onSave}\n      onCancel={onCancel}\n      editForm={editForm}\n      dealCount={dealCount}\n    />\n  );\n}\n\nexport const StageManagementModal = ({ open, onOpenChange }: StageManagementModalProps) => {
+// Wrapper component to safely use hooks per stage
+function StageRow({
+  stage,
+  isEditing,
+  onEdit,
+  onDelete,
+  onSave,
+  onCancel,
+  editForm,
+}: {
+  stage: DealStage;
+  isEditing: boolean;
+  onEdit: () => void;
+  onDelete: (dealCount: number) => void;
+  onSave: (data: StageFormData) => void;
+  onCancel: () => void;
+  editForm: any;
+}) {
+  const { data: dealCount = 0 } = useStageDealCount(stage.id);
+  return (
+    <SortableStageCard
+      stage={stage}
+      isEditing={isEditing}
+      onEdit={onEdit}
+      onDelete={() => onDelete(dealCount)}
+      onSave={onSave}
+      onCancel={onCancel}
+      editForm={editForm}
+      dealCount={dealCount}
+    />
+  );
+}
+
+export const StageManagementModal = ({ open, onOpenChange }: StageManagementModalProps) => {
   const { data: stages = [], isLoading } = useDealStages(true); // Include all stages
   const createStageMutation = useCreateDealStage();
   const updateStageMutation = useUpdateDealStageData();
