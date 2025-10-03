@@ -52,6 +52,7 @@ import { useDealStages, useCreateDeal } from '@/hooks/admin/use-deals';
 import { useListingsQuery } from '@/hooks/admin/listings/use-listings-query';
 import { useAdminProfiles } from '@/hooks/admin/use-admin-profiles';
 import { useMarketplaceUsers } from '@/hooks/admin/use-marketplace-users';
+import { useMarketplaceCompanies } from '@/hooks/admin/use-marketplace-companies';
 import { Combobox } from '@/components/ui/combobox';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
@@ -98,6 +99,7 @@ export function CreateDealModal({ open, onOpenChange, prefilledStageId, onDealCr
   const { data: listings } = useListingsQuery('active');
   const { data: adminProfilesMap } = useAdminProfiles();
   const { data: marketplaceUsers } = useMarketplaceUsers();
+  const { data: marketplaceCompanies } = useMarketplaceCompanies();
   const adminUsers = adminProfilesMap ? Object.values(adminProfilesMap) : [];
   const createDealMutation = useCreateDeal();
   const queryClient = useQueryClient();
@@ -615,8 +617,26 @@ export function CreateDealModal({ open, onOpenChange, prefilledStageId, onDealCr
                       <FormItem>
                         <FormLabel>Company</FormLabel>
                         <FormControl>
-                          <Input placeholder="Acme Corp" {...field} />
+                          <Combobox
+                            options={marketplaceCompanies?.map(c => ({
+                              value: c.value,
+                              label: c.label,
+                              searchTerms: c.searchTerms,
+                            })) || []}
+                            value={field.value || ''}
+                            onValueChange={field.onChange}
+                            placeholder="Select or type company name..."
+                            emptyText="No companies found"
+                            searchPlaceholder="Search companies..."
+                            allowCustomValue={true}
+                            onCustomValueCreate={(newCompany) => {
+                              console.log('[CreateDealModal] Creating new company:', newCompany);
+                            }}
+                          />
                         </FormControl>
+                        <FormDescription className="text-xs">
+                          Select an existing company or type a new one
+                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}

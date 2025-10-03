@@ -1,4 +1,3 @@
-
 export * from './use-admin-users';
 export * from './use-admin-listings';
 export * from './use-admin-requests';
@@ -12,3 +11,4 @@ export * from './use-deals';
 export * from './use-deal-filters';
 export * from './use-deal-follow-up';
 export * from './use-marketplace-users';
+export * from './use-marketplace-companies';

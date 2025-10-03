@@ -31,6 +31,8 @@ interface ComboboxProps {
   searchPlaceholder?: string;
   className?: string;
   disabled?: boolean;
+  allowCustomValue?: boolean;
+  onCustomValueCreate?: (value: string) => void;
 }
 
 export function Combobox({
@@ -42,10 +44,18 @@ export function Combobox({
   searchPlaceholder = "Search...",
   className,
   disabled = false,
+  allowCustomValue = false,
+  onCustomValueCreate,
 }: ComboboxProps) {
   const [open, setOpen] = React.useState(false);
+  const [searchValue, setSearchValue] = React.useState("");
 
   const selectedOption = options.find((option) => option.value === value);
+  
+  // Check if current search matches any existing option
+  const hasExactMatch = options.some(
+    (option) => option.value.toLowerCase() === searchValue.toLowerCase()
+  );
   
   React.useEffect(() => {
     console.log('[Combobox] State changed:', {
@@ -85,9 +95,34 @@ export function Combobox({
         onScrollCapture={(e) => e.stopPropagation()}
       >
         <Command>
-          <CommandInput placeholder={searchPlaceholder} />
+          <CommandInput 
+            placeholder={searchPlaceholder}
+            value={searchValue}
+            onValueChange={setSearchValue}
+          />
           <CommandList className="max-h-[300px] overflow-y-auto overflow-x-hidden overscroll-contain">
-            <CommandEmpty>{emptyText}</CommandEmpty>
+            <CommandEmpty>
+              {allowCustomValue && searchValue && !hasExactMatch ? (
+                <div className="p-2">
+                  <button
+                    type="button"
+                    className="w-full text-left px-2 py-1.5 text-sm hover:bg-accent rounded-sm"
+                    onClick={() => {
+                      if (onCustomValueCreate) {
+                        onCustomValueCreate(searchValue);
+                      }
+                      onValueChange(searchValue);
+                      setSearchValue("");
+                      setOpen(false);
+                    }}
+                  >
+                    Create &quot;{searchValue}&quot;
+                  </button>
+                </div>
+              ) : (
+                emptyText
+              )}
+            </CommandEmpty>
             <CommandGroup>
               {options.map((option) => (
                 <CommandItem
@@ -95,6 +130,7 @@ export function Combobox({
                   value={option.searchTerms || option.label}
                   onSelect={() => {
                     onValueChange(option.value);
+                    setSearchValue("");
                     setOpen(false);
                   }}
                 >
