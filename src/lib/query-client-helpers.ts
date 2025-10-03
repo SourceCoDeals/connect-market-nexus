@@ -34,3 +34,10 @@ export const invalidateUserProfile = (queryClient: QueryClient, userId?: string)
 export const invalidateConnectionRequestDetails = (queryClient: QueryClient) => {
   return queryClient.invalidateQueries({ queryKey: ['connection-request-details'] });
 };
+
+export const invalidateAssociatedRequests = (queryClient: QueryClient, requestId?: string) => {
+  if (requestId) {
+    return queryClient.invalidateQueries({ queryKey: ['associated-requests', requestId] });
+  }
+  return queryClient.invalidateQueries({ queryKey: ['associated-requests'] });
+};

@@ -2,13 +2,15 @@ import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { ChevronDown, ExternalLink } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ChevronDown, ExternalLink, Users } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Deal } from '@/hooks/admin/use-deals';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { getRelevantFieldsForBuyerType, FIELD_LABELS } from '@/lib/buyer-type-fields';
 import { BUYER_TYPE_OPTIONS } from '@/lib/signup-field-options';
+import { useAssociatedRequests } from '@/hooks/admin/use-associated-requests';
 
 interface PipelineDetailBuyerProps {
   deal: Deal;
@@ -130,6 +132,11 @@ export function PipelineDetailBuyer({ deal }: PipelineDetailBuyerProps) {
     enabled: !!(buyerProfile?.user_id || resolvedUserId),
     staleTime: 5 * 60 * 1000,
   });
+
+  // Phase 5: Fetch associated requests (company colleagues)
+  const { data: associatedRequests = [] } = useAssociatedRequests(
+    deal.connection_request_id
+  );
 
   const getBuyerTypeLabel = (buyerType?: string) => {
     switch (buyerType) {
@@ -435,29 +442,35 @@ export function PipelineDetailBuyer({ deal }: PipelineDetailBuyerProps) {
           </Collapsible>
         )}
 
-        {/* Behavioral Intelligence */}
-        <Collapsible>
+        {/* Behavioral Intelligence - Tabbed Version */}
+        <Collapsible defaultOpen>
           <CollapsibleTrigger className="flex items-center justify-between w-full group">
             <h2 className="text-sm font-medium text-foreground">Connection & Activity History</h2>
             <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
           </CollapsibleTrigger>
           <CollapsibleContent className="pt-4">
-            <div className="space-y-6">
-              {/* Connection Summary */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between py-2">
-                  <span className="text-sm text-foreground">Total Connections</span>
-                  <span className="text-sm text-muted-foreground font-mono">
-                    {connectionRequests.length}
-                  </span>
-                </div>
-                
-                {connectionRequests.length > 0 && (
+            <Tabs defaultValue="direct" className="w-full">
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="direct" className="text-xs">
+                  Direct ({connectionRequests.length})
+                </TabsTrigger>
+                <TabsTrigger value="colleagues" className="text-xs">
+                  <Users className="w-3 h-3 mr-1" />
+                  Colleagues ({associatedRequests.length})
+                </TabsTrigger>
+                <TabsTrigger value="saved" className="text-xs">
+                  Saved ({savedListings.length})
+                </TabsTrigger>
+              </TabsList>
+
+              {/* Direct Connections Tab */}
+              <TabsContent value="direct" className="mt-4 space-y-3">
+                {connectionRequests.length > 0 ? (
                   <ScrollArea className="h-[300px] w-full rounded-lg border border-border/40">
                     <div className="space-y-1 p-2">
                       {connectionRequests.map((request: any) => (
                         <div key={request.id} className="flex items-center justify-between py-3 px-4 bg-muted/10 rounded-lg">
-                           <div className="flex-1 min-w-0">
+                          <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-1 flex-wrap">
                               <p className="text-sm text-foreground truncate">
                                 {request.listings?.title || 'Unknown Listing'}
@@ -504,19 +517,75 @@ export function PipelineDetailBuyer({ deal }: PipelineDetailBuyerProps) {
                       ))}
                     </div>
                   </ScrollArea>
-                )}
-              </div>
-
-              {/* Saved Listings */}
-              {savedListings.length > 0 && (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between py-2">
-                    <span className="text-sm text-foreground">Saved Listings</span>
-                    <span className="text-sm text-muted-foreground font-mono">
-                      {savedListings.length}
-                    </span>
+                ) : (
+                  <div className="py-8 text-center text-sm text-muted-foreground">
+                    No direct connection requests
                   </div>
-                  
+                )}
+              </TabsContent>
+
+              {/* Company Colleagues Tab */}
+              <TabsContent value="colleagues" className="mt-4 space-y-3">
+                {associatedRequests.length > 0 ? (
+                  <ScrollArea className="h-[300px] w-full rounded-lg border border-border/40">
+                    <div className="space-y-1 p-2">
+                      {associatedRequests.map((assocReq) => (
+                        <div key={assocReq.id} className="py-3 px-4 bg-muted/10 rounded-lg space-y-2">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                <p className="text-sm font-medium text-foreground">
+                                  {assocReq.lead_name || assocReq.user?.email || 'Unknown Contact'}
+                                </p>
+                                <Badge variant="secondary" className="text-xs">
+                                  {assocReq.relationship_type === 'same_company' ? 'Same Company' : 'Related'}
+                                </Badge>
+                              </div>
+                              {assocReq.lead_company && (
+                                <p className="text-xs text-muted-foreground mb-2">
+                                  {assocReq.lead_company}
+                                </p>
+                              )}
+                              <div className="flex items-center gap-2 mb-1">
+                                <p className="text-sm text-foreground truncate">
+                                  {assocReq.listing?.title || 'Unknown Listing'}
+                                </p>
+                              </div>
+                              <div className="flex items-center gap-3 mt-1">
+                                <span className="text-xs text-muted-foreground font-mono">
+                                  {safeTimeAgo(assocReq.created_at)}
+                                </span>
+                                {assocReq.listing?.revenue && (
+                                  <>
+                                    <span className="text-muted-foreground/40">·</span>
+                                    <span className="text-xs text-muted-foreground font-mono">
+                                      ${assocReq.listing.revenue.toLocaleString()} revenue
+                                    </span>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                            <div className={`w-2 h-2 rounded-full ml-3 flex-shrink-0 ${
+                              assocReq.status === 'approved' ? 'bg-emerald-500' :
+                              assocReq.status === 'rejected' ? 'bg-red-500' :
+                              assocReq.status === 'on_hold' ? 'bg-amber-500' :
+                              'bg-muted-foreground/30'
+                            }`} />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                ) : (
+                  <div className="py-8 text-center text-sm text-muted-foreground">
+                    No associated requests from company colleagues
+                  </div>
+                )}
+              </TabsContent>
+
+              {/* Saved Listings Tab */}
+              <TabsContent value="saved" className="mt-4 space-y-3">
+                {savedListings.length > 0 ? (
                   <ScrollArea className="h-[300px] w-full rounded-lg border border-border/40">
                     <div className="space-y-1 p-2">
                       {savedListings.map((saved: any) => (
@@ -557,9 +626,13 @@ export function PipelineDetailBuyer({ deal }: PipelineDetailBuyerProps) {
                       ))}
                     </div>
                   </ScrollArea>
-                </div>
-              )}
-            </div>
+                ) : (
+                  <div className="py-8 text-center text-sm text-muted-foreground">
+                    No saved listings
+                  </div>
+                )}
+              </TabsContent>
+            </Tabs>
           </CollapsibleContent>
         </Collapsible>
 

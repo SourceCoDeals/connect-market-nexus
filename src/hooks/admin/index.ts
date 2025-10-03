@@ -12,3 +12,4 @@ export * from './use-deal-filters';
 export * from './use-deal-follow-up';
 export * from './use-marketplace-users';
 export * from './use-marketplace-companies';
+export * from './use-associated-requests';

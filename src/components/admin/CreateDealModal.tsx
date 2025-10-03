@@ -112,6 +112,11 @@ export function CreateDealModal({ open, onOpenChange, prefilledStageId, onDealCr
   const [isSelectingUser, setIsSelectingUser] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [selectedCompanyName, setSelectedCompanyName] = useState<string | null>(null);
+  const [autoPopulatedFrom, setAutoPopulatedFrom] = useState<{
+    source: 'user' | 'company';
+    name: string;
+    email: string;
+  } | null>(null);
 
   const form = useForm<CreateDealFormData>({
     resolver: zodResolver(createDealSchema),
@@ -247,6 +252,71 @@ export function CreateDealModal({ open, onOpenChange, prefilledStageId, onDealCr
       };
       const newDeal = await createDealMutation.mutateAsync(payload);
 
+      // Phase 4: Auto-create connection request associations for same company
+      if (connectionRequestId && data.contact_company) {
+        try {
+          // Find profiles with this company
+          const { data: companyProfiles } = await supabase
+            .from('profiles')
+            .select('id')
+            .eq('company', data.contact_company)
+            .eq('approval_status', 'approved');
+          
+          if (companyProfiles && companyProfiles.length > 0) {
+            const userIds = companyProfiles.map(p => p.id);
+            
+            // Find other connection requests from users in this company OR with same company name
+            const { data: sameCompanyRequests } = await supabase
+              .from('connection_requests')
+              .select('id')
+              .neq('id', connectionRequestId)
+              .or(`user_id.in.(${userIds.join(',')}),lead_company.eq.${data.contact_company}`);
+            
+            if (sameCompanyRequests && sameCompanyRequests.length > 0) {
+              // Create bidirectional associations
+              const associations = sameCompanyRequests.flatMap(req => [
+                {
+                  primary_request_id: connectionRequestId,
+                  related_request_id: req.id,
+                  relationship_type: 'same_company',
+                  relationship_metadata: {
+                    company_name: data.contact_company,
+                    auto_created: true,
+                    created_at: new Date().toISOString(),
+                  },
+                },
+                {
+                  primary_request_id: req.id,
+                  related_request_id: connectionRequestId,
+                  relationship_type: 'same_company',
+                  relationship_metadata: {
+                    company_name: data.contact_company,
+                    auto_created: true,
+                    created_at: new Date().toISOString(),
+                  },
+                },
+              ]);
+              
+              const { error: assocError } = await supabase
+                .from('connection_request_contacts')
+                .upsert(associations, { 
+                  onConflict: 'primary_request_id,related_request_id',
+                  ignoreDuplicates: true 
+                });
+              
+              if (assocError) {
+                console.error('[CreateDealModal] Failed to create associations:', assocError);
+              } else {
+                console.log('[CreateDealModal] Created', associations.length / 2, 'bidirectional associations');
+              }
+            }
+          }
+        } catch (err) {
+          console.error('[CreateDealModal] Error creating associations:', err);
+          // Don't fail the entire deal creation if associations fail
+        }
+      }
+
       // Log activity
       if (newDeal?.id) {
         await logDealActivity({
@@ -261,6 +331,7 @@ export function CreateDealModal({ open, onOpenChange, prefilledStageId, onDealCr
       queryClient.invalidateQueries({ queryKey: ['deals'] });
       queryClient.invalidateQueries({ queryKey: ['deal-stages'] });
       queryClient.invalidateQueries({ queryKey: ['connection-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['associated-requests'] }); // Invalidate all associated requests
       if (selectedUserId) {
         queryClient.invalidateQueries({ queryKey: ['user-connection-requests', selectedUserId] });
       }
@@ -331,6 +402,25 @@ export function CreateDealModal({ open, onOpenChange, prefilledStageId, onDealCr
   const handleCompanySelect = (companyName: string) => {
     setSelectedCompanyName(companyName);
     form.setValue('contact_company', companyName);
+    
+    // Auto-populate from profile template if existing company
+    const selectedCompany = marketplaceCompanies?.find(c => c.value === companyName);
+    if (selectedCompany?.profileTemplate) {
+      const template = selectedCompany.profileTemplate;
+      
+      // Only auto-fill if field is empty
+      if (!form.getValues('contact_phone') && template.phone_number) {
+        form.setValue('contact_phone', template.phone_number);
+      }
+      
+      setAutoPopulatedFrom({
+        source: 'company',
+        name: companyName,
+        email: template.sampleUserEmail,
+      });
+      
+      console.log('[CreateDealModal] Auto-populated fields from company template:', template);
+    }
   };
 
   // Helper function to generate comprehensive search terms with prefixes
@@ -402,6 +492,29 @@ export function CreateDealModal({ open, onOpenChange, prefilledStageId, onDealCr
 
           <Form {...form}>
             <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-6">
+              {/* Auto-Population Notice */}
+              {autoPopulatedFrom && (
+                <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 space-y-1">
+                      <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                        📋 Auto-populated from {autoPopulatedFrom.source === 'user' ? 'user profile' : 'company profile'}
+                      </p>
+                      <p className="text-xs text-blue-700 dark:text-blue-300">
+                        Contact details were automatically filled using data from <strong>{autoPopulatedFrom.name}</strong> ({autoPopulatedFrom.email})
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setAutoPopulatedFrom(null)}
+                      className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors font-medium"
+                    >
+                      Dismiss
+                    </button>
+                  </div>
+                </div>
+              )}
+              
               {/* Basic Information */}
               <div className="space-y-4">
                 <h3 className="text-sm font-semibold text-foreground">Basic Information</h3>
