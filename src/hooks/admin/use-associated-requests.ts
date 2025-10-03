@@ -126,29 +126,56 @@ export function useAssociatedRequests(
           .order('created_at', { ascending: false });
 
         // Add filters: either user_id in profileIds OR lead_company matches
-        let data, error;
+        let crData, crError;
         if (profileIds.length > 0) {
           const result = await query.or(`user_id.in.(${profileIds.join(',')}),lead_company.eq."${contactCompany.replace(/"/g, '\\"')}"`);
-          data = result.data;
-          error = result.error;
+          crData = result.data;
+          crError = result.error;
         } else {
           const result = await query.eq('lead_company', contactCompany);
-          data = result.data;
-          error = result.error;
+          crData = result.data;
+          crError = result.error;
         }
 
-        if (error) throw error;
+        if (crError) throw crError;
 
-        // Filter out the current contact's email and also exclude if primaryRequestId matches
-        const filtered = (data || []).filter((req: any) => {
+        // Step 3: Also find manually created deals with matching contact_company
+        const { data: dealsData, error: dealsError } = await supabase
+          .from('deals')
+          .select(`
+            id,
+            contact_name,
+            contact_email,
+            contact_company,
+            contact_phone,
+            contact_role,
+            created_at,
+            title,
+            listing_id,
+            listing:listing_id(id, title, revenue, location, internal_company_name)
+          `)
+          .eq('contact_company', contactCompany)
+          .is('deleted_at', null)
+          .order('created_at', { ascending: false });
+
+        if (dealsError) throw dealsError;
+
+        // Filter out the current contact's email from both sources
+        const filteredCR = (crData || []).filter((req: any) => {
           if (primaryRequestId && req.id === primaryRequestId) return false;
           if (!contactEmail) return true;
           const reqEmail = (req.lead_email || '').toLowerCase();
           return reqEmail !== contactEmail.toLowerCase();
         });
 
-        // Enrich with user profiles for any marketplace users
-        const userIds = Array.from(new Set(filtered.map((r: any) => r.user_id).filter(Boolean)));
+        const filteredDeals = (dealsData || []).filter((deal: any) => {
+          if (!contactEmail) return true;
+          const dealEmail = (deal.contact_email || '').toLowerCase();
+          return dealEmail !== contactEmail.toLowerCase();
+        });
+
+        // Enrich connection requests with user profiles for any marketplace users
+        const userIds = Array.from(new Set(filteredCR.map((r: any) => r.user_id).filter(Boolean)));
         let profileMap = new Map<string, any>();
         if (userIds.length > 0) {
           const { data: profs } = await supabase
@@ -158,7 +185,8 @@ export function useAssociatedRequests(
           (profs || []).forEach((p: any) => profileMap.set(p.id, p));
         }
 
-        const associated: AssociatedRequest[] = filtered.map((req: any) => {
+        // Map connection requests
+        const associatedFromCR: AssociatedRequest[] = filteredCR.map((req: any) => {
           const p = req.user_id ? profileMap.get(req.user_id) : null;
           return {
             id: req.id,
@@ -176,7 +204,30 @@ export function useAssociatedRequests(
           } as AssociatedRequest;
         });
 
-        return associated;
+        // Map manually created deals
+        const associatedFromDeals: AssociatedRequest[] = filteredDeals.map((deal: any) => {
+          return {
+            id: deal.id,
+            user_id: null,
+            listing_id: deal.listing_id,
+            status: 'manual_deal',
+            created_at: deal.created_at,
+            lead_name: deal.contact_name,
+            lead_email: deal.contact_email,
+            lead_company: deal.contact_company,
+            relationship_type: 'same_company',
+            relationship_metadata: { company_name: contactCompany, matched_by: 'company_name', source: 'manual_deal' },
+            listing: deal.listing,
+            user: null,
+          } as AssociatedRequest;
+        });
+
+        // Combine and sort by created_at
+        const combined = [...associatedFromCR, ...associatedFromDeals].sort(
+          (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
+
+        return combined;
       }
 
       return [];
