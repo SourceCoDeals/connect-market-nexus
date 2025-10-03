@@ -25,9 +25,10 @@ interface PipelineKanbanColumnProps {
   deals: Deal[];
   onDealClick: (deal: Deal) => void;
   onOpenCreateDeal?: (stageId: string) => void;
+  totalStages?: number;
 }
 
-export function PipelineKanbanColumn({ stage, deals, onDealClick, onOpenCreateDeal }: PipelineKanbanColumnProps) {
+export function PipelineKanbanColumn({ stage, deals, onDealClick, onOpenCreateDeal, totalStages = 12 }: PipelineKanbanColumnProps) {
   const { setNodeRef, isOver } = useDroppable({
     id: `stage:${stage.id}`,
   });
@@ -43,6 +44,10 @@ export function PipelineKanbanColumn({ stage, deals, onDealClick, onOpenCreateDe
       notation: value >= 1000000 ? 'compact' : 'standard',
     }).format(value);
   };
+
+  // Calculate stage progression (position + 1 to make it 1-indexed)
+  const stageNumber = stage.position + 1;
+  const progressPercentage = totalStages > 0 ? (stageNumber / totalStages) * 100 : 0;
   
   return (
     <Card 
@@ -69,6 +74,20 @@ export function PipelineKanbanColumn({ stage, deals, onDealClick, onOpenCreateDe
           <Button variant="ghost" size="sm" className="h-6 w-6 p-0 flex-shrink-0">
             <MoreVertical className="h-3 w-3" />
           </Button>
+        </div>
+
+        {/* Stage Progression Bar */}
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+            <span className="font-medium">Stage {stageNumber} of {totalStages}</span>
+            <span className="font-medium">{Math.round(progressPercentage)}%</span>
+          </div>
+          <div className="w-full h-1.5 bg-muted/30 rounded-full overflow-hidden">
+            <div 
+              className="h-full bg-gradient-to-r from-primary to-primary/80 transition-all duration-300 rounded-full"
+              style={{ width: `${progressPercentage}%` }}
+            />
+          </div>
         </div>
         
       </CardHeader>

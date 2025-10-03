@@ -185,6 +185,7 @@ export function PipelineKanbanView({ pipeline, onOpenCreateDeal }: PipelineKanba
                     deals={pipeline.dealsByStage[stage.id] || []}
                     onDealClick={pipeline.handleDealSelect}
                     onOpenCreateDeal={onOpenCreateDeal}
+                    totalStages={pipeline.stages.length}
                   />
                 </div>
               ))}

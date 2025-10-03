@@ -225,37 +225,6 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
 
   const lastActivity = getLastActivity();
 
-  // Calculate progression bar - current stage position out of 12 total stages
-  const getProgressionData = () => {
-    if (!stages) return { current: 0, total: 12, percentage: 0 };
-    
-    // We have 12 stages total: 10 active stages (positions 0-9) + Closed Won (10) + Closed Lost (11)
-    const activeStages = stages.filter(s => s.stage_type === 'active');
-    const totalStages = activeStages.length + 2; // +2 for closed won/lost (should be 12)
-    
-    // Find current stage and get its position
-    const currentStage = activeStages.find(s => s.id === deal.stage_id);
-    
-    // Check if it's a closed stage
-    const closedStage = stages.find(s => s.id === deal.stage_id && s.stage_type !== 'active');
-    
-    let currentPosition = 0;
-    if (currentStage) {
-      currentPosition = currentStage.position + 1; // +1 because positions are 0-indexed
-    } else if (closedStage) {
-      // If it's Closed Won or Closed Lost, use their positions
-      currentPosition = closedStage.position + 1;
-    }
-    
-    return {
-      current: currentPosition,
-      total: totalStages,
-      percentage: totalStages > 0 ? (currentPosition / totalStages) * 100 : 0
-    };
-  };
-
-  const progression = getProgressionData();
-
   // Get source badge info
   const getSourceBadge = () => {
     const source = deal.source || 'manual';
@@ -308,20 +277,6 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
       onClick={handleCardClick}
     >
       <CardContent className="p-4 space-y-3">
-        {/* Progression Bar */}
-        <div className="space-y-1.5">
-          <div className="flex items-center justify-between text-[10px] text-muted-foreground">
-            <span className="font-medium">Stage {progression.current} of {progression.total}</span>
-            <span className="font-medium">{Math.round(progression.percentage)}%</span>
-          </div>
-          <div className="w-full h-1.5 bg-muted/30 rounded-full overflow-hidden">
-            <div 
-              className="h-full bg-gradient-to-r from-primary to-primary/80 transition-all duration-300 rounded-full"
-              style={{ width: `${progression.percentage}%` }}
-            />
-          </div>
-        </div>
-
         {/* Header with priority indicator and clean typography */}
         <div className="flex items-start justify-between">
           <div className="flex-1 min-w-0 space-y-1">
