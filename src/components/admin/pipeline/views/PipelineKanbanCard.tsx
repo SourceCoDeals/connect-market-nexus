@@ -44,8 +44,8 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
     return !Number.isNaN(time);
   };
   const getBuyerTypeColor = (buyerType?: string) => {
-    // Uniform styling for all buyer types - clean and minimal
-    return 'bg-muted/50 text-muted-foreground border-border/50';
+    // Sophisticated minimal styling - Apple/Stripe level precision
+    return 'bg-muted/20 text-muted-foreground/80 border-border/25';
   };
 
   const getBuyerTypeLabel = (buyerType?: string) => {
@@ -226,18 +226,18 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
 
   const lastActivity = getLastActivity();
 
-  // Get source badge info
+  // Get source badge info - Sophisticated, minimal design using semantic tokens
   const getSourceBadge = () => {
     const source = deal.source || 'manual';
     switch (source) {
       case 'marketplace':
-        return { icon: Globe, label: 'Marketplace', color: 'bg-blue-500/10 text-blue-700 border-blue-500/20' };
+        return { icon: Globe, label: 'Marketplace', color: 'bg-secondary/10 text-secondary-foreground border-secondary/20' };
       case 'webflow':
-        return { icon: FileText, label: 'Webflow', color: 'bg-purple-500/10 text-purple-700 border-purple-500/20' };
+        return { icon: FileText, label: 'Webflow', color: 'bg-accent/10 text-accent-foreground border-accent/20' };
       case 'manual':
-        return { icon: Zap, label: 'Manual', color: 'bg-orange-500/10 text-orange-700 border-orange-500/20' };
+        return { icon: Zap, label: 'Manual', color: 'bg-primary/10 text-primary-foreground border-primary/20' };
       default:
-        return { icon: Globe, label: source, color: 'bg-muted/50 text-muted-foreground border-border/50' };
+        return { icon: Globe, label: source, color: 'bg-muted/30 text-muted-foreground border-border/30' };
     }
   };
 
@@ -280,41 +280,46 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
       <CardContent className="p-4 space-y-3">
         {/* Header with priority indicator and clean typography */}
         <div className="flex items-start justify-between">
-          <div className="flex-1 min-w-0 space-y-1">
-            <h3 className="text-sm font-medium text-gray-900 leading-tight truncate">
+          <div className="flex-1 min-w-0 space-y-1.5">
+            <h3 className="text-sm font-medium text-foreground leading-tight truncate">
               {companyName ? `${companyName} / ${listingTitle}` : listingTitle}
             </h3>
-            <div className="flex items-center gap-2 flex-wrap">
-              <div className="flex items-center gap-1.5">
-                <Building2 className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
-                <span className="text-xs font-medium text-gray-700 truncate">{companyName}</span>
-                {listingDealCount > 1 && (
-                  <Badge className="text-[10px] px-2 py-0.5 h-4 bg-primary/10 text-primary border border-primary/30 font-bold shadow-sm">
-                    {listingDealCount} for listing
-                  </Badge>
-                )}
-              </div>
-              <Badge className={cn("text-[10px] px-2 py-0.5 font-semibold border", getBuyerTypeColor(actualBuyerType))}>
-                {getBuyerTypeLabel(actualBuyerType)}
-              </Badge>
-              <Badge className={cn("text-[10px] px-2 py-0.5 font-semibold border flex items-center gap-1", sourceBadge.color)}>
-                <SourceIcon className="w-2.5 h-2.5" />
-                {sourceBadge.label}
-              </Badge>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <Building2 className="w-3 h-3 text-muted-foreground/60 flex-shrink-0" />
+              <span className="text-xs font-medium text-foreground/80 truncate">{companyName}</span>
             </div>
           </div>
           <div className={cn("w-2 h-2 rounded-full ml-3 mt-0.5 flex-shrink-0", buyerPriority.dot)} />
         </div>
 
-        {/* Contact person */}
-        <div className="text-xs text-gray-600">
-          Contact: {contactName}
+        {/* Contact person with deal count badge */}
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <User className="w-3 h-3 text-muted-foreground/60 flex-shrink-0" />
+          <span className="text-xs text-muted-foreground">Contact:</span>
+          <span className="text-xs font-medium text-foreground/90">{contactName}</span>
+          {listingDealCount && listingDealCount > 1 && (
+            <Badge className="text-[9px] px-1.5 py-0 h-4 bg-primary/8 text-primary-foreground/90 border border-primary/15 font-medium tracking-wide">
+              +{listingDealCount - 1}
+            </Badge>
+          )}
+        </div>
+
+        {/* Badges row - sophisticated minimal design */}
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <Badge className={cn("text-[9px] px-1.5 py-0 h-4 font-medium tracking-wide border", getBuyerTypeColor(actualBuyerType))}>
+            {getBuyerTypeLabel(actualBuyerType)}
+          </Badge>
+          <Badge className={cn("text-[9px] px-1.5 py-0 h-4 font-medium tracking-wide border flex items-center gap-1", sourceBadge.color)}>
+            <SourceIcon className="w-2.5 h-2.5" />
+            {sourceBadge.label}
+          </Badge>
         </div>
         {/* Deal Owner */}
         {assignedAdmin && (
-          <div className="text-xs text-gray-600 flex items-center gap-1">
-            <User className="w-3.5 h-3.5 text-gray-400" />
-            <span>Owner: {assignedAdmin.displayName}</span>
+          <div className="flex items-center gap-1.5">
+            <User className="w-3 h-3 text-muted-foreground/60 flex-shrink-0" />
+            <span className="text-xs text-muted-foreground">Owner:</span>
+            <span className="text-xs font-medium text-foreground/90">{assignedAdmin.displayName}</span>
           </div>
         )}
 
