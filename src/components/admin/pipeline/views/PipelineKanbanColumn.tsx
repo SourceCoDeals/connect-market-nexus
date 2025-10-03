@@ -45,16 +45,18 @@ export function PipelineKanbanColumn({ stage, deals, onDealClick, onOpenCreateDe
     }).format(value);
   };
 
-  // Calculate stage progression
-  // - Closed Won (position 10) = 100% complete = stage 10/10
-  // - Closed Lost (position 11) = no progression shown
-  // - All other stages count toward 10 total active stages
+  // Dynamic progression calculation based on active stages
   const isClosedWon = stage.name.toLowerCase().includes('closed') && stage.name.toLowerCase().includes('won');
   const isClosedLost = stage.name.toLowerCase().includes('closed') && stage.name.toLowerCase().includes('lost');
   
+  // Calculate max progress stage dynamically (all stages except Closed Lost)
+  const activeProgressStages = totalStages - 1; // Exclude Closed Lost from count
+  const maxProgressStage = activeProgressStages;
+  
+  // For Closed Won, show 100% completion
+  // For other stages, calculate based on position in the active stages
   const stageNumber = stage.position + 1;
-  const maxProgressStage = 10; // Up to "Closed Won" which is position 9 (stage 10)
-  const progressPercentage = isClosedWon ? 100 : (stageNumber / maxProgressStage) * 100;
+  const progressPercentage = isClosedWon ? 100 : Math.min((stageNumber / maxProgressStage) * 100, 100);
   
   return (
     <Card 

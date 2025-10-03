@@ -48,8 +48,10 @@ import {
   Check, 
   X 
 } from 'lucide-react';
-import { useDealStages, useCreateDealStage, useUpdateDealStageData, useDeleteDealStage } from '@/hooks/admin/use-deals';
+import { useDealStages, useCreateDealStage, useUpdateDealStageData, useDeleteDealStage, useStageDealCount } from '@/hooks/admin/use-deals';
 import { DealStage } from '@/hooks/admin/use-deals';
+import { useToast } from '@/hooks/use-toast';
+import { AlertCircle, Lock } from 'lucide-react';
 
 const stageSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -78,9 +80,10 @@ interface SortableStageCardProps {
   onSave: (data: StageFormData) => void;
   onCancel: () => void;
   editForm: any;
+  dealCount?: number;
 }
 
-function SortableStageCard({ stage, isEditing, onEdit, onDelete, onSave, onCancel, editForm }: SortableStageCardProps) {
+function SortableStageCard({ stage, isEditing, onEdit, onDelete, onSave, onCancel, editForm, dealCount = 0 }: SortableStageCardProps) {
   const {
     attributes,
     listeners,
@@ -197,6 +200,17 @@ function SortableStageCard({ stage, isEditing, onEdit, onDelete, onSave, onCance
                       Default
                     </Badge>
                   )}
+                  {stage.is_system_stage && (
+                    <Badge variant="outline" className="text-xs flex items-center gap-1">
+                      <Lock className="h-3 w-3" />
+                      System
+                    </Badge>
+                  )}
+                  {dealCount > 0 && (
+                    <Badge className="text-xs">
+                      {dealCount} {dealCount === 1 ? 'deal' : 'deals'}
+                    </Badge>
+                  )}
                 </div>
                 {stage.description && (
                   <p className="text-sm text-muted-foreground mt-1 truncate">
@@ -211,15 +225,19 @@ function SortableStageCard({ stage, isEditing, onEdit, onDelete, onSave, onCance
                 variant="ghost"
                 size="sm"
                 onClick={onEdit}
+                disabled={stage.is_system_stage}
+                title={stage.is_system_stage ? "System stages cannot be edited" : "Edit stage"}
               >
                 <Edit className="h-4 w-4" />
               </Button>
-              {!stage.is_default && (
+              {!stage.is_default && !stage.is_system_stage && (
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={onDelete}
                   className="text-destructive hover:text-destructive"
+                  title={dealCount > 0 ? `Cannot delete: ${dealCount} active deals in this stage` : "Delete stage"}
+                  disabled={dealCount > 0}
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>
@@ -233,10 +251,11 @@ function SortableStageCard({ stage, isEditing, onEdit, onDelete, onSave, onCance
 }
 
 export const StageManagementModal = ({ open, onOpenChange }: StageManagementModalProps) => {
-  const { data: stages = [], isLoading } = useDealStages();
+  const { data: stages = [], isLoading } = useDealStages(true); // Include all stages
   const createStageMutation = useCreateDealStage();
   const updateStageMutation = useUpdateDealStageData();
   const deleteStageMutation = useDeleteDealStage();
+  const { toast } = useToast();
   
   const [editingStage, setEditingStage] = useState<DealStage | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -309,12 +328,41 @@ export const StageManagementModal = ({ open, onOpenChange }: StageManagementModa
     }
   };
 
-  const handleDeleteStage = async (stageId: string) => {
+  const handleDeleteStage = async (stageId: string, dealCount: number) => {
+    const stage = localStages.find(s => s.id === stageId);
+    
+    if (stage?.is_system_stage) {
+      toast({
+        title: "Cannot delete system stage",
+        description: "System stages (New Inquiry, Closed Won, Closed Lost) cannot be deleted.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (dealCount > 0) {
+      toast({
+        title: "Cannot delete stage",
+        description: `This stage has ${dealCount} active ${dealCount === 1 ? 'deal' : 'deals'}. Please move or delete the deals first.`,
+        variant: "destructive",
+      });
+      return;
+    }
+    
     if (window.confirm('Are you sure you want to delete this stage? This action cannot be undone.')) {
       try {
         await deleteStageMutation.mutateAsync(stageId);
-      } catch (error) {
+        toast({
+          title: "Stage deleted",
+          description: "The stage has been successfully deleted.",
+        });
+      } catch (error: any) {
         console.error('Failed to delete stage:', error);
+        toast({
+          title: "Failed to delete stage",
+          description: error?.message || "An error occurred while deleting the stage.",
+          variant: "destructive",
+        });
       }
     }
   };
@@ -472,18 +520,34 @@ export const StageManagementModal = ({ open, onOpenChange }: StageManagementModa
                 strategy={verticalListSortingStrategy}
               >
                 <div className="space-y-3">
-                  {localStages.map((stage) => (
-                    <SortableStageCard
-                      key={stage.id}
-                      stage={stage}
-                      isEditing={editingStage?.id === stage.id}
-                      onEdit={() => setEditingStage(stage)}
-                      onDelete={() => handleDeleteStage(stage.id)}
-                      onSave={onEditSubmit}
-                      onCancel={() => setEditingStage(null)}
-                      editForm={editForm}
-                    />
-                  ))}
+                  {localStages.map((stage) => {
+                    // eslint-disable-next-line react-hooks/rules-of-hooks
+                    const { data: dealCount = 0 } = useStageDealCount(stage.id);
+                    
+                    return (
+                      <SortableStageCard
+                        key={stage.id}
+                        stage={stage}
+                        isEditing={editingStage?.id === stage.id}
+                        onEdit={() => {
+                          if (stage.is_system_stage) {
+                            toast({
+                              title: "Cannot edit system stage",
+                              description: "System stages have protected configurations.",
+                              variant: "destructive",
+                            });
+                            return;
+                          }
+                          setEditingStage(stage);
+                        }}
+                        onDelete={() => handleDeleteStage(stage.id, dealCount)}
+                        onSave={onEditSubmit}
+                        onCancel={() => setEditingStage(null)}
+                        editForm={editForm}
+                        dealCount={dealCount}
+                      />
+                    );
+                  })}
 
                   {localStages.length === 0 && !isLoading && (
                     <div className="text-center py-8 text-muted-foreground">

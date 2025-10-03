@@ -96,6 +96,7 @@ export interface DealStage {
   color: string;
   is_active: boolean;
   is_default: boolean;
+  is_system_stage?: boolean;
   default_probability?: number;
   stage_type?: 'active' | 'closed_won' | 'closed_lost';
   created_at: string;
@@ -230,6 +231,27 @@ export function useDealStages(includeClosedStages = true) {
       if (error) throw error;
       return data as DealStage[];
     },
+  });
+}
+
+// Get deal count for a stage using the DB function
+export function useStageDealCount(stageId: string | undefined) {
+  return useQuery({
+    queryKey: ['stage-deal-count', stageId],
+    queryFn: async () => {
+      if (!stageId) return 0;
+      
+      const { data, error } = await supabase
+        .rpc('get_stage_deal_count', { stage_uuid: stageId });
+      
+      if (error) {
+        console.error('[useStageDealCount] Error:', error);
+        throw error;
+      }
+      
+      return data as number;
+    },
+    enabled: !!stageId,
   });
 }
 
