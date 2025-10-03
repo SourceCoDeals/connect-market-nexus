@@ -2322,6 +2322,7 @@ export type Database = {
         Returns: {
           assigned_to: string
           buyer_company: string
+          buyer_connection_count: number
           buyer_email: string
           buyer_id: string
           buyer_name: string

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { ChevronDown, ExternalLink } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Deal } from '@/hooks/admin/use-deals';
@@ -25,6 +26,25 @@ const safeTimeAgo = (value: any, options?: Parameters<typeof formatDistanceToNow
     : 'Unknown';
 };
 export function PipelineDetailBuyer({ deal }: PipelineDetailBuyerProps) {
+  // Phase 2: Resolve user_id from email (for both marketplace and lead-based deals)
+  const { data: resolvedUserId } = useQuery({
+    queryKey: ['resolved-user-id', deal.contact_email],
+    queryFn: async () => {
+      if (!deal.contact_email) return null;
+      
+      // Try to find user by email in profiles
+      const { data: userProfile } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('email', deal.contact_email)
+        .maybeSingle();
+      
+      return userProfile?.id || null;
+    },
+    enabled: !!deal.contact_email,
+    staleTime: 5 * 60 * 1000,
+  });
+
   // Fetch full buyer profile via connection request
   const { data: buyerProfile } = useQuery({
     queryKey: ['buyer-profile', deal.deal_id],
@@ -56,20 +76,30 @@ export function PipelineDetailBuyer({ deal }: PipelineDetailBuyerProps) {
     staleTime: 5 * 60 * 1000,
   });
 
-  // Fetch connection requests for this buyer
+  // Phase 2: Fetch ALL connection requests for this buyer (using OR logic for user_id and email)
   const { data: connectionRequests = [] } = useQuery({
-    queryKey: ['buyer-connection-requests', deal.contact_email],
+    queryKey: ['buyer-connection-requests', deal.contact_email, resolvedUserId],
     queryFn: async () => {
       if (!deal.contact_email) return [];
       
-      const { data, error } = await supabase
+      // Use resolved user_id OR email to match all connection requests
+      const userId = buyerProfile?.user_id || resolvedUserId;
+      
+      let query = supabase
         .from('connection_requests')
         .select(`
           *,
           listings:listing_id(title, id, revenue, location, internal_company_name)
-        `)
-        .eq('lead_email', deal.contact_email)
-        .order('created_at', { ascending: false });
+        `);
+      
+      // Build OR condition: match by user_id OR lead_email
+      if (userId) {
+        query = query.or(`user_id.eq.${userId},lead_email.eq.${deal.contact_email}`);
+      } else {
+        query = query.eq('lead_email', deal.contact_email);
+      }
+      
+      const { data, error } = await query.order('created_at', { ascending: false });
       
       if (error) throw error;
       return data || [];
@@ -78,11 +108,12 @@ export function PipelineDetailBuyer({ deal }: PipelineDetailBuyerProps) {
     staleTime: 2 * 60 * 1000,
   });
 
-  // Fetch saved listings for this buyer
+  // Phase 2: Fetch saved listings using resolved user_id
   const { data: savedListings = [] } = useQuery({
-    queryKey: ['buyer-saved-listings', buyerProfile?.user_id],
+    queryKey: ['buyer-saved-listings', resolvedUserId, buyerProfile?.user_id],
     queryFn: async () => {
-      if (!buyerProfile?.user_id) return [];
+      const userId = buyerProfile?.user_id || resolvedUserId;
+      if (!userId) return [];
       
       const { data, error } = await supabase
         .from('saved_listings')
@@ -90,13 +121,13 @@ export function PipelineDetailBuyer({ deal }: PipelineDetailBuyerProps) {
           *,
           listings:listing_id(title, id, revenue, location, internal_company_name)
         `)
-        .eq('user_id', buyerProfile.user_id)
+        .eq('user_id', userId)
         .order('created_at', { ascending: false });
       
       if (error) throw error;
       return data || [];
     },
-    enabled: !!buyerProfile?.user_id,
+    enabled: !!(buyerProfile?.user_id || resolvedUserId),
     staleTime: 5 * 60 * 1000,
   });
 
@@ -422,55 +453,52 @@ export function PipelineDetailBuyer({ deal }: PipelineDetailBuyerProps) {
                 </div>
                 
                 {connectionRequests.length > 0 && (
-                  <div className="space-y-1">
-                    {connectionRequests.slice(0, 3).map((request: any) => (
-                      <div key={request.id} className="flex items-center justify-between py-3 px-4 bg-muted/10 rounded-lg">
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm text-foreground truncate">
-                            {request.listings?.title || 'Unknown Listing'}
-                            {request.listings?.internal_company_name && (
-                              <span className="text-muted-foreground">
-                                {' / '}
-                                <a
-                                  href={`/listing/${request.listings.id}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="hover:text-foreground hover:underline transition-colors"
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  {request.listings.internal_company_name}
-                                </a>
-                              </span>
-                            )}
-                          </p>
-                          <div className="flex items-center gap-3 mt-1">
-                            <span className="text-xs text-muted-foreground font-mono">
-                              {safeTimeAgo(request.created_at)}
-                            </span>
-                            {request.listings?.revenue && (
-                              <>
-                                <span className="text-muted-foreground/40">·</span>
-                                <span className="text-xs text-muted-foreground font-mono">
-                                  ${request.listings.revenue.toLocaleString()} revenue
+                  <ScrollArea className="max-h-[300px]">
+                    <div className="space-y-1 pr-3">
+                      {connectionRequests.map((request: any) => (
+                        <div key={request.id} className="flex items-center justify-between py-3 px-4 bg-muted/10 rounded-lg">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm text-foreground truncate">
+                              {request.listings?.title || 'Unknown Listing'}
+                              {request.listings?.internal_company_name && (
+                                <span className="text-muted-foreground">
+                                  {' / '}
+                                  <a
+                                    href={`/listing/${request.listings.id}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="hover:text-foreground hover:underline transition-colors"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    {request.listings.internal_company_name}
+                                  </a>
                                 </span>
-                              </>
-                            )}
+                              )}
+                            </p>
+                            <div className="flex items-center gap-3 mt-1">
+                              <span className="text-xs text-muted-foreground font-mono">
+                                {safeTimeAgo(request.created_at)}
+                              </span>
+                              {request.listings?.revenue && (
+                                <>
+                                  <span className="text-muted-foreground/40">·</span>
+                                  <span className="text-xs text-muted-foreground font-mono">
+                                    ${request.listings.revenue.toLocaleString()} revenue
+                                  </span>
+                                </>
+                              )}
+                            </div>
                           </div>
+                          <div className={`w-2 h-2 rounded-full ml-3 ${
+                            request.status === 'approved' ? 'bg-emerald-500' :
+                            request.status === 'rejected' ? 'bg-red-500' :
+                            request.status === 'on_hold' ? 'bg-amber-500' :
+                            'bg-muted-foreground/30'
+                          }`} />
                         </div>
-                        <div className={`w-2 h-2 rounded-full ml-3 ${
-                          request.status === 'approved' ? 'bg-emerald-500' :
-                          request.status === 'rejected' ? 'bg-red-500' :
-                          request.status === 'on_hold' ? 'bg-amber-500' :
-                          'bg-muted-foreground/30'
-                        }`} />
-                      </div>
-                    ))}
-                    {connectionRequests.length > 3 && (
-                      <div className="text-xs text-muted-foreground text-center py-2">
-                        +{connectionRequests.length - 3} more connections
-                      </div>
-                    )}
-                  </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
                 )}
               </div>
 
@@ -484,49 +512,46 @@ export function PipelineDetailBuyer({ deal }: PipelineDetailBuyerProps) {
                     </span>
                   </div>
                   
-                  <div className="space-y-1">
-                    {savedListings.slice(0, 3).map((saved: any) => (
-                      <div key={saved.id} className="flex items-center justify-between py-3 px-4 bg-muted/10 rounded-lg">
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm text-foreground truncate">
-                            {saved.listings?.title || 'Unknown Listing'}
-                            {saved.listings?.internal_company_name && (
-                              <span className="text-muted-foreground">
-                                {' / '}
-                                <a
-                                  href={`/listing/${saved.listings.id}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="hover:text-foreground hover:underline transition-colors"
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  {saved.listings.internal_company_name}
-                                </a>
-                              </span>
-                            )}
-                          </p>
-                          <div className="flex items-center gap-3 mt-1">
-                            <span className="text-xs text-muted-foreground font-mono">
-                              {safeTimeAgo(saved.created_at)}
-                            </span>
-                            {saved.listings?.revenue && (
-                              <>
-                                <span className="text-muted-foreground/40">·</span>
-                                <span className="text-xs text-muted-foreground font-mono">
-                                  ${saved.listings.revenue.toLocaleString()} revenue
+                  <ScrollArea className="max-h-[300px]">
+                    <div className="space-y-1 pr-3">
+                      {savedListings.map((saved: any) => (
+                        <div key={saved.id} className="flex items-center justify-between py-3 px-4 bg-muted/10 rounded-lg">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm text-foreground truncate">
+                              {saved.listings?.title || 'Unknown Listing'}
+                              {saved.listings?.internal_company_name && (
+                                <span className="text-muted-foreground">
+                                  {' / '}
+                                  <a
+                                    href={`/listing/${saved.listings.id}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="hover:text-foreground hover:underline transition-colors"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    {saved.listings.internal_company_name}
+                                  </a>
                                 </span>
-                              </>
-                            )}
+                              )}
+                            </p>
+                            <div className="flex items-center gap-3 mt-1">
+                              <span className="text-xs text-muted-foreground font-mono">
+                                {safeTimeAgo(saved.created_at)}
+                              </span>
+                              {saved.listings?.revenue && (
+                                <>
+                                  <span className="text-muted-foreground/40">·</span>
+                                  <span className="text-xs text-muted-foreground font-mono">
+                                    ${saved.listings.revenue.toLocaleString()} revenue
+                                  </span>
+                                </>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
-                    {savedListings.length > 3 && (
-                      <div className="text-xs text-muted-foreground text-center py-2">
-                        +{savedListings.length - 3} more saved listings
-                      </div>
-                    )}
-                  </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
                 </div>
               )}
             </div>

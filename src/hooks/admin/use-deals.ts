@@ -87,6 +87,7 @@ export interface Deal {
   // Company grouping
   company_deal_count?: number;
   listing_deal_count?: number; // More reliable - counts deals per listing
+  buyer_connection_count?: number; // Total connection requests by this buyer
 }
 
 export interface DealStage {
@@ -205,6 +206,7 @@ export function useDeals() {
           connection_request_id: row.connection_request_id,
           company_deal_count: Number(row.company_deal_count ?? 0),
           listing_deal_count: Number(row.listing_deal_count ?? 1),
+          buyer_connection_count: Number(row.buyer_connection_count ?? 1), // NEW: Buyer's total connection requests
           buyer_id: row.buyer_id,
           last_contact_at: row.last_contact_at,
           last_contact_type: row.last_contact_type,
