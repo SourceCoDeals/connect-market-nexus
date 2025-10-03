@@ -250,7 +250,7 @@ function SortableStageCard({ stage, isEditing, onEdit, onDelete, onSave, onCance
   );
 }
 
-export const StageManagementModal = ({ open, onOpenChange }: StageManagementModalProps) => {
+// Wrapper component to safely use hooks per stage\nfunction StageRow({\n  stage,\n  isEditing,\n  onEdit,\n  onDelete,\n  onSave,\n  onCancel,\n  editForm,\n}: {\n  stage: DealStage;\n  isEditing: boolean;\n  onEdit: () => void;\n  onDelete: (dealCount: number) => void;\n  onSave: (data: StageFormData) => void;\n  onCancel: () => void;\n  editForm: any;\n}) {\n  const { data: dealCount = 0 } = useStageDealCount(stage.id);\n  return (\n    <SortableStageCard\n      stage={stage}\n      isEditing={isEditing}\n      onEdit={onEdit}\n      onDelete={() => onDelete(dealCount)}\n      onSave={onSave}\n      onCancel={onCancel}\n      editForm={editForm}\n      dealCount={dealCount}\n    />\n  );\n}\n\nexport const StageManagementModal = ({ open, onOpenChange }: StageManagementModalProps) => {
   const { data: stages = [], isLoading } = useDealStages(true); // Include all stages
   const createStageMutation = useCreateDealStage();
   const updateStageMutation = useUpdateDealStageData();
@@ -520,34 +520,28 @@ export const StageManagementModal = ({ open, onOpenChange }: StageManagementModa
                 strategy={verticalListSortingStrategy}
               >
                 <div className="space-y-3">
-                  {localStages.map((stage) => {
-                    // eslint-disable-next-line react-hooks/rules-of-hooks
-                    const { data: dealCount = 0 } = useStageDealCount(stage.id);
-                    
-                    return (
-                      <SortableStageCard
-                        key={stage.id}
-                        stage={stage}
-                        isEditing={editingStage?.id === stage.id}
-                        onEdit={() => {
-                          if (stage.is_system_stage) {
-                            toast({
-                              title: "Cannot edit system stage",
-                              description: "System stages have protected configurations.",
-                              variant: "destructive",
-                            });
-                            return;
-                          }
-                          setEditingStage(stage);
-                        }}
-                        onDelete={() => handleDeleteStage(stage.id, dealCount)}
-                        onSave={onEditSubmit}
-                        onCancel={() => setEditingStage(null)}
-                        editForm={editForm}
-                        dealCount={dealCount}
-                      />
-                    );
-                  })}
+                  {localStages.map((stage) => (
+                    <StageRow
+                      key={stage.id}
+                      stage={stage}
+                      isEditing={editingStage?.id === stage.id}
+                      onEdit={() => {
+                        if (stage.is_system_stage) {
+                          toast({
+                            title: "Cannot edit system stage",
+                            description: "System stages have protected configurations.",
+                            variant: "destructive",
+                          });
+                          return;
+                        }
+                        setEditingStage(stage);
+                      }}
+                      onDelete={(dealCount) => handleDeleteStage(stage.id, dealCount)}
+                      onSave={onEditSubmit}
+                      onCancel={() => setEditingStage(null)}
+                      editForm={editForm}
+                    />
+                  ))}
 
                   {localStages.length === 0 && !isLoading && (
                     <div className="text-center py-8 text-muted-foreground">
