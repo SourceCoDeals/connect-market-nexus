@@ -188,7 +188,7 @@ export function PipelineDetailBuyer({ deal }: PipelineDetailBuyerProps) {
             </div>
           )}
 
-          {/* Investment Profile */}
+          {/* Investment Profile - Now includes all buyer-specific details */}
           {profile && (
             <Collapsible defaultOpen>
               <CollapsibleTrigger className="flex items-center justify-between w-full group hover:text-foreground transition-colors">
@@ -197,27 +197,18 @@ export function PipelineDetailBuyer({ deal }: PipelineDetailBuyerProps) {
               </CollapsibleTrigger>
               <CollapsibleContent className="pt-4">
                 <div className="space-y-4">
-                  {profile.target_deal_size_min && profile.target_deal_size_max && (
-                    <div className="flex items-center justify-between py-2">
-                      <span className="text-sm text-foreground">Deal Size Range</span>
-                      <span className="text-sm text-muted-foreground font-mono">
-                        ${profile.target_deal_size_min}M - ${profile.target_deal_size_max}M
-                      </span>
+                  {/* Target Description */}
+                  {profile.ideal_target_description && (
+                    <div className="space-y-1">
+                      <p className="text-xs text-muted-foreground uppercase tracking-wider">Target Description</p>
+                      <p className="text-sm text-foreground">{String(profile.ideal_target_description)}</p>
                     </div>
                   )}
-                  
-                  {(profile.fund_size || profile.aum) && (
-                    <div className="flex items-center justify-between py-2">
-                      <span className="text-sm text-foreground">{profile.fund_size ? 'Fund Size' : 'AUM'}</span>
-                      <span className="text-sm text-muted-foreground font-mono">
-                        {profile.fund_size || profile.aum}
-                      </span>
-                    </div>
-                  )}
-                  
+
+                  {/* Business Categories */}
                   {profile.business_categories && Array.isArray(profile.business_categories) && profile.business_categories.length > 0 && (
-                    <div className="py-2">
-                      <span className="text-sm text-foreground block mb-2">Target Industries</span>
+                    <div className="space-y-2">
+                      <p className="text-xs text-muted-foreground uppercase tracking-wider">Business Categories</p>
                       <div className="flex flex-wrap gap-1">
                         {profile.business_categories.map((category: string, index: number) => (
                           <Badge key={index} variant="secondary" className="text-xs">
@@ -228,9 +219,10 @@ export function PipelineDetailBuyer({ deal }: PipelineDetailBuyerProps) {
                     </div>
                   )}
                   
+                  {/* Target Locations */}
                   {profile.target_locations && Array.isArray(profile.target_locations) && profile.target_locations.length > 0 && (
-                    <div className="py-2">
-                      <span className="text-sm text-foreground block mb-2">Geographic Focus</span>
+                    <div className="space-y-2">
+                      <p className="text-xs text-muted-foreground uppercase tracking-wider">Target Locations</p>
                       <div className="flex flex-wrap gap-1">
                         {profile.target_locations.map((location: string, index: number) => (
                           <Badge key={index} variant="outline" className="text-xs">
@@ -240,126 +232,217 @@ export function PipelineDetailBuyer({ deal }: PipelineDetailBuyerProps) {
                       </div>
                     </div>
                   )}
+
+                  {/* Specific Search */}
+                  {profile.specific_business_search && (
+                    <div className="space-y-1">
+                      <p className="text-xs text-muted-foreground uppercase tracking-wider">Specific Search</p>
+                      <p className="text-sm text-foreground">{String(profile.specific_business_search)}</p>
+                    </div>
+                  )}
+
+                  {/* Deal Intent */}
+                  {profile.deal_intent && (
+                    <div className="space-y-1">
+                      <p className="text-xs text-muted-foreground uppercase tracking-wider">Deal Intent</p>
+                      <p className="text-sm text-foreground">{String(profile.deal_intent)}</p>
+                    </div>
+                  )}
+
+                  {/* Keywords */}
+                  {profile.include_keywords && (
+                    <div className="space-y-1">
+                      <p className="text-xs text-muted-foreground uppercase tracking-wider">Keywords</p>
+                      <p className="text-sm text-foreground">{String(profile.include_keywords)}</p>
+                    </div>
+                  )}
+
+                  {/* Financial Fields */}
+                  <div className="h-px bg-border my-2" />
+
+                  {/* Fund Size */}
+                  {profile.fund_size && (
+                    <div className="space-y-1">
+                      <p className="text-xs text-muted-foreground uppercase tracking-wider">Fund Size</p>
+                      <p className="text-sm text-foreground">{String(profile.fund_size)}</p>
+                    </div>
+                  )}
+
+                  {/* Investment Size */}
+                  {profile.investment_size && (
+                    <div className="space-y-1">
+                      <p className="text-xs text-muted-foreground uppercase tracking-wider">Investment Size</p>
+                      <p className="text-sm text-foreground">{String(profile.investment_size)}</p>
+                    </div>
+                  )}
+
+                  {/* AUM */}
+                  {profile.aum && (
+                    <div className="space-y-1">
+                      <p className="text-xs text-muted-foreground uppercase tracking-wider">Assets Under Management</p>
+                      <p className="text-sm text-foreground">{String(profile.aum)}</p>
+                    </div>
+                  )}
+
+                  {/* Deploying Capital */}
+                  {profile.deploying_capital_now && (
+                    <div className="space-y-1">
+                      <p className="text-xs text-muted-foreground uppercase tracking-wider">Deploying Capital</p>
+                      <p className="text-sm text-foreground">{String(profile.deploying_capital_now)}</p>
+                    </div>
+                  )}
+
+                  {/* Deal Size Range */}
+                  {profile.target_deal_size_min && profile.target_deal_size_max && (
+                    <div className="space-y-1">
+                      <p className="text-xs text-muted-foreground uppercase tracking-wider">Deal Size Range</p>
+                      <p className="text-sm text-foreground font-mono">
+                        ${profile.target_deal_size_min}M - ${profile.target_deal_size_max}M
+                      </p>
+                    </div>
+                  )}
+
+                  {/* All other buyer-specific fields */}
+                  {profile.buyer_type && getRelevantFieldsForBuyerType(profile.buyer_type as any)
+                    .filter(field => !['email', 'phone_number', 'linkedin_profile', 'first_name', 'last_name', 
+                                       'business_categories', 'target_locations', 'ideal_target_description',
+                                       'specific_business_search', 'deal_intent', 'include_keywords',
+                                       'fund_size', 'investment_size', 'aum', 'deploying_capital_now',
+                                       'target_deal_size_min', 'target_deal_size_max'].includes(field))
+                    .map((field) => {
+                      const value = formatFieldValue(field, (profile as any)[field]);
+                      if (!value) return null;
+                      
+                      return (
+                        <div key={field} className="space-y-1">
+                          <p className="text-xs text-muted-foreground uppercase tracking-wider">
+                            {FIELD_LABELS[field as keyof typeof FIELD_LABELS] || field}
+                          </p>
+                          <p className="text-sm text-foreground">{value}</p>
+                        </div>
+                      );
+                    })}
                 </div>
               </CollapsibleContent>
             </Collapsible>
           )}
 
-          {/* Connection History */}
-          <Collapsible defaultOpen={connectionRequests.length > 0 && connectionRequests.length <= 5}>
-            <CollapsibleTrigger className="flex items-center justify-between w-full group hover:text-foreground transition-colors">
-              <h3 className="text-sm font-medium text-foreground">
-                Connection History ({connectionRequests.length})
-              </h3>
-              <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
-            </CollapsibleTrigger>
-            <CollapsibleContent className="pt-4">
-              <div className="space-y-2">
-                {connectionRequests.length === 0 ? (
-                  <p className="text-sm text-muted-foreground py-4 text-center">No connection history</p>
-                ) : (
-                  connectionRequests.map((req: any) => (
-                    <div key={req.id} className="p-3 border border-border/40 rounded-lg hover:border-border/60 transition-colors">
-                      <div className="flex items-start justify-between">
-                        <div className="space-y-1">
-                          <p className="text-sm font-medium text-foreground">
-                            {req.listings?.internal_company_name || req.listings?.title || 'Unknown Listing'}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {req.listings?.location && `${req.listings.location} · `}
-                            {req.created_at && formatDistanceToNow(new Date(req.created_at), { addSuffix: true })}
-                          </p>
-                        </div>
-                        <Badge variant={req.status === 'approved' ? 'default' : 'secondary'} className="text-xs">
-                          {req.status}
-                        </Badge>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </CollapsibleContent>
-          </Collapsible>
+          {/* Connection & Activity History with Tabs */}
+          <div className="space-y-3">
+            <h3 className="text-sm font-medium text-foreground">Connection & Activity History</h3>
+            
+            <Tabs defaultValue="direct" className="w-full">
+              <TabsList className="w-full grid grid-cols-3">
+                <TabsTrigger value="direct" className="text-xs">
+                  Direct ({connectionRequests.filter((r: any) => !associatedRequests.some((a: any) => a.id === r.id)).length})
+                </TabsTrigger>
+                <TabsTrigger value="colleagues" className="text-xs flex items-center gap-1">
+                  <Users className="w-3 h-3" />
+                  Colleagues ({associatedRequests.length})
+                </TabsTrigger>
+                <TabsTrigger value="saved" className="text-xs">
+                  Saved ({savedListings.length})
+                </TabsTrigger>
+              </TabsList>
 
-          {/* Saved Listings */}
-          <Collapsible>
-            <CollapsibleTrigger className="flex items-center justify-between w-full group hover:text-foreground transition-colors">
-              <h3 className="text-sm font-medium text-foreground">
-                Saved Listings ({savedListings.length})
-              </h3>
-              <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
-            </CollapsibleTrigger>
-            <CollapsibleContent className="pt-4">
-              <div className="space-y-2">
-                {savedListings.length === 0 ? (
-                  <p className="text-sm text-muted-foreground py-4 text-center">No saved listings</p>
-                ) : (
-                  savedListings.map((saved: any) => (
-                    <div key={saved.id} className="p-3 border border-border/40 rounded-lg">
-                      <p className="text-sm font-medium text-foreground">
-                        {saved.listings?.internal_company_name || saved.listings?.title || 'Unknown'}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {saved.listings?.location} · Saved {formatDistanceToNow(new Date(saved.created_at), { addSuffix: true })}
-                      </p>
-                    </div>
-                  ))
-                )}
-              </div>
-            </CollapsibleContent>
-          </Collapsible>
-
-          {/* Colleagues & Activity by Company */}
-          {associatedRequests.length > 0 && (
-            <Collapsible defaultOpen>
-              <CollapsibleTrigger className="flex items-center justify-between w-full group hover:text-foreground transition-colors">
-                <div className="flex items-center gap-2">
-                  <Users className="w-4 h-4 text-muted-foreground" />
-                  <h3 className="text-sm font-medium text-foreground">
-                    Company Colleagues & Activity ({associatedRequests.length})
-                  </h3>
-                </div>
-                <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
-              </CollapsibleTrigger>
-              <CollapsibleContent className="pt-4">
+              {/* Direct Connections Tab */}
+              <TabsContent value="direct" className="mt-4">
                 <div className="space-y-2">
-                  {associatedRequests.map((req: any) => {
-                    const displayName = req.user 
-                      ? `${req.user.first_name || ''} ${req.user.last_name || ''}`.trim() || req.lead_name || req.lead_email
-                      : req.lead_name || req.lead_email;
-                    
-                    const listingTitle = req.listing?.internal_company_name || req.listing?.title || 'Unknown Listing';
-                    
-                    return (
-                      <div key={req.id} className="p-3 border border-border/40 rounded-lg hover:border-border/60 transition-colors">
-                        <div className="flex items-start justify-between mb-2">
-                          <div className="space-y-1 flex-1">
-                            <p className="text-sm font-medium text-foreground">{displayName}</p>
-                            <p className="text-xs text-muted-foreground font-mono">{req.lead_email || req.user?.email}</p>
+                  {connectionRequests.filter((r: any) => !associatedRequests.some((a: any) => a.id === r.id)).length === 0 ? (
+                    <p className="text-sm text-muted-foreground py-4 text-center">No direct connection history</p>
+                  ) : (
+                    connectionRequests
+                      .filter((r: any) => !associatedRequests.some((a: any) => a.id === r.id))
+                      .map((req: any) => (
+                        <div key={req.id} className="p-3 border border-border/40 rounded-lg hover:border-border/60 transition-colors">
+                          <div className="flex items-start justify-between">
+                            <div className="space-y-1">
+                              <p className="text-sm font-medium text-foreground">
+                                {req.listings?.internal_company_name || req.listings?.title || 'Unknown Listing'}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {req.listings?.location && `${req.listings.location} · `}
+                                {req.listings?.revenue && `$${(req.listings.revenue / 1000000).toFixed(1)}M revenue · `}
+                                {req.created_at && formatDistanceToNow(new Date(req.created_at), { addSuffix: true })}
+                              </p>
+                            </div>
+                            <Badge variant={req.status === 'approved' ? 'default' : 'secondary'} className="text-xs">
+                              {req.status}
+                            </Badge>
                           </div>
-                          <Badge variant={req.status === 'approved' ? 'default' : 'secondary'} className="text-xs ml-2">
-                            {req.status}
-                          </Badge>
                         </div>
-                        <div className="flex items-center gap-2 pt-2 border-t border-border/20">
-                          <ExternalLink className="w-3 h-3 text-muted-foreground" />
-                          <p className="text-xs text-muted-foreground">
-                            {listingTitle}
-                            {req.listing?.location && ` · ${req.listing.location}`}
-                          </p>
-                        </div>
-                        {req.created_at && (
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {formatDistanceToNow(new Date(req.created_at), { addSuffix: true })}
-                          </p>
-                        )}
-                      </div>
-                    );
-                  })}
+                      ))
+                  )}
                 </div>
-              </CollapsibleContent>
-            </Collapsible>
-          )}
+              </TabsContent>
+
+              {/* Colleagues Tab */}
+              <TabsContent value="colleagues" className="mt-4">
+                <div className="space-y-2">
+                  {associatedRequests.length === 0 ? (
+                    <p className="text-sm text-muted-foreground py-4 text-center">No colleague activity</p>
+                  ) : (
+                    associatedRequests.map((req: any) => {
+                      const displayName = req.user 
+                        ? `${req.user.first_name || ''} ${req.user.last_name || ''}`.trim() || req.lead_name || req.lead_email
+                        : req.lead_name || req.lead_email;
+                      
+                      const listingTitle = req.listing?.internal_company_name || req.listing?.title || 'Unknown Listing';
+                      
+                      return (
+                        <div key={req.id} className="p-3 border border-border/40 rounded-lg hover:border-border/60 transition-colors">
+                          <div className="flex items-start justify-between mb-2">
+                            <div className="space-y-1 flex-1">
+                              <p className="text-sm font-medium text-foreground">{displayName}</p>
+                              <p className="text-xs text-muted-foreground font-mono">{req.lead_email || req.user?.email}</p>
+                            </div>
+                            <Badge variant={req.status === 'approved' ? 'default' : 'secondary'} className="text-xs ml-2">
+                              {req.status}
+                            </Badge>
+                          </div>
+                          <div className="flex items-center gap-2 pt-2 border-t border-border/20">
+                            <ExternalLink className="w-3 h-3 text-muted-foreground" />
+                            <p className="text-xs text-muted-foreground">
+                              {listingTitle}
+                              {req.listing?.location && ` · ${req.listing.location}`}
+                              {req.listing?.revenue && ` · $${(req.listing.revenue / 1000000).toFixed(1)}M revenue`}
+                            </p>
+                          </div>
+                          {req.created_at && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {formatDistanceToNow(new Date(req.created_at), { addSuffix: true })}
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </TabsContent>
+
+              {/* Saved Listings Tab */}
+              <TabsContent value="saved" className="mt-4">
+                <div className="space-y-2">
+                  {savedListings.length === 0 ? (
+                    <p className="text-sm text-muted-foreground py-4 text-center">No saved listings</p>
+                  ) : (
+                    savedListings.map((saved: any) => (
+                      <div key={saved.id} className="p-3 border border-border/40 rounded-lg">
+                        <p className="text-sm font-medium text-foreground">
+                          {saved.listings?.internal_company_name || saved.listings?.title || 'Unknown'}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {saved.listings?.location && `${saved.listings.location} · `}
+                          {saved.listings?.revenue && `$${(saved.listings.revenue / 1000000).toFixed(1)}M revenue · `}
+                          Saved {formatDistanceToNow(new Date(saved.created_at), { addSuffix: true })}
+                        </p>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </TabsContent>
+            </Tabs>
+          </div>
         </div>
 
         {/* Right Sidebar - Metadata */}
@@ -422,7 +505,7 @@ export function PipelineDetailBuyer({ deal }: PipelineDetailBuyerProps) {
 
           <div className="h-px bg-border" />
 
-          {/* Buyer Details */}
+          {/* Buyer Details - Simplified */}
           <div className="space-y-3">
             <Label className="text-xs text-muted-foreground uppercase tracking-wider">Buyer Details</Label>
             
@@ -469,23 +552,6 @@ export function PipelineDetailBuyer({ deal }: PipelineDetailBuyerProps) {
                   </a>
                 </div>
               )}
-              
-              {profile && profile.buyer_type && getRelevantFieldsForBuyerType(profile.buyer_type as any).map((field) => {
-                const value = formatFieldValue(field, (profile as any)[field]);
-                if (!value) return null;
-                
-                // Skip fields already shown above
-                if (['email', 'phone_number', 'linkedin_profile', 'first_name', 'last_name'].includes(field)) {
-                  return null;
-                }
-                
-                return (
-                  <div key={field} className="space-y-1">
-                    <p className="text-xs text-muted-foreground">{FIELD_LABELS[field as keyof typeof FIELD_LABELS] || field}</p>
-                    <p className="text-sm text-foreground">{value}</p>
-                  </div>
-                );
-              })}
             </div>
           </div>
         </div>
