@@ -4,6 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { MultiSelect } from '@/components/ui/multi-select';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
   Select,
   SelectContent,
@@ -17,11 +19,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import {
   Search,
@@ -35,6 +32,8 @@ import {
   X,
   CalendarIcon,
   ChevronDown,
+  Check,
+  ChevronsUpDown,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -182,23 +181,61 @@ export function PipelineHeader({ pipeline, onOpenCreateDeal }: PipelineHeaderPro
 
       {/* Second Row - Filters Bar (Desktop) */}
       <div className="hidden md:flex items-center gap-2 px-4 py-3 overflow-x-auto">
-        {/* Deal/Listing Filter - NOW FIRST */}
-        <Select
-          value={pipeline.listingFilter}
-          onValueChange={(value) => pipeline.setListingFilter(value)}
-        >
-          <SelectTrigger className="w-[180px] h-9">
-            <SelectValue placeholder="All Listings" />
-          </SelectTrigger>
-          <SelectContent className="bg-background z-[100] max-h-[300px]">
-            <SelectItem value="all">All Listings</SelectItem>
-            {pipeline.uniqueListings?.map((listing) => (
-              <SelectItem key={listing.id} value={listing.id}>
-                {listing.title}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {/* Deal/Listing Filter with Search - NOW FIRST */}
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              role="combobox"
+              className="w-[180px] h-9 justify-between"
+            >
+              <span className="truncate text-sm">
+                {pipeline.listingFilter === 'all' 
+                  ? 'All Listings'
+                  : pipeline.uniqueListings?.find(l => l.id === pipeline.listingFilter)?.title || 'All Listings'
+                }
+              </span>
+              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-[280px] p-0 bg-background z-[100]" align="start">
+            <Command>
+              <CommandInput placeholder="Search..." />
+              <CommandList>
+                <CommandEmpty>No listing found.</CommandEmpty>
+                <CommandGroup>
+                  <CommandItem
+                    value="all"
+                    onSelect={() => pipeline.setListingFilter('all')}
+                  >
+                    <Check
+                      className={cn(
+                        "mr-2 h-4 w-4",
+                        pipeline.listingFilter === 'all' ? "opacity-100" : "opacity-0"
+                      )}
+                    />
+                    All Listings
+                  </CommandItem>
+                  {pipeline.uniqueListings?.map((listing) => (
+                    <CommandItem
+                      key={listing.id}
+                      value={listing.title}
+                      onSelect={() => pipeline.setListingFilter(listing.id)}
+                    >
+                      <Check
+                        className={cn(
+                          "mr-2 h-4 w-4",
+                          pipeline.listingFilter === listing.id ? "opacity-100" : "opacity-0"
+                        )}
+                      />
+                      {listing.title}
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </CommandList>
+            </Command>
+          </PopoverContent>
+        </Popover>
 
         {/* Stage Filter - NOW SECOND */}
         <Select
