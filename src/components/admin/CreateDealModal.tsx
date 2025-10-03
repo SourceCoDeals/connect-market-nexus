@@ -111,6 +111,7 @@ export function CreateDealModal({ open, onOpenChange, prefilledStageId, onDealCr
   const [isCheckingDuplicates, setIsCheckingDuplicates] = useState(false);
   const [isSelectingUser, setIsSelectingUser] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [selectedCompanyName, setSelectedCompanyName] = useState<string | null>(null);
 
   const form = useForm<CreateDealFormData>({
     resolver: zodResolver(createDealSchema),
@@ -316,6 +317,7 @@ export function CreateDealModal({ open, onOpenChange, prefilledStageId, onDealCr
     if (isSelectingUser) {
       // Switching back to manual entry
       setSelectedUserId(null);
+      setSelectedCompanyName(null);
       form.setValue('contact_name', '');
       form.setValue('contact_email', '');
       form.setValue('contact_company', '');
@@ -323,6 +325,12 @@ export function CreateDealModal({ open, onOpenChange, prefilledStageId, onDealCr
       form.setValue('contact_role', '');
     }
     setIsSelectingUser(!isSelectingUser);
+  };
+
+  // Handle company selection
+  const handleCompanySelect = (companyName: string) => {
+    setSelectedCompanyName(companyName);
+    form.setValue('contact_company', companyName);
   };
 
   // Format user options for combobox
@@ -616,27 +624,58 @@ export function CreateDealModal({ open, onOpenChange, prefilledStageId, onDealCr
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Company</FormLabel>
-                        <FormControl>
-                          <Combobox
-                            options={marketplaceCompanies?.map(c => ({
-                              value: c.value,
-                              label: c.label,
-                              searchTerms: c.searchTerms,
-                            })) || []}
-                            value={field.value || ''}
-                            onValueChange={field.onChange}
-                            placeholder="Select or type company name..."
-                            emptyText="No companies found"
-                            searchPlaceholder="Search companies..."
-                            allowCustomValue={true}
-                            onCustomValueCreate={(newCompany) => {
-                              console.log('[CreateDealModal] Creating new company:', newCompany);
-                            }}
-                          />
-                        </FormControl>
-                        <FormDescription className="text-xs">
-                          Select an existing company or type a new one
-                        </FormDescription>
+                        <div className="space-y-2">
+                          <FormControl>
+                            <Combobox
+                              options={marketplaceCompanies?.map(c => ({
+                                value: c.value,
+                                label: c.label,
+                                searchTerms: c.searchTerms,
+                              })) || []}
+                              value={field.value || ''}
+                              onValueChange={(value) => {
+                                handleCompanySelect(value);
+                                field.onChange(value);
+                              }}
+                              placeholder="Select or type company name..."
+                              emptyText="No companies found"
+                              searchPlaceholder="Search companies..."
+                              allowCustomValue={true}
+                              onCustomValueCreate={(newCompany) => {
+                                console.log('[CreateDealModal] Creating new company:', newCompany);
+                              }}
+                            />
+                          </FormControl>
+                          
+                          {/* Show metadata if existing company selected */}
+                          {selectedCompanyName && marketplaceCompanies && (() => {
+                            const companyData = marketplaceCompanies.find(c => c.value === selectedCompanyName);
+                            if (!companyData) return null;
+                            
+                            return (
+                              <div className="text-xs bg-muted/50 p-2 rounded-md space-y-1">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <Badge variant="outline" className="text-xs">
+                                    {companyData.userCount} existing user{companyData.userCount !== 1 ? 's' : ''}
+                                  </Badge>
+                                  {companyData.buyerTypes.map(type => (
+                                    <Badge key={type} variant="secondary" className="text-xs capitalize">
+                                      {type}
+                                    </Badge>
+                                  ))}
+                                </div>
+                                <div className="text-muted-foreground">
+                                  Users: {companyData.userEmails.slice(0, 3).join(', ')}
+                                  {companyData.userEmails.length > 3 && ` +${companyData.userEmails.length - 3} more`}
+                                </div>
+                              </div>
+                            );
+                          })()}
+                          
+                          <FormDescription className="text-xs">
+                            Select an existing company or type a new one
+                          </FormDescription>
+                        </div>
                         <FormMessage />
                       </FormItem>
                     )}
