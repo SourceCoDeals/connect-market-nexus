@@ -16,7 +16,7 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { CheckCheck } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
-import { useDealNotes, useCreateDealNote, useUpdateDealNote, useDeleteDealNote } from '@/hooks/admin/use-deal-notes';
+import { useDealComments, useCreateDealComment, useUpdateDealComment, useDeleteDealComment } from '@/hooks/admin/use-deal-comments';
 
 interface PipelineDetailOverviewProps {
   deal: Deal;
@@ -33,14 +33,85 @@ export function PipelineDetailOverview({ deal }: PipelineDetailOverviewProps) {
   const [otherDeals, setOtherDeals] = React.useState<any[]>([]);
   const [selectedOtherDeals, setSelectedOtherDeals] = React.useState<string[]>([]);
   
-  // Notes state
-  const { data: dealNotes, isLoading: notesLoading } = useDealNotes(deal.deal_id);
-  const createNote = useCreateDealNote();
-  const updateNote = useUpdateDealNote();
-  const deleteNote = useDeleteDealNote();
-  const [newNoteText, setNewNoteText] = React.useState('');
-  const [editingNoteId, setEditingNoteId] = React.useState<string | null>(null);
-  const [editingNoteText, setEditingNoteText] = React.useState('');
+  // Comments state
+  const { data: dealComments, isLoading: commentsLoading } = useDealComments(deal.deal_id);
+  const createComment = useCreateDealComment();
+  const updateComment = useUpdateDealComment();
+  const deleteComment = useDeleteDealComment();
+  const [newCommentText, setNewCommentText] = React.useState('');
+  const [editingCommentId, setEditingCommentId] = React.useState<string | null>(null);
+  const [editingCommentText, setEditingCommentText] = React.useState('');
+  const [showMentionsList, setShowMentionsList] = React.useState(false);
+  const [mentionSearch, setMentionSearch] = React.useState('');
+  const textareaRef = React.useRef<HTMLTextAreaElement>(null);
+  
+  // Extract mentions from text (@username format)
+  const extractMentions = (text: string): string[] => {
+    const mentionRegex = /@(\w+)/g;
+    const matches = text.matchAll(mentionRegex);
+    const mentionedNames = Array.from(matches, m => m[1]);
+    
+    if (!allAdminProfiles) return [];
+    
+    // Map names to admin IDs
+    return Object.values(allAdminProfiles)
+      .filter(admin => mentionedNames.some(name => 
+        admin.displayName.toLowerCase().includes(name.toLowerCase()) ||
+        admin.email.toLowerCase().includes(name.toLowerCase())
+      ))
+      .map(admin => admin.id);
+  };
+  
+  // Filter admins for mention autocomplete
+  const filteredAdmins = React.useMemo(() => {
+    if (!allAdminProfiles || !mentionSearch) return [];
+    const search = mentionSearch.toLowerCase();
+    return Object.values(allAdminProfiles).filter(admin =>
+      admin.displayName.toLowerCase().includes(search) ||
+      admin.email.toLowerCase().includes(search)
+    );
+  }, [allAdminProfiles, mentionSearch]);
+  
+  // Handle @ key press
+  const handleTextChange = (text: string) => {
+    setNewCommentText(text);
+    
+    // Check if user typed @
+    const cursorPos = textareaRef.current?.selectionStart || 0;
+    const textBeforeCursor = text.substring(0, cursorPos);
+    const lastAtSymbol = textBeforeCursor.lastIndexOf('@');
+    
+    if (lastAtSymbol !== -1 && lastAtSymbol === cursorPos - 1) {
+      setShowMentionsList(true);
+      setMentionSearch('');
+    } else if (lastAtSymbol !== -1) {
+      const searchTerm = textBeforeCursor.substring(lastAtSymbol + 1);
+      if (searchTerm && !searchTerm.includes(' ')) {
+        setShowMentionsList(true);
+        setMentionSearch(searchTerm);
+      } else {
+        setShowMentionsList(false);
+      }
+    } else {
+      setShowMentionsList(false);
+    }
+  };
+  
+  const insertMention = (admin: any) => {
+    const cursorPos = textareaRef.current?.selectionStart || 0;
+    const textBeforeCursor = newCommentText.substring(0, cursorPos);
+    const textAfterCursor = newCommentText.substring(cursorPos);
+    const lastAtSymbol = textBeforeCursor.lastIndexOf('@');
+    
+    const newText = 
+      textBeforeCursor.substring(0, lastAtSymbol) + 
+      '@' + admin.displayName.replace(/\s/g, '') + ' ' +
+      textAfterCursor;
+    
+    setNewCommentText(newText);
+    setShowMentionsList(false);
+    textareaRef.current?.focus();
+  };
   
   // Fetch other deals from same buyer
   React.useEffect(() => {
@@ -460,56 +531,84 @@ export function PipelineDetailOverview({ deal }: PipelineDetailOverviewProps) {
           </div>
         )}
 
-        {/* Notes Section */}
+        {/* Comments Section */}
         <div className="space-y-4">
           <div className="flex items-center gap-2">
             <MessageSquare className="h-4 w-4 text-muted-foreground" />
-            <h2 className="text-sm font-medium text-foreground">Notes</h2>
+            <h2 className="text-sm font-medium text-foreground">Comments</h2>
             <span className="text-xs text-muted-foreground font-mono">
-              {dealNotes?.length || 0}
+              {dealComments?.length || 0}
             </span>
           </div>
 
-          {/* New Note Input */}
-          <div className="space-y-2">
+          {/* New Comment Input */}
+          <div className="space-y-2 relative">
             <Textarea
-              placeholder="Add a quick note..."
-              value={newNoteText}
-              onChange={(e) => setNewNoteText(e.target.value)}
+              ref={textareaRef}
+              placeholder="Write a comment... (use @ to mention)"
+              value={newCommentText}
+              onChange={(e) => handleTextChange(e.target.value)}
               className="min-h-[80px] resize-none text-sm"
               onKeyDown={(e) => {
-                if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && newNoteText.trim()) {
-                  createNote.mutate(
-                    { dealId: deal.deal_id, noteText: newNoteText.trim() },
-                    { onSuccess: () => setNewNoteText('') }
+                if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && newCommentText.trim()) {
+                  const mentions = extractMentions(newCommentText);
+                  createComment.mutate(
+                    { 
+                      dealId: deal.deal_id, 
+                      commentText: newCommentText.trim(),
+                      mentionedAdmins: mentions,
+                    },
+                    { onSuccess: () => setNewCommentText('') }
                   );
                 }
               }}
             />
+            
+            {/* Mentions dropdown */}
+            {showMentionsList && filteredAdmins.length > 0 && (
+              <div className="absolute left-0 right-0 top-full mt-1 bg-background border border-border rounded-lg shadow-lg z-10 max-h-48 overflow-y-auto">
+                {filteredAdmins.slice(0, 5).map((admin) => (
+                  <button
+                    key={admin.id}
+                    onClick={() => insertMention(admin)}
+                    className="w-full px-3 py-2 text-left text-sm hover:bg-muted/50 transition-colors flex items-center gap-2"
+                  >
+                    <span className="font-medium">{admin.displayName}</span>
+                    <span className="text-xs text-muted-foreground">{admin.email}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+            
             <div className="flex items-center justify-between">
               <span className="text-xs text-muted-foreground">
-                Cmd/Ctrl + Enter to save
+                Cmd/Ctrl + Enter to send
               </span>
               <Button
                 size="sm"
                 onClick={() => {
-                  if (newNoteText.trim()) {
-                    createNote.mutate(
-                      { dealId: deal.deal_id, noteText: newNoteText.trim() },
-                      { onSuccess: () => setNewNoteText('') }
+                  if (newCommentText.trim()) {
+                    const mentions = extractMentions(newCommentText);
+                    createComment.mutate(
+                      { 
+                        dealId: deal.deal_id, 
+                        commentText: newCommentText.trim(),
+                        mentionedAdmins: mentions,
+                      },
+                      { onSuccess: () => setNewCommentText('') }
                     );
                   }
                 }}
-                disabled={!newNoteText.trim() || createNote.isPending}
+                disabled={!newCommentText.trim() || createComment.isPending}
                 className="h-7 text-xs"
               >
-                Add Note
+                Add Comment
               </Button>
             </div>
           </div>
 
-          {/* Notes List */}
-          {notesLoading ? (
+          {/* Comments List */}
+          {commentsLoading ? (
             <div className="space-y-2">
               {[1, 2].map((i) => (
                 <div key={i} className="p-3 border border-border/40 rounded-lg animate-pulse">
@@ -518,18 +617,18 @@ export function PipelineDetailOverview({ deal }: PipelineDetailOverviewProps) {
                 </div>
               ))}
             </div>
-          ) : dealNotes && dealNotes.length > 0 ? (
+          ) : dealComments && dealComments.length > 0 ? (
             <div className="space-y-2">
-              {dealNotes.map((note) => (
+              {dealComments.map((comment) => (
                 <div
-                  key={note.id}
+                  key={comment.id}
                   className="group p-3 border border-border/40 rounded-lg hover:border-border/60 transition-colors"
                 >
-                  {editingNoteId === note.id ? (
+                  {editingCommentId === comment.id ? (
                     <div className="space-y-2">
                       <Textarea
-                        value={editingNoteText}
-                        onChange={(e) => setEditingNoteText(e.target.value)}
+                        value={editingCommentText}
+                        onChange={(e) => setEditingCommentText(e.target.value)}
                         className="min-h-[60px] resize-none text-sm"
                         autoFocus
                       />
@@ -537,23 +636,25 @@ export function PipelineDetailOverview({ deal }: PipelineDetailOverviewProps) {
                         <Button
                           size="sm"
                           onClick={() => {
-                            if (editingNoteText.trim()) {
-                              updateNote.mutate(
+                            if (editingCommentText.trim()) {
+                              const mentions = extractMentions(editingCommentText);
+                              updateComment.mutate(
                                 {
-                                  noteId: note.id,
-                                  noteText: editingNoteText.trim(),
+                                  commentId: comment.id,
+                                  commentText: editingCommentText.trim(),
+                                  mentionedAdmins: mentions,
                                   dealId: deal.deal_id,
                                 },
                                 {
                                   onSuccess: () => {
-                                    setEditingNoteId(null);
-                                    setEditingNoteText('');
+                                    setEditingCommentId(null);
+                                    setEditingCommentText('');
                                   },
                                 }
                               );
                             }
                           }}
-                          disabled={!editingNoteText.trim() || updateNote.isPending}
+                          disabled={!editingCommentText.trim() || updateComment.isPending}
                           className="h-6 text-xs"
                         >
                           Save
@@ -562,8 +663,8 @@ export function PipelineDetailOverview({ deal }: PipelineDetailOverviewProps) {
                           size="sm"
                           variant="ghost"
                           onClick={() => {
-                            setEditingNoteId(null);
-                            setEditingNoteText('');
+                            setEditingCommentId(null);
+                            setEditingCommentText('');
                           }}
                           className="h-6 text-xs"
                         >
@@ -574,14 +675,23 @@ export function PipelineDetailOverview({ deal }: PipelineDetailOverviewProps) {
                   ) : (
                     <>
                       <p className="text-sm text-foreground whitespace-pre-wrap mb-2">
-                        {note.note_text}
+                        {comment.comment_text.split(/(@\w+)/g).map((part, i) => {
+                          if (part.startsWith('@')) {
+                            return (
+                              <span key={i} className="text-primary font-medium">
+                                {part}
+                              </span>
+                            );
+                          }
+                          return part;
+                        })}
                       </p>
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <span className="font-medium">{note.admin_name}</span>
+                          <span className="font-medium">{comment.admin_name}</span>
                           <span className="text-muted-foreground/40">·</span>
-                          <span>{formatDistanceToNow(new Date(note.created_at), { addSuffix: true })}</span>
-                          {note.updated_at !== note.created_at && (
+                          <span>{formatDistanceToNow(new Date(comment.created_at), { addSuffix: true })}</span>
+                          {comment.updated_at !== comment.created_at && (
                             <>
                               <span className="text-muted-foreground/40">·</span>
                               <span className="italic">edited</span>
@@ -593,8 +703,8 @@ export function PipelineDetailOverview({ deal }: PipelineDetailOverviewProps) {
                             size="sm"
                             variant="ghost"
                             onClick={() => {
-                              setEditingNoteId(note.id);
-                              setEditingNoteText(note.note_text);
+                              setEditingCommentId(comment.id);
+                              setEditingCommentText(comment.comment_text);
                             }}
                             className="h-6 w-6 p-0"
                           >
@@ -604,8 +714,8 @@ export function PipelineDetailOverview({ deal }: PipelineDetailOverviewProps) {
                             size="sm"
                             variant="ghost"
                             onClick={() => {
-                              if (confirm('Delete this note?')) {
-                                deleteNote.mutate({ noteId: note.id, dealId: deal.deal_id });
+                              if (confirm('Delete this comment?')) {
+                                deleteComment.mutate({ commentId: comment.id, dealId: deal.deal_id });
                               }
                             }}
                             className="h-6 w-6 p-0 text-destructive hover:text-destructive"
@@ -622,10 +732,7 @@ export function PipelineDetailOverview({ deal }: PipelineDetailOverviewProps) {
           ) : (
             <div className="p-6 text-center border border-dashed border-border/40 rounded-lg">
               <MessageSquare className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
-              <p className="text-sm text-muted-foreground">No notes yet</p>
-              <p className="text-xs text-muted-foreground/60 mt-1">
-                Add notes to track important details
-              </p>
+              <p className="text-sm text-muted-foreground">No comments here yet</p>
             </div>
           )}
         </div>
