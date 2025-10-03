@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { CheckCircle, Clock, FileText, User, Calendar, Phone, Mail, AlertTriangle } from 'lucide-react';
+import { CheckCircle, Clock, FileText, User, Calendar, Phone, Mail, AlertTriangle, Pencil, Trash2, MessageSquare } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Deal } from '@/hooks/admin/use-deals';
 import { useAdminProfiles } from '@/hooks/admin/use-admin-profiles';
@@ -15,6 +15,8 @@ import { useQuery } from '@tanstack/react-query';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { CheckCheck } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { useDealNotes, useCreateDealNote, useUpdateDealNote, useDeleteDealNote } from '@/hooks/admin/use-deal-notes';
 
 interface PipelineDetailOverviewProps {
   deal: Deal;
@@ -30,6 +32,15 @@ export function PipelineDetailOverview({ deal }: PipelineDetailOverviewProps) {
   const [negativeFollowedUp, setNegativeFollowedUp] = React.useState(deal.negative_followed_up || false);
   const [otherDeals, setOtherDeals] = React.useState<any[]>([]);
   const [selectedOtherDeals, setSelectedOtherDeals] = React.useState<string[]>([]);
+  
+  // Notes state
+  const { data: dealNotes, isLoading: notesLoading } = useDealNotes(deal.deal_id);
+  const createNote = useCreateDealNote();
+  const updateNote = useUpdateDealNote();
+  const deleteNote = useDeleteDealNote();
+  const [newNoteText, setNewNoteText] = React.useState('');
+  const [editingNoteId, setEditingNoteId] = React.useState<string | null>(null);
+  const [editingNoteText, setEditingNoteText] = React.useState('');
   
   // Fetch other deals from same buyer
   React.useEffect(() => {
@@ -448,6 +459,176 @@ export function PipelineDetailOverview({ deal }: PipelineDetailOverviewProps) {
             </div>
           </div>
         )}
+
+        {/* Notes Section */}
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <MessageSquare className="h-4 w-4 text-muted-foreground" />
+            <h2 className="text-sm font-medium text-foreground">Notes</h2>
+            <span className="text-xs text-muted-foreground font-mono">
+              {dealNotes?.length || 0}
+            </span>
+          </div>
+
+          {/* New Note Input */}
+          <div className="space-y-2">
+            <Textarea
+              placeholder="Add a quick note..."
+              value={newNoteText}
+              onChange={(e) => setNewNoteText(e.target.value)}
+              className="min-h-[80px] resize-none text-sm"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && newNoteText.trim()) {
+                  createNote.mutate(
+                    { dealId: deal.deal_id, noteText: newNoteText.trim() },
+                    { onSuccess: () => setNewNoteText('') }
+                  );
+                }
+              }}
+            />
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-muted-foreground">
+                Cmd/Ctrl + Enter to save
+              </span>
+              <Button
+                size="sm"
+                onClick={() => {
+                  if (newNoteText.trim()) {
+                    createNote.mutate(
+                      { dealId: deal.deal_id, noteText: newNoteText.trim() },
+                      { onSuccess: () => setNewNoteText('') }
+                    );
+                  }
+                }}
+                disabled={!newNoteText.trim() || createNote.isPending}
+                className="h-7 text-xs"
+              >
+                Add Note
+              </Button>
+            </div>
+          </div>
+
+          {/* Notes List */}
+          {notesLoading ? (
+            <div className="space-y-2">
+              {[1, 2].map((i) => (
+                <div key={i} className="p-3 border border-border/40 rounded-lg animate-pulse">
+                  <div className="h-4 bg-muted/50 rounded w-3/4 mb-2" />
+                  <div className="h-3 bg-muted/30 rounded w-1/2" />
+                </div>
+              ))}
+            </div>
+          ) : dealNotes && dealNotes.length > 0 ? (
+            <div className="space-y-2">
+              {dealNotes.map((note) => (
+                <div
+                  key={note.id}
+                  className="group p-3 border border-border/40 rounded-lg hover:border-border/60 transition-colors"
+                >
+                  {editingNoteId === note.id ? (
+                    <div className="space-y-2">
+                      <Textarea
+                        value={editingNoteText}
+                        onChange={(e) => setEditingNoteText(e.target.value)}
+                        className="min-h-[60px] resize-none text-sm"
+                        autoFocus
+                      />
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          onClick={() => {
+                            if (editingNoteText.trim()) {
+                              updateNote.mutate(
+                                {
+                                  noteId: note.id,
+                                  noteText: editingNoteText.trim(),
+                                  dealId: deal.deal_id,
+                                },
+                                {
+                                  onSuccess: () => {
+                                    setEditingNoteId(null);
+                                    setEditingNoteText('');
+                                  },
+                                }
+                              );
+                            }
+                          }}
+                          disabled={!editingNoteText.trim() || updateNote.isPending}
+                          className="h-6 text-xs"
+                        >
+                          Save
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => {
+                            setEditingNoteId(null);
+                            setEditingNoteText('');
+                          }}
+                          className="h-6 text-xs"
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <p className="text-sm text-foreground whitespace-pre-wrap mb-2">
+                        {note.note_text}
+                      </p>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <span className="font-medium">{note.admin_name}</span>
+                          <span className="text-muted-foreground/40">·</span>
+                          <span>{formatDistanceToNow(new Date(note.created_at), { addSuffix: true })}</span>
+                          {note.updated_at !== note.created_at && (
+                            <>
+                              <span className="text-muted-foreground/40">·</span>
+                              <span className="italic">edited</span>
+                            </>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => {
+                              setEditingNoteId(note.id);
+                              setEditingNoteText(note.note_text);
+                            }}
+                            className="h-6 w-6 p-0"
+                          >
+                            <Pencil className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => {
+                              if (confirm('Delete this note?')) {
+                                deleteNote.mutate({ noteId: note.id, dealId: deal.deal_id });
+                              }
+                            }}
+                            className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="p-6 text-center border border-dashed border-border/40 rounded-lg">
+              <MessageSquare className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
+              <p className="text-sm text-muted-foreground">No notes yet</p>
+              <p className="text-xs text-muted-foreground/60 mt-1">
+                Add notes to track important details
+              </p>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

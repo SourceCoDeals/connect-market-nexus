@@ -679,6 +679,41 @@ export type Database = {
           },
         ]
       }
+      deal_notes: {
+        Row: {
+          admin_id: string
+          created_at: string
+          deal_id: string
+          id: string
+          note_text: string
+          updated_at: string
+        }
+        Insert: {
+          admin_id: string
+          created_at?: string
+          deal_id: string
+          id?: string
+          note_text: string
+          updated_at?: string
+        }
+        Update: {
+          admin_id?: string
+          created_at?: string
+          deal_id?: string
+          id?: string
+          note_text?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deal_notes_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       deal_stages: {
         Row: {
           automation_rules: Json | null
