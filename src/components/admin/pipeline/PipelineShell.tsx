@@ -7,6 +7,7 @@ import { PipelineFilterPanel } from './PipelineFilterPanel';
 import { ActiveFilterChips } from './ActiveFilterChips';
 import { Skeleton } from '@/components/ui/skeleton';
 import { CreateDealModal } from '@/components/admin/CreateDealModal';
+import { StageManagementModal } from '@/components/admin/StageManagementModal';
 
 
 
@@ -14,6 +15,7 @@ export function PipelineShell() {
   const pipeline = usePipelineCore();
   const [isCreateDealModalOpen, setIsCreateDealModalOpen] = useState(false);
   const [prefilledStageId, setPrefilledStageId] = useState<string | undefined>(undefined);
+  const [isStageManagementOpen, setIsStageManagementOpen] = useState(false);
 
   const handleOpenCreateDeal = (stageId?: string) => {
     setPrefilledStageId(stageId);
@@ -33,6 +35,17 @@ export function PipelineShell() {
       }, 500);
     }
   };
+
+  // Listen for stage management open event
+  React.useEffect(() => {
+    const handleOpenStageManagement = () => {
+      setIsStageManagementOpen(true);
+    };
+    window.addEventListener('open-stage-management', handleOpenStageManagement);
+    return () => {
+      window.removeEventListener('open-stage-management', handleOpenStageManagement);
+    };
+  }, []);
   
   if (pipeline.isLoading) {
     return (
@@ -122,6 +135,12 @@ export function PipelineShell() {
         onOpenChange={setIsCreateDealModalOpen}
         prefilledStageId={prefilledStageId}
         onDealCreated={handleDealCreated}
+      />
+
+      {/* Stage Management Modal */}
+      <StageManagementModal
+        open={isStageManagementOpen}
+        onOpenChange={setIsStageManagementOpen}
       />
     </div>
   );

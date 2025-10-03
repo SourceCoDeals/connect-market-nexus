@@ -1608,6 +1608,7 @@ export type Database = {
         Row: {
           created_at: string
           description: string | null
+          filter_config: Json | null
           id: string
           is_active: boolean | null
           is_default: boolean | null
@@ -1618,6 +1619,7 @@ export type Database = {
         Insert: {
           created_at?: string
           description?: string | null
+          filter_config?: Json | null
           id?: string
           is_active?: boolean | null
           is_default?: boolean | null
@@ -1628,6 +1630,7 @@ export type Database = {
         Update: {
           created_at?: string
           description?: string | null
+          filter_config?: Json | null
           id?: string
           is_active?: boolean | null
           is_default?: boolean | null

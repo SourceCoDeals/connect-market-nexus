@@ -7,6 +7,18 @@ export interface PipelineView {
   name: string;
   description?: string;
   stage_config: any[];
+  filter_config?: {
+    searchQuery?: string;
+    statusFilter?: string;
+    documentStatusFilter?: string;
+    buyerTypeFilter?: string;
+    companyFilter?: string[];
+    adminFilter?: string;
+    listingFilter?: string;
+    createdDateRange?: { start: string | null; end: string | null }; // ISO date strings
+    lastActivityRange?: { start: string | null; end: string | null }; // ISO date strings
+    sortOption?: string;
+  };
   is_default: boolean;
   is_active: boolean;
   created_at: string;
@@ -71,10 +83,16 @@ export function useUpdatePipelineView() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async ({ id, updates }: { id: string; updates: Partial<PipelineView> }) => {
+    mutationFn: async ({ 
+      id, 
+      updates 
+    }: { 
+      id: string; 
+      updates: Partial<Omit<PipelineView, 'id' | 'created_at' | 'updated_at'>> 
+    }) => {
       const { data, error } = await supabase
         .from('pipeline_views')
-        .update(updates)
+        .update(updates as any) // Cast to any to handle JSONB types
         .eq('id', id)
         .select()
         .single();
@@ -82,11 +100,17 @@ export function useUpdatePipelineView() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['pipeline-views'] });
+      
+      // Show different message if saving filter config
+      const message = variables.updates.filter_config 
+        ? "View and filters saved successfully."
+        : "Pipeline view has been updated successfully.";
+      
       toast({
         title: 'View updated',
-        description: 'Pipeline view updated successfully.',
+        description: message,
       });
     },
     onError: (error: any) => {

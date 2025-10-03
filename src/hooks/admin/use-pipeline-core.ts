@@ -3,7 +3,7 @@ import { useDeals, useDealStages, Deal } from '@/hooks/admin/use-deals';
 import { useDealFilters } from '@/hooks/admin/use-deal-filters';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { supabase } from '@/integrations/supabase/client';
-import { usePipelineViews } from './use-pipeline-views';
+import { usePipelineViews, PipelineView } from './use-pipeline-views';
 
 export type ViewMode = 'kanban' | 'list' | 'table';
 
@@ -40,20 +40,31 @@ export function usePipelineCore() {
   const { data: allStages, isLoading: stagesLoading, error: stagesError } = useDealStages(true); // Include all stages
   const { data: pipelineViews = [] } = usePipelineViews();
   
-  // Filter stages based on current view
+  // Filter stages based on current view with custom ordering
   const stages = useMemo(() => {
     if (!allStages) return [];
     
-    // If no view selected or views not loaded, show all stages
-    if (!currentViewId || pipelineViews.length === 0) return allStages;
+    // If no view selected or views not loaded, show all stages in default order
+    if (!currentViewId || pipelineViews.length === 0) {
+      return [...allStages].sort((a, b) => a.position - b.position);
+    }
     
     // Find the selected view
     const selectedView = pipelineViews.find(v => v.id === currentViewId);
-    if (!selectedView || !selectedView.stage_config) return allStages;
+    if (!selectedView || !selectedView.stage_config || selectedView.stage_config.length === 0) {
+      return [...allStages].sort((a, b) => a.position - b.position);
+    }
     
-    // Filter stages based on view's stage_config
+    // Filter and sort stages based on view's stage_config
     const stageIds = selectedView.stage_config.map((config: any) => config.stageId);
-    return allStages.filter(stage => stageIds.includes(stage.id));
+    const filteredStages = allStages.filter(stage => stageIds.includes(stage.id));
+    
+    // Sort by view's custom position
+    return filteredStages.sort((a, b) => {
+      const aConfig = selectedView.stage_config.find((c: any) => c.stageId === a.id);
+      const bConfig = selectedView.stage_config.find((c: any) => c.stageId === b.id);
+      return (aConfig?.position || 0) - (bConfig?.position || 0);
+    });
   }, [allStages, currentViewId, pipelineViews]);
   
   // Debug logging
@@ -71,6 +82,40 @@ export function usePipelineCore() {
   // Filtering
   const filterHook = useDealFilters(deals || [], currentAdminId);
   const { filteredAndSortedDeals } = filterHook;
+
+  // Load filter config when view changes
+  useEffect(() => {
+    if (!currentViewId || pipelineViews.length === 0) return;
+    
+    const selectedView = pipelineViews.find(v => v.id === currentViewId);
+    if (!selectedView?.filter_config) return;
+    
+    const config = selectedView.filter_config;
+    
+    // Apply saved filters with proper type casting
+    if (config.searchQuery !== undefined) filterHook.setSearchQuery(config.searchQuery);
+    if (config.statusFilter) filterHook.setStatusFilter(config.statusFilter as any);
+    if (config.documentStatusFilter) filterHook.setDocumentStatusFilter(config.documentStatusFilter as any);
+    if (config.buyerTypeFilter) filterHook.setBuyerTypeFilter(config.buyerTypeFilter as any);
+    if (config.companyFilter) filterHook.setCompanyFilter(config.companyFilter);
+    if (config.adminFilter) filterHook.setAdminFilter(config.adminFilter);
+    if (config.listingFilter) filterHook.setListingFilter(config.listingFilter);
+    
+    // Parse dates from strings
+    if (config.createdDateRange) {
+      filterHook.setCreatedDateRange({
+        start: config.createdDateRange.start ? new Date(config.createdDateRange.start) : null,
+        end: config.createdDateRange.end ? new Date(config.createdDateRange.end) : null,
+      });
+    }
+    if (config.lastActivityRange) {
+      filterHook.setLastActivityRange({
+        start: config.lastActivityRange.start ? new Date(config.lastActivityRange.start) : null,
+        end: config.lastActivityRange.end ? new Date(config.lastActivityRange.end) : null,
+      });
+    }
+    if (config.sortOption) filterHook.setSortOption(config.sortOption as any);
+  }, [currentViewId, pipelineViews]); // Don't include filterHook in deps to avoid infinite loop
 
   // Derive selected deal from id for absolute correctness
   const selectedDeal = useMemo(() => {
@@ -189,6 +234,27 @@ export function usePipelineCore() {
   const setSelectedDeal = (deal: Deal | null) => {
     setSelectedDealId(deal?.deal_id ?? null);
   };
+
+  // Get current filter state for saving (serialize dates to ISO strings)
+  const getCurrentFilterConfig = () => ({
+    searchQuery: filterHook.searchQuery,
+    statusFilter: filterHook.statusFilter,
+    documentStatusFilter: filterHook.documentStatusFilter,
+    buyerTypeFilter: filterHook.buyerTypeFilter,
+    companyFilter: filterHook.companyFilter,
+    adminFilter: filterHook.adminFilter,
+    listingFilter: filterHook.listingFilter,
+    createdDateRange: {
+      start: filterHook.createdDateRange.start?.toISOString() || null,
+      end: filterHook.createdDateRange.end?.toISOString() || null,
+    },
+    lastActivityRange: {
+      start: filterHook.lastActivityRange.start?.toISOString() || null,
+      end: filterHook.lastActivityRange.end?.toISOString() || null,
+    },
+    sortOption: filterHook.sortOption,
+  });
+
   return {
     // State
     viewMode,
@@ -220,6 +286,7 @@ export function usePipelineCore() {
     handleDealSelect,
     handleMultiSelect,
     toggleFilterPanel,
-    
+    getCurrentFilterConfig,
+    pipelineViews,
   };
 }

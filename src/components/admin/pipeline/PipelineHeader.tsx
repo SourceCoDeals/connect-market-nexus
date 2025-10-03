@@ -90,10 +90,8 @@ export function PipelineHeader({ pipeline, onOpenCreateDeal }: PipelineHeaderPro
             <PipelineViewSwitcher
               currentViewId={pipeline.currentViewId || undefined}
               onViewChange={pipeline.setCurrentViewId}
-              onSaveCurrentView={() => {
-                // TODO: Implement save current view with current filters/sorting
-                console.log('Save current view clicked');
-              }}
+              getCurrentFilterConfig={pipeline.getCurrentFilterConfig}
+              stages={pipeline.stages}
             />
           </div>
 
@@ -141,6 +139,18 @@ export function PipelineHeader({ pipeline, onOpenCreateDeal }: PipelineHeaderPro
           <Button size="sm" className="gap-2" onClick={onOpenCreateDeal}>
             <Plus className="h-4 w-4" />
             New Deal
+          </Button>
+
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => {
+              // Open stage management modal
+              const event = new CustomEvent('open-stage-management');
+              window.dispatchEvent(event);
+            }}
+          >
+            Manage Stages
           </Button>
 
           <DropdownMenu>

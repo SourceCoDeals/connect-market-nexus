@@ -25,18 +25,29 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { LayoutGrid, Plus, MoreVertical, Trash2, Save } from 'lucide-react';
-import { usePipelineViews, useDeletePipelineView } from '@/hooks/admin/use-pipeline-views';
+import { usePipelineViews, useDeletePipelineView, useUpdatePipelineView } from '@/hooks/admin/use-pipeline-views';
 import { PipelineViewDialog } from './PipelineViewDialog';
+import { useToast } from '@/hooks/use-toast';
 
 interface PipelineViewSwitcherProps {
   currentViewId?: string;
   onViewChange: (viewId: string) => void;
   onSaveCurrentView?: () => void;
+  getCurrentFilterConfig?: () => any;
+  stages?: any[];
 }
 
-export function PipelineViewSwitcher({ currentViewId, onViewChange, onSaveCurrentView }: PipelineViewSwitcherProps) {
+export function PipelineViewSwitcher({ 
+  currentViewId, 
+  onViewChange, 
+  onSaveCurrentView, 
+  getCurrentFilterConfig,
+  stages = []
+}: PipelineViewSwitcherProps) {
   const { data: views = [], isLoading } = usePipelineViews();
   const deleteView = useDeletePipelineView();
+  const updateView = useUpdatePipelineView();
+  const { toast } = useToast();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [viewToDelete, setViewToDelete] = useState<string | null>(null);
 
@@ -60,6 +71,37 @@ export function PipelineViewSwitcher({ currentViewId, onViewChange, onSaveCurren
         }
       });
     }
+  };
+
+  const handleSaveCurrentView = () => {
+    if (!selectedViewId) {
+      toast({
+        title: "No view selected",
+        description: "Please select a view to save.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const currentView = views.find(v => v.id === selectedViewId);
+    if (!currentView) return;
+
+    // Build stage config from current stage order
+    const stage_config = stages.map((stage, index) => ({
+      stageId: stage.id,
+      position: index,
+    }));
+
+    // Get current filter state
+    const filter_config = getCurrentFilterConfig ? getCurrentFilterConfig() : {};
+
+    updateView.mutate({
+      id: selectedViewId,
+      updates: {
+        stage_config,
+        filter_config,
+      }
+    });
   };
 
   const currentView = views.find(v => v.id === selectedViewId);
@@ -97,12 +139,10 @@ export function PipelineViewSwitcher({ currentViewId, onViewChange, onSaveCurren
               <Plus className="h-4 w-4 mr-2" />
               New View
             </DropdownMenuItem>
-            {onSaveCurrentView && (
-              <DropdownMenuItem onClick={onSaveCurrentView}>
-                <Save className="h-4 w-4 mr-2" />
-                Save Current View
-              </DropdownMenuItem>
-            )}
+            <DropdownMenuItem onClick={handleSaveCurrentView} disabled={!selectedViewId}>
+              <Save className="h-4 w-4 mr-2" />
+              Save Current View
+            </DropdownMenuItem>
             {canDeleteCurrentView && (
               <>
                 <DropdownMenuSeparator />
