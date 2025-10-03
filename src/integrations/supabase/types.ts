@@ -727,6 +727,38 @@ export type Database = {
         }
         Relationships: []
       }
+      deal_task_reviewers: {
+        Row: {
+          added_at: string | null
+          added_by: string | null
+          admin_id: string
+          id: string
+          task_id: string
+        }
+        Insert: {
+          added_at?: string | null
+          added_by?: string | null
+          admin_id: string
+          id?: string
+          task_id: string
+        }
+        Update: {
+          added_at?: string | null
+          added_by?: string | null
+          admin_id?: string
+          id?: string
+          task_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deal_task_reviewers_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "deal_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       deal_tasks: {
         Row: {
           assigned_by: string | null

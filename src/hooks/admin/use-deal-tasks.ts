@@ -8,7 +8,7 @@ export interface DealTask {
   deal_id: string;
   title: string;
   description?: string;
-  status: 'pending' | 'in_progress' | 'completed';
+  status: 'open' | 'in_progress' | 'reopened' | 'na' | 'resolved';
   priority: 'low' | 'medium' | 'high';
   assigned_to?: string;
   assigned_by?: string;
@@ -17,6 +17,14 @@ export interface DealTask {
   completed_by?: string;
   created_at: string;
   updated_at: string;
+}
+
+export interface TaskReviewer {
+  id: string;
+  task_id: string;
+  admin_id: string;
+  added_by?: string;
+  added_at: string;
 }
 
 export function useDealTasks(dealId?: string) {
@@ -49,157 +57,93 @@ export function useCreateDealTask() {
       assigned_to?: string;
       due_date?: string;
     }) => {
+      const { data: userData } = await supabase.auth.getUser();
+      
       const { data, error } = await supabase
         .from('deal_tasks')
         .insert({
           ...taskData,
-          assigned_by: (await supabase.auth.getUser()).data.user?.id,
-          status: 'pending'
+          assigned_by: userData?.user?.id,
+          status: 'open',
         })
         .select()
         .single();
-      
+
       if (error) throw error;
-      return data;
-    },
-    onMutate: async (taskData) => {
-      // Cancel outgoing queries
-      await queryClient.cancelQueries({ queryKey: ['deal-tasks', taskData.deal_id] });
-      await queryClient.cancelQueries({ queryKey: ['deals'] });
 
-      // Snapshot previous data
-      const previousTasks = queryClient.getQueryData(['deal-tasks', taskData.deal_id]);
-      const previousDeals = queryClient.getQueryData(['deals']);
+      // Get deal details for activity logging and notifications
+      const { data: dealData } = await supabase
+        .from('deals')
+        .select('title, connection_request_id')
+        .eq('id', taskData.deal_id)
+        .single();
 
-      // Optimistically add new task
-      const optimisticTask = {
-        id: `temp-${Date.now()}`,
-        ...taskData,
-        status: 'pending' as const,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
-
-      queryClient.setQueryData(['deal-tasks', taskData.deal_id], (old: any) => 
-        old ? [optimisticTask, ...old] : [optimisticTask]
-      );
-
-      // Update deal task count
-      queryClient.setQueryData(['deals'], (old: any) => {
-        if (!old) return old;
-        return old.map((deal: any) => 
-          deal.deal_id === taskData.deal_id 
-            ? { ...deal, pending_task_count: (deal.pending_task_count || 0) + 1 }
-            : deal
-        );
-      });
-
-      return { previousTasks, previousDeals };
-    },
-    onSuccess: async (data, variables) => {
-      queryClient.refetchQueries({ queryKey: ['deal-tasks', variables.deal_id], type: 'active' });
-      queryClient.refetchQueries({ queryKey: ['deals'], type: 'active' });
-      queryClient.invalidateQueries({ queryKey: ['deal-activities'] });
-      
       // Log activity
       await logDealActivity({
-        dealId: variables.deal_id,
+        dealId: taskData.deal_id,
         activityType: 'task_created',
         title: 'Task Created',
-        description: `Created task: ${variables.title}`,
-        metadata: { 
+        description: `Task "${taskData.title}" was created`,
+        metadata: {
           task_id: data.id,
-          priority: variables.priority,
-          assigned_to: variables.assigned_to 
-        }
+          task_title: taskData.title,
+          priority: taskData.priority,
+          assigned_to: taskData.assigned_to,
+        },
       });
 
-      // Create notification if task is assigned
-      if (variables.assigned_to) {
-        try {
-          const { data: { user } } = await supabase.auth.getUser();
-          const assignerId = user?.id;
+      // Send notification if task is assigned
+      if (taskData.assigned_to && taskData.assigned_to !== userData?.user?.id) {
+        // Get assignee email
+        const { data: assigneeProfile } = await supabase
+          .from('profiles')
+          .select('email')
+          .eq('id', taskData.assigned_to)
+          .single();
 
-          // Get assigner and assignee profiles
-          const { data: profiles } = await supabase
-            .from('profiles')
-            .select('id, email, first_name, last_name')
-            .in('id', [assignerId, variables.assigned_to].filter(Boolean) as string[]);
-
-          const assignerProfile = profiles?.find(p => p.id === assignerId);
-          const assigneeProfile = profiles?.find(p => p.id === variables.assigned_to);
-
-          // Get deal details
-          const { data: deal } = await supabase
-            .from('deals')
-            .select('title, id')
-            .eq('id', variables.deal_id)
-            .single();
-
-          const assignerName = assignerProfile 
-            ? `${assignerProfile.first_name} ${assignerProfile.last_name}`.trim() 
-            : 'Someone';
-          const dealTitle = deal?.title || 'Unknown Deal';
-
-          // Create in-app notification
-          const { error: notificationError } = await supabase
-            .from('admin_notifications')
-            .insert({
-              admin_id: variables.assigned_to,
-              notification_type: 'task_assigned',
-              title: 'New Task Assigned',
-              message: `${assignerName} assigned you: ${variables.title}`,
-              deal_id: variables.deal_id,
-              task_id: data.id,
-              action_url: `/admin/pipeline?deal=${variables.deal_id}&tab=tasks`,
-              metadata: {
-                priority: variables.priority || 'medium',
-                due_date: variables.due_date,
-                deal_title: dealTitle,
-                assigner_name: assignerName,
-              },
-            });
-
-          if (notificationError) {
-            console.error('Failed to create notification:', notificationError);
-          }
+        if (assigneeProfile?.email) {
+          // Create admin notification
+          await supabase.from('admin_notifications').insert({
+            admin_id: taskData.assigned_to,
+            notification_type: 'task_assigned',
+            title: 'New Task Assigned',
+            message: `You have been assigned a new task: ${taskData.title}`,
+            deal_id: taskData.deal_id,
+            task_id: data.id,
+            action_url: `/admin/pipeline?deal=${taskData.deal_id}&tab=tasks`,
+            metadata: {
+              task_title: taskData.title,
+              deal_title: dealData?.title || 'Deal',
+              assigned_by: userData?.user?.id,
+              priority: taskData.priority,
+            },
+          });
 
           // Send email notification
-          if (assigneeProfile?.email) {
-            await supabase.functions.invoke('send-task-notification-email', {
-              body: {
-                assignee_email: assigneeProfile.email,
-                assignee_name: `${assigneeProfile.first_name} ${assigneeProfile.last_name}`.trim(),
-                assigner_name: assignerName,
-                task_title: variables.title,
-                task_description: variables.description,
-                task_priority: variables.priority || 'medium',
-                task_due_date: variables.due_date,
-                deal_title: dealTitle,
-                deal_id: variables.deal_id,
-              },
-            });
-          }
-        } catch (error) {
-          console.error('Failed to send task notification:', error);
-          // Don't fail the task creation if notification fails
+          await supabase.functions.invoke('send-task-notification-email', {
+            body: {
+              to: assigneeProfile.email,
+              taskTitle: taskData.title,
+              dealTitle: dealData?.title || 'Deal',
+              taskDescription: taskData.description,
+              priority: taskData.priority,
+              dueDate: taskData.due_date,
+            },
+          });
         }
       }
-      
+
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['deal-tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-notifications'] });
       toast({
-        title: 'Task Created',
-        description: 'Task has been created successfully.',
+        title: 'Task created',
+        description: 'The task has been created successfully.',
       });
     },
-    onError: (error, variables, context) => {
-      // Rollback optimistic updates
-      if (context?.previousTasks) {
-        queryClient.setQueryData(['deal-tasks', variables.deal_id], context.previousTasks);
-      }
-      if (context?.previousDeals) {
-        queryClient.setQueryData(['deals'], context.previousDeals);
-      }
-      
+    onError: (error) => {
       toast({
         title: 'Error',
         description: `Failed to create task: ${error.message}`,
@@ -215,98 +159,91 @@ export function useUpdateDealTask() {
 
   return useMutation({
     mutationFn: async ({ taskId, updates }: { taskId: string; updates: Partial<DealTask> }) => {
+      const { data: currentTask } = await supabase
+        .from('deal_tasks')
+        .select('*')
+        .eq('id', taskId)
+        .single();
+
+      const { data: userData } = await supabase.auth.getUser();
+
       const { data, error } = await supabase
         .from('deal_tasks')
-        .update({
-          ...updates,
-          updated_at: new Date().toISOString()
-        })
+        .update(updates)
         .eq('id', taskId)
         .select()
         .single();
-      
+
       if (error) throw error;
-      return data;
-    },
-    onSuccess: async (data, { taskId, updates }) => {
-      queryClient.invalidateQueries({ queryKey: ['deal-tasks'] });
-      queryClient.invalidateQueries({ queryKey: ['deals'] });
-      queryClient.invalidateQueries({ queryKey: ['deal-activities'] });
-      
-      // Log assignment changes and create notifications
-      if (updates.assigned_to !== undefined) {
-        const { data: { user } } = await supabase.auth.getUser();
-        
-        const { data: adminProfiles } = await supabase
+
+      // Log assignment changes and send notifications
+      if (updates.assigned_to && currentTask && updates.assigned_to !== currentTask.assigned_to) {
+        // Get deal details
+        const { data: dealData } = await supabase
+          .from('deals')
+          .select('title')
+          .eq('id', currentTask.deal_id)
+          .single();
+
+        // Get assignee email
+        const { data: assigneeProfile } = await supabase
           .from('profiles')
-          .select('id, email, first_name, last_name')
-          .in('id', [user?.id, updates.assigned_to].filter(Boolean) as string[]);
-        
-        const assignerProfile = adminProfiles?.find(p => p.id === user?.id);
-        const assigneeProfile = adminProfiles?.find(p => p.id === updates.assigned_to);
-        
-        const assignedToName = assigneeProfile 
-          ? `${assigneeProfile.first_name} ${assigneeProfile.last_name}` 
-          : 'Unassigned';
-        
+          .select('email')
+          .eq('id', updates.assigned_to)
+          .single();
+
         await logDealActivity({
-          dealId: data.deal_id,
+          dealId: currentTask.deal_id,
           activityType: 'task_assigned',
           title: 'Task Reassigned',
-          description: `Task "${data.title}" assigned to ${assignedToName}`,
-          metadata: { task_id: taskId, assigned_to: updates.assigned_to }
+          description: `Task "${currentTask.title}" was reassigned`,
+          metadata: {
+            task_id: taskId,
+            old_assignee: currentTask.assigned_to,
+            new_assignee: updates.assigned_to,
+          },
         });
 
-        // Create notification for reassignment
-        if (updates.assigned_to && assigneeProfile) {
-          const assignerName = assignerProfile 
-            ? `${assignerProfile.first_name} ${assignerProfile.last_name}`.trim() 
-            : 'Someone';
+        // Send notification to new assignee if different from current user
+        if (updates.assigned_to !== userData?.user?.id && assigneeProfile?.email) {
+          await supabase.from('admin_notifications').insert({
+            admin_id: updates.assigned_to,
+            notification_type: 'task_assigned',
+            title: 'Task Assigned to You',
+            message: `You have been assigned a task: ${currentTask.title}`,
+            deal_id: currentTask.deal_id,
+            task_id: taskId,
+            action_url: `/admin/pipeline?deal=${currentTask.deal_id}&tab=tasks`,
+            metadata: {
+              task_title: currentTask.title,
+              deal_title: dealData?.title || 'Deal',
+              assigned_by: userData?.user?.id,
+              priority: currentTask.priority,
+            },
+          });
 
-          const { data: deal } = await supabase
-            .from('deals')
-            .select('title')
-            .eq('id', data.deal_id)
-            .single();
-
-          await supabase
-            .from('admin_notifications')
-            .insert({
-              admin_id: updates.assigned_to,
-              notification_type: 'task_assigned',
-              title: 'Task Reassigned to You',
-              message: `${assignerName} reassigned you: ${data.title}`,
-              deal_id: data.deal_id,
-              task_id: taskId,
-              action_url: `/admin/pipeline?deal=${data.deal_id}&tab=tasks`,
-              metadata: {
-                priority: data.priority || 'medium',
-                due_date: data.due_date,
-                deal_title: deal?.title || 'Unknown Deal',
-                assigner_name: assignerName,
-              },
-            });
-
-          // Send email for reassignment
+          // Send email notification
           await supabase.functions.invoke('send-task-notification-email', {
             body: {
-              assignee_email: assigneeProfile.email,
-              assignee_name: assignedToName,
-              assigner_name: assignerName,
-              task_title: data.title,
-              task_description: data.description,
-              task_priority: data.priority || 'medium',
-              task_due_date: data.due_date,
-              deal_title: deal?.title || 'Unknown Deal',
-              deal_id: data.deal_id,
+              to: assigneeProfile.email,
+              taskTitle: currentTask.title,
+              dealTitle: dealData?.title || 'Deal',
+              taskDescription: currentTask.description,
+              priority: currentTask.priority,
+              dueDate: currentTask.due_date,
             },
           });
         }
       }
-      
+
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['deal-tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-notifications'] });
       toast({
-        title: 'Task Updated',
-        description: 'Task has been updated successfully.',
+        title: 'Task updated',
+        description: 'The task has been updated successfully.',
       });
     },
     onError: (error) => {
@@ -325,127 +262,75 @@ export function useCompleteDealTask() {
 
   return useMutation({
     mutationFn: async (taskId: string) => {
+      const { data: userData } = await supabase.auth.getUser();
+      
+      const { data: currentTask } = await supabase
+        .from('deal_tasks')
+        .select('*')
+        .eq('id', taskId)
+        .single();
+
       const { data, error } = await supabase
         .from('deal_tasks')
         .update({
-          status: 'completed',
+          status: 'resolved',
           completed_at: new Date().toISOString(),
-          completed_by: (await supabase.auth.getUser()).data.user?.id,
-          updated_at: new Date().toISOString()
+          completed_by: userData?.user?.id,
         })
         .eq('id', taskId)
         .select()
         .single();
-      
+
       if (error) throw error;
-      return data;
-    },
-    onMutate: async (taskId) => {
-      // Cancel outgoing queries
-      await queryClient.cancelQueries({ queryKey: ['deal-tasks'] });
-      await queryClient.cancelQueries({ queryKey: ['deals'] });
 
-      // Snapshot previous data
-      const previousTasksCache: any = {};
-      queryClient.getQueriesData({ queryKey: ['deal-tasks'] }).forEach(([key, data]) => {
-        previousTasksCache[JSON.stringify(key)] = data;
-      });
-      const previousDeals = queryClient.getQueryData(['deals']);
-
-      // Optimistically update task status
-      queryClient.getQueriesData({ queryKey: ['deal-tasks'] }).forEach(([key, data]) => {
-        queryClient.setQueryData(key, (old: any) => {
-          if (!old) return old;
-          return old.map((task: any) =>
-            task.id === taskId
-              ? {
-                  ...task,
-                  status: 'completed',
-                  completed_at: new Date().toISOString(),
-                  updated_at: new Date().toISOString(),
-                }
-              : task
-          );
+      if (currentTask) {
+        await logDealActivity({
+          dealId: currentTask.deal_id,
+          activityType: 'task_completed',
+          title: 'Task Completed',
+          description: `Task "${currentTask.title}" was marked as resolved`,
+          metadata: {
+            task_id: taskId,
+            task_title: currentTask.title,
+          },
         });
-      });
 
-      return { previousTasksCache, previousDeals };
-    },
-    onSuccess: async (data) => {
-      queryClient.refetchQueries({ queryKey: ['deal-tasks'], type: 'active' });
-      queryClient.refetchQueries({ queryKey: ['deals'], type: 'active' });
-      queryClient.invalidateQueries({ queryKey: ['deal-activities'] });
-      
-      // Log activity
-      await logDealActivity({
-        dealId: data.deal_id,
-        activityType: 'task_completed',
-        title: 'Task Completed',
-        description: `Completed task: ${data.title}`,
-        metadata: { task_id: data.id }
-      });
+        // Notify task creator if different from completer
+        if (currentTask.assigned_by && currentTask.assigned_by !== userData?.user?.id) {
+          const { data: dealData } = await supabase
+            .from('deals')
+            .select('title')
+            .eq('id', currentTask.deal_id)
+            .single();
 
-      // Notify task creator if different from completer
-      if (data.assigned_by && data.assigned_by !== data.completed_by) {
-        try {
-          const { data: { user } } = await supabase.auth.getUser();
-          
-          const { data: profiles } = await supabase
-            .from('profiles')
-            .select('id, email, first_name, last_name')
-            .in('id', [data.assigned_by, user?.id].filter(Boolean) as string[]);
-
-          const creatorProfile = profiles?.find(p => p.id === data.assigned_by);
-          const completerProfile = profiles?.find(p => p.id === user?.id);
-
-          if (creatorProfile) {
-            const completerName = completerProfile 
-              ? `${completerProfile.first_name} ${completerProfile.last_name}`.trim()
-              : 'Someone';
-
-            const { data: deal } = await supabase
-              .from('deals')
-              .select('title')
-              .eq('id', data.deal_id)
-              .single();
-
-            await supabase
-              .from('admin_notifications')
-              .insert({
-                admin_id: data.assigned_by,
-                notification_type: 'task_completed',
-                title: 'Task Completed',
-                message: `${completerName} completed: ${data.title}`,
-                deal_id: data.deal_id,
-                task_id: data.id,
-                action_url: `/admin/pipeline?deal=${data.deal_id}&tab=tasks`,
-                metadata: {
-                  deal_title: deal?.title || 'Unknown Deal',
-                  completed_by: completerName,
-                },
-              });
-          }
-        } catch (error) {
-          console.error('Failed to send completion notification:', error);
+          await supabase.from('admin_notifications').insert({
+            admin_id: currentTask.assigned_by,
+            notification_type: 'task_completed',
+            title: 'Task Completed',
+            message: `Task "${currentTask.title}" was marked as resolved`,
+            deal_id: currentTask.deal_id,
+            task_id: taskId,
+            action_url: `/admin/pipeline?deal=${currentTask.deal_id}&tab=tasks`,
+            metadata: {
+              task_title: currentTask.title,
+              deal_title: dealData?.title || 'Deal',
+              completed_by: userData?.user?.id,
+            },
+          });
         }
       }
-      
+
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['deal-tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-notifications'] });
       toast({
-        title: 'Task Completed',
-        description: 'Task has been marked as completed.',
+        title: 'Task completed',
+        description: 'The task has been marked as resolved.',
       });
     },
-    onError: (error, taskId, context) => {
-      // Rollback optimistic updates
-      if (context?.previousTasksCache) {
-        Object.entries(context.previousTasksCache).forEach(([key, data]) => {
-          queryClient.setQueryData(JSON.parse(key), data);
-        });
-      }
-      if (context?.previousDeals) {
-        queryClient.setQueryData(['deals'], context.previousDeals);
-      }
-      
+    onError: (error) => {
       toast({
         title: 'Error',
         description: `Failed to complete task: ${error.message}`,
@@ -465,15 +350,13 @@ export function useDeleteDealTask() {
         .from('deal_tasks')
         .delete()
         .eq('id', taskId);
-      
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['deal-tasks'] });
-      queryClient.invalidateQueries({ queryKey: ['deals'] });
       toast({
-        title: 'Task Deleted',
-        description: 'Task has been deleted successfully.',
+        title: 'Task deleted',
+        description: 'The task has been deleted successfully.',
       });
     },
     onError: (error) => {
@@ -482,6 +365,67 @@ export function useDeleteDealTask() {
         description: `Failed to delete task: ${error.message}`,
         variant: 'destructive',
       });
+    },
+  });
+}
+
+// Get task reviewers
+export function useTaskReviewers(taskId?: string) {
+  return useQuery({
+    queryKey: ['task-reviewers', taskId],
+    queryFn: async () => {
+      if (!taskId) return [];
+      const { data, error } = await supabase
+        .from('deal_task_reviewers')
+        .select('*')
+        .eq('task_id', taskId);
+      if (error) throw error;
+      return data as TaskReviewer[];
+    },
+    enabled: !!taskId,
+  });
+}
+
+// Add reviewer to task
+export function useAddTaskReviewer() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ taskId, adminId }: { taskId: string; adminId: string }) => {
+      const { data: userData } = await supabase.auth.getUser();
+      
+      const { error } = await supabase
+        .from('deal_task_reviewers')
+        .insert({
+          task_id: taskId,
+          admin_id: adminId,
+          added_by: userData?.user?.id,
+        });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['task-reviewers'] });
+    },
+  });
+}
+
+// Remove reviewer from task
+export function useRemoveTaskReviewer() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ taskId, adminId }: { taskId: string; adminId: string }) => {
+      const { error } = await supabase
+        .from('deal_task_reviewers')
+        .delete()
+        .eq('task_id', taskId)
+        .eq('admin_id', adminId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['task-reviewers'] });
     },
   });
 }

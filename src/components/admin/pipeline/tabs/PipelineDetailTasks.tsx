@@ -5,11 +5,13 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Plus, CheckCircle2, Circle, Clock, User, Calendar, AlertTriangle, Check } from 'lucide-react';
 import { Deal } from '@/hooks/admin/use-deals';
-import { useDealTasks, useCreateDealTask, useUpdateDealTask, useCompleteDealTask, useDeleteDealTask, DealTask } from '@/hooks/admin/use-deal-tasks';
+import { useDealTasks, useCreateDealTask, useUpdateDealTask, useCompleteDealTask, useDeleteDealTask, DealTask, useTaskReviewers } from '@/hooks/admin/use-deal-tasks';
 import { useAdminProfiles } from '@/hooks/admin/use-admin-profiles';
 import { formatDistanceToNow } from 'date-fns';
+import { TaskActionsMenu } from './task-management/TaskActionsMenu';
 
 interface PipelineDetailTasksProps {
   deal: Deal;
@@ -54,8 +56,22 @@ export function PipelineDetailTasks({ deal }: PipelineDetailTasksProps) {
     setShowCreateForm(false);
   };
 
-  const handleCompleteTask = (taskId: string) => {
-    completeTask.mutate(taskId);
+  const handleStatusChange = (taskId: string, status: string) => {
+    updateTask.mutate({ 
+      taskId, 
+      updates: { status: status as any }
+    });
+  };
+
+  const handlePriorityChange = (taskId: string, priority: string) => {
+    updateTask.mutate({ 
+      taskId, 
+      updates: { priority: priority as any }
+    });
+  };
+
+  const handleDeleteTask = (taskId: string) => {
+    deleteTask.mutate(taskId);
   };
 
   const getPriorityColor = (priority: string) => {
@@ -67,18 +83,32 @@ export function PipelineDetailTasks({ deal }: PipelineDetailTasksProps) {
     }
   };
 
-  const getStatusIcon = (status: string) => {
+  const getStatusColor = (status: string) => {
     switch (status) {
-      case 'completed': return CheckCircle2;
-      case 'in_progress': return Clock;
-      default: return Circle;
+      case 'open': return 'bg-gray-500';
+      case 'in_progress': return 'bg-amber-500';
+      case 'reopened': return 'bg-purple-500';
+      case 'na': return 'bg-gray-500';
+      case 'resolved': return 'bg-emerald-500';
+      default: return 'bg-gray-500';
+    }
+  };
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'open': return 'Open';
+      case 'in_progress': return 'In Progress';
+      case 'reopened': return 'Reopened';
+      case 'na': return 'NA';
+      case 'resolved': return 'Resolved';
+      default: return status;
     }
   };
 
   const sortedTasks = tasks.sort((a, b) => {
-    // Completed tasks go to bottom
-    if (a.status === 'completed' && b.status !== 'completed') return 1;
-    if (a.status !== 'completed' && b.status === 'completed') return -1;
+    // Resolved tasks go to bottom
+    if (a.status === 'resolved' && b.status !== 'resolved') return 1;
+    if (a.status !== 'resolved' && b.status === 'resolved') return -1;
     
     // Sort by priority then due date
     const priorityOrder = { high: 3, medium: 2, low: 1 };
@@ -95,7 +125,7 @@ export function PipelineDetailTasks({ deal }: PipelineDetailTasksProps) {
     return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
   });
 
-  const completedTasks = tasks.filter(t => t.status === 'completed').length;
+  const completedTasks = tasks.filter(t => t.status === 'resolved').length;
   const totalTasks = tasks.length;
 
   return (
@@ -236,30 +266,22 @@ export function PipelineDetailTasks({ deal }: PipelineDetailTasksProps) {
           ) : (
             <div className="space-y-2">
               {sortedTasks.map((task) => {
-                const StatusIcon = getStatusIcon(task.status);
-                const isOverdue = task.due_date && new Date(task.due_date) < new Date() && task.status !== 'completed';
+                const isOverdue = task.due_date && new Date(task.due_date) < new Date() && task.status !== 'resolved';
                 
                 return (
-                  <div key={task.id} className={`p-4 border border-border/20 rounded-xl ${task.status === 'completed' ? 'opacity-50' : ''}`}>
+                  <div key={task.id} className={`p-4 border border-border/20 rounded-xl ${task.status === 'resolved' ? 'opacity-50' : ''}`}>
                     <div className="flex items-start gap-4">
-                      <button
-                        onClick={() => task.status !== 'completed' && handleCompleteTask(task.id)}
-                        disabled={task.status === 'completed' || completeTask.isPending}
-                        className="mt-1"
-                      >
-                        <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
-                          task.status === 'completed' 
-                            ? 'bg-emerald-500 border-emerald-500' 
-                            : 'border-muted-foreground/30 hover:border-primary'
-                        }`}>
-                          {task.status === 'completed' && <Check className="h-2 w-2 text-white" />}
-                        </div>
-                      </button>
+                      <div className="flex items-center gap-3">
+                        <div className={`w-3 h-3 rounded-full ${getStatusColor(task.status)}`} />
+                        <span className="text-xs text-muted-foreground/70 min-w-[80px]">
+                          {getStatusLabel(task.status)}
+                        </span>
+                      </div>
                       
                       <div className="flex-1 space-y-3">
                         <div className="flex items-start justify-between">
-                          <div className="space-y-1">
-                            <h3 className={`text-sm font-medium ${task.status === 'completed' ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
+                          <div className="space-y-1 flex-1">
+                            <h3 className={`text-sm font-medium ${task.status === 'resolved' ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
                               {task.title}
                             </h3>
                             {task.description && (
@@ -278,23 +300,38 @@ export function PipelineDetailTasks({ deal }: PipelineDetailTasksProps) {
                             {isOverdue && (
                               <div className="w-2 h-2 rounded-full bg-red-500" />
                             )}
+                            <TaskActionsMenu 
+                              task={task}
+                              onStatusChange={(status) => handleStatusChange(task.id, status)}
+                              onPriorityChange={(priority) => handlePriorityChange(task.id, priority)}
+                              onDelete={() => handleDeleteTask(task.id)}
+                            />
                           </div>
                         </div>
                         
                         <div className="flex items-center gap-6 text-xs text-muted-foreground/70">
                           {task.assigned_to && adminProfiles && (
-                            <span className="font-mono">
-                              {adminProfiles[task.assigned_to]?.displayName || 'Assigned'}
-                            </span>
+                            <div className="flex items-center gap-2">
+                              <User className="h-3 w-3" />
+                              <span className="font-mono">
+                                {adminProfiles[task.assigned_to]?.displayName || 'Assigned'}
+                              </span>
+                            </div>
                           )}
                           {task.due_date && (
-                            <span className={`font-mono ${isOverdue ? 'text-red-600' : ''}`}>
-                              Due {formatDistanceToNow(new Date(task.due_date), { addSuffix: true })}
-                            </span>
+                            <div className="flex items-center gap-2">
+                              <Calendar className="h-3 w-3" />
+                              <span className={`font-mono ${isOverdue ? 'text-red-600' : ''}`}>
+                                Due {formatDistanceToNow(new Date(task.due_date), { addSuffix: true })}
+                              </span>
+                            </div>
                           )}
-                          <span className="font-mono">
-                            {formatDistanceToNow(new Date(task.created_at), { addSuffix: true })}
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <Clock className="h-3 w-3" />
+                            <span className="font-mono">
+                              {formatDistanceToNow(new Date(task.created_at), { addSuffix: true })}
+                            </span>
+                          </div>
                         </div>
                       </div>
                     </div>
