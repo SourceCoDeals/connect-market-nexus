@@ -24,9 +24,10 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
-import { LayoutGrid, Plus, MoreVertical, Trash2, Save } from 'lucide-react';
+import { LayoutGrid, Plus, MoreVertical, Trash2, Save, ArrowUpDown } from 'lucide-react';
 import { usePipelineViews, useDeletePipelineView, useUpdatePipelineView } from '@/hooks/admin/use-pipeline-views';
 import { PipelineViewDialog } from './PipelineViewDialog';
+import { StageReorderDialog } from './StageReorderDialog';
 import { useToast } from '@/hooks/use-toast';
 
 interface PipelineViewSwitcherProps {
@@ -49,6 +50,7 @@ export function PipelineViewSwitcher({
   const updateView = useUpdatePipelineView();
   const { toast } = useToast();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isReorderDialogOpen, setIsReorderDialogOpen] = useState(false);
   const [viewToDelete, setViewToDelete] = useState<string | null>(null);
 
   const defaultView = views.find(v => v.is_default);
@@ -101,6 +103,36 @@ export function PipelineViewSwitcher({
         stage_config,
         filter_config,
       }
+    }, {
+      onSuccess: () => {
+        toast({
+          title: "View saved",
+          description: "Current stage order and filters have been saved to this view.",
+        });
+      }
+    });
+  };
+
+  const handleSaveStageOrder = (stageConfig: { stageId: string; position: number }[]) => {
+    if (!selectedViewId) return;
+
+    const filter_config = getCurrentFilterConfig ? getCurrentFilterConfig() : {};
+
+    updateView.mutate({
+      id: selectedViewId,
+      updates: {
+        stage_config: stageConfig,
+        filter_config,
+      }
+    }, {
+      onSuccess: () => {
+        toast({
+          title: "Stage order saved",
+          description: "The custom stage order has been saved to this view.",
+        });
+        // Re-apply the view to reflect changes
+        onViewChange(selectedViewId);
+      }
     });
   };
 
@@ -143,6 +175,13 @@ export function PipelineViewSwitcher({
               <Save className="h-4 w-4 mr-2" />
               Save Current View
             </DropdownMenuItem>
+            <DropdownMenuItem 
+              onClick={() => setIsReorderDialogOpen(true)} 
+              disabled={!selectedViewId || stages.length === 0}
+            >
+              <ArrowUpDown className="h-4 w-4 mr-2" />
+              Reorder Stages
+            </DropdownMenuItem>
             {canDeleteCurrentView && (
               <>
                 <DropdownMenuSeparator />
@@ -162,6 +201,13 @@ export function PipelineViewSwitcher({
       <PipelineViewDialog 
         open={isCreateDialogOpen} 
         onOpenChange={setIsCreateDialogOpen} 
+      />
+
+      <StageReorderDialog
+        open={isReorderDialogOpen}
+        onOpenChange={setIsReorderDialogOpen}
+        stages={stages}
+        onSave={handleSaveStageOrder}
       />
 
       {/* Delete Confirmation Dialog */}
