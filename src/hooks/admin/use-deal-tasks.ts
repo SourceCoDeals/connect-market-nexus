@@ -94,11 +94,18 @@ export function useCreateDealTask() {
 
       // Send notification if task is assigned
       if (taskData.assigned_to && taskData.assigned_to !== userData?.user?.id) {
-        // Get assignee email
+        // Get assignee profile
         const { data: assigneeProfile } = await supabase
           .from('profiles')
-          .select('email')
+          .select('id, email, first_name, last_name')
           .eq('id', taskData.assigned_to)
+          .single();
+
+        // Get assigner profile
+        const { data: assignerProfile } = await supabase
+          .from('profiles')
+          .select('first_name, last_name')
+          .eq('id', userData?.user?.id)
           .single();
 
         if (assigneeProfile?.email) {
@@ -119,15 +126,18 @@ export function useCreateDealTask() {
             },
           });
 
-          // Send email notification
+          // Send email notification with correct parameters
           await supabase.functions.invoke('send-task-notification-email', {
             body: {
-              to: assigneeProfile.email,
-              taskTitle: taskData.title,
-              dealTitle: dealData?.title || 'Deal',
-              taskDescription: taskData.description,
-              priority: taskData.priority,
-              dueDate: taskData.due_date,
+              assignee_email: assigneeProfile.email,
+              assignee_name: `${assigneeProfile.first_name} ${assigneeProfile.last_name}`.trim() || assigneeProfile.email,
+              assigner_name: assignerProfile ? `${assignerProfile.first_name} ${assignerProfile.last_name}`.trim() : 'Admin',
+              task_title: taskData.title,
+              task_description: taskData.description,
+              task_priority: taskData.priority || 'medium',
+              task_due_date: taskData.due_date,
+              deal_title: dealData?.title || 'Deal',
+              deal_id: taskData.deal_id,
             },
           });
         }
@@ -185,11 +195,18 @@ export function useUpdateDealTask() {
 
       // Log assignment changes and send notifications
       if (updates.assigned_to && currentTask && updates.assigned_to !== currentTask.assigned_to) {
-        // Get assignee email
+        // Get assignee profile
         const { data: assigneeProfile } = await supabase
           .from('profiles')
-          .select('email')
+          .select('id, email, first_name, last_name')
           .eq('id', updates.assigned_to)
+          .single();
+
+        // Get assigner profile
+        const { data: assignerProfile } = await supabase
+          .from('profiles')
+          .select('first_name, last_name')
+          .eq('id', userData?.user?.id)
           .single();
 
         await logDealActivity({
@@ -222,15 +239,18 @@ export function useUpdateDealTask() {
             },
           });
 
-          // Send email notification
+          // Send email notification with correct parameters
           await supabase.functions.invoke('send-task-notification-email', {
             body: {
-              to: assigneeProfile.email,
-              taskTitle: currentTask.title,
-              dealTitle: dealData?.title || 'Deal',
-              taskDescription: currentTask.description,
-              priority: currentTask.priority,
-              dueDate: currentTask.due_date,
+              assignee_email: assigneeProfile.email,
+              assignee_name: `${assigneeProfile.first_name} ${assigneeProfile.last_name}`.trim() || assigneeProfile.email,
+              assigner_name: assignerProfile ? `${assignerProfile.first_name} ${assignerProfile.last_name}`.trim() : 'Admin',
+              task_title: currentTask.title,
+              task_description: currentTask.description,
+              task_priority: currentTask.priority || 'medium',
+              task_due_date: currentTask.due_date,
+              deal_title: dealData?.title || 'Deal',
+              deal_id: currentTask.deal_id,
             },
           });
         }
