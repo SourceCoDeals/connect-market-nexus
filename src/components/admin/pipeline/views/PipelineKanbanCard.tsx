@@ -281,13 +281,31 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
         {/* Header with priority indicator and clean typography */}
         <div className="flex items-start justify-between">
           <div className="flex-1 min-w-0 space-y-1.5">
+            {/* Deal title without company duplication */}
             <h3 className="text-sm font-medium text-foreground leading-tight truncate">
-              {companyName ? `${companyName} / ${listingTitle}` : listingTitle}
+              {listingTitle}
             </h3>
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <Building2 className="w-3 h-3 text-muted-foreground/60 flex-shrink-0" />
-              <span className="text-xs font-medium text-foreground/80 truncate">{companyName}</span>
-            </div>
+            {/* Internal company name (admin-only) */}
+            {companyName && (
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <Building2 className="w-3 h-3 text-muted-foreground/60 flex-shrink-0" />
+                <span className="text-xs font-medium text-foreground/80 truncate">{companyName}</span>
+              </div>
+            )}
+            {/* Buyer's company name - polished presentation */}
+            {deal.contact_company && (
+              <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted/50 border border-border/50">
+                  <Building2 className="w-2.5 h-2.5 text-muted-foreground/70 flex-shrink-0" />
+                  <span className="text-[10px] font-medium text-muted-foreground tracking-wide uppercase">
+                    Buyer
+                  </span>
+                </div>
+                <span className="text-xs text-foreground/90 font-medium truncate">
+                  {deal.contact_company}
+                </span>
+              </div>
+            )}
           </div>
           <div className={cn("w-2 h-2 rounded-full ml-3 mt-0.5 flex-shrink-0", buyerPriority.dot)} />
         </div>

@@ -74,6 +74,17 @@ export function ActiveFilterChips({ pipeline }: ActiveFilterChipsProps) {
     });
   }
 
+  // Listing filter
+  if (pipeline.listingFilter !== 'all') {
+    const listingObj = pipeline.uniqueListings?.find(l => l.id === pipeline.listingFilter);
+    const displayLabel = listingObj?.title || 'Unknown Listing';
+    activeFilters.push({
+      key: 'listing',
+      label: `Listing: ${displayLabel}`,
+      onRemove: () => pipeline.setListingFilter('all'),
+    });
+  }
+
   // Company filter (multi-select)
   if (pipeline.companyFilter.length > 0) {
     pipeline.companyFilter.forEach(companyValue => {
@@ -143,6 +154,7 @@ export function ActiveFilterChips({ pipeline }: ActiveFilterChipsProps) {
   if (activeFilters.length === 0) return null;
 
   const clearAllFilters = () => {
+    pipeline.setListingFilter('all');
     pipeline.setStatusFilter('all');
     pipeline.setDocumentStatusFilter('all');
     pipeline.setBuyerTypeFilter('all');
