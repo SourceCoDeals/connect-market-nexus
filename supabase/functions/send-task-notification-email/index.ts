@@ -161,42 +161,48 @@ serve(async (req) => {
 </html>
     `;
 
-    // Send email using Supabase's built-in email (or integrate with Resend if needed)
-    const { error: emailError } = await supabaseClient.auth.admin.inviteUserByEmail(
-      assignee_email,
-      {
-        data: {
-          task_notification: true,
-          email_html: emailHtml,
-        }
-      }
-    );
 
-    // Alternative: Use Resend if RESEND_API_KEY is configured
+    // Send email using Resend
     const resendKey = Deno.env.get('RESEND_API_KEY');
-    if (resendKey) {
-      const resendResponse = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${resendKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          from: 'Pipeline Notifications <notifications@resend.dev>',
-          to: [assignee_email],
-          subject: `New Task Assigned: ${task_title}`,
-          html: emailHtml,
-        }),
-      });
-
-      if (!resendResponse.ok) {
-        const errorData = await resendResponse.text();
-        console.error('Resend email error:', errorData);
-        throw new Error(`Failed to send email via Resend: ${errorData}`);
-      }
-
-      console.log('Email sent successfully via Resend');
+    if (!resendKey) {
+      console.warn('RESEND_API_KEY not configured, skipping email notification');
+      return new Response(
+        JSON.stringify({ success: true, message: 'Notification created but email skipped (no API key)' }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200 
+        }
+      );
     }
+
+    const resendResponse = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${resendKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: 'SourceCo Pipeline <notifications@sourcecodeals.com>',
+        to: [assignee_email],
+        subject: `New Task Assigned: ${task_title}`,
+        html: emailHtml,
+      }),
+    });
+
+    if (!resendResponse.ok) {
+      const errorData = await resendResponse.text();
+      console.error('Resend email error:', errorData);
+      // Don't throw - return success anyway since notification was created
+      return new Response(
+        JSON.stringify({ success: true, warning: 'Email failed but notification created', error: errorData }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200 
+        }
+      );
+    }
+
+    console.log('Email sent successfully via Resend');
 
     return new Response(
       JSON.stringify({ success: true, message: 'Email notification sent' }),

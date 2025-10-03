@@ -56,12 +56,7 @@ export function AdminNotificationBell() {
         >
           <Bell className="h-5 w-5" />
           {hasUnread && (
-            <>
-              {/* Red dot indicator */}
-              <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-red-500 border-2 border-background" />
-              {/* Pulse animation for new notifications */}
-              <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-red-500 animate-ping" />
-            </>
+            <span className="absolute top-0.5 right-0.5 h-2 w-2 rounded-full bg-primary" />
           )}
         </Button>
       </PopoverTrigger>
