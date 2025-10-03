@@ -92,29 +92,33 @@ export function usePipelineCore() {
     
     const config = selectedView.filter_config;
     
-    // Apply saved filters with proper type casting
-    if (config.searchQuery !== undefined) filterHook.setSearchQuery(config.searchQuery);
-    if (config.statusFilter) filterHook.setStatusFilter(config.statusFilter as any);
-    if (config.documentStatusFilter) filterHook.setDocumentStatusFilter(config.documentStatusFilter as any);
-    if (config.buyerTypeFilter) filterHook.setBuyerTypeFilter(config.buyerTypeFilter as any);
-    if (config.companyFilter) filterHook.setCompanyFilter(config.companyFilter);
-    if (config.adminFilter) filterHook.setAdminFilter(config.adminFilter);
-    if (config.listingFilter) filterHook.setListingFilter(config.listingFilter);
-    
-    // Parse dates from strings
-    if (config.createdDateRange) {
-      filterHook.setCreatedDateRange({
-        start: config.createdDateRange.start ? new Date(config.createdDateRange.start) : null,
-        end: config.createdDateRange.end ? new Date(config.createdDateRange.end) : null,
-      });
+    // Apply saved filters with proper type casting and null checks
+    try {
+      if (config.searchQuery !== undefined) filterHook.setSearchQuery(config.searchQuery);
+      if (config.statusFilter) filterHook.setStatusFilter(config.statusFilter as any);
+      if (config.documentStatusFilter) filterHook.setDocumentStatusFilter(config.documentStatusFilter as any);
+      if (config.buyerTypeFilter) filterHook.setBuyerTypeFilter(config.buyerTypeFilter as any);
+      if (config.companyFilter && Array.isArray(config.companyFilter)) filterHook.setCompanyFilter(config.companyFilter);
+      if (config.adminFilter) filterHook.setAdminFilter(config.adminFilter);
+      if (config.listingFilter) filterHook.setListingFilter(config.listingFilter);
+      
+      // Parse dates from strings
+      if (config.createdDateRange) {
+        filterHook.setCreatedDateRange({
+          start: config.createdDateRange.start ? new Date(config.createdDateRange.start) : null,
+          end: config.createdDateRange.end ? new Date(config.createdDateRange.end) : null,
+        });
+      }
+      if (config.lastActivityRange) {
+        filterHook.setLastActivityRange({
+          start: config.lastActivityRange.start ? new Date(config.lastActivityRange.start) : null,
+          end: config.lastActivityRange.end ? new Date(config.lastActivityRange.end) : null,
+        });
+      }
+      if (config.sortOption) filterHook.setSortOption(config.sortOption as any);
+    } catch (error) {
+      console.error('[Pipeline Core] Error loading filter config:', error);
     }
-    if (config.lastActivityRange) {
-      filterHook.setLastActivityRange({
-        start: config.lastActivityRange.start ? new Date(config.lastActivityRange.start) : null,
-        end: config.lastActivityRange.end ? new Date(config.lastActivityRange.end) : null,
-      });
-    }
-    if (config.sortOption) filterHook.setSortOption(config.sortOption as any);
   }, [currentViewId, pipelineViews]); // Don't include filterHook in deps to avoid infinite loop
 
   // Derive selected deal from id for absolute correctness
@@ -236,24 +240,31 @@ export function usePipelineCore() {
   };
 
   // Get current filter state for saving (serialize dates to ISO strings)
-  const getCurrentFilterConfig = () => ({
-    searchQuery: filterHook.searchQuery,
-    statusFilter: filterHook.statusFilter,
-    documentStatusFilter: filterHook.documentStatusFilter,
-    buyerTypeFilter: filterHook.buyerTypeFilter,
-    companyFilter: filterHook.companyFilter,
-    adminFilter: filterHook.adminFilter,
-    listingFilter: filterHook.listingFilter,
-    createdDateRange: {
-      start: filterHook.createdDateRange.start?.toISOString() || null,
-      end: filterHook.createdDateRange.end?.toISOString() || null,
-    },
-    lastActivityRange: {
-      start: filterHook.lastActivityRange.start?.toISOString() || null,
-      end: filterHook.lastActivityRange.end?.toISOString() || null,
-    },
-    sortOption: filterHook.sortOption,
-  });
+  const getCurrentFilterConfig = () => {
+    try {
+      return {
+        searchQuery: filterHook.searchQuery || '',
+        statusFilter: filterHook.statusFilter || 'all',
+        documentStatusFilter: filterHook.documentStatusFilter || 'all',
+        buyerTypeFilter: filterHook.buyerTypeFilter || 'all',
+        companyFilter: Array.isArray(filterHook.companyFilter) ? filterHook.companyFilter : [],
+        adminFilter: filterHook.adminFilter || 'all',
+        listingFilter: filterHook.listingFilter || 'all',
+        createdDateRange: {
+          start: filterHook.createdDateRange?.start?.toISOString() || null,
+          end: filterHook.createdDateRange?.end?.toISOString() || null,
+        },
+        lastActivityRange: {
+          start: filterHook.lastActivityRange?.start?.toISOString() || null,
+          end: filterHook.lastActivityRange?.end?.toISOString() || null,
+        },
+        sortOption: filterHook.sortOption || 'created_at_desc',
+      };
+    } catch (error) {
+      console.error('[Pipeline Core] Error getting filter config:', error);
+      return {};
+    }
+  };
 
   return {
     // State
