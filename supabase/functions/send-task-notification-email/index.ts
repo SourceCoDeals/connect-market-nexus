@@ -131,7 +131,7 @@ serve(async (req) => {
               <table width="100%" cellpadding="0" cellspacing="0" style="margin: 30px 0;">
                 <tr>
                   <td align="center">
-                    <a href="https://www.sourcecodeals.com/admin/pipeline?deal=${deal_id}&tab=tasks" 
+                    <a href="https://marketplace.sourcecodeals.com/admin/pipeline?deal=${deal_id}&tab=tasks" 
                        style="display: inline-block; padding: 12px 32px; background-color: #2563eb; color: #ffffff; text-decoration: none; border-radius: 6px; font-size: 15px; font-weight: 600;">
                       View Task in Pipeline
                     </a>
@@ -172,7 +172,7 @@ ${task_description ? `Description: ${task_description}\n` : ''}
 Deal: ${deal_title}
 ${dueDateFormatted ? `Due Date: ${dueDateFormatted}\n` : ''}
 
-View this task in the pipeline: https://www.sourcecodeals.com/admin/pipeline?deal=${deal_id}&tab=tasks
+View this task in the pipeline: https://marketplace.sourcecodeals.com/admin/pipeline?deal=${deal_id}&tab=tasks
 
 ---
 This is an automated notification from your admin task management system.`;
