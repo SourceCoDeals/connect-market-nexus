@@ -453,8 +453,8 @@ export function PipelineDetailBuyer({ deal }: PipelineDetailBuyerProps) {
                 </div>
                 
                 {connectionRequests.length > 0 && (
-                  <ScrollArea className="max-h-[300px]">
-                    <div className="space-y-1 pr-3">
+                  <ScrollArea className="h-[300px] w-full rounded-lg border border-border/40">
+                    <div className="space-y-1 p-2">
                       {connectionRequests.map((request: any) => (
                         <div key={request.id} className="flex items-center justify-between py-3 px-4 bg-muted/10 rounded-lg">
                           <div className="flex-1 min-w-0">
@@ -489,7 +489,7 @@ export function PipelineDetailBuyer({ deal }: PipelineDetailBuyerProps) {
                               )}
                             </div>
                           </div>
-                          <div className={`w-2 h-2 rounded-full ml-3 ${
+                          <div className={`w-2 h-2 rounded-full ml-3 flex-shrink-0 ${
                             request.status === 'approved' ? 'bg-emerald-500' :
                             request.status === 'rejected' ? 'bg-red-500' :
                             request.status === 'on_hold' ? 'bg-amber-500' :
@@ -512,8 +512,8 @@ export function PipelineDetailBuyer({ deal }: PipelineDetailBuyerProps) {
                     </span>
                   </div>
                   
-                  <ScrollArea className="max-h-[300px]">
-                    <div className="space-y-1 pr-3">
+                  <ScrollArea className="h-[300px] w-full rounded-lg border border-border/40">
+                    <div className="space-y-1 p-2">
                       {savedListings.map((saved: any) => (
                         <div key={saved.id} className="flex items-center justify-between py-3 px-4 bg-muted/10 rounded-lg">
                           <div className="flex-1 min-w-0">
