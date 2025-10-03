@@ -50,8 +50,7 @@ export function useAssociatedRequests(
               lead_name,
               lead_email,
               lead_company,
-              listing:listing_id(id, title, revenue, location, internal_company_name),
-              user:user_id(email, first_name, last_name, company)
+              listing:listing_id(id, title, revenue, location, internal_company_name)
             )
           `)
           .eq('primary_request_id', primaryRequestId)
@@ -73,7 +72,7 @@ export function useAssociatedRequests(
             relationship_type: item.relationship_type,
             relationship_metadata: item.relationship_metadata,
             listing: item.related_request?.listing || null,
-            user: item.related_request?.user || null,
+            user: null,
           }));
 
           return associated;
@@ -104,8 +103,7 @@ export function useAssociatedRequests(
             lead_name,
             lead_email,
             lead_company,
-            listing:listing_id(id, title, revenue, location, internal_company_name),
-            user:user_id(email, first_name, last_name, company)
+            listing:listing_id(id, title, revenue, location, internal_company_name)
           `)
           .order('created_at', { ascending: false });
 
@@ -128,9 +126,10 @@ export function useAssociatedRequests(
           .filter((req: any) => {
             // Exclude the primary request itself
             if (primaryRequestId && req.id === primaryRequestId) return false;
-            // Exclude current contact's email
-            const reqEmail = req.lead_email || req.user?.email;
-            return reqEmail && reqEmail.toLowerCase() !== contactEmail?.toLowerCase();
+            // Exclude current contact's email when available
+            if (!contactEmail) return true;
+            const reqEmail = (req.lead_email || '').toLowerCase();
+            return reqEmail !== contactEmail.toLowerCase();
           })
           .map((req: any) => ({
             id: req.id,
@@ -138,13 +137,13 @@ export function useAssociatedRequests(
             listing_id: req.listing_id,
             status: req.status,
             created_at: req.created_at,
-            lead_name: req.lead_name || (req.user ? `${req.user.first_name} ${req.user.last_name}` : null),
-            lead_email: req.lead_email || req.user?.email,
-            lead_company: req.lead_company || req.user?.company,
+            lead_name: req.lead_name,
+            lead_email: req.lead_email,
+            lead_company: req.lead_company,
             relationship_type: 'same_company',
             relationship_metadata: { company_name: contactCompany, matched_by: 'company_name' },
             listing: req.listing,
-            user: req.user,
+            user: null,
           }));
 
         return associated;
