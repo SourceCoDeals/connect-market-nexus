@@ -90,6 +90,10 @@ export function PipelineHeader({ pipeline, onOpenCreateDeal }: PipelineHeaderPro
             <PipelineViewSwitcher
               currentViewId={pipeline.currentViewId || undefined}
               onViewChange={pipeline.setCurrentViewId}
+              onSaveCurrentView={() => {
+                // TODO: Implement save current view with current filters/sorting
+                console.log('Save current view clicked');
+              }}
             />
           </div>
 

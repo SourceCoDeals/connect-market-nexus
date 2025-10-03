@@ -45,9 +45,15 @@ export function PipelineKanbanColumn({ stage, deals, onDealClick, onOpenCreateDe
     }).format(value);
   };
 
-  // Calculate stage progression (position + 1 to make it 1-indexed)
+  // Calculate stage progression - Closed Won is 10/10, Closed Lost shows no progression
+  const isClosedWon = stage.name.toLowerCase().includes('closed') && stage.name.toLowerCase().includes('won');
+  const isClosedLost = stage.name.toLowerCase().includes('closed') && stage.name.toLowerCase().includes('lost');
+  
+  // For progression, we count up to Closed Won (which should be position 9 = stage 10)
+  // Closed Lost doesn't show progression
   const stageNumber = stage.position + 1;
-  const progressPercentage = totalStages > 0 ? (stageNumber / totalStages) * 100 : 0;
+  const maxProgressStage = 10; // Closed Won is the final stage with progression
+  const progressPercentage = isClosedWon ? 100 : (totalStages > 0 ? (stageNumber / maxProgressStage) * 100 : 0);
   
   return (
     <Card 
@@ -77,18 +83,21 @@ export function PipelineKanbanColumn({ stage, deals, onDealClick, onOpenCreateDe
         </div>
 
         {/* Stage Progression Bar */}
-        <div className="space-y-1.5">
-          <div className="flex items-center justify-between text-[10px] text-muted-foreground">
-            <span className="font-medium">Stage {stageNumber} of {totalStages}</span>
-            <span className="font-medium">{Math.round(progressPercentage)}%</span>
+        {!isClosedLost && (
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+              <span className="font-medium">
+                Stage {isClosedWon ? maxProgressStage : stageNumber} of {maxProgressStage}
+              </span>
+            </div>
+            <div className="w-full h-1.5 bg-muted/30 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-gradient-to-r from-primary to-primary/80 transition-all duration-300 rounded-full"
+                style={{ width: `${progressPercentage}%` }}
+              />
+            </div>
           </div>
-          <div className="w-full h-1.5 bg-muted/30 rounded-full overflow-hidden">
-            <div 
-              className="h-full bg-gradient-to-r from-primary to-primary/80 transition-all duration-300 rounded-full"
-              style={{ width: `${progressPercentage}%` }}
-            />
-          </div>
-        </div>
+        )}
         
       </CardHeader>
       
