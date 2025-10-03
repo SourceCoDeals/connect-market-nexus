@@ -46,6 +46,16 @@ export function Combobox({
   const [open, setOpen] = React.useState(false);
 
   const selectedOption = options.find((option) => option.value === value);
+  
+  React.useEffect(() => {
+    console.log('[Combobox] State changed:', {
+      open,
+      optionsCount: options.length,
+      hasValue: !!value,
+      selectedLabel: selectedOption?.label,
+      disabled
+    });
+  }, [open, options.length, value, selectedOption, disabled]);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -67,7 +77,7 @@ export function Combobox({
           <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-full p-0 bg-background border shadow-md pointer-events-auto" style={{ minWidth: '400px' }}>
+      <PopoverContent className="w-full p-0 bg-background border shadow-md pointer-events-auto z-[100]" style={{ minWidth: '400px' }}>
         <Command>
           <CommandInput placeholder={searchPlaceholder} />
           <CommandList>

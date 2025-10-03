@@ -325,7 +325,14 @@ export function CreateDealModal({ open, onOpenChange, prefilledStageId, onDealCr
 
   // Format user options for combobox
   const userOptions = React.useMemo(() => {
-    return (marketplaceUsers || []).map(user => {
+    if (!marketplaceUsers || marketplaceUsers.length === 0) {
+      console.log('[CreateDealModal] No marketplace users available');
+      return [];
+    }
+    
+    console.log('[CreateDealModal] Formatting', marketplaceUsers.length, 'marketplace users for combobox');
+    
+    return marketplaceUsers.map(user => {
       const name = `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email;
       const buyerType = user.buyer_type ? ` - ${user.buyer_type}` : '';
       const company = user.company ? ` (${user.company})` : '';
