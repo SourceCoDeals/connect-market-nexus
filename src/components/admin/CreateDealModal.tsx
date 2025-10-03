@@ -9,6 +9,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog';
+import { Badge } from '@/components/ui/badge';
 import {
   Form,
   FormControl,
@@ -44,12 +45,14 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { CalendarIcon, Loader2, AlertTriangle } from 'lucide-react';
+import { CalendarIcon, Loader2, AlertTriangle, User, UserPlus } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useDealStages, useCreateDeal } from '@/hooks/admin/use-deals';
 import { useListingsQuery } from '@/hooks/admin/listings/use-listings-query';
 import { useAdminProfiles } from '@/hooks/admin/use-admin-profiles';
+import { useMarketplaceUsers } from '@/hooks/admin/use-marketplace-users';
+import { Combobox } from '@/components/ui/combobox';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
 import { logDealActivity } from '@/lib/deal-activity-logger';
@@ -94,6 +97,7 @@ export function CreateDealModal({ open, onOpenChange, prefilledStageId, onDealCr
   const { data: stages } = useDealStages();
   const { data: listings } = useListingsQuery('active');
   const { data: adminProfilesMap } = useAdminProfiles();
+  const { data: marketplaceUsers } = useMarketplaceUsers();
   const adminUsers = adminProfilesMap ? Object.values(adminProfilesMap) : [];
   const createDealMutation = useCreateDeal();
   const queryClient = useQueryClient();
@@ -103,6 +107,8 @@ export function CreateDealModal({ open, onOpenChange, prefilledStageId, onDealCr
   const [showDuplicateWarning, setShowDuplicateWarning] = useState(false);
   const [pendingData, setPendingData] = useState<CreateDealFormData | null>(null);
   const [isCheckingDuplicates, setIsCheckingDuplicates] = useState(false);
+  const [isSelectingUser, setIsSelectingUser] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
 
   const form = useForm<CreateDealFormData>({
     resolver: zodResolver(createDealSchema),
@@ -181,6 +187,52 @@ export function CreateDealModal({ open, onOpenChange, prefilledStageId, onDealCr
 
   const createDeal = async (data: CreateDealFormData) => {
     try {
+      let connectionRequestId = null;
+      
+      // If user was selected from marketplace, create connection request first
+      if (selectedUserId && data.listing_id) {
+        // Check for existing connection request
+        const { data: existingRequests, error: checkError } = await supabase
+          .from('connection_requests')
+          .select('id')
+          .eq('user_id', selectedUserId)
+          .eq('listing_id', data.listing_id)
+          .limit(1);
+        
+        if (checkError) throw checkError;
+        
+        if (existingRequests && existingRequests.length > 0) {
+          // Use existing connection request
+          connectionRequestId = existingRequests[0].id;
+          toast({
+            title: 'Using Existing Connection',
+            description: 'This user already has a connection request for this listing.',
+          });
+        } else {
+          // Create new connection request
+          const { data: newConnectionRequest, error: crError } = await supabase
+            .from('connection_requests')
+            .insert({
+              user_id: selectedUserId,
+              listing_id: data.listing_id,
+              status: 'approved',
+              source: 'manual',
+              user_message: data.description || 'Manual connection created by admin',
+              source_metadata: {
+                created_by_admin: true,
+                admin_id: (await supabase.auth.getUser()).data.user?.id,
+                created_via: 'deal_creation_modal',
+                deal_title: data.title,
+              },
+            })
+            .select()
+            .single();
+          
+          if (crError) throw crError;
+          connectionRequestId = newConnectionRequest.id;
+        }
+      }
+      
       const payload: any = {
         ...data,
         source: 'manual',
@@ -188,6 +240,7 @@ export function CreateDealModal({ open, onOpenChange, prefilledStageId, onDealCr
         fee_agreement_status: 'not_sent',
         buyer_priority_score: 0,
         assigned_to: data.assigned_to && data.assigned_to !== '' ? data.assigned_to : null,
+        connection_request_id: connectionRequestId,
       };
       const newDeal = await createDealMutation.mutateAsync(payload);
 
@@ -204,6 +257,10 @@ export function CreateDealModal({ open, onOpenChange, prefilledStageId, onDealCr
       // Invalidate queries
       queryClient.invalidateQueries({ queryKey: ['deals'] });
       queryClient.invalidateQueries({ queryKey: ['deal-stages'] });
+      queryClient.invalidateQueries({ queryKey: ['connection-requests'] });
+      if (selectedUserId) {
+        queryClient.invalidateQueries({ queryKey: ['user-connection-requests', selectedUserId] });
+      }
 
       // Show success toast (useCreateDeal already shows one, so we suppress it)
       toast({
@@ -218,6 +275,8 @@ export function CreateDealModal({ open, onOpenChange, prefilledStageId, onDealCr
 
       // Reset and close
       form.reset();
+      setIsSelectingUser(false);
+      setSelectedUserId(null);
       onOpenChange(false);
     } catch (error) {
       console.error('Error creating deal:', error);
@@ -239,6 +298,44 @@ export function CreateDealModal({ open, onOpenChange, prefilledStageId, onDealCr
     setPendingData(null);
     setDuplicates([]);
   };
+
+  // Handle user selection
+  const handleUserSelect = (userId: string) => {
+    const user = marketplaceUsers?.find(u => u.id === userId);
+    if (user) {
+      setSelectedUserId(userId);
+      form.setValue('contact_name', `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email);
+      form.setValue('contact_email', user.email);
+      form.setValue('contact_company', user.company || '');
+    }
+  };
+
+  const handleToggleUserSelection = () => {
+    if (isSelectingUser) {
+      // Switching back to manual entry
+      setSelectedUserId(null);
+      form.setValue('contact_name', '');
+      form.setValue('contact_email', '');
+      form.setValue('contact_company', '');
+      form.setValue('contact_phone', '');
+      form.setValue('contact_role', '');
+    }
+    setIsSelectingUser(!isSelectingUser);
+  };
+
+  // Format user options for combobox
+  const userOptions = React.useMemo(() => {
+    return (marketplaceUsers || []).map(user => {
+      const name = `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email;
+      const buyerType = user.buyer_type ? ` - ${user.buyer_type}` : '';
+      const company = user.company ? ` (${user.company})` : '';
+      return {
+        value: user.id,
+        label: `${name} - ${user.email}${buyerType}${company}`,
+        searchTerms: `${name} ${user.email} ${user.company || ''} ${user.buyer_type || ''}`.toLowerCase(),
+      };
+    });
+  }, [marketplaceUsers]);
 
   return (
     <>
@@ -400,12 +497,78 @@ export function CreateDealModal({ open, onOpenChange, prefilledStageId, onDealCr
 
               {/* Contact Information */}
               <div className="space-y-4">
-                <div>
-                  <h3 className="text-sm font-semibold text-foreground">Contact Information</h3>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Details about the buyer/prospect interested in this listing. No user account will be created.
-                  </p>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-semibold text-foreground">Contact Information</h3>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {isSelectingUser 
+                        ? 'Select an existing marketplace user or switch to manual entry'
+                        : 'Enter contact details manually or select an existing user'
+                      }
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleToggleUserSelection}
+                    className="gap-2"
+                  >
+                    {isSelectingUser ? (
+                      <>
+                        <UserPlus className="h-4 w-4" />
+                        New Contact
+                      </>
+                    ) : (
+                      <>
+                        <User className="h-4 w-4" />
+                        Select User
+                      </>
+                    )}
+                  </Button>
                 </div>
+
+                {isSelectingUser ? (
+                  <>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Select Marketplace User *</label>
+                      <Combobox
+                        options={userOptions}
+                        value={selectedUserId || ''}
+                        onValueChange={handleUserSelect}
+                        placeholder="Search by name, email, or company..."
+                        emptyText="No marketplace users found"
+                        searchPlaceholder="Search users..."
+                      />
+                      {selectedUserId && (
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <Badge variant="secondary" className="text-xs">
+                            {marketplaceUsers?.find(u => u.id === selectedUserId)?.buyer_type || 'Buyer'}
+                          </Badge>
+                          <span>User will be linked to this deal</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {selectedUserId && (
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium text-muted-foreground">Contact Name</label>
+                          <Input value={form.watch('contact_name')} disabled className="bg-muted/50" />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium text-muted-foreground">Email</label>
+                          <Input value={form.watch('contact_email')} disabled className="bg-muted/50" />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium text-muted-foreground">Company</label>
+                          <Input value={form.watch('contact_company')} disabled className="bg-muted/50" />
+                        </div>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <>
                 
                 <div className="grid grid-cols-2 gap-4">
                   <FormField
@@ -480,6 +643,8 @@ export function CreateDealModal({ open, onOpenChange, prefilledStageId, onDealCr
                     </FormItem>
                   )}
                 />
+                  </>
+                )}
               </div>
 
               {/* Additional Details */}

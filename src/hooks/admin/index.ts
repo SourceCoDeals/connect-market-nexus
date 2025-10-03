@@ -11,3 +11,4 @@ export * from './use-connection-notes';
 export * from './use-deals';
 export * from './use-deal-filters';
 export * from './use-deal-follow-up';
+export * from './use-marketplace-users';

@@ -457,24 +457,29 @@ export function PipelineDetailBuyer({ deal }: PipelineDetailBuyerProps) {
                     <div className="space-y-1 p-2">
                       {connectionRequests.map((request: any) => (
                         <div key={request.id} className="flex items-center justify-between py-3 px-4 bg-muted/10 rounded-lg">
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm text-foreground truncate">
-                              {request.listings?.title || 'Unknown Listing'}
-                              {request.listings?.internal_company_name && (
-                                <span className="text-muted-foreground">
-                                  {' / '}
-                                  <a
-                                    href={`/listing/${request.listings.id}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="hover:text-foreground hover:underline transition-colors"
-                                    onClick={(e) => e.stopPropagation()}
-                                  >
-                                    {request.listings.internal_company_name}
-                                  </a>
-                                </span>
+                           <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1 flex-wrap">
+                              <p className="text-sm text-foreground truncate">
+                                {request.listings?.title || 'Unknown Listing'}
+                                {request.listings?.internal_company_name && (
+                                  <span className="text-muted-foreground">
+                                    {' / '}
+                                    <a
+                                      href={`/listing/${request.listings.id}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="hover:text-foreground hover:underline transition-colors"
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
+                                      {request.listings.internal_company_name}
+                                    </a>
+                                  </span>
+                                )}
+                              </p>
+                              {request.source === 'manual' && (
+                                <Badge variant="outline" className="text-xs">Manual</Badge>
                               )}
-                            </p>
+                            </div>
                             <div className="flex items-center gap-3 mt-1">
                               <span className="text-xs text-muted-foreground font-mono">
                                 {safeTimeAgo(request.created_at)}
