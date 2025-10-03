@@ -46,6 +46,49 @@ export function PipelineShell() {
       window.removeEventListener('open-stage-management', handleOpenStageManagement);
     };
   }, []);
+
+  // Listen for notification clicks to open deals
+  React.useEffect(() => {
+    const handleOpenDealFromNotification = (event: CustomEvent) => {
+      const { dealId, tab } = event.detail;
+      console.log('[PipelineShell] Opening deal from notification:', { dealId, tab });
+      
+      if (dealId) {
+        // Find the deal
+        const deal = pipeline.deals.find(d => d.deal_id === dealId);
+        if (deal) {
+          pipeline.setSelectedDeal(deal);
+          
+          // If tab is specified, set it in the detail panel (via URL params handled by detail panel)
+          if (tab) {
+            console.log('[PipelineShell] Tab specified:', tab);
+          }
+        } else {
+          console.warn('[PipelineShell] Deal not found:', dealId);
+        }
+      }
+    };
+
+    window.addEventListener('open-deal-from-notification', handleOpenDealFromNotification as EventListener);
+    return () => {
+      window.removeEventListener('open-deal-from-notification', handleOpenDealFromNotification as EventListener);
+    };
+  }, [pipeline.deals, pipeline.setSelectedDeal]);
+
+  // Check URL params on mount for deep linking from notifications
+  React.useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const dealId = urlParams.get('deal');
+    const tab = urlParams.get('tab');
+    
+    if (dealId && pipeline.deals.length > 0) {
+      console.log('[PipelineShell] Opening deal from URL params:', { dealId, tab });
+      const deal = pipeline.deals.find(d => d.deal_id === dealId);
+      if (deal) {
+        pipeline.setSelectedDeal(deal);
+      }
+    }
+  }, [pipeline.deals]);
   
   if (pipeline.isLoading) {
     return (

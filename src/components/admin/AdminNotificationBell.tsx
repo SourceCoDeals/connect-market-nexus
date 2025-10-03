@@ -20,9 +20,30 @@ export function AdminNotificationBell() {
     const idsToMark = notification.groupedIds || [notification.id];
     markAsRead.mutate(idsToMark);
 
-    // Navigate based on action URL
+    // Navigate based on action URL or type
     if (notification.action_url) {
-      navigate(notification.action_url);
+      // Extract deal ID and tab from action URL
+      const urlParams = new URLSearchParams(notification.action_url.split('?')[1]);
+      const dealId = urlParams.get('deal');
+      const tab = urlParams.get('tab');
+      
+      // Navigate to pipeline
+      navigate('/admin/pipeline');
+      
+      // Use a slight delay to ensure the page has loaded before trying to open the deal
+      setTimeout(() => {
+        // Trigger the deal panel to open with URL params
+        const params = new URLSearchParams();
+        if (dealId) params.set('deal', dealId);
+        if (tab) params.set('tab', tab);
+        window.history.replaceState(null, '', `/admin/pipeline?${params.toString()}`);
+        
+        // Dispatch custom event to open the deal panel
+        window.dispatchEvent(new CustomEvent('open-deal-from-notification', { 
+          detail: { dealId, tab } 
+        }));
+      }, 100);
+      
       setOpen(false);
     }
   };

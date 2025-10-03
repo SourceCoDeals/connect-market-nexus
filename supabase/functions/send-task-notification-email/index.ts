@@ -131,7 +131,7 @@ serve(async (req) => {
               <table width="100%" cellpadding="0" cellspacing="0" style="margin: 30px 0;">
                 <tr>
                   <td align="center">
-                    <a href="${Deno.env.get('SUPABASE_URL')?.replace('.supabase.co', '.lovable.app') || ''}/admin/pipeline?deal=${deal_id}&tab=tasks" 
+                    <a href="https://sourcecodeals.com/admin/pipeline?deal=${deal_id}&tab=tasks" 
                        style="display: inline-block; padding: 12px 32px; background-color: #2563eb; color: #ffffff; text-decoration: none; border-radius: 6px; font-size: 15px; font-weight: 600;">
                       View Task in Pipeline
                     </a>
@@ -161,11 +161,26 @@ serve(async (req) => {
 </html>
     `;
 
+    // Plain text version
+    const textContent = `Hi ${assignee_name},
 
-    // Send email using Resend
-    const resendKey = Deno.env.get('RESEND_API_KEY');
-    if (!resendKey) {
-      console.warn('RESEND_API_KEY not configured, skipping email notification');
+${assigner_name} has assigned you a new task:
+
+Task: ${task_title}
+Priority: ${task_priority.toUpperCase()}
+${task_description ? `Description: ${task_description}\n` : ''}
+Deal: ${deal_title}
+${dueDateFormatted ? `Due Date: ${dueDateFormatted}\n` : ''}
+
+View this task in the pipeline: https://sourcecodeals.com/admin/pipeline?deal=${deal_id}&tab=tasks
+
+---
+This is an automated notification from your admin task management system.`;
+
+    // Get Brevo API key
+    const brevoApiKey = Deno.env.get('BREVO_API_KEY');
+    if (!brevoApiKey) {
+      console.warn('BREVO_API_KEY not configured, skipping email notification');
       return new Response(
         JSON.stringify({ success: true, message: 'Notification created but email skipped (no API key)' }),
         { 
@@ -175,23 +190,32 @@ serve(async (req) => {
       );
     }
 
-    const resendResponse = await fetch('https://api.resend.com/emails', {
+    // Send email using Brevo
+    const brevoResponse = await fetch('https://api.brevo.com/v3/smtp/email', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${resendKey}`,
-        'Content-Type': 'application/json',
+        'accept': 'application/json',
+        'api-key': brevoApiKey,
+        'content-type': 'application/json',
       },
       body: JSON.stringify({
-        from: 'SourceCo Pipeline <notifications@sourcecodeals.com>',
-        to: [assignee_email],
+        sender: {
+          name: 'SourceCo Pipeline',
+          email: 'adam.haile@sourcecodeals.com'
+        },
+        to: [{
+          email: assignee_email,
+          name: assignee_name
+        }],
         subject: `New Task Assigned: ${task_title}`,
-        html: emailHtml,
+        htmlContent: emailHtml,
+        textContent: textContent
       }),
     });
 
-    if (!resendResponse.ok) {
-      const errorData = await resendResponse.text();
-      console.error('Resend email error:', errorData);
+    if (!brevoResponse.ok) {
+      const errorData = await brevoResponse.text();
+      console.error('Brevo email error:', errorData);
       // Don't throw - return success anyway since notification was created
       return new Response(
         JSON.stringify({ success: true, warning: 'Email failed but notification created', error: errorData }),
@@ -202,10 +226,11 @@ serve(async (req) => {
       );
     }
 
-    console.log('Email sent successfully via Resend');
+    const result = await brevoResponse.json();
+    console.log('Email sent successfully via Brevo:', result);
 
     return new Response(
-      JSON.stringify({ success: true, message: 'Email notification sent' }),
+      JSON.stringify({ success: true, message: 'Email notification sent', messageId: result.messageId }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200 
