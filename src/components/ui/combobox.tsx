@@ -77,10 +77,10 @@ export function Combobox({
           <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-full p-0 bg-background border shadow-md pointer-events-auto z-[100]" style={{ minWidth: '400px' }}>
-        <Command>
+      <PopoverContent className="w-full p-0 bg-background border shadow-md pointer-events-auto z-[100]" style={{ minWidth: '400px', maxHeight: '400px' }}>
+        <Command className="max-h-full">
           <CommandInput placeholder={searchPlaceholder} />
-          <CommandList>
+          <CommandList className="max-h-[300px] overflow-y-auto">
             <CommandEmpty>{emptyText}</CommandEmpty>
             <CommandGroup>
               {options.map((option) => (
