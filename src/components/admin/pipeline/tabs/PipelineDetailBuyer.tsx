@@ -135,7 +135,9 @@ export function PipelineDetailBuyer({ deal }: PipelineDetailBuyerProps) {
 
   // Phase 5: Fetch associated requests (company colleagues)
   const { data: associatedRequests = [] } = useAssociatedRequests(
-    deal.connection_request_id
+    deal.connection_request_id,
+    deal.contact_company || undefined,
+    deal.contact_email || undefined
   );
 
   const getBuyerTypeLabel = (buyerType?: string) => {
