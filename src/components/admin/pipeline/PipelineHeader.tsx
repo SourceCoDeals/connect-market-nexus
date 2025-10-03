@@ -145,12 +145,13 @@ export function PipelineHeader({ pipeline, onOpenCreateDeal }: PipelineHeaderPro
             variant="outline" 
             size="sm"
             onClick={() => {
-              // Open stage management modal
+              // Open stage library (global stage management)
               const event = new CustomEvent('open-stage-management');
               window.dispatchEvent(event);
             }}
+            title="Manage the global stage library (affects all views)"
           >
-            Manage Stages
+            Stage Library
           </Button>
 
           <DropdownMenu>

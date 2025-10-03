@@ -52,6 +52,7 @@ import { useDealStages, useCreateDealStage, useUpdateDealStageData, useDeleteDea
 import { DealStage } from '@/hooks/admin/use-deals';
 import { useToast } from '@/hooks/use-toast';
 import { AlertCircle, Lock } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 const stageSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -382,12 +383,38 @@ export const StageManagementModal = ({ open, onOpenChange }: StageManagementModa
       return;
     }
     
-    if (window.confirm('Are you sure you want to delete this stage? This action cannot be undone.')) {
+    const confirmMessage = `Are you sure you want to delete "${stage?.name}"? This will remove it from all custom views. This action cannot be undone.`;
+    
+    if (window.confirm(confirmMessage)) {
       try {
+        // First, fetch all pipeline views that include this stage
+        const { data: views } = await supabase
+          .from('pipeline_views')
+          .select('id, stage_config')
+          .eq('is_active', true);
+        
+        // Delete the stage
         await deleteStageMutation.mutateAsync(stageId);
+        
+        // Update all affected views to remove this stage from their stage_config
+        if (views && views.length > 0) {
+          for (const view of views) {
+            if (view.stage_config && Array.isArray(view.stage_config)) {
+              const updatedConfig = view.stage_config.filter((sc: any) => sc.stageId !== stageId);
+              
+              if (updatedConfig.length !== view.stage_config.length) {
+                await supabase
+                  .from('pipeline_views')
+                  .update({ stage_config: updatedConfig })
+                  .eq('id', view.id);
+              }
+            }
+          }
+        }
+        
         toast({
           title: "Stage deleted",
-          description: "The stage has been successfully deleted.",
+          description: "The stage has been successfully deleted and removed from all views.",
         });
       } catch (error: any) {
         console.error('Failed to delete stage:', error);
@@ -434,9 +461,9 @@ export const StageManagementModal = ({ open, onOpenChange }: StageManagementModa
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Manage Pipeline Stages</DialogTitle>
+          <DialogTitle>Stage Library</DialogTitle>
           <DialogDescription>
-            Add, edit, and organize your deal pipeline stages. Drag to reorder.
+            Manage the global stage library. Changes here affect all pipeline views. Drag to reorder stages globally.
           </DialogDescription>
         </DialogHeader>
 

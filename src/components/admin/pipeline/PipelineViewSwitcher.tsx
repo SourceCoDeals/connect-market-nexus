@@ -23,11 +23,19 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { Button } from '@/components/ui/button';
-import { LayoutGrid, Plus, MoreVertical, Trash2, Save, ArrowUpDown } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { LayoutGrid, Plus, MoreVertical, Trash2, Save, ArrowUpDown, Settings2 } from 'lucide-react';
 import { usePipelineViews, useDeletePipelineView, useUpdatePipelineView } from '@/hooks/admin/use-pipeline-views';
 import { PipelineViewDialog } from './PipelineViewDialog';
 import { StageReorderDialog } from './StageReorderDialog';
+import { ViewStagesCustomizer } from './ViewStagesCustomizer';
 import { useToast } from '@/hooks/use-toast';
 
 interface PipelineViewSwitcherProps {
@@ -51,10 +59,23 @@ export function PipelineViewSwitcher({
   const { toast } = useToast();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isReorderDialogOpen, setIsReorderDialogOpen] = useState(false);
+  const [isCustomizeDialogOpen, setIsCustomizeDialogOpen] = useState(false);
   const [viewToDelete, setViewToDelete] = useState<string | null>(null);
 
   const defaultView = views.find(v => v.is_default);
   const selectedViewId = currentViewId || defaultView?.id || views[0]?.id;
+
+  const currentView = views.find(v => v.id === selectedViewId);
+  const canDeleteCurrentView = currentView && !currentView.is_default;
+  
+  // Determine if this is Standard Pipeline (no stage_config or empty array)
+  const isStandardPipeline = currentView && (!currentView.stage_config || currentView.stage_config.length === 0);
+  const isCustomView = currentView && !isStandardPipeline;
+
+  // Get current stage IDs for this view
+  const currentStageIds = currentView?.stage_config && currentView.stage_config.length > 0
+    ? currentView.stage_config.map((sc: any) => sc.stageId)
+    : stages.map(s => s.id);
 
   if (isLoading) {
     return null;
@@ -113,8 +134,18 @@ export function PipelineViewSwitcher({
     });
   };
 
-  const handleSaveStageOrder = (stageConfig: { stageId: string; position: number }[]) => {
+  const handleSaveStageOrder = async (stageConfig: { stageId: string; position: number }[]) => {
     if (!selectedViewId) return;
+
+    // Check if this is the Standard Pipeline
+    if (isStandardPipeline) {
+      toast({
+        title: 'Cannot Reorder Standard Pipeline',
+        description: 'The Standard Pipeline shows all stages in their global order. Create a custom view to reorder stages.',
+        variant: 'destructive',
+      });
+      return;
+    }
 
     const filter_config = getCurrentFilterConfig ? getCurrentFilterConfig() : {};
 
@@ -136,8 +167,37 @@ export function PipelineViewSwitcher({
     });
   };
 
-  const currentView = views.find(v => v.id === selectedViewId);
-  const canDeleteCurrentView = currentView && !currentView.is_default;
+  const handleCustomizeStages = async (stageIds: string[]) => {
+    if (!selectedViewId) return;
+
+    const stageConfig = stageIds.map((stageId, index) => ({
+      stageId,
+      position: index,
+    }));
+
+    updateView.mutate({
+      id: selectedViewId,
+      updates: {
+        stage_config: stageConfig,
+      }
+    }, {
+      onSuccess: () => {
+        toast({
+          title: 'Stages Updated',
+          description: 'View stages have been customized successfully.',
+        });
+        // Re-apply the view
+        onViewChange(selectedViewId);
+      },
+      onError: (error) => {
+        toast({
+          title: 'Error',
+          description: `Failed to customize stages: ${error.message}`,
+          variant: 'destructive',
+        });
+      }
+    });
+  };
 
   return (
     <>
@@ -175,13 +235,50 @@ export function PipelineViewSwitcher({
               <Save className="h-4 w-4 mr-2" />
               Save Current View
             </DropdownMenuItem>
-            <DropdownMenuItem 
-              onClick={() => setIsReorderDialogOpen(true)} 
-              disabled={!selectedViewId || stages.length === 0}
-            >
-              <ArrowUpDown className="h-4 w-4 mr-2" />
-              Reorder Stages
-            </DropdownMenuItem>
+            
+            <DropdownMenuSeparator />
+            
+            {/* Customize Stages - only for custom views */}
+            {isCustomView && (
+              <DropdownMenuItem onClick={() => setIsCustomizeDialogOpen(true)}>
+                <Settings2 className="h-4 w-4 mr-2" />
+                Add/Remove Stages
+              </DropdownMenuItem>
+            )}
+            
+            {/* Reorder Stages - disabled for Standard Pipeline with tooltip */}
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div>
+                    <DropdownMenuItem 
+                      onClick={() => {
+                        if (!isStandardPipeline) {
+                          setIsReorderDialogOpen(true);
+                        }
+                      }}
+                      disabled={isStandardPipeline || !selectedViewId || stages.length === 0}
+                    >
+                      <ArrowUpDown className="h-4 w-4 mr-2" />
+                      Reorder Stages
+                      {isStandardPipeline && (
+                        <Badge variant="secondary" className="ml-2 text-xs">
+                          Global
+                        </Badge>
+                      )}
+                    </DropdownMenuItem>
+                  </div>
+                </TooltipTrigger>
+                {isStandardPipeline && (
+                  <TooltipContent side="left" className="max-w-xs">
+                    <p className="text-xs">
+                      Standard Pipeline shows all stages in global order. Create a custom view to reorder stages.
+                    </p>
+                  </TooltipContent>
+                )}
+              </Tooltip>
+            </TooltipProvider>
+            
             {canDeleteCurrentView && (
               <>
                 <DropdownMenuSeparator />
@@ -208,6 +305,14 @@ export function PipelineViewSwitcher({
         onOpenChange={setIsReorderDialogOpen}
         stages={stages}
         onSave={handleSaveStageOrder}
+      />
+
+      <ViewStagesCustomizer
+        open={isCustomizeDialogOpen}
+        onOpenChange={setIsCustomizeDialogOpen}
+        allStages={stages}
+        currentStageIds={currentStageIds}
+        onSave={handleCustomizeStages}
       />
 
       {/* Delete Confirmation Dialog */}
