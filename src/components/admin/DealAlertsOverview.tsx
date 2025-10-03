@@ -33,7 +33,14 @@ export function DealAlertsOverview() {
           created_at
         `);
 
-      if (alertError) throw alertError;
+      if (alertError) {
+        console.error('Error fetching deal alerts:', alertError);
+        throw alertError;
+      }
+
+      if (!alertData) {
+        throw new Error('No alert data returned');
+      }
 
       // Get alerts sent today
       const today = new Date().toISOString().split('T')[0];
@@ -43,7 +50,10 @@ export function DealAlertsOverview() {
         .gte('created_at', today + 'T00:00:00Z')
         .lt('created_at', today + 'T23:59:59Z');
 
-      if (deliveryError) throw deliveryError;
+      if (deliveryError) {
+        console.error('Error fetching delivery logs:', deliveryError);
+        // Don't throw on delivery log errors, just use 0
+      }
 
       // Process the data
       const totalAlerts = alertData.length;
@@ -54,7 +64,7 @@ export function DealAlertsOverview() {
       const dailyAlerts = alertData.filter(a => a.frequency === 'daily').length;
       const weeklyAlerts = alertData.filter(a => a.frequency === 'weekly').length;
       
-      const alertsSentToday = deliveryData.length;
+      const alertsSentToday = deliveryData?.length || 0;
 
       // Get top categories from criteria
       const categoryCount: Record<string, number> = {};
