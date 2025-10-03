@@ -23,7 +23,8 @@ export function useDealComments(dealId: string) {
         .select(`
           *,
           profiles:admin_id (
-            full_name,
+            first_name,
+            last_name,
             email
           )
         `)
@@ -34,7 +35,9 @@ export function useDealComments(dealId: string) {
 
       return (data || []).map((comment: any) => ({
         ...comment,
-        admin_name: comment.profiles?.full_name || 'Unknown',
+        admin_name: comment.profiles?.first_name || comment.profiles?.last_name
+          ? `${comment.profiles?.first_name ?? ''} ${comment.profiles?.last_name ?? ''}`.trim()
+          : (comment.profiles?.email || 'Unknown'),
         admin_email: comment.profiles?.email || '',
       })) as DealComment[];
     },
@@ -80,9 +83,11 @@ export function useCreateDealComment() {
       });
     },
     onError: (error) => {
+      console.error('Create comment error:', error);
+      const msg = (error as any)?.message || (typeof error === 'string' ? error : JSON.stringify(error));
       toast({
         title: 'Error',
-        description: `Failed to add comment: ${error.message}`,
+        description: `Failed to add comment: ${msg}`,
         variant: 'destructive',
       });
     },

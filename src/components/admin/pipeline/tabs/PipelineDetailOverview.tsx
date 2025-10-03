@@ -51,14 +51,18 @@ export function PipelineDetailOverview({ deal }: PipelineDetailOverviewProps) {
     const matches = text.matchAll(mentionRegex);
     const mentionedNames = Array.from(matches, m => m[1]);
     
-    if (!allAdminProfiles) return [];
-    
-    // Map names to admin IDs
+    if (!allAdminProfiles || mentionedNames.length === 0) return [];
+
+    const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+    // Map names to admin IDs by fuzzy matching displayName or email
     return Object.values(allAdminProfiles)
-      .filter(admin => mentionedNames.some(name => 
-        admin.displayName.toLowerCase().includes(name.toLowerCase()) ||
-        admin.email.toLowerCase().includes(name.toLowerCase())
-      ))
+      .filter(admin => mentionedNames.some(name => {
+        const n = normalize(name);
+        const dn = normalize(admin.displayName || '');
+        const em = normalize(admin.email || '');
+        return dn.includes(n) || em.includes(n);
+      }))
       .map(admin => admin.id);
   };
   
