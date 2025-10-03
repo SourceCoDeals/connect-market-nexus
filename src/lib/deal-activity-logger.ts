@@ -12,6 +12,8 @@ export type DealActivityType =
   | 'assignment_changed'
   | 'deal_updated'
   | 'deal_created'
+  | 'deal_deleted'
+  | 'deal_restored'
   | 'follow_up';
 
 interface LogActivityParams {
