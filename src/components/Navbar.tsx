@@ -8,6 +8,7 @@ import NavbarLogo from "./navbar/NavbarLogo";
 import DesktopNavItems from "./navbar/DesktopNavItems";
 import UserMenu from "./navbar/UserMenu";
 import AuthButtons from "./navbar/AuthButtons";
+import { AdminNotificationBell } from "./admin/AdminNotificationBell";
 
 const Navbar = () => {
   const { user, isLoading, logout, isAdmin } = useAuth();
@@ -61,6 +62,8 @@ const Navbar = () => {
                     onNavigateToAdmin={handleNavigateToAdmin}
                   />
                 )}
+
+                {isAdmin && <AdminNotificationBell />}
 
                 <UserMenu 
                   user={user}

@@ -13,3 +13,4 @@ export * from './use-deal-follow-up';
 export * from './use-marketplace-users';
 export * from './use-marketplace-companies';
 export * from './use-associated-requests';
+export * from './use-admin-notifications';

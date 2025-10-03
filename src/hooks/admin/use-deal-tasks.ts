@@ -113,6 +113,78 @@ export function useCreateDealTask() {
           assigned_to: variables.assigned_to 
         }
       });
+
+      // Create notification if task is assigned
+      if (variables.assigned_to) {
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
+          const assignerId = user?.id;
+
+          // Get assigner and assignee profiles
+          const { data: profiles } = await supabase
+            .from('profiles')
+            .select('id, email, first_name, last_name')
+            .in('id', [assignerId, variables.assigned_to].filter(Boolean) as string[]);
+
+          const assignerProfile = profiles?.find(p => p.id === assignerId);
+          const assigneeProfile = profiles?.find(p => p.id === variables.assigned_to);
+
+          // Get deal details
+          const { data: deal } = await supabase
+            .from('deals')
+            .select('title, id')
+            .eq('id', variables.deal_id)
+            .single();
+
+          const assignerName = assignerProfile 
+            ? `${assignerProfile.first_name} ${assignerProfile.last_name}`.trim() 
+            : 'Someone';
+          const dealTitle = deal?.title || 'Unknown Deal';
+
+          // Create in-app notification
+          const { error: notificationError } = await supabase
+            .from('admin_notifications')
+            .insert({
+              admin_id: variables.assigned_to,
+              notification_type: 'task_assigned',
+              title: 'New Task Assigned',
+              message: `${assignerName} assigned you: ${variables.title}`,
+              deal_id: variables.deal_id,
+              task_id: data.id,
+              action_url: `/admin/pipeline?deal=${variables.deal_id}&tab=tasks`,
+              metadata: {
+                priority: variables.priority || 'medium',
+                due_date: variables.due_date,
+                deal_title: dealTitle,
+                assigner_name: assignerName,
+              },
+            });
+
+          if (notificationError) {
+            console.error('Failed to create notification:', notificationError);
+          }
+
+          // Send email notification
+          if (assigneeProfile?.email) {
+            await supabase.functions.invoke('send-task-notification-email', {
+              body: {
+                assignee_email: assigneeProfile.email,
+                assignee_name: `${assigneeProfile.first_name} ${assigneeProfile.last_name}`.trim(),
+                assigner_name: assignerName,
+                task_title: variables.title,
+                task_description: variables.description,
+                task_priority: variables.priority || 'medium',
+                task_due_date: variables.due_date,
+                deal_title: dealTitle,
+                deal_id: variables.deal_id,
+              },
+            });
+          }
+        } catch (error) {
+          console.error('Failed to send task notification:', error);
+          // Don't fail the task creation if notification fails
+        }
+      }
       
       toast({
         title: 'Task Created',
@@ -161,16 +233,20 @@ export function useUpdateDealTask() {
       queryClient.invalidateQueries({ queryKey: ['deals'] });
       queryClient.invalidateQueries({ queryKey: ['deal-activities'] });
       
-      // Log assignment changes
+      // Log assignment changes and create notifications
       if (updates.assigned_to !== undefined) {
+        const { data: { user } } = await supabase.auth.getUser();
+        
         const { data: adminProfiles } = await supabase
           .from('profiles')
-          .select('email, first_name, last_name')
-          .eq('id', updates.assigned_to)
-          .maybeSingle();
+          .select('id, email, first_name, last_name')
+          .in('id', [user?.id, updates.assigned_to].filter(Boolean) as string[]);
         
-        const assignedToName = adminProfiles 
-          ? `${adminProfiles.first_name} ${adminProfiles.last_name}` 
+        const assignerProfile = adminProfiles?.find(p => p.id === user?.id);
+        const assigneeProfile = adminProfiles?.find(p => p.id === updates.assigned_to);
+        
+        const assignedToName = assigneeProfile 
+          ? `${assigneeProfile.first_name} ${assigneeProfile.last_name}` 
           : 'Unassigned';
         
         await logDealActivity({
@@ -180,6 +256,52 @@ export function useUpdateDealTask() {
           description: `Task "${data.title}" assigned to ${assignedToName}`,
           metadata: { task_id: taskId, assigned_to: updates.assigned_to }
         });
+
+        // Create notification for reassignment
+        if (updates.assigned_to && assigneeProfile) {
+          const assignerName = assignerProfile 
+            ? `${assignerProfile.first_name} ${assignerProfile.last_name}`.trim() 
+            : 'Someone';
+
+          const { data: deal } = await supabase
+            .from('deals')
+            .select('title')
+            .eq('id', data.deal_id)
+            .single();
+
+          await supabase
+            .from('admin_notifications')
+            .insert({
+              admin_id: updates.assigned_to,
+              notification_type: 'task_assigned',
+              title: 'Task Reassigned to You',
+              message: `${assignerName} reassigned you: ${data.title}`,
+              deal_id: data.deal_id,
+              task_id: taskId,
+              action_url: `/admin/pipeline?deal=${data.deal_id}&tab=tasks`,
+              metadata: {
+                priority: data.priority || 'medium',
+                due_date: data.due_date,
+                deal_title: deal?.title || 'Unknown Deal',
+                assigner_name: assignerName,
+              },
+            });
+
+          // Send email for reassignment
+          await supabase.functions.invoke('send-task-notification-email', {
+            body: {
+              assignee_email: assigneeProfile.email,
+              assignee_name: assignedToName,
+              assigner_name: assignerName,
+              task_title: data.title,
+              task_description: data.description,
+              task_priority: data.priority || 'medium',
+              task_due_date: data.due_date,
+              deal_title: deal?.title || 'Unknown Deal',
+              deal_id: data.deal_id,
+            },
+          });
+        }
       }
       
       toast({
@@ -262,6 +384,51 @@ export function useCompleteDealTask() {
         description: `Completed task: ${data.title}`,
         metadata: { task_id: data.id }
       });
+
+      // Notify task creator if different from completer
+      if (data.assigned_by && data.assigned_by !== data.completed_by) {
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
+          
+          const { data: profiles } = await supabase
+            .from('profiles')
+            .select('id, email, first_name, last_name')
+            .in('id', [data.assigned_by, user?.id].filter(Boolean) as string[]);
+
+          const creatorProfile = profiles?.find(p => p.id === data.assigned_by);
+          const completerProfile = profiles?.find(p => p.id === user?.id);
+
+          if (creatorProfile) {
+            const completerName = completerProfile 
+              ? `${completerProfile.first_name} ${completerProfile.last_name}`.trim()
+              : 'Someone';
+
+            const { data: deal } = await supabase
+              .from('deals')
+              .select('title')
+              .eq('id', data.deal_id)
+              .single();
+
+            await supabase
+              .from('admin_notifications')
+              .insert({
+                admin_id: data.assigned_by,
+                notification_type: 'task_completed',
+                title: 'Task Completed',
+                message: `${completerName} completed: ${data.title}`,
+                deal_id: data.deal_id,
+                task_id: data.id,
+                action_url: `/admin/pipeline?deal=${data.deal_id}&tab=tasks`,
+                metadata: {
+                  deal_title: deal?.title || 'Unknown Deal',
+                  completed_by: completerName,
+                },
+              });
+          }
+        } catch (error) {
+          console.error('Failed to send completion notification:', error);
+        }
+      }
       
       toast({
         title: 'Task Completed',

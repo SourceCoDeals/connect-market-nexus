@@ -14,6 +14,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetClose } from "@/components/ui/sheet";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { AdminNotificationBell } from "./AdminNotificationBell";
 
 interface AdminNavbarProps {
   className?: string;
@@ -59,7 +60,7 @@ export function AdminNavbar({ className }: AdminNavbarProps) {
 
   return (
     <div className={cn("flex items-center justify-between p-3 sm:p-4 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60", className)}>
-      <div className="flex items-center">
+      <div className="flex items-center gap-3">
         <Sheet>
           <SheetTrigger asChild>
             <Button variant="outline" size="icon" className="mr-3 sm:mr-4 h-10 w-10">
@@ -102,6 +103,8 @@ export function AdminNavbar({ className }: AdminNavbarProps) {
         </Sheet>
         <h1 className="text-base sm:text-lg font-semibold truncate">Admin Panel</h1>
       </div>
+      
+      <AdminNotificationBell />
     </div>
   );
 }

@@ -16,41 +16,73 @@ export type Database = {
     Tables: {
       admin_notifications: {
         Row: {
+          action_url: string | null
           admin_id: string
           created_at: string | null
-          feedback_id: string
+          deal_id: string | null
+          feedback_id: string | null
           id: string
           is_read: boolean | null
           message: string
+          metadata: Json | null
           notification_type: string
+          read_at: string | null
+          task_id: string | null
           title: string
+          user_id: string | null
         }
         Insert: {
+          action_url?: string | null
           admin_id: string
           created_at?: string | null
-          feedback_id: string
+          deal_id?: string | null
+          feedback_id?: string | null
           id?: string
           is_read?: boolean | null
           message: string
+          metadata?: Json | null
           notification_type: string
+          read_at?: string | null
+          task_id?: string | null
           title: string
+          user_id?: string | null
         }
         Update: {
+          action_url?: string | null
           admin_id?: string
           created_at?: string | null
-          feedback_id?: string
+          deal_id?: string | null
+          feedback_id?: string | null
           id?: string
           is_read?: boolean | null
           message?: string
+          metadata?: Json | null
           notification_type?: string
+          read_at?: string | null
+          task_id?: string | null
           title?: string
+          user_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "admin_notifications_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "admin_notifications_feedback_id_fkey"
             columns: ["feedback_id"]
             isOneToOne: false
             referencedRelation: "feedback_messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "admin_notifications_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "deal_tasks"
             referencedColumns: ["id"]
           },
         ]
@@ -2273,6 +2305,10 @@ export type Database = {
           p_total_session_time: number
         }
         Returns: number
+      }
+      cleanup_old_notifications: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
       }
       convert_inbound_lead_to_request: {
         Args: { p_lead_id: string; p_listing_id: string }
