@@ -506,10 +506,16 @@ export function CreateDealModal({ open, onOpenChange, prefilledStageId, onDealCr
                     </div>
                     <button
                       type="button"
-                      onClick={() => setAutoPopulatedFrom(null)}
+                      onClick={() => {
+                        // Clear auto-filled fields
+                        if (autoPopulatedFrom && autoPopulatedFrom.source === 'company') {
+                          form.setValue('contact_phone', '');
+                        }
+                        setAutoPopulatedFrom(null);
+                      }}
                       className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors font-medium"
                     >
-                      Dismiss
+                      Clear & Dismiss
                     </button>
                   </div>
                 </div>
