@@ -309,26 +309,53 @@ export function PipelineDetailBuyer({ deal }: PipelineDetailBuyerProps) {
             </CollapsibleContent>
           </Collapsible>
 
-          {/* Associated Requests */}
+          {/* Colleagues & Activity by Company */}
           {associatedRequests.length > 0 && (
-            <Collapsible>
+            <Collapsible defaultOpen>
               <CollapsibleTrigger className="flex items-center justify-between w-full group hover:text-foreground transition-colors">
                 <div className="flex items-center gap-2">
                   <Users className="w-4 h-4 text-muted-foreground" />
                   <h3 className="text-sm font-medium text-foreground">
-                    Company Colleagues ({associatedRequests.length})
+                    Company Colleagues & Activity ({associatedRequests.length})
                   </h3>
                 </div>
                 <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
               </CollapsibleTrigger>
               <CollapsibleContent className="pt-4">
                 <div className="space-y-2">
-                  {associatedRequests.map((req: any) => (
-                    <div key={req.id} className="p-3 border border-border/40 rounded-lg">
-                      <p className="text-sm font-medium text-foreground">{req.lead_name || req.lead_email}</p>
-                      <p className="text-xs text-muted-foreground">{req.lead_email}</p>
-                    </div>
-                  ))}
+                  {associatedRequests.map((req: any) => {
+                    const displayName = req.user 
+                      ? `${req.user.first_name || ''} ${req.user.last_name || ''}`.trim() || req.lead_name || req.lead_email
+                      : req.lead_name || req.lead_email;
+                    
+                    const listingTitle = req.listing?.internal_company_name || req.listing?.title || 'Unknown Listing';
+                    
+                    return (
+                      <div key={req.id} className="p-3 border border-border/40 rounded-lg hover:border-border/60 transition-colors">
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="space-y-1 flex-1">
+                            <p className="text-sm font-medium text-foreground">{displayName}</p>
+                            <p className="text-xs text-muted-foreground font-mono">{req.lead_email || req.user?.email}</p>
+                          </div>
+                          <Badge variant={req.status === 'approved' ? 'default' : 'secondary'} className="text-xs ml-2">
+                            {req.status}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center gap-2 pt-2 border-t border-border/20">
+                          <ExternalLink className="w-3 h-3 text-muted-foreground" />
+                          <p className="text-xs text-muted-foreground">
+                            {listingTitle}
+                            {req.listing?.location && ` · ${req.listing.location}`}
+                          </p>
+                        </div>
+                        {req.created_at && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {formatDistanceToNow(new Date(req.created_at), { addSuffix: true })}
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </CollapsibleContent>
             </Collapsible>
@@ -397,48 +424,69 @@ export function PipelineDetailBuyer({ deal }: PipelineDetailBuyerProps) {
 
           {/* Buyer Details */}
           <div className="space-y-3">
-            <div className="space-y-1">
-              <Label className="text-xs text-muted-foreground uppercase tracking-wider">Buyer Type</Label>
-              <p className="text-sm text-foreground">
-                {getBuyerTypeLabel(deal.buyer_type || profile?.buyer_type)}
-              </p>
+            <Label className="text-xs text-muted-foreground uppercase tracking-wider">Buyer Details</Label>
+            
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground">Buyer Type</p>
+                <p className="text-sm text-foreground">
+                  {getBuyerTypeLabel(deal.buyer_type || profile?.buyer_type)}
+                </p>
+              </div>
+
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground">Priority</p>
+                <p className={`text-sm font-medium ${buyerPriority.color}`}>
+                  {buyerPriority.level} ({buyerPriority.score})
+                </p>
+              </div>
+
+              {profile?.email && (
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground">Email</p>
+                  <p className="text-sm text-foreground font-mono truncate">{profile.email}</p>
+                </div>
+              )}
+
+              {profile?.phone_number && (
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground">Phone</p>
+                  <p className="text-sm text-foreground font-mono">{profile.phone_number}</p>
+                </div>
+              )}
+
+              {profile?.linkedin_profile && (
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground">LinkedIn</p>
+                  <a 
+                    href={profile.linkedin_profile}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-primary hover:text-primary/80 transition-colors inline-flex items-center gap-1"
+                  >
+                    View Profile
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+              )}
+              
+              {profile && profile.buyer_type && getRelevantFieldsForBuyerType(profile.buyer_type as any).map((field) => {
+                const value = formatFieldValue(field, (profile as any)[field]);
+                if (!value) return null;
+                
+                // Skip fields already shown above
+                if (['email', 'phone_number', 'linkedin_profile', 'first_name', 'last_name'].includes(field)) {
+                  return null;
+                }
+                
+                return (
+                  <div key={field} className="space-y-1">
+                    <p className="text-xs text-muted-foreground">{FIELD_LABELS[field as keyof typeof FIELD_LABELS] || field}</p>
+                    <p className="text-sm text-foreground">{value}</p>
+                  </div>
+                );
+              })}
             </div>
-
-            <div className="space-y-1">
-              <Label className="text-xs text-muted-foreground uppercase tracking-wider">Priority</Label>
-              <p className={`text-sm font-medium ${buyerPriority.color}`}>
-                {buyerPriority.level} ({buyerPriority.score})
-              </p>
-            </div>
-
-            {profile?.email && (
-              <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground uppercase tracking-wider">Email</Label>
-                <p className="text-sm text-foreground font-mono truncate">{profile.email}</p>
-              </div>
-            )}
-
-            {profile?.phone_number && (
-              <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground uppercase tracking-wider">Phone</Label>
-                <p className="text-sm text-foreground font-mono">{profile.phone_number}</p>
-              </div>
-            )}
-
-            {profile?.linkedin_profile && (
-              <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground uppercase tracking-wider">LinkedIn</Label>
-                <a 
-                  href={profile.linkedin_profile}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-sm text-primary hover:text-primary/80 transition-colors inline-flex items-center gap-1"
-                >
-                  View Profile
-                  <ExternalLink className="w-3 h-3" />
-                </a>
-              </div>
-            )}
           </div>
         </div>
       </div>

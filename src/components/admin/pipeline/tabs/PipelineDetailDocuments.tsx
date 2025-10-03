@@ -161,6 +161,17 @@ export function PipelineDetailDocuments({ deal }: PipelineDetailDocumentsProps) 
                   )}
                 </div>
               </div>
+
+              {/* Ready for Deal Discussion */}
+              {deal.nda_status === 'signed' && deal.fee_agreement_status === 'signed' && (
+                <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                    <p className="text-sm font-medium text-emerald-600">Ready for Deal Discussion</p>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">All documents signed. You can now proceed with detailed deal negotiations.</p>
+                </div>
+              )}
             </div>
           </div>
 
