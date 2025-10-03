@@ -176,15 +176,15 @@ export function useUpdateDealTask() {
 
       if (error) throw error;
 
+      // Get deal details
+      const { data: dealData } = await supabase
+        .from('deals')
+        .select('title')
+        .eq('id', currentTask.deal_id)
+        .single();
+
       // Log assignment changes and send notifications
       if (updates.assigned_to && currentTask && updates.assigned_to !== currentTask.assigned_to) {
-        // Get deal details
-        const { data: dealData } = await supabase
-          .from('deals')
-          .select('title')
-          .eq('id', currentTask.deal_id)
-          .single();
-
         // Get assignee email
         const { data: assigneeProfile } = await supabase
           .from('profiles')
@@ -233,6 +233,40 @@ export function useUpdateDealTask() {
               dueDate: currentTask.due_date,
             },
           });
+        }
+      }
+
+      // Notify reviewers when task is resolved
+      if (updates.status === 'resolved' && currentTask?.status !== 'resolved') {
+        // Get all reviewers for this task
+        const { data: reviewers } = await supabase
+          .from('deal_task_reviewers')
+          .select('admin_id')
+          .eq('task_id', taskId);
+
+        if (reviewers && reviewers.length > 0) {
+          // Send notification to each reviewer (except the person who resolved it)
+          const notifications = reviewers
+            .filter(r => r.admin_id !== userData?.user?.id)
+            .map(reviewer => ({
+              admin_id: reviewer.admin_id,
+              notification_type: 'task_resolved',
+              title: 'Task Ready for Review',
+              message: `Task "${currentTask.title}" has been resolved and is ready for your review`,
+              deal_id: currentTask.deal_id,
+              task_id: taskId,
+              action_url: `/admin/pipeline?deal=${currentTask.deal_id}&tab=tasks`,
+              metadata: {
+                task_title: currentTask.title,
+                deal_title: dealData?.title || 'Deal',
+                resolved_by: userData?.user?.id,
+                priority: currentTask.priority,
+              },
+            }));
+
+          if (notifications.length > 0) {
+            await supabase.from('admin_notifications').insert(notifications);
+          }
         }
       }
 
