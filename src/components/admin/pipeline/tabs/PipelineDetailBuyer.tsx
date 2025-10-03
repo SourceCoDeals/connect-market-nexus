@@ -537,7 +537,9 @@ export function PipelineDetailBuyer({ deal }: PipelineDetailBuyerProps) {
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 mb-1 flex-wrap">
                                 <p className="text-sm font-medium text-foreground">
-                                  {assocReq.lead_name || assocReq.user?.email || 'Unknown Contact'}
+                                  {(assocReq.user?.first_name || assocReq.user?.last_name)
+                                    ? `${assocReq.user?.first_name ?? ''} ${assocReq.user?.last_name ?? ''}`.trim()
+                                    : (assocReq.lead_name || assocReq.user?.email || 'Unknown Contact')}
                                 </p>
                                 <Badge variant="secondary" className="text-xs">
                                   {assocReq.relationship_type === 'same_company' ? 'Same Company' : 'Related'}

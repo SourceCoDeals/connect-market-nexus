@@ -60,20 +60,38 @@ export function useAssociatedRequests(
 
         // If we found associations, use them
         if (data && data.length > 0) {
-          const associated: AssociatedRequest[] = data.map((item: any) => ({
-            id: item.related_request?.id || '',
-            user_id: item.related_request?.user_id || null,
-            listing_id: item.related_request?.listing_id || '',
-            status: item.related_request?.status || 'unknown',
-            created_at: item.related_request?.created_at || '',
-            lead_name: item.related_request?.lead_name || null,
-            lead_email: item.related_request?.lead_email || null,
-            lead_company: item.related_request?.lead_company || null,
-            relationship_type: item.relationship_type,
-            relationship_metadata: item.relationship_metadata,
-            listing: item.related_request?.listing || null,
-            user: null,
-          }));
+          // Enrich with user profiles for proper colleague names
+          const userIds = Array.from(new Set(
+            (data || []).map((item: any) => item.related_request?.user_id).filter(Boolean)
+          ));
+
+          let profileMap = new Map<string, any>();
+          if (userIds.length > 0) {
+            const { data: profs } = await supabase
+              .from('profiles')
+              .select('id,email,first_name,last_name,company')
+              .in('id', userIds as string[]);
+            (profs || []).forEach((p: any) => profileMap.set(p.id, p));
+          }
+
+          const associated: AssociatedRequest[] = data.map((item: any) => {
+            const related = item.related_request;
+            const p = related?.user_id ? profileMap.get(related.user_id) : null;
+            return {
+              id: related?.id || '',
+              user_id: related?.user_id || null,
+              listing_id: related?.listing_id || '',
+              status: related?.status || 'unknown',
+              created_at: related?.created_at || '',
+              lead_name: related?.lead_name || null,
+              lead_email: related?.lead_email || null,
+              lead_company: related?.lead_company || null,
+              relationship_type: item.relationship_type,
+              relationship_metadata: item.relationship_metadata,
+              listing: related?.listing || null,
+              user: p ? { email: p.email, first_name: p.first_name, last_name: p.last_name, company: p.company } : null,
+            } as AssociatedRequest;
+          });
 
           return associated;
         }
@@ -122,16 +140,27 @@ export function useAssociatedRequests(
         if (error) throw error;
 
         // Filter out the current contact's email and also exclude if primaryRequestId matches
-        const associated: AssociatedRequest[] = (data || [])
-          .filter((req: any) => {
-            // Exclude the primary request itself
-            if (primaryRequestId && req.id === primaryRequestId) return false;
-            // Exclude current contact's email when available
-            if (!contactEmail) return true;
-            const reqEmail = (req.lead_email || '').toLowerCase();
-            return reqEmail !== contactEmail.toLowerCase();
-          })
-          .map((req: any) => ({
+        const filtered = (data || []).filter((req: any) => {
+          if (primaryRequestId && req.id === primaryRequestId) return false;
+          if (!contactEmail) return true;
+          const reqEmail = (req.lead_email || '').toLowerCase();
+          return reqEmail !== contactEmail.toLowerCase();
+        });
+
+        // Enrich with user profiles for any marketplace users
+        const userIds = Array.from(new Set(filtered.map((r: any) => r.user_id).filter(Boolean)));
+        let profileMap = new Map<string, any>();
+        if (userIds.length > 0) {
+          const { data: profs } = await supabase
+            .from('profiles')
+            .select('id,email,first_name,last_name,company')
+            .in('id', userIds as string[]);
+          (profs || []).forEach((p: any) => profileMap.set(p.id, p));
+        }
+
+        const associated: AssociatedRequest[] = filtered.map((req: any) => {
+          const p = req.user_id ? profileMap.get(req.user_id) : null;
+          return {
             id: req.id,
             user_id: req.user_id,
             listing_id: req.listing_id,
@@ -143,8 +172,9 @@ export function useAssociatedRequests(
             relationship_type: 'same_company',
             relationship_metadata: { company_name: contactCompany, matched_by: 'company_name' },
             listing: req.listing,
-            user: null,
-          }));
+            user: p ? { email: p.email, first_name: p.first_name, last_name: p.last_name, company: p.company } : null,
+          } as AssociatedRequest;
+        });
 
         return associated;
       }
