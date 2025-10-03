@@ -85,6 +85,7 @@ export function PipelineFilterPanel({ pipeline }: PipelineFilterPanelProps) {
     createdDateRange: pipeline.createdDateRange,
     lastActivityRange: pipeline.lastActivityRange,
     searchQuery: pipeline.searchQuery,
+    sortOption: pipeline.sortOption, // Added: Include sort option in saved presets
   });
 
   const loadPreset = (preset: any) => {
@@ -97,6 +98,7 @@ export function PipelineFilterPanel({ pipeline }: PipelineFilterPanelProps) {
     if (filters.createdDateRange) pipeline.setCreatedDateRange(filters.createdDateRange);
     if (filters.lastActivityRange) pipeline.setLastActivityRange(filters.lastActivityRange);
     if (filters.searchQuery) pipeline.setSearchQuery(filters.searchQuery);
+    if (filters.sortOption) pipeline.setSortOption(filters.sortOption); // Added: Restore sort option from presets
   };
 
   return (
