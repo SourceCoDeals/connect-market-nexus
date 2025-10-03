@@ -86,6 +86,7 @@ export interface Deal {
   
   // Company grouping
   company_deal_count?: number;
+  listing_deal_count?: number; // More reliable - counts deals per listing
 }
 
 export interface DealStage {

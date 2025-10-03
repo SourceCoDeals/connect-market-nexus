@@ -148,7 +148,8 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
   // Only use real listing company name (admin-only internal name), show nothing if missing
   const companyName = (deal.listing_real_company_name || '').trim();
   const contactName = deal.contact_name || deal.buyer_name || 'Unknown Contact';
-  const companyDealCount = deal.company_deal_count || 0;
+  // Use listing_deal_count for more reliable counting (all deals for same listing)
+  const listingDealCount = deal.listing_deal_count || 0;
 
   // Calculate time in stage precisely (seconds/minutes/hours/days)
   const { daysInStage, stageDurationLabel } = (() => {
@@ -287,9 +288,9 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
               <div className="flex items-center gap-1.5">
                 <Building2 className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
                 <span className="text-xs font-medium text-gray-700 truncate">{companyName}</span>
-                {companyDealCount > 1 && (
+                {listingDealCount > 1 && (
                   <Badge className="text-[10px] px-2 py-0.5 h-4 bg-primary/10 text-primary border border-primary/30 font-bold shadow-sm">
-                    {companyDealCount} active
+                    {listingDealCount} for listing
                   </Badge>
                 )}
               </div>

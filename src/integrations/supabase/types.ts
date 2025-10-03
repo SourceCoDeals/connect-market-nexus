@@ -2358,6 +2358,7 @@ export type Database = {
           last_activity_at: string
           last_contact_at: string
           listing_category: string
+          listing_deal_count: number
           listing_ebitda: number
           listing_id: string
           listing_location: string
