@@ -204,6 +204,7 @@ export function useDeals() {
           // Extras
           connection_request_id: row.connection_request_id,
           company_deal_count: Number(row.company_deal_count ?? 0),
+          listing_deal_count: Number(row.listing_deal_count ?? 1),
           buyer_id: row.buyer_id,
           last_contact_at: row.last_contact_at,
           last_contact_type: row.last_contact_type,

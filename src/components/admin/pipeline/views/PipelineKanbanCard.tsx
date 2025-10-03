@@ -44,8 +44,8 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
     return !Number.isNaN(time);
   };
   const getBuyerTypeColor = (buyerType?: string) => {
-    // Sophisticated minimal styling - Apple/Stripe level precision
-    return 'bg-muted/20 text-muted-foreground/80 border-border/25';
+    // Sophisticated minimal styling with better contrast - Apple/Stripe level precision
+    return 'bg-muted/30 text-foreground/90 border-border/40';
   };
 
   const getBuyerTypeLabel = (buyerType?: string) => {
@@ -149,7 +149,7 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
   const companyName = (deal.listing_real_company_name || '').trim();
   const contactName = deal.contact_name || deal.buyer_name || 'Unknown Contact';
   // Use listing_deal_count for more reliable counting (all deals for same listing)
-  const listingDealCount = deal.listing_deal_count || 0;
+  const listingDealCount = deal.listing_deal_count || 1; // Default to 1 if undefined
 
   // Calculate time in stage precisely (seconds/minutes/hours/days)
   const { daysInStage, stageDurationLabel } = (() => {
@@ -226,18 +226,18 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
 
   const lastActivity = getLastActivity();
 
-  // Get source badge info - Sophisticated, minimal design using semantic tokens
+  // Get source badge info - Sophisticated, minimal design with better contrast
   const getSourceBadge = () => {
     const source = deal.source || 'manual';
     switch (source) {
       case 'marketplace':
-        return { icon: Globe, label: 'Marketplace', color: 'bg-secondary/10 text-secondary-foreground border-secondary/20' };
+        return { icon: Globe, label: 'Marketplace', color: 'bg-secondary/20 text-secondary-foreground/95 border-secondary/30' };
       case 'webflow':
-        return { icon: FileText, label: 'Webflow', color: 'bg-accent/10 text-accent-foreground border-accent/20' };
+        return { icon: FileText, label: 'Webflow', color: 'bg-accent/20 text-accent-foreground/95 border-accent/30' };
       case 'manual':
-        return { icon: Zap, label: 'Manual', color: 'bg-primary/10 text-primary-foreground border-primary/20' };
+        return { icon: Zap, label: 'Manual', color: 'bg-foreground/8 text-foreground/90 border-foreground/20' };
       default:
-        return { icon: Globe, label: source, color: 'bg-muted/30 text-muted-foreground border-border/30' };
+        return { icon: Globe, label: source, color: 'bg-muted/30 text-foreground/90 border-border/40' };
     }
   };
 
@@ -297,8 +297,8 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
           <User className="w-3 h-3 text-muted-foreground/60 flex-shrink-0" />
           <span className="text-xs text-muted-foreground">Contact:</span>
           <span className="text-xs font-medium text-foreground/90">{contactName}</span>
-          {listingDealCount && listingDealCount > 1 && (
-            <Badge className="text-[9px] px-1.5 py-0 h-4 bg-primary/8 text-primary-foreground/90 border border-primary/15 font-medium tracking-wide">
+          {listingDealCount > 1 && (
+            <Badge className="text-[9px] px-1.5 py-0 h-4 bg-primary/12 text-primary border border-primary/25 font-semibold tracking-wide">
               +{listingDealCount - 1}
             </Badge>
           )}
