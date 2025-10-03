@@ -109,6 +109,16 @@ export function PipelineViewSwitcher({
     const currentView = views.find(v => v.id === selectedViewId);
     if (!currentView) return;
 
+    // Prevent saving Standard Pipeline
+    if (isStandardPipeline) {
+      toast({
+        title: "Cannot Modify Standard Pipeline",
+        description: "Standard Pipeline shows all stages and cannot be customized. Create a custom view instead.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     // Build stage config from current stage order
     const stage_config = stages.map((stage, index) => ({
       stageId: stage.id,
@@ -127,8 +137,8 @@ export function PipelineViewSwitcher({
     }, {
       onSuccess: () => {
         toast({
-          title: "View saved",
-          description: "Current stage order and filters have been saved to this view.",
+          title: "View Saved",
+          description: `Stage order, filters, and sorting saved to "${currentView.name}".`,
         });
       }
     });
@@ -219,6 +229,24 @@ export function PipelineViewSwitcher({
           </Select>
         )}
         
+        {/* Default View Badge */}
+        {isStandardPipeline && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Badge variant="outline" className="text-xs">
+                  Default View
+                </Badge>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs">
+                <p className="text-xs">
+                  This view shows all stages in global order and cannot be customized. Create a custom view for personalized stage order and filters.
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
+        
         {/* View Actions Dropdown */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -231,10 +259,34 @@ export function PipelineViewSwitcher({
               <Plus className="h-4 w-4 mr-2" />
               New View
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={handleSaveCurrentView} disabled={!selectedViewId}>
-              <Save className="h-4 w-4 mr-2" />
-              Save Current View
-            </DropdownMenuItem>
+            
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div>
+                    <DropdownMenuItem 
+                      onClick={handleSaveCurrentView} 
+                      disabled={!selectedViewId || isStandardPipeline}
+                    >
+                      <Save className="h-4 w-4 mr-2" />
+                      Save Current View
+                      {isStandardPipeline && (
+                        <Badge variant="secondary" className="ml-2 text-xs">
+                          Default
+                        </Badge>
+                      )}
+                    </DropdownMenuItem>
+                  </div>
+                </TooltipTrigger>
+                {isStandardPipeline && (
+                  <TooltipContent side="left" className="max-w-xs">
+                    <p className="text-xs">
+                      Standard Pipeline cannot be customized. Create a custom view to save stage order and filters.
+                    </p>
+                  </TooltipContent>
+                )}
+              </Tooltip>
+            </TooltipProvider>
             
             <DropdownMenuSeparator />
             

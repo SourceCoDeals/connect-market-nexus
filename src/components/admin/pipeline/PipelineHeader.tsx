@@ -347,6 +347,25 @@ export function PipelineHeader({ pipeline, onOpenCreateDeal }: PipelineHeaderPro
           </PopoverContent>
         </Popover>
 
+        {/* Sort Order Filter */}
+        <Select
+          value={pipeline.sortOption}
+          onValueChange={(value) => pipeline.setSortOption(value as any)}
+        >
+          <SelectTrigger className="w-[160px] h-9">
+            <SelectValue placeholder="Sort by" />
+          </SelectTrigger>
+          <SelectContent className="bg-background z-[100]">
+            <SelectItem value="newest">Newest First</SelectItem>
+            <SelectItem value="oldest">Oldest First</SelectItem>
+            <SelectItem value="priority">Highest Priority</SelectItem>
+            <SelectItem value="value">Highest Value</SelectItem>
+            <SelectItem value="probability">Highest Probability</SelectItem>
+            <SelectItem value="stage_entered">Recently Entered Stage</SelectItem>
+            <SelectItem value="last_activity">Last Activity</SelectItem>
+          </SelectContent>
+        </Select>
+
         {/* All Filters Button */}
         <Button
           variant="outline"
