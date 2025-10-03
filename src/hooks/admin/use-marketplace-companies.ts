@@ -10,6 +10,26 @@ interface CompanyData {
   searchTerms: string;
 }
 
+// Helper function to generate comprehensive search terms with prefixes
+const generateSearchTerms = (words: string[]): string => {
+  const terms = new Set<string>();
+  
+  words.forEach(word => {
+    const cleaned = word.toLowerCase().trim();
+    if (!cleaned) return;
+    
+    // Add full word
+    terms.add(cleaned);
+    
+    // Add progressive prefixes (for "Tucker's" -> "t", "tu", "tuc", "tuck", etc.)
+    for (let i = 1; i <= cleaned.length; i++) {
+      terms.add(cleaned.substring(0, i));
+    }
+  });
+  
+  return Array.from(terms).join(' ');
+};
+
 export function useMarketplaceCompanies() {
   return useQuery({
     queryKey: ['marketplace-companies'],
@@ -62,13 +82,21 @@ export function useMarketplaceCompanies() {
             ? ` (${company.users.length} users)` 
             : '';
 
+          // Generate comprehensive search terms
+          const searchParts = [
+            company.company,
+            // Split company name into words for better matching
+            ...company.company.split(/\s+/),
+            ...buyerTypes,
+          ].filter(Boolean);
+
           return {
             value: company.company,
             label: `${company.company}${buyerTypesDisplay}${userCountDisplay}`,
             userCount: company.users.length,
             userEmails,
             buyerTypes,
-            searchTerms: `${company.company} ${buyerTypes.join(' ')} ${userEmails.join(' ')}`.toLowerCase(),
+            searchTerms: generateSearchTerms(searchParts),
           };
         })
         .sort((a, b) => {

@@ -333,6 +333,26 @@ export function CreateDealModal({ open, onOpenChange, prefilledStageId, onDealCr
     form.setValue('contact_company', companyName);
   };
 
+  // Helper function to generate comprehensive search terms with prefixes
+  const generateSearchTerms = (words: string[]): string => {
+    const terms = new Set<string>();
+    
+    words.forEach(word => {
+      const cleaned = word.toLowerCase().trim();
+      if (!cleaned) return;
+      
+      // Add full word
+      terms.add(cleaned);
+      
+      // Add progressive prefixes (for "Tucker's" -> "t", "tu", "tuc", "tuck", etc.)
+      for (let i = 1; i <= cleaned.length; i++) {
+        terms.add(cleaned.substring(0, i));
+      }
+    });
+    
+    return Array.from(terms).join(' ');
+  };
+
   // Format user options for combobox
   const userOptions = React.useMemo(() => {
     if (!marketplaceUsers || marketplaceUsers.length === 0) {
@@ -343,13 +363,28 @@ export function CreateDealModal({ open, onOpenChange, prefilledStageId, onDealCr
     console.log('[CreateDealModal] Formatting', marketplaceUsers.length, 'marketplace users for combobox');
     
     return marketplaceUsers.map(user => {
-      const name = `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email;
+      const firstName = user.first_name || '';
+      const lastName = user.last_name || '';
+      const name = `${firstName} ${lastName}`.trim() || user.email;
       const buyerType = user.buyer_type ? ` - ${user.buyer_type}` : '';
       const company = user.company ? ` (${user.company})` : '';
+      
+      // Generate comprehensive search terms
+      const searchParts = [
+        firstName,
+        lastName,
+        name,
+        user.email,
+        user.company || '',
+        user.buyer_type || '',
+        // Split company name into words for better matching
+        ...(user.company ? user.company.split(/\s+/) : []),
+      ].filter(Boolean);
+      
       return {
         value: user.id,
         label: `${name} - ${user.email}${buyerType}${company}`,
-        searchTerms: `${name} ${user.email} ${user.company || ''} ${user.buyer_type || ''}`.toLowerCase(),
+        searchTerms: generateSearchTerms(searchParts),
       };
     });
   }, [marketplaceUsers]);
