@@ -272,7 +272,6 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
       className={cn(
         "group relative mb-3 cursor-pointer transition-all duration-200",
         "bg-card border border-border rounded-xl shadow-sm",
-        "hover:shadow-lg hover:border-border/80 hover:-translate-y-0.5",
         isBeingDragged && "shadow-2xl shadow-black/10 scale-[1.02] z-50 border-primary/30 bg-card opacity-95"
       )}
       onClick={handleCardClick}
@@ -280,29 +279,42 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
       <CardContent className="p-4 space-y-3">
         {/* Header with priority indicator and clean typography */}
         <div className="flex items-start justify-between">
-          <div className="flex-1 min-w-0 space-y-1.5">
+          <div className="flex-1 min-w-0 space-y-2">
             {/* Deal title without company duplication */}
             <h3 className="text-sm font-medium text-foreground leading-tight truncate">
               {listingTitle}
             </h3>
-            {/* Internal company name (admin-only) */}
+            
+            {/* Internal company name with source label - polished inline style */}
             {companyName && (
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <Building2 className="w-3 h-3 text-muted-foreground/60 flex-shrink-0" />
-                <span className="text-xs font-medium text-foreground/80 truncate">{companyName}</span>
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex items-center gap-1.5">
+                  <Building2 className="w-3 h-3 text-muted-foreground/60 flex-shrink-0" />
+                  <span className="text-xs font-medium text-foreground/80 truncate">{companyName}</span>
+                </div>
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-background border border-border/60 text-[10px] font-medium text-muted-foreground tracking-wide">
+                  <SourceIcon className="w-2.5 h-2.5" />
+                  {sourceBadge.label}
+                </span>
               </div>
             )}
-            {/* Buyer's company name - polished presentation */}
+            
+            {/* Buyer's company with role label - sophisticated inline presentation */}
             {deal.contact_company && (
-              <div className="flex items-center gap-1.5">
-                <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted/50 border border-border/50">
-                  <Building2 className="w-2.5 h-2.5 text-muted-foreground/70 flex-shrink-0" />
-                  <span className="text-[10px] font-medium text-muted-foreground tracking-wide uppercase">
-                    Buyer
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-primary/8 border border-primary/20">
+                    <Building2 className="w-2.5 h-2.5 text-primary/70 flex-shrink-0" />
+                    <span className="text-[10px] font-medium text-primary/80 tracking-wide uppercase">
+                      Buyer
+                    </span>
+                  </div>
+                  <span className="text-xs text-foreground/90 font-medium truncate">
+                    {deal.contact_company}
                   </span>
                 </div>
-                <span className="text-xs text-foreground/90 font-medium truncate">
-                  {deal.contact_company}
+                <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-background border border-border/60 text-[10px] font-medium text-muted-foreground tracking-wide">
+                  {getBuyerTypeLabel(actualBuyerType)}
                 </span>
               </div>
             )}
@@ -322,16 +334,6 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
           )}
         </div>
 
-        {/* Badges row - sophisticated minimal design */}
-        <div className="flex items-center gap-1.5 flex-wrap">
-          <Badge className={cn("text-[9px] px-1.5 py-0 h-4 font-medium tracking-wide border", getBuyerTypeColor(actualBuyerType))}>
-            {getBuyerTypeLabel(actualBuyerType)}
-          </Badge>
-          <Badge className={cn("text-[9px] px-1.5 py-0 h-4 font-medium tracking-wide border flex items-center gap-1", sourceBadge.color)}>
-            <SourceIcon className="w-2.5 h-2.5" />
-            {sourceBadge.label}
-          </Badge>
-        </div>
         {/* Deal Owner */}
         {assignedAdmin && (
           <div className="flex items-center gap-1.5">
