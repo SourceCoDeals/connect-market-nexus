@@ -657,6 +657,7 @@ export type Database = {
           id: string
           is_active: boolean | null
           is_default: boolean | null
+          is_system_stage: boolean | null
           name: string
           position: number
           stage_type: string | null
@@ -671,6 +672,7 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           is_default?: boolean | null
+          is_system_stage?: boolean | null
           name: string
           position: number
           stage_type?: string | null
@@ -685,6 +687,7 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           is_default?: boolean | null
+          is_system_stage?: boolean | null
           name?: string
           position?: number
           stage_type?: string | null
@@ -799,7 +802,7 @@ export type Database = {
           probability: number | null
           source: string | null
           stage_entered_at: string | null
-          stage_id: string | null
+          stage_id: string
           title: string
           updated_at: string | null
           value: number | null
@@ -833,7 +836,7 @@ export type Database = {
           probability?: number | null
           source?: string | null
           stage_entered_at?: string | null
-          stage_id?: string | null
+          stage_id: string
           title: string
           updated_at?: string | null
           value?: number | null
@@ -867,7 +870,7 @@ export type Database = {
           probability?: number | null
           source?: string | null
           stage_entered_at?: string | null
-          stage_id?: string | null
+          stage_id?: string
           title?: string
           updated_at?: string | null
           value?: number | null
@@ -2416,6 +2419,10 @@ export type Database = {
           total_page_views: number
           total_users: number
         }[]
+      }
+      get_stage_deal_count: {
+        Args: { stage_uuid: string }
+        Returns: number
       }
       is_admin: {
         Args: { user_id: string }
