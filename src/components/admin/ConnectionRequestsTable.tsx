@@ -423,6 +423,22 @@ function ReactiveRequestCard({
                 <CleanTierDisplay user={request.user} leadRole={request.lead_role} />
                 <StatusBadge status={request.status} />
                 <SourceBadge source={request.source || 'marketplace'} />
+                {request.source_metadata?.needs_admin_review && (
+                  <Badge variant="outline" className="text-xs bg-warning/10 text-warning border-warning/20">
+                    Needs Review
+                  </Badge>
+                )}
+                {new Date(request.updated_at) > new Date(request.created_at) && (
+                  <Badge variant="outline" className="text-xs bg-blue-500/10 text-blue-500 border-blue-500/20">
+                    Updated {(() => {
+                      const minutes = Math.floor((Date.now() - new Date(request.updated_at).getTime()) / (1000 * 60));
+                      if (minutes < 60) return `${minutes}m ago`;
+                      const hours = Math.floor(minutes / 60);
+                      if (hours < 24) return `${hours}h ago`;
+                      return `${Math.floor(hours / 24)}d ago`;
+                    })()}
+                  </Badge>
+                )}
               </div>
                <div className="text-sm text-muted-foreground space-y-1">
                  <div className="flex items-center gap-2">

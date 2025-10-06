@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useAdmin } from "@/hooks/use-admin";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Search, Users, Inbox } from "lucide-react";
 import { AdminConnectionRequest } from "@/types/admin";
@@ -46,6 +47,7 @@ const AdminRequests = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedListingId, setSelectedListingId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
+  const [activityFilter, setActivityFilter] = useState<'all' | 'new' | 'needs-review' | 'updated'>('all');
   const [selectedRequest, setSelectedRequest] = useState<AdminConnectionRequest | null>(null);
   const [actionType, setActionType] = useState<"approve" | "reject" | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -105,7 +107,7 @@ const AdminRequests = () => {
     console.error("Connection requests error:", error);
   }
   
-  // Apply search and listing filters to pipeline-filtered requests
+  // Apply search, listing, and activity filters to pipeline-filtered requests
   const filteredRequests = pipelineFilteredRequests.filter((request) => {
     const searchLower = searchQuery.toLowerCase();
     const matchesSearch = (
@@ -119,7 +121,23 @@ const AdminRequests = () => {
     
     const matchesListing = !selectedListingId || request.listing?.id === selectedListingId;
     
-    return matchesSearch && matchesListing;
+    // Activity filter logic
+    const matchesActivity = (() => {
+      if (activityFilter === 'all') return true;
+      if (activityFilter === 'new') {
+        const hoursSinceCreated = (Date.now() - new Date(request.created_at).getTime()) / (1000 * 60 * 60);
+        return hoursSinceCreated < 24;
+      }
+      if (activityFilter === 'needs-review') {
+        return request.source_metadata?.needs_admin_review === true || request.status === 'pending';
+      }
+      if (activityFilter === 'updated') {
+        return new Date(request.updated_at) > new Date(request.created_at);
+      }
+      return true;
+    })();
+    
+    return matchesSearch && matchesListing && matchesActivity;
   });
 
   // Get selected listing details for grid view
@@ -270,6 +288,64 @@ const AdminRequests = () => {
               }} 
             />
             
+            {/* Activity Filter Chips */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-sm font-medium text-muted-foreground">Activity:</span>
+              <Button
+                variant={activityFilter === 'all' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setActivityFilter('all')}
+                className="h-8 text-xs"
+              >
+                All
+              </Button>
+              <Button
+                variant={activityFilter === 'new' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setActivityFilter('new')}
+                className="h-8 text-xs"
+              >
+                New (24h)
+                {requests.filter(r => {
+                  const hoursSinceCreated = (Date.now() - new Date(r.created_at).getTime()) / (1000 * 60 * 60);
+                  return hoursSinceCreated < 24;
+                }).length > 0 && (
+                  <Badge variant="secondary" className="ml-1 h-4 px-1 text-[10px]">
+                    {requests.filter(r => {
+                      const hoursSinceCreated = (Date.now() - new Date(r.created_at).getTime()) / (1000 * 60 * 60);
+                      return hoursSinceCreated < 24;
+                    }).length}
+                  </Badge>
+                )}
+              </Button>
+              <Button
+                variant={activityFilter === 'needs-review' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setActivityFilter('needs-review')}
+                className="h-8 text-xs"
+              >
+                Needs Review
+                {requests.filter(r => r.source_metadata?.needs_admin_review === true || r.status === 'pending').length > 0 && (
+                  <Badge variant="secondary" className="ml-1 h-4 px-1 text-[10px]">
+                    {requests.filter(r => r.source_metadata?.needs_admin_review === true || r.status === 'pending').length}
+                  </Badge>
+                )}
+              </Button>
+              <Button
+                variant={activityFilter === 'updated' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setActivityFilter('updated')}
+                className="h-8 text-xs"
+              >
+                Recently Updated
+                {requests.filter(r => new Date(r.updated_at) > new Date(r.created_at)).length > 0 && (
+                  <Badge variant="secondary" className="ml-1 h-4 px-1 text-[10px]">
+                    {requests.filter(r => new Date(r.updated_at) > new Date(r.created_at)).length}
+                  </Badge>
+                )}
+              </Button>
+            </div>
+
             {/* Filters and View Switcher */}
             <div className="flex flex-col sm:flex-row gap-4">
               <ListingFilterSelect
@@ -299,7 +375,7 @@ const AdminRequests = () => {
               <Badge variant="secondary" className="text-xs font-medium px-3 py-1.5">
                 Showing: <span className="font-semibold ml-1">{filteredRequests.length}</span>
               </Badge>
-              {(statusFilter !== 'all' || buyerTypeFilter !== 'all' || searchQuery || selectedListingId) && (
+              {(statusFilter !== 'all' || buyerTypeFilter !== 'all' || searchQuery || selectedListingId || activityFilter !== 'all') && (
                 <Badge variant="outline" className="text-xs font-medium px-3 py-1.5">
                   of {requests.length} total
                 </Badge>
@@ -312,6 +388,11 @@ const AdminRequests = () => {
               {buyerTypeFilter !== 'all' && (
                 <Badge variant="outline" className="text-xs font-medium px-3 py-1.5 bg-secondary/10 text-secondary-foreground border-secondary/20">
                   Type: {buyerTypeFilter === 'privateEquity' ? 'PE' : buyerTypeFilter}
+                </Badge>
+              )}
+              {activityFilter !== 'all' && (
+                <Badge variant="outline" className="text-xs font-medium px-3 py-1.5 bg-accent/10 text-accent-foreground border-accent/20">
+                  Activity: {activityFilter === 'needs-review' ? 'Needs Review' : activityFilter === 'new' ? 'New (24h)' : 'Recently Updated'}
                 </Badge>
               )}
             </div>

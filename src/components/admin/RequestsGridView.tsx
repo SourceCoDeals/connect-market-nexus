@@ -91,14 +91,25 @@ const BuyerCard = ({
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
           <div className="space-y-1">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <h3 className="font-semibold text-sm">
                 {request.user?.first_name} {request.user?.last_name}
               </h3>
               <StatusBadge status={request.status} />
+              {request.source_metadata?.needs_admin_review && (
+                <Badge variant="outline" className="text-[10px] bg-warning/10 text-warning border-warning/20 px-1.5 py-0">
+                  Review
+                </Badge>
+              )}
             </div>
             <div className="text-xs text-muted-foreground">
-              {format(new Date(request.created_at), 'MMM d, yyyy')}
+              {new Date(request.updated_at) > new Date(request.created_at) ? (
+                <span className="text-blue-500">
+                  Updated {format(new Date(request.updated_at), 'MMM d, yyyy')}
+                </span>
+              ) : (
+                format(new Date(request.created_at), 'MMM d, yyyy')
+              )}
             </div>
           </div>
           <Button
@@ -276,16 +287,30 @@ export function RequestsGridView({ requests, selectedListing }: RequestsGridView
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {/* Header with Activity Stats */}
       {selectedListing && (
         <div className="bg-card/30 backdrop-blur-sm rounded-xl border border-border/50 p-4">
-          <div className="flex items-center gap-3">
-            <Building2 className="h-5 w-5 text-primary" />
-            <div>
-              <h2 className="font-semibold text-lg">{formatListingForBuyerCard(selectedListing.title, selectedListing.internal_company_name)}</h2>
-              <p className="text-sm text-muted-foreground">
-                {requests.length} buyer{requests.length !== 1 ? 's' : ''} interested in this deal
-              </p>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Building2 className="h-5 w-5 text-primary" />
+              <div>
+                <h2 className="font-semibold text-lg">{formatListingForBuyerCard(selectedListing.title, selectedListing.internal_company_name)}</h2>
+                <p className="text-sm text-muted-foreground">
+                  {requests.length} buyer{requests.length !== 1 ? 's' : ''} interested in this deal
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              {requests.filter(r => r.source_metadata?.needs_admin_review).length > 0 && (
+                <Badge variant="outline" className="bg-warning/10 text-warning border-warning/20">
+                  {requests.filter(r => r.source_metadata?.needs_admin_review).length} need review
+                </Badge>
+              )}
+              {requests.filter(r => new Date(r.updated_at) > new Date(r.created_at)).length > 0 && (
+                <Badge variant="outline" className="bg-blue-500/10 text-blue-500 border-blue-500/20">
+                  {requests.filter(r => new Date(r.updated_at) > new Date(r.created_at)).length} updated
+                </Badge>
+              )}
             </div>
           </div>
         </div>
