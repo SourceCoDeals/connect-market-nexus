@@ -30,7 +30,8 @@ const EnhancedAdminListings = () => {
     ebitdaMax: "",
     dateFrom: "",
     dateTo: "",
-    statusTag: "all"
+    statusTag: "all",
+    buyerVisibility: "all"
   });
   const [sortBy, setSortBy] = useState("created_at");
   const [sortOrder, setSortOrder] = useState("desc");
@@ -72,9 +73,15 @@ const EnhancedAdminListings = () => {
       const matchesStatusTag = filters.statusTag === "all" || 
         (!listing.status_tag && filters.statusTag === "none") ||
         listing.status_tag === filters.statusTag;
+
+      const matchesBuyerVisibility = filters.buyerVisibility === "all" ||
+        (filters.buyerVisibility === "unrestricted" && (!listing.visible_to_buyer_types || listing.visible_to_buyer_types.length === 0)) ||
+        (filters.buyerVisibility !== "unrestricted" && 
+         listing.visible_to_buyer_types && 
+         listing.visible_to_buyer_types.includes(filters.buyerVisibility));
       
       return matchesSearch && matchesStatus && matchesCategory && matchesLocation && 
-             matchesRevenue && matchesEbitda && matchesDate && matchesStatusTag;
+             matchesRevenue && matchesEbitda && matchesDate && matchesStatusTag && matchesBuyerVisibility;
     })
     .sort((a, b) => {
       let aValue, bValue;
