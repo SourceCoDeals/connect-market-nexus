@@ -31,7 +31,7 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
   const { mutate: requestConnection, isPending: isRequesting } = useRequestConnection();
   const { trackListingSave, trackConnectionRequest } = useAnalytics();
 
-  const connectionExists = !!connectionStatus;
+  const connectionExists = connectionStatus?.exists || false;
   
   const handleRequestConnection = (message: string) => {
     // Track the connection request attempt
