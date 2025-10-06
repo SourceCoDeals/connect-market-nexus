@@ -151,6 +151,9 @@ export interface Listing {
   status: ListingStatus;
   status_tag?: string | null;
   
+  // Buyer visibility control
+  visible_to_buyer_types?: string[] | null;
+  
   // Internal admin fields
   deal_identifier?: string | null;
   internal_company_name?: string | null;

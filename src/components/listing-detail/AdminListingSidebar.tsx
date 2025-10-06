@@ -2,10 +2,11 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Eye, Building2, User, Link as LinkIcon, FileText, Mail, Edit } from "lucide-react";
+import { Eye, Building2, User, Link as LinkIcon, FileText, Mail, Edit, Users } from "lucide-react";
 import { StatusTagSwitcher } from "@/components/admin/StatusTagSwitcher";
 import { useAdminListings } from "@/hooks/admin/use-admin-listings";
 import { Listing } from "@/types";
+import { Badge } from "@/components/ui/badge";
 
 interface AdminListingSidebarProps {
   listing: Listing;
@@ -81,6 +82,53 @@ export function AdminListingSidebar({
             onChange={handleStatusChange}
             className="w-full"
           />
+        </div>
+      </div>
+
+      {/* Buyer Visibility Control */}
+      <div className="bg-white border border-sourceco-form rounded-lg p-4 shadow-sm">
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <Users className="h-4 w-4 text-slate-600" />
+            <h3 className="text-sm font-semibold text-slate-900">Visible To</h3>
+          </div>
+          
+          {!listing.visible_to_buyer_types || listing.visible_to_buyer_types.length === 0 ? (
+            <div className="flex items-center gap-2">
+              <Badge variant="secondary" className="bg-green-100 text-green-800 border-green-200">
+                🌐 All Buyer Types
+              </Badge>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <p className="text-xs text-slate-600">
+                Restricted to {listing.visible_to_buyer_types.length} buyer type{listing.visible_to_buyer_types.length > 1 ? 's' : ''}:
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {listing.visible_to_buyer_types.map((type) => {
+                  const labels: Record<string, string> = {
+                    privateEquity: 'Private Equity',
+                    corporate: 'Corporate',
+                    familyOffice: 'Family Office',
+                    searchFund: 'Search Fund',
+                    individual: 'Individual',
+                    independentSponsor: 'Independent Sponsor',
+                    advisor: 'Advisor',
+                    businessOwner: 'Business Owner'
+                  };
+                  return (
+                    <Badge 
+                      key={type} 
+                      variant="outline" 
+                      className="text-xs bg-blue-50 text-blue-700 border-blue-200"
+                    >
+                      {labels[type] || type}
+                    </Badge>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
