@@ -90,45 +90,49 @@ export function AdminListingSidebar({
         <div className="space-y-3">
           <div className="flex items-center gap-2">
             <Users className="h-4 w-4 text-slate-600" />
-            <h3 className="text-sm font-semibold text-slate-900">Visible To</h3>
+            <h3 className="text-sm font-semibold text-slate-900">Buyer Visibility</h3>
           </div>
           
-          {!listing.visible_to_buyer_types || listing.visible_to_buyer_types.length === 0 ? (
-            <div className="flex items-center gap-2">
-              <Badge variant="secondary" className="bg-green-100 text-green-800 border-green-200">
-                🌐 All Buyer Types
-              </Badge>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              <p className="text-xs text-slate-600">
-                Restricted to {listing.visible_to_buyer_types.length} buyer type{listing.visible_to_buyer_types.length > 1 ? 's' : ''}:
-              </p>
-              <div className="flex flex-wrap gap-1.5">
-                {listing.visible_to_buyer_types.map((type) => {
-                  const labels: Record<string, string> = {
-                    privateEquity: 'Private Equity',
-                    corporate: 'Corporate',
-                    familyOffice: 'Family Office',
-                    searchFund: 'Search Fund',
-                    individual: 'Individual',
-                    independentSponsor: 'Independent Sponsor',
-                    advisor: 'Advisor',
-                    businessOwner: 'Business Owner'
-                  };
-                  return (
-                    <Badge 
-                      key={type} 
-                      variant="outline" 
-                      className="text-xs bg-blue-50 text-blue-700 border-blue-200"
-                    >
-                      {labels[type] || type}
-                    </Badge>
-                  );
-                })}
+          <div className="space-y-3 text-xs">
+            {!listing.visible_to_buyer_types || listing.visible_to_buyer_types.length === 0 ? (
+              <div>
+                <div className="flex items-center gap-1.5 text-slate-500 mb-1">
+                  <Users className="h-3 w-3" />
+                  <span className="font-medium">Visibility</span>
+                </div>
+                <p className="text-slate-900 pl-4">All Buyer Types 🌐</p>
               </div>
-            </div>
-          )}
+            ) : (
+              <div>
+                <div className="flex items-center gap-1.5 text-slate-500 mb-1">
+                  <Users className="h-3 w-3" />
+                  <span className="font-medium">Restricted Access</span>
+                </div>
+                <div className="pl-4 space-y-1">
+                  <p className="text-slate-600 mb-2">
+                    Visible to {listing.visible_to_buyer_types.length} buyer type{listing.visible_to_buyer_types.length > 1 ? 's' : ''}:
+                  </p>
+                  {listing.visible_to_buyer_types.map((type) => {
+                    const labels: Record<string, string> = {
+                      privateEquity: 'Private Equity',
+                      corporate: 'Corporate',
+                      familyOffice: 'Family Office',
+                      searchFund: 'Search Fund',
+                      individual: 'Individual',
+                      independentSponsor: 'Independent Sponsor',
+                      advisor: 'Advisor',
+                      businessOwner: 'Business Owner'
+                    };
+                    return (
+                      <div key={type} className="text-slate-900">
+                        • {labels[type] || type}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
