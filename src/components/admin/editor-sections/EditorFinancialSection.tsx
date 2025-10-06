@@ -3,6 +3,7 @@ import { UseFormReturn } from "react-hook-form";
 import { EnhancedCurrencyInput } from "@/components/ui/enhanced-currency-input";
 import { DollarSign } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 
 interface EditorFinancialSectionProps {
   form: UseFormReturn<any>;
@@ -64,6 +65,56 @@ export function EditorFinancialSection({ form }: EditorFinancialSectionProps) {
               </FormControl>
               <FormDescription>
                 Enter the trailing twelve months (TTM) EBITDA
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="full_time_employees"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel className="text-sm font-medium">Full-Time Employees</FormLabel>
+              <FormControl>
+                <Input
+                  type="number"
+                  min="0"
+                  placeholder="e.g., 45"
+                  className="h-11 bg-background border-border focus:border-sourceco-accent transition-colors"
+                  {...field}
+                  value={field.value ?? ''}
+                  onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : undefined)}
+                />
+              </FormControl>
+              <FormDescription>
+                Number of full-time employees (optional)
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="part_time_employees"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel className="text-sm font-medium">Part-Time Employees</FormLabel>
+              <FormControl>
+                <Input
+                  type="number"
+                  min="0"
+                  placeholder="e.g., 5"
+                  className="h-11 bg-background border-border focus:border-sourceco-accent transition-colors"
+                  {...field}
+                  value={field.value ?? ''}
+                  onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : undefined)}
+                />
+              </FormControl>
+              <FormDescription>
+                Number of part-time employees (optional)
               </FormDescription>
               <FormMessage />
             </FormItem>

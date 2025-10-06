@@ -29,6 +29,8 @@ const listingFormSchema = z.object({
   ebitda: z.string()
     .transform((val) => parseCurrency(val))
     .refine((val) => val >= 0, "EBITDA cannot be negative"),
+  full_time_employees: z.number().int().min(0).optional(),
+  part_time_employees: z.number().int().min(0).optional(),
   description: z.string().min(20, "Description must be at least 20 characters"),
   description_html: z.string().optional(),
   description_json: z.any().optional(),
@@ -51,6 +53,8 @@ type ListingFormInput = {
   location: string;
   revenue: string;
   ebitda: string;
+  full_time_employees?: number;
+  part_time_employees?: number;
   description: string;
   description_html?: string;
   description_json?: any;
@@ -80,6 +84,8 @@ const convertListingToFormInput = (listing?: AdminListing): ListingFormInput => 
     location: listing?.location || "",
     revenue: listing?.revenue ? formatNumber(Number(listing.revenue)) : "",
     ebitda: listing?.ebitda ? formatNumber(Number(listing.ebitda)) : "",
+    full_time_employees: listing?.full_time_employees || undefined,
+    part_time_employees: listing?.part_time_employees || undefined,
     description: listing?.description || "",
     description_html: listing?.description_html || "",
     description_json: listing?.description_json || null,
@@ -158,6 +164,8 @@ export function ImprovedListingEditor({
         location: formData.location,
         revenue: parseCurrency(formData.revenue),
         ebitda: parseCurrency(formData.ebitda),
+        full_time_employees: formData.full_time_employees,
+        part_time_employees: formData.part_time_employees,
         description: formData.description,
         description_html: formData.description_html,
         description_json: formData.description_json,
