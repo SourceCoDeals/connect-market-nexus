@@ -186,6 +186,7 @@ export function ImprovedListingEditor({
         owner_notes: formData.owner_notes,
         status: formData.status,
         status_tag: formData.status_tag && formData.status_tag !== "none" ? formData.status_tag : null,
+        visible_to_buyer_types: (formData.visible_to_buyer_types || null) as ('privateEquity' | 'corporate' | 'familyOffice' | 'searchFund' | 'individual' | 'independentSponsor' | 'advisor' | 'businessOwner')[] | null,
         internal_company_name: formData.internal_company_name || null,
         internal_primary_owner: formData.internal_primary_owner || null,
         internal_salesforce_link: formData.internal_salesforce_link || null,
