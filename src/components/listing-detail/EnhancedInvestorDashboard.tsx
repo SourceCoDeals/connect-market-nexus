@@ -8,7 +8,14 @@ interface EnhancedInvestorDashboardProps {
 
 export function EnhancedInvestorDashboard({ listing, formatCurrency }: EnhancedInvestorDashboardProps) {
   const ebitdaMargin = listing.revenue > 0 ? ((listing.ebitda / listing.revenue) * 100) : 0;
-  const revenueMultiple = listing.ebitda > 0 ? (listing.revenue / listing.ebitda) : 0;
+  
+  // Format employees display
+  const employeesDisplay = () => {
+    const ft = listing.full_time_employees || 0;
+    const pt = listing.part_time_employees || 0;
+    if (ft === 0 && pt === 0) return 'Not specified';
+    return `${ft}FT/${pt}PT`;
+  };
 
   // Calculate quality scores
   const getMarginQuality = (margin: number) => {
@@ -48,8 +55,8 @@ export function EnhancedInvestorDashboard({ listing, formatCurrency }: EnhancedI
             <div className="text-xl font-semibold text-slate-900">{ebitdaMargin.toFixed(1)}%</div>
           </div>
           <div className="space-y-1">
-            <span className="text-xs text-slate-500 uppercase tracking-wider">Revenue Multiple</span>
-            <div className="text-xl font-semibold text-slate-900">{revenueMultiple.toFixed(1)}x</div>
+            <span className="text-xs text-slate-500 uppercase tracking-wider">Employees</span>
+            <div className="text-xl font-semibold text-slate-900">{employeesDisplay()}</div>
           </div>
         </div>
       </div>

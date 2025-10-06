@@ -1501,6 +1501,7 @@ export type Database = {
           description_json: Json | null
           ebitda: number
           files: string[] | null
+          full_time_employees: number | null
           growth_drivers: Json | null
           id: string
           image_url: string | null
@@ -1517,6 +1518,7 @@ export type Database = {
           market_position: Json | null
           owner_notes: string | null
           ownership_structure: string | null
+          part_time_employees: number | null
           revenue: number
           revenue_model_breakdown: Json | null
           seller_involvement_preference: string | null
@@ -1542,6 +1544,7 @@ export type Database = {
           description_json?: Json | null
           ebitda: number
           files?: string[] | null
+          full_time_employees?: number | null
           growth_drivers?: Json | null
           id?: string
           image_url?: string | null
@@ -1558,6 +1561,7 @@ export type Database = {
           market_position?: Json | null
           owner_notes?: string | null
           ownership_structure?: string | null
+          part_time_employees?: number | null
           revenue: number
           revenue_model_breakdown?: Json | null
           seller_involvement_preference?: string | null
@@ -1583,6 +1587,7 @@ export type Database = {
           description_json?: Json | null
           ebitda?: number
           files?: string[] | null
+          full_time_employees?: number | null
           growth_drivers?: Json | null
           id?: string
           image_url?: string | null
@@ -1599,6 +1604,7 @@ export type Database = {
           market_position?: Json | null
           owner_notes?: string | null
           ownership_structure?: string | null
+          part_time_employees?: number | null
           revenue?: number
           revenue_model_breakdown?: Json | null
           seller_involvement_preference?: string | null

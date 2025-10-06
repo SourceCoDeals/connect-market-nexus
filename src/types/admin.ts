@@ -9,6 +9,8 @@ export interface AdminListing {
   location: string;
   revenue: number;
   ebitda: number;
+  full_time_employees?: number;
+  part_time_employees?: number;
   description: string;
   description_html?: string;
   description_json?: any;
@@ -53,6 +55,8 @@ export interface CreateListingData {
   location: string;
   revenue: number;
   ebitda: number;
+  full_time_employees?: number;
+  part_time_employees?: number;
   description: string;
   tags?: string[];
   owner_notes?: string;
