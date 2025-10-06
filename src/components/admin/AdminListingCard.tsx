@@ -6,7 +6,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { 
   Eye, EyeOff, Edit, Trash2, MoreHorizontal, Calendar, 
   DollarSign, TrendingUp, MapPin, Building2, Activity,
-  Users, Heart, ExternalLink
+  Users, Heart, ExternalLink, Globe, ShieldCheck
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -21,6 +21,13 @@ import { formatCurrency } from "@/lib/utils";
 import { StatusTagEditor } from "./StatusTagEditor";
 import { StatusTagSwitcher } from "./StatusTagSwitcher";
 import { StatusTagValue } from "@/constants/statusTags";
+import { BUYER_TYPE_OPTIONS } from "@/lib/signup-field-options";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface AdminListingCardProps {
   listing: AdminListing;
@@ -48,6 +55,13 @@ export function AdminListingCard({
   const displayCategories = listing.categories || (listing.category ? [listing.category] : []);
   const revenue = Number(listing.revenue) || 0;
   const ebitda = Number(listing.ebitda) || 0;
+
+  // Buyer visibility helpers
+  const isVisibleToAll = !listing.visible_to_buyer_types || listing.visible_to_buyer_types.length === 0;
+  const visibleBuyerTypesCount = listing.visible_to_buyer_types?.length || 0;
+  const visibleBuyerTypeLabels = listing.visible_to_buyer_types?.map(type => 
+    BUYER_TYPE_OPTIONS.find(opt => opt.value === type)?.label || type
+  ) || [];
 
   if (viewMode === 'table') {
     return (
@@ -98,6 +112,48 @@ export function AdminListingCard({
                     <MapPin className="h-3 w-3 mr-1" />
                     {listing.location}
                   </Badge>
+                  {/* Visibility Badge */}
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger>
+                        <Badge 
+                          variant="outline" 
+                          className={isVisibleToAll 
+                            ? "text-xs bg-success/10 text-success border-success/20" 
+                            : "text-xs bg-info/10 text-info border-info/20"
+                          }
+                        >
+                          {isVisibleToAll ? (
+                            <>
+                              <Globe className="h-3 w-3 mr-1" />
+                              All Buyers
+                            </>
+                          ) : (
+                            <>
+                              <ShieldCheck className="h-3 w-3 mr-1" />
+                              {visibleBuyerTypesCount} Types
+                            </>
+                          )}
+                        </Badge>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <div className="text-xs">
+                          {isVisibleToAll ? (
+                            <p>Visible to all buyer types</p>
+                          ) : (
+                            <>
+                              <p className="font-semibold mb-1">Visible only to:</p>
+                              <ul className="list-disc list-inside">
+                                {visibleBuyerTypeLabels.map((label, i) => (
+                                  <li key={i}>{label}</li>
+                                ))}
+                              </ul>
+                            </>
+                          )}
+                        </div>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </div>
               </div>
 
@@ -265,6 +321,48 @@ export function AdminListingCard({
                 {listing.deal_identifier}
               </Badge>
             )}
+            {/* Visibility Badge */}
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger>
+                  <Badge 
+                    variant="outline" 
+                    className={isVisibleToAll 
+                      ? "text-xs bg-success/10 text-success border-success/20" 
+                      : "text-xs bg-info/10 text-info border-info/20"
+                    }
+                  >
+                    {isVisibleToAll ? (
+                      <>
+                        <Globe className="h-3 w-3 mr-1" />
+                        All Buyers
+                      </>
+                    ) : (
+                      <>
+                        <ShieldCheck className="h-3 w-3 mr-1" />
+                        {visibleBuyerTypesCount} Types
+                      </>
+                    )}
+                  </Badge>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <div className="text-xs">
+                    {isVisibleToAll ? (
+                      <p>Visible to all buyer types</p>
+                    ) : (
+                      <>
+                        <p className="font-semibold mb-1">Visible only to:</p>
+                        <ul className="list-disc list-inside">
+                          {visibleBuyerTypeLabels.map((label, i) => (
+                            <li key={i}>{label}</li>
+                          ))}
+                        </ul>
+                      </>
+                    )}
+                  </div>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
         </div>
       </CardHeader>

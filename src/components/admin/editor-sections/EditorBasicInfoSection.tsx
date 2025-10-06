@@ -4,6 +4,7 @@ import { UseFormReturn } from "react-hook-form";
 import { EnhancedMultiCategorySelect } from "@/components/ui/enhanced-category-select";
 import { EnhancedMultiLocationSelect } from "@/components/ui/enhanced-location-select";
 import { Building2, Tag } from "lucide-react";
+import { EditorBuyerVisibilitySection } from "./EditorBuyerVisibilitySection";
 import {
   Select,
   SelectContent,
@@ -157,6 +158,11 @@ export function EditorBasicInfoSection({ form }: EditorBasicInfoSectionProps) {
             </FormItem>
           )}
         />
+      </div>
+
+      {/* Buyer Visibility Section */}
+      <div className="pt-6 border-t border-border">
+        <EditorBuyerVisibilitySection form={form} />
       </div>
     </div>
   );

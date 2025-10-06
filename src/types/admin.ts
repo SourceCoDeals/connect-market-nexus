@@ -45,6 +45,7 @@ export interface AdminListing {
   investment_thesis?: string;
   seller_involvement_preference?: string;
   timeline_preference?: string;
+  visible_to_buyer_types?: string[] | null;
   created_at: string;
   updated_at: string;
 }
@@ -87,6 +88,7 @@ export interface CreateListingData {
   investment_thesis?: string;
   seller_involvement_preference?: string;
   timeline_preference?: string;
+  visible_to_buyer_types?: string[] | null;
 }
 
 export interface AdminConnectionRequest {

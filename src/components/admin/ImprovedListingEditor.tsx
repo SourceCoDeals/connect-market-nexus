@@ -45,6 +45,18 @@ const listingFormSchema = z.object({
   internal_deal_memo_link: z.string().optional(),
   internal_contact_info: z.string().optional(),
   internal_notes: z.string().optional(),
+  
+  // Buyer visibility control
+  visible_to_buyer_types: z.array(z.enum([
+    'privateEquity',
+    'corporate', 
+    'familyOffice',
+    'searchFund',
+    'individual',
+    'independentSponsor',
+    'advisor',
+    'businessOwner'
+  ])).nullable().optional(),
 });
 
 type ListingFormInput = {
@@ -61,6 +73,7 @@ type ListingFormInput = {
   owner_notes?: string;
   status: "active" | "inactive";
   status_tag?: string | null;
+  visible_to_buyer_types?: string[] | null;
   internal_company_name?: string;
   internal_primary_owner?: string;
   internal_salesforce_link?: string;
@@ -92,6 +105,7 @@ const convertListingToFormInput = (listing?: AdminListing): ListingFormInput => 
     owner_notes: listing?.owner_notes || "",
     status: listing?.status || "active",
     status_tag: listing?.status_tag ?? null,
+    visible_to_buyer_types: listing?.visible_to_buyer_types || null,
     internal_company_name: listing?.internal_company_name || "",
     internal_primary_owner: listing?.internal_primary_owner || "",
     internal_salesforce_link: listing?.internal_salesforce_link || "",

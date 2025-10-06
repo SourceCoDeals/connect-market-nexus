@@ -1530,6 +1530,7 @@ export type Database = {
           title: string
           transaction_preferences: Json | null
           updated_at: string
+          visible_to_buyer_types: string[] | null
         }
         Insert: {
           categories?: string[] | null
@@ -1573,6 +1574,7 @@ export type Database = {
           title: string
           transaction_preferences?: Json | null
           updated_at?: string
+          visible_to_buyer_types?: string[] | null
         }
         Update: {
           categories?: string[] | null
@@ -1616,6 +1618,7 @@ export type Database = {
           title?: string
           transaction_preferences?: Json | null
           updated_at?: string
+          visible_to_buyer_types?: string[] | null
         }
         Relationships: []
       }
