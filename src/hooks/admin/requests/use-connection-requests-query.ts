@@ -38,8 +38,6 @@ export function useConnectionRequestsQuery() {
           throw new Error('Admin authentication required');
         }
 
-        // Order by most recent activity (decision, update, or creation)
-        // This ensures updated requests bubble to the top
         const { data: requests, error } = await supabase
           .from('connection_requests')
           .select(`
@@ -55,7 +53,7 @@ export function useConnectionRequestsQuery() {
               source_form_name
             )
           `)
-          .order('updated_at', { ascending: false });
+          .order('created_at', { ascending: false });
 
         if (error) throw error;
 
