@@ -9,11 +9,14 @@ interface EnhancedInvestorDashboardProps {
 export function EnhancedInvestorDashboard({ listing, formatCurrency }: EnhancedInvestorDashboardProps) {
   const ebitdaMargin = listing.revenue > 0 ? ((listing.ebitda / listing.revenue) * 100) : 0;
   
+  // Check if employees data exists
+  const hasEmployees = (listing.full_time_employees && listing.full_time_employees > 0) || 
+                       (listing.part_time_employees && listing.part_time_employees > 0);
+  
   // Format employees display
   const employeesDisplay = () => {
     const ft = listing.full_time_employees || 0;
     const pt = listing.part_time_employees || 0;
-    if (ft === 0 && pt === 0) return 'Not specified';
     return `${ft}FT/${pt}PT`;
   };
 
@@ -41,7 +44,7 @@ export function EnhancedInvestorDashboard({ listing, formatCurrency }: EnhancedI
       {/* Financial Summary - Horizontal Layout */}
       <div className="space-y-4">
         <span className="document-label">Financial Summary</span>
-        <div className="grid grid-cols-4 gap-6">
+        <div className={`grid gap-6 ${hasEmployees ? 'grid-cols-4' : 'grid-cols-3'}`}>
           <div className="space-y-1">
             <span className="text-xs text-slate-500 uppercase tracking-wider">2024 Revenue</span>
             <div className="text-xl font-semibold text-slate-900">{formatCurrency(listing.revenue)}</div>
@@ -54,10 +57,12 @@ export function EnhancedInvestorDashboard({ listing, formatCurrency }: EnhancedI
             <span className="text-xs text-slate-500 uppercase tracking-wider">EBITDA Margin</span>
             <div className="text-xl font-semibold text-slate-900">{ebitdaMargin.toFixed(1)}%</div>
           </div>
-          <div className="space-y-1">
-            <span className="text-xs text-slate-500 uppercase tracking-wider">Employees</span>
-            <div className="text-xl font-semibold text-slate-900">{employeesDisplay()}</div>
-          </div>
+          {hasEmployees && (
+            <div className="space-y-1">
+              <span className="text-xs text-slate-500 uppercase tracking-wider">Employees</span>
+              <div className="text-xl font-semibold text-slate-900">{employeesDisplay()}</div>
+            </div>
+          )}
         </div>
       </div>
 
