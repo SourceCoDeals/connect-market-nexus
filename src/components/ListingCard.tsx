@@ -21,19 +21,22 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
   const { 
     useConnectionStatus, 
     useSaveListingMutation, 
-    useSavedStatus 
+    useSavedStatus, 
+    useRequestConnection 
   } = useMarketplace();
   
   const { data: connectionStatus } = useConnectionStatus(listing.id);
   const { data: isSaved = false } = useSavedStatus(listing.id);
   const { mutate: toggleSave, isPending: isSaving } = useSaveListingMutation();
+  const { mutate: requestConnection, isPending: isRequesting } = useRequestConnection();
   const { trackListingSave, trackConnectionRequest } = useAnalytics();
 
   const connectionExists = !!connectionStatus;
   
-  const handleRequestConnection = async (message: string) => {
+  const handleRequestConnection = (message: string) => {
     // Track the connection request attempt
     trackConnectionRequest(listing.id);
+    requestConnection({ listingId: listing.id, message });
   };
 
   const handleToggleSave = (e: React.MouseEvent) => {
@@ -110,7 +113,7 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
                   viewType={viewType}
                   connectionExists={connectionExists}
                   connectionStatus={connectionStatus?.status || 'none'}
-                  isRequesting={false}
+                  isRequesting={isRequesting}
                   isSaved={isSaved}
                   isSaving={isSaving}
                   handleToggleSave={handleToggleSave}
