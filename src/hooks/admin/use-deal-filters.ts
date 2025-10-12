@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Deal } from './use-deals';
+import { useMarketplaceCompanies } from './use-marketplace-companies';
 
 export type DealStatusFilter = 'all' | 'new_inquiry' | 'approved' | 'info_sent' | 'buyer_seller_call' | 'due_diligence' | 'loi_submitted' | 'closed';
 export type BuyerTypeFilter = 'all' | 'privateEquity' | 'familyOffice' | 'searchFund' | 'corporate' | 'individual' | 'independentSponsor' | 'advisor' | 'businessOwner';
@@ -21,6 +22,9 @@ export function useDealFilters(deals: Deal[], currentAdminId?: string) {
   const [createdDateRange, setCreatedDateRange] = useState<DateRangeFilter>({ start: null, end: null });
   const [lastActivityRange, setLastActivityRange] = useState<DateRangeFilter>({ start: null, end: null });
   const [sortOption, setSortOption] = useState<SortOption>('newest');
+
+  // Fetch all marketplace companies for comprehensive filtering
+  const { data: marketplaceCompanies } = useMarketplaceCompanies();
 
   const filteredAndSortedDeals = useMemo(() => {
     let filtered = deals;
@@ -166,42 +170,16 @@ export function useDealFilters(deals: Deal[], currentAdminId?: string) {
     return sorted;
   }, [deals, searchQuery, statusFilter, buyerTypeFilter, listingFilter, companyFilter, adminFilter, documentStatusFilter, createdDateRange, lastActivityRange, sortOption, currentAdminId]);
 
-  // Get unique BUYER companies for filter dropdown
+  // Get ALL marketplace companies for comprehensive filtering (not just companies in deals)
   const uniqueCompanies = useMemo(() => {
-    const companiesMap = new Map<string, { label: string; value: string; userCount: number; users: Set<string> }>();
+    if (!marketplaceCompanies || marketplaceCompanies.length === 0) {
+      return [];
+    }
     
-    deals.forEach(deal => {
-      const buyerCompany = deal.buyer_company?.trim();
-      const buyerName = deal.buyer_name;
-      const buyerId = deal.buyer_id;
-      
-      if (buyerCompany) {
-        if (!companiesMap.has(buyerCompany)) {
-          companiesMap.set(buyerCompany, {
-            label: buyerCompany,
-            value: buyerCompany,
-            userCount: 0,
-            users: new Set()
-          });
-        }
-        
-        // Track unique users from this company
-        const companyData = companiesMap.get(buyerCompany)!;
-        if (buyerId) {
-          companyData.users.add(buyerId);
-          companyData.userCount = companyData.users.size;
-        }
-      }
-    });
-    
-    // Convert to final format with user count if > 1
-    return Array.from(companiesMap.values())
-      .map(({ label, value, userCount }) => ({
-        label: userCount > 1 ? `${label} (${userCount} users)` : label,
-        value
-      }))
-      .sort((a, b) => a.label.localeCompare(b.label));
-  }, [deals]);
+    // marketplaceCompanies already returns the correct format with label, value, and userCount
+    // Just sort them alphabetically
+    return [...marketplaceCompanies].sort((a, b) => a.label.localeCompare(b.label));
+  }, [marketplaceCompanies]);
 
   // Get unique listings for filter dropdown (show real company name when available)
   const uniqueListings = useMemo(() => {
