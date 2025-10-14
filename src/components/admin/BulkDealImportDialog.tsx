@@ -463,7 +463,7 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
 
               {/* Preview Table */}
               <div className="border rounded-lg overflow-hidden">
-                <div className="max-h-96 overflow-y-auto">
+                <div className="max-h-96 overflow-y-auto overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead className="bg-muted sticky top-0">
                       <tr>
@@ -472,6 +472,9 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
                         <th className="px-3 py-2 text-left">Name</th>
                         <th className="px-3 py-2 text-left">Email</th>
                         <th className="px-3 py-2 text-left">Company</th>
+                        <th className="px-3 py-2 text-left">Phone</th>
+                        <th className="px-3 py-2 text-left">Role</th>
+                        <th className="px-3 py-2 text-left">Message</th>
                         <th className="px-3 py-2 text-left">Errors</th>
                       </tr>
                     </thead>
@@ -489,9 +492,14 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
                             )}
                           </td>
                           <td className="px-3 py-2">{deal.csvRowNumber}</td>
-                          <td className="px-3 py-2">{deal.name}</td>
-                          <td className="px-3 py-2">{deal.email}</td>
-                          <td className="px-3 py-2">{deal.companyName || '-'}</td>
+                          <td className="px-3 py-2 whitespace-nowrap">{deal.name}</td>
+                          <td className="px-3 py-2 whitespace-nowrap">{deal.email}</td>
+                          <td className="px-3 py-2 whitespace-nowrap">{deal.companyName || '-'}</td>
+                          <td className="px-3 py-2 whitespace-nowrap">{deal.phoneNumber || '-'}</td>
+                          <td className="px-3 py-2 whitespace-nowrap">{deal.role || '-'}</td>
+                          <td className="px-3 py-2 max-w-xs truncate" title={deal.message}>
+                            {deal.message || '-'}
+                          </td>
                           <td className="px-3 py-2 text-xs text-destructive">
                             {deal.errors.join(', ')}
                           </td>
