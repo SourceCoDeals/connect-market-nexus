@@ -8,6 +8,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import Papa from 'papaparse';
 import { parse } from 'date-fns';
+import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 import { useAdminListings } from '@/hooks/admin/use-admin-listings';
 import { DuplicateResolutionDialog } from './DuplicateResolutionDialog';
 import type { ImportResult } from '@/hooks/admin/use-bulk-deal-import';
@@ -208,15 +210,106 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
     onClose();
   };
 
-  const handleDuplicateAction = (action: 'skip' | 'merge' | 'replace' | 'create') => {
-    // TODO: Implement duplicate resolution actions
-    console.log(`Duplicate action: ${action} for duplicate at index ${currentDuplicateIndex}`);
+  const handleDuplicateAction = async (action: 'skip' | 'merge' | 'replace' | 'create') => {
+    if (!importResult) return;
     
+    const currentDuplicate = importResult.details.duplicates[currentDuplicateIndex];
+    if (!currentDuplicate) return;
+
+    const { deal, duplicateInfo } = currentDuplicate;
+
+    try {
+      switch (action) {
+        case 'skip':
+          // Do nothing, just skip
+          toast.info('Skipped duplicate entry');
+          break;
+
+        case 'merge':
+          // Append new message to existing request
+          const existingMessage = duplicateInfo.existingMessage || '';
+          const newMessage = `${existingMessage}\n\n--- Additional inquiry (${deal.date?.toLocaleDateString() || 'unknown date'}) ---\n${deal.message}`;
+          
+          const { error: mergeError } = await supabase
+            .from('connection_requests')
+            .update({
+              user_message: newMessage,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', duplicateInfo.existingRequestId);
+
+          if (mergeError) throw mergeError;
+          toast.success('Messages merged successfully');
+          break;
+
+        case 'replace':
+          // Replace existing request data with new CSV data
+          const { error: replaceError } = await supabase
+            .from('connection_requests')
+            .update({
+              user_message: deal.message,
+              lead_role: deal.role,
+              lead_phone: deal.phoneNumber || null,
+              lead_company: deal.companyName || null,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', duplicateInfo.existingRequestId);
+
+          if (replaceError) throw replaceError;
+          toast.success('Request replaced successfully');
+          break;
+
+        case 'create':
+          // Create new request anyway (force duplicate)
+          const { data: { user } } = await supabase.auth.getUser();
+          if (!user) throw new Error('Not authenticated');
+
+          // Check if user exists in profiles
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('id, email, company, nda_signed, fee_agreement_signed')
+            .eq('email', deal.email)
+            .maybeSingle();
+
+          const { error: createError } = await supabase
+            .from('connection_requests')
+            .insert({
+              listing_id: selectedListingId,
+              user_id: profile?.id || null,
+              lead_email: profile ? null : deal.email,
+              lead_name: profile ? null : deal.name,
+              lead_company: profile ? null : deal.companyName,
+              lead_phone: profile ? null : deal.phoneNumber,
+              lead_role: deal.role,
+              user_message: deal.message,
+              source: 'website',
+              source_metadata: {
+                import_method: 'csv_bulk_upload',
+                csv_filename: fileName,
+                csv_row_number: deal.csvRowNumber,
+                import_date: new Date().toISOString(),
+                imported_by_admin_id: user.id,
+                forced_duplicate: true,
+              },
+              created_at: deal.date?.toISOString() || new Date().toISOString(),
+            });
+
+          if (createError) throw createError;
+          toast.success('Created new request (duplicate allowed)');
+          break;
+      }
+    } catch (error: any) {
+      toast.error('Failed to process duplicate', {
+        description: error.message,
+      });
+    }
+
     // Move to next duplicate or close
-    if (importResult && currentDuplicateIndex < importResult.details.duplicates.length - 1) {
+    if (currentDuplicateIndex < importResult.details.duplicates.length - 1) {
       setCurrentDuplicateIndex(currentDuplicateIndex + 1);
     } else {
       setShowDuplicateDialog(false);
+      toast.success('All duplicates processed');
     }
   };
 
