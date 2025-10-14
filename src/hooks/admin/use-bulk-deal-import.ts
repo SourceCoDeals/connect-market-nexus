@@ -227,28 +227,29 @@ export function useBulkDealImport() {
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['admin-connection-requests'] });
       queryClient.invalidateQueries({ queryKey: ['deals'] });
+      queryClient.invalidateQueries({ queryKey: ['connection-requests'] });
 
       if (result.imported > 0) {
         toast.success(
           `Successfully imported ${result.imported} connection request(s)`,
           {
             description: result.duplicates > 0 
-              ? `Skipped ${result.duplicates} duplicate(s)` 
-              : undefined,
+              ? `Found ${result.duplicates} duplicate(s) to review` 
+              : 'Connection requests and deals created',
           }
         );
       }
 
       if (result.errors > 0) {
         toast.error(`Failed to import ${result.errors} row(s)`, {
-          description: 'Check console for details',
+          description: 'See error details in the import summary',
         });
         console.error('Import errors:', result.details.errors);
       }
 
       if (result.duplicates > 0 && result.imported === 0) {
         toast.warning(`All ${result.duplicates} entries were duplicates`, {
-          description: 'No new requests were created',
+          description: 'Review duplicates to decide how to handle them',
         });
       }
     },

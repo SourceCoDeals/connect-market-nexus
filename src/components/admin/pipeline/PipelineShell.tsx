@@ -41,12 +41,18 @@ export function PipelineShell() {
   };
 
   const handleBulkImport = async (data: any) => {
-    const result = await bulkImport(data);
-    // Don't close immediately if there are duplicates to resolve
-    if (!result || result.details.duplicates.length === 0) {
-      setIsBulkImportOpen(false);
+    try {
+      const result = await bulkImport(data);
+      // Only close if there are NO duplicates to resolve
+      // The dialog will stay open if there are duplicates to handle
+      if (result && result.details.duplicates.length === 0) {
+        setIsBulkImportOpen(false);
+      }
+      return result;
+    } catch (error) {
+      console.error('Bulk import error:', error);
+      return undefined;
     }
-    return result;
   };
 
   // Listen for stage management open event

@@ -377,7 +377,7 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Bulk Import Connection Requests</DialogTitle>
         </DialogHeader>
