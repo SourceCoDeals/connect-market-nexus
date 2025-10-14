@@ -468,8 +468,8 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
             </Alert>
           )}
 
-          {/* Step 3: Preview */}
-          {parsedDeals.length > 0 && (
+          {/* Step 3: Preview - Only show if import hasn't completed */}
+          {parsedDeals.length > 0 && !importResult && (
             <div className="space-y-4 flex-shrink-0">
               <div>
                 <Label>Step 3: Preview & Validate</Label>
@@ -487,28 +487,27 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
                 </div>
               </div>
 
-              {/* Preview Table - Scrollable independently */}
+              {/* Compact Preview Table */}
               <div className="border rounded-lg overflow-hidden">
                 <div className="max-h-[300px] overflow-x-auto overflow-y-auto">
                   <table className="w-full text-sm">
                     <thead className="bg-muted sticky top-0">
                       <tr>
-                        <th className="px-3 py-2 text-left">Status</th>
-                        <th className="px-3 py-2 text-left">Row</th>
+                        <th className="px-3 py-2 text-left w-12">Status</th>
+                        <th className="px-3 py-2 text-left w-16">Row</th>
                         <th className="px-3 py-2 text-left">Name</th>
                         <th className="px-3 py-2 text-left">Email</th>
                         <th className="px-3 py-2 text-left">Company</th>
                         <th className="px-3 py-2 text-left">Phone</th>
-                        <th className="px-3 py-2 text-left">Role</th>
-                        <th className="px-3 py-2 text-left">Message</th>
-                        <th className="px-3 py-2 text-left">Errors</th>
+                        <th className="px-3 py-2 text-left w-32">Role</th>
+                        <th className="px-3 py-2 text-left max-w-xs">Message</th>
                       </tr>
                     </thead>
                     <tbody>
                       {parsedDeals.map((deal, index) => (
                         <tr
                           key={index}
-                          className={deal.isValid ? '' : 'bg-destructive/10'}
+                          className={deal.isValid ? 'hover:bg-muted/50' : 'bg-destructive/10'}
                         >
                           <td className="px-3 py-2">
                             {deal.isValid ? (
@@ -517,17 +516,18 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
                               <AlertCircle className="w-4 h-4 text-destructive" />
                             )}
                           </td>
-                          <td className="px-3 py-2">{deal.csvRowNumber}</td>
-                          <td className="px-3 py-2 whitespace-nowrap">{deal.name}</td>
-                          <td className="px-3 py-2 whitespace-nowrap">{deal.email}</td>
-                          <td className="px-3 py-2 whitespace-nowrap">{deal.companyName || '-'}</td>
-                          <td className="px-3 py-2 whitespace-nowrap">{deal.phoneNumber || '-'}</td>
-                          <td className="px-3 py-2 whitespace-nowrap">{deal.role || '-'}</td>
-                          <td className="px-3 py-2 max-w-xs truncate" title={deal.message}>
-                            {deal.message || '-'}
+                          <td className="px-3 py-2 text-muted-foreground">{deal.csvRowNumber}</td>
+                          <td className="px-3 py-2 font-medium">{deal.name}</td>
+                          <td className="px-3 py-2 text-muted-foreground">{deal.email}</td>
+                          <td className="px-3 py-2">{deal.companyName || '—'}</td>
+                          <td className="px-3 py-2 text-muted-foreground">{deal.phoneNumber || '—'}</td>
+                          <td className="px-3 py-2 text-xs">
+                            <Badge variant="outline" className="text-xs font-normal">
+                              {deal.role || '—'}
+                            </Badge>
                           </td>
-                          <td className="px-3 py-2 text-xs text-destructive">
-                            {deal.errors.join(', ')}
+                          <td className="px-3 py-2 max-w-xs truncate text-muted-foreground" title={deal.message}>
+                            {deal.message || '—'}
                           </td>
                         </tr>
                       ))}
@@ -535,62 +535,117 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
                   </table>
                 </div>
               </div>
+              
+              {/* Show validation errors if any */}
+              {invalidCount > 0 && (
+                <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-4">
+                  <div className="text-sm font-medium text-destructive mb-2">
+                    {invalidCount} Invalid Row{invalidCount > 1 ? 's' : ''}
+                  </div>
+                  <div className="text-xs space-y-1 text-muted-foreground max-h-24 overflow-y-auto">
+                    {parsedDeals
+                      .filter(d => !d.isValid)
+                      .map((deal, i) => (
+                        <div key={i}>
+                          Row {deal.csvRowNumber}: {deal.errors.join(', ')}
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
-          {/* Import Results Summary */}
+          {/* Import Results - Elegant Success State */}
           {importResult && (
-            <Alert>
-              <Info className="h-4 w-4" />
-              <AlertDescription>
-                <div className="space-y-2">
-                  <div className="font-medium">Import Complete</div>
-                  <div className="text-sm space-y-1">
-                    <div>✅ {importResult.imported} successfully imported</div>
-                    <div>⚠️ {importResult.duplicates} duplicates detected</div>
-                    <div>❌ {importResult.errors} errors</div>
-                  </div>
-                  {importResult.details.imported.some(i => i.linkedToUser) && (
-                    <div className="text-sm mt-2 pt-2 border-t space-y-1">
-                      <div className="font-medium">
-                        🔗 {importResult.details.imported.filter(i => i.linkedToUser).length} requests linked to existing users:
-                      </div>
-                      <div className="text-xs space-y-0.5 max-h-32 overflow-y-auto text-muted-foreground">
-                        {importResult.details.imported
-                          .filter(i => i.linkedToUser)
-                          .map((imp, i) => (
-                            <div key={i} className="flex items-center gap-2">
-                              <span>•</span>
-                              <span className="font-medium text-foreground">{imp.userName || imp.userEmail}</span>
-                              {imp.userCompany && (
-                                <>
-                                  <span>-</span>
-                                  <span>{imp.userCompany}</span>
-                                </>
-                              )}
-                              <span className="text-muted-foreground/70">
-                                (NDA/Fee synced)
-                              </span>
-                            </div>
-                          ))}
-                      </div>
-                    </div>
-                  )}
-                  {importResult.details.errors.length > 0 && (
-                    <div className="mt-2 pt-2 border-t">
-                      <div className="text-sm font-medium mb-1">Error Details:</div>
-                      <div className="text-xs space-y-1 max-h-32 overflow-y-auto">
-                        {importResult.details.errors.map((err, i) => (
-                          <div key={i} className="text-destructive">
-                            Row {err.deal.csvRowNumber}: {err.error}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+            <div className="space-y-6 py-2">
+              {/* Success Header */}
+              <div className="text-center space-y-2">
+                <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-green-100 dark:bg-green-900/20">
+                  <CheckCircle2 className="w-6 h-6 text-green-600 dark:text-green-400" />
                 </div>
-              </AlertDescription>
-            </Alert>
+                <h3 className="text-lg font-semibold">Import Complete</h3>
+                <p className="text-sm text-muted-foreground">
+                  {importResult.imported} connection request{importResult.imported !== 1 ? 's' : ''} successfully imported
+                </p>
+              </div>
+
+              {/* Stats Grid */}
+              <div className="grid grid-cols-3 gap-4">
+                <div className="rounded-lg border bg-card p-4 text-center space-y-1">
+                  <div className="text-2xl font-semibold text-green-600 dark:text-green-400">
+                    {importResult.imported}
+                  </div>
+                  <div className="text-xs text-muted-foreground">Imported</div>
+                </div>
+                
+                {importResult.duplicates > 0 && (
+                  <div className="rounded-lg border bg-card p-4 text-center space-y-1">
+                    <div className="text-2xl font-semibold text-orange-600 dark:text-orange-400">
+                      {importResult.duplicates}
+                    </div>
+                    <div className="text-xs text-muted-foreground">Duplicates</div>
+                  </div>
+                )}
+                
+                {importResult.errors > 0 && (
+                  <div className="rounded-lg border bg-card p-4 text-center space-y-1">
+                    <div className="text-2xl font-semibold text-destructive">
+                      {importResult.errors}
+                    </div>
+                    <div className="text-xs text-muted-foreground">Errors</div>
+                  </div>
+                )}
+              </div>
+
+              {/* Linked Users Section */}
+              {importResult.details.imported.some(i => i.linkedToUser) && (
+                <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
+                  <div className="flex items-center gap-2 text-sm font-medium">
+                    <div className="w-2 h-2 rounded-full bg-primary"></div>
+                    <span>
+                      {importResult.details.imported.filter(i => i.linkedToUser).length} Linked to Existing Users
+                    </span>
+                  </div>
+                  <div className="space-y-2 max-h-32 overflow-y-auto">
+                    {importResult.details.imported
+                      .filter(i => i.linkedToUser)
+                      .map((imp, i) => (
+                        <div key={i} className="flex items-center justify-between text-sm py-2 px-3 rounded-md bg-background/50">
+                          <div className="flex items-center gap-2">
+                            <div className="font-medium">{imp.userName || imp.userEmail}</div>
+                            {imp.userCompany && (
+                              <>
+                                <span className="text-muted-foreground">·</span>
+                                <span className="text-muted-foreground">{imp.userCompany}</span>
+                              </>
+                            )}
+                          </div>
+                          <Badge variant="secondary" className="text-xs">
+                            NDA/Fee Synced
+                          </Badge>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Error Details */}
+              {importResult.details.errors.length > 0 && (
+                <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-4 space-y-3">
+                  <div className="text-sm font-medium text-destructive">
+                    Error Details
+                  </div>
+                  <div className="space-y-1 max-h-32 overflow-y-auto text-xs text-muted-foreground">
+                    {importResult.details.errors.map((err, i) => (
+                      <div key={i} className="py-1">
+                        <span className="font-medium">Row {err.deal.csvRowNumber}:</span> {err.error}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           )}
 
           {/* Actions */}
