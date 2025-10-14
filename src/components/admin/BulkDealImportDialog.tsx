@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAdminListings } from '@/hooks/admin/use-admin-listings';
 import { DuplicateResolutionDialog } from './DuplicateResolutionDialog';
+import { BulkDuplicateDialog } from './BulkDuplicateDialog';
 import type { ImportResult } from '@/hooks/admin/use-bulk-deal-import';
 import {
   Select,
@@ -52,7 +53,9 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
   const [fileName, setFileName] = useState('');
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
+  const [showBulkDuplicateDialog, setShowBulkDuplicateDialog] = useState(false);
   const [currentDuplicateIndex, setCurrentDuplicateIndex] = useState(0);
+  const [skipAllDuplicates, setSkipAllDuplicates] = useState(false);
   
   const { useListings } = useAdminListings();
   const { data: listings } = useListings();
@@ -275,7 +278,9 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
     setFileName('');
     setImportResult(null);
     setShowDuplicateDialog(false);
+    setShowBulkDuplicateDialog(false);
     setCurrentDuplicateIndex(0);
+    setSkipAllDuplicates(false);
     onClose();
   };
 
@@ -286,6 +291,22 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
     if (!currentDuplicate) return;
 
     const { deal, duplicateInfo } = currentDuplicate;
+    
+    // Helper to move to next duplicate
+    const moveToNextDuplicate = () => {
+      if (currentDuplicateIndex < importResult.details.duplicates.length - 1) {
+        setCurrentDuplicateIndex(currentDuplicateIndex + 1);
+      } else {
+        setShowDuplicateDialog(false);
+        toast.success('All duplicates processed');
+      }
+    };
+    
+    // If skip all duplicates mode is on, just skip
+    if (skipAllDuplicates && action === 'skip') {
+      moveToNextDuplicate();
+      return;
+    }
 
     try {
       switch (action) {
@@ -374,13 +395,8 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
       });
     }
 
-    // Move to next duplicate or close
-    if (currentDuplicateIndex < importResult.details.duplicates.length - 1) {
-      setCurrentDuplicateIndex(currentDuplicateIndex + 1);
-    } else {
-      setShowDuplicateDialog(false);
-      toast.success('All duplicates processed');
-    }
+    // Move to next duplicate
+    moveToNextDuplicate();
   };
 
   const validCount = parsedDeals.filter((d) => d.isValid).length;
@@ -593,7 +609,26 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
         </div>
       </DialogContent>
 
-      {/* Duplicate Resolution Dialog */}
+      {/* Bulk Duplicate Warning Dialog */}
+      {importResult && importResult.details.duplicates.length > 0 && (
+        <BulkDuplicateDialog
+          isOpen={showBulkDuplicateDialog}
+          onClose={() => setShowBulkDuplicateDialog(false)}
+          duplicates={importResult.details.duplicates}
+          onSkipAll={() => {
+            setSkipAllDuplicates(true);
+            setShowBulkDuplicateDialog(false);
+            toast.info(`Skipped all ${importResult.details.duplicates.length} duplicates`);
+          }}
+          onReviewIndividually={() => {
+            setShowBulkDuplicateDialog(false);
+            setShowDuplicateDialog(true);
+            setCurrentDuplicateIndex(0);
+          }}
+        />
+      )}
+
+      {/* Individual Duplicate Resolution Dialog */}
       {importResult && importResult.details.duplicates.length > 0 && (
         <DuplicateResolutionDialog
           isOpen={showDuplicateDialog}
