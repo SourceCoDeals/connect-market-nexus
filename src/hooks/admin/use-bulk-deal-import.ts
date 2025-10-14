@@ -19,14 +19,46 @@ interface BulkImportData {
   fileName: string;
 }
 
-interface ImportResult {
+export type DuplicateType = 
+  | 'exact_user_and_listing' 
+  | 'lead_email_and_listing' 
+  | 'same_company_different_email'
+  | 'cross_source_inbound_lead';
+
+export interface DuplicateInfo {
+  type: DuplicateType;
+  existingRequestId: string;
+  existingStatus: string;
+  existingMessage?: string;
+  existingCreatedAt?: string;
+  userProfile?: {
+    id: string;
+    email: string;
+    company: string;
+  };
+}
+
+export interface ImportResult {
   imported: number;
   duplicates: number;
   errors: number;
+  skipped: number;
   details: {
-    imported: any[];
-    duplicates: any[];
-    errors: any[];
+    imported: Array<{
+      deal: BulkImportDeal;
+      connectionRequestId: string;
+      dealId?: string;
+      linkedToUser: boolean;
+      userId?: string;
+    }>;
+    duplicates: Array<{
+      deal: BulkImportDeal;
+      duplicateInfo: DuplicateInfo;
+    }>;
+    errors: Array<{
+      deal: BulkImportDeal;
+      error: string;
+    }>;
   };
 }
 
@@ -42,6 +74,7 @@ export function useBulkDealImport() {
         imported: 0,
         duplicates: 0,
         errors: 0,
+        skipped: 0,
         details: {
           imported: [],
           duplicates: [],
@@ -51,38 +84,100 @@ export function useBulkDealImport() {
 
       for (const deal of data.deals) {
         try {
-          // 1. Check if user exists in profiles
+          // ===== LEVEL 1: Check if user exists in profiles =====
           const { data: profile } = await supabase
             .from('profiles')
-            .select('id, nda_signed, fee_agreement_signed')
+            .select('id, email, company, nda_signed, fee_agreement_signed, nda_email_sent, fee_agreement_email_sent')
             .eq('email', deal.email)
             .maybeSingle();
 
-          // 2. Check for duplicates
-          let duplicateQuery = supabase
+          // ===== LEVEL 2 & 3: Check for duplicate connection requests =====
+          const { data: existingRequests } = await supabase
             .from('connection_requests')
-            .select('id, status, user_message')
-            .eq('listing_id', data.listingId);
+            .select('id, status, user_message, created_at, user_id, lead_email')
+            .eq('listing_id', data.listingId)
+            .or(
+              profile?.id 
+                ? `user_id.eq.${profile.id},lead_email.eq.${deal.email}`
+                : `lead_email.eq.${deal.email}`
+            );
 
-          if (profile?.id) {
-            duplicateQuery = duplicateQuery.eq('user_id', profile.id);
-          } else {
-            duplicateQuery = duplicateQuery.eq('lead_email', deal.email);
-          }
+          if (existingRequests && existingRequests.length > 0) {
+            const existingRequest = existingRequests[0];
+            const duplicateType: DuplicateType = 
+              existingRequest.user_id === profile?.id 
+                ? 'exact_user_and_listing' 
+                : 'lead_email_and_listing';
 
-          const { data: existingRequest } = await duplicateQuery.maybeSingle();
-
-          if (existingRequest) {
             result.duplicates++;
             result.details.duplicates.push({
               deal,
-              existingRequestId: existingRequest.id,
-              existingStatus: existingRequest.status,
+              duplicateInfo: {
+                type: duplicateType,
+                existingRequestId: existingRequest.id,
+                existingStatus: existingRequest.status,
+                existingMessage: existingRequest.user_message,
+                existingCreatedAt: existingRequest.created_at,
+                userProfile: profile ? {
+                  id: profile.id,
+                  email: profile.email,
+                  company: profile.company || deal.companyName,
+                } : undefined,
+              },
             });
             continue;
           }
 
-          // 3. Insert connection request
+          // ===== LEVEL 4: Check for same company + same listing (different email) =====
+          if (deal.companyName && deal.companyName.length > 3) {
+            const { data: companyRequests } = await supabase
+              .from('connection_requests')
+              .select('id, status, user_message, created_at, lead_email, lead_company')
+              .eq('listing_id', data.listingId)
+              .ilike('lead_company', `%${deal.companyName}%`)
+              .neq('lead_email', deal.email)
+              .limit(1);
+
+            if (companyRequests && companyRequests.length > 0) {
+              const companyRequest = companyRequests[0];
+              result.duplicates++;
+              result.details.duplicates.push({
+                deal,
+                duplicateInfo: {
+                  type: 'same_company_different_email',
+                  existingRequestId: companyRequest.id,
+                  existingStatus: companyRequest.status,
+                  existingMessage: companyRequest.user_message,
+                  existingCreatedAt: companyRequest.created_at,
+                },
+              });
+              continue;
+            }
+          }
+
+          // ===== LEVEL 5: Check cross-source from inbound_leads =====
+          const { data: inboundLeads } = await supabase
+            .from('inbound_leads')
+            .select('id, email, converted_to_request_id, mapped_to_listing_id')
+            .eq('email', deal.email)
+            .not('converted_to_request_id', 'is', null)
+            .limit(1);
+
+          if (inboundLeads && inboundLeads.length > 0 && inboundLeads[0].mapped_to_listing_id === data.listingId) {
+            const inboundLead = inboundLeads[0];
+            result.duplicates++;
+            result.details.duplicates.push({
+              deal,
+              duplicateInfo: {
+                type: 'cross_source_inbound_lead',
+                existingRequestId: inboundLead.converted_to_request_id!,
+                existingStatus: 'converted_from_inbound_lead',
+              },
+            });
+            continue;
+          }
+
+          // ===== NO DUPLICATES: Insert new connection request =====
           const { data: newRequest, error } = await supabase
             .from('connection_requests')
             .insert({
@@ -102,6 +197,7 @@ export function useBulkDealImport() {
                 import_date: new Date().toISOString(),
                 imported_by_admin_id: user.id,
               },
+              // Use CSV date if available, otherwise current time
               created_at: deal.date?.toISOString() || new Date().toISOString(),
             })
             .select()
@@ -110,7 +206,13 @@ export function useBulkDealImport() {
           if (error) throw error;
 
           result.imported++;
-          result.details.imported.push(newRequest);
+          result.details.imported.push({
+            deal,
+            connectionRequestId: newRequest.id,
+            linkedToUser: !!profile?.id,
+            userId: profile?.id,
+          });
+
         } catch (error: any) {
           result.errors++;
           result.details.errors.push({

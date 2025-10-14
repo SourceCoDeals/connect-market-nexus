@@ -41,8 +41,12 @@ export function PipelineShell() {
   };
 
   const handleBulkImport = async (data: any) => {
-    await bulkImport(data);
-    setIsBulkImportOpen(false);
+    const result = await bulkImport(data);
+    // Don't close immediately if there are duplicates to resolve
+    if (!result || result.details.duplicates.length === 0) {
+      setIsBulkImportOpen(false);
+    }
+    return result;
   };
 
   // Listen for stage management open event

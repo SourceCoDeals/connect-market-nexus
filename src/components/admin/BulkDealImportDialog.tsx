@@ -3,11 +3,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { AlertCircle, CheckCircle2, Upload, AlertTriangle } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Upload, AlertTriangle, Info } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
 import Papa from 'papaparse';
 import { parse } from 'date-fns';
 import { useAdminListings } from '@/hooks/admin/use-admin-listings';
+import { DuplicateResolutionDialog } from './DuplicateResolutionDialog';
+import type { ImportResult } from '@/hooks/admin/use-bulk-deal-import';
 import {
   Select,
   SelectContent,
@@ -19,7 +22,7 @@ import {
 interface BulkDealImportDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onConfirm: (data: any) => void;
+  onConfirm: (data: any) => Promise<ImportResult | void>;
   isLoading: boolean;
 }
 
@@ -42,6 +45,9 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
   const [parsedDeals, setParsedDeals] = useState<ParsedDeal[]>([]);
   const [parseErrors, setParseErrors] = useState<string[]>([]);
   const [fileName, setFileName] = useState('');
+  const [importResult, setImportResult] = useState<ImportResult | null>(null);
+  const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
+  const [currentDuplicateIndex, setCurrentDuplicateIndex] = useState(0);
   
   const { useListings } = useAdminListings();
   const { data: listings } = useListings();
@@ -166,18 +172,28 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
     }
   };
 
-  const handleImport = () => {
+  const handleImport = async () => {
     const validDeals = parsedDeals.filter((d) => d.isValid);
     if (validDeals.length === 0) {
       setParseErrors(['No valid deals to import']);
       return;
     }
 
-    onConfirm({
+    const result = await onConfirm({
       listingId: selectedListingId,
       deals: validDeals,
       fileName,
     });
+
+    if (result) {
+      setImportResult(result);
+      
+      // If there are duplicates, show resolution dialog
+      if (result.details.duplicates.length > 0) {
+        setCurrentDuplicateIndex(0);
+        setShowDuplicateDialog(true);
+      }
+    }
   };
 
   const handleClose = () => {
@@ -186,7 +202,22 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
     setParseErrors([]);
     setSelectedListingId('');
     setFileName('');
+    setImportResult(null);
+    setShowDuplicateDialog(false);
+    setCurrentDuplicateIndex(0);
     onClose();
+  };
+
+  const handleDuplicateAction = (action: 'skip' | 'merge' | 'replace' | 'create') => {
+    // TODO: Implement duplicate resolution actions
+    console.log(`Duplicate action: ${action} for duplicate at index ${currentDuplicateIndex}`);
+    
+    // Move to next duplicate or close
+    if (importResult && currentDuplicateIndex < importResult.details.duplicates.length - 1) {
+      setCurrentDuplicateIndex(currentDuplicateIndex + 1);
+    } else {
+      setShowDuplicateDialog(false);
+    }
   };
 
   const validCount = parsedDeals.filter((d) => d.isValid).length;
@@ -318,6 +349,28 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
             </div>
           )}
 
+          {/* Import Results Summary */}
+          {importResult && (
+            <Alert>
+              <Info className="h-4 w-4" />
+              <AlertDescription>
+                <div className="space-y-1">
+                  <div className="font-medium">Import Complete</div>
+                  <div className="text-sm text-muted-foreground">
+                    ✅ {importResult.imported} imported • 
+                    ⚠️ {importResult.duplicates} duplicates • 
+                    ❌ {importResult.errors} errors
+                  </div>
+                  {importResult.details.imported.some(i => i.linkedToUser) && (
+                    <div className="text-sm text-muted-foreground mt-2">
+                      🔗 {importResult.details.imported.filter(i => i.linkedToUser).length} requests linked to existing marketplace users
+                    </div>
+                  )}
+                </div>
+              </AlertDescription>
+            </Alert>
+          )}
+
           {/* Actions */}
           <div className="flex justify-end gap-2 pt-4 border-t">
             <Button variant="outline" onClick={handleClose} disabled={isLoading}>
@@ -332,6 +385,19 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
           </div>
         </div>
       </DialogContent>
+
+      {/* Duplicate Resolution Dialog */}
+      {importResult && importResult.details.duplicates.length > 0 && (
+        <DuplicateResolutionDialog
+          isOpen={showDuplicateDialog}
+          onClose={() => setShowDuplicateDialog(false)}
+          duplicate={importResult.details.duplicates[currentDuplicateIndex]}
+          onSkip={() => handleDuplicateAction('skip')}
+          onMerge={() => handleDuplicateAction('merge')}
+          onReplace={() => handleDuplicateAction('replace')}
+          onCreateAnyway={() => handleDuplicateAction('create')}
+        />
+      )}
     </Dialog>
   );
 }
