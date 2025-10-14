@@ -118,8 +118,9 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
     }
   };
 
-  // Fix buyer type detection - use actual buyer_type from profiles
-  const actualBuyerType = deal.buyer_type;
+  // Fix buyer type detection - use buyer_type from profiles OR contact_role from deal
+  // For CSV imports without user profiles, contact_role contains the lead_role
+  const actualBuyerType = deal.buyer_type || deal.contact_role;
 
   // Task calculation using real task data only
   const getTaskInfo = () => {
