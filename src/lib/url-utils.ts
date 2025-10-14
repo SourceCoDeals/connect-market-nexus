@@ -82,24 +82,54 @@ export const mapRoleToBuyerType = (role: string | null | undefined): string => {
   }
 
   const normalizedRole = role.toLowerCase().trim();
+  // Tokenize to avoid false positives (e.g., 'independent' contains 'pe')
+  const tokens = new Set((normalizedRole.match(/[a-z]+/g) || []));
   
-  // Handle database format (e.g., "privateEquity")
-  if (normalizedRole === 'privateequity' || normalizedRole.includes('private equity') || normalizedRole.includes('pe') || normalizedRole === 'pe') {
+  // Private Equity
+  if (
+    normalizedRole === 'privateequity' ||
+    normalizedRole.includes('private equity') ||
+    tokens.has('pe')
+  ) {
     return 'PE';
   }
-  if (normalizedRole === 'familyoffice' || normalizedRole.includes('family office') || normalizedRole.includes('fo') || normalizedRole === 'fo') {
+  // Family Office
+  if (
+    normalizedRole === 'familyoffice' ||
+    normalizedRole.includes('family office') ||
+    tokens.has('fo')
+  ) {
     return 'FO';
   }
-  if (normalizedRole === 'searchfund' || normalizedRole.includes('search fund') || normalizedRole.includes('sf') || normalizedRole === 'sf') {
+  // Search Fund
+  if (
+    normalizedRole === 'searchfund' ||
+    normalizedRole.includes('search fund') ||
+    tokens.has('sf')
+  ) {
     return 'SF';
   }
-  if (normalizedRole === 'corporate' || normalizedRole.includes('corporate') || normalizedRole.includes('corp')) {
+  // Corporate
+  if (
+    normalizedRole === 'corporate' ||
+    normalizedRole.includes('corporate') ||
+    tokens.has('corp')
+  ) {
     return 'Corp';
   }
-  if (normalizedRole === 'independentsponsor' || normalizedRole.includes('independent sponsor') || normalizedRole.includes('is') || normalizedRole === 'independent sponsor') {
+  // Independent Sponsor
+  if (
+    normalizedRole === 'independentsponsor' ||
+    normalizedRole.includes('independent sponsor')
+  ) {
     return 'IS';
   }
-  if (normalizedRole === 'individual' || normalizedRole.includes('individual') || normalizedRole.includes('investor')) {
+  // Individual / Investor
+  if (
+    normalizedRole === 'individual' ||
+    normalizedRole.includes('individual') ||
+    normalizedRole.includes('investor')
+  ) {
     return 'Individual';
   }
   
@@ -115,23 +145,30 @@ export const getLeadTierInfo = (role: string | null | undefined) => {
   }
 
   const normalizedRole = role.toLowerCase().trim();
+  const tokens = new Set((normalizedRole.match(/[a-z]+/g) || []));
   
-  if (normalizedRole.includes('private equity') || normalizedRole.includes('pe') || normalizedRole === 'pe') {
+  // Private Equity
+  if (normalizedRole === 'privateequity' || normalizedRole.includes('private equity') || tokens.has('pe')) {
     return { tier: 1, badge: '1', color: 'text-emerald-500', description: 'Private Equity' };
   }
-  if (normalizedRole.includes('family office') || normalizedRole.includes('fo') || normalizedRole === 'fo') {
+  // Family Office
+  if (normalizedRole === 'familyoffice' || normalizedRole.includes('family office') || tokens.has('fo')) {
     return { tier: 2, badge: '2', color: 'text-blue-600', description: 'Family Office' };
   }
-  if (normalizedRole.includes('independent sponsor') || normalizedRole.includes('is') || normalizedRole === 'independent sponsor') {
+  // Independent Sponsor
+  if (normalizedRole === 'independentsponsor' || normalizedRole.includes('independent sponsor')) {
     return { tier: 3, badge: '3', color: 'text-purple-600', description: 'Independent Sponsor' };
   }
-  if (normalizedRole.includes('corporate') || normalizedRole.includes('corp')) {
+  // Corporate
+  if (normalizedRole === 'corporate' || normalizedRole.includes('corporate') || tokens.has('corp')) {
     return { tier: 3, badge: '3', color: 'text-amber-600', description: 'Corporate' };
   }
-  if (normalizedRole.includes('search fund') || normalizedRole.includes('sf') || normalizedRole === 'sf') {
+  // Search Fund
+  if (normalizedRole === 'searchfund' || normalizedRole.includes('search fund') || tokens.has('sf')) {
     return { tier: 4, badge: '4', color: 'text-orange-600', description: 'Search Fund' };
   }
-  if (normalizedRole.includes('individual') || normalizedRole.includes('investor')) {
+  // Individual / Investor
+  if (normalizedRole === 'individual' || normalizedRole.includes('individual') || normalizedRole.includes('investor')) {
     return { tier: 5, badge: '5', color: 'text-gray-600', description: 'Individual' };
   }
   

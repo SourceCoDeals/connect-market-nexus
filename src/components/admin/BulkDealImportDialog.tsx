@@ -114,19 +114,29 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
   };
 
   const mapRole = (role: string): string => {
-    const roleMap: Record<string, string> = {
-      'private equity': 'privateEquity',
-      'family office': 'familyOffice',
-      'independent sponsor': 'independentSponsor',
-      'search fund': 'searchFund',
-      'corporate': 'corporate',
-      'individual': 'individual',
-      'other': 'other',
-    };
     const normalized = role?.toLowerCase().trim() || '';
-    return roleMap[normalized] || 'other';
-  };
+    const tokens = new Set((normalized.match(/[a-z]+/g) || []));
 
+    if (normalized === 'privateequity' || normalized.includes('private equity') || tokens.has('pe')) {
+      return 'privateEquity';
+    }
+    if (normalized === 'familyoffice' || normalized.includes('family office') || tokens.has('fo')) {
+      return 'familyOffice';
+    }
+    if (normalized === 'independentsponsor' || normalized.includes('independent sponsor')) {
+      return 'independentSponsor';
+    }
+    if (normalized === 'searchfund' || normalized.includes('search fund') || tokens.has('sf')) {
+      return 'searchFund';
+    }
+    if (normalized === 'corporate' || normalized.includes('corporate') || tokens.has('corp')) {
+      return 'corporate';
+    }
+    if (normalized === 'individual' || normalized.includes('individual') || normalized.includes('investor')) {
+      return 'individual';
+    }
+    return 'other';
+  };
   const parseDate = (dateStr: string): Date | null => {
     if (!dateStr) return null;
     try {
