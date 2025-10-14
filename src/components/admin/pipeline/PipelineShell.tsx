@@ -8,6 +8,8 @@ import { ActiveFilterChips } from './ActiveFilterChips';
 import { Skeleton } from '@/components/ui/skeleton';
 import { CreateDealModal } from '@/components/admin/CreateDealModal';
 import { StageManagementModal } from '@/components/admin/StageManagementModal';
+import { BulkDealImportDialog } from '@/components/admin/BulkDealImportDialog';
+import { useBulkDealImport } from '@/hooks/admin/use-bulk-deal-import';
 
 
 
@@ -16,6 +18,8 @@ export function PipelineShell() {
   const [isCreateDealModalOpen, setIsCreateDealModalOpen] = useState(false);
   const [prefilledStageId, setPrefilledStageId] = useState<string | undefined>(undefined);
   const [isStageManagementOpen, setIsStageManagementOpen] = useState(false);
+  const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
+  const { bulkImport, isLoading: isBulkImporting } = useBulkDealImport();
 
   const handleOpenCreateDeal = (stageId?: string) => {
     setPrefilledStageId(stageId);
@@ -34,6 +38,11 @@ export function PipelineShell() {
         if (deal) pipeline.setSelectedDeal(deal);
       }, 500);
     }
+  };
+
+  const handleBulkImport = async (data: any) => {
+    await bulkImport(data);
+    setIsBulkImportOpen(false);
   };
 
   // Listen for stage management open event
@@ -141,6 +150,7 @@ export function PipelineShell() {
         <PipelineHeader 
           pipeline={pipeline}
           onOpenCreateDeal={() => handleOpenCreateDeal()}
+          onOpenBulkImport={() => setIsBulkImportOpen(true)}
         />
         {/* Active Filter Chips */}
         <ActiveFilterChips pipeline={pipeline} />
@@ -184,6 +194,14 @@ export function PipelineShell() {
       <StageManagementModal
         open={isStageManagementOpen}
         onOpenChange={setIsStageManagementOpen}
+      />
+
+      {/* Bulk Import Modal */}
+      <BulkDealImportDialog
+        isOpen={isBulkImportOpen}
+        onClose={() => setIsBulkImportOpen(false)}
+        onConfirm={handleBulkImport}
+        isLoading={isBulkImporting}
       />
     </div>
   );

@@ -45,9 +45,10 @@ import { useAdminProfiles } from '@/hooks/admin/use-admin-profiles';
 interface PipelineHeaderProps {
   pipeline: ReturnType<typeof usePipelineCore>;
   onOpenCreateDeal: () => void;
+  onOpenBulkImport?: () => void;
 }
 
-export function PipelineHeader({ pipeline, onOpenCreateDeal }: PipelineHeaderProps) {
+export function PipelineHeader({ pipeline, onOpenCreateDeal, onOpenBulkImport }: PipelineHeaderProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { data: adminProfiles } = useAdminProfiles();
 
@@ -161,7 +162,7 @@ export function PipelineHeader({ pipeline, onOpenCreateDeal }: PipelineHeaderPro
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem>Export Pipeline</DropdownMenuItem>
-              <DropdownMenuItem>Import Deals</DropdownMenuItem>
+              <DropdownMenuItem onClick={onOpenBulkImport}>Bulk Import CSV</DropdownMenuItem>
               <DropdownMenuItem>Pipeline Settings</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
