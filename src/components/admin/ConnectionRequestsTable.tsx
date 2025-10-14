@@ -79,15 +79,19 @@ const formatEnhancedCompanyName = (title: string, companyName?: string | null, l
   return content;
 };
 
-// Buyer type abbreviations
+// Buyer type abbreviations - comprehensive mapping
 const getBuyerTypeAbbreviation = (buyerType: string): string => {
-  switch (buyerType) {
-    case 'privateEquity': return 'PE';
-    case 'familyOffice': return 'FO';
-    case 'searchFund': return 'SF';
+  if (!buyerType) return 'Buyer';
+  
+  const normalized = buyerType.toLowerCase().replace(/[^a-z]/g, '');
+  
+  switch (normalized) {
+    case 'privateequity': return 'PE';
+    case 'familyoffice': return 'FO';
+    case 'searchfund': return 'SF';
     case 'corporate': return 'Corp';
     case 'individual': return 'Individual';
-    case 'independentSponsor': return 'IS';
+    case 'independentsponsor': return 'IS';
     default: return 'Buyer';
   }
 };
@@ -98,6 +102,8 @@ const CleanTierDisplay = ({ user, leadRole }: { user: any; leadRole?: string }) 
     ? getBuyerTier(user)
     : getLeadTierInfo(leadRole);
     
+  // For requests with user_id, use buyer_type from user profile
+  // For lead-only requests, use lead_role and map it
   const buyerTypeAbbrev = user 
     ? getBuyerTypeAbbreviation(user?.buyer_type || '')
     : mapRoleToBuyerType(leadRole);

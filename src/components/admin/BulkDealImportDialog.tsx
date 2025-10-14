@@ -297,12 +297,13 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
         case 'merge':
           // Append new message to existing request
           const existingMessage = duplicateInfo.existingMessage || '';
-          const newMessage = `${existingMessage}\n\n--- New message (${deal.date?.toLocaleDateString() || 'unknown date'}) ---\n${deal.message}`;
+          const newMessageWithDate = `\n\nNew message (${deal.date?.toLocaleDateString() || new Date().toLocaleDateString()}):\n${deal.message}`;
+          const mergedMessage = existingMessage + newMessageWithDate;
           
           const { error: mergeError } = await supabase
             .from('connection_requests')
             .update({
-              user_message: newMessage,
+              user_message: mergedMessage,
               updated_at: new Date().toISOString(),
             })
             .eq('id', duplicateInfo.existingRequestId);
@@ -387,14 +388,14 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle>Bulk Import Connection Requests</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-6">
+        <div className="flex-1 overflow-y-auto space-y-6 py-4">
           {/* Step 1: Select Listing */}
-          <div className="space-y-2">
+          <div className="space-y-2 flex-shrink-0">
             <Label htmlFor="listing">Step 1: Select Listing *</Label>
             <Select value={selectedListingId} onValueChange={setSelectedListingId}>
               <SelectTrigger>
@@ -411,7 +412,7 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
           </div>
 
           {/* Step 2: Upload CSV */}
-          <div className="space-y-2">
+          <div className="space-y-2 flex-shrink-0">
             <Label htmlFor="csv-file">Step 2: Upload CSV File *</Label>
             <div className="text-xs text-muted-foreground mb-2">
               Maximum {MAX_FILE_SIZE_MB}MB file size • Up to {MAX_ROWS} rows per import • Dates are imported in UTC timezone
@@ -454,7 +455,7 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
 
           {/* Step 3: Preview */}
           {parsedDeals.length > 0 && (
-            <div className="space-y-4">
+            <div className="space-y-4 flex-shrink-0">
               <div>
                 <Label>Step 3: Preview & Validate</Label>
                 <div className="flex gap-4 mt-2">
@@ -471,9 +472,9 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
                 </div>
               </div>
 
-              {/* Preview Table */}
+              {/* Preview Table - Scrollable independently */}
               <div className="border rounded-lg overflow-hidden">
-                <div className="max-h-96 overflow-x-auto overflow-y-auto">
+                <div className="max-h-[300px] overflow-x-auto overflow-y-auto">
                   <table className="w-full text-sm">
                     <thead className="bg-muted sticky top-0">
                       <tr>
@@ -557,7 +558,7 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
           )}
 
           {/* Actions */}
-          <div className="flex justify-end gap-2 pt-4 border-t">
+          <div className="flex justify-end gap-2 pt-4 border-t flex-shrink-0">
             <Button variant="outline" onClick={handleClose} disabled={isLoading}>
               Cancel
             </Button>

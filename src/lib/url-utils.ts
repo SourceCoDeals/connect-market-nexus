@@ -82,54 +82,52 @@ export const mapRoleToBuyerType = (role: string | null | undefined): string => {
   }
 
   const normalizedRole = role.toLowerCase().trim();
+  
+  // Handle database-formatted camelCase roles first (exact matches)
+  if (normalizedRole === 'privateequity') return 'PE';
+  if (normalizedRole === 'familyoffice') return 'FO';
+  if (normalizedRole === 'searchfund') return 'SF';
+  if (normalizedRole === 'independentsponsor') return 'IS';
+  if (normalizedRole === 'corporate') return 'Corp';
+  if (normalizedRole === 'individual') return 'Individual';
+  
   // Tokenize to avoid false positives (e.g., 'independent' contains 'pe')
   const tokens = new Set((normalizedRole.match(/[a-z]+/g) || []));
   
-  // Private Equity
-  if (
-    normalizedRole === 'privateequity' ||
-    normalizedRole.includes('private equity') ||
-    tokens.has('pe')
-  ) {
-    return 'PE';
-  }
-  // Family Office
-  if (
-    normalizedRole === 'familyoffice' ||
-    normalizedRole.includes('family office') ||
-    tokens.has('fo')
-  ) {
-    return 'FO';
-  }
-  // Search Fund
-  if (
-    normalizedRole === 'searchfund' ||
-    normalizedRole.includes('search fund') ||
-    tokens.has('sf')
-  ) {
-    return 'SF';
-  }
-  // Corporate
-  if (
-    normalizedRole === 'corporate' ||
-    normalizedRole.includes('corporate') ||
-    tokens.has('corp')
-  ) {
-    return 'Corp';
-  }
-  // Independent Sponsor
-  if (
-    normalizedRole === 'independentsponsor' ||
-    normalizedRole.includes('independent sponsor')
-  ) {
+  // Independent Sponsor - check FIRST before PE to prevent false matches
+  if (normalizedRole.includes('independent sponsor') || 
+      (tokens.has('independent') && tokens.has('sponsor'))) {
     return 'IS';
   }
+  
+  // Private Equity
+  if (normalizedRole.includes('private equity') ||
+      (tokens.has('private') && tokens.has('equity')) ||
+      tokens.has('pe')) {
+    return 'PE';
+  }
+  
+  // Family Office
+  if (normalizedRole.includes('family office') ||
+      (tokens.has('family') && tokens.has('office')) ||
+      tokens.has('fo')) {
+    return 'FO';
+  }
+  
+  // Search Fund
+  if (normalizedRole.includes('search fund') ||
+      (tokens.has('search') && tokens.has('fund')) ||
+      tokens.has('sf')) {
+    return 'SF';
+  }
+  
+  // Corporate
+  if (normalizedRole.includes('corporate') || tokens.has('corp')) {
+    return 'Corp';
+  }
+  
   // Individual / Investor
-  if (
-    normalizedRole === 'individual' ||
-    normalizedRole.includes('individual') ||
-    normalizedRole.includes('investor')
-  ) {
+  if (normalizedRole.includes('individual') || normalizedRole.includes('investor')) {
     return 'Individual';
   }
   
@@ -145,30 +143,63 @@ export const getLeadTierInfo = (role: string | null | undefined) => {
   }
 
   const normalizedRole = role.toLowerCase().trim();
-  const tokens = new Set((normalizedRole.match(/[a-z]+/g) || []));
   
-  // Private Equity
-  if (normalizedRole === 'privateequity' || normalizedRole.includes('private equity') || tokens.has('pe')) {
+  // Handle database-formatted camelCase roles first (exact matches)
+  if (normalizedRole === 'privateequity') {
     return { tier: 1, badge: '1', color: 'text-emerald-500', description: 'Private Equity' };
   }
-  // Family Office
-  if (normalizedRole === 'familyoffice' || normalizedRole.includes('family office') || tokens.has('fo')) {
+  if (normalizedRole === 'familyoffice') {
     return { tier: 2, badge: '2', color: 'text-blue-600', description: 'Family Office' };
   }
-  // Independent Sponsor
-  if (normalizedRole === 'independentsponsor' || normalizedRole.includes('independent sponsor')) {
+  if (normalizedRole === 'independentsponsor') {
     return { tier: 3, badge: '3', color: 'text-purple-600', description: 'Independent Sponsor' };
   }
-  // Corporate
-  if (normalizedRole === 'corporate' || normalizedRole.includes('corporate') || tokens.has('corp')) {
+  if (normalizedRole === 'corporate') {
     return { tier: 3, badge: '3', color: 'text-amber-600', description: 'Corporate' };
   }
-  // Search Fund
-  if (normalizedRole === 'searchfund' || normalizedRole.includes('search fund') || tokens.has('sf')) {
+  if (normalizedRole === 'searchfund') {
     return { tier: 4, badge: '4', color: 'text-orange-600', description: 'Search Fund' };
   }
+  if (normalizedRole === 'individual') {
+    return { tier: 5, badge: '5', color: 'text-gray-600', description: 'Individual' };
+  }
+  
+  const tokens = new Set((normalizedRole.match(/[a-z]+/g) || []));
+  
+  // Independent Sponsor - check FIRST before PE to prevent false matches
+  if (normalizedRole.includes('independent sponsor') || 
+      (tokens.has('independent') && tokens.has('sponsor'))) {
+    return { tier: 3, badge: '3', color: 'text-purple-600', description: 'Independent Sponsor' };
+  }
+  
+  // Private Equity
+  if (normalizedRole.includes('private equity') || 
+      (tokens.has('private') && tokens.has('equity')) ||
+      tokens.has('pe')) {
+    return { tier: 1, badge: '1', color: 'text-emerald-500', description: 'Private Equity' };
+  }
+  
+  // Family Office
+  if (normalizedRole.includes('family office') || 
+      (tokens.has('family') && tokens.has('office')) ||
+      tokens.has('fo')) {
+    return { tier: 2, badge: '2', color: 'text-blue-600', description: 'Family Office' };
+  }
+  
+  // Corporate
+  if (normalizedRole.includes('corporate') || tokens.has('corp')) {
+    return { tier: 3, badge: '3', color: 'text-amber-600', description: 'Corporate' };
+  }
+  
+  // Search Fund
+  if (normalizedRole.includes('search fund') || 
+      (tokens.has('search') && tokens.has('fund')) ||
+      tokens.has('sf')) {
+    return { tier: 4, badge: '4', color: 'text-orange-600', description: 'Search Fund' };
+  }
+  
   // Individual / Investor
-  if (normalizedRole === 'individual' || normalizedRole.includes('individual') || normalizedRole.includes('investor')) {
+  if (normalizedRole.includes('individual') || normalizedRole.includes('investor')) {
     return { tier: 5, badge: '5', color: 'text-gray-600', description: 'Individual' };
   }
   
