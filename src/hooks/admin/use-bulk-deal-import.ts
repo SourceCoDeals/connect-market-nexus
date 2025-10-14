@@ -50,6 +50,9 @@ export interface ImportResult {
       dealId?: string;
       linkedToUser: boolean;
       userId?: string;
+      userName?: string;
+      userEmail?: string;
+      userCompany?: string;
     }>;
     duplicates: Array<{
       deal: BulkImportDeal;
@@ -87,7 +90,7 @@ export function useBulkDealImport() {
           // ===== LEVEL 1: Check if user exists in profiles =====
           const { data: profile } = await supabase
             .from('profiles')
-            .select('id, email, company, nda_signed, fee_agreement_signed, nda_email_sent, fee_agreement_email_sent')
+            .select('id, email, company, first_name, last_name, nda_signed, fee_agreement_signed, nda_email_sent, fee_agreement_email_sent')
             .eq('email', deal.email)
             .maybeSingle();
 
@@ -183,10 +186,13 @@ export function useBulkDealImport() {
             .insert({
               listing_id: data.listingId,
               user_id: profile?.id || null,
-              lead_email: profile ? null : deal.email,
-              lead_name: profile ? null : deal.name,
-              lead_company: profile ? null : deal.companyName,
-              lead_phone: profile ? null : deal.phoneNumber,
+              // Populate lead fields from user profile if exists, otherwise from CSV
+              lead_email: profile?.email || deal.email,
+              lead_name: profile 
+                ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || deal.name
+                : deal.name,
+              lead_company: profile?.company || deal.companyName || null,
+              lead_phone: deal.phoneNumber || null,
               lead_role: deal.role,
               user_message: deal.message,
               source: 'website',
@@ -211,6 +217,9 @@ export function useBulkDealImport() {
             connectionRequestId: newRequest.id,
             linkedToUser: !!profile?.id,
             userId: profile?.id,
+            userName: profile ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() : undefined,
+            userEmail: profile?.email,
+            userCompany: profile?.company || undefined,
           });
 
         } catch (error: any) {

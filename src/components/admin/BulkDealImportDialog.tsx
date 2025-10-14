@@ -536,8 +536,29 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
                     <div>❌ {importResult.errors} errors</div>
                   </div>
                   {importResult.details.imported.some(i => i.linkedToUser) && (
-                    <div className="text-sm text-muted-foreground mt-2 pt-2 border-t">
-                      🔗 {importResult.details.imported.filter(i => i.linkedToUser).length} requests linked to existing marketplace users with NDA/Fee Agreement statuses synced
+                    <div className="text-sm mt-2 pt-2 border-t space-y-1">
+                      <div className="font-medium">
+                        🔗 {importResult.details.imported.filter(i => i.linkedToUser).length} requests linked to existing users:
+                      </div>
+                      <div className="text-xs space-y-0.5 max-h-32 overflow-y-auto text-muted-foreground">
+                        {importResult.details.imported
+                          .filter(i => i.linkedToUser)
+                          .map((imp, i) => (
+                            <div key={i} className="flex items-center gap-2">
+                              <span>•</span>
+                              <span className="font-medium text-foreground">{imp.userName || imp.userEmail}</span>
+                              {imp.userCompany && (
+                                <>
+                                  <span>-</span>
+                                  <span>{imp.userCompany}</span>
+                                </>
+                              )}
+                              <span className="text-muted-foreground/70">
+                                (NDA/Fee synced)
+                              </span>
+                            </div>
+                          ))}
+                      </div>
                     </div>
                   )}
                   {importResult.details.errors.length > 0 && (
