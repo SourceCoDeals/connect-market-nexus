@@ -42,6 +42,9 @@ interface ParsedDeal {
 }
 
 export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: BulkDealImportDialogProps) {
+  const MAX_FILE_SIZE_MB = 10;
+  const MAX_ROWS = 500;
+  
   const [selectedListingId, setSelectedListingId] = useState<string>('');
   const [csvText, setCsvText] = useState('');
   const [parsedDeals, setParsedDeals] = useState<ParsedDeal[]>([]);
@@ -58,6 +61,16 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
     const file = event.target.files?.[0];
     if (!file) return;
 
+    // File size validation
+    const fileSizeMB = file.size / (1024 * 1024);
+    if (fileSizeMB > MAX_FILE_SIZE_MB) {
+      toast.error(`File too large (${fileSizeMB.toFixed(1)}MB)`, {
+        description: `Maximum file size is ${MAX_FILE_SIZE_MB}MB`,
+      });
+      event.target.value = '';
+      return;
+    }
+
     setFileName(file.name);
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -65,6 +78,19 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
       setCsvText(text);
     };
     reader.readAsText(file);
+  };
+
+  const extractCompanyFromEmail = (email: string, existingCompany?: string): string => {
+    if (existingCompany && existingCompany.trim()) return existingCompany;
+    
+    const domain = email.split('@')[1];
+    if (!domain) return '';
+    
+    const parts = domain.split('.');
+    if (parts.length > 1) parts.pop(); // Remove TLD
+    
+    const company = parts.join('.');
+    return company.charAt(0).toUpperCase() + company.slice(1);
   };
 
   const cleanCompanyName = (company: string): string => {
@@ -129,6 +155,12 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
         skipEmptyLines: true,
         transformHeader: (header) => header.trim(),
         complete: (results) => {
+          // Row count validation
+          if (results.data.length > MAX_ROWS) {
+            setParseErrors([`Too many rows (${results.data.length}). Maximum is ${MAX_ROWS} rows per import.`]);
+            return;
+          }
+
           results.data.forEach((row: any, index) => {
             const rowNumber = index + 2;
             const dealErrors: string[] = [];
@@ -136,6 +168,7 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
             const email = row['Email address']?.trim() || '';
             const name = row['Name']?.trim() || '';
             const message = row['Message']?.trim() || '';
+            const rawCompany = cleanCompanyName(row['Company name']);
 
             // Validation
             if (!email || !validateEmail(email)) {
@@ -148,12 +181,15 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
               dealErrors.push('Message must be at least 20 characters');
             }
 
+            // Extract company from email if not provided
+            const companyName = extractCompanyFromEmail(email, rawCompany);
+
             deals.push({
               csvRowNumber: rowNumber,
               date: parseDate(row['Date']),
               name,
               email,
-              companyName: cleanCompanyName(row['Company name']),
+              companyName,
               phoneNumber: standardizePhone(row['Phone number']),
               role: mapRole(row['Role']),
               message,
@@ -181,6 +217,7 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
       return;
     }
 
+    const startTime = Date.now();
     const result = await onConfirm({
       listingId: selectedListingId,
       deals: validDeals,
@@ -189,6 +226,28 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
 
     if (result) {
       setImportResult(result);
+      
+      // Log to audit_logs
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          await supabase.from('audit_logs').insert({
+            table_name: 'connection_requests',
+            operation: 'BULK_IMPORT',
+            admin_id: user.id,
+            metadata: {
+              csv_filename: fileName,
+              rows_imported: result.imported,
+              rows_duplicated: result.duplicates,
+              rows_errored: result.errors,
+              listing_id: selectedListingId,
+              import_duration_ms: Date.now() - startTime,
+            },
+          });
+        }
+      } catch (error) {
+        console.error('Failed to log audit:', error);
+      }
       
       // If there are duplicates, show resolution dialog
       if (result.details.duplicates.length > 0) {
@@ -344,6 +403,9 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
           {/* Step 2: Upload CSV */}
           <div className="space-y-2">
             <Label htmlFor="csv-file">Step 2: Upload CSV File *</Label>
+            <div className="text-xs text-muted-foreground mb-2">
+              Maximum {MAX_FILE_SIZE_MB}MB file size • Up to {MAX_ROWS} rows per import • Dates are imported in UTC timezone
+            </div>
             <div className="flex items-center gap-2">
               <Input
                 id="csv-file"
@@ -447,16 +509,28 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
             <Alert>
               <Info className="h-4 w-4" />
               <AlertDescription>
-                <div className="space-y-1">
+                <div className="space-y-2">
                   <div className="font-medium">Import Complete</div>
-                  <div className="text-sm text-muted-foreground">
-                    ✅ {importResult.imported} imported • 
-                    ⚠️ {importResult.duplicates} duplicates • 
-                    ❌ {importResult.errors} errors
+                  <div className="text-sm space-y-1">
+                    <div>✅ {importResult.imported} successfully imported</div>
+                    <div>⚠️ {importResult.duplicates} duplicates detected</div>
+                    <div>❌ {importResult.errors} errors</div>
                   </div>
                   {importResult.details.imported.some(i => i.linkedToUser) && (
-                    <div className="text-sm text-muted-foreground mt-2">
-                      🔗 {importResult.details.imported.filter(i => i.linkedToUser).length} requests linked to existing marketplace users
+                    <div className="text-sm text-muted-foreground mt-2 pt-2 border-t">
+                      🔗 {importResult.details.imported.filter(i => i.linkedToUser).length} requests linked to existing marketplace users with NDA/Fee Agreement statuses synced
+                    </div>
+                  )}
+                  {importResult.details.errors.length > 0 && (
+                    <div className="mt-2 pt-2 border-t">
+                      <div className="text-sm font-medium mb-1">Error Details:</div>
+                      <div className="text-xs space-y-1 max-h-32 overflow-y-auto">
+                        {importResult.details.errors.map((err, i) => (
+                          <div key={i} className="text-destructive">
+                            Row {err.deal.csvRowNumber}: {err.error}
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )}
                 </div>
