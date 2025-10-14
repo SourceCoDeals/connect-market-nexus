@@ -69,16 +69,23 @@ export function PipelineDetailPanel({ pipeline }: PipelineDetailPanelProps) {
     }
   };
 
-  const getBuyerTypeLabel = (buyerType?: string) => {
-    switch (buyerType) {
-      case 'privateEquity': return 'Private Equity';
-      case 'familyOffice': return 'Family Office';
-      case 'searchFund': return 'Search Fund';
-      case 'corporate': return 'Corporate';
-      case 'individual': return 'Individual';
-      case 'independentSponsor': return 'Independent Sponsor';
-      default: return 'Unknown';
-    }
+  const getBuyerTypeLabel = (buyerType?: string, contactRole?: string) => {
+    // Try buyer_type first, fallback to contact_role for CSV imports
+    const typeToCheck = buyerType || contactRole;
+    if (!typeToCheck) return 'Unknown';
+    
+    // Normalize the input to handle various formats
+    const normalized = typeToCheck.toLowerCase().replace(/[^a-z]/g, '');
+    
+    if (normalized.includes('privateequity') || normalized.includes('pe')) return 'Private Equity';
+    if (normalized.includes('familyoffice') || normalized.includes('fo')) return 'Family Office';
+    if (normalized.includes('searchfund')) return 'Search Fund';
+    if (normalized.includes('corporate') || normalized.includes('strategic')) return 'Corporate';
+    if (normalized.includes('individual')) return 'Individual';
+    if (normalized.includes('independentsponsor') || normalized.includes('sponsor')) return 'Independent Sponsor';
+    
+    // Fallback: return the original contact_role capitalized
+    return contactRole || typeToCheck;
   };
 
   const buyerPriority = getBuyerPriority(selectedDeal.buyer_type, selectedDeal.buyer_priority_score);
@@ -125,7 +132,7 @@ export function PipelineDetailPanel({ pipeline }: PipelineDetailPanelProps) {
                 {buyerPriority.level}
               </div>
               <span className="text-xs text-muted-foreground font-mono">
-                {getBuyerTypeLabel(selectedDeal.buyer_type)}
+                {getBuyerTypeLabel(selectedDeal.buyer_type, selectedDeal.contact_role)}
               </span>
             </div>
           </div>

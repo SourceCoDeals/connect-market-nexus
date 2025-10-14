@@ -17,6 +17,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { CheckCheck } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { useDealComments, useCreateDealComment, useUpdateDealComment, useDeleteDealComment } from '@/hooks/admin/use-deal-comments';
+import { useConnectionRequestDetails } from '@/hooks/admin/use-connection-request-details';
+import { ConnectionRequestNotes } from '@/components/admin/pipeline/ConnectionRequestNotes';
 
 interface PipelineDetailOverviewProps {
   deal: Deal;
@@ -27,6 +29,9 @@ export function PipelineDetailOverview({ deal }: PipelineDetailOverviewProps) {
   const assignedAdmin = deal.assigned_to && allAdminProfiles ? allAdminProfiles[deal.assigned_to] : null;
   const updateDeal = useUpdateDeal();
   const updateDealFollowup = useUpdateDealFollowup();
+  
+  // Fetch connection request details to show buyer message
+  const { data: connectionRequestDetails } = useConnectionRequestDetails(deal.connection_request_id);
   
   const [followedUp, setFollowedUp] = React.useState(deal.followed_up || false);
   const [negativeFollowedUp, setNegativeFollowedUp] = React.useState(deal.negative_followed_up || false);
@@ -249,6 +254,11 @@ export function PipelineDetailOverview({ deal }: PipelineDetailOverviewProps) {
                 {deal.deal_description}
               </p>
             </div>
+          )}
+
+          {/* Buyer Message */}
+          {connectionRequestDetails && (
+            <ConnectionRequestNotes details={connectionRequestDetails} />
           )}
 
           {/* Documents Section */}

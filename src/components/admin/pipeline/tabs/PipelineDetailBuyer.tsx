@@ -126,16 +126,23 @@ export function PipelineDetailBuyer({ deal }: PipelineDetailBuyerProps) {
     deal.contact_email || undefined
   );
 
-  const getBuyerTypeLabel = (buyerType?: string) => {
-    switch (buyerType) {
-      case 'privateEquity': return 'Private Equity';
-      case 'familyOffice': return 'Family Office';
-      case 'searchFund': return 'Search Fund';
-      case 'corporate': return 'Corporate';
-      case 'individual': return 'Individual';
-      case 'independentSponsor': return 'Independent Sponsor';
-      default: return 'Unknown';
-    }
+  const getBuyerTypeLabel = (buyerType?: string, contactRole?: string) => {
+    // Try buyer_type first, fallback to contact_role for CSV imports
+    const typeToCheck = buyerType || contactRole;
+    if (!typeToCheck) return 'Unknown';
+    
+    // Normalize the input to handle various formats
+    const normalized = typeToCheck.toLowerCase().replace(/[^a-z]/g, '');
+    
+    if (normalized.includes('privateequity') || normalized.includes('pe')) return 'Private Equity';
+    if (normalized.includes('familyoffice') || normalized.includes('fo')) return 'Family Office';
+    if (normalized.includes('searchfund')) return 'Search Fund';
+    if (normalized.includes('corporate') || normalized.includes('strategic')) return 'Corporate';
+    if (normalized.includes('individual')) return 'Individual';
+    if (normalized.includes('independentsponsor') || normalized.includes('sponsor')) return 'Independent Sponsor';
+    
+    // Fallback: return the original contact_role capitalized
+    return contactRole || typeToCheck;
   };
 
   const getBuyerPriority = (buyerType?: string, score?: number) => {
@@ -511,7 +518,7 @@ export function PipelineDetailBuyer({ deal }: PipelineDetailBuyerProps) {
               <div className="space-y-1">
                 <p className="text-xs text-muted-foreground">Buyer Type</p>
                 <p className="text-sm text-foreground">
-                  {getBuyerTypeLabel(deal.buyer_type || profile?.buyer_type)}
+                  {getBuyerTypeLabel(deal.buyer_type || profile?.buyer_type, deal.contact_role)}
                 </p>
               </div>
 

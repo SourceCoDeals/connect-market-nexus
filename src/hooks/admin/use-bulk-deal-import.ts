@@ -224,10 +224,15 @@ export function useBulkDealImport() {
 
       return result;
     },
-    onSuccess: (result) => {
-      queryClient.invalidateQueries({ queryKey: ['admin-connection-requests'] });
-      queryClient.invalidateQueries({ queryKey: ['deals'] });
-      queryClient.invalidateQueries({ queryKey: ['connection-requests'] });
+    onSuccess: async (result) => {
+      // Comprehensive query invalidation to ensure UI updates
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['admin-connection-requests'] }),
+        queryClient.invalidateQueries({ queryKey: ['deals'] }),
+        queryClient.invalidateQueries({ queryKey: ['connection-requests'] }),
+        queryClient.invalidateQueries({ queryKey: ['deal-stages'] }),
+        queryClient.invalidateQueries({ queryKey: ['inbound-leads'] }),
+      ]);
 
       if (result.imported > 0) {
         toast.success(
