@@ -287,7 +287,7 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
         case 'merge':
           // Append new message to existing request
           const existingMessage = duplicateInfo.existingMessage || '';
-          const newMessage = `${existingMessage}\n\n--- Additional inquiry (${deal.date?.toLocaleDateString() || 'unknown date'}) ---\n${deal.message}`;
+          const newMessage = `${existingMessage}\n\n--- New message (${deal.date?.toLocaleDateString() || 'unknown date'}) ---\n${deal.message}`;
           
           const { error: mergeError } = await supabase
             .from('connection_requests')

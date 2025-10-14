@@ -74,6 +74,7 @@ export const extractDomainFromEmail = (email: string | null | undefined): string
 
 /**
  * Maps common role names to buyer type abbreviations
+ * Handles both display names (e.g., "Private Equity") and database values (e.g., "privateEquity")
  */
 export const mapRoleToBuyerType = (role: string | null | undefined): string => {
   if (!role || !role.trim()) {
@@ -82,22 +83,23 @@ export const mapRoleToBuyerType = (role: string | null | undefined): string => {
 
   const normalizedRole = role.toLowerCase().trim();
   
-  if (normalizedRole.includes('private equity') || normalizedRole.includes('pe') || normalizedRole === 'pe') {
+  // Handle database format (e.g., "privateEquity")
+  if (normalizedRole === 'privateequity' || normalizedRole.includes('private equity') || normalizedRole.includes('pe') || normalizedRole === 'pe') {
     return 'PE';
   }
-  if (normalizedRole.includes('family office') || normalizedRole.includes('fo') || normalizedRole === 'fo') {
+  if (normalizedRole === 'familyoffice' || normalizedRole.includes('family office') || normalizedRole.includes('fo') || normalizedRole === 'fo') {
     return 'FO';
   }
-  if (normalizedRole.includes('search fund') || normalizedRole.includes('sf') || normalizedRole === 'sf') {
+  if (normalizedRole === 'searchfund' || normalizedRole.includes('search fund') || normalizedRole.includes('sf') || normalizedRole === 'sf') {
     return 'SF';
   }
-  if (normalizedRole.includes('corporate') || normalizedRole.includes('corp')) {
+  if (normalizedRole === 'corporate' || normalizedRole.includes('corporate') || normalizedRole.includes('corp')) {
     return 'Corp';
   }
-  if (normalizedRole.includes('independent sponsor') || normalizedRole.includes('is') || normalizedRole === 'independent sponsor') {
+  if (normalizedRole === 'independentsponsor' || normalizedRole.includes('independent sponsor') || normalizedRole.includes('is') || normalizedRole === 'independent sponsor') {
     return 'IS';
   }
-  if (normalizedRole.includes('individual') || normalizedRole.includes('investor')) {
+  if (normalizedRole === 'individual' || normalizedRole.includes('individual') || normalizedRole.includes('investor')) {
     return 'Individual';
   }
   
