@@ -595,15 +595,25 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
 
           {/* Actions */}
           <div className="flex justify-end gap-2 pt-4 border-t flex-shrink-0">
-            <Button variant="outline" onClick={handleClose} disabled={isLoading}>
-              Cancel
-            </Button>
-            <Button
-              onClick={handleImport}
-              disabled={!selectedListingId || validCount === 0 || isLoading}
-            >
-              {isLoading ? 'Importing...' : `Import ${validCount} Valid Rows`}
-            </Button>
+            {importResult ? (
+              // After import: only show Close button
+              <Button onClick={handleClose} className="w-full sm:w-auto">
+                Close
+              </Button>
+            ) : (
+              // Before import: show Cancel and Import buttons
+              <>
+                <Button variant="outline" onClick={handleClose} disabled={isLoading}>
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleImport}
+                  disabled={!selectedListingId || validCount === 0 || isLoading}
+                >
+                  {isLoading ? 'Importing...' : `Import ${validCount} Valid Rows`}
+                </Button>
+              </>
+            )}
           </div>
         </div>
       </DialogContent>
