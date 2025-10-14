@@ -71,16 +71,21 @@ export function EnhancedDealKanbanCard({ deal, isDragging, onClick }: EnhancedDe
     return Math.ceil((Date.now() - new Date(deal.deal_stage_entered_at).getTime()) / (1000 * 60 * 60 * 24));
   };
 
-  const getBuyerTypeLabel = (buyerType?: string) => {
-    switch (buyerType) {
-      case 'privateEquity': return 'PE';
-      case 'familyOffice': return 'FO';
-      case 'searchFund': return 'SF';
-      case 'corporate': return 'Corp';
-      case 'independentSponsor': return 'IS';
-      case 'individual': return 'IND';
-      default: return buyerType || 'Unknown';
-    }
+  const getBuyerTypeLabel = (buyerType?: string, contactRole?: string) => {
+    // Try buyer_type first, fallback to contact_role for CSV imports
+    const typeToCheck = buyerType || contactRole;
+    if (!typeToCheck) return 'Unknown';
+    
+    // Normalize and match
+    const normalized = typeToCheck.toLowerCase().replace(/[^a-z]/g, '');
+    if (normalized.includes('privateequity') || normalized.includes('pe')) return 'PE';
+    if (normalized.includes('familyoffice') || normalized.includes('fo')) return 'FO';
+    if (normalized.includes('searchfund')) return 'SF';
+    if (normalized.includes('corporate')) return 'Corp';
+    if (normalized.includes('independentsponsor')) return 'IS';
+    if (normalized.includes('individual')) return 'IND';
+    
+    return typeToCheck;
   };
 
   return (
@@ -111,9 +116,9 @@ export function EnhancedDealKanbanCard({ deal, isDragging, onClick }: EnhancedDe
           </div>
           
           {/* Buyer Type Badge - Very Prominent for Probability Assessment */}
-          {deal.buyer_type && (
-            <Badge className={`text-sm px-3 py-1.5 font-bold border-2 ${getBuyerTypeStyles(deal.buyer_type)}`}>
-              {getBuyerTypeLabel(deal.buyer_type)}
+          {(deal.buyer_type || deal.contact_role) && (
+            <Badge className={`text-sm px-3 py-1.5 font-bold border-2 ${getBuyerTypeStyles(deal.buyer_type || deal.contact_role)}`}>
+              {getBuyerTypeLabel(deal.buyer_type, deal.contact_role)}
             </Badge>
           )}
         </div>
