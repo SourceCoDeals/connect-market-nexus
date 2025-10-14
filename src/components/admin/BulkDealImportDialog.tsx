@@ -262,10 +262,9 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
         console.error('Failed to log audit:', error);
       }
       
-      // If there are duplicates, show resolution dialog
+      // If there are duplicates, show bulk dialog first
       if (result.details.duplicates.length > 0) {
-        setCurrentDuplicateIndex(0);
-        setShowDuplicateDialog(true);
+        setShowBulkDuplicateDialog(true);
       }
     }
   };
