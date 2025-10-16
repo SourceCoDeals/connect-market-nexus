@@ -46,9 +46,10 @@ interface PipelineHeaderProps {
   pipeline: ReturnType<typeof usePipelineCore>;
   onOpenCreateDeal: () => void;
   onOpenBulkImport?: () => void;
+  onOpenUndoImport?: () => void;
 }
 
-export function PipelineHeader({ pipeline, onOpenCreateDeal, onOpenBulkImport }: PipelineHeaderProps) {
+export function PipelineHeader({ pipeline, onOpenCreateDeal, onOpenBulkImport, onOpenUndoImport }: PipelineHeaderProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { data: adminProfiles } = useAdminProfiles();
 
@@ -163,6 +164,7 @@ export function PipelineHeader({ pipeline, onOpenCreateDeal, onOpenBulkImport }:
             <DropdownMenuContent align="end">
               <DropdownMenuItem>Export Pipeline</DropdownMenuItem>
               <DropdownMenuItem onClick={onOpenBulkImport}>Bulk Import CSV</DropdownMenuItem>
+              <DropdownMenuItem onClick={onOpenUndoImport}>Undo Import</DropdownMenuItem>
               <DropdownMenuItem>Pipeline Settings</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
