@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { AlertTriangle, Trash2, FileText, Calendar, User, Package } from 'lucide-react';
@@ -31,9 +31,21 @@ export function ManualUndoImportDialog({ isOpen, onClose }: ManualUndoImportDial
   const [isLoading, setIsLoading] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [requestsToDelete, setRequestsToDelete] = useState<any[]>([]);
+  const [strictMode, setStrictMode] = useState(true); // when more matches than expected, trim to expected by time proximity
   
   const queryClient = useQueryClient();
 
+  // Compute the effective set to delete based on strict mode and expected count
+  const effectiveRequests = useMemo(() => {
+    if (!selectedBatch) return requestsToDelete;
+    if (!strictMode) return requestsToDelete;
+    const expected = selectedBatch.imported_count || 0;
+    if (expected === 0 || requestsToDelete.length <= expected) return requestsToDelete;
+    const targetTime = new Date(selectedBatch.import_date).getTime();
+    return [...requestsToDelete]
+      .sort((a, b) => Math.abs(new Date(a.created_at).getTime() - targetTime) - Math.abs(new Date(b.created_at).getTime() - targetTime))
+      .slice(0, expected);
+  }, [requestsToDelete, strictMode, selectedBatch]);
   // Load recent imports when dialog opens
   useEffect(() => {
     if (isOpen) {
@@ -118,28 +130,31 @@ export function ManualUndoImportDialog({ isOpen, onClose }: ManualUndoImportDial
 
       if (error) throw error;
 
-      // Filter by batch_id first (new imports with batch tracking)
-      let filtered = (allRequests || []).filter(r => {
-        const metadata = r.source_metadata as any;
-        return (
-          metadata?.batch_id === batch.batch_id &&
-          metadata?.import_method === 'csv_bulk_upload'
-        );
-      });
+      // Prefer exact batch_id match when present; otherwise fall back to CSV filename + time window
+      const auditTime = new Date(batch.import_date).getTime();
+      const WINDOW_MS = 2 * 60 * 60 * 1000; // 2 hours
+      let filtered: any[] = [];
 
-      // If no batch_id match, filter by CSV filename (old imports without batch_id)
-      if (filtered.length === 0 && batch.csv_filename) {
+      if (batch.batch_id) {
         filtered = (allRequests || []).filter(r => {
-          const metadata = r.source_metadata as any;
-          return (
-            metadata?.import_method === 'csv_bulk_upload' &&
-            metadata?.csv_filename === batch.csv_filename
-          );
+          const md = r.source_metadata as any;
+          return md?.batch_id && md.batch_id === batch.batch_id && md?.import_method === 'csv_bulk_upload';
+        });
+      }
+
+      if (filtered.length === 0) {
+        filtered = (allRequests || []).filter(r => {
+          const md = r.source_metadata as any;
+          const created = new Date(r.created_at).getTime();
+          return md?.import_method === 'csv_bulk_upload' &&
+                 (!!batch.csv_filename ? md?.csv_filename === batch.csv_filename : true) &&
+                 Math.abs(created - auditTime) <= WINDOW_MS;
         });
       }
 
       setRequestsToDelete(filtered);
-
+      // Enable strict mode automatically if we matched more than the expected count
+      setStrictMode((filtered?.length || 0) !== (batch.imported_count || 0));
       if (filtered.length === 0) {
         toast.warning('No matching requests found', {
           description: 'This import may have already been deleted',
@@ -159,7 +174,7 @@ export function ManualUndoImportDialog({ isOpen, onClose }: ManualUndoImportDial
 
     setIsDeleting(true);
     try {
-      const requestIds = requestsToDelete.map(r => r.id);
+      const requestIds = effectiveRequests.map(r => r.id);
 
       // Delete all found connection requests
       const { error: deleteError } = await supabase
@@ -180,7 +195,7 @@ export function ManualUndoImportDialog({ isOpen, onClose }: ManualUndoImportDial
             original_import_audit_id: selectedBatch.id,
             listing_id: selectedBatch.listing_id,
             csv_filename: selectedBatch.csv_filename,
-            deleted_count: requestsToDelete.length,
+            deleted_count: effectiveRequests.length,
             deleted_ids: requestIds,
             cleanup_timestamp: new Date().toISOString(),
           },
@@ -194,7 +209,7 @@ export function ManualUndoImportDialog({ isOpen, onClose }: ManualUndoImportDial
         queryClient.invalidateQueries({ queryKey: ['connection-requests'] }),
       ]);
 
-      toast.success(`Deleted ${requestsToDelete.length} connection requests`);
+      toast.success(`Deleted ${effectiveRequests.length} connection requests`);
       
       // Reset and close
       setSelectedBatch(null);
@@ -334,10 +349,23 @@ export function ManualUndoImportDialog({ isOpen, onClose }: ManualUndoImportDial
                 <>
                   <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
                     <div className="text-sm font-medium">
-                      Found {requestsToDelete.length} Connection Requests to Delete
+                      Found {effectiveRequests.length} Connection Requests to Delete
                     </div>
+                    {selectedBatch && requestsToDelete.length !== selectedBatch.imported_count && (
+                      <div className="text-xs text-muted-foreground">
+                        Expected {selectedBatch.imported_count} from this import; matched {requestsToDelete.length}.
+                        <label className="inline-flex items-center gap-2 ml-2">
+                          <input
+                            type="checkbox"
+                            checked={strictMode}
+                            onChange={(e) => setStrictMode(e.target.checked)}
+                          />
+                          Strict match to closest {selectedBatch.imported_count} by time
+                        </label>
+                      </div>
+                    )}
                     <div className="space-y-2 max-h-48 overflow-y-auto">
-                      {requestsToDelete.slice(0, 10).map((req) => (
+                      {effectiveRequests.slice(0, 10).map((req) => (
                         <div key={req.id} className="text-xs p-2 rounded bg-background">
                           <div className="font-medium">{req.lead_name || req.lead_email}</div>
                           {req.lead_company && (
@@ -345,9 +373,9 @@ export function ManualUndoImportDialog({ isOpen, onClose }: ManualUndoImportDial
                           )}
                         </div>
                       ))}
-                      {requestsToDelete.length > 10 && (
+                      {effectiveRequests.length > 10 && (
                         <div className="text-xs text-muted-foreground text-center py-2">
-                          ... and {requestsToDelete.length - 10} more
+                          ... and {effectiveRequests.length - 10} more
                         </div>
                       )}
                     </div>
@@ -356,7 +384,7 @@ export function ManualUndoImportDialog({ isOpen, onClose }: ManualUndoImportDial
                   <Alert variant="destructive">
                     <AlertTriangle className="h-4 w-4" />
                     <AlertDescription>
-                      <strong>Warning:</strong> This will permanently delete {requestsToDelete.length} connection requests.
+                      <strong>Warning:</strong> This will permanently delete {effectiveRequests.length} connection requests.
                       This action cannot be undone.
                     </AlertDescription>
                   </Alert>
@@ -390,13 +418,13 @@ export function ManualUndoImportDialog({ isOpen, onClose }: ManualUndoImportDial
                 <Button variant="outline" onClick={handleClose} disabled={isDeleting}>
                   Cancel
                 </Button>
-                {requestsToDelete.length > 0 && (
+                {effectiveRequests.length > 0 && (
                   <Button 
                     variant="destructive"
                     onClick={handleDelete}
                     disabled={isDeleting}
                   >
-                    {isDeleting ? 'Deleting...' : `Delete ${requestsToDelete.length} Requests`}
+                    {isDeleting ? 'Deleting...' : `Delete ${effectiveRequests.length} Requests`}
                   </Button>
                 )}
               </div>
