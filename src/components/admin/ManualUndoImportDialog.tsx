@@ -130,25 +130,21 @@ export function ManualUndoImportDialog({ isOpen, onClose }: ManualUndoImportDial
 
       if (error) throw error;
 
-      // Prefer exact batch_id match when present; otherwise fall back to CSV filename + time window
-      const auditTime = new Date(batch.import_date).getTime();
-      const WINDOW_MS = 2 * 60 * 60 * 1000; // 2 hours
       let filtered: any[] = [];
 
+      // Strategy 1: Match by batch_id if available (newer imports)
       if (batch.batch_id) {
         filtered = (allRequests || []).filter(r => {
           const md = r.source_metadata as any;
-          return md?.batch_id && md.batch_id === batch.batch_id && md?.import_method === 'csv_bulk_upload';
+          return md?.batch_id === batch.batch_id && md?.import_method === 'csv_bulk_upload';
         });
       }
 
-      if (filtered.length === 0) {
+      // Strategy 2: Match by exact CSV filename (for imports without batch_id)
+      if (filtered.length === 0 && batch.csv_filename) {
         filtered = (allRequests || []).filter(r => {
           const md = r.source_metadata as any;
-          const created = new Date(r.created_at).getTime();
-          return md?.import_method === 'csv_bulk_upload' &&
-                 (!!batch.csv_filename ? md?.csv_filename === batch.csv_filename : true) &&
-                 Math.abs(created - auditTime) <= WINDOW_MS;
+          return md?.import_method === 'csv_bulk_upload' && md?.csv_filename === batch.csv_filename;
         });
       }
 
