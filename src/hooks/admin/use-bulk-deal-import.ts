@@ -17,6 +17,7 @@ interface BulkImportData {
   listingId: string;
   deals: BulkImportDeal[];
   fileName: string;
+  batchId?: string;
 }
 
 export type DuplicateType = 
@@ -202,6 +203,7 @@ export function useBulkDealImport() {
                 csv_row_number: deal.csvRowNumber,
                 import_date: new Date().toISOString(),
                 imported_by_admin_id: user.id,
+                batch_id: data.batchId || null, // Track batch for undo capability
               },
               // Use CSV date if available, otherwise current time
               created_at: deal.date?.toISOString() || new Date().toISOString(),

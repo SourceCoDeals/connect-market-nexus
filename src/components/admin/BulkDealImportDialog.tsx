@@ -13,6 +13,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAdminListings } from '@/hooks/admin/use-admin-listings';
 import { DuplicateResolutionDialog } from './DuplicateResolutionDialog';
 import { BulkDuplicateDialog } from './BulkDuplicateDialog';
+import { useUndoBulkImport } from '@/hooks/admin/use-undo-bulk-import';
 import type { ImportResult } from '@/hooks/admin/use-bulk-deal-import';
 import {
   Select,
@@ -56,9 +57,12 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
   const [showBulkDuplicateDialog, setShowBulkDuplicateDialog] = useState(false);
   const [currentDuplicateIndex, setCurrentDuplicateIndex] = useState(0);
   const [skipAllDuplicates, setSkipAllDuplicates] = useState(false);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [currentBatchId, setCurrentBatchId] = useState<string | null>(null);
   
   const { useListings } = useAdminListings();
   const { data: listings } = useListings();
+  const { undoImport, isUndoing } = useUndoBulkImport();
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -223,18 +227,30 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
     }
   };
 
-  const handleImport = async () => {
+  const handleShowConfirm = () => {
     const validDeals = parsedDeals.filter((d) => d.isValid);
     if (validDeals.length === 0) {
       setParseErrors(['No valid deals to import']);
       return;
     }
+    setShowConfirmDialog(true);
+  };
 
+  const handleConfirmImport = async () => {
+    setShowConfirmDialog(false);
+    
+    const validDeals = parsedDeals.filter((d) => d.isValid);
     const startTime = Date.now();
+    
+    // Generate unique batch ID for this import session
+    const batchId = `import_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    setCurrentBatchId(batchId);
+    
     const result = await onConfirm({
       listingId: selectedListingId,
       deals: validDeals,
       fileName,
+      batchId, // Pass batch ID to track this import
     });
 
     if (result) {
@@ -255,6 +271,7 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
               rows_errored: result.errors,
               listing_id: selectedListingId,
               import_duration_ms: Date.now() - startTime,
+              batch_id: batchId, // Store batch ID for undo capability
             },
           });
         }
@@ -280,7 +297,20 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
     setShowBulkDuplicateDialog(false);
     setCurrentDuplicateIndex(0);
     setSkipAllDuplicates(false);
+    setShowConfirmDialog(false);
+    setCurrentBatchId(null);
     onClose();
+  };
+
+  const handleUndoImport = async () => {
+    if (!currentBatchId) return;
+    
+    try {
+      await undoImport(currentBatchId);
+      handleClose();
+    } catch (error) {
+      console.error('Undo failed:', error);
+    }
   };
 
   const handleDuplicateAction = async (action: 'skip' | 'merge' | 'replace' | 'create') => {
@@ -651,10 +681,21 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
           {/* Actions */}
           <div className="flex justify-end gap-2 pt-4 border-t flex-shrink-0">
             {importResult ? (
-              // After import: only show Close button
-              <Button onClick={handleClose} className="w-full sm:w-auto">
-                Close
-              </Button>
+              // After import: show Undo and Close buttons
+              <>
+                {currentBatchId && importResult.imported > 0 && (
+                  <Button 
+                    variant="destructive" 
+                    onClick={handleUndoImport}
+                    disabled={isUndoing}
+                  >
+                    {isUndoing ? 'Undoing...' : 'Undo This Import'}
+                  </Button>
+                )}
+                <Button onClick={handleClose} className="w-full sm:w-auto">
+                  Close
+                </Button>
+              </>
             ) : (
               // Before import: show Cancel and Import buttons
               <>
@@ -662,10 +703,10 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
                   Cancel
                 </Button>
                 <Button
-                  onClick={handleImport}
+                  onClick={handleShowConfirm}
                   disabled={!selectedListingId || validCount === 0 || isLoading}
                 >
-                  {isLoading ? 'Importing...' : `Import ${validCount} Valid Rows`}
+                  Review & Import {validCount} Rows
                 </Button>
               </>
             )}
@@ -704,6 +745,66 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
           onCreateAnyway={() => handleDuplicateAction('create')}
         />
       )}
+
+      {/* Confirmation Dialog */}
+      <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-warning" />
+              Confirm Import
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <Alert>
+              <Info className="h-4 w-4" />
+              <AlertDescription>
+                You are about to import <strong>{parsedDeals.filter(d => d.isValid).length} connection requests</strong> to the listing:
+              </AlertDescription>
+            </Alert>
+            
+            <div className="rounded-lg border bg-muted/30 p-4">
+              <div className="text-sm font-medium mb-1">Selected Listing</div>
+              <div className="text-sm text-muted-foreground">
+                {listings?.find(l => l.id === selectedListingId)?.title || 'Unknown Listing'}
+              </div>
+            </div>
+
+            <div className="rounded-lg border bg-muted/30 p-4">
+              <div className="text-sm font-medium mb-1">Import Summary</div>
+              <div className="text-sm text-muted-foreground space-y-1">
+                <div>• {parsedDeals.filter(d => d.isValid).length} valid rows will be imported</div>
+                <div>• Each will create a new connection request</div>
+                <div>• Duplicate checking will be performed</div>
+              </div>
+            </div>
+
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                <strong>Important:</strong> Make sure you've selected the correct listing. This action will create connection requests that you'll need to manage.
+              </AlertDescription>
+            </Alert>
+          </div>
+
+          <div className="flex justify-end gap-2">
+            <Button 
+              variant="outline" 
+              onClick={() => setShowConfirmDialog(false)}
+              disabled={isLoading}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleConfirmImport}
+              disabled={isLoading}
+            >
+              {isLoading ? 'Importing...' : 'Confirm & Import'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 }
