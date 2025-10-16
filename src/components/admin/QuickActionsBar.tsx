@@ -10,9 +10,14 @@ import {
   Clock, 
   ArrowRight,
   FileText,
-  Shield
+  Shield,
+  Trash2,
+  Upload
 } from "lucide-react";
 import { AdminConnectionRequest } from "@/types/admin";
+import { BulkDealImportDialog } from "./BulkDealImportDialog";
+import { ManualUndoImportDialog } from "./ManualUndoImportDialog";
+import { useBulkDealImport } from "@/hooks/admin/use-bulk-deal-import";
 
 interface QuickActionsBarProps {
   requests: AdminConnectionRequest[];
@@ -21,6 +26,10 @@ interface QuickActionsBarProps {
 
 export function QuickActionsBar({ requests, onBulkAction }: QuickActionsBarProps) {
   const [selectedRequests, setSelectedRequests] = useState<string[]>([]);
+  const [showImportDialog, setShowImportDialog] = useState(false);
+  const [showUndoDialog, setShowUndoDialog] = useState(false);
+  
+  const { bulkImport, isLoading } = useBulkDealImport();
 
   // Calculate quick stats
   const stats = {
@@ -31,32 +40,48 @@ export function QuickActionsBar({ requests, onBulkAction }: QuickActionsBarProps
     needingFollowup: requests.filter(r => !r.followed_up && r.status === 'approved').length
   };
 
-  const quickActions = [
-    {
-      id: 'send-all-ndas',
-      label: 'Send NDAs',
-      count: stats.needingNDA,
-      icon: Shield,
-      variant: 'default' as const,
-      disabled: stats.needingNDA === 0
-    },
-    {
-      id: 'send-all-fees',
-      label: 'Send Fee Agreements',
-      count: stats.needingFee,
-      icon: FileText,
-      variant: 'default' as const,
-      disabled: stats.needingFee === 0
-    },
-    {
-      id: 'follow-up-all',
-      label: 'Follow Up',
-      count: stats.needingFollowup,
-      icon: Mail,
-      variant: 'secondary' as const,
-      disabled: stats.needingFollowup === 0
-    }
-  ];
+  return (
+    <>
+      <Card className="p-4">
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <div className="flex items-center gap-2">
+            <Zap className="h-5 w-5 text-primary" />
+            <span className="font-semibold">Quick Actions</span>
+          </div>
+          
+          <div className="flex gap-2 flex-wrap">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowImportDialog(true)}
+            >
+              <Upload className="h-4 w-4 mr-2" />
+              Bulk Import CSV
+            </Button>
+            
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowUndoDialog(true)}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Undo Import
+            </Button>
+          </div>
+        </div>
+      </Card>
 
-  return null;
+      <BulkDealImportDialog
+        isOpen={showImportDialog}
+        onClose={() => setShowImportDialog(false)}
+        onConfirm={bulkImport}
+        isLoading={isLoading}
+      />
+
+      <ManualUndoImportDialog
+        isOpen={showUndoDialog}
+        onClose={() => setShowUndoDialog(false)}
+      />
+    </>
+  );
 }
