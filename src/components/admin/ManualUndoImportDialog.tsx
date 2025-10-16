@@ -1,96 +1,166 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { AlertTriangle, Trash2, Search } from 'lucide-react';
+import { AlertTriangle, Trash2, FileText, Calendar, User, Package } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { useAdminListings } from '@/hooks/admin/use-admin-listings';
+import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { format } from 'date-fns';
 
 interface ManualUndoImportDialogProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
+interface ImportBatch {
+  id: string;
+  csv_filename: string;
+  listing_id: string;
+  listing_title: string;
+  imported_count: number;
+  import_date: string;
+  admin_name: string;
+  batch_id?: string;
+}
+
 export function ManualUndoImportDialog({ isOpen, onClose }: ManualUndoImportDialogProps) {
-  const [selectedListingId, setSelectedListingId] = useState<string>('');
-  const [csvFileName, setCsvFileName] = useState<string>('');
-  const [foundRequests, setFoundRequests] = useState<any[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
+  const [recentImports, setRecentImports] = useState<ImportBatch[]>([]);
+  const [selectedBatch, setSelectedBatch] = useState<ImportBatch | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [requestsToDelete, setRequestsToDelete] = useState<any[]>([]);
   
-  const { useListings } = useAdminListings();
-  const { data: listings } = useListings();
   const queryClient = useQueryClient();
 
-  const handleSearch = async () => {
-    if (!selectedListingId) {
-      toast.error('Please select a listing');
-      return;
+  // Load recent imports when dialog opens
+  useEffect(() => {
+    if (isOpen) {
+      loadRecentImports();
     }
+  }, [isOpen]);
 
-    setIsSearching(true);
+  const loadRecentImports = async () => {
+    setIsLoading(true);
     try {
-      // Search for connection requests with matching listing and CSV metadata
-      const { data, error } = await supabase
-        .from('connection_requests')
-        .select('id, lead_email, lead_name, lead_company, created_at, source_metadata')
-        .eq('listing_id', selectedListingId)
-        .eq('source', 'website')
-        .order('created_at', { ascending: false });
+      // Get recent bulk import audit logs
+      const { data: auditLogs, error: auditError } = await supabase
+        .from('audit_logs')
+        .select('id, metadata, timestamp, admin_id')
+        .eq('table_name', 'connection_requests')
+        .eq('operation', 'BULK_IMPORT')
+        .order('timestamp', { ascending: false })
+        .limit(20);
 
-      if (error) throw error;
+      if (auditError) throw auditError;
 
-      // Filter by CSV filename if provided
-      let filtered = data || [];
-      if (csvFileName.trim()) {
-        filtered = filtered.filter(r => {
-          const metadata = r.source_metadata as any;
-          return metadata?.csv_filename?.toLowerCase().includes(csvFileName.toLowerCase().trim());
-        });
-      }
+      // Get admin names
+      const adminIds = [...new Set(auditLogs?.map(log => log.admin_id).filter(Boolean) || [])];
+      const { data: adminProfiles } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name, email')
+        .in('id', adminIds);
 
-      // Filter only CSV imports
-      filtered = filtered.filter(r => {
-        const metadata = r.source_metadata as any;
-        return metadata?.import_method === 'csv_bulk_upload';
+      const adminMap = new Map(
+        adminProfiles?.map(p => [p.id, `${p.first_name || ''} ${p.last_name || ''}`.trim() || p.email]) || []
+      );
+
+      // Get listing titles
+      const listingIds = [...new Set(auditLogs?.map(log => (log.metadata as any)?.listing_id).filter(Boolean) || [])];
+      const { data: listings } = await supabase
+        .from('listings')
+        .select('id, title')
+        .in('id', listingIds);
+
+      const listingMap = new Map(listings?.map(l => [l.id, l.title]) || []);
+
+      // Transform audit logs into import batches
+      const batches: ImportBatch[] = (auditLogs || []).map(log => {
+        const metadata = log.metadata as any;
+        return {
+          id: log.id,
+          csv_filename: metadata.csv_filename || 'Unknown',
+          listing_id: metadata.listing_id,
+          listing_title: listingMap.get(metadata.listing_id) || 'Unknown Listing',
+          imported_count: metadata.rows_imported || 0,
+          import_date: log.timestamp,
+          admin_name: adminMap.get(log.admin_id) || 'Unknown Admin',
+          batch_id: metadata.batch_id,
+        };
       });
 
-      setFoundRequests(filtered);
-      
-      if (filtered.length === 0) {
-        toast.info('No matching CSV imports found', {
-          description: csvFileName 
-            ? 'Try searching without a filename to see all imports for this listing'
-            : 'No CSV imports found for this listing'
-        });
-      } else {
-        toast.success(`Found ${filtered.length} connection requests from CSV import(s)`);
+      setRecentImports(batches);
+
+      if (batches.length === 0) {
+        toast.info('No recent CSV imports found');
       }
     } catch (error: any) {
-      toast.error('Search failed', {
+      toast.error('Failed to load recent imports', {
         description: error.message,
       });
     } finally {
-      setIsSearching(false);
+      setIsLoading(false);
+    }
+  };
+
+  const handleSelectBatch = async (batch: ImportBatch) => {
+    setSelectedBatch(batch);
+    setIsLoading(true);
+
+    try {
+      // Find connection requests from this batch
+      let query = supabase
+        .from('connection_requests')
+        .select('id, lead_email, lead_name, lead_company, created_at, source_metadata')
+        .eq('listing_id', batch.listing_id)
+        .eq('source', 'website');
+
+      // Try to find by batch_id first (new imports)
+      if (batch.batch_id) {
+        const { data: batchRequests } = await query.contains('source_metadata', { batch_id: batch.batch_id });
+        if (batchRequests && batchRequests.length > 0) {
+          setRequestsToDelete(batchRequests);
+          setIsLoading(false);
+          return;
+        }
+      }
+
+      // Fallback: Find by CSV filename and approximate timestamp (old imports)
+      const { data: allRequests } = await query;
+      
+      const filtered = (allRequests || []).filter(r => {
+        const metadata = r.source_metadata as any;
+        return (
+          metadata?.import_method === 'csv_bulk_upload' &&
+          metadata?.csv_filename === batch.csv_filename &&
+          // Match imports within 1 hour of the audit log timestamp
+          Math.abs(new Date(r.created_at).getTime() - new Date(batch.import_date).getTime()) < 3600000
+        );
+      });
+
+      setRequestsToDelete(filtered);
+
+      if (filtered.length === 0) {
+        toast.warning('No matching requests found', {
+          description: 'This import may have already been deleted',
+        });
+      }
+    } catch (error: any) {
+      toast.error('Failed to load import details', {
+        description: error.message,
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleDelete = async () => {
-    if (foundRequests.length === 0) return;
+    if (requestsToDelete.length === 0 || !selectedBatch) return;
 
     setIsDeleting(true);
     try {
-      const requestIds = foundRequests.map(r => r.id);
+      const requestIds = requestsToDelete.map(r => r.id);
 
       // Delete all found connection requests
       const { error: deleteError } = await supabase
@@ -108,9 +178,10 @@ export function ManualUndoImportDialog({ isOpen, onClose }: ManualUndoImportDial
           operation: 'MANUAL_BULK_DELETE',
           admin_id: user.id,
           metadata: {
-            listing_id: selectedListingId,
-            csv_filename: csvFileName || 'any',
-            deleted_count: foundRequests.length,
+            original_import_audit_id: selectedBatch.id,
+            listing_id: selectedBatch.listing_id,
+            csv_filename: selectedBatch.csv_filename,
+            deleted_count: requestsToDelete.length,
             deleted_ids: requestIds,
             cleanup_timestamp: new Date().toISOString(),
           },
@@ -124,13 +195,12 @@ export function ManualUndoImportDialog({ isOpen, onClose }: ManualUndoImportDial
         queryClient.invalidateQueries({ queryKey: ['connection-requests'] }),
       ]);
 
-      toast.success(`Deleted ${foundRequests.length} connection requests`);
+      toast.success(`Deleted ${requestsToDelete.length} connection requests`);
       
-      // Reset state
-      setFoundRequests([]);
-      setSelectedListingId('');
-      setCsvFileName('');
-      onClose();
+      // Reset and close
+      setSelectedBatch(null);
+      setRequestsToDelete([]);
+      loadRecentImports(); // Refresh the list
     } catch (error: any) {
       toast.error('Delete failed', {
         description: error.message,
@@ -141,131 +211,205 @@ export function ManualUndoImportDialog({ isOpen, onClose }: ManualUndoImportDial
   };
 
   const handleClose = () => {
-    setFoundRequests([]);
-    setSelectedListingId('');
-    setCsvFileName('');
+    setSelectedBatch(null);
+    setRequestsToDelete([]);
     onClose();
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Trash2 className="h-5 w-5 text-destructive" />
-            Manual Import Cleanup
+            Undo CSV Import
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4">
-          <Alert>
-            <AlertDescription>
-              Use this tool to find and delete connection requests from previous CSV imports.
-              Select the listing and optionally specify the CSV filename.
-            </AlertDescription>
-          </Alert>
+        <div className="flex-1 overflow-y-auto space-y-4">
+          {!selectedBatch ? (
+            // Step 1: Show list of recent imports
+            <>
+              <Alert>
+                <AlertDescription>
+                  Select a recent CSV import to undo. All connection requests from that import will be deleted.
+                </AlertDescription>
+              </Alert>
 
-          {/* Search Criteria */}
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="listing">Listing *</Label>
-              <Select value={selectedListingId} onValueChange={setSelectedListingId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a listing" />
-                </SelectTrigger>
-                <SelectContent>
-                  {listings?.map((listing) => (
-                    <SelectItem key={listing.id} value={listing.id}>
-                      {listing.title}
-                    </SelectItem>
+              {isLoading ? (
+                <div className="space-y-2">
+                  {[...Array(3)].map((_, i) => (
+                    <div key={i} className="h-24 bg-muted animate-pulse rounded-lg" />
                   ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="filename">CSV Filename (optional)</Label>
-              <input
-                id="filename"
-                type="text"
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                placeholder="e.g., national-painting"
-                value={csvFileName}
-                onChange={(e) => setCsvFileName(e.target.value)}
-              />
-              <p className="text-xs text-muted-foreground">
-                Leave empty to find all CSV imports for the selected listing
-              </p>
-            </div>
-
-            <Button 
-              onClick={handleSearch} 
-              disabled={!selectedListingId || isSearching}
-              className="w-full"
-            >
-              <Search className="h-4 w-4 mr-2" />
-              {isSearching ? 'Searching...' : 'Search for Imports'}
-            </Button>
-          </div>
-
-          {/* Results */}
-          {foundRequests.length > 0 && (
-            <div className="space-y-3">
-              <div className="rounded-lg border bg-muted/30 p-4">
-                <div className="text-sm font-medium mb-2">
-                  Found {foundRequests.length} Connection Requests
                 </div>
-                <div className="space-y-2 max-h-64 overflow-y-auto">
-                  {foundRequests.slice(0, 10).map((req, i) => {
-                    const metadata = req.source_metadata as any;
-                    return (
-                      <div key={req.id} className="text-xs p-2 rounded bg-background">
-                        <div className="font-medium">{req.lead_name || req.lead_email}</div>
-                        <div className="text-muted-foreground">
-                          {req.lead_company && `${req.lead_company} • `}
-                          From: {metadata?.csv_filename || 'Unknown'}
+              ) : recentImports.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>No recent CSV imports found</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {recentImports.map((batch) => (
+                    <button
+                      key={batch.id}
+                      onClick={() => handleSelectBatch(batch)}
+                      className="w-full text-left p-4 rounded-lg border hover:bg-muted/50 transition-colors group"
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1 space-y-2">
+                          <div className="flex items-center gap-2">
+                            <FileText className="h-4 w-4 text-primary" />
+                            <span className="font-medium">{batch.csv_filename}</span>
+                            <Badge variant="secondary" className="text-xs">
+                              {batch.imported_count} requests
+                            </Badge>
+                          </div>
+                          
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-muted-foreground">
+                            <div className="flex items-center gap-2">
+                              <Package className="h-3 w-3" />
+                              <span className="truncate">{batch.listing_title}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Calendar className="h-3 w-3" />
+                              <span>{format(new Date(batch.import_date), 'MMM d, yyyy h:mm a')}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <User className="h-3 w-3" />
+                              <span>{batch.admin_name}</span>
+                            </div>
+                          </div>
                         </div>
-                        <div className="text-muted-foreground">
-                          Imported: {new Date(req.created_at).toLocaleDateString()}
+                        
+                        <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Badge variant="outline">Select</Badge>
                         </div>
                       </div>
-                    );
-                  })}
-                  {foundRequests.length > 10 && (
-                    <div className="text-xs text-muted-foreground text-center py-2">
-                      ... and {foundRequests.length - 10} more
+                    </button>
+                  ))}
+                </div>
+              )}
+            </>
+          ) : (
+            // Step 2: Show confirmation with details
+            <>
+              <Alert>
+                <AlertDescription>
+                  You selected the following import to undo:
+                </AlertDescription>
+              </Alert>
+
+              <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <FileText className="h-5 w-5 text-primary" />
+                  <span className="font-medium text-lg">{selectedBatch.csv_filename}</span>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <div className="text-muted-foreground mb-1">Listing</div>
+                    <div className="font-medium">{selectedBatch.listing_title}</div>
+                  </div>
+                  <div>
+                    <div className="text-muted-foreground mb-1">Imported On</div>
+                    <div className="font-medium">
+                      {format(new Date(selectedBatch.import_date), 'MMM d, yyyy h:mm a')}
                     </div>
-                  )}
+                  </div>
+                  <div>
+                    <div className="text-muted-foreground mb-1">Imported By</div>
+                    <div className="font-medium">{selectedBatch.admin_name}</div>
+                  </div>
+                  <div>
+                    <div className="text-muted-foreground mb-1">Original Count</div>
+                    <div className="font-medium">{selectedBatch.imported_count} requests</div>
+                  </div>
                 </div>
               </div>
 
-              <Alert variant="destructive">
-                <AlertTriangle className="h-4 w-4" />
-                <AlertDescription>
-                  <strong>Warning:</strong> This will permanently delete {foundRequests.length} connection requests.
-                  This action cannot be undone.
-                </AlertDescription>
-              </Alert>
-            </div>
-          )}
+              {isLoading ? (
+                <div className="py-8 text-center text-muted-foreground">
+                  Loading requests to delete...
+                </div>
+              ) : requestsToDelete.length > 0 ? (
+                <>
+                  <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
+                    <div className="text-sm font-medium">
+                      Found {requestsToDelete.length} Connection Requests to Delete
+                    </div>
+                    <div className="space-y-2 max-h-48 overflow-y-auto">
+                      {requestsToDelete.slice(0, 10).map((req) => (
+                        <div key={req.id} className="text-xs p-2 rounded bg-background">
+                          <div className="font-medium">{req.lead_name || req.lead_email}</div>
+                          {req.lead_company && (
+                            <div className="text-muted-foreground">{req.lead_company}</div>
+                          )}
+                        </div>
+                      ))}
+                      {requestsToDelete.length > 10 && (
+                        <div className="text-xs text-muted-foreground text-center py-2">
+                          ... and {requestsToDelete.length - 10} more
+                        </div>
+                      )}
+                    </div>
+                  </div>
 
-          {/* Actions */}
-          <div className="flex justify-end gap-2 pt-4 border-t">
-            <Button variant="outline" onClick={handleClose} disabled={isDeleting}>
-              Cancel
-            </Button>
-            {foundRequests.length > 0 && (
+                  <Alert variant="destructive">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertDescription>
+                      <strong>Warning:</strong> This will permanently delete {requestsToDelete.length} connection requests.
+                      This action cannot be undone.
+                    </AlertDescription>
+                  </Alert>
+                </>
+              ) : (
+                <Alert>
+                  <AlertDescription>
+                    No matching requests found. This import may have already been deleted.
+                  </AlertDescription>
+                </Alert>
+              )}
+            </>
+          )}
+        </div>
+
+        {/* Actions */}
+        <div className="flex justify-between gap-2 pt-4 border-t flex-shrink-0">
+          {selectedBatch ? (
+            <>
               <Button 
-                variant="destructive"
-                onClick={handleDelete}
+                variant="outline" 
+                onClick={() => {
+                  setSelectedBatch(null);
+                  setRequestsToDelete([]);
+                }}
                 disabled={isDeleting}
               >
-                {isDeleting ? 'Deleting...' : `Delete ${foundRequests.length} Requests`}
+                Back
               </Button>
-            )}
-          </div>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={handleClose} disabled={isDeleting}>
+                  Cancel
+                </Button>
+                {requestsToDelete.length > 0 && (
+                  <Button 
+                    variant="destructive"
+                    onClick={handleDelete}
+                    disabled={isDeleting}
+                  >
+                    {isDeleting ? 'Deleting...' : `Delete ${requestsToDelete.length} Requests`}
+                  </Button>
+                )}
+              </div>
+            </>
+          ) : (
+            <Button variant="outline" onClick={handleClose} className="ml-auto">
+              Cancel
+            </Button>
+          )}
         </div>
       </DialogContent>
     </Dialog>
   );
 }
+
