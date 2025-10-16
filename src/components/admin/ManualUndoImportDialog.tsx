@@ -109,35 +109,34 @@ export function ManualUndoImportDialog({ isOpen, onClose }: ManualUndoImportDial
     setIsLoading(true);
 
     try {
-      // Find connection requests from this batch
-      let query = supabase
+      // Get all connection requests from this listing that were CSV imports
+      const { data: allRequests, error } = await supabase
         .from('connection_requests')
         .select('id, lead_email, lead_name, lead_company, created_at, source_metadata')
         .eq('listing_id', batch.listing_id)
         .eq('source', 'website');
 
-      // Try to find by batch_id first (new imports)
-      if (batch.batch_id) {
-        const { data: batchRequests } = await query.contains('source_metadata', { batch_id: batch.batch_id });
-        if (batchRequests && batchRequests.length > 0) {
-          setRequestsToDelete(batchRequests);
-          setIsLoading(false);
-          return;
-        }
-      }
+      if (error) throw error;
 
-      // Fallback: Find by CSV filename and approximate timestamp (old imports)
-      const { data: allRequests } = await query;
-      
-      const filtered = (allRequests || []).filter(r => {
+      // Filter by batch_id first (new imports with batch tracking)
+      let filtered = (allRequests || []).filter(r => {
         const metadata = r.source_metadata as any;
         return (
-          metadata?.import_method === 'csv_bulk_upload' &&
-          metadata?.csv_filename === batch.csv_filename &&
-          // Match imports within 1 hour of the audit log timestamp
-          Math.abs(new Date(r.created_at).getTime() - new Date(batch.import_date).getTime()) < 3600000
+          metadata?.batch_id === batch.batch_id &&
+          metadata?.import_method === 'csv_bulk_upload'
         );
       });
+
+      // If no batch_id match, filter by CSV filename (old imports without batch_id)
+      if (filtered.length === 0 && batch.csv_filename) {
+        filtered = (allRequests || []).filter(r => {
+          const metadata = r.source_metadata as any;
+          return (
+            metadata?.import_method === 'csv_bulk_upload' &&
+            metadata?.csv_filename === batch.csv_filename
+          );
+        });
+      }
 
       setRequestsToDelete(filtered);
 
