@@ -30,7 +30,7 @@ export function PipelineDetailPanel({ pipeline }: PipelineDetailPanelProps) {
   console.log('[Pipeline Detail Panel] Rendering with selectedDeal', { 
     hasSelectedDeal: !!selectedDeal,
     dealId: selectedDeal?.deal_id,
-    title: selectedDeal?.deal_title,
+    title: selectedDeal?.title,
     contact: selectedDeal?.contact_name,
     company: selectedDeal?.contact_company
   });
@@ -99,8 +99,8 @@ export function PipelineDetailPanel({ pipeline }: PipelineDetailPanelProps) {
             <div className="space-y-1">
               <h1 className="text-xl font-medium text-foreground tracking-tight">
                 {selectedDeal.listing_real_company_name?.trim()
-                  ? `${selectedDeal.listing_real_company_name} / ${selectedDeal.listing_title || selectedDeal.deal_title}`
-                  : (selectedDeal.listing_title || selectedDeal.deal_title)
+                  ? `${selectedDeal.listing_real_company_name} / ${selectedDeal.listing_title || selectedDeal.title}`
+                  : (selectedDeal.listing_title || selectedDeal.title)
                 }
               </h1>
               <div className="flex items-center gap-2">

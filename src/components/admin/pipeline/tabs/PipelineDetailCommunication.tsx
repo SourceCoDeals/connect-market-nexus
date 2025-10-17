@@ -48,7 +48,7 @@ export function PipelineDetailCommunication({ deal }: PipelineDetailCommunicatio
 
       const { data: allDeals } = await supabase
         .from('deals')
-        .select('id, deal_title, listing_title, listing_real_company_name, stage_id, followed_up')
+        .select('id, title, listing_title, listing_real_company_name, stage_id, followed_up')
         .eq('contact_email', deal.contact_email)
         .neq('id', deal.deal_id);
 
@@ -81,7 +81,7 @@ export function PipelineDetailCommunication({ deal }: PipelineDetailCommunicatio
           correlation_id: `deal-${deal.deal_id}-${Date.now()}`,
           metadata: {
             deal_id: deal.deal_id,
-            deal_title: deal.deal_title,
+            title: deal.title,
             contact_name: deal.contact_name
           }
         }
@@ -263,7 +263,7 @@ export function PipelineDetailCommunication({ deal }: PipelineDetailCommunicatio
                         htmlFor={`deal-${otherDeal.id}`}
                         className="text-sm text-foreground cursor-pointer flex items-center gap-2"
                       >
-                        {otherDeal.listing_real_company_name || otherDeal.listing_title || otherDeal.deal_title}
+                        {otherDeal.listing_real_company_name || otherDeal.listing_title || otherDeal.title}
                         {otherDeal.followed_up && (
                           <Badge variant="outline" className="text-xs">
                             <CheckCheck className="h-3 w-3 mr-1" />
@@ -332,8 +332,8 @@ export function PipelineDetailCommunication({ deal }: PipelineDetailCommunicatio
                   <button 
                     onClick={() => {
                       setEmailData({
-                        subject: `Follow-up on ${deal.deal_title}`,
-                        message: `Hi ${deal.contact_name || 'there'},\n\nI wanted to follow up on your interest in the ${deal.deal_title} opportunity. Do you have any questions about the investment details?\n\nBest regards`
+                        subject: `Follow-up on ${deal.title}`,
+                        message: `Hi ${deal.contact_name || 'there'},\n\nI wanted to follow up on your interest in the ${deal.title} opportunity. Do you have any questions about the investment details?\n\nBest regards`
                       });
                       setShowCompose(true);
                     }}
@@ -348,8 +348,8 @@ export function PipelineDetailCommunication({ deal }: PipelineDetailCommunicatio
                   <button 
                     onClick={() => {
                       setEmailData({
-                        subject: `Additional Information - ${deal.deal_title}`,
-                        message: `Hi ${deal.contact_name || 'there'},\n\nI'm attaching additional information about the ${deal.deal_title} opportunity as requested.\n\nPlease let me know if you need any clarification.\n\nBest regards`
+                        subject: `Additional Information - ${deal.title}`,
+                        message: `Hi ${deal.contact_name || 'there'},\n\nI'm attaching additional information about the ${deal.title} opportunity as requested.\n\nPlease let me know if you need any clarification.\n\nBest regards`
                       });
                       setShowCompose(true);
                     }}
@@ -364,8 +364,8 @@ export function PipelineDetailCommunication({ deal }: PipelineDetailCommunicatio
                   <button 
                     onClick={() => {
                       setEmailData({
-                        subject: `Schedule a Call - ${deal.deal_title}`,
-                        message: `Hi ${deal.contact_name || 'there'},\n\nWould you be available for a call this week to discuss the ${deal.deal_title} opportunity in more detail?\n\nI'm available at your convenience.\n\nBest regards`
+                        subject: `Schedule a Call - ${deal.title}`,
+                        message: `Hi ${deal.contact_name || 'there'},\n\nWould you be available for a call this week to discuss the ${deal.title} opportunity in more detail?\n\nI'm available at your convenience.\n\nBest regards`
                       });
                       setShowCompose(true);
                     }}
@@ -397,7 +397,7 @@ export function PipelineDetailCommunication({ deal }: PipelineDetailCommunicatio
                 />
                 
                 <Textarea
-                  placeholder={`Hi ${deal.contact_name || 'there'},\n\nI wanted to follow up regarding the ${deal.deal_title} opportunity...\n\nBest regards`}
+                  placeholder={`Hi ${deal.contact_name || 'there'},\n\nI wanted to follow up regarding the ${deal.title} opportunity...\n\nBest regards`}
                   value={emailData.message}
                   onChange={(e) => setEmailData({ ...emailData, message: e.target.value })}
                   rows={10}

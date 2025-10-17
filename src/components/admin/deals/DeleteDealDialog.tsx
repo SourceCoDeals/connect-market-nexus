@@ -30,7 +30,7 @@ export function DeleteDealDialog({ open, onOpenChange, deal, onDeleted }: Delete
   const softDeleteMutation = useSoftDeleteDeal();
 
   const handleDelete = async () => {
-    if (!deal || confirmText !== deal.deal_title) return;
+    if (!deal || confirmText !== deal.title) return;
 
     await softDeleteMutation.mutateAsync({
       dealId: deal.deal_id,
@@ -47,7 +47,7 @@ export function DeleteDealDialog({ open, onOpenChange, deal, onDeleted }: Delete
     onOpenChange(false);
   };
 
-  const isValid = confirmText === deal?.deal_title;
+  const isValid = confirmText === deal?.title;
 
   return (
     <AlertDialog open={open} onOpenChange={handleClose}>
@@ -67,7 +67,7 @@ export function DeleteDealDialog({ open, onOpenChange, deal, onDeleted }: Delete
                 <Alert>
                   <AlertDescription>
                     <div className="space-y-1 text-sm">
-                      <div><strong>Deal:</strong> {deal.deal_title}</div>
+                      <div><strong>Deal:</strong> {deal.title}</div>
                       <div><strong>Listing:</strong> {deal.listing_title}</div>
                       <div><strong>Contact:</strong> {deal.contact_name} ({deal.contact_email})</div>
                       <div><strong>Value:</strong> ${deal.deal_value?.toLocaleString() || 0}</div>
@@ -92,7 +92,7 @@ export function DeleteDealDialog({ open, onOpenChange, deal, onDeleted }: Delete
 
               <div className="space-y-2">
                 <Label htmlFor="confirm" className="text-destructive">
-                  Type "<strong>{deal?.deal_title}</strong>" to confirm deletion *
+                  Type "<strong>{deal?.title}</strong>" to confirm deletion *
                 </Label>
                 <Input
                   id="confirm"

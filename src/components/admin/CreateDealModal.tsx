@@ -230,7 +230,7 @@ export function CreateDealModal({ open, onOpenChange, prefilledStageId, onDealCr
                 created_by_admin: true,
                 admin_id: (await supabase.auth.getUser()).data.user?.id,
                 created_via: 'deal_creation_modal',
-                deal_title: data.title,
+                title: data.title,
               },
             })
             .select()

@@ -120,7 +120,7 @@ export function useCreateDealTask() {
             action_url: `/admin/pipeline?deal=${taskData.deal_id}&tab=tasks`,
             metadata: {
               task_title: taskData.title,
-              deal_title: dealData?.title || 'Deal',
+              title: dealData?.title || 'Deal',
               assigned_by: userData?.user?.id,
               priority: taskData.priority,
             },
@@ -136,7 +136,7 @@ export function useCreateDealTask() {
               task_description: taskData.description,
               task_priority: taskData.priority || 'medium',
               task_due_date: taskData.due_date,
-              deal_title: dealData?.title || 'Deal',
+              title: dealData?.title || 'Deal',
               deal_id: taskData.deal_id,
             },
           });
@@ -233,7 +233,7 @@ export function useUpdateDealTask() {
             action_url: `/admin/pipeline?deal=${currentTask.deal_id}&tab=tasks`,
             metadata: {
               task_title: currentTask.title,
-              deal_title: dealData?.title || 'Deal',
+              title: dealData?.title || 'Deal',
               assigned_by: userData?.user?.id,
               priority: currentTask.priority,
             },
@@ -249,7 +249,7 @@ export function useUpdateDealTask() {
               task_description: currentTask.description,
               task_priority: currentTask.priority || 'medium',
               task_due_date: currentTask.due_date,
-              deal_title: dealData?.title || 'Deal',
+              title: dealData?.title || 'Deal',
               deal_id: currentTask.deal_id,
             },
           });
@@ -278,7 +278,7 @@ export function useUpdateDealTask() {
               action_url: `/admin/pipeline?deal=${currentTask.deal_id}&tab=tasks`,
               metadata: {
                 task_title: currentTask.title,
-                deal_title: dealData?.title || 'Deal',
+                title: dealData?.title || 'Deal',
                 resolved_by: userData?.user?.id,
                 priority: currentTask.priority,
               },
@@ -367,7 +367,7 @@ export function useCompleteDealTask() {
             action_url: `/admin/pipeline?deal=${currentTask.deal_id}&tab=tasks`,
             metadata: {
               task_title: currentTask.title,
-              deal_title: dealData?.title || 'Deal',
+              title: dealData?.title || 'Deal',
               completed_by: userData?.user?.id,
             },
           });

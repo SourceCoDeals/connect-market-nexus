@@ -5,7 +5,7 @@ import { logDealActivity } from '@/lib/deal-activity-logger';
 
 export interface Deal {
   deal_id: string;
-  deal_title: string;
+  title: string;
   deal_description?: string;
   deal_value: number;
   deal_priority: 'low' | 'medium' | 'high' | 'urgent';
@@ -125,7 +125,7 @@ export function useDeals() {
             keys: Object.keys(row),
             sample: {
               deal_id: row.deal_id ?? row.id,
-              deal_title: row.deal_title ?? row.title,
+              title: row.title ?? row.listing_title ?? 'Deal',
               deal_stage_entered_at: row.deal_stage_entered_at ?? row.stage_entered_at,
               deal_created_at: row.deal_created_at ?? row.created_at
             }
@@ -134,7 +134,7 @@ export function useDeals() {
         return {
           // Core deal fields (prefer new RPC names, fallback to old)
           deal_id: row.deal_id ?? row.id ?? row.connection_request_id ?? row.listing_id,
-          deal_title: row.deal_title ?? row.title ?? row.listing_title ?? 'Deal',
+          title: row.title ?? row.listing_title ?? 'Deal',
           deal_description: row.deal_description ?? row.description,
           deal_value: Number(row.deal_value ?? row.value ?? 0),
           deal_priority: row.deal_priority ?? row.priority ?? 'medium',

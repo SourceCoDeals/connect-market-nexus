@@ -33,7 +33,7 @@ export function useDealFilters(deals: Deal[], currentAdminId?: string) {
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(deal => 
-        deal.deal_title?.toLowerCase().includes(query) ||
+        deal.title?.toLowerCase().includes(query) ||
         deal.listing_title?.toLowerCase().includes(query) ||
         deal.listing_real_company_name?.toLowerCase().includes(query) ||
         deal.buyer_name?.toLowerCase().includes(query) ||

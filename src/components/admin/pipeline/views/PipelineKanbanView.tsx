@@ -84,7 +84,7 @@ export function PipelineKanbanView({ pipeline, onOpenCreateDeal }: PipelineKanba
 
     console.log('[Pipeline DnD] move', { 
       dealId, 
-      dealTitle: deal?.deal_title,
+      dealTitle: deal?.title,
       fromStage: deal?.stage_name, 
       toStage: targetStage?.name,
       currentStageEnteredAt: deal?.deal_stage_entered_at 

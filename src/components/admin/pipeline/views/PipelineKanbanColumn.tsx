@@ -113,7 +113,7 @@ export function PipelineKanbanColumn({ stage, deals, onDealClick, onOpenCreateDe
             {deals.map((deal) => {
               console.log('[Pipeline Column] Rendering card for deal:', {
                 deal_id: deal.deal_id,
-                deal_title: deal.deal_title,
+                title: deal.title,
                 contact_name: deal.contact_name,
                 has_deal_id: 'deal_id' in deal,
                 keys: Object.keys(deal).slice(0, 10)

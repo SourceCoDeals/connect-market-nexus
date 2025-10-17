@@ -52,7 +52,7 @@ export const DealsListView = ({ onDealClick }: DealsListViewProps) => {
   const filteredDeals = useMemo(() => {
     return deals.filter(deal => {
       const matchesSearch = searchQuery === '' || 
-        deal.deal_title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        deal.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         deal.contact_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         deal.contact_company?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         deal.listing_title?.toLowerCase().includes(searchQuery.toLowerCase());
@@ -236,7 +236,7 @@ export const DealsListView = ({ onDealClick }: DealsListViewProps) => {
                       
                       <TableCell>
                         <div>
-                          <div className="font-medium">{deal.deal_title}</div>
+                          <div className="font-medium">{deal.title}</div>
                           {deal.listing_title && (
                             <div className="text-sm text-muted-foreground flex items-center gap-1">
                               <Building className="h-3 w-3" />

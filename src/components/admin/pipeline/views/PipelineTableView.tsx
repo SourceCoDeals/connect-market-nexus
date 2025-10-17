@@ -157,7 +157,7 @@ export function PipelineTableView({ pipeline }: PipelineTableViewProps) {
                     />
                   </TableCell>
                   <TableCell>
-                    <div className="font-medium text-sm">{deal.deal_title}</div>
+                    <div className="font-medium text-sm">{deal.title}</div>
                   </TableCell>
                   <TableCell>
                     <div className="text-sm">{deal.contact_name || 'Unknown'}</div>

@@ -256,7 +256,7 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
       has_id: 'id' in deal,
       actual_deal_id: deal.deal_id,
       actual_id: (deal as any).id,
-      deal_title: deal.deal_title,
+      title: deal.title,
       listing_title: deal.listing_title,
       contact: deal.contact_name,
       company: deal.contact_company

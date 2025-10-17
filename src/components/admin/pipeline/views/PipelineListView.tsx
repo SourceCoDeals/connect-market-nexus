@@ -117,7 +117,7 @@ export function PipelineListView({ pipeline }: PipelineListViewProps) {
                   {/* Deal Info */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between mb-2">
-                      <h3 className="font-semibold text-sm truncate">{deal.deal_title}</h3>
+                      <h3 className="font-semibold text-sm truncate">{deal.title}</h3>
                       <div className="flex items-center gap-2">
                         {(deal.deal_priority === 'high' || deal.deal_priority === 'urgent') && (
                           <Badge className={`${getPriorityColor(deal.deal_priority)} h-5 px-2 text-xs`}>

@@ -133,7 +133,7 @@ export function usePipelineCore() {
     console.log('[Pipeline Core] Found deal?', { 
       selectedDealId, 
       found: !!found,
-      title: found?.deal_title 
+      title: found?.title 
     });
     return found || null;
   }, [filteredAndSortedDeals, selectedDealId]);
@@ -221,7 +221,7 @@ export function usePipelineCore() {
   const handleDealSelect = (deal: Deal) => {
     console.log('[Pipeline Core] handleDealSelect called', { 
       dealId: deal.deal_id, 
-      title: deal.deal_title,
+      title: deal.title,
       contact: deal.contact_name,
       company: deal.contact_company 
     });
