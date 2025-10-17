@@ -15,6 +15,7 @@ import { SimpleFeeAgreementDialog } from "./SimpleFeeAgreementDialog";
 import { DualNDAToggle } from "./DualNDAToggle";
 import { SimpleNDADialog } from "./SimpleNDADialog";
 import { UserActivityTimeline } from "./UserActivityTimeline";
+import { UserFirmBadge } from "./UserFirmBadge";
 
 import { getFieldCategories, FIELD_LABELS } from '@/lib/buyer-type-fields';
 import { formatFieldValue } from '@/lib/field-formatting';
@@ -587,9 +588,12 @@ export function UsersTable({
                       )}
                     </div>
                     <div className="text-xs text-muted-foreground truncate">{user.email}</div>
-                    {user.company && (
-                      <div className="text-xs font-medium text-foreground truncate">{user.company}</div>
-                    )}
+                    <div className="flex items-center gap-2 mt-1">
+                      {user.company && (
+                        <div className="text-xs font-medium text-foreground truncate">{user.company}</div>
+                      )}
+                      <UserFirmBadge userId={user.id} compact />
+                    </div>
                   </div>
                 </TableCell>
                 <TableCell className="py-2">

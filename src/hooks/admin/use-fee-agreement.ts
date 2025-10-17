@@ -89,6 +89,8 @@ export const useUpdateFeeAgreement = () => {
       queryClient.invalidateQueries({ queryKey: ['connection-request-details'] });
       queryClient.invalidateQueries({ queryKey: ['deals'] });
       queryClient.invalidateQueries({ queryKey: ['deal-activities'] });
+      queryClient.invalidateQueries({ queryKey: ['firm-agreements'] });
+      queryClient.invalidateQueries({ queryKey: ['firm-members'] });
       toast({
         title: "Fee agreement status updated",
         description: "The fee agreement status has been successfully updated.",

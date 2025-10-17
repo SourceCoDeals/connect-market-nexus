@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 
 export interface ConnectionRequestDetails {
   id: string;
+  user_id: string;
   lead_nda_signed: boolean;
   lead_nda_signed_at: string | null;
   lead_nda_signed_by: string | null;
@@ -50,6 +51,7 @@ export function useConnectionRequestDetails(connectionRequestId?: string) {
         .from('connection_requests')
         .select(`
           id,
+          user_id,
           lead_nda_signed,
           lead_nda_signed_at,
           lead_nda_signed_by,

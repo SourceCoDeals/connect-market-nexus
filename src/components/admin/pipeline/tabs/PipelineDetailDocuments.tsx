@@ -7,6 +7,7 @@ import { useConnectionRequestDetails } from '@/hooks/admin/use-connection-reques
 import { DocumentHistory } from '../DocumentHistory';
 import { useQueryClient } from '@tanstack/react-query';
 import { Label } from '@/components/ui/label';
+import { DealFirmInfo } from '../DealFirmInfo';
 
 interface PipelineDetailDocumentsProps {
   deal: Deal;
@@ -149,7 +150,12 @@ export function PipelineDetailDocuments({ deal }: PipelineDetailDocumentsProps) 
                   <div className={`w-1.5 h-1.5 rounded-full ${deal.nda_status === 'signed' ? 'bg-emerald-500' : 'bg-muted-foreground/30'}`} />
                   <span className="text-sm text-foreground flex-1">NDA Signed</span>
                   {deal.nda_status === 'signed' && (
-                    <span className="text-xs text-emerald-600 font-mono">Complete</span>
+                    <div className="flex flex-col items-end gap-1">
+                      <span className="text-xs text-emerald-600 font-mono">Complete</span>
+                      {deal.connection_request_id && requestDetails?.user_id && (
+                        <DealFirmInfo userId={requestDetails.user_id} compact />
+                      )}
+                    </div>
                   )}
                 </div>
                 
@@ -157,7 +163,12 @@ export function PipelineDetailDocuments({ deal }: PipelineDetailDocumentsProps) 
                   <div className={`w-1.5 h-1.5 rounded-full ${deal.fee_agreement_status === 'signed' ? 'bg-emerald-500' : 'bg-muted-foreground/30'}`} />
                   <span className="text-sm text-foreground flex-1">Fee Agreement Signed</span>
                   {deal.fee_agreement_status === 'signed' && (
-                    <span className="text-xs text-emerald-600 font-mono">Complete</span>
+                    <div className="flex flex-col items-end gap-1">
+                      <span className="text-xs text-emerald-600 font-mono">Complete</span>
+                      {deal.connection_request_id && requestDetails?.user_id && (
+                        <DealFirmInfo userId={requestDetails.user_id} compact />
+                      )}
+                    </div>
                   )}
                 </div>
               </div>

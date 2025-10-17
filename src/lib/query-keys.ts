@@ -31,6 +31,14 @@ export const QUERY_KEYS = {
     userNotes: (userId?: string) => ['admin', 'user-notes', userId] as const,
   },
   
+  // Firm agreements
+  firmAgreements: ['firm-agreements'] as const,
+  firmMembers: (firmId?: string) => ['firm-members', firmId] as const,
+  
+  // Deals & Pipeline
+  deals: ['deals'] as const,
+  deal: (dealId?: string) => ['deal', dealId] as const,
+  
   // Analytics
   analytics: {
     health: ['analytics', 'health'] as const,
@@ -68,6 +76,18 @@ export const INVALIDATION_PATTERNS = {
   userNotes: (userId?: string) => [
     { queryKey: QUERY_KEYS.admin.userNotes(userId) },
     { queryKey: ['admin', 'user-notes'] },
+  ],
+  
+  // Invalidate firm agreements
+  firmAgreements: () => [
+    { queryKey: QUERY_KEYS.firmAgreements },
+    { queryKey: ['firm-agreements'] }, // Legacy support
+  ],
+  
+  // Invalidate deals
+  deals: () => [
+    { queryKey: QUERY_KEYS.deals },
+    { queryKey: ['deals'] }, // Legacy support
   ],
 } as const;
 

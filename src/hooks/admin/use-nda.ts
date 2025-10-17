@@ -90,6 +90,8 @@ export const useUpdateNDA = () => {
       queryClient.invalidateQueries({ queryKey: ['connection-request-details'] });
       queryClient.invalidateQueries({ queryKey: ['deals'] });
       queryClient.invalidateQueries({ queryKey: ['deal-activities'] });
+      queryClient.invalidateQueries({ queryKey: ['firm-agreements'] });
+      queryClient.invalidateQueries({ queryKey: ['firm-members'] });
       toast({
         title: "NDA status updated",
         description: "The NDA status has been successfully updated.",
