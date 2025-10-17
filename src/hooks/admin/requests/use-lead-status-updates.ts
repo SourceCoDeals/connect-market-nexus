@@ -53,6 +53,9 @@ export const useUpdateLeadNDAStatus = () => {
       queryClient.invalidateQueries({ queryKey: ['connection-request-details'] });
       queryClient.invalidateQueries({ queryKey: ['deals'] });
       queryClient.invalidateQueries({ queryKey: ['deal-activities'] });
+      queryClient.invalidateQueries({ queryKey: ['firm-agreements'] });
+      queryClient.invalidateQueries({ queryKey: ['firm-members'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
       
       // Log activity if this connection request has a deal
       const { data: deal } = await supabase
@@ -123,6 +126,8 @@ export const useUpdateLeadNDAEmailStatus = () => {
       queryClient.invalidateQueries({ queryKey: ['connection-request-details'] });
       queryClient.invalidateQueries({ queryKey: ['deals'] });
       queryClient.invalidateQueries({ queryKey: ['deal-activities'] });
+      queryClient.invalidateQueries({ queryKey: ['firm-agreements'] });
+      queryClient.invalidateQueries({ queryKey: ['firm-members'] });
       
       // Log activity if this connection request has a deal
       const { data: deal } = await supabase
@@ -193,6 +198,9 @@ export const useUpdateLeadFeeAgreementStatus = () => {
       queryClient.invalidateQueries({ queryKey: ['connection-request-details'] });
       queryClient.invalidateQueries({ queryKey: ['deals'] });
       queryClient.invalidateQueries({ queryKey: ['deal-activities'] });
+      queryClient.invalidateQueries({ queryKey: ['firm-agreements'] });
+      queryClient.invalidateQueries({ queryKey: ['firm-members'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
       
       // Log activity if this connection request has a deal
       const { data: deal } = await supabase
@@ -263,6 +271,8 @@ export const useUpdateLeadFeeAgreementEmailStatus = () => {
       queryClient.invalidateQueries({ queryKey: ['connection-request-details'] });
       queryClient.invalidateQueries({ queryKey: ['deals'] });
       queryClient.invalidateQueries({ queryKey: ['deal-activities'] });
+      queryClient.invalidateQueries({ queryKey: ['firm-agreements'] });
+      queryClient.invalidateQueries({ queryKey: ['firm-members'] });
       
       // Log activity if this connection request has a deal
       const { data: deal } = await supabase
