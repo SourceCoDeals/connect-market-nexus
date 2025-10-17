@@ -271,18 +271,18 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
       {...listeners}
       {...attributes}
       className={cn(
-        "group relative mb-3 cursor-pointer transition-all duration-200",
-        "bg-card border border-border rounded-xl shadow-sm",
+        "group relative mb-4 cursor-pointer transition-all duration-200",
+        "bg-card border border-border/40 rounded-2xl shadow-sm hover:shadow-lg hover:-translate-y-0.5",
         isBeingDragged && "shadow-2xl shadow-black/10 scale-[1.02] z-50 border-primary/30 bg-card opacity-95"
       )}
       onClick={handleCardClick}
     >
-      <CardContent className="p-4 space-y-3">
+      <CardContent className="p-5 space-y-3.5">
         {/* Header with priority indicator and clean typography */}
         <div className="flex items-start justify-between">
           <div className="flex-1 min-w-0 space-y-2">
             {/* Deal title without company duplication */}
-            <h3 className="text-sm font-medium text-foreground leading-tight truncate">
+            <h3 className="text-sm font-bold tracking-tight text-foreground leading-tight truncate">
               {listingTitle}
             </h3>
             
@@ -326,10 +326,10 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
         {/* Contact person with deal count badge */}
         <div className="flex items-center gap-1.5 flex-wrap">
           <User className="w-3 h-3 text-muted-foreground/60 flex-shrink-0" />
-          <span className="text-xs text-muted-foreground">Contact:</span>
+          <span className="text-[11px] text-muted-foreground/70 font-medium tracking-wide">Contact:</span>
           <span className="text-xs font-medium text-foreground/90">{contactName}</span>
           {buyerConnectionCount > 1 && (
-            <Badge className="text-[9px] px-1.5 py-0 h-4 bg-primary/12 text-primary border border-primary/25 font-semibold tracking-wide">
+            <Badge className="text-[9px] px-1.5 py-0 h-4 bg-primary/20 text-primary border border-primary/30 font-bold tracking-wide">
               +{buyerConnectionCount - 1}
             </Badge>
           )}
@@ -339,28 +339,26 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
         {assignedAdmin && (
           <div className="flex items-center gap-1.5">
             <User className="w-3 h-3 text-muted-foreground/60 flex-shrink-0" />
-            <span className="text-xs text-muted-foreground">Owner:</span>
+            <span className="text-[11px] text-muted-foreground/70 font-medium tracking-wide">Owner:</span>
             <span className="text-xs font-medium text-foreground/90">{assignedAdmin.displayName}</span>
           </div>
         )}
 
-        {/* Document Status - Clean design with brand colors */}
-        <div className="flex items-center gap-4 text-xs">
-          <div className="flex items-center gap-1.5">
-            <div className={cn('w-1.5 h-1.5 rounded-full', ndaStatus.color)} />
-            <span className="text-muted-foreground">NDA:</span>
-            <span className={cn('font-medium', ndaStatus.textColor)}>
-              {ndaStatus.label}
-            </span>
-          </div>
+        {/* Document Status - Colorful pill badges */}
+        <div className="flex items-center gap-2">
+          <Badge 
+            variant={deal.nda_status === 'signed' ? 'signed' : deal.nda_status === 'sent' ? 'sent' : 'notSent'} 
+            className="px-2.5 py-0.5 text-[10px] font-semibold tracking-wide"
+          >
+            NDA: {ndaStatus.label}
+          </Badge>
           
-          <div className="flex items-center gap-1.5">
-            <div className={cn('w-1.5 h-1.5 rounded-full', feeStatus.color)} />
-            <span className="text-muted-foreground">Fee:</span>
-            <span className={cn('font-medium', feeStatus.textColor)}>
-              {feeStatus.label}
-            </span>
-          </div>
+          <Badge 
+            variant={deal.fee_agreement_status === 'signed' ? 'signed' : deal.fee_agreement_status === 'sent' ? 'sent' : 'notSent'} 
+            className="px-2.5 py-0.5 text-[10px] font-semibold tracking-wide"
+          >
+            Fee: {feeStatus.label}
+          </Badge>
         </div>
 
         {/* Task Progress - Only show if there are actual tasks */}
@@ -382,25 +380,25 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
         {/* Next Action & Last Activity */}
         <div className="space-y-2 text-xs">
           <div className="flex items-center gap-1.5">
-            <div className="w-1.5 h-1.5 rounded-full bg-primary/60" />
-            <span className="text-muted-foreground">Next:</span>
-            <span className="font-medium text-primary">{nextAction}</span>
+            <div className="w-1.5 h-1.5 rounded-full bg-gradient-to-br from-primary to-primary/60" />
+            <span className="text-[11px] text-muted-foreground/70 font-medium tracking-wide">Next:</span>
+            <span className="font-semibold text-primary">{nextAction}</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <Clock className="w-3 h-3 text-muted-foreground" />
-            <span className="text-muted-foreground truncate">{lastActivity}</span>
+            <Clock className="w-3 h-3 text-muted-foreground/60" />
+            <span className="text-[11px] text-muted-foreground/70 truncate">{lastActivity}</span>
           </div>
         </div>
 
         {/* Bottom metadata row */}
-        <div className="flex items-center justify-between text-xs text-muted-foreground pt-2 border-t border-border/5">
-          <span className="font-medium text-foreground/80">
+        <div className="flex items-center justify-between text-xs text-muted-foreground pt-3 border-t border-border/40">
+          <span className="font-semibold text-foreground/80 tracking-tight">
             {daysInStageText}
           </span>
           <span className={cn(
             'truncate font-medium',
-            lastContactInfo.isOverdue && 'text-accent-foreground',
-            lastContactInfo.context === 'contact_needed' && 'text-muted-foreground'
+            lastContactInfo.isOverdue && 'text-amber-600 dark:text-amber-400',
+            lastContactInfo.context === 'contact_needed' && 'text-muted-foreground/60'
           )}>
             {lastContactInfo.text}
           </span>
