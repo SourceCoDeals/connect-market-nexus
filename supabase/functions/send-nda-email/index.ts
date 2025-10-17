@@ -8,8 +8,10 @@ const corsHeaders = {
 };
 
 interface SendNDAEmailRequest {
-  userId: string;
+  userId?: string;
   userEmail: string;
+  firmId?: string;
+  sendToAllMembers?: boolean;
   customSubject?: string;
   customMessage?: string;
   adminId?: string;
@@ -64,6 +66,8 @@ const handler = async (req: Request): Promise<Response> => {
     const {
       userId,
       userEmail,
+      firmId,
+      sendToAllMembers,
       customSubject,
       customMessage,
       adminId,
@@ -82,6 +86,8 @@ const handler = async (req: Request): Promise<Response> => {
     console.log('📧 Starting NDA email process', {
       userEmail,
       userId,
+      firmId,
+      sendToAllMembers,
       subject,
       adminEmail: providedAdminEmail,
       adminName: providedAdminName,
@@ -89,11 +95,6 @@ const handler = async (req: Request): Promise<Response> => {
       attachmentCount: attachments.length,
       hasCustomMessage: !!customMessage
     });
-
-    // Validate required parameters
-    if (!userId || !userEmail) {
-      throw new Error("Missing required parameters: userId and userEmail are required");
-    }
 
     if (!providedAdminEmail || !providedAdminName) {
       throw new Error("Admin information is required: adminEmail and adminName must be provided");
@@ -103,6 +104,38 @@ const handler = async (req: Request): Promise<Response> => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+
+    // If firmId and sendToAllMembers, get all firm members
+    let recipientEmails: Array<{email: string, userId: string, name?: string}> = [];
+    
+    if (firmId && sendToAllMembers) {
+      console.log('📧 Fetching all members for firm:', firmId);
+      const { data: members, error: membersError } = await supabaseAdmin
+        .from('firm_members')
+        .select(`
+          user_id,
+          user:profiles(email, first_name, last_name)
+        `)
+        .eq('firm_id', firmId);
+      
+      if (membersError) {
+        console.error('❌ Error fetching firm members:', membersError);
+        throw new Error('Failed to fetch firm members');
+      }
+      
+      recipientEmails = members?.map(m => ({
+        email: m.user.email,
+        userId: m.user_id,
+        name: [m.user.first_name, m.user.last_name].filter(Boolean).join(' ')
+      })) || [];
+      
+      console.log(`✅ Found ${recipientEmails.length} firm members to email`);
+    } else {
+      if (!userId || !userEmail) {
+        throw new Error("Missing required parameters: userId and userEmail are required for single emails");
+      }
+      recipientEmails = [{ email: userEmail, userId }];
+    }
 
     // Get default NDA document if no attachments provided
     let finalAttachments = [...attachments];
@@ -315,92 +348,91 @@ ${adminSignature}
       finalSenderName = `${senderName} - SourceCo`;
     }
 
-    // Send email via Brevo
-    console.log('📬 Sending NDA email via Brevo...', {
-      to: userEmail,
-      from: { name: finalSenderName, email: finalSenderEmail },
-      replyTo: { email: senderEmail, name: senderName },
-      subject: subject,
-      attachmentCount: processedAttachments.length,
-      payloadSize: JSON.stringify(processedAttachments).length
-    });
+    // Send emails to all recipients
+    const emailResults = [];
+    let successCount = 0;
+    let failCount = 0;
 
-    const brevoPayload = {
-      to: [{ email: userEmail }],
-      sender: { name: finalSenderName, email: finalSenderEmail },
-      replyTo: { email: senderEmail, name: senderName },
-      subject: subject,
-      textContent: textContent,
-      htmlContent: htmlContent,
-      attachment: processedAttachments
-    };
+    for (const recipient of recipientEmails) {
+      try {
+        console.log(`📬 Sending NDA to ${recipient.email} (${recipient.userId})...`);
+        
+        const brevoPayload = {
+          to: [{ email: recipient.email, name: recipient.name || recipient.email.split('@')[0] }],
+          sender: { name: finalSenderName, email: finalSenderEmail },
+          replyTo: { email: senderEmail, name: senderName },
+          subject: subject,
+          textContent: textContent,
+          htmlContent: htmlContent,
+          attachment: processedAttachments
+        };
 
-    const brevoResponse = await fetch('https://api.brevo.com/v3/smtp/email', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'api-key': brevoApiKey,
-      },
-      body: JSON.stringify(brevoPayload),
-    });
-
-    console.log('📡 Brevo API response status:', brevoResponse.status);
-
-    if (!brevoResponse.ok) {
-      const errorText = await brevoResponse.text();
-      console.error('❌ Brevo API error:', errorText);
-      throw new Error(`Failed to send email: ${brevoResponse.status} ${errorText}`);
-    }
-
-    const brevoResult = await brevoResponse.json();
-    console.log('✅ NDA email sent successfully via Brevo:', brevoResult);
-
-    // Now log to database after successful email send
-    console.log('📝 Logging NDA email to database...');
-    try {
-      // Update profile status
-      const { error: profileError } = await supabaseAdmin
-        .from('profiles')
-        .update({
-          nda_email_sent: true,
-          nda_email_sent_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', userId);
-
-      if (profileError) {
-        console.error('⚠️ Profile update failed but email was sent:', profileError);
-      }
-
-      // Log the email action
-      const { error: logError } = await supabaseAdmin
-        .from('nda_logs')
-        .insert({
-          user_id: userId,
-          admin_id: adminId,
-          action_type: 'sent',
-          email_sent_to: userEmail,
-          admin_email: adminEmail,
-          admin_name: adminName,
-          notes: `NDA email sent via admin interface${listingTitle ? ` for listing: ${listingTitle}` : ''}`,
-          metadata: { email_sent: true, sent_at: new Date().toISOString() }
+        const brevoResponse = await fetch('https://api.brevo.com/v3/smtp/email', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'api-key': brevoApiKey,
+          },
+          body: JSON.stringify(brevoPayload),
         });
 
-      if (logError) {
-        console.error('⚠️ Log insert failed but email was sent:', logError);
-      } else {
-        console.log('✅ Database logging successful');
+        if (!brevoResponse.ok) {
+          const errorText = await brevoResponse.text();
+          console.error(`❌ Failed to send to ${recipient.email}:`, errorText);
+          failCount++;
+          emailResults.push({ email: recipient.email, success: false, error: errorText });
+          continue;
+        }
+
+        const brevoResult = await brevoResponse.json();
+        console.log(`✅ Sent to ${recipient.email}:`, brevoResult.messageId);
+        successCount++;
+        emailResults.push({ email: recipient.email, success: true, messageId: brevoResult.messageId });
+
+        // Update database for this recipient
+        try {
+          await supabaseAdmin
+            .from('profiles')
+            .update({
+              nda_email_sent: true,
+              nda_email_sent_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', recipient.userId);
+
+          await supabaseAdmin
+            .from('nda_logs')
+            .insert({
+              user_id: recipient.userId,
+              admin_id: adminId,
+              firm_id: firmId,
+              action_type: 'sent',
+              email_sent_to: recipient.email,
+              admin_email: providedAdminEmail,
+              admin_name: providedAdminName,
+              notes: `NDA email sent${sendToAllMembers ? ' (firm-wide)' : ''}${listingTitle ? ` for listing: ${listingTitle}` : ''}`,
+              metadata: { email_sent: true, sent_at: new Date().toISOString(), firm_email: sendToAllMembers }
+            });
+        } catch (dbError) {
+          console.error(`⚠️ Database update failed for ${recipient.email}:`, dbError);
+        }
+      } catch (error: any) {
+        console.error(`❌ Error sending to ${recipient.email}:`, error);
+        failCount++;
+        emailResults.push({ email: recipient.email, success: false, error: error.message });
       }
-    } catch (dbError: any) {
-      console.error('⚠️ Database logging failed but email was sent:', dbError);
-      // Don't throw error since email was successfully sent
     }
+
+    console.log(`📊 NDA batch complete: ${successCount} sent, ${failCount} failed`);
 
     return new Response(
       JSON.stringify({ 
-        success: true, 
-        messageId: brevoResult.messageId,
-        message: 'NDA email sent successfully'
+        success: successCount > 0,
+        totalRecipients: recipientEmails.length,
+        successCount,
+        failCount,
+        results: emailResults,
+        message: `NDA email sent to ${successCount}/${recipientEmails.length} recipients`
       }),
       { 
         status: 200, 

@@ -6,6 +6,8 @@ import { Input } from '@/components/ui/input';
 import { useFirmAgreements, useFirmMembers, type FirmAgreement } from '@/hooks/admin/use-firm-agreements';
 import { FirmSignerSelector } from './FirmSignerSelector';
 import { FirmAgreementToggles } from './FirmAgreementToggles';
+import { FirmBulkActions } from './FirmBulkActions';
+import { FirmManagementTools } from './FirmManagementTools';
 import { formatDistanceToNow } from 'date-fns';
 
 export function FirmAgreementsTable() {
@@ -34,37 +36,40 @@ export function FirmAgreementsTable() {
 
   return (
     <div className="space-y-4">
-      {/* Filters */}
-      <div className="flex gap-4">
-        <Input
-          placeholder="Search by firm name, domain..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="max-w-md"
-        />
-        <div className="flex gap-2">
-          <Button
-            variant={filterStatus === 'all' ? 'default' : 'outline'}
-            onClick={() => setFilterStatus('all')}
-            size="sm"
-          >
-            All Firms
-          </Button>
-          <Button
-            variant={filterStatus === 'signed' ? 'default' : 'outline'}
-            onClick={() => setFilterStatus('signed')}
-            size="sm"
-          >
-            Signed
-          </Button>
-          <Button
-            variant={filterStatus === 'unsigned' ? 'default' : 'outline'}
-            onClick={() => setFilterStatus('unsigned')}
-            size="sm"
-          >
-            Unsigned
-          </Button>
+      {/* Filters and Tools */}
+      <div className="flex gap-4 items-center justify-between">
+        <div className="flex gap-4 items-center flex-1">
+          <Input
+            placeholder="Search by firm name, domain..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="max-w-md"
+          />
+          <div className="flex gap-2">
+            <Button
+              variant={filterStatus === 'all' ? 'default' : 'outline'}
+              onClick={() => setFilterStatus('all')}
+              size="sm"
+            >
+              All Firms
+            </Button>
+            <Button
+              variant={filterStatus === 'signed' ? 'default' : 'outline'}
+              onClick={() => setFilterStatus('signed')}
+              size="sm"
+            >
+              Signed
+            </Button>
+            <Button
+              variant={filterStatus === 'unsigned' ? 'default' : 'outline'}
+              onClick={() => setFilterStatus('unsigned')}
+              size="sm"
+            >
+              Unsigned
+            </Button>
+          </div>
         </div>
+        <FirmManagementTools />
       </div>
 
       {/* Firms List */}
@@ -175,6 +180,16 @@ function FirmRow({
                 </div>
               </div>
             ))}
+          </div>
+
+          {/* Bulk Actions */}
+          <div className="mt-4 pt-4 border-t">
+            <h5 className="text-sm font-semibold mb-2">Firm Actions</h5>
+            <FirmBulkActions 
+              firmId={firm.id} 
+              firmName={firm.primary_company_name}
+              memberCount={firm.member_count}
+            />
           </div>
 
           {/* Signing Info */}

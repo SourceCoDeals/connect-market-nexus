@@ -15,8 +15,10 @@ interface AdminProfile {
 }
 
 interface FeeAgreementEmailRequest {
-  userId: string;
+  userId?: string;
   userEmail: string;
+  firmId?: string;
+  sendToAllMembers?: boolean;
   subject?: string;
   content?: string;
   useTemplate?: boolean;
@@ -60,6 +62,8 @@ const handler = async (req: Request): Promise<Response> => {
     const { 
       userId, 
       userEmail, 
+      firmId,
+      sendToAllMembers,
       subject, 
       content, 
       useTemplate, 
@@ -77,7 +81,9 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log(`📧 Starting fee agreement email process`, { 
       userEmail, 
-      userId, 
+      userId,
+      firmId,
+      sendToAllMembers,
       useTemplate, 
       subject: emailSubject, 
       adminEmail, 
@@ -86,9 +92,43 @@ const handler = async (req: Request): Promise<Response> => {
       attachmentCount: attachments?.length || 0 
     });
 
-    // Validate required parameters
-    if (!userId || !userEmail) {
-      throw new Error("Missing required parameters: userId and userEmail are required");
+    // Initialize Supabase client early for firm member lookup
+    const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // If firmId and sendToAllMembers, get all firm members
+    let recipientEmails: Array<{email: string, userId: string, name?: string}> = [];
+    
+    if (firmId && sendToAllMembers) {
+      console.log('📧 Fetching all members for firm:', firmId);
+      const { data: members, error: membersError } = await supabase
+        .from('firm_members')
+        .select(`
+          user_id,
+          user:profiles(email, first_name, last_name)
+        `)
+        .eq('firm_id', firmId);
+      
+      if (membersError) {
+        console.error('❌ Error fetching firm members:', membersError);
+        throw new Error('Failed to fetch firm members');
+      }
+      
+      recipientEmails = members?.map(m => ({
+        email: m.user.email,
+        userId: m.user_id,
+        name: [m.user.first_name, m.user.last_name].filter(Boolean).join(' ')
+      })) || [];
+      
+      console.log(`✅ Found ${recipientEmails.length} firm members to email`);
+    } else {
+      // Single recipient
+      if (!userId || !userEmail) {
+        throw new Error("Missing required parameters: userId and userEmail are required for single emails");
+      }
+      recipientEmails = [{ email: userEmail, userId }];
     }
 
     if (!adminEmail || !adminName) {
@@ -110,12 +150,6 @@ const handler = async (req: Request): Promise<Response> => {
     const adminTitle = adminProfile?.title || '';
     const adminPhone = adminProfile?.phone || '';
     const adminCalendly = adminProfile?.calendlyUrl || '';
-
-    // Initialize Supabase client for custom signature lookup
-    const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Try to get custom admin signature
     let customSignature = null;
@@ -210,8 +244,6 @@ const handler = async (req: Request): Promise<Response> => {
 
 ${signatureText}` : signatureText;
 
-    // Skip complex templates - textContent is all we need for simple, working emails
-
     // Determine the sender email - use current admin info
     let senderEmail = adminEmail;
     let senderName = adminName;
@@ -233,31 +265,9 @@ ${adminSignature}
 ${adminSignature}
 </div>`;
 
-    // Prepare Brevo email payload
-    const brevoPayload: any = {
-      sender: {
-        name: senderName,
-        email: senderEmail
-      },
-      to: [
-        {
-          email: userEmail,
-          name: userEmail.split('@')[0] // Use email username as display name
-        }
-      ],
-      subject: emailSubject,
-      textContent: textContent,
-      htmlContent: htmlContent,
-      replyTo: {
-        email: adminEmail,
-        name: adminName
-      }
-    };
-
-    // Simple attachment processing without logo
-    const hasUserAttachments = attachments && attachments.length > 0;
-
-    // Enhanced attachment processing with detailed logging
+    // Process attachments once for all recipients
+    let processedAttachments: any[] = [];
+    
     if (attachments && attachments.length > 0) {
       console.log(`📎 Starting attachment processing for ${attachments.length} attachment(s)`);
       console.log(`📎 Raw attachments data:`, attachments.map(a => ({ 
@@ -338,127 +348,98 @@ ${adminSignature}
       }
       
       if (processedAttachments.length > 0) {
-        brevoPayload.attachment = processedAttachments;
-        console.log(`📎 Successfully added ${processedAttachments.length} attachment(s) to Brevo payload`);
-        console.log(`📎 Final attachment summary:`, processedAttachments.map(a => ({
-          name: a.name,
-          size: Math.round(a.content.length * 0.75) + ' bytes',
-          hasCID: !!a.cid
-        })));
+        console.log(`📎 Successfully processed ${processedAttachments.length} attachment(s)`);
       } else {
         console.error(`❌ No valid attachments processed from ${attachments.length} input attachment(s)`);
       }
     }
-    
-    // Only set attachment property if we actually have attachments
-    if (!brevoPayload.attachment || brevoPayload.attachment.length === 0) {
-      delete brevoPayload.attachment;
-      console.log('📎 No attachments needed - removed attachment property from payload');
-    }
 
-    console.log('📬 Sending fee agreement email via Brevo...', {
-      to: userEmail,
-      from: brevoPayload.sender,
-      replyTo: brevoPayload.replyTo,
-      subject: emailSubject,
-      attachmentCount: brevoPayload.attachment?.length || 0,
-      payloadSize: JSON.stringify(brevoPayload).length
-    });
+    // Send emails to all recipients
+    const emailResults = [];
+    let successCount = 0;
+    let failCount = 0;
 
-    // Send email using Brevo API
-    const emailResponse = await fetch("https://api.brevo.com/v3/smtp/email", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "api-key": brevoApiKey,
-      },
-      body: JSON.stringify(brevoPayload)
-    });
-
-    console.log(`📡 Brevo API response status: ${emailResponse.status}`);
-
-    if (!emailResponse.ok) {
-      const errorData = await emailResponse.text();
-      console.error("❌ Brevo API error response:", errorData);
-      console.error("❌ Brevo API status:", emailResponse.status, emailResponse.statusText);
-      console.error("❌ Request payload size:", JSON.stringify(brevoPayload).length, "bytes");
-      console.error("❌ Sender config:", brevoPayload.sender);
-      console.error("❌ Attachment info:", {
-        count: brevoPayload.attachment?.length || 0,
-        names: brevoPayload.attachment?.map((a: any) => a.name) || [],
-        sizes: brevoPayload.attachment?.map((a: any) => a.content?.length || 0) || []
-      });
-      
-      // Try to parse error response for better error messages
-      let errorMessage = "Unknown email service error";
+    for (const recipient of recipientEmails) {
       try {
-        const errorJson = JSON.parse(errorData);
-        errorMessage = errorJson.message || errorJson.error || errorData;
-      } catch {
-        errorMessage = errorData;
-      }
-      
-      // Provide more specific error messages
-      if (emailResponse.status === 400) {
-        throw new Error(`Email validation error: ${errorMessage}`);
-      } else if (emailResponse.status === 401) {
-        throw new Error("Email service authentication failed. Check BREVO_API_KEY configuration.");
-      } else if (emailResponse.status === 402) {
-        throw new Error("Email service quota exceeded. Please contact support.");
-      } else if (emailResponse.status === 403) {
-        throw new Error(`Email service forbidden: ${errorMessage}. Check sender domain configuration.`);
-      } else {
-        throw new Error(`Email service error (${emailResponse.status}): ${errorMessage}`);
-      }
-    }
+        console.log(`📬 Sending to ${recipient.email} (${recipient.userId})...`);
+        
+        const brevoPayload: any = {
+          sender: { name: senderName, email: senderEmail },
+          to: [{ email: recipient.email, name: recipient.name || recipient.email.split('@')[0] }],
+          subject: emailSubject,
+          textContent: textContent,
+          htmlContent: htmlContent,
+          replyTo: { email: adminEmail, name: adminName }
+        };
 
-    const result = await emailResponse.json();
-    console.log("✅ Fee agreement email sent successfully via Brevo:", result);
+        if (processedAttachments.length > 0) {
+          brevoPayload.attachment = processedAttachments;
+        }
 
-    // Now log to database after successful email send
-    console.log('📝 Logging fee agreement email to database...');
-    try {
-      // Update profile status
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update({
-          fee_agreement_email_sent: true,
-          fee_agreement_email_sent_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', userId);
-
-      if (profileError) {
-        console.error('⚠️ Profile update failed but email was sent:', profileError);
-      }
-
-      // Log the email action
-      const { error: logError } = await supabase
-        .from('fee_agreement_logs')
-        .insert({
-          user_id: userId,
-          admin_id: adminId,
-          action_type: 'sent',
-          email_sent_to: userEmail,
-          admin_email: adminEmail,
-          admin_name: adminName,
-          notes: `Fee agreement email sent via admin interface${listingTitle ? ` for listing: ${listingTitle}` : ''}`,
-          metadata: { email_sent: true, sent_at: new Date().toISOString() }
+        const emailResponse = await fetch("https://api.brevo.com/v3/smtp/email", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "api-key": brevoApiKey,
+          },
+          body: JSON.stringify(brevoPayload)
         });
 
-      if (logError) {
-        console.error('⚠️ Log insert failed but email was sent:', logError);
-      } else {
-        console.log('✅ Database logging successful');
+        if (!emailResponse.ok) {
+          const errorData = await emailResponse.text();
+          console.error(`❌ Failed to send to ${recipient.email}:`, errorData);
+          failCount++;
+          emailResults.push({ email: recipient.email, success: false, error: errorData });
+          continue;
+        }
+
+        const result = await emailResponse.json();
+        console.log(`✅ Sent to ${recipient.email}:`, result.messageId);
+        successCount++;
+        emailResults.push({ email: recipient.email, success: true, messageId: result.messageId });
+
+        // Update database for this recipient
+        try {
+          await supabase
+            .from('profiles')
+            .update({
+              fee_agreement_email_sent: true,
+              fee_agreement_email_sent_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', recipient.userId);
+
+          await supabase
+            .from('fee_agreement_logs')
+            .insert({
+              user_id: recipient.userId,
+              admin_id: adminId,
+              firm_id: firmId,
+              action_type: 'sent',
+              email_sent_to: recipient.email,
+              admin_email: adminEmail,
+              admin_name: adminName,
+              notes: `Fee agreement email sent${sendToAllMembers ? ' (firm-wide)' : ''}${listingTitle ? ` for listing: ${listingTitle}` : ''}`,
+              metadata: { email_sent: true, sent_at: new Date().toISOString(), firm_email: sendToAllMembers }
+            });
+        } catch (dbError) {
+          console.error(`⚠️ Database update failed for ${recipient.email}:`, dbError);
+        }
+      } catch (error: any) {
+        console.error(`❌ Error sending to ${recipient.email}:`, error);
+        failCount++;
+        emailResults.push({ email: recipient.email, success: false, error: error.message });
       }
-    } catch (dbError: any) {
-      console.error('⚠️ Database logging failed but email was sent:', dbError);
-      // Don't throw error since email was successfully sent
     }
 
+    console.log(`📊 Email batch complete: ${successCount} sent, ${failCount} failed`);
+
     return new Response(JSON.stringify({ 
-      success: true, 
-      messageId: result.messageId 
+      success: successCount > 0,
+      totalRecipients: recipientEmails.length,
+      successCount,
+      failCount,
+      results: emailResults
     }), {
       status: 200,
       headers: {
