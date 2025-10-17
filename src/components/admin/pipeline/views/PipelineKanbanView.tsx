@@ -169,7 +169,7 @@ export function PipelineKanbanView({ pipeline, onOpenCreateDeal }: PipelineKanba
             }}
           >
             <div 
-              className="flex gap-3 sm:gap-4 lg:gap-5 p-3 sm:p-4 lg:p-5 min-w-full group"
+              className="flex gap-2 sm:gap-3 lg:gap-4 p-2 sm:p-3 lg:p-4 min-w-full"
               style={{ 
                 width: 'max-content',
                 height: '100%'

@@ -8,7 +8,6 @@ import { Button } from '@/components/ui/button';
 import { Plus, MoreVertical } from 'lucide-react';
 import { Deal } from '@/hooks/admin/use-deals';
 import { PipelineKanbanCard } from './PipelineKanbanCard';
-import { cn } from '@/lib/utils';
 
 interface StageWithMetrics {
   id: string;
@@ -60,50 +59,57 @@ export function PipelineKanbanColumn({ stage, deals, onDealClick, onOpenCreateDe
   const progressPercentage = isClosedWon ? 100 : Math.min((stageNumber / maxProgressStage) * 100, 100);
   
   return (
-    <div 
+    <Card 
       ref={setNodeRef}
-      className={cn(
-        "h-full flex flex-col transition-colors duration-150 rounded-xl",
-        isOver ? 'bg-primary/5' : 'bg-transparent'
-      )}
+      className={`h-full flex flex-col transition-colors duration-200 ${
+        isOver ? 'ring-2 ring-primary/50 bg-primary/5' : 'bg-card/50'
+      }`}
     >
-      {/* Minimal Column Header */}
-      <div className="pb-3 px-2 flex-shrink-0 sticky top-0 bg-background/80 backdrop-blur-sm z-10">
-        <div className="flex items-center justify-between mb-2">
+      {/* Column Header */}
+      <CardHeader className="pb-3 flex-shrink-0">
+        <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2 min-w-0 flex-1">
             <div 
-              className="w-2 h-2 rounded-full flex-shrink-0"
+              className="w-3 h-3 rounded-full flex-shrink-0"
               style={{ backgroundColor: stage.color }}
             />
-            <h3 className="font-semibold text-[13px] text-foreground/90 truncate">
+            <h3 className="font-semibold text-sm text-foreground truncate">
               {stage.name}
             </h3>
-            <span className="text-[11px] font-medium text-muted-foreground/60 flex-shrink-0">
+            <Badge variant="secondary" className="h-5 px-2 text-xs flex-shrink-0">
               {stage.dealCount}
-            </span>
+            </Badge>
           </div>
-          <Button variant="ghost" size="sm" className="h-6 w-6 p-0 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-            <Plus className="h-3 w-3" />
+          <Button variant="ghost" size="sm" className="h-6 w-6 p-0 flex-shrink-0">
+            <MoreVertical className="h-3 w-3" />
           </Button>
         </div>
 
-        {/* Minimal Progress Bar */}
+        {/* Stage Progression Bar */}
         {!isClosedLost && (
-          <div className="w-full h-0.5 bg-muted/20 rounded-full overflow-hidden">
-            <div 
-              className="h-full bg-gradient-to-r from-primary/60 to-primary/40 transition-all duration-300"
-              style={{ width: `${progressPercentage}%` }}
-            />
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+              <span className="font-medium">
+                Stage {isClosedWon ? maxProgressStage : stageNumber} of {maxProgressStage}
+              </span>
+            </div>
+            <div className="w-full h-1.5 bg-muted/30 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-gradient-to-r from-primary to-primary/80 transition-all duration-300 rounded-full"
+                style={{ width: `${progressPercentage}%` }}
+              />
+            </div>
           </div>
         )}
-      </div>
+        
+      </CardHeader>
       
       {/* Deals List */}
-      <div 
-        className="flex-1 px-2 pb-2 overflow-y-auto"
+      <CardContent 
+        className="flex-1 p-3 pt-0 overflow-y-auto"
       >
         <SortableContext items={sortableItems} strategy={verticalListSortingStrategy}>
-          <div className="space-y-2 min-h-full">
+          <div className="space-y-3 min-h-full">
             {deals.map((deal) => {
               console.log('[Pipeline Column] Rendering card for deal:', {
                 deal_id: deal.deal_id,
@@ -124,22 +130,24 @@ export function PipelineKanbanColumn({ stage, deals, onDealClick, onOpenCreateDe
           {/* Add Deal Button */}
           <Button
             variant="ghost"
-            className="w-full h-10 border border-dashed border-border/30 text-muted-foreground/50 hover:text-foreground/70 hover:border-border/50 transition-colors text-[11px] rounded-lg"
+            className="w-full h-12 border-2 border-dashed border-border/50 text-muted-foreground hover:text-foreground hover:border-border transition-colors"
             onClick={() => onOpenCreateDeal?.(stage.id)}
           >
-            <Plus className="h-3 w-3 mr-1.5" />
-            Add
+            <Plus className="h-4 w-4 mr-2" />
+            <span className="hidden sm:inline">Add Deal</span>
+            <span className="sm:hidden">Add</span>
           </Button>
           
           {/* Empty State */}
           {deals.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-8 text-center text-muted-foreground/40">
-              <div className="text-[11px]">No deals</div>
+            <div className="flex flex-col items-center justify-center py-8 text-center text-muted-foreground">
+            <div className="text-sm opacity-75">No deals</div>
+              <div className="text-xs mt-1 opacity-50">Drag deals here</div>
             </div>
           )}
           </div>
         </SortableContext>
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }

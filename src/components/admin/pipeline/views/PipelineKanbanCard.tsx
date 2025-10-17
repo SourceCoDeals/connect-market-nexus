@@ -265,25 +265,24 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
   };
 
   return (
-    <div 
+    <Card 
       ref={setNodeRef}
       style={style}
       {...listeners}
       {...attributes}
       className={cn(
-        "group relative mb-3 cursor-pointer transition-all duration-150",
-        "bg-card/40 backdrop-blur-sm border-0 rounded-xl",
-        "hover:bg-card/60",
-        isBeingDragged && "scale-[1.02] z-50 bg-card/80 opacity-90"
+        "group relative mb-3 cursor-pointer transition-all duration-200",
+        "bg-card border border-border rounded-xl shadow-sm",
+        isBeingDragged && "shadow-2xl shadow-black/10 scale-[1.02] z-50 border-primary/30 bg-card opacity-95"
       )}
       onClick={handleCardClick}
     >
-      <div className="p-4 space-y-2.5">
+      <CardContent className="p-4 space-y-3">
         {/* Header with priority indicator and clean typography */}
         <div className="flex items-start justify-between">
           <div className="flex-1 min-w-0 space-y-2">
             {/* Deal title without company duplication */}
-            <h3 className="text-[13px] font-semibold text-foreground leading-tight truncate">
+            <h3 className="text-sm font-medium text-foreground leading-tight truncate">
               {listingTitle}
             </h3>
             
@@ -291,10 +290,10 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
             {companyName && (
               <div className="flex items-center gap-2 flex-wrap">
                 <div className="flex items-center gap-1.5">
-                  <Building2 className="w-3 h-3 text-muted-foreground/50 flex-shrink-0" />
-                  <span className="text-[11px] font-medium text-foreground/70 truncate">{companyName}</span>
+                  <Building2 className="w-3 h-3 text-muted-foreground/60 flex-shrink-0" />
+                  <span className="text-xs font-medium text-foreground/80 truncate">{companyName}</span>
                 </div>
-                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-muted/40 text-[9px] font-medium text-muted-foreground/70">
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-background border border-border/60 text-[10px] font-medium text-muted-foreground tracking-wide">
                   <SourceIcon className="w-2.5 h-2.5" />
                   {sourceBadge.label}
                 </span>
@@ -305,91 +304,109 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
             {deal.contact_company && (
               <div className="flex items-center gap-2 flex-wrap">
                 <div className="flex items-center gap-1.5">
-                  <span className="text-[11px] text-foreground/80 font-medium truncate">
+                  <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-primary/8 border border-primary/20">
+                    <Building2 className="w-2.5 h-2.5 text-primary/70 flex-shrink-0" />
+                    <span className="text-[10px] font-medium text-primary/80 tracking-wide uppercase">
+                      Buyer
+                    </span>
+                  </div>
+                  <span className="text-xs text-foreground/90 font-medium truncate">
                     {deal.contact_company}
                   </span>
                 </div>
-                <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-muted/40 text-[9px] font-medium text-muted-foreground/70">
+                <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-background border border-border/60 text-[10px] font-medium text-muted-foreground tracking-wide">
                   {getBuyerTypeLabel(actualBuyerType)}
                 </span>
               </div>
             )}
           </div>
-          <div className={cn("w-1.5 h-1.5 rounded-full ml-2 mt-0.5 flex-shrink-0", buyerPriority.dot)} />
+          <div className={cn("w-2 h-2 rounded-full ml-3 mt-0.5 flex-shrink-0", buyerPriority.dot)} />
         </div>
 
-        {/* Contact & Owner - Condensed */}
-        <div className="flex items-center gap-2 text-[11px] text-muted-foreground/60">
-          <div className="flex items-center gap-1">
-            <User className="w-3 h-3 flex-shrink-0" />
-            <span className="font-medium text-foreground/70">{contactName}</span>
-            {buyerConnectionCount > 1 && (
-              <span className="px-1.5 py-0 rounded-full bg-primary/15 text-primary text-[9px] font-semibold">
-                +{buyerConnectionCount - 1}
-              </span>
-            )}
-          </div>
-          {assignedAdmin && (
-            <span className="text-[10px]">• {assignedAdmin.displayName}</span>
+        {/* Contact person with deal count badge */}
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <User className="w-3 h-3 text-muted-foreground/60 flex-shrink-0" />
+          <span className="text-xs text-muted-foreground">Contact:</span>
+          <span className="text-xs font-medium text-foreground/90">{contactName}</span>
+          {buyerConnectionCount > 1 && (
+            <Badge className="text-[9px] px-1.5 py-0 h-4 bg-primary/12 text-primary border border-primary/25 font-semibold tracking-wide">
+              +{buyerConnectionCount - 1}
+            </Badge>
           )}
         </div>
 
-        {/* Document Status - Minimal pill badges */}
-        <div className="flex items-center gap-1.5 flex-wrap">
-          <Badge 
-            variant={deal.nda_status === 'signed' ? 'signed' : deal.nda_status === 'sent' ? 'sent' : 'notSent'} 
-            className="px-2 py-0 h-5 text-[9px] font-semibold"
-          >
-            NDA
-          </Badge>
+        {/* Deal Owner */}
+        {assignedAdmin && (
+          <div className="flex items-center gap-1.5">
+            <User className="w-3 h-3 text-muted-foreground/60 flex-shrink-0" />
+            <span className="text-xs text-muted-foreground">Owner:</span>
+            <span className="text-xs font-medium text-foreground/90">{assignedAdmin.displayName}</span>
+          </div>
+        )}
+
+        {/* Document Status - Clean design with brand colors */}
+        <div className="flex items-center gap-4 text-xs">
+          <div className="flex items-center gap-1.5">
+            <div className={cn('w-1.5 h-1.5 rounded-full', ndaStatus.color)} />
+            <span className="text-muted-foreground">NDA:</span>
+            <span className={cn('font-medium', ndaStatus.textColor)}>
+              {ndaStatus.label}
+            </span>
+          </div>
           
-          <Badge 
-            variant={deal.fee_agreement_status === 'signed' ? 'signed' : deal.fee_agreement_status === 'sent' ? 'sent' : 'notSent'} 
-            className="px-2 py-0 h-5 text-[9px] font-semibold"
-          >
-            Fee
-          </Badge>
+          <div className="flex items-center gap-1.5">
+            <div className={cn('w-1.5 h-1.5 rounded-full', feeStatus.color)} />
+            <span className="text-muted-foreground">Fee:</span>
+            <span className={cn('font-medium', feeStatus.textColor)}>
+              {feeStatus.label}
+            </span>
+          </div>
         </div>
 
-        {/* Task Progress - Compact */}
+        {/* Task Progress - Only show if there are actual tasks */}
         {taskInfo.hasAnyTasks && (
-          <div className="flex items-center gap-1.5 text-[11px]">
+          <div className="flex items-center gap-1.5 text-xs">
             <CheckSquare className={cn(
               'h-3 w-3',
-              taskInfo.pending === 0 ? 'text-emerald-500' : 'text-muted-foreground/60'
+              taskInfo.pending === 0 ? 'text-foreground' : 'text-muted-foreground'
             )} />
             <span className={cn('font-medium',
-              taskInfo.pending === 0 ? 'text-foreground/80' : 'text-muted-foreground/70'
+              taskInfo.pending === 0 ? 'text-foreground' : 'text-muted-foreground'
             )}>
-              {taskInfo.completed}/{taskInfo.total}
+              {taskInfo.pending === 0 ? `${taskInfo.total} tasks completed` : 
+               `${taskInfo.pending}/${taskInfo.total} tasks pending`}
             </span>
           </div>
         )}
 
-        {/* Next Action - Compact */}
-        <div className="flex items-center gap-1.5 text-[10px]">
-          <div className="w-1 h-1 rounded-full bg-primary" />
-          <span className="font-medium text-primary/90">{nextAction}</span>
+        {/* Next Action & Last Activity */}
+        <div className="space-y-2 text-xs">
+          <div className="flex items-center gap-1.5">
+            <div className="w-1.5 h-1.5 rounded-full bg-primary/60" />
+            <span className="text-muted-foreground">Next:</span>
+            <span className="font-medium text-primary">{nextAction}</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <Clock className="w-3 h-3 text-muted-foreground" />
+            <span className="text-muted-foreground truncate">{lastActivity}</span>
+          </div>
         </div>
 
-        {/* Bottom metadata row - Minimal */}
-        <div className="flex items-center justify-between text-[10px] text-muted-foreground/60 pt-2 border-t border-border/20">
-          <div className="flex items-center gap-1">
-            <Clock className="w-3 h-3" />
-            <span className="font-medium">
-              {stageDurationLabel}
-            </span>
-          </div>
+        {/* Bottom metadata row */}
+        <div className="flex items-center justify-between text-xs text-muted-foreground pt-2 border-t border-border/5">
+          <span className="font-medium text-foreground/80">
+            {daysInStageText}
+          </span>
           <span className={cn(
             'truncate font-medium',
-            lastContactInfo.isOverdue && 'text-amber-500',
-            lastContactInfo.context === 'contact_needed' && 'text-muted-foreground/50'
+            lastContactInfo.isOverdue && 'text-accent-foreground',
+            lastContactInfo.context === 'contact_needed' && 'text-muted-foreground'
           )}>
             {lastContactInfo.text}
           </span>
         </div>
 
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }
