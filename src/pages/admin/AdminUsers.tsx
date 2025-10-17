@@ -1,8 +1,9 @@
 
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { useAdmin } from "@/hooks/use-admin";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Search, AlertCircle, RefreshCw } from "lucide-react";
+import { Search, AlertCircle, RefreshCw, Building2 } from "lucide-react";
 import { UsersTable } from "@/components/admin/UsersTable";
 import { MobileUsersTable } from "@/components/admin/MobileUsersTable";
 import { User } from "@/types";
@@ -100,11 +101,20 @@ const AdminUsers = () => {
   return (
     <div className="space-y-4 md:space-y-6">
       <div className="flex flex-col gap-4">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold">Enhanced User Management</h1>
-          <p className="text-sm md:text-base text-muted-foreground">
-            Comprehensive user management with analytics and profile completion tracking
-          </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold">Enhanced User Management</h1>
+            <p className="text-sm md:text-base text-muted-foreground">
+              Comprehensive user management with analytics and profile completion tracking
+            </p>
+          </div>
+          <Link to="/admin/firm-agreements">
+            <Button variant="outline" className="flex items-center gap-2">
+              <Building2 className="h-4 w-4" />
+              <span className="hidden sm:inline">Firm Agreement Tracking</span>
+              <span className="sm:hidden">Firms</span>
+            </Button>
+          </Link>
         </div>
       </div>
 

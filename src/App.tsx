@@ -28,6 +28,7 @@ import SavedListings from "@/pages/SavedListings";
 import AdminDashboard from "@/pages/admin/AdminDashboard";
 import AdminListings from "@/pages/admin/AdminListings";
 import AdminUsers from "@/pages/admin/AdminUsers";
+import FirmAgreements from "@/pages/admin/FirmAgreements";
 import AdminRequests from "@/pages/admin/AdminRequests";
 import AdminPipeline from "@/pages/admin/AdminPipeline";
 import AdminNotifications from "@/pages/admin/AdminNotifications";
@@ -98,6 +99,7 @@ function App() {
               <Route index element={<AdminDashboard />} />
               <Route path="listings" element={<AdminListings />} />
               <Route path="users" element={<AdminUsers />} />
+              <Route path="firm-agreements" element={<FirmAgreements />} />
               <Route path="requests" element={<AdminRequests />} />
               <Route path="pipeline" element={<AdminPipeline />} />
               <Route path="notifications" element={<AdminNotifications />} />

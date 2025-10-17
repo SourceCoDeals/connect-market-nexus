@@ -1191,6 +1191,7 @@ export type Database = {
           admin_name: string | null
           created_at: string
           email_sent_to: string | null
+          firm_id: string | null
           id: string
           metadata: Json | null
           notes: string | null
@@ -1204,6 +1205,7 @@ export type Database = {
           admin_name?: string | null
           created_at?: string
           email_sent_to?: string | null
+          firm_id?: string | null
           id?: string
           metadata?: Json | null
           notes?: string | null
@@ -1217,13 +1219,22 @@ export type Database = {
           admin_name?: string | null
           created_at?: string
           email_sent_to?: string | null
+          firm_id?: string | null
           id?: string
           metadata?: Json | null
           notes?: string | null
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fee_agreement_logs_firm_id_fkey"
+            columns: ["firm_id"]
+            isOneToOne: false
+            referencedRelation: "firm_agreements"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       feedback_messages: {
         Row: {
@@ -1299,6 +1310,129 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      firm_agreements: {
+        Row: {
+          company_name_variations: Json | null
+          created_at: string
+          email_domain: string | null
+          fee_agreement_email_sent: boolean | null
+          fee_agreement_email_sent_at: string | null
+          fee_agreement_email_sent_by: string | null
+          fee_agreement_signed: boolean | null
+          fee_agreement_signed_at: string | null
+          fee_agreement_signed_by: string | null
+          fee_agreement_signed_by_name: string | null
+          id: string
+          member_count: number | null
+          metadata: Json | null
+          nda_email_sent: boolean | null
+          nda_email_sent_at: string | null
+          nda_email_sent_by: string | null
+          nda_signed: boolean | null
+          nda_signed_at: string | null
+          nda_signed_by: string | null
+          nda_signed_by_name: string | null
+          normalized_company_name: string
+          primary_company_name: string
+          updated_at: string
+          website_domain: string | null
+        }
+        Insert: {
+          company_name_variations?: Json | null
+          created_at?: string
+          email_domain?: string | null
+          fee_agreement_email_sent?: boolean | null
+          fee_agreement_email_sent_at?: string | null
+          fee_agreement_email_sent_by?: string | null
+          fee_agreement_signed?: boolean | null
+          fee_agreement_signed_at?: string | null
+          fee_agreement_signed_by?: string | null
+          fee_agreement_signed_by_name?: string | null
+          id?: string
+          member_count?: number | null
+          metadata?: Json | null
+          nda_email_sent?: boolean | null
+          nda_email_sent_at?: string | null
+          nda_email_sent_by?: string | null
+          nda_signed?: boolean | null
+          nda_signed_at?: string | null
+          nda_signed_by?: string | null
+          nda_signed_by_name?: string | null
+          normalized_company_name: string
+          primary_company_name: string
+          updated_at?: string
+          website_domain?: string | null
+        }
+        Update: {
+          company_name_variations?: Json | null
+          created_at?: string
+          email_domain?: string | null
+          fee_agreement_email_sent?: boolean | null
+          fee_agreement_email_sent_at?: string | null
+          fee_agreement_email_sent_by?: string | null
+          fee_agreement_signed?: boolean | null
+          fee_agreement_signed_at?: string | null
+          fee_agreement_signed_by?: string | null
+          fee_agreement_signed_by_name?: string | null
+          id?: string
+          member_count?: number | null
+          metadata?: Json | null
+          nda_email_sent?: boolean | null
+          nda_email_sent_at?: string | null
+          nda_email_sent_by?: string | null
+          nda_signed?: boolean | null
+          nda_signed_at?: string | null
+          nda_signed_by?: string | null
+          nda_signed_by_name?: string | null
+          normalized_company_name?: string
+          primary_company_name?: string
+          updated_at?: string
+          website_domain?: string | null
+        }
+        Relationships: []
+      }
+      firm_members: {
+        Row: {
+          added_at: string
+          added_by: string | null
+          firm_id: string
+          id: string
+          is_primary_contact: boolean | null
+          user_id: string
+        }
+        Insert: {
+          added_at?: string
+          added_by?: string | null
+          firm_id: string
+          id?: string
+          is_primary_contact?: boolean | null
+          user_id: string
+        }
+        Update: {
+          added_at?: string
+          added_by?: string | null
+          firm_id?: string
+          id?: string
+          is_primary_contact?: boolean | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "firm_members_firm_id_fkey"
+            columns: ["firm_id"]
+            isOneToOne: false
+            referencedRelation: "firm_agreements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "firm_members_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       inbound_leads: {
         Row: {
@@ -1630,6 +1764,7 @@ export type Database = {
           admin_name: string | null
           created_at: string
           email_sent_to: string | null
+          firm_id: string | null
           id: string
           metadata: Json | null
           notes: string | null
@@ -1643,6 +1778,7 @@ export type Database = {
           admin_name?: string | null
           created_at?: string
           email_sent_to?: string | null
+          firm_id?: string | null
           id?: string
           metadata?: Json | null
           notes?: string | null
@@ -1656,13 +1792,22 @@ export type Database = {
           admin_name?: string | null
           created_at?: string
           email_sent_to?: string | null
+          firm_id?: string | null
           id?: string
           metadata?: Json | null
           notes?: string | null
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "nda_logs_firm_id_fkey"
+            columns: ["firm_id"]
+            isOneToOne: false
+            referencedRelation: "firm_agreements"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       otp_rate_limits: {
         Row: {
@@ -2459,6 +2604,10 @@ export type Database = {
         }
         Returns: Json
       }
+      extract_domain: {
+        Args: { input_text: string }
+        Returns: string
+      }
       generate_deal_identifier: {
         Args: Record<PropertyKey, never>
         Returns: string
@@ -2554,6 +2703,10 @@ export type Database = {
           raw_target_locations: Json
         }[]
       }
+      get_or_create_firm: {
+        Args: { p_company_name: string; p_email?: string; p_website?: string }
+        Returns: string
+      }
       get_profiles_with_history: {
         Args: Record<PropertyKey, never>
         Returns: {
@@ -2635,6 +2788,10 @@ export type Database = {
       move_deal_stage: {
         Args: { deal_id: string; new_stage_id: string }
         Returns: boolean
+      }
+      normalize_company_name: {
+        Args: { company_name: string }
+        Returns: string
       }
       preview_profile_data_restoration: {
         Args: Record<PropertyKey, never>
@@ -2731,6 +2888,16 @@ export type Database = {
         Args: { admin_notes?: string; is_sent: boolean; target_user_id: string }
         Returns: boolean
       }
+      update_fee_agreement_firm_status: {
+        Args: {
+          p_admin_notes?: string
+          p_firm_id: string
+          p_is_signed: boolean
+          p_signed_by_name?: string
+          p_signed_by_user_id?: string
+        }
+        Returns: boolean
+      }
       update_fee_agreement_status: {
         Args: {
           admin_notes?: string
@@ -2765,6 +2932,16 @@ export type Database = {
       }
       update_nda_email_status: {
         Args: { admin_notes?: string; is_sent: boolean; target_user_id: string }
+        Returns: boolean
+      }
+      update_nda_firm_status: {
+        Args: {
+          p_admin_notes?: string
+          p_firm_id: string
+          p_is_signed: boolean
+          p_signed_by_name?: string
+          p_signed_by_user_id?: string
+        }
         Returns: boolean
       }
       update_nda_status: {
