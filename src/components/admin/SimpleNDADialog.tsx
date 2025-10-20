@@ -70,7 +70,9 @@ export const SimpleNDADialog = ({ open, onOpenChange, user, listing, onSendEmail
     subject: "NDA Required",
     message: `${user.first_name || user.email},
 
-Sign and return the attached NDA to view confidential listing details.
+When you get a chance, please review and sign the attached NDA, then return it to us.
+
+Thanks!
 
 Best regards,`
   };

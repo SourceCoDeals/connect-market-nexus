@@ -78,12 +78,12 @@ export function FirmBulkActions({ firmId, firmName, memberCount }: FirmBulkActio
     }
 
     const subject = type === 'nda' 
-      ? `NDA Required | ${firmName}` 
-      : `Fee Agreement | ${firmName}`;
+      ? `NDA Required` 
+      : `Fee Agreement`;
     
     const body = type === 'nda'
-      ? `Dear ${firmName} Team,\n\nPlease sign and return the attached NDA to access confidential listing details.\n\nBest regards,\nSourceCo Team`
-      : `Dear ${firmName} Team,\n\nPlease sign the attached fee agreement. Commission applies only if you transact with a business on our marketplace and is paid at closing.\n\nBest regards,\nSourceCo Team`;
+      ? `Dear ${firmName} Team,\n\nWhen you get a chance, please review and sign the attached NDA, then return it to us.\n\nThanks!\n\nBest regards,\nSourceCo Team`
+      : `Dear ${firmName} Team,\n\nWhen you get a chance, please review and sign the attached fee agreement, then return it to us.\n\nThanks!\n\nBest regards,\nSourceCo Team`;
 
     // Create mailto link with BCC for privacy
     const mailtoLink = `mailto:?bcc=${recipientEmails.join(',')}&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
