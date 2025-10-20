@@ -66,15 +66,18 @@ export const SimpleNDADialog = ({ open, onOpenChange, user, listing, onSendEmail
   // Early return AFTER all hooks are declared
   if (!user) return null;
 
+  const adminName = currentUser?.first_name || 'SourceCo Team';
+
   const quickTemplate = {
     subject: "NDA Required",
     message: `${user.first_name || user.email},
 
-When you get a chance, please review and sign the attached NDA, then return it to us.
+When you get a chance, please review and sign the attached NDA.
 
 Thanks!
 
-Best regards,`
+Best regards,
+${adminName}`
   };
 
   const defaultSubject = quickTemplate.subject;

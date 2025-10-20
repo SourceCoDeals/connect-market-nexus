@@ -31,13 +31,12 @@ const DEFAULT_TEMPLATE = {
   subject: "Fee Agreement",
   content: `{{userName}},
 
-When you get a chance, please review and sign the attached fee agreement, then return it to us.
+When you get a chance, please review and sign the attached fee agreement.
 
 Thanks!
 
 Best regards,
-{{adminName}}
-{{adminEmail}}`
+{{adminName}}`
 };
 
 export function EnhancedFeeAgreementEmailDialog({
@@ -78,9 +77,7 @@ export function EnhancedFeeAgreementEmailDialog({
     const filledSubject = DEFAULT_TEMPLATE.subject.replace("{{userName}}", userName);
     const filledContent = DEFAULT_TEMPLATE.content
       .replace(/{{userName}}/g, userName)
-      .replace(/{{adminName}}/g, adminName)
-      .replace(/{{adminTitle}}/g, "Business Development Manager") // Could be made dynamic
-      .replace(/{{adminEmail}}/g, adminUser.email);
+      .replace(/{{adminName}}/g, adminName);
 
     setSubject(filledSubject);
     setContent(filledContent);
@@ -205,8 +202,6 @@ export function EnhancedFeeAgreementEmailDialog({
                         .replace(/{{adminName}}/g, adminUser?.first_name && adminUser?.last_name 
                           ? `${adminUser.first_name} ${adminUser.last_name}` 
                           : adminUser?.email || "Admin")
-                        .replace(/{{adminTitle}}/g, "Business Development Manager")
-                        .replace(/{{adminEmail}}/g, adminUser?.email || "")
                         .substring(0, 300)}...
                     </div>
                   </div>

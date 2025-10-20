@@ -35,11 +35,12 @@ const QUICK_TEMPLATE = {
   subject: "Fee Agreement",
   content: `{{userName}},
 
-When you get a chance, please review and sign the attached fee agreement, then return it to us.
+When you get a chance, please review and sign the attached fee agreement.
 
 Thanks!
 
-Best regards,`
+Best regards,
+{{adminName}}`
 };
 
 export function SimpleFeeAgreementDialog({
@@ -63,25 +64,25 @@ export function SimpleFeeAgreementDialog({
         ? `${user.first_name} ${user.last_name}` 
         : user.email?.split('@')[0] || "";
 
-      const filledSubject = QUICK_TEMPLATE.subject.replace("{{userName}}", name);
-      const filledContent = QUICK_TEMPLATE.content.replace(/{{userName}}/g, name);
+      const admin = adminUser?.first_name || "SourceCo Team";
+
+      const filledSubject = QUICK_TEMPLATE.subject.replace("{{userName}}", name).replace("{{adminName}}", admin);
+      const filledContent = QUICK_TEMPLATE.content.replace(/{{userName}}/g, name).replace(/{{adminName}}/g, admin);
       setSubject(filledSubject);
       setContent(filledContent);
       setAttachments([]);
     }
-  }, [user, isOpen]);
+  }, [user, isOpen, adminUser]);
 
   const userName = user?.first_name && user?.last_name 
     ? `${user.first_name} ${user.last_name}` 
     : user?.email?.split('@')[0] || "";
 
-  const adminName = adminUser?.first_name && adminUser?.last_name
-    ? `${adminUser.first_name} ${adminUser.last_name}`
-    : adminUser?.email || "Admin";
+  const adminName = adminUser?.first_name || "SourceCo Team";
 
   const loadTemplate = () => {
-    const filledSubject = QUICK_TEMPLATE.subject.replace("{{userName}}", userName);
-    const filledContent = QUICK_TEMPLATE.content.replace(/{{userName}}/g, userName);
+    const filledSubject = QUICK_TEMPLATE.subject.replace("{{userName}}", userName).replace("{{adminName}}", adminName);
+    const filledContent = QUICK_TEMPLATE.content.replace(/{{userName}}/g, userName).replace(/{{adminName}}/g, adminName);
     
     setSubject(filledSubject);
     setContent(filledContent);

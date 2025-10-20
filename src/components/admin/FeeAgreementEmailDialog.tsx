@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { User } from "@/types";
 import { useLogFeeAgreementEmail } from "@/hooks/admin/use-fee-agreement";
+import { useAuth } from "@/context/AuthContext";
 
 interface FeeAgreementEmailDialogProps {
   user: User | null;
@@ -15,27 +16,30 @@ interface FeeAgreementEmailDialogProps {
 
 const DEFAULT_EMAIL_TEMPLATE = `{firstName},
 
-When you get a chance, please review and sign the attached fee agreement, then return it to us.
+When you get a chance, please review and sign the attached fee agreement.
 
 Thanks!
 
 Best regards,
-The Business Marketplace Team`;
+{adminName}`;
 
 export function FeeAgreementEmailDialog({ user, isOpen, onClose }: FeeAgreementEmailDialogProps) {
   const [emailContent, setEmailContent] = useState("");
   const [subject, setSubject] = useState("Fee Agreement");
   const logEmailMutation = useLogFeeAgreementEmail();
+  const { user: adminUser } = useAuth();
 
   // Reset form when dialog opens with a new user
   useEffect(() => {
-    if (user && isOpen) {
+    if (user && isOpen && adminUser) {
+      const adminName = adminUser.first_name || 'SourceCo Team';
       const personalizedContent = DEFAULT_EMAIL_TEMPLATE
-        .replace("{firstName}", user.first_name || "Valued Client");
+        .replace("{firstName}", user.first_name || "Valued Client")
+        .replace("{adminName}", adminName);
       setEmailContent(personalizedContent);
       setSubject("Fee Agreement");
     }
-  }, [user, isOpen]);
+  }, [user, isOpen, adminUser]);
 
   const handleSend = async () => {
     if (!user) return;

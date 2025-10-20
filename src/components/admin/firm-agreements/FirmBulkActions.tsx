@@ -49,12 +49,15 @@ export function FirmBulkActions({ firmId, firmName, memberCount }: FirmBulkActio
       }
 
       console.log(`✅ Logged ${type.toUpperCase()} email action for ${recipientEmails.length} recipients at ${new Date().toISOString()}`);
+      
+      return adminProfile;
     } catch (error) {
       console.error('Error logging email action:', error);
+      return null;
     }
   };
 
-  const openEmailClient = (type: 'nda' | 'fee') => {
+  const openEmailClient = async (type: 'nda' | 'fee') => {
     if (!members || members.length === 0) {
       toast({
         title: 'No members found',
@@ -77,22 +80,23 @@ export function FirmBulkActions({ firmId, firmName, memberCount }: FirmBulkActio
       return;
     }
 
+    // Get admin profile for signature
+    const adminProfile = await logEmailAction(type, recipientEmails);
+    const adminName = adminProfile?.first_name || 'SourceCo Team';
+
     const subject = type === 'nda' 
       ? `NDA Required` 
       : `Fee Agreement`;
     
     const body = type === 'nda'
-      ? `Dear ${firmName} Team,\n\nWhen you get a chance, please review and sign the attached NDA, then return it to us.\n\nThanks!\n\nBest regards,\nSourceCo Team`
-      : `Dear ${firmName} Team,\n\nWhen you get a chance, please review and sign the attached fee agreement, then return it to us.\n\nThanks!\n\nBest regards,\nSourceCo Team`;
+      ? `Dear ${firmName} Team,\n\nWhen you get a chance, please review and sign the attached NDA.\n\nThanks!\n\nBest regards,\n${adminName}`
+      : `Dear ${firmName} Team,\n\nWhen you get a chance, please review and sign the attached fee agreement.\n\nThanks!\n\nBest regards,\n${adminName}`;
 
     // Create mailto link with BCC for privacy
     const mailtoLink = `mailto:?bcc=${recipientEmails.join(',')}&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     
     // Open email client
     window.location.href = mailtoLink;
-
-    // Log the action
-    logEmailAction(type, recipientEmails);
 
     toast({
       title: 'Email client opened',
