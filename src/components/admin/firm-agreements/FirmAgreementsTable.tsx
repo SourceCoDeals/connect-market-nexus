@@ -350,17 +350,22 @@ function FirmRow({
 
         {/* Fee Agreement Status */}
         <div className="col-span-2">
-          {firm.fee_agreement_signed ? (
-            <Badge variant="outline" className="h-6 px-2.5 border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/15 transition-colors">
-              <Check className="h-3 w-3 text-emerald-700 dark:text-emerald-400 mr-1.5" />
-              <span className="text-xs font-medium text-emerald-700 dark:text-emerald-400">Signed</span>
-            </Badge>
-          ) : (
-            <Badge variant="outline" className="h-6 px-2.5 border-border/60 bg-muted/30 hover:bg-muted/40 transition-colors">
-              <X className="h-3 w-3 text-muted-foreground mr-1.5" />
-              <span className="text-xs font-medium text-muted-foreground">Unsigned</span>
-            </Badge>
-          )}
+          <div className="flex flex-col items-start gap-2">
+            <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+              <FirmAgreementToggles firm={firm} members={members || []} />
+            </div>
+            {firm.fee_agreement_signed ? (
+              <Badge variant="outline" className="h-6 px-2.5 border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/15 transition-colors">
+                <Check className="h-3 w-3 text-emerald-700 dark:text-emerald-400 mr-1.5" />
+                <span className="text-xs font-medium text-emerald-700 dark:text-emerald-400">Signed</span>
+              </Badge>
+            ) : (
+              <Badge variant="outline" className="h-6 px-2.5 border-border/60 bg-muted/30 hover:bg-muted/40 transition-colors">
+                <X className="h-3 w-3 text-muted-foreground mr-1.5" />
+                <span className="text-xs font-medium text-muted-foreground">Unsigned</span>
+              </Badge>
+            )}
+          </div>
         </div>
 
         {/* NDA Status */}
@@ -379,28 +384,45 @@ function FirmRow({
         </div>
 
         {/* Actions */}
-        <div className="col-span-2 flex justify-end items-center gap-2">
-          <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-            <FirmAgreementToggles firm={firm} members={members || []} />
-          </div>
+        <div className="col-span-2 flex justify-end items-center">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-all hover:bg-muted/80 data-[state=open]:opacity-100 data-[state=open]:bg-muted"
               >
-                <MoreHorizontal className="h-4 w-4" />
+                <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
+                <span className="sr-only">Open menu</span>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuItem onClick={onToggleExpand}>
+            <DropdownMenuContent 
+              align="end" 
+              className="w-56 bg-popover/95 backdrop-blur-xl border-border/60 shadow-lg"
+            >
+              <DropdownMenuItem 
+                onClick={onToggleExpand}
+                className="cursor-pointer focus:bg-muted/80 focus:text-foreground"
+              >
+                <ChevronRight className={cn(
+                  "h-4 w-4 mr-2 transition-transform",
+                  isExpanded && "rotate-90"
+                )} />
                 {isExpanded ? 'Collapse' : 'Expand'} details
               </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem>View members</DropdownMenuItem>
-              <DropdownMenuItem>Send agreements</DropdownMenuItem>
-              <DropdownMenuItem>View history</DropdownMenuItem>
+              <DropdownMenuSeparator className="bg-border/60" />
+              <DropdownMenuItem className="cursor-pointer focus:bg-muted/80 focus:text-foreground">
+                <Users className="h-4 w-4 mr-2" />
+                View members
+              </DropdownMenuItem>
+              <DropdownMenuItem className="cursor-pointer focus:bg-muted/80 focus:text-foreground">
+                <Globe className="h-4 w-4 mr-2" />
+                Send agreements
+              </DropdownMenuItem>
+              <DropdownMenuItem className="cursor-pointer focus:bg-muted/80 focus:text-foreground">
+                <Building2 className="h-4 w-4 mr-2" />
+                View history
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

@@ -137,30 +137,27 @@ export function FirmAgreementToggles({ firm, members }: FirmAgreementTogglesProp
   };
 
   return (
-    <div className="flex items-center gap-6">
-      {/* Fee Agreement Toggle */}
+    <>
+      {/* Fee Agreement Toggle & Dialog */}
       <Dialog open={isFeeDialogOpen} onOpenChange={setIsFeeDialogOpen}>
-        <div className="flex items-center gap-3">
-          {(updateFeeAgreement.isPending || membersLoading) && (
-            <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
-          )}
-          <div className="flex flex-col items-end gap-1">
-            <span className="text-xs font-medium text-foreground whitespace-nowrap">
-              Fee Agreement
-            </span>
+        <div className="flex flex-col items-center gap-1.5">
+          <div className="flex items-center gap-1.5">
+            {(updateFeeAgreement.isPending || membersLoading) && (
+              <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+            )}
             <Switch
               checked={firm.fee_agreement_signed}
               onCheckedChange={handleFeeAgreementToggle}
               disabled={updateFeeAgreement.isPending || membersLoading}
-              className="data-[state=checked]:bg-emerald-600"
+              className="data-[state=checked]:bg-emerald-600 scale-75"
             />
           </div>
         </div>
         
-        <DialogContent>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Mark Fee Agreement as Signed</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-lg">Mark Fee Agreement as Signed</DialogTitle>
+            <DialogDescription className="text-sm">
               Select who signed the fee agreement for {firm.primary_company_name}
             </DialogDescription>
           </DialogHeader>
@@ -175,10 +172,11 @@ export function FirmAgreementToggles({ firm, members }: FirmAgreementTogglesProp
           />
           
           <div className="flex justify-end gap-2 mt-4">
-            <Button variant="outline" onClick={() => setIsFeeDialogOpen(false)}>
+            <Button variant="outline" size="sm" onClick={() => setIsFeeDialogOpen(false)}>
               Cancel
             </Button>
             <Button 
+              size="sm"
               onClick={confirmFeeAgreementUpdate}
               disabled={!feeSignedByUserId && !feeSignedByName}
             >
@@ -188,29 +186,26 @@ export function FirmAgreementToggles({ firm, members }: FirmAgreementTogglesProp
         </DialogContent>
       </Dialog>
 
-      {/* NDA Toggle */}
+      {/* NDA Toggle & Dialog */}
       <Dialog open={isNDADialogOpen} onOpenChange={setIsNDADialogOpen}>
-        <div className="flex items-center gap-3">
-          {(updateNDA.isPending || membersLoading) && (
-            <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
-          )}
-          <div className="flex flex-col items-end gap-1">
-            <span className="text-xs font-medium text-foreground whitespace-nowrap">
-              NDA
-            </span>
+        <div className="flex flex-col items-center gap-1.5">
+          <div className="flex items-center gap-1.5">
+            {(updateNDA.isPending || membersLoading) && (
+              <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+            )}
             <Switch
               checked={firm.nda_signed}
               onCheckedChange={handleNDAToggle}
               disabled={updateNDA.isPending || membersLoading}
-              className="data-[state=checked]:bg-emerald-600"
+              className="data-[state=checked]:bg-emerald-600 scale-75"
             />
           </div>
         </div>
         
-        <DialogContent>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Mark NDA as Signed</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-lg">Mark NDA as Signed</DialogTitle>
+            <DialogDescription className="text-sm">
               Select who signed the NDA for {firm.primary_company_name}
             </DialogDescription>
           </DialogHeader>
@@ -225,10 +220,11 @@ export function FirmAgreementToggles({ firm, members }: FirmAgreementTogglesProp
           />
           
           <div className="flex justify-end gap-2 mt-4">
-            <Button variant="outline" onClick={() => setIsNDADialogOpen(false)}>
+            <Button variant="outline" size="sm" onClick={() => setIsNDADialogOpen(false)}>
               Cancel
             </Button>
             <Button 
+              size="sm"
               onClick={confirmNDAUpdate}
               disabled={!ndaSignedByUserId && !ndaSignedByName}
             >
@@ -237,6 +233,6 @@ export function FirmAgreementToggles({ firm, members }: FirmAgreementTogglesProp
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }
