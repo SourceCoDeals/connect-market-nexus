@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -22,17 +22,18 @@ The Business Marketplace Team`;
 
 export function FeeAgreementEmailDialog({ user, isOpen, onClose }: FeeAgreementEmailDialogProps) {
   const [emailContent, setEmailContent] = useState("");
-  const [subject, setSubject] = useState("Fee Agreement Required - Business Marketplace");
+  const [subject, setSubject] = useState("Fee Agreement");
   const logEmailMutation = useLogFeeAgreementEmail();
 
   // Reset form when dialog opens with a new user
-  useState(() => {
+  useEffect(() => {
     if (user && isOpen) {
       const personalizedContent = DEFAULT_EMAIL_TEMPLATE
         .replace("{firstName}", user.first_name || "Valued Client");
       setEmailContent(personalizedContent);
+      setSubject("Fee Agreement");
     }
-  });
+  }, [user, isOpen]);
 
   const handleSend = async () => {
     if (!user) return;
@@ -54,7 +55,7 @@ export function FeeAgreementEmailDialog({ user, isOpen, onClose }: FeeAgreementE
     // Reset form after closing
     setTimeout(() => {
       setEmailContent("");
-      setSubject("Fee Agreement Required - Business Marketplace");
+      setSubject("Fee Agreement");
     }, 300);
   };
 

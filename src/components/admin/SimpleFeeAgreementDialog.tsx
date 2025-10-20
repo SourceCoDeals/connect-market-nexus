@@ -57,9 +57,14 @@ export function SimpleFeeAgreementDialog({
 
   useEffect(() => {
     if (user && isOpen) {
-      // Start with blank email
-      setSubject("");
-      setContent("");
+      const name = user.first_name && user.last_name 
+        ? `${user.first_name} ${user.last_name}` 
+        : user.email?.split('@')[0] || "";
+
+      const filledSubject = QUICK_TEMPLATE.subject.replace("{{userName}}", name);
+      const filledContent = QUICK_TEMPLATE.content.replace(/{{userName}}/g, name);
+      setSubject(filledSubject);
+      setContent(filledContent);
       setAttachments([]);
     }
   }, [user, isOpen]);

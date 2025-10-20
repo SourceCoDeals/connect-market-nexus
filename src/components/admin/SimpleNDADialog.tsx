@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -28,6 +28,15 @@ export const SimpleNDADialog = ({ open, onOpenChange, user, listing, onSendEmail
   const [isSending, setIsSending] = useState(false);
   
   const { user: currentUser } = useAuth();
+
+  // Reset and preload concise template on open
+  useEffect(() => {
+    if (open && user) {
+      setCustomSubject(quickTemplate.subject);
+      setCustomMessage(quickTemplate.message);
+      setCustomSignatureText("");
+    }
+  }, [open, user]);
 
   const handleSend = async () => {
     if (!user) return;
