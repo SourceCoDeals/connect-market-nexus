@@ -136,8 +136,8 @@ export function FirmAgreementToggles({ firm, members, type = 'both' }: FirmAgree
   if (type === 'fee') {
     return (
       <Dialog open={isFeeDialogOpen} onOpenChange={setIsFeeDialogOpen}>
-        <div className="space-y-1 group/toggle">
-          {/* Toggle + Status Badge - Toggle shows on hover */}
+        <div className="group/toggle">
+          {/* Toggle + Status Badge - Toggle always visible */}
           <div className="flex items-center gap-2">
             {(updateFeeAgreement.isPending || membersLoading) && (
               <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
@@ -146,7 +146,7 @@ export function FirmAgreementToggles({ firm, members, type = 'both' }: FirmAgree
               checked={firm.fee_agreement_signed}
               onCheckedChange={handleFeeAgreementToggle}
               disabled={updateFeeAgreement.isPending || membersLoading}
-              className="data-[state=checked]:bg-emerald-600 opacity-0 group-hover/toggle:opacity-100 transition-opacity"
+              className="data-[state=checked]:bg-emerald-600"
             />
             {firm.fee_agreement_signed ? (
               <Badge 
@@ -167,9 +167,9 @@ export function FirmAgreementToggles({ firm, members, type = 'both' }: FirmAgree
             )}
           </div>
 
-          {/* Metadata - Ultra subtle, show on hover */}
+          {/* Metadata - Ultra subtle, show on hover, only takes space when visible */}
           {firm.fee_agreement_signed && (firm.fee_agreement_signed_by_name || firm.fee_agreement_signed_at) && (
-            <div className="flex items-center gap-1 text-[10px] text-muted-foreground/50 opacity-0 group-hover/toggle:opacity-100 transition-opacity pl-0.5">
+            <div className="flex items-center gap-1 text-[10px] text-muted-foreground/50 transition-all pl-0.5 h-0 opacity-0 group-hover/toggle:h-4 group-hover/toggle:opacity-100 group-hover/toggle:mt-1 overflow-hidden">
               {firm.fee_agreement_signed_by_name && (
                 <span>{firm.fee_agreement_signed_by_name}</span>
               )}
@@ -220,8 +220,8 @@ export function FirmAgreementToggles({ firm, members, type = 'both' }: FirmAgree
   if (type === 'nda') {
     return (
       <Dialog open={isNDADialogOpen} onOpenChange={setIsNDADialogOpen}>
-        <div className="space-y-1 group/toggle">
-          {/* Toggle + Status Badge - Toggle shows on hover */}
+        <div className="group/toggle">
+          {/* Toggle + Status Badge - Toggle always visible */}
           <div className="flex items-center gap-2">
             {(updateNDA.isPending || membersLoading) && (
               <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
@@ -230,7 +230,7 @@ export function FirmAgreementToggles({ firm, members, type = 'both' }: FirmAgree
               checked={firm.nda_signed}
               onCheckedChange={handleNDAToggle}
               disabled={updateNDA.isPending || membersLoading}
-              className="data-[state=checked]:bg-emerald-600 opacity-0 group-hover/toggle:opacity-100 transition-opacity"
+              className="data-[state=checked]:bg-emerald-600"
             />
             {firm.nda_signed ? (
               <Badge 
@@ -251,9 +251,9 @@ export function FirmAgreementToggles({ firm, members, type = 'both' }: FirmAgree
             )}
           </div>
 
-          {/* Metadata - Ultra subtle, show on hover */}
+          {/* Metadata - Ultra subtle, show on hover, only takes space when visible */}
           {firm.nda_signed && (firm.nda_signed_by_name || firm.nda_signed_at) && (
-            <div className="flex items-center gap-1 text-[10px] text-muted-foreground/50 opacity-0 group-hover/toggle:opacity-100 transition-opacity pl-0.5">
+            <div className="flex items-center gap-1 text-[10px] text-muted-foreground/50 transition-all pl-0.5 h-0 opacity-0 group-hover/toggle:h-4 group-hover/toggle:opacity-100 group-hover/toggle:mt-1 overflow-hidden">
               {firm.nda_signed_by_name && (
                 <span>{firm.nda_signed_by_name}</span>
               )}
