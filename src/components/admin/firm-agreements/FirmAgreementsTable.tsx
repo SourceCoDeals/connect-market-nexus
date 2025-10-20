@@ -1,8 +1,15 @@
 import { useState } from 'react';
-import { ChevronRight, Building2, Users, Globe, Check, X, Circle } from 'lucide-react';
+import { ChevronRight, Building2, Users, Globe, Check, X, Circle, MoreHorizontal, Download, Filter as FilterIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import { useFirmAgreements, useFirmMembers, type FirmAgreement } from '@/hooks/admin/use-firm-agreements';
 import { FirmAgreementToggles } from './FirmAgreementToggles';
 import { FirmBulkActions } from './FirmBulkActions';
@@ -40,6 +47,27 @@ export function FirmAgreementsTable() {
     none: firms?.filter(f => !f.fee_agreement_signed && !f.nda_signed).length || 0,
   };
 
+  const handleExport = () => {
+    // Export to CSV
+    const csv = [
+      ['Firm Name', 'Domain', 'Members', 'Fee Agreement', 'NDA'],
+      ...(firms || []).map(f => [
+        f.primary_company_name,
+        f.website_domain || '',
+        f.member_count.toString(),
+        f.fee_agreement_signed ? 'Signed' : 'Unsigned',
+        f.nda_signed ? 'Signed' : 'Unsigned',
+      ])
+    ].map(row => row.join(',')).join('\n');
+
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `firm-agreements-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center p-24">
@@ -53,7 +81,7 @@ export function FirmAgreementsTable() {
 
   return (
     <div className="space-y-6">
-      {/* Stats Overview - Minimal cards */}
+      {/* Stats Overview */}
       <div className="grid grid-cols-4 gap-4">
         <StatCard
           label="Total Firms"
@@ -85,18 +113,28 @@ export function FirmAgreementsTable() {
       <div className="space-y-4">
         {/* Search and Tools Row */}
         <div className="flex items-center gap-3">
-          <div className="flex-1">
+          <div className="flex-1 relative">
             <Input
               placeholder="Search firms by name, domain..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="max-w-md h-9 bg-background border-input shadow-sm"
+              className="max-w-md h-9 bg-background border-input shadow-sm pl-9"
             />
+            <FilterIcon className="h-4 w-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
           </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExport}
+            className="h-9 gap-2"
+          >
+            <Download className="h-3.5 w-3.5" />
+            Export
+          </Button>
           <FirmManagementTools />
         </div>
 
-        {/* Filter Tabs - Stripe style */}
+        {/* Filter Tabs */}
         <div className="flex items-center gap-2 border-b border-border">
           <FilterTab
             label="All Firms"
@@ -129,7 +167,7 @@ export function FirmAgreementsTable() {
       <div className="border border-border rounded-lg overflow-hidden bg-card shadow-sm">
         {/* Table Header */}
         <div className="grid grid-cols-12 gap-4 px-6 py-3 bg-muted/40 border-b border-border">
-          <div className="col-span-5 text-xs font-medium text-muted-foreground uppercase tracking-wider">
+          <div className="col-span-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">
             Firm
           </div>
           <div className="col-span-2 text-xs font-medium text-muted-foreground uppercase tracking-wider">
@@ -141,7 +179,7 @@ export function FirmAgreementsTable() {
           <div className="col-span-2 text-xs font-medium text-muted-foreground uppercase tracking-wider">
             NDA
           </div>
-          <div className="col-span-1 text-xs font-medium text-muted-foreground uppercase tracking-wider text-right">
+          <div className="col-span-2 text-xs font-medium text-muted-foreground uppercase tracking-wider text-right">
             Actions
           </div>
         </div>
@@ -166,6 +204,16 @@ export function FirmAgreementsTable() {
             </div>
           )}
         </div>
+
+        {/* Footer with result count */}
+        {filteredFirms && filteredFirms.length > 0 && (
+          <div className="px-6 py-3 bg-muted/20 border-t border-border">
+            <p className="text-xs text-muted-foreground">
+              Showing <span className="font-medium text-foreground">{filteredFirms.length}</span> of{' '}
+              <span className="font-medium text-foreground">{firms?.length || 0}</span> firms
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -186,7 +234,7 @@ function FilterTab({
     <button
       onClick={onClick}
       className={cn(
-        "px-4 py-2.5 text-sm font-medium transition-colors relative",
+        "px-4 py-2.5 text-sm font-medium transition-all relative group",
         active
           ? "text-foreground"
           : "text-muted-foreground hover:text-foreground"
@@ -195,16 +243,16 @@ function FilterTab({
       <span className="flex items-center gap-2">
         {label}
         <span className={cn(
-          "text-xs px-1.5 py-0.5 rounded-md font-medium",
+          "text-xs px-1.5 py-0.5 rounded-md font-medium transition-colors",
           active 
             ? "bg-primary/10 text-primary" 
-            : "bg-muted text-muted-foreground"
+            : "bg-muted text-muted-foreground group-hover:bg-muted/80"
         )}>
           {count}
         </span>
       </span>
       {active && (
-        <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
+        <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full" />
       )}
     </button>
   );
@@ -229,12 +277,12 @@ function StatCard({
   };
 
   return (
-    <div className="p-5 rounded-lg border border-border bg-card shadow-sm hover:shadow-md transition-shadow">
+    <div className="p-5 rounded-lg border border-border bg-card shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-0.5 cursor-default">
       <div className="flex items-start justify-between mb-3">
         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
           {label}
         </p>
-        <div className={cn('p-2 rounded-md', variantStyles[variant])}>
+        <div className={cn('p-2 rounded-md transition-colors', variantStyles[variant])}>
           <Icon className="h-4 w-4" />
         </div>
       </div>
@@ -262,7 +310,7 @@ function FirmRow({
       {/* Main Row */}
       <div className="grid grid-cols-12 gap-4 px-6 py-4 items-center hover:bg-muted/30 transition-colors group">
         {/* Firm Info */}
-        <div className="col-span-5 flex items-center gap-3 min-w-0">
+        <div className="col-span-4 flex items-center gap-3 min-w-0">
           <Button
             variant="ghost"
             size="sm"
@@ -292,7 +340,7 @@ function FirmRow({
 
         {/* Member Count */}
         <div className="col-span-2">
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-muted/50">
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-muted/50 hover:bg-muted/70 transition-colors">
             <Users className="h-3.5 w-3.5 text-muted-foreground" />
             <span className="text-xs font-medium text-foreground">
               {firm.member_count}
@@ -301,45 +349,67 @@ function FirmRow({
         </div>
 
         {/* Fee Agreement Status */}
-        <div className="col-span-2 flex items-center gap-2">
+        <div className="col-span-2">
           {firm.fee_agreement_signed ? (
-            <Badge variant="outline" className="h-6 px-2.5 border-emerald-500/30 bg-emerald-500/10">
-              <Check className="h-3 w-3 text-emerald-700 dark:text-emerald-400 mr-1" />
+            <Badge variant="outline" className="h-6 px-2.5 border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/15 transition-colors">
+              <Check className="h-3 w-3 text-emerald-700 dark:text-emerald-400 mr-1.5" />
               <span className="text-xs font-medium text-emerald-700 dark:text-emerald-400">Signed</span>
             </Badge>
           ) : (
-            <Badge variant="outline" className="h-6 px-2.5 border-border/60 bg-muted/30">
-              <X className="h-3 w-3 text-muted-foreground mr-1" />
+            <Badge variant="outline" className="h-6 px-2.5 border-border/60 bg-muted/30 hover:bg-muted/40 transition-colors">
+              <X className="h-3 w-3 text-muted-foreground mr-1.5" />
               <span className="text-xs font-medium text-muted-foreground">Unsigned</span>
             </Badge>
           )}
         </div>
 
         {/* NDA Status */}
-        <div className="col-span-2 flex items-center gap-2">
+        <div className="col-span-2">
           {firm.nda_signed ? (
-            <Badge variant="outline" className="h-6 px-2.5 border-emerald-500/30 bg-emerald-500/10">
-              <Check className="h-3 w-3 text-emerald-700 dark:text-emerald-400 mr-1" />
+            <Badge variant="outline" className="h-6 px-2.5 border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/15 transition-colors">
+              <Check className="h-3 w-3 text-emerald-700 dark:text-emerald-400 mr-1.5" />
               <span className="text-xs font-medium text-emerald-700 dark:text-emerald-400">Signed</span>
             </Badge>
           ) : (
-            <Badge variant="outline" className="h-6 px-2.5 border-border/60 bg-muted/30">
-              <X className="h-3 w-3 text-muted-foreground mr-1" />
+            <Badge variant="outline" className="h-6 px-2.5 border-border/60 bg-muted/30 hover:bg-muted/40 transition-colors">
+              <X className="h-3 w-3 text-muted-foreground mr-1.5" />
               <span className="text-xs font-medium text-muted-foreground">Unsigned</span>
             </Badge>
           )}
         </div>
 
         {/* Actions */}
-        <div className="col-span-1 flex justify-end">
-          <FirmAgreementToggles firm={firm} members={members || []} />
+        <div className="col-span-2 flex justify-end items-center gap-2">
+          <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+            <FirmAgreementToggles firm={firm} members={members || []} />
+          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+              >
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem onClick={onToggleExpand}>
+                {isExpanded ? 'Collapse' : 'Expand'} details
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem>View members</DropdownMenuItem>
+              <DropdownMenuItem>Send agreements</DropdownMenuItem>
+              <DropdownMenuItem>View history</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
       {/* Expanded Section */}
       {isExpanded && (
-        <div className="px-6 pb-6 pt-2 border-t border-border/50">
-          <div className="bg-muted/20 rounded-lg p-5">
+        <div className="px-6 pb-6 pt-2 border-t border-border/50 animate-in slide-in-from-top-2 duration-200">
+          <div className="bg-muted/20 rounded-lg p-5 border border-border/40">
             {/* Members List */}
             <div className="mb-5">
               <h4 className="text-sm font-semibold mb-4 flex items-center gap-2">
@@ -353,10 +423,10 @@ function FirmRow({
                 {members?.map((member) => (
                   <div
                     key={member.id}
-                    className="flex items-center justify-between p-3 bg-background rounded-md border border-border/50 hover:border-border transition-colors"
+                    className="flex items-center justify-between p-3 bg-background rounded-md border border-border/50 hover:border-border hover:shadow-sm transition-all"
                   >
                     <div className="flex items-center gap-3 min-w-0 flex-1">
-                      <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                      <div className="h-8 w-8 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center flex-shrink-0 border border-primary/20">
                         <span className="text-xs font-semibold text-primary">
                           {member.user?.first_name?.[0]}{member.user?.last_name?.[0]}
                         </span>
@@ -401,12 +471,12 @@ function FirmRow({
 
             {/* Signing History */}
             {(firm.fee_agreement_signed || firm.nda_signed) && (
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <h5 className="text-xs font-semibold mb-3 text-muted-foreground uppercase tracking-wider">
                   Signing History
                 </h5>
                 {firm.fee_agreement_signed && firm.fee_agreement_signed_at && (
-                  <div className="flex items-start gap-3 text-sm">
+                  <div className="flex items-start gap-3 text-sm p-3 rounded-md bg-emerald-500/5 border border-emerald-500/20">
                     <div className="p-1.5 rounded-md bg-emerald-500/10 mt-0.5">
                       <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-500" />
                     </div>
@@ -419,7 +489,7 @@ function FirmRow({
                   </div>
                 )}
                 {firm.nda_signed && firm.nda_signed_at && (
-                  <div className="flex items-start gap-3 text-sm">
+                  <div className="flex items-start gap-3 text-sm p-3 rounded-md bg-emerald-500/5 border border-emerald-500/20">
                     <div className="p-1.5 rounded-md bg-emerald-500/10 mt-0.5">
                       <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-500" />
                     </div>
