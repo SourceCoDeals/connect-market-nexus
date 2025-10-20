@@ -59,9 +59,9 @@ export const SimpleNDADialog = ({ open, onOpenChange, user, listing, onSendEmail
 
   const quickTemplate = {
     subject: "NDA Required | SourceCo",
-    message: `Dear ${user.first_name || user.email},
+    message: `${user.first_name || user.email},
 
-Please sign the attached NDA to access confidential deal information.
+Sign the attached NDA to view confidential details.
 
 Best regards,`
   };

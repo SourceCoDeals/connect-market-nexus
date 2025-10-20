@@ -286,13 +286,9 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // Build email content
-    const emailMessage = customMessage || `Dear valued client,
+    const emailMessage = customMessage || `Please sign the attached NDA to access confidential deal information.
 
-Please find the attached Non-Disclosure Agreement for your review and signature. This agreement is required to access confidential deal information.
-
-Once signed, please return the executed document so we can proceed with sharing the relevant materials.
-
-Thank you for your understanding and cooperation.`;
+Return the signed document to proceed.`;
 
     const textContent = `${emailMessage}
 

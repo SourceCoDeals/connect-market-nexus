@@ -28,30 +28,21 @@ interface EnhancedFeeAgreementEmailDialogProps {
 }
 
 const DEFAULT_TEMPLATE = {
-  subject: "Fee Agreement - {{userName}}",
-  content: `Dear {{userName}},
+  subject: "Fee Agreement Required",
+  content: `{{userName}},
 
-I hope this email finds you well. As part of our engagement process, I'm sending you our Fee Agreement for your review and signature.
+Please sign the attached fee agreement to proceed.
 
-This agreement outlines the terms and conditions of our services, including:
-• Service fees and payment terms
-• Scope of work and deliverables
-• Confidentiality provisions
-• Engagement timeline and milestones
+Terms:
+• Commission paid at closing
+• No upfront fees
+• Complete access to our listings
 
-Please review the attached agreement carefully. If you have any questions or concerns, please don't hesitate to reach out to me directly.
-
-Once you're comfortable with the terms, please sign and return the agreement at your earliest convenience so we can proceed with your engagement.
-
-Thank you for your trust in our services. I look forward to working with you.
+Questions? Contact me directly.
 
 Best regards,
 {{adminName}}
-{{adminTitle}}
-{{adminEmail}}
-
----
-This is an automated message from our business marketplace platform.`
+{{adminEmail}}`
 };
 
 export function EnhancedFeeAgreementEmailDialog({

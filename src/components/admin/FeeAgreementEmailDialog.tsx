@@ -13,28 +13,19 @@ interface FeeAgreementEmailDialogProps {
   onClose: () => void;
 }
 
-const DEFAULT_EMAIL_TEMPLATE = `Dear {firstName},
+const DEFAULT_EMAIL_TEMPLATE = `{firstName},
 
-Thank you for your interest in our business listings platform. To proceed with connecting you to listing owners, we require a signed fee agreement.
+Please sign the attached fee agreement to proceed.
 
-Please review and sign the attached fee agreement at your earliest convenience. This agreement outlines our commission structure and terms of service for facilitating business acquisitions.
+Key terms:
+• Commission paid only at closing
+• No upfront fees
+• Full access to vetted listings
 
-Key points:
-• Our commission is only paid upon successful transaction completion
-• No upfront fees or costs
-• Professional representation throughout the process
-• Access to vetted, quality business opportunities
-
-Once signed, you'll have immediate access to connect with business owners and begin your acquisition journey.
-
-If you have any questions about the agreement or our services, please don't hesitate to reach out.
+Questions? Reply to this email.
 
 Best regards,
-The Business Marketplace Team
-
----
-
-Please reply to this email with your signed agreement or any questions you may have.`;
+The Business Marketplace Team`;
 
 export function FeeAgreementEmailDialog({ user, isOpen, onClose }: FeeAgreementEmailDialogProps) {
   const [emailContent, setEmailContent] = useState("");
