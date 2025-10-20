@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronRight, Building2, Users, Globe, Check, X, Circle, MoreHorizontal, Download, Filter as FilterIcon } from 'lucide-react';
+import { ChevronRight, Building2, Users, Globe, Check, X, Circle, MoreHorizontal, Download, Filter as FilterIcon, FileCheck, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -166,17 +166,22 @@ export function FirmAgreementsTable() {
       {/* Table */}
       <div className="border border-border rounded-lg overflow-hidden bg-card shadow-sm">
         {/* Table Header */}
-        <div className="grid grid-cols-12 gap-4 px-6 py-3 bg-muted/40 border-b border-border">
-          <div className="col-span-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">
+        <div className="grid grid-cols-12 gap-6 px-6 py-3.5 bg-muted/30 border-b border-border/50">
+          <div className="col-span-4 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
             Firm
           </div>
-          <div className="col-span-2 text-xs font-medium text-muted-foreground uppercase tracking-wider">
+          <div className="col-span-2 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
             Members
           </div>
-          <div className="col-span-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-            Agreements
+          <div className="col-span-2 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+            <FileCheck className="h-3.5 w-3.5" />
+            Fee Agreement
           </div>
-          <div className="col-span-2 text-xs font-medium text-muted-foreground uppercase tracking-wider text-right">
+          <div className="col-span-2 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+            <Shield className="h-3.5 w-3.5" />
+            NDA
+          </div>
+          <div className="col-span-2 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider text-right">
             Actions
           </div>
         </div>
@@ -305,7 +310,7 @@ function FirmRow({
       isExpanded && "bg-muted/20"
     )}>
       {/* Main Row */}
-      <div className="grid grid-cols-12 gap-4 px-6 py-4 items-center hover:bg-muted/30 transition-colors group">
+      <div className="grid grid-cols-12 gap-6 px-6 py-5 items-start hover:bg-muted/20 transition-all duration-200 group border-l-2 border-transparent hover:border-l-primary/20">
         {/* Firm Info */}
         <div className="col-span-4 flex items-center gap-3 min-w-0">
           <Button
@@ -345,22 +350,25 @@ function FirmRow({
           </div>
         </div>
 
-        {/* Fee Agreement & NDA Status */}
-        <div className="col-span-4 flex items-center gap-6">
-          {/* Fee Agreement */}
-          <div className="flex flex-col items-center gap-2 flex-1">
-            <FirmAgreementToggles firm={firm} members={members || []} />
-            {firm.fee_agreement_signed ? (
-              <Badge variant="outline" className="h-6 px-2.5 border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/15 transition-colors">
-                <Check className="h-3 w-3 text-emerald-700 dark:text-emerald-400 mr-1.5" />
-                <span className="text-xs font-medium text-emerald-700 dark:text-emerald-400">Signed</span>
-              </Badge>
-            ) : (
-              <Badge variant="outline" className="h-6 px-2.5 border-border/60 bg-muted/30 hover:bg-muted/40 transition-colors">
-                <X className="h-3 w-3 text-muted-foreground mr-1.5" />
-                <span className="text-xs font-medium text-muted-foreground">Unsigned</span>
-              </Badge>
-            )}
+        {/* Fee Agreement Status */}
+        <div className="col-span-2">
+          <div className="space-y-3">
+            <FirmAgreementToggles 
+              firm={firm} 
+              members={members || []} 
+              type="fee"
+            />
+          </div>
+        </div>
+
+        {/* NDA Status */}
+        <div className="col-span-2">
+          <div className="space-y-3">
+            <FirmAgreementToggles 
+              firm={firm} 
+              members={members || []} 
+              type="nda"
+            />
           </div>
         </div>
 
