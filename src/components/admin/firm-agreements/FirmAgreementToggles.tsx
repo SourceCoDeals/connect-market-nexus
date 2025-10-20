@@ -11,6 +11,8 @@ import {
 import { useUpdateFirmFeeAgreement, useUpdateFirmNDA, type FirmAgreement, type FirmMember } from '@/hooks/admin/use-firm-agreements';
 import { FirmSignerSelector } from './FirmSignerSelector';
 import { Loader2 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 interface FirmAgreementTogglesProps {
   firm: FirmAgreement;
@@ -20,6 +22,7 @@ interface FirmAgreementTogglesProps {
 export function FirmAgreementToggles({ firm, members }: FirmAgreementTogglesProps) {
   const updateFeeAgreement = useUpdateFirmFeeAgreement();
   const updateNDA = useUpdateFirmNDA();
+  const { toast } = useToast();
   
   const [isFeeDialogOpen, setIsFeeDialogOpen] = useState(false);
   const [isNDADialogOpen, setIsNDADialogOpen] = useState(false);
@@ -28,13 +31,64 @@ export function FirmAgreementToggles({ firm, members }: FirmAgreementTogglesProp
   const [feeSignedByName, setFeeSignedByName] = useState<string | null>(null);
   const [ndaSignedByUserId, setNdaSignedByUserId] = useState<string | null>(null);
   const [ndaSignedByName, setNdaSignedByName] = useState<string | null>(null);
+  
+  const [membersLoading, setMembersLoading] = useState(false);
+  const [localMembers, setLocalMembers] = useState<FirmMember[] | null>(null);
+  
+  const effectiveMembers = localMembers || members;
+  
+  const ensureMembers = async (): Promise<FirmMember[]> => {
+    if ((members?.length ?? 0) > 0) return members;
+    if (localMembers && localMembers.length > 0) return localMembers;
+    
+    setMembersLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('firm_members')
+        .select(`
+          *,
+          user:profiles(
+            id,
+            email,
+            first_name,
+            last_name,
+            company,
+            buyer_type
+          )
+        `)
+        .eq('firm_id', firm.id)
+        .order('is_primary_contact', { ascending: false });
+      
+      if (error) throw error;
+      
+      const firmMembers = (data || []) as FirmMember[];
+      setLocalMembers(firmMembers);
+      return firmMembers;
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: `Failed to load firm members: ${error.message}`,
+        variant: 'destructive',
+      });
+      return [];
+    } finally {
+      setMembersLoading(false);
+    }
+  };
 
   const handleFeeAgreementToggle = async () => {
     const newState = !firm.fee_agreement_signed;
     
-    if (newState && members.length > 0) {
+    if (newState) {
+      // Reset selection when opening dialog
+      setFeeSignedByUserId(null);
+      setFeeSignedByName(null);
+      
+      // Ensure we have members loaded before opening dialog
+      await ensureMembers();
       setIsFeeDialogOpen(true);
     } else {
+      // When toggling OFF, no need for signer selection
       await updateFeeAgreement.mutateAsync({
         firmId: firm.id,
         isSigned: newState,
@@ -45,9 +99,16 @@ export function FirmAgreementToggles({ firm, members }: FirmAgreementTogglesProp
   const handleNDAToggle = async () => {
     const newState = !firm.nda_signed;
     
-    if (newState && members.length > 0) {
+    if (newState) {
+      // Reset selection when opening dialog
+      setNdaSignedByUserId(null);
+      setNdaSignedByName(null);
+      
+      // Ensure we have members loaded before opening dialog
+      await ensureMembers();
       setIsNDADialogOpen(true);
     } else {
+      // When toggling OFF, no need for signer selection
       await updateNDA.mutateAsync({
         firmId: firm.id,
         isSigned: newState,
@@ -80,7 +141,7 @@ export function FirmAgreementToggles({ firm, members }: FirmAgreementTogglesProp
       {/* Fee Agreement Toggle */}
       <Dialog open={isFeeDialogOpen} onOpenChange={setIsFeeDialogOpen}>
         <div className="flex items-center gap-3">
-          {updateFeeAgreement.isPending && (
+          {(updateFeeAgreement.isPending || membersLoading) && (
             <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
           )}
           <div className="flex flex-col items-end gap-1">
@@ -90,7 +151,7 @@ export function FirmAgreementToggles({ firm, members }: FirmAgreementTogglesProp
             <Switch
               checked={firm.fee_agreement_signed}
               onCheckedChange={handleFeeAgreementToggle}
-              disabled={updateFeeAgreement.isPending}
+              disabled={updateFeeAgreement.isPending || membersLoading}
               className="data-[state=checked]:bg-emerald-600"
             />
           </div>
@@ -105,7 +166,7 @@ export function FirmAgreementToggles({ firm, members }: FirmAgreementTogglesProp
           </DialogHeader>
           
           <FirmSignerSelector
-            members={members}
+            members={effectiveMembers}
             onSelect={(userId, name) => {
               setFeeSignedByUserId(userId);
               setFeeSignedByName(name);
@@ -130,7 +191,7 @@ export function FirmAgreementToggles({ firm, members }: FirmAgreementTogglesProp
       {/* NDA Toggle */}
       <Dialog open={isNDADialogOpen} onOpenChange={setIsNDADialogOpen}>
         <div className="flex items-center gap-3">
-          {updateNDA.isPending && (
+          {(updateNDA.isPending || membersLoading) && (
             <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
           )}
           <div className="flex flex-col items-end gap-1">
@@ -140,7 +201,7 @@ export function FirmAgreementToggles({ firm, members }: FirmAgreementTogglesProp
             <Switch
               checked={firm.nda_signed}
               onCheckedChange={handleNDAToggle}
-              disabled={updateNDA.isPending}
+              disabled={updateNDA.isPending || membersLoading}
               className="data-[state=checked]:bg-emerald-600"
             />
           </div>
@@ -155,7 +216,7 @@ export function FirmAgreementToggles({ firm, members }: FirmAgreementTogglesProp
           </DialogHeader>
           
           <FirmSignerSelector
-            members={members}
+            members={effectiveMembers}
             onSelect={(userId, name) => {
               setNdaSignedByUserId(userId);
               setNdaSignedByName(name);

@@ -113,6 +113,26 @@ export function useUpdateFirmFeeAgreement() {
       if (error) throw error;
       return data;
     },
+    onMutate: async ({ firmId, isSigned }) => {
+      await queryClient.cancelQueries({ queryKey: ['firm-agreements'] });
+      
+      const previousData = queryClient.getQueryData(['firm-agreements']);
+      
+      queryClient.setQueryData(['firm-agreements'], (old: any) => {
+        if (!old) return old;
+        return old.map((firm: any) =>
+          firm.id === firmId
+            ? {
+                ...firm,
+                fee_agreement_signed: isSigned,
+                fee_agreement_signed_at: isSigned ? new Date().toISOString() : null,
+              }
+            : firm
+        );
+      });
+      
+      return { previousData };
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['firm-agreements'] });
       queryClient.invalidateQueries({ queryKey: ['firm-members'] });
@@ -125,7 +145,10 @@ export function useUpdateFirmFeeAgreement() {
         description: 'Fee agreement status updated for firm',
       });
     },
-    onError: (error: any) => {
+    onError: (error: any, variables, context) => {
+      if (context?.previousData) {
+        queryClient.setQueryData(['firm-agreements'], context.previousData);
+      }
       toast({
         title: 'Error',
         description: error.message,
@@ -161,6 +184,26 @@ export function useUpdateFirmNDA() {
       if (error) throw error;
       return data;
     },
+    onMutate: async ({ firmId, isSigned }) => {
+      await queryClient.cancelQueries({ queryKey: ['firm-agreements'] });
+      
+      const previousData = queryClient.getQueryData(['firm-agreements']);
+      
+      queryClient.setQueryData(['firm-agreements'], (old: any) => {
+        if (!old) return old;
+        return old.map((firm: any) =>
+          firm.id === firmId
+            ? {
+                ...firm,
+                nda_signed: isSigned,
+                nda_signed_at: isSigned ? new Date().toISOString() : null,
+              }
+            : firm
+        );
+      });
+      
+      return { previousData };
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['firm-agreements'] });
       queryClient.invalidateQueries({ queryKey: ['firm-members'] });
@@ -173,7 +216,10 @@ export function useUpdateFirmNDA() {
         description: 'NDA status updated for firm',
       });
     },
-    onError: (error: any) => {
+    onError: (error: any, variables, context) => {
+      if (context?.previousData) {
+        queryClient.setQueryData(['firm-agreements'], context.previousData);
+      }
       toast({
         title: 'Error',
         description: error.message,
