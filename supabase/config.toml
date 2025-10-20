@@ -102,3 +102,5 @@ verify_jwt = false
 verify_jwt = false
 [functions.send-verification-email-with-apology]
 verify_jwt = false
+[functions.send-notification-email]
+verify_jwt = false
