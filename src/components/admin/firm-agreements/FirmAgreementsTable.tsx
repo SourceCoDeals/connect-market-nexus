@@ -310,7 +310,7 @@ function FirmRow({
       isExpanded && "bg-muted/20"
     )}>
       {/* Main Row */}
-      <div className="grid grid-cols-12 gap-6 px-6 py-5 items-start hover:bg-muted/20 transition-all duration-200 group border-l-2 border-transparent hover:border-l-primary/20">
+      <div className="grid grid-cols-12 gap-6 px-6 py-3 items-start hover:bg-muted/20 transition-all duration-200 group border-l-2 border-transparent hover:border-l-primary/20">
         {/* Firm Info */}
         <div className="col-span-4 flex items-center gap-3 min-w-0">
           <Button
@@ -352,24 +352,20 @@ function FirmRow({
 
         {/* Fee Agreement Status */}
         <div className="col-span-2">
-          <div className="space-y-3">
-            <FirmAgreementToggles 
-              firm={firm} 
-              members={members || []} 
-              type="fee"
-            />
-          </div>
+          <FirmAgreementToggles 
+            firm={firm} 
+            members={members || []} 
+            type="fee"
+          />
         </div>
 
         {/* NDA Status */}
         <div className="col-span-2">
-          <div className="space-y-3">
-            <FirmAgreementToggles 
-              firm={firm} 
-              members={members || []} 
-              type="nda"
-            />
-          </div>
+          <FirmAgreementToggles 
+            firm={firm} 
+            members={members || []} 
+            type="nda"
+          />
         </div>
 
         {/* Actions */}

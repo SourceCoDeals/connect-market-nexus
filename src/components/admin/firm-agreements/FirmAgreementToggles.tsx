@@ -136,9 +136,9 @@ export function FirmAgreementToggles({ firm, members, type = 'both' }: FirmAgree
   if (type === 'fee') {
     return (
       <Dialog open={isFeeDialogOpen} onOpenChange={setIsFeeDialogOpen}>
-        <div className="space-y-2.5">
-          {/* Toggle */}
-          <div className="flex items-center gap-2">
+        <div className="space-y-1.5">
+          {/* Toggle + Status Badge */}
+          <div className="flex items-center gap-2.5">
             {(updateFeeAgreement.isPending || membersLoading) && (
               <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
             )}
@@ -148,14 +148,7 @@ export function FirmAgreementToggles({ firm, members, type = 'both' }: FirmAgree
               disabled={updateFeeAgreement.isPending || membersLoading}
               className="data-[state=checked]:bg-emerald-600"
             />
-            <span className="text-xs font-medium text-muted-foreground">
-              {firm.fee_agreement_signed ? 'Signed' : 'Mark as signed'}
-            </span>
-          </div>
-
-          {/* Status Badge */}
-          {firm.fee_agreement_signed ? (
-            <div className="space-y-1.5 pl-1">
+            {firm.fee_agreement_signed ? (
               <Badge 
                 variant="outline" 
                 className="h-5 px-2 border-emerald-500/20 bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400 font-medium"
@@ -163,27 +156,36 @@ export function FirmAgreementToggles({ firm, members, type = 'both' }: FirmAgree
                 <Check className="h-3 w-3 mr-1" />
                 Signed
               </Badge>
+            ) : (
+              <Badge 
+                variant="outline" 
+                className="h-5 px-2 border-border/40 bg-muted/30 text-muted-foreground font-medium"
+              >
+                <X className="h-3 w-3 mr-1" />
+                Unsigned
+              </Badge>
+            )}
+          </div>
+
+          {/* Metadata - Inline */}
+          {firm.fee_agreement_signed && (firm.fee_agreement_signed_by_name || firm.fee_agreement_signed_at) && (
+            <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/70 pl-1">
               {firm.fee_agreement_signed_by_name && (
-                <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                  <User className="h-3 w-3" />
+                <>
+                  <User className="h-2.5 w-2.5" />
                   <span>{firm.fee_agreement_signed_by_name}</span>
-                </div>
+                </>
+              )}
+              {firm.fee_agreement_signed_by_name && firm.fee_agreement_signed_at && (
+                <span className="mx-0.5">•</span>
               )}
               {firm.fee_agreement_signed_at && (
-                <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                  <Calendar className="h-3 w-3" />
+                <>
+                  <Calendar className="h-2.5 w-2.5" />
                   <span>{formatDistanceToNow(new Date(firm.fee_agreement_signed_at), { addSuffix: true })}</span>
-                </div>
+                </>
               )}
             </div>
-          ) : (
-            <Badge 
-              variant="outline" 
-              className="h-5 px-2 border-border/40 bg-muted/30 text-muted-foreground font-medium ml-1"
-            >
-              <X className="h-3 w-3 mr-1" />
-              Unsigned
-            </Badge>
           )}
         </div>
         
@@ -224,9 +226,9 @@ export function FirmAgreementToggles({ firm, members, type = 'both' }: FirmAgree
   if (type === 'nda') {
     return (
       <Dialog open={isNDADialogOpen} onOpenChange={setIsNDADialogOpen}>
-        <div className="space-y-2.5">
-          {/* Toggle */}
-          <div className="flex items-center gap-2">
+        <div className="space-y-1.5">
+          {/* Toggle + Status Badge */}
+          <div className="flex items-center gap-2.5">
             {(updateNDA.isPending || membersLoading) && (
               <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
             )}
@@ -236,14 +238,7 @@ export function FirmAgreementToggles({ firm, members, type = 'both' }: FirmAgree
               disabled={updateNDA.isPending || membersLoading}
               className="data-[state=checked]:bg-emerald-600"
             />
-            <span className="text-xs font-medium text-muted-foreground">
-              {firm.nda_signed ? 'Signed' : 'Mark as signed'}
-            </span>
-          </div>
-
-          {/* Status Badge */}
-          {firm.nda_signed ? (
-            <div className="space-y-1.5 pl-1">
+            {firm.nda_signed ? (
               <Badge 
                 variant="outline" 
                 className="h-5 px-2 border-emerald-500/20 bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400 font-medium"
@@ -251,27 +246,36 @@ export function FirmAgreementToggles({ firm, members, type = 'both' }: FirmAgree
                 <Check className="h-3 w-3 mr-1" />
                 Signed
               </Badge>
+            ) : (
+              <Badge 
+                variant="outline" 
+                className="h-5 px-2 border-border/40 bg-muted/30 text-muted-foreground font-medium"
+              >
+                <X className="h-3 w-3 mr-1" />
+                Unsigned
+              </Badge>
+            )}
+          </div>
+
+          {/* Metadata - Inline */}
+          {firm.nda_signed && (firm.nda_signed_by_name || firm.nda_signed_at) && (
+            <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/70 pl-1">
               {firm.nda_signed_by_name && (
-                <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                  <User className="h-3 w-3" />
+                <>
+                  <User className="h-2.5 w-2.5" />
                   <span>{firm.nda_signed_by_name}</span>
-                </div>
+                </>
+              )}
+              {firm.nda_signed_by_name && firm.nda_signed_at && (
+                <span className="mx-0.5">•</span>
               )}
               {firm.nda_signed_at && (
-                <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                  <Calendar className="h-3 w-3" />
+                <>
+                  <Calendar className="h-2.5 w-2.5" />
                   <span>{formatDistanceToNow(new Date(firm.nda_signed_at), { addSuffix: true })}</span>
-                </div>
+                </>
               )}
             </div>
-          ) : (
-            <Badge 
-              variant="outline" 
-              className="h-5 px-2 border-border/40 bg-muted/30 text-muted-foreground font-medium ml-1"
-            >
-              <X className="h-3 w-3 mr-1" />
-              Unsigned
-            </Badge>
           )}
         </div>
         
