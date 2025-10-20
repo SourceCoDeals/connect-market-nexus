@@ -62,23 +62,44 @@
   - Send fee agreement to all firm members
 - ✅ Integrated into `FirmAgreementsTable`
 
-## 🔄 Remaining (10%)
+### Phase 8: Firm Agreement Sync Fixes ✅
+- ✅ **New User Registration Sync** - Modified `auto_link_user_to_firm()` trigger
+  - New users automatically inherit firm's agreement status on signup
+  - Sets `fee_agreement_signed`, `nda_signed`, and timestamps from firm
+  - Prevents new members from appearing "unsigned" when firm has signed
+- ✅ **Inbound Lead Firm Matching** - Created `sync_lead_firm_status()` trigger
+  - Automatically matches leads to firms by email domain
+  - Inherits firm agreement status on connection request creation
+  - Works for all entry points (manual, bulk, API)
+- ✅ **Historical Data Backfill** - Executed comprehensive backfill queries
+  - Updated existing profiles to match their firm's agreement status
+  - Synced connection requests with firm data by email domain
+  - Cascaded corrections to deals table
+- ✅ **Enhanced Firm Merge Logic**
+  - Merge operation now syncs target firm's agreements to all members
+  - Invalidates all related queries (requests, deals)
+  - Better user feedback with member counts
+- ✅ **Manual User Linking Enhancement**
+  - Manual link operation now syncs firm agreements to user immediately
+  - Ensures consistency when admin manually associates users
 
-### Phase 8: Analytics & Reporting
+## 🔄 Remaining (5%)
+
+### Phase 9: Analytics & Reporting
 - ⏳ Firm-level analytics dashboard
   - Signing rates by firm size
   - Time to signature metrics
   - Firm engagement tracking
 - ⏳ Export functionality for reporting
 
-### Phase 9: Advanced Features (Nice-to-Have)
+### Phase 10: Advanced Features (Nice-to-Have)
 - ⏳ Document storage per firm
 - ⏳ Custom agreement templates per firm
 - ⏳ Firm profile pages
 - ⏳ Email campaign tracking
 - ⏳ Automated reminder system for unsigned agreements
 
-### Phase 10: Testing & Polish
+### Phase 11: Testing & Polish
 - ⏳ Comprehensive testing of all edge cases
 - ⏳ Performance optimization for large firms
 - ⏳ UI/UX polish and refinements
@@ -157,13 +178,89 @@ Returns:
 }
 ```
 
+## Sync Architecture & Data Flow
+
+### Automatic Firm Matching
+Users and leads are automatically matched to firms using:
+1. **Normalized company name** - Variations like "Google Inc." vs "Google" match
+2. **Email domain** - `extract_domain()` from user email
+3. **Website domain** - From user profile if available
+
+### Bidirectional Agreement Sync
+
+**Firm → Users (Cascading)**
+- When firm agreement is toggled, updates cascade to:
+  - All firm members (profiles table)
+  - All connection requests (both user-based and lead-based)
+  - All deals linked to those connection requests
+- Implemented via `update_fee_agreement_firm_status()` and `update_nda_firm_status()` RPCs
+
+**Users → Firm (Reverse Sync)**
+- When individual user agreement is updated, system checks for firm membership
+- If user belongs to firm, firm-level update is triggered instead
+- Ensures firm-wide consistency
+- Implemented via `update_fee_agreement_status()` and `update_nda_status()` RPCs
+
+**New User Registration**
+- `auto_link_user_to_firm()` trigger fires on profile INSERT/UPDATE
+- Finds or creates firm based on company name and email domain
+- **NEW:** Queries firm's current agreement status and applies to new user
+- Prevents new members from showing as "unsigned" when firm has signed
+
+**Inbound Lead Conversion**
+- `sync_lead_firm_status()` trigger fires BEFORE INSERT on connection_requests
+- Extracts email domain from `lead_email`
+- Looks up firm by `email_domain` or `website_domain`
+- **NEW:** Automatically sets `lead_fee_agreement_signed` and `lead_nda_signed` from firm
+- Works for all entry points: manual creation, bulk import, API calls
+
+### Data Consistency Guarantees
+
+1. **Trigger-based sync** - Cannot be bypassed, runs at database level
+2. **Optimistic UI updates** - Frontend shows changes immediately
+3. **Query invalidation** - React Query refetches affected data
+4. **Firm merge safety** - Merged members inherit target firm's status
+5. **Manual linking** - Admin manual link operation syncs agreements immediately
+
+## Troubleshooting
+
+### User not auto-linked to firm
+**Check:**
+- User has `company_name` filled in profile
+- Company name variations are being normalized correctly
+- Email domain matches firm's `email_domain` or `website_domain`
+
+**Solution:**
+- Use "Link User to Firm" tool in Firm Agreements page
+- Will automatically sync firm's agreement status
+
+### Inbound lead showing unsigned despite firm signature
+**Check:**
+- Lead's email domain matches firm domain
+- Firm has `email_domain` or `website_domain` populated
+
+**Solution:**
+- Should be fixed automatically by new `sync_lead_firm_status()` trigger
+- For historical data, run backfill query or manually update connection request
+
+### Agreement changes not cascading
+**Check:**
+- Updates are being made through proper channels (Firm Agreements page or user profile toggles)
+- RLS policies allow admin to call RPC functions
+- Check Supabase logs for any RPC errors
+
+**Solution:**
+- Verify admin permissions
+- Check browser console for errors
+- Try toggling agreement off and on again to force sync
+
 ## Next Steps (Optional)
 
-The core system is 90% complete and fully functional. Remaining items are enhancements:
+The core system is 95% complete and fully functional. Remaining items are enhancements:
 
 1. **Analytics Dashboard** - Visualize firm signing rates and engagement
 2. **Document Management** - Store custom agreements per firm
 3. **Automation** - Automated reminders and follow-ups
-4. **Testing** - Comprehensive edge case testing
+4. **Advanced Testing** - Load testing with large firms (1000+ members)
 
 These can be prioritized based on usage patterns and user feedback.

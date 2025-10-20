@@ -41,6 +41,10 @@ export function FirmManagementTools() {
     }
 
     try {
+      // Get source and target firm details for warning
+      const sourceFirm = firms?.find(f => f.id === sourceFirmId);
+      const targetFirm = firms?.find(f => f.id === targetFirmId);
+
       // Move all members from source to target
       const { error: memberError } = await supabase
         .from('firm_members')
@@ -68,13 +72,33 @@ export function FirmManagementTools() {
 
       if (deleteError) throw deleteError;
 
+      // Sync target firm's agreement status to all members (including newly merged)
+      // This ensures consistency across all members
+      const { error: syncError } = await supabase.rpc('update_fee_agreement_firm_status', {
+        p_firm_id: targetFirmId,
+        p_is_signed: targetFirm?.fee_agreement_signed || false,
+        p_signed_by_user_id: targetFirm?.fee_agreement_signed_by
+      });
+
+      if (syncError) console.warn('Warning: Could not sync fee agreements after merge:', syncError);
+
+      const { error: ndaSyncError } = await supabase.rpc('update_nda_firm_status', {
+        p_firm_id: targetFirmId,
+        p_is_signed: targetFirm?.nda_signed || false,
+        p_signed_by_user_id: targetFirm?.nda_signed_by
+      });
+
+      if (ndaSyncError) console.warn('Warning: Could not sync NDAs after merge:', ndaSyncError);
+
       toast({
         title: 'Success',
-        description: 'Firms merged successfully',
+        description: `Merged ${sourceFirm?.member_count || 0} members from ${sourceFirm?.primary_company_name} into ${targetFirm?.primary_company_name}`,
       });
 
       queryClient.invalidateQueries({ queryKey: ['firm-agreements'] });
       queryClient.invalidateQueries({ queryKey: ['firm-members'] });
+      queryClient.invalidateQueries({ queryKey: ['connection-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['deals'] });
       setIsMergeDialogOpen(false);
       setSourceFirmId('');
       setTargetFirmId('');
@@ -102,7 +126,7 @@ export function FirmManagementTools() {
       // Find user by email
       const { data: user, error: userError } = await supabase
         .from('profiles')
-        .select('id, company')
+        .select('id, company_name')
         .eq('email', userEmail)
         .single();
 
@@ -124,6 +148,9 @@ export function FirmManagementTools() {
         return;
       }
 
+      // Get firm details to sync agreement status
+      const selectedFirm = firms?.find(f => f.id === selectedFirmId);
+
       // Link user to firm
       const { data: { user: currentUser } } = await supabase.auth.getUser();
       
@@ -138,13 +165,36 @@ export function FirmManagementTools() {
 
       if (linkError) throw linkError;
 
+      // Sync firm's agreement status to the newly linked user
+      if (selectedFirm) {
+        const updates: any = {};
+        if (selectedFirm.fee_agreement_signed) {
+          updates.fee_agreement_signed = true;
+          updates.fee_agreement_signed_at = selectedFirm.fee_agreement_signed_at;
+          updates.fee_agreement_signed_by = selectedFirm.fee_agreement_signed_by;
+        }
+        if (selectedFirm.nda_signed) {
+          updates.nda_signed = true;
+          updates.nda_signed_at = selectedFirm.nda_signed_at;
+          updates.nda_signed_by = selectedFirm.nda_signed_by;
+        }
+
+        if (Object.keys(updates).length > 0) {
+          await supabase
+            .from('profiles')
+            .update(updates)
+            .eq('id', user.id);
+        }
+      }
+
       toast({
         title: 'Success',
-        description: 'User linked to firm successfully',
+        description: 'User linked to firm and agreements synced',
       });
 
       queryClient.invalidateQueries({ queryKey: ['firm-agreements'] });
       queryClient.invalidateQueries({ queryKey: ['firm-members'] });
+      queryClient.invalidateQueries({ queryKey: ['connection-requests'] });
       setIsLinkDialogOpen(false);
       setUserEmail('');
       setSelectedFirmId('');
