@@ -31,8 +31,7 @@ export function FirmAgreementsTable() {
       firm.primary_company_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       firm.website_domain?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       firm.email_domain?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      // @ts-ignore - firm_members is included in the query
-      firm.firm_members?.some((member: any) => {
+      firm.firm_members?.some((member) => {
         const firstName = member.user?.first_name?.toLowerCase() || '';
         const lastName = member.user?.last_name?.toLowerCase() || '';
         const email = member.user?.email?.toLowerCase() || '';

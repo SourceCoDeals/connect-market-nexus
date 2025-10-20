@@ -25,6 +25,16 @@ export interface FirmAgreement {
   metadata: Record<string, any>;
   created_at: string;
   updated_at: string;
+  // Include firm members for search
+  firm_members?: Array<{
+    id: string;
+    user: {
+      id: string;
+      first_name: string | null;
+      last_name: string | null;
+      email: string | null;
+    } | null;
+  }>;
 }
 
 export interface FirmMember {
@@ -51,7 +61,7 @@ export function useFirmAgreements() {
         .from('firm_agreements')
         .select(`
           *,
-          firm_members!inner(
+          firm_members(
             id,
             user:profiles(
               id,
