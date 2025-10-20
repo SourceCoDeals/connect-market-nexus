@@ -138,19 +138,39 @@ export function FirmAgreementToggles({ firm, members }: FirmAgreementTogglesProp
 
   return (
     <>
-      {/* Fee Agreement Toggle & Dialog */}
+      {/* Fee Agreement & NDA Toggles */}
       <Dialog open={isFeeDialogOpen} onOpenChange={setIsFeeDialogOpen}>
-        <div className="flex flex-col items-center gap-1.5">
-          <div className="flex items-center gap-1.5">
-            {(updateFeeAgreement.isPending || membersLoading) && (
-              <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
-            )}
-            <Switch
-              checked={firm.fee_agreement_signed}
-              onCheckedChange={handleFeeAgreementToggle}
-              disabled={updateFeeAgreement.isPending || membersLoading}
-              className="data-[state=checked]:bg-emerald-600 scale-75"
-            />
+        <div className="flex items-center gap-3">
+          {/* Fee Agreement Toggle */}
+          <div className="flex flex-col items-center gap-1">
+            <span className="text-[10px] text-muted-foreground/70 font-medium uppercase tracking-wide">Fee</span>
+            <div className="flex items-center gap-1">
+              {(updateFeeAgreement.isPending || membersLoading) && (
+                <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+              )}
+              <Switch
+                checked={firm.fee_agreement_signed}
+                onCheckedChange={handleFeeAgreementToggle}
+                disabled={updateFeeAgreement.isPending || membersLoading}
+                className="data-[state=checked]:bg-emerald-600 scale-75"
+              />
+            </div>
+          </div>
+          
+          {/* NDA Toggle */}
+          <div className="flex flex-col items-center gap-1">
+            <span className="text-[10px] text-muted-foreground/70 font-medium uppercase tracking-wide">NDA</span>
+            <div className="flex items-center gap-1">
+              {(updateNDA.isPending || membersLoading) && (
+                <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+              )}
+              <Switch
+                checked={firm.nda_signed}
+                onCheckedChange={handleNDAToggle}
+                disabled={updateNDA.isPending || membersLoading}
+                className="data-[state=checked]:bg-emerald-600 scale-75"
+              />
+            </div>
           </div>
         </div>
         
@@ -186,22 +206,9 @@ export function FirmAgreementToggles({ firm, members }: FirmAgreementTogglesProp
         </DialogContent>
       </Dialog>
 
-      {/* NDA Toggle & Dialog */}
+      
+      {/* NDA Dialog */}
       <Dialog open={isNDADialogOpen} onOpenChange={setIsNDADialogOpen}>
-        <div className="flex flex-col items-center gap-1.5">
-          <div className="flex items-center gap-1.5">
-            {(updateNDA.isPending || membersLoading) && (
-              <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
-            )}
-            <Switch
-              checked={firm.nda_signed}
-              onCheckedChange={handleNDAToggle}
-              disabled={updateNDA.isPending || membersLoading}
-              className="data-[state=checked]:bg-emerald-600 scale-75"
-            />
-          </div>
-        </div>
-        
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="text-lg">Mark NDA as Signed</DialogTitle>

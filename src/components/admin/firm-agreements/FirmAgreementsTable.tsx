@@ -173,11 +173,8 @@ export function FirmAgreementsTable() {
           <div className="col-span-2 text-xs font-medium text-muted-foreground uppercase tracking-wider">
             Members
           </div>
-          <div className="col-span-2 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-            Fee Agreement
-          </div>
-          <div className="col-span-2 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-            NDA
+          <div className="col-span-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">
+            Agreements
           </div>
           <div className="col-span-2 text-xs font-medium text-muted-foreground uppercase tracking-wider text-right">
             Actions
@@ -348,12 +345,11 @@ function FirmRow({
           </div>
         </div>
 
-        {/* Fee Agreement Status */}
-        <div className="col-span-2">
-          <div className="flex flex-col items-start gap-2">
-            <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-              <FirmAgreementToggles firm={firm} members={members || []} />
-            </div>
+        {/* Fee Agreement & NDA Status */}
+        <div className="col-span-4 flex items-center gap-6">
+          {/* Fee Agreement */}
+          <div className="flex flex-col items-center gap-2 flex-1">
+            <FirmAgreementToggles firm={firm} members={members || []} />
             {firm.fee_agreement_signed ? (
               <Badge variant="outline" className="h-6 px-2.5 border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/15 transition-colors">
                 <Check className="h-3 w-3 text-emerald-700 dark:text-emerald-400 mr-1.5" />
@@ -366,21 +362,6 @@ function FirmRow({
               </Badge>
             )}
           </div>
-        </div>
-
-        {/* NDA Status */}
-        <div className="col-span-2">
-          {firm.nda_signed ? (
-            <Badge variant="outline" className="h-6 px-2.5 border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/15 transition-colors">
-              <Check className="h-3 w-3 text-emerald-700 dark:text-emerald-400 mr-1.5" />
-              <span className="text-xs font-medium text-emerald-700 dark:text-emerald-400">Signed</span>
-            </Badge>
-          ) : (
-            <Badge variant="outline" className="h-6 px-2.5 border-border/60 bg-muted/30 hover:bg-muted/40 transition-colors">
-              <X className="h-3 w-3 text-muted-foreground mr-1.5" />
-              <span className="text-xs font-medium text-muted-foreground">Unsigned</span>
-            </Badge>
-          )}
         </div>
 
         {/* Actions */}
