@@ -342,9 +342,9 @@ function FirmRow({
 
         {/* Member Count */}
         <div className="col-span-2">
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-muted/50 hover:bg-muted/70 transition-colors">
-            <Users className="h-3.5 w-3.5 text-muted-foreground" />
-            <span className="text-xs font-medium text-foreground">
+          <div className="flex items-center gap-1.5">
+            <Users className="h-3.5 w-3.5 text-muted-foreground/40" />
+            <span className="text-sm text-muted-foreground font-normal">
               {firm.member_count}
             </span>
           </div>
