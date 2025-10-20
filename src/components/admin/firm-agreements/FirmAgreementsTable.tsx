@@ -416,92 +416,94 @@ function FirmRow({
       {/* Expanded Section */}
       {isExpanded && (
         <div className="px-6 pb-4 pt-3 border-t border-border/30 bg-muted/10 animate-in slide-in-from-top-2 duration-200">
-          {/* Members List - Compact */}
-          <div className="mb-4">
-            <h4 className="text-[11px] font-medium mb-2.5 text-muted-foreground/70 flex items-center gap-1.5">
-              <Users className="h-3 w-3" />
-              Firm Members ({members?.length || 0})
-            </h4>
-            <div className="space-y-1.5">
-              {members?.map((member) => (
-                <div
-                  key={member.id}
-                  className="flex items-center justify-between py-2 px-3 hover:bg-background/50 rounded-md transition-colors group"
-                >
-                  <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                    <div className="h-6 w-6 rounded-full bg-muted/50 flex items-center justify-center flex-shrink-0 text-[10px] font-medium text-muted-foreground">
-                      {member.user?.first_name?.[0]}{member.user?.last_name?.[0]}
+          {/* 2-Column Layout */}
+          <div className="grid grid-cols-2 gap-6">
+            {/* Left Column: Members */}
+            <div>
+              <h4 className="text-[11px] font-medium mb-2.5 text-muted-foreground/70 flex items-center gap-1.5">
+                <Users className="h-3 w-3" />
+                Firm Members ({members?.length || 0})
+              </h4>
+              <div className="space-y-1.5">
+                {members?.map((member) => (
+                  <div
+                    key={member.id}
+                    className="flex items-center justify-between py-2 px-3 hover:bg-background/50 rounded-md transition-colors group"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                      <div className="h-6 w-6 rounded-full bg-muted/50 flex items-center justify-center flex-shrink-0 text-[10px] font-medium text-muted-foreground">
+                        {member.user?.first_name?.[0]}{member.user?.last_name?.[0]}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-medium text-foreground">
+                          {member.user?.first_name} {member.user?.last_name}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground/60 truncate">
+                          {member.user?.email}
+                        </p>
+                      </div>
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-xs font-medium text-foreground">
-                        {member.user?.first_name} {member.user?.last_name}
-                      </p>
-                      <p className="text-[10px] text-muted-foreground/60 truncate">
-                        {member.user?.email}
-                      </p>
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                      {member.is_primary_contact && (
+                        <Badge variant="outline" className="h-4 px-1.5 text-[10px] border-primary/20 bg-primary/5 text-primary">
+                          Primary
+                        </Badge>
+                      )}
+                      {member.user?.buyer_type && (
+                        <Badge variant="outline" className="h-4 px-1.5 text-[10px] text-muted-foreground border-border/40">
+                          {member.user.buyer_type}
+                        </Badge>
+                      )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-1.5 flex-shrink-0">
-                    {member.is_primary_contact && (
-                      <Badge variant="outline" className="h-4 px-1.5 text-[10px] border-primary/20 bg-primary/5 text-primary">
-                        Primary
-                      </Badge>
+                ))}
+              </div>
+            </div>
+
+            {/* Right Column: Actions + History */}
+            <div className="space-y-4">
+              {/* Quick Actions */}
+              <div>
+                <h4 className="text-[11px] font-medium mb-2.5 text-muted-foreground/70">Quick Actions</h4>
+                <FirmBulkActions 
+                  firmId={firm.id} 
+                  firmName={firm.primary_company_name}
+                  memberCount={firm.member_count}
+                />
+              </div>
+
+              {/* Signing History */}
+              {(firm.fee_agreement_signed || firm.nda_signed) && (
+                <div>
+                  <h4 className="text-[11px] font-medium mb-2.5 text-muted-foreground/70">Agreement History</h4>
+                  <div className="space-y-2">
+                    {firm.fee_agreement_signed && firm.fee_agreement_signed_at && (
+                      <div className="flex items-start gap-2.5 text-xs py-2 px-2.5 rounded-md hover:bg-background/50 transition-colors">
+                        <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-500 mt-0.5 flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-foreground font-medium">Fee Agreement</p>
+                          <p className="text-[10px] text-muted-foreground/70 mt-0.5">
+                            {firm.fee_agreement_signed_by_name || 'Admin'} • {formatDistanceToNow(new Date(firm.fee_agreement_signed_at), { addSuffix: true })}
+                          </p>
+                        </div>
+                      </div>
                     )}
-                    {member.user?.buyer_type && (
-                      <Badge variant="outline" className="h-4 px-1.5 text-[10px] text-muted-foreground border-border/40">
-                        {member.user.buyer_type}
-                      </Badge>
+                    {firm.nda_signed && firm.nda_signed_at && (
+                      <div className="flex items-start gap-2.5 text-xs py-2 px-2.5 rounded-md hover:bg-background/50 transition-colors">
+                        <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-500 mt-0.5 flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-foreground font-medium">NDA</p>
+                          <p className="text-[10px] text-muted-foreground/70 mt-0.5">
+                            {firm.nda_signed_by_name || 'Admin'} • {formatDistanceToNow(new Date(firm.nda_signed_at), { addSuffix: true })}
+                          </p>
+                        </div>
+                      </div>
                     )}
                   </div>
                 </div>
-              ))}
+              )}
             </div>
           </div>
-
-          {/* Divider */}
-          <div className="h-px bg-border/30 mb-4" />
-
-          {/* Bulk Actions - Text Links */}
-          <div className="mb-4">
-            <h4 className="text-[11px] font-medium mb-2.5 text-muted-foreground/70">Quick Actions</h4>
-            <FirmBulkActions 
-              firmId={firm.id} 
-              firmName={firm.primary_company_name}
-              memberCount={firm.member_count}
-            />
-          </div>
-
-          {/* Signing History - Minimal */}
-          {(firm.fee_agreement_signed || firm.nda_signed) && (
-            <>
-              <div className="h-px bg-border/30 mb-4" />
-              <div className="space-y-2">
-                <h4 className="text-[11px] font-medium mb-2.5 text-muted-foreground/70">Agreement History</h4>
-                {firm.fee_agreement_signed && firm.fee_agreement_signed_at && (
-                  <div className="flex items-start gap-2.5 text-xs py-2 px-2.5 rounded-md hover:bg-background/50 transition-colors">
-                    <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-500 mt-0.5 flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-foreground font-medium">Fee Agreement</p>
-                      <p className="text-[10px] text-muted-foreground/70 mt-0.5">
-                        {firm.fee_agreement_signed_by_name || 'Admin'} • {formatDistanceToNow(new Date(firm.fee_agreement_signed_at), { addSuffix: true })}
-                      </p>
-                    </div>
-                  </div>
-                )}
-                {firm.nda_signed && firm.nda_signed_at && (
-                  <div className="flex items-start gap-2.5 text-xs py-2 px-2.5 rounded-md hover:bg-background/50 transition-colors">
-                    <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-500 mt-0.5 flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-foreground font-medium">NDA</p>
-                      <p className="text-[10px] text-muted-foreground/70 mt-0.5">
-                        {firm.nda_signed_by_name || 'Admin'} • {formatDistanceToNow(new Date(firm.nda_signed_at), { addSuffix: true })}
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </>
-          )}
         </div>
       )}
     </div>
