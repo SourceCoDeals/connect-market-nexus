@@ -108,6 +108,30 @@ export function useFirmMembers(firmId: string | null) {
   });
 }
 
+// Minimal members index for global search (firm_id + user names)
+export function useAllFirmMembersForSearch() {
+  return useQuery({
+    queryKey: ['firm-members-search'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('firm_members')
+        .select(`
+          firm_id,
+          user:profiles(
+            id,
+            first_name,
+            last_name,
+            email
+          )
+        `);
+
+      if (error) throw error;
+      return (data || []) as Array<{ firm_id: string; user: { id: string; first_name: string | null; last_name: string | null; email: string | null } | null }>;
+    },
+    staleTime: 60_000,
+  });
+}
+
 export function useUpdateFirmFeeAgreement() {
   const queryClient = useQueryClient();
   const { toast } = useToast();

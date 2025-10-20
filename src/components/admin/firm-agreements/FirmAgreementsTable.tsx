@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { ChevronRight, Building2, Users, Globe, Check, X, Circle, MoreHorizontal, Download, Filter as FilterIcon, FileCheck, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -10,7 +10,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { useFirmAgreements, useFirmMembers, type FirmAgreement } from '@/hooks/admin/use-firm-agreements';
+import { useFirmAgreements, useFirmMembers, useAllFirmMembersForSearch, type FirmAgreement } from '@/hooks/admin/use-firm-agreements';
 import { FirmAgreementToggles } from './FirmAgreementToggles';
 import { FirmBulkActions } from './FirmBulkActions';
 import { FirmManagementTools } from './FirmManagementTools';
@@ -21,24 +21,42 @@ type FilterTab = 'all' | 'both_signed' | 'partial' | 'none';
 
 export function FirmAgreementsTable() {
   const { data: firms, isLoading } = useFirmAgreements();
+  const { data: membersForSearch } = useAllFirmMembersForSearch();
   const [expandedFirm, setExpandedFirm] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState<FilterTab>('all');
 
+  const memberIndex = useMemo(() => {
+    const map = new Map<string, string>();
+    (membersForSearch || []).forEach((m) => {
+      const chunk = `${m.user?.first_name || ''} ${m.user?.last_name || ''} ${m.user?.email || ''}`.toLowerCase();
+      map.set(m.firm_id, `${map.get(m.firm_id) || ''} ${chunk}`.trim());
+    });
+    return map;
+  }, [membersForSearch]);
+
   const filteredFirms = firms?.filter(firm => {
-    // Search across firm name, domain, and member names
-    const matchesSearch = 
-      firm.primary_company_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      firm.website_domain?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      firm.email_domain?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      firm.firm_members?.some((member) => {
-        const firstName = member.user?.first_name?.toLowerCase() || '';
-        const lastName = member.user?.last_name?.toLowerCase() || '';
-        const email = member.user?.email?.toLowerCase() || '';
-        const fullName = `${firstName} ${lastName}`;
-        return fullName.includes(searchTerm.toLowerCase()) || 
-               email.includes(searchTerm.toLowerCase());
-      });
+    const s = searchTerm.toLowerCase().trim();
+
+    // Firm fields
+    const firmMatch =
+      firm.primary_company_name.toLowerCase().includes(s) ||
+      firm.website_domain?.toLowerCase().includes(s) ||
+      firm.email_domain?.toLowerCase().includes(s);
+
+    // Member fields from embedded (if available)
+    const embeddedMemberMatch = firm.firm_members?.some((member) => {
+      const firstName = member.user?.first_name?.toLowerCase() || '';
+      const lastName = member.user?.last_name?.toLowerCase() || '';
+      const email = member.user?.email?.toLowerCase() || '';
+      const fullName = `${firstName} ${lastName}`.trim();
+      return fullName.includes(s) || email.includes(s);
+    }) || false;
+
+    // Member fields via index map (reliable)
+    const indexedMemberMatch = (memberIndex.get(firm.id) || '').includes(s);
+
+    const matchesSearch = firmMatch || embeddedMemberMatch || indexedMemberMatch;
 
     const matchesFilter = 
       activeTab === 'all' ||
