@@ -49,7 +49,18 @@ export function useFirmAgreements() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('firm_agreements')
-        .select('*')
+        .select(`
+          *,
+          firm_members!inner(
+            id,
+            user:profiles(
+              id,
+              first_name,
+              last_name,
+              email
+            )
+          )
+        `)
         .order('primary_company_name');
 
       if (error) throw error;

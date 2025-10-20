@@ -26,10 +26,20 @@ export function FirmAgreementsTable() {
   const [activeTab, setActiveTab] = useState<FilterTab>('all');
 
   const filteredFirms = firms?.filter(firm => {
+    // Search across firm name, domain, and member names
     const matchesSearch = 
       firm.primary_company_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       firm.website_domain?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      firm.email_domain?.toLowerCase().includes(searchTerm.toLowerCase());
+      firm.email_domain?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      // @ts-ignore - firm_members is included in the query
+      firm.firm_members?.some((member: any) => {
+        const firstName = member.user?.first_name?.toLowerCase() || '';
+        const lastName = member.user?.last_name?.toLowerCase() || '';
+        const email = member.user?.email?.toLowerCase() || '';
+        const fullName = `${firstName} ${lastName}`;
+        return fullName.includes(searchTerm.toLowerCase()) || 
+               email.includes(searchTerm.toLowerCase());
+      });
 
     const matchesFilter = 
       activeTab === 'all' ||
