@@ -169,8 +169,8 @@ export function FirmAgreementToggles({ firm, members, type = 'both' }: FirmAgree
 
           {/* Metadata - Ultra subtle, show on hover, only takes space when visible */}
           {firm.fee_agreement_signed && (firm.fee_agreement_signed_by_name || firm.fee_agreement_signed_at) && (
-            <div className="max-h-0 opacity-0 group-hover/toggle:max-h-6 group-hover/toggle:opacity-100 group-hover/toggle:mt-1 transition-all duration-200 overflow-hidden">
-              <div className="flex items-center gap-1 text-[10px] text-muted-foreground/50 pl-0.5">
+            <div className="max-h-0 opacity-0 group-hover/toggle:max-h-10 group-hover/toggle:opacity-100 group-hover/toggle:mt-1.5 transition-all duration-200 overflow-hidden">
+              <div className="flex items-center gap-1 text-[10px] text-muted-foreground/60 pl-0.5 whitespace-nowrap">
                 {firm.fee_agreement_signed_by_name && (
                   <span>{firm.fee_agreement_signed_by_name}</span>
                 )}
@@ -255,8 +255,8 @@ export function FirmAgreementToggles({ firm, members, type = 'both' }: FirmAgree
 
           {/* Metadata - Ultra subtle, show on hover, only takes space when visible */}
           {firm.nda_signed && (firm.nda_signed_by_name || firm.nda_signed_at) && (
-            <div className="max-h-0 opacity-0 group-hover/toggle:max-h-6 group-hover/toggle:opacity-100 group-hover/toggle:mt-1 transition-all duration-200 overflow-hidden">
-              <div className="flex items-center gap-1 text-[10px] text-muted-foreground/50 pl-0.5">
+            <div className="max-h-0 opacity-0 group-hover/toggle:max-h-10 group-hover/toggle:opacity-100 group-hover/toggle:mt-1.5 transition-all duration-200 overflow-hidden">
+              <div className="flex items-center gap-1 text-[10px] text-muted-foreground/60 pl-0.5 whitespace-nowrap">
                 {firm.nda_signed_by_name && (
                   <span>{firm.nda_signed_by_name}</span>
                 )}
