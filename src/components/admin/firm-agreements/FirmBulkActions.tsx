@@ -1,10 +1,7 @@
-import { useState, useEffect } from 'react';
-import { Mail, CheckCircle2, XCircle, ExternalLink } from 'lucide-react';
+import { Mail } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import type { FirmAgreement } from '@/hooks/admin/use-firm-agreements';
 import { useFirmMembers } from '@/hooks/admin/use-firm-agreements';
 
 interface FirmBulkActionsProps {
@@ -15,8 +12,6 @@ interface FirmBulkActionsProps {
 
 export function FirmBulkActions({ firmId, firmName, memberCount }: FirmBulkActionsProps) {
   const { toast } = useToast();
-  const [isNDADialogOpen, setIsNDADialogOpen] = useState(false);
-  const [isFeeDialogOpen, setIsFeeDialogOpen] = useState(false);
   const { data: members, isLoading } = useFirmMembers(firmId);
 
   const logEmailAction = async (type: 'nda' | 'fee', recipientEmails: string[]) => {
@@ -83,12 +78,12 @@ export function FirmBulkActions({ firmId, firmName, memberCount }: FirmBulkActio
     }
 
     const subject = type === 'nda' 
-      ? `NDA Required - ${firmName}` 
-      : `Fee Agreement - ${firmName}`;
+      ? `NDA Agreement Required | ${firmName}` 
+      : `Fee Agreement Required | ${firmName}`;
     
     const body = type === 'nda'
-      ? `Dear Team,\n\nPlease review and sign the attached NDA for ${firmName}.\n\nBest regards,\nSourceCo Team`
-      : `Dear Team,\n\nPlease review and sign the attached Fee Agreement for ${firmName}.\n\nBest regards,\nSourceCo Team`;
+      ? `Dear ${firmName} Team,\n\nI hope this message finds you well.\n\nAs part of our engagement process, we require a signed Non-Disclosure Agreement (NDA) before we can proceed with sharing confidential business information.\n\nPlease review and sign the attached NDA at your earliest convenience. Once signed, please return it to us so we can move forward with the next steps.\n\nIf you have any questions or need clarification on any terms, please don't hesitate to reach out.\n\nThank you for your cooperation.\n\nBest regards,\nSourceCo Team`
+      : `Dear ${firmName} Team,\n\nI hope this message finds you well.\n\nAs discussed, please find attached our Fee Agreement for your review and signature.\n\nThis agreement outlines the terms of our engagement and the associated fees for our services. Please review the document carefully and sign it at your earliest convenience.\n\nOnce signed, please return a copy to us. We're excited to move forward with our partnership.\n\nIf you have any questions about the terms or would like to discuss any aspect of the agreement, please feel free to contact us.\n\nThank you for choosing SourceCo.\n\nBest regards,\nSourceCo Team`;
 
     // Create mailto link with BCC for privacy
     const mailtoLink = `mailto:?bcc=${recipientEmails.join(',')}&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
@@ -99,13 +94,6 @@ export function FirmBulkActions({ firmId, firmName, memberCount }: FirmBulkActio
     // Log the action
     logEmailAction(type, recipientEmails);
 
-    // Close dialog and show success message
-    if (type === 'nda') {
-      setIsNDADialogOpen(false);
-    } else {
-      setIsFeeDialogOpen(false);
-    }
-
     toast({
       title: 'Email client opened',
       description: `Email draft created for ${recipientEmails.length} member${recipientEmails.length > 1 ? 's' : ''} and logged with timestamp.`,
@@ -114,93 +102,25 @@ export function FirmBulkActions({ firmId, firmName, memberCount }: FirmBulkActio
 
   return (
     <div className="flex gap-2">
-      <Dialog open={isNDADialogOpen} onOpenChange={setIsNDADialogOpen}>
-        <DialogTrigger asChild>
-          <Button variant="outline" size="sm" disabled={isLoading}>
-            <Mail className="h-4 w-4 mr-2" />
-            Send NDA to All
-          </Button>
-        </DialogTrigger>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Open Email Client for NDA</DialogTitle>
-            <DialogDescription>
-              This will open your default email client with a draft email
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="rounded-lg border border-border/50 bg-muted/30 p-4 space-y-2">
-              <div className="flex items-start gap-3">
-                <ExternalLink className="h-5 w-5 text-muted-foreground mt-0.5" />
-                <div className="space-y-1">
-                  <p className="text-sm font-medium">Opens your email client</p>
-                  <p className="text-xs text-muted-foreground">
-                    A draft email will be created with all <strong>{memberCount}</strong> member{memberCount !== 1 ? 's' : ''} of <strong>{firmName}</strong> in BCC.
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-2">
-                    ✓ Action will be logged with timestamp<br />
-                    ✓ Members' privacy protected (BCC)<br />
-                    ✓ You can customize the email before sending
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div className="flex gap-2 justify-end">
-              <Button variant="outline" onClick={() => setIsNDADialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button onClick={() => openEmailClient('nda')}>
-                <Mail className="h-4 w-4 mr-2" />
-                Open Email Client
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <Button 
+        variant="outline" 
+        size="sm" 
+        disabled={isLoading}
+        onClick={() => openEmailClient('nda')}
+      >
+        <Mail className="h-4 w-4 mr-2" />
+        Send NDA to All
+      </Button>
 
-      <Dialog open={isFeeDialogOpen} onOpenChange={setIsFeeDialogOpen}>
-        <DialogTrigger asChild>
-          <Button variant="outline" size="sm" disabled={isLoading}>
-            <Mail className="h-4 w-4 mr-2" />
-            Send Fee Agreement to All
-          </Button>
-        </DialogTrigger>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Open Email Client for Fee Agreement</DialogTitle>
-            <DialogDescription>
-              This will open your default email client with a draft email
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="rounded-lg border border-border/50 bg-muted/30 p-4 space-y-2">
-              <div className="flex items-start gap-3">
-                <ExternalLink className="h-5 w-5 text-muted-foreground mt-0.5" />
-                <div className="space-y-1">
-                  <p className="text-sm font-medium">Opens your email client</p>
-                  <p className="text-xs text-muted-foreground">
-                    A draft email will be created with all <strong>{memberCount}</strong> member{memberCount !== 1 ? 's' : ''} of <strong>{firmName}</strong> in BCC.
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-2">
-                    ✓ Action will be logged with timestamp<br />
-                    ✓ Members' privacy protected (BCC)<br />
-                    ✓ You can customize the email before sending
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div className="flex gap-2 justify-end">
-              <Button variant="outline" onClick={() => setIsFeeDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button onClick={() => openEmailClient('fee')}>
-                <Mail className="h-4 w-4 mr-2" />
-                Open Email Client
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <Button 
+        variant="outline" 
+        size="sm" 
+        disabled={isLoading}
+        onClick={() => openEmailClient('fee')}
+      >
+        <Mail className="h-4 w-4 mr-2" />
+        Send Fee Agreement to All
+      </Button>
     </div>
   );
 }
