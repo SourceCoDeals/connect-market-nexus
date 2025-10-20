@@ -121,12 +121,13 @@ export function useAllFirmMembersForSearch() {
             id,
             first_name,
             last_name,
-            email
+            email,
+            buyer_type
           )
         `);
 
       if (error) throw error;
-      return (data || []) as Array<{ firm_id: string; user: { id: string; first_name: string | null; last_name: string | null; email: string | null } | null }>;
+      return (data || []) as Array<{ firm_id: string; user: { id: string; first_name: string | null; last_name: string | null; email: string | null; buyer_type: string | null } | null }>;
     },
     staleTime: 60_000,
   });

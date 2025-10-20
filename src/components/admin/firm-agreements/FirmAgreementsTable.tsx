@@ -4,6 +4,13 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -19,12 +26,24 @@ import { cn } from '@/lib/utils';
 
 type FilterTab = 'all' | 'both_signed' | 'partial' | 'none';
 
+const BUYER_TYPE_LABELS: Record<string, string> = {
+  privateEquity: 'Private Equity',
+  independentSponsor: 'Independent Sponsor',
+  searchFund: 'Search Fund',
+  familyOffice: 'Family Office',
+  corporate: 'Corporate',
+  individual: 'Individual',
+  advisor: 'Advisor',
+  businessOwner: 'Business Owner',
+};
+
 export function FirmAgreementsTable() {
   const { data: firms, isLoading } = useFirmAgreements();
   const { data: membersForSearch } = useAllFirmMembersForSearch();
   const [expandedFirm, setExpandedFirm] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState<FilterTab>('all');
+  const [firmTypeFilter, setFirmTypeFilter] = useState<string>('all');
 
   const memberIndex = useMemo(() => {
     const map = new Map<string, string>();
@@ -64,7 +83,14 @@ export function FirmAgreementsTable() {
       (activeTab === 'partial' && (firm.fee_agreement_signed !== firm.nda_signed)) ||
       (activeTab === 'none' && !firm.fee_agreement_signed && !firm.nda_signed);
 
-    return matchesSearch && matchesFilter;
+    // Firm type filter - check if any member has the selected buyer_type
+    const matchesFirmType = firmTypeFilter === 'all' || 
+      (membersForSearch || []).some(m => 
+        m.firm_id === firm.id && 
+        (m.user as any)?.buyer_type === firmTypeFilter
+      );
+
+    return matchesSearch && matchesFilter && matchesFirmType;
   });
 
   const stats = {
@@ -149,6 +175,19 @@ export function FirmAgreementsTable() {
             />
             <FilterIcon className="h-4 w-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
           </div>
+          <Select value={firmTypeFilter} onValueChange={setFirmTypeFilter}>
+            <SelectTrigger className="w-[200px] h-9 bg-background border-input shadow-sm">
+              <SelectValue placeholder="All Firm Types" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Firm Types</SelectItem>
+              {Object.entries(BUYER_TYPE_LABELS).map(([value, label]) => (
+                <SelectItem key={value} value={value}>
+                  {label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Button
             variant="outline"
             size="sm"
