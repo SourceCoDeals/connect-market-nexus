@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -8,7 +7,6 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog';
 import { useUpdateFirmFeeAgreement, useUpdateFirmNDA, type FirmAgreement, type FirmMember } from '@/hooks/admin/use-firm-agreements';
 import { FirmSignerSelector } from './FirmSignerSelector';
@@ -35,10 +33,8 @@ export function FirmAgreementToggles({ firm, members }: FirmAgreementTogglesProp
     const newState = !firm.fee_agreement_signed;
     
     if (newState && members.length > 0) {
-      // Show dialog to select signer
       setIsFeeDialogOpen(true);
     } else {
-      // Direct toggle off
       await updateFeeAgreement.mutateAsync({
         firmId: firm.id,
         isSigned: newState,
@@ -50,10 +46,8 @@ export function FirmAgreementToggles({ firm, members }: FirmAgreementTogglesProp
     const newState = !firm.nda_signed;
     
     if (newState && members.length > 0) {
-      // Show dialog to select signer
       setIsNDADialogOpen(true);
     } else {
-      // Direct toggle off
       await updateNDA.mutateAsync({
         firmId: firm.id,
         isSigned: newState,
@@ -82,19 +76,24 @@ export function FirmAgreementToggles({ firm, members }: FirmAgreementTogglesProp
   };
 
   return (
-    <div className="flex gap-4">
+    <div className="flex items-center gap-6">
       {/* Fee Agreement Toggle */}
       <Dialog open={isFeeDialogOpen} onOpenChange={setIsFeeDialogOpen}>
-        <div className="flex items-center gap-2">
-          <Switch
-            checked={firm.fee_agreement_signed}
-            onCheckedChange={handleFeeAgreementToggle}
-            disabled={updateFeeAgreement.isPending}
-          />
-          <Label className="text-sm cursor-pointer" onClick={handleFeeAgreementToggle}>
-            Fee Agreement
-          </Label>
-          {updateFeeAgreement.isPending && <Loader2 className="h-3 w-3 animate-spin" />}
+        <div className="flex items-center gap-3">
+          {updateFeeAgreement.isPending && (
+            <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+          )}
+          <div className="flex flex-col items-end gap-1">
+            <span className="text-xs font-medium text-foreground whitespace-nowrap">
+              Fee Agreement
+            </span>
+            <Switch
+              checked={firm.fee_agreement_signed}
+              onCheckedChange={handleFeeAgreementToggle}
+              disabled={updateFeeAgreement.isPending}
+              className="data-[state=checked]:bg-emerald-600"
+            />
+          </div>
         </div>
         
         <DialogContent>
@@ -130,16 +129,21 @@ export function FirmAgreementToggles({ firm, members }: FirmAgreementTogglesProp
 
       {/* NDA Toggle */}
       <Dialog open={isNDADialogOpen} onOpenChange={setIsNDADialogOpen}>
-        <div className="flex items-center gap-2">
-          <Switch
-            checked={firm.nda_signed}
-            onCheckedChange={handleNDAToggle}
-            disabled={updateNDA.isPending}
-          />
-          <Label className="text-sm cursor-pointer" onClick={handleNDAToggle}>
-            NDA
-          </Label>
-          {updateNDA.isPending && <Loader2 className="h-3 w-3 animate-spin" />}
+        <div className="flex items-center gap-3">
+          {updateNDA.isPending && (
+            <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+          )}
+          <div className="flex flex-col items-end gap-1">
+            <span className="text-xs font-medium text-foreground whitespace-nowrap">
+              NDA
+            </span>
+            <Switch
+              checked={firm.nda_signed}
+              onCheckedChange={handleNDAToggle}
+              disabled={updateNDA.isPending}
+              className="data-[state=checked]:bg-emerald-600"
+            />
+          </div>
         </div>
         
         <DialogContent>
