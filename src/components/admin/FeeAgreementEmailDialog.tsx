@@ -15,14 +15,13 @@ interface FeeAgreementEmailDialogProps {
 
 const DEFAULT_EMAIL_TEMPLATE = `{firstName},
 
-Please sign the attached fee agreement to proceed.
+Please review and sign the attached fee agreement.
 
-Key terms:
-• Commission paid only at closing
+Commission Terms:
+• Paid at closing only
 • No upfront fees
-• Full access to vetted listings
 
-Questions? Reply to this email.
+Reply with questions.
 
 Best regards,
 The Business Marketplace Team`;

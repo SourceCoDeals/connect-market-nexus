@@ -32,10 +32,16 @@ interface SimpleFeeAgreementDialogProps {
 
 const QUICK_TEMPLATE = {
   name: "Quick",
-  subject: "Fee Agreement | SourceCo",
+  subject: "Fee Agreement - Commission Terms",
   content: `{{userName}},
 
-Please sign the attached fee agreement to proceed.
+Please review and sign the attached fee agreement.
+
+Commission Structure:
+• Paid at closing only
+• No upfront fees
+
+Reply with questions.
 
 Best regards,`
 };
