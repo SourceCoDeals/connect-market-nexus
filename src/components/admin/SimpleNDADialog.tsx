@@ -58,12 +58,10 @@ export const SimpleNDADialog = ({ open, onOpenChange, user, listing, onSendEmail
   if (!user) return null;
 
   const quickTemplate = {
-    subject: "NDA Required - Access Confidential Listing Details",
+    subject: "NDA Required",
     message: `${user.first_name || user.email},
 
-To access confidential business details, please sign the attached NDA and return it via email.
-
-Questions? Reply to this message.
+Sign and return the attached NDA to view confidential listing details.
 
 Best regards,`
   };

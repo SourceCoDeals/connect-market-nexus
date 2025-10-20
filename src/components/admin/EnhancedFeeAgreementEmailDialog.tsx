@@ -28,16 +28,10 @@ interface EnhancedFeeAgreementEmailDialogProps {
 }
 
 const DEFAULT_TEMPLATE = {
-  subject: "Fee Agreement - Commission Terms",
+  subject: "Fee Agreement",
   content: `{{userName}},
 
-Please review and sign the attached fee agreement.
-
-Commission Structure:
-• Paid at closing only
-• No upfront fees
-
-Reply with questions.
+Sign the attached fee agreement. Commission applies only if you transact with a business on our marketplace, paid at closing.
 
 Best regards,
 {{adminName}}
