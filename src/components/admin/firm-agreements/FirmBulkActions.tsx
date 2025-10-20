@@ -78,12 +78,12 @@ export function FirmBulkActions({ firmId, firmName, memberCount }: FirmBulkActio
     }
 
     const subject = type === 'nda' 
-      ? `NDA Agreement Required | ${firmName}` 
-      : `Fee Agreement Required | ${firmName}`;
+      ? `NDA Required | ${firmName}` 
+      : `Fee Agreement | ${firmName}`;
     
     const body = type === 'nda'
-      ? `Dear ${firmName} Team,\n\nI hope this message finds you well.\n\nAs part of our engagement process, we require a signed Non-Disclosure Agreement (NDA) before we can proceed with sharing confidential business information.\n\nPlease review and sign the attached NDA at your earliest convenience. Once signed, please return it to us so we can move forward with the next steps.\n\nIf you have any questions or need clarification on any terms, please don't hesitate to reach out.\n\nThank you for your cooperation.\n\nBest regards,\nSourceCo Team`
-      : `Dear ${firmName} Team,\n\nI hope this message finds you well.\n\nAs discussed, please find attached our Fee Agreement for your review and signature.\n\nThis agreement outlines the terms of our engagement and the associated fees for our services. Please review the document carefully and sign it at your earliest convenience.\n\nOnce signed, please return a copy to us. We're excited to move forward with our partnership.\n\nIf you have any questions about the terms or would like to discuss any aspect of the agreement, please feel free to contact us.\n\nThank you for choosing SourceCo.\n\nBest regards,\nSourceCo Team`;
+      ? `Dear ${firmName} Team,\n\nPlease sign and return the attached NDA to access confidential listing details.\n\nBest regards,\nSourceCo Team`
+      : `Dear ${firmName} Team,\n\nPlease sign the attached fee agreement. Commission applies only if you transact with a business on our marketplace and is paid at closing.\n\nBest regards,\nSourceCo Team`;
 
     // Create mailto link with BCC for privacy
     const mailtoLink = `mailto:?bcc=${recipientEmails.join(',')}&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
