@@ -28,7 +28,7 @@ function StatCard({ label, value, icon, trend, variant = 'default' }: StatCardPr
       <CardContent className="p-card">
         <div className="flex items-start justify-between gap-4">
           <div className="space-y-3 flex-1 min-w-0">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            <p className="text-sm font-medium text-muted-foreground">
               {label}
             </p>
             <p className={cn(

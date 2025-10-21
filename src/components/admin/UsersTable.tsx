@@ -596,7 +596,17 @@ export function UsersTable({
                   <div className="flex flex-col gap-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-medium text-sm">{user.firstName} {user.lastName}</span>
-                      <RoleBadge role={getUserRole(user.id)} showTooltip={false} />
+                      {(() => {
+                        const role = getUserRole(user.id);
+                        // Only show badge for elevated roles (admin, moderator)
+                        // Show "Admin" for owner to keep it professional
+                        if (role === 'owner') {
+                          return <RoleBadge role="admin" showTooltip={false} />;
+                        } else if (role === 'admin' || role === 'moderator') {
+                          return <RoleBadge role={role} showTooltip={false} />;
+                        }
+                        return null;
+                      })()}
                       {user.email_verified && (
                         <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 px-1 py-0">
                           <CheckCircle className="h-3 w-3 mr-1" />

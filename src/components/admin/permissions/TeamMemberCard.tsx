@@ -15,6 +15,9 @@ export const TeamMemberCard = ({ user, role }: TeamMemberCardProps) => {
   const initials = `${user.first_name?.[0] || ''}${user.last_name?.[0] || ''}`.toUpperCase() || user.email[0].toUpperCase();
   
   const isOwner = user.email === 'ahaile14@gmail.com';
+  
+  // Display "Admin" for owner to keep professional appearance
+  const displayRole = isOwner ? 'admin' : role;
 
   return (
     <Card className="group hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5 border-border/50">
@@ -54,7 +57,7 @@ export const TeamMemberCard = ({ user, role }: TeamMemberCardProps) => {
 
           <div className="flex items-center gap-3">
             <div className="hidden sm:block">
-              <RoleBadge role={role} />
+              <RoleBadge role={displayRole as AppRole} />
             </div>
             
             <RoleSelector
