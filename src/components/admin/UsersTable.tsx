@@ -373,10 +373,11 @@ export function UsersTable({
   const [selectedUserForNDA, setSelectedUserForNDA] = useState<User | null>(null);
   const { exportUsersToCSV } = useEnhancedUserExport();
   const { canManagePermissions } = usePermissions();
-  const { allUserRoles } = useRoleManagement();
+  const { allUserRoles, isLoadingRoles } = useRoleManagement();
 
   const getUserRole = (userId: string): AppRole => {
-    return (allUserRoles?.find((ur) => ur.user_id === userId)?.role as AppRole) || 'user';
+    if (!allUserRoles) return 'user';
+    return (allUserRoles.find((ur) => ur.user_id === userId)?.role as AppRole) || 'user';
   };
   const logEmailMutation = useLogFeeAgreementEmail();
   const logNDAEmail = useLogNDAEmail();
