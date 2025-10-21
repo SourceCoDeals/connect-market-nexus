@@ -69,7 +69,12 @@ export default function SessionEventsDialog({
                 <span className="font-semibold">{data.sessionDuration} minutes</span>
               </p>
               <p className="text-xs text-muted-foreground mt-1">
-                {data.isOngoing ? 'now' : format(new Date(data.events[data.events.length - 1]?.timestamp), 'PPpp')}
+                {data.isOngoing 
+                  ? 'now' 
+                  : data.events.length > 0 
+                    ? format(new Date(data.events[data.events.length - 1].timestamp), 'PPpp')
+                    : 'No timestamp available'
+                }
               </p>
             </div>
 
