@@ -274,7 +274,9 @@ export function EnhancedUserManagement({
             {/* Search and Filters */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
               <div className="lg:col-span-2">
-                <Label htmlFor="search">Search Users</Label>
+                <Label htmlFor="search" className="text-sm font-medium text-muted-foreground">
+                  Search users
+                </Label>
                 <div className="relative">
                   <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                   <Input
@@ -282,15 +284,15 @@ export function EnhancedUserManagement({
                     placeholder="Search by name, email, or company..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10"
+                    className="pl-10 h-10 border-border/60 focus:border-primary/40 transition-colors"
                   />
                 </div>
               </div>
 
               <div>
-                <Label>Status</Label>
+                <Label className="text-sm font-medium text-muted-foreground">Status</Label>
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger>
+                  <SelectTrigger className="h-10 border-border/60 focus:border-primary/40 transition-colors">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -303,10 +305,10 @@ export function EnhancedUserManagement({
               </div>
 
               <div>
-                <Label>Buyer Type</Label>
+                <Label className="text-sm font-medium text-muted-foreground">Buyer Type</Label>
                 <Select value={buyerTypeFilter} onValueChange={setBuyerTypeFilter}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select buyer type" />
+                  <SelectTrigger className="h-10 border-border/60 focus:border-primary/40 transition-colors">
+                    <SelectValue placeholder="All Types" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Types</SelectItem>

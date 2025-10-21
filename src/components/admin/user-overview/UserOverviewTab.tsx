@@ -95,7 +95,7 @@ export function UserOverviewTab({
 
   const stats = [
     {
-      label: 'Total Users',
+      label: 'Total users',
       value: totalUsers,
       icon: <Users className="h-5 w-5" />,
       trend: analytics.userGrowthTrend !== 0 ? {
@@ -106,13 +106,13 @@ export function UserOverviewTab({
       variant: 'default' as const,
     },
     {
-      label: 'Pending Approval',
+      label: 'Pending approval',
       value: pendingCount,
       icon: <Clock className="h-5 w-5" />,
       variant: 'warning' as const,
     },
     {
-      label: 'Approved Users',
+      label: 'Approved users',
       value: approvedCount,
       icon: <UserCheck className="h-5 w-5" />,
       trend: analytics.approvalTrend !== 0 ? {
@@ -123,7 +123,7 @@ export function UserOverviewTab({
       variant: 'success' as const,
     },
     {
-      label: 'Avg Profile Completion',
+      label: 'Profile completion',
       value: `${Math.round(analytics.avgCompletion)}%`,
       icon: <BarChart3 className="h-5 w-5" />,
       variant: analytics.avgCompletion >= 75 ? 'success' as const : 'warning' as const,
