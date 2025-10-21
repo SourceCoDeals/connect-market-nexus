@@ -2686,10 +2686,7 @@ export type Database = {
           granted_at: string
           granted_by: string
           role: Database["public"]["Enums"]["app_role"]
-          user_email: string
-          user_first_name: string
           user_id: string
-          user_last_name: string
         }[]
       }
       get_connection_request_conflicts: {
