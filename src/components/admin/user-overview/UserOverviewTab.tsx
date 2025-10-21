@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Users, UserCheck, UserX, Clock, BarChart3, Filter, Download, Mail, CheckCircle2 } from 'lucide-react';
-import { HeroStatsSection } from '../analytics/HeroStatsSection';
+import { StripeStatsSection } from '../analytics/StripeStatsSection';
 import { User } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -96,37 +96,43 @@ export function UserOverviewTab({
   const stats = [
     {
       label: 'Total users',
-      value: totalUsers,
-      icon: <Users className="h-5 w-5" />,
+      value: totalUsers.toLocaleString(),
+      icon: <Users className="h-4 w-4" />,
       trend: analytics.userGrowthTrend !== 0 ? {
         value: Math.abs(analytics.userGrowthTrend),
         isPositive: analytics.userGrowthTrend > 0,
         label: 'vs last week',
       } : undefined,
-      variant: 'default' as const,
+      description: analytics.newUsersThisWeek > 0 
+        ? `${analytics.newUsersThisWeek} new ${analytics.newUsersThisWeek === 1 ? 'user' : 'users'} this week`
+        : 'No new users this week'
     },
     {
       label: 'Pending approval',
-      value: pendingCount,
-      icon: <Clock className="h-5 w-5" />,
-      variant: 'warning' as const,
+      value: pendingCount.toLocaleString(),
+      icon: <Clock className="h-4 w-4" />,
+      description: pendingCount > 0 
+        ? `${pendingCount} ${pendingCount === 1 ? 'user' : 'users'} awaiting review`
+        : 'All caught up'
     },
     {
       label: 'Approved users',
-      value: approvedCount,
-      icon: <UserCheck className="h-5 w-5" />,
+      value: approvedCount.toLocaleString(),
+      icon: <UserCheck className="h-4 w-4" />,
       trend: analytics.approvalTrend !== 0 ? {
         value: Math.abs(analytics.approvalTrend),
         isPositive: analytics.approvalTrend > 0,
         label: 'this week',
       } : undefined,
-      variant: 'success' as const,
+      description: `${Math.round((approvedCount / totalUsers) * 100)}% of total users`
     },
     {
       label: 'Profile completion',
       value: `${Math.round(analytics.avgCompletion)}%`,
-      icon: <BarChart3 className="h-5 w-5" />,
-      variant: analytics.avgCompletion >= 75 ? 'success' as const : 'warning' as const,
+      icon: <BarChart3 className="h-4 w-4" />,
+      description: analytics.incompleteProfiles > 0
+        ? `${analytics.incompleteProfiles} incomplete ${analytics.incompleteProfiles === 1 ? 'profile' : 'profiles'}`
+        : 'All profiles complete'
     },
   ];
 
@@ -171,7 +177,7 @@ export function UserOverviewTab({
 
   return (
     <div className="space-y-8">
-      <HeroStatsSection stats={stats} />
+      <StripeStatsSection stats={stats} />
     </div>
   );
 }
