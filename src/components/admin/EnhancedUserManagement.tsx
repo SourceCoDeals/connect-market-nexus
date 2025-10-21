@@ -248,76 +248,99 @@ export function EnhancedUserManagement({
 
   return (
     <Tabs defaultValue="overview" className="space-y-6">
-      <TabsList className="grid w-full grid-cols-4">
-        <TabsTrigger value="overview">User Overview</TabsTrigger>
-        <TabsTrigger value="recovery">Data Recovery</TabsTrigger>
-        <TabsTrigger value="monitoring">Form Monitoring</TabsTrigger>
-        <TabsTrigger value="analytics">Analytics</TabsTrigger>
-      </TabsList>
+      {/* Subtle underline tabs - Stripe style */}
+      <div className="border-b">
+        <TabsList className="h-auto p-0 bg-transparent border-0 gap-6">
+          <TabsTrigger 
+            value="overview"
+            className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-0 pb-3 pt-0 font-medium text-sm data-[state=active]:text-foreground text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Overview
+          </TabsTrigger>
+          <TabsTrigger 
+            value="recovery"
+            className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-0 pb-3 pt-0 font-medium text-sm data-[state=active]:text-foreground text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Data Recovery
+          </TabsTrigger>
+          <TabsTrigger 
+            value="monitoring"
+            className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-0 pb-3 pt-0 font-medium text-sm data-[state=active]:text-foreground text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Form Monitoring
+          </TabsTrigger>
+          <TabsTrigger 
+            value="analytics"
+            className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-0 pb-3 pt-0 font-medium text-sm data-[state=active]:text-foreground text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Analytics
+          </TabsTrigger>
+        </TabsList>
+      </div>
 
-      <TabsContent value="overview" className="space-y-6">
-        {/* Analytics Overview */}
+      <TabsContent value="overview" className="space-y-6 pt-6">
+        {/* Analytics Overview - Stripe-style minimal cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Total Users</p>
-                  <p className="text-2xl font-bold">{analytics.total}</p>
-                </div>
-                <Users className="h-8 w-8 text-muted-foreground" />
+          <Card className="border-border/40">
+            <CardContent className="p-6">
+              <div className="space-y-2">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Total Users</p>
+                <p className="text-3xl font-semibold tracking-tight">{analytics.total}</p>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Pending Approval</p>
-                  <p className="text-2xl font-bold text-yellow-600">{analytics.pending}</p>
+          <Card className="border-border/40">
+            <CardContent className="p-6">
+              <div className="space-y-2">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Pending Approval</p>
+                <div className="flex items-baseline gap-2">
+                  <p className="text-3xl font-semibold tracking-tight">{analytics.pending}</p>
+                  <Badge variant="outline" className="text-xs bg-yellow-500/10 text-yellow-700 border-yellow-200">
+                    <AlertCircle className="h-3 w-3 mr-1" />
+                    Action needed
+                  </Badge>
                 </div>
-                <AlertCircle className="h-8 w-8 text-yellow-600" />
               </div>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Approved</p>
-                  <p className="text-2xl font-bold text-green-600">{analytics.approved}</p>
-                </div>
-                <UserCheck className="h-8 w-8 text-green-600" />
+          <Card className="border-border/40">
+            <CardContent className="p-6">
+              <div className="space-y-2">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Approved</p>
+                <p className="text-3xl font-semibold tracking-tight text-green-600">{analytics.approved}</p>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Avg Profile Completion</p>
-                  <p className="text-2xl font-bold">{analytics.avgCompletion}%</p>
-                </div>
-                <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-                  <span className="text-xs font-medium">{analytics.avgCompletion}%</span>
-                </div>
+          <Card className="border-border/40">
+            <CardContent className="p-6">
+              <div className="space-y-2">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Avg Profile Completion</p>
+                <p className="text-3xl font-semibold tracking-tight">{analytics.avgCompletion}%</p>
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Filters and Actions */}
-        <Card>
-          <CardHeader>
-            <CardTitle>User Management</CardTitle>
-            <CardDescription>
-              Manage user registrations, approvals, and profile completion
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
+        {/* Filters and Actions - Clean Stripe layout */}
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold">Filters</h2>
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={exportData}
+              disabled={filteredUsers.length === 0}
+              className="gap-2"
+            >
+              <Download className="h-4 w-4" />
+              Export CSV
+            </Button>
+          </div>
+          
+          <div className="space-y-4">
             {/* Search and Filters */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
               <div className="lg:col-span-2">
@@ -369,48 +392,44 @@ export function EnhancedUserManagement({
                 </Select>
               </div>
 
-              <div>
-                <Label>Profile Completion</Label>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-muted-foreground">Profile Completion</Label>
                 <Select value={profileCompletionFilter} onValueChange={setProfileCompletionFilter}>
-                  <SelectTrigger>
+                  <SelectTrigger className="h-10">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Profiles</SelectItem>
                     <SelectItem value="complete">Complete (80%+)</SelectItem>
-                    <SelectItem value="incomplete">Incomplete (&lt;80%)</SelectItem>
+                    <SelectItem value="incomplete">&lt;80%</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
 
-            {/* Bulk Actions */}
-            {selectedUsers.length > 0 && (
-              <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg">
-                <span className="text-sm font-medium">
-                  {selectedUsers.length} user{selectedUsers.length === 1 ? '' : 's'} selected
-                </span>
-                <div className="flex gap-2 ml-auto">
-                  <Button size="sm" onClick={handleBulkApprove} variant="outline">
-                    <UserCheck className="h-4 w-4 mr-2" />
-                    Bulk Approve
-                  </Button>
-                </div>
-              </div>
-            )}
+            {/* Results count - Stripe style */}
+            <div className="flex items-center justify-between text-sm pt-2 border-t">
+              <p className="text-muted-foreground">
+                Showing <span className="font-medium text-foreground">{filteredUsers.length}</span> of <span className="font-medium text-foreground">{analytics.total}</span> users
+              </p>
+            </div>
+          </div>
+        </div>
 
-            {/* Export and Data Status */}
-            <div className="flex justify-between items-center">
-              <div className="text-sm text-muted-foreground">
-                Showing {filteredUsers.length} of {users.length} users
-              </div>
-              <Button onClick={exportData} variant="outline" size="sm">
-                <Download className="h-4 w-4 mr-2" />
-                Export All Fields (CSV)
+        {/* Bulk Actions */}
+        {selectedUsers.length > 0 && (
+          <div className="flex items-center gap-3 p-4 bg-accent/50 rounded-lg border">
+            <span className="text-sm font-medium">
+              {selectedUsers.length} user{selectedUsers.length === 1 ? '' : 's'} selected
+            </span>
+            <div className="flex gap-2 ml-auto">
+              <Button size="sm" onClick={handleBulkApprove} variant="outline">
+                <UserCheck className="h-4 w-4 mr-2" />
+                Bulk Approve
               </Button>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        )}
       </TabsContent>
 
       <TabsContent value="recovery">
