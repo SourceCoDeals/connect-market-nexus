@@ -159,23 +159,16 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Get authorization header
+    // Get authorization header from request
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      console.error('❌ No authorization header provided');
-      return new Response(
-        JSON.stringify({ error: 'No authorization header' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Create Supabase client
+    
+    // Create Supabase client with auth header if provided
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
       {
         global: {
-          headers: { Authorization: authHeader },
+          headers: authHeader ? { Authorization: authHeader } : {},
         },
       }
     );
