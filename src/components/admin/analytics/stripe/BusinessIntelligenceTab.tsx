@@ -94,52 +94,54 @@ export function BusinessIntelligenceTab({ users }: BusinessIntelligenceTabProps)
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-section">
       {/* Investment Capacity Hero */}
-      <Card className="border-border/50">
-        <CardContent className="p-6">
+      <Card className="border-border/50 shadow-xl bg-gradient-card overflow-hidden group">
+        <CardContent className="p-8">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-muted-foreground mb-2">Total Investment Capacity</p>
-              <p className="text-5xl font-bold tabular-nums">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+                Total Investment Capacity
+              </p>
+              <p className="text-hero-2xl font-bold tabular-nums mb-2 bg-gradient-primary bg-clip-text text-transparent">
                 {formatCurrency(businessMetrics.totalInvestmentCapacity)}
               </p>
-              <p className="text-xs text-muted-foreground mt-2">
+              <p className="text-sm text-muted-foreground font-medium">
                 Across all registered buyers
               </p>
             </div>
-            <div className="p-4 rounded-full bg-primary/10">
-              <DollarSign className="h-12 w-12 text-primary" />
+            <div className="p-5 rounded-2xl bg-primary/10 shadow-glow-lg group-hover:scale-110 transition-transform duration-300">
+              <DollarSign className="h-16 w-16 text-primary" />
             </div>
           </div>
         </CardContent>
       </Card>
 
-      <div className="grid gap-6 md:grid-cols-3">
+      <div className="grid gap-section md:grid-cols-3">
         {/* Deal Size Distribution */}
-        <Card>
+        <Card className="border-border/50 shadow-md">
           <CardHeader>
-            <CardTitle className="text-base font-medium flex items-center gap-2">
-              <Target className="h-4 w-4" />
+            <CardTitle className="text-lg font-semibold flex items-center gap-2">
+              <Target className="h-5 w-5" />
               Deal Size Distribution
             </CardTitle>
             <CardDescription>Users by target deal size</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="space-y-compact">
             {Object.entries(businessMetrics.dealSizeCategories).map(([range, count]) => {
               const percentage = users.length > 0 ? (count / users.length) * 100 : 0;
               return (
-                <div key={range}>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-sm">{range}</span>
+                <div key={range} className="p-2.5 rounded-lg hover:bg-muted/30 transition-colors">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-semibold">{range}</span>
                     <div className="flex items-center gap-2">
-                      <span className="text-xs text-muted-foreground tabular-nums">{count} users</span>
-                      <Badge variant="secondary" className="tabular-nums">
+                      <span className="text-xs text-muted-foreground tabular-nums font-medium">{count} users</span>
+                      <Badge variant="secondary" className="tabular-nums font-bold">
                         {percentage.toFixed(0)}%
                       </Badge>
                     </div>
                   </div>
-                  <Progress value={percentage} className="h-2" />
+                  <Progress value={percentage} className="h-2.5" />
                 </div>
               );
             })}
@@ -147,31 +149,34 @@ export function BusinessIntelligenceTab({ users }: BusinessIntelligenceTabProps)
         </Card>
 
         {/* Top Industries */}
-        <Card>
+        <Card className="border-border/50 shadow-md">
           <CardHeader>
-            <CardTitle className="text-base font-medium flex items-center gap-2">
-              <Building2 className="h-4 w-4" />
+            <CardTitle className="text-lg font-semibold flex items-center gap-2">
+              <Building2 className="h-5 w-5" />
               Top Industry Expertise
             </CardTitle>
             <CardDescription>Most common industries</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="space-y-2">
             {businessMetrics.topIndustries.length > 0 ? (
               businessMetrics.topIndustries.map((industry, index) => (
-                <div key={industry.industry} className="flex items-center justify-between p-2 bg-muted/30 rounded">
+                <div 
+                  key={industry.industry} 
+                  className="flex items-center justify-between p-3 bg-gradient-subtle rounded-lg border border-border/50 shadow-sm hover:shadow-md transition-all duration-200"
+                >
                   <div className="flex items-center gap-3">
-                    <div className="flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold">
+                    <div className="flex items-center justify-center w-7 h-7 rounded-full bg-primary/10 text-primary text-xs font-bold shadow-sm">
                       {index + 1}
                     </div>
-                    <span className="text-sm font-medium">{industry.industry}</span>
+                    <span className="text-sm font-semibold">{industry.industry}</span>
                   </div>
-                  <Badge variant="secondary" className="tabular-nums">
+                  <Badge variant="secondary" className="tabular-nums font-bold">
                     {industry.count}
                   </Badge>
                 </div>
               ))
             ) : (
-              <p className="text-sm text-muted-foreground text-center py-4">
+              <p className="text-sm text-muted-foreground text-center py-8">
                 No industry data available
               </p>
             )}
@@ -179,29 +184,29 @@ export function BusinessIntelligenceTab({ users }: BusinessIntelligenceTabProps)
         </Card>
 
         {/* Funding Sources */}
-        <Card>
+        <Card className="border-border/50 shadow-md">
           <CardHeader>
-            <CardTitle className="text-base font-medium flex items-center gap-2">
-              <TrendingUp className="h-4 w-4" />
+            <CardTitle className="text-lg font-semibold flex items-center gap-2">
+              <TrendingUp className="h-5 w-5" />
               Funding Source Breakdown
             </CardTitle>
             <CardDescription>Capital sources by frequency</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="space-y-compact">
             {businessMetrics.topFundingSources.length > 0 ? (
               businessMetrics.topFundingSources.map(source => (
-                <div key={source.source}>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-sm">{source.source}</span>
-                    <Badge variant="secondary" className="tabular-nums">
+                <div key={source.source} className="p-2.5 rounded-lg hover:bg-muted/30 transition-colors">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-semibold">{source.source}</span>
+                    <Badge variant="secondary" className="tabular-nums font-bold">
                       {source.count}
                     </Badge>
                   </div>
-                  <Progress value={source.percentage} className="h-2" />
+                  <Progress value={source.percentage} className="h-2.5" />
                 </div>
               ))
             ) : (
-              <p className="text-sm text-muted-foreground text-center py-4">
+              <p className="text-sm text-muted-foreground text-center py-8">
                 No funding source data
               </p>
             )}

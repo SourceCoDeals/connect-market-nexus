@@ -91,15 +91,15 @@ export function BuyerIntelligence({ users }: BuyerIntelligenceProps) {
   }, [users]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-section">
       {/* Distribution Overview */}
-      <Card>
+      <Card className="border-border/50 shadow-md">
         <CardHeader>
-          <CardTitle className="text-base font-medium">Buyer Type Distribution</CardTitle>
+          <CardTitle className="text-lg font-semibold">Buyer Type Distribution</CardTitle>
           <CardDescription>Market share across buyer segments</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="h-[280px]">
+          <div className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
@@ -108,9 +108,11 @@ export function BuyerIntelligence({ users }: BuyerIntelligenceProps) {
                   cy="50%"
                   labelLine={false}
                   label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                  outerRadius={90}
+                  outerRadius={100}
                   fill="#8884d8"
                   dataKey="value"
+                  stroke="hsl(var(--background))"
+                  strokeWidth={2}
                 >
                   {buyerAnalytics.pieData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />
@@ -121,7 +123,8 @@ export function BuyerIntelligence({ users }: BuyerIntelligenceProps) {
                     backgroundColor: 'hsl(var(--card))',
                     border: '1px solid hsl(var(--border))',
                     borderRadius: '8px',
-                    padding: '12px'
+                    padding: '12px',
+                    boxShadow: 'var(--shadow-lg)'
                   }}
                 />
               </PieChart>
@@ -131,23 +134,32 @@ export function BuyerIntelligence({ users }: BuyerIntelligenceProps) {
       </Card>
 
       {/* Buyer Type Cards */}
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-element md:grid-cols-2">
         {buyerAnalytics.analytics.map((buyer) => {
           const config = BUYER_TYPE_CONFIG[buyer.type];
           const Icon = config.icon;
           
           return (
-            <Card key={buyer.type} className="border-border/50 hover:shadow-md transition-shadow">
-              <CardContent className="p-6">
-                <div className="flex items-start justify-between mb-4">
+            <Card 
+              key={buyer.type} 
+              className="group border-border/50 shadow-sm hover:shadow-lg transition-all duration-300 cursor-pointer"
+            >
+              <CardContent className="p-card">
+                <div className="flex items-start justify-between mb-element">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-muted/50">
-                      <Icon className="h-5 w-5" style={{ color: config.color }} />
+                    <div 
+                      className="p-2.5 rounded-xl shadow-sm transition-all duration-300 group-hover:shadow-md group-hover:scale-110"
+                      style={{ 
+                        backgroundColor: `${config.color}15`,
+                        boxShadow: `0 0 0 1px ${config.color}20`
+                      }}
+                    >
+                      <Icon className="h-5 w-5 transition-transform duration-300" style={{ color: config.color }} />
                     </div>
                     <div>
-                      <h3 className="font-semibold text-base">{config.label}</h3>
-                      <div className="flex items-center gap-2 mt-1">
-                        <Badge variant="secondary" className="tabular-nums">
+                      <h3 className="font-semibold text-base mb-1">{config.label}</h3>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="secondary" className="tabular-nums font-semibold">
                           {buyer.count} users
                         </Badge>
                         <span className="text-xs text-muted-foreground tabular-nums">
@@ -158,26 +170,26 @@ export function BuyerIntelligence({ users }: BuyerIntelligenceProps) {
                   </div>
                 </div>
 
-                <div className="space-y-3">
+                <div className="space-y-compact">
                   <div>
-                    <div className="flex items-center justify-between text-xs mb-1">
-                      <span className="text-muted-foreground">Profile Completion</span>
-                      <span className="font-medium tabular-nums">{buyer.avgCompletion.toFixed(0)}%</span>
+                    <div className="flex items-center justify-between text-xs mb-1.5">
+                      <span className="text-muted-foreground font-medium">Profile Completion</span>
+                      <span className="font-bold tabular-nums">{buyer.avgCompletion.toFixed(0)}%</span>
                     </div>
                     <Progress value={buyer.avgCompletion} className="h-2" />
                   </div>
 
                   <div>
-                    <div className="flex items-center justify-between text-xs mb-1">
-                      <span className="text-muted-foreground">Approval Rate</span>
-                      <span className="font-medium tabular-nums">{buyer.approvalRate.toFixed(0)}%</span>
+                    <div className="flex items-center justify-between text-xs mb-1.5">
+                      <span className="text-muted-foreground font-medium">Approval Rate</span>
+                      <span className="font-bold tabular-nums">{buyer.approvalRate.toFixed(0)}%</span>
                     </div>
                     <Progress value={buyer.approvalRate} className="h-2" />
                   </div>
 
-                  <div className="flex items-center justify-between pt-2 border-t">
-                    <span className="text-xs text-muted-foreground">Approved</span>
-                    <span className="text-sm font-semibold tabular-nums">{buyer.approved} / {buyer.count}</span>
+                  <div className="flex items-center justify-between pt-2 border-t mt-3">
+                    <span className="text-xs text-muted-foreground font-medium">Approved Users</span>
+                    <span className="text-sm font-bold tabular-nums">{buyer.approved} / {buyer.count}</span>
                   </div>
                 </div>
               </CardContent>
@@ -187,27 +199,36 @@ export function BuyerIntelligence({ users }: BuyerIntelligenceProps) {
       </div>
 
       {/* Insights Panel */}
-      <Card className="bg-muted/30 border-border/50">
+      <Card className="bg-gradient-subtle border-border/50 shadow-sm">
         <CardHeader>
-          <CardTitle className="text-sm font-medium flex items-center gap-2">
+          <CardTitle className="text-sm font-semibold flex items-center gap-2">
             <TrendingUp className="h-4 w-4" />
             Buyer Insights
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-2 text-sm">
+        <CardContent className="space-y-2.5 text-sm">
           {buyerAnalytics.mostEngaged && (
-            <p className="text-success">
-              • Most engaged: <span className="font-semibold">{BUYER_TYPE_CONFIG[buyerAnalytics.mostEngaged.type].label}</span> ({buyerAnalytics.mostEngaged.avgCompletion.toFixed(0)}% avg completion)
-            </p>
+            <div className="flex items-start gap-2 p-3 rounded-lg bg-success/5 border border-success/20">
+              <div className="w-1.5 h-1.5 rounded-full bg-success mt-1.5 shrink-0" />
+              <p className="text-success-foreground">
+                Most engaged: <span className="font-semibold">{BUYER_TYPE_CONFIG[buyerAnalytics.mostEngaged.type].label}</span> ({buyerAnalytics.mostEngaged.avgCompletion.toFixed(0)}% avg completion)
+              </p>
+            </div>
           )}
           {buyerAnalytics.needsAttention && buyerAnalytics.needsAttention.avgCompletion < 70 && (
-            <p className="text-warning">
-              • Needs attention: <span className="font-semibold">{BUYER_TYPE_CONFIG[buyerAnalytics.needsAttention.type].label}</span> ({buyerAnalytics.needsAttention.avgCompletion.toFixed(0)}% completion)
-            </p>
+            <div className="flex items-start gap-2 p-3 rounded-lg bg-warning/5 border border-warning/20">
+              <div className="w-1.5 h-1.5 rounded-full bg-warning mt-1.5 shrink-0" />
+              <p className="text-warning-foreground">
+                Needs attention: <span className="font-semibold">{BUYER_TYPE_CONFIG[buyerAnalytics.needsAttention.type].label}</span> ({buyerAnalytics.needsAttention.avgCompletion.toFixed(0)}% completion)
+              </p>
+            </div>
           )}
-          <p>
-            • Growth opportunity: Focus on underrepresented segments to diversify buyer base
-          </p>
+          <div className="flex items-start gap-2 p-3 rounded-lg bg-muted/30">
+            <div className="w-1.5 h-1.5 rounded-full bg-foreground/40 mt-1.5 shrink-0" />
+            <p className="text-foreground/90">
+              Growth opportunity: Focus on underrepresented segments to diversify buyer base
+            </p>
+          </div>
         </CardContent>
       </Card>
     </div>

@@ -81,92 +81,98 @@ export function EngagementAnalytics({ users }: EngagementAnalyticsProps) {
   }, [users]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-section">
       {/* Time-Based Metrics */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card className="border-border/50">
-          <CardContent className="p-4">
+      <div className="grid gap-element md:grid-cols-3">
+        <Card className="group border-border/50 shadow-sm hover:shadow-lg transition-all duration-300">
+          <CardContent className="p-card">
             <div className="flex items-center gap-2 mb-3">
-              <Clock className="h-4 w-4 text-muted-foreground" />
-              <p className="text-xs font-medium text-muted-foreground">Avg Time to Onboard</p>
+              <div className="p-2 rounded-lg bg-muted/50 group-hover:bg-muted transition-colors">
+                <Clock className="h-4 w-4 text-muted-foreground" />
+              </div>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Avg Time to Onboard</p>
             </div>
-            <p className="text-3xl font-bold tabular-nums mb-1">
+            <p className="text-hero-lg font-bold tabular-nums mb-1 tracking-tight">
               {metrics.avgTimeToComplete.toFixed(1)}
             </p>
-            <p className="text-xs text-muted-foreground">days to complete profile</p>
+            <p className="text-xs text-muted-foreground font-medium">days to complete profile</p>
           </CardContent>
         </Card>
 
-        <Card className="border-border/50">
-          <CardContent className="p-4">
+        <Card className="group border-border/50 shadow-sm hover:shadow-lg transition-all duration-300">
+          <CardContent className="p-card">
             <div className="flex items-center gap-2 mb-3">
-              <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
-              <p className="text-xs font-medium text-muted-foreground">Avg Time to Approval</p>
+              <div className="p-2 rounded-lg bg-success/10 group-hover:bg-success/15 transition-colors">
+                <CheckCircle2 className="h-4 w-4 text-success" />
+              </div>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Avg Time to Approval</p>
             </div>
-            <p className="text-3xl font-bold tabular-nums mb-1">
+            <p className="text-hero-lg font-bold tabular-nums mb-1 tracking-tight text-success">
               {metrics.avgTimeToApproval.toFixed(1)}
             </p>
-            <p className="text-xs text-muted-foreground">days from signup</p>
+            <p className="text-xs text-muted-foreground font-medium">days from signup</p>
           </CardContent>
         </Card>
 
-        <Card className="border-border/50">
-          <CardContent className="p-4">
+        <Card className="group border-border/50 shadow-sm hover:shadow-lg transition-all duration-300">
+          <CardContent className="p-card">
             <div className="flex items-center gap-2 mb-3">
-              <Users className="h-4 w-4 text-muted-foreground" />
-              <p className="text-xs font-medium text-muted-foreground">Active Users</p>
+              <div className="p-2 rounded-lg bg-primary/10 group-hover:bg-primary/15 transition-colors">
+                <Users className="h-4 w-4 text-primary" />
+              </div>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Active Users</p>
             </div>
-            <p className="text-3xl font-bold tabular-nums mb-1">
+            <p className="text-hero-lg font-bold tabular-nums mb-1 tracking-tight text-primary">
               {metrics.activeUsers}
             </p>
-            <p className="text-xs text-muted-foreground">active in last 7 days</p>
+            <p className="text-xs text-muted-foreground font-medium">active in last 7 days</p>
           </CardContent>
         </Card>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="grid gap-section md:grid-cols-2">
         {/* Activity Segmentation */}
-        <Card>
+        <Card className="border-border/50 shadow-md">
           <CardHeader>
-            <CardTitle className="text-base font-medium">Activity Segmentation</CardTitle>
+            <CardTitle className="text-lg font-semibold">Activity Segmentation</CardTitle>
             <CardDescription>User engagement breakdown</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
+          <CardContent className="space-y-element">
+            <div className="p-3 rounded-lg bg-success/5 border border-success/20">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-success"></div>
-                  <span className="text-sm">Active (last 7 days)</span>
+                  <div className="w-2.5 h-2.5 rounded-full bg-success shadow-glow"></div>
+                  <span className="text-sm font-semibold">Active (last 7 days)</span>
                 </div>
-                <span className="text-sm font-semibold tabular-nums">
+                <span className="text-sm font-bold tabular-nums">
                   {metrics.activeUsers} ({metrics.activeRate.toFixed(0)}%)
                 </span>
               </div>
-              <Progress value={metrics.activeRate} className="h-2" />
+              <Progress value={metrics.activeRate} className="h-2.5" />
             </div>
 
-            <div>
+            <div className="p-3 rounded-lg bg-muted/30">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-muted"></div>
-                  <span className="text-sm">Inactive (30+ days)</span>
+                  <div className="w-2.5 h-2.5 rounded-full bg-muted-foreground"></div>
+                  <span className="text-sm font-semibold">Inactive (30+ days)</span>
                 </div>
-                <span className="text-sm font-semibold tabular-nums">
+                <span className="text-sm font-bold tabular-nums">
                   {metrics.inactiveUsers} ({metrics.inactiveRate.toFixed(0)}%)
                 </span>
               </div>
-              <Progress value={metrics.inactiveRate} className="h-2" />
+              <Progress value={metrics.inactiveRate} className="h-2.5" />
             </div>
 
-            <div className="pt-4 border-t">
-              <div className="flex items-center justify-between">
+            <div className="pt-4 border-t mt-4">
+              <div className="flex items-center justify-between p-3 rounded-lg bg-destructive/5 border border-destructive/20">
                 <div className="flex items-center gap-2">
                   <AlertTriangle className="h-4 w-4 text-destructive" />
-                  <span className="text-sm font-medium">At-Risk Users</span>
+                  <span className="text-sm font-semibold">At-Risk Users</span>
                 </div>
-                <Badge variant="destructive">{metrics.atRiskUsers.length}</Badge>
+                <Badge variant="destructive" className="font-bold">{metrics.atRiskUsers.length}</Badge>
               </div>
-              <p className="text-xs text-muted-foreground mt-1">
+              <p className="text-xs text-muted-foreground mt-2 ml-1">
                 60+ days inactive, previously engaged
               </p>
             </div>
@@ -174,12 +180,12 @@ export function EngagementAnalytics({ users }: EngagementAnalyticsProps) {
         </Card>
 
         {/* User Lifecycle Funnel */}
-        <Card>
+        <Card className="border-border/50 shadow-md">
           <CardHeader>
-            <CardTitle className="text-base font-medium">User Lifecycle Funnel</CardTitle>
+            <CardTitle className="text-lg font-semibold">User Lifecycle Funnel</CardTitle>
             <CardDescription>Progression through key stages</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="space-y-element">
             {metrics.funnelData.map((stage, index) => {
               const dropoffRate = index > 0 
                 ? metrics.funnelData[index - 1].percentage - stage.percentage 
@@ -188,23 +194,25 @@ export function EngagementAnalytics({ users }: EngagementAnalyticsProps) {
               return (
                 <div key={stage.stage} className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">{stage.stage}</span>
+                    <span className="text-sm font-semibold">{stage.stage}</span>
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-semibold tabular-nums">{stage.count}</span>
-                      <Badge variant="secondary" className="tabular-nums">
+                      <span className="text-base font-bold tabular-nums">{stage.count}</span>
+                      <Badge variant="secondary" className="tabular-nums font-bold">
                         {stage.percentage.toFixed(0)}%
                       </Badge>
                     </div>
                   </div>
                   <div className="relative">
-                    <div className="h-8 bg-muted rounded-md overflow-hidden">
+                    <div className="h-10 bg-muted/50 rounded-lg overflow-hidden border border-border/50 shadow-sm">
                       <div 
-                        className="h-full bg-primary transition-all"
+                        className="h-full bg-gradient-primary transition-all duration-500 shadow-glow relative overflow-hidden"
                         style={{ width: `${stage.percentage}%` }}
-                      />
+                      >
+                        <div className="absolute inset-0 bg-gradient-shine animate-shimmer" />
+                      </div>
                     </div>
                     {dropoffRate > 15 && (
-                      <div className="flex items-center gap-1 mt-1 text-xs text-destructive">
+                      <div className="flex items-center gap-1 mt-2 text-xs text-destructive font-semibold p-2 rounded bg-destructive/5">
                         <TrendingDown className="h-3 w-3" />
                         <span>High drop-off: {dropoffRate.toFixed(0)}%</span>
                       </div>
@@ -219,22 +227,26 @@ export function EngagementAnalytics({ users }: EngagementAnalyticsProps) {
 
       {/* At-Risk Users Details */}
       {metrics.atRiskUsers.length > 0 && (
-        <Card className="border-destructive/30 bg-destructive/5">
+        <Card className="border-destructive/30 bg-destructive/5 shadow-lg">
           <CardHeader>
-            <CardTitle className="text-sm font-medium flex items-center gap-2 text-destructive">
-              <AlertTriangle className="h-4 w-4" />
+            <CardTitle className="text-base font-semibold flex items-center gap-2 text-destructive">
+              <AlertTriangle className="h-5 w-5" />
               At-Risk Users Requiring Attention
             </CardTitle>
+            <CardDescription>Approved users inactive for 60+ days</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-2 max-h-64 overflow-y-auto">
+            <div className="space-y-2 max-h-72 overflow-y-auto">
               {metrics.atRiskUsers.slice(0, 10).map(user => (
-                <div key={user.id} className="flex items-center justify-between p-2 bg-card rounded border border-border/50">
+                <div 
+                  key={user.id} 
+                  className="flex items-center justify-between p-3 bg-card rounded-lg border border-border/50 shadow-sm hover:shadow-md transition-all duration-200"
+                >
                   <div>
-                    <p className="text-sm font-medium">{user.first_name} {user.last_name}</p>
+                    <p className="text-sm font-semibold">{user.first_name} {user.last_name}</p>
                     <p className="text-xs text-muted-foreground">{user.email}</p>
                   </div>
-                  <Badge variant="outline">
+                  <Badge variant="outline" className="font-bold tabular-nums">
                     {Math.floor((new Date().getTime() - new Date(user.updated_at).getTime()) / (1000 * 60 * 60 * 24))} days
                   </Badge>
                 </div>

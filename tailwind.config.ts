@@ -127,9 +127,6 @@ export default {
 				sans: ['Inter', 'system-ui', 'sans-serif'],
 				mono: ['Monaco', 'Consolas', 'monospace'],
 			},
-			fontFeatureSettings: {
-				'tabular': '"tnum"',
-			},
 			keyframes: {
 				'accordion-down': {
 					from: {
