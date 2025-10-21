@@ -272,10 +272,10 @@ export function EnhancedUserManagement({
       <TabsContent value="overview" className="space-y-8 mt-8">
         <UserOverviewTab
           users={users}
-          totalUsers={analytics.totalUsers}
-          pendingCount={analytics.pendingCount}
-          approvedCount={analytics.approvedCount}
-          rejectedCount={analytics.rejectedCount}
+          totalUsers={analytics.total}
+          pendingCount={analytics.pending}
+          approvedCount={analytics.approved}
+          rejectedCount={analytics.rejected}
         />
         {/* Analytics Overview - Clean stat cards with generous spacing */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -426,11 +426,6 @@ export function EnhancedUserManagement({
 
       <TabsContent value="analytics" className="space-y-8 mt-8">
         <AnalyticsTab users={users} />
-      </TabsContent>
-    </Tabs>
-  );
-}
-        </Card>
       </TabsContent>
     </Tabs>
   );
