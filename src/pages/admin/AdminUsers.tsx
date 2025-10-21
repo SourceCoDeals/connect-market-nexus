@@ -23,8 +23,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 
 const AdminUsers = () => {
-  const [isEdgeToolsOpen, setIsEdgeToolsOpen] = useState(false);
-  const [pendingScrollId, setPendingScrollId] = useState<string | null>(null);
+  const [activeToolsTab, setActiveToolsTab] = useState('overview');
   const { users } = useAdmin();
   const { data: usersData = [], isLoading, error, refetch } = users;
   const { toast } = useToast();
@@ -36,49 +35,6 @@ const AdminUsers = () => {
   useEffect(() => {
     setFilteredUsers(usersData);
   }, [usersData]);
-
-  // Smooth scroll helper
-  const scrollToId = (id: string) => {
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  };
-
-  // Open section and trigger scroll
-  const openAndScrollTo = (id: string) => {
-    setIsEdgeToolsOpen(true);
-    setPendingScrollId(id);
-  };
-
-  // Handle scroll after section opens
-  useEffect(() => {
-    if (isEdgeToolsOpen && pendingScrollId) {
-      // Determine if we need to scroll to wrapper first
-      const firstTarget = ['data-recovery', 'form-monitoring'].includes(pendingScrollId) 
-        ? 'edge-tools' 
-        : pendingScrollId;
-      
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          scrollToId(firstTarget);
-          if (pendingScrollId !== firstTarget) {
-            requestAnimationFrame(() => scrollToId(pendingScrollId));
-          }
-          setPendingScrollId(null);
-        });
-      });
-    }
-  }, [isEdgeToolsOpen, pendingScrollId]);
-  // Open tools based on URL hash on mount (supports cross-page navigation)
-  useEffect(() => {
-    const hash = window.location.hash.replace('#', '');
-    if (!hash) return;
-    const known = ['edge-tools', 'data-recovery', 'form-monitoring'];
-    if (known.includes(hash)) {
-      setIsEdgeToolsOpen(true);
-      setPendingScrollId(hash);
-    }
-  }, []);
 
   const {
     handleUserApproval,
@@ -156,7 +112,7 @@ const AdminUsers = () => {
               </p>
             </div>
             
-            {/* Top right actions */}
+            {/* Top right actions - Tools dropdown */}
             <div className="flex items-center gap-2">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -165,16 +121,16 @@ const AdminUsers = () => {
                     <span className="hidden sm:inline">Tools</span>
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuItem onSelect={() => openAndScrollTo('data-recovery')}>
+                <DropdownMenuContent align="end" className="w-56 bg-background z-50">
+                  <DropdownMenuItem onSelect={() => setActiveToolsTab('data-recovery')}>
                     Data Recovery Dashboard
                   </DropdownMenuItem>
-                  <DropdownMenuItem onSelect={() => openAndScrollTo('form-monitoring')}>
+                  <DropdownMenuItem onSelect={() => setActiveToolsTab('form-monitoring')}>
                     Form Validation Monitor
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onSelect={() => openAndScrollTo('edge-tools')}>
-                    Edge Case Tools
+                  <DropdownMenuItem onSelect={() => setActiveToolsTab('analytics')}>
+                    Analytics
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -189,13 +145,6 @@ const AdminUsers = () => {
                 className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-0 pb-2 pt-0 font-medium text-sm data-[state=active]:text-foreground text-muted-foreground hover:text-foreground transition-colors"
               >
                 Users
-              </TabsTrigger>
-              <TabsTrigger 
-                value="tools"
-                className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-0 pb-2 pt-0 font-medium text-sm data-[state=active]:text-foreground text-muted-foreground hover:text-foreground transition-colors"
-                onClick={() => openAndScrollTo('edge-tools')}
-              >
-                Tools
               </TabsTrigger>
               <TabsTrigger 
                 value="firms"
@@ -222,6 +171,8 @@ const AdminUsers = () => {
           onDelete={deleteUser}
           isLoading={isLoading}
           onFilteredUsersChange={setFilteredUsers}
+          activeTab={activeToolsTab}
+          onTabChange={setActiveToolsTab}
         />
 
         {/* Users Table */}
@@ -258,32 +209,6 @@ const AdminUsers = () => {
         <AdminDialog />
         <RevokeAdminDialog />
         <DeleteDialog />
-
-        {/* Edge Case Tools - Collapsible section */}
-        <div id="edge-tools" className="mt-12 pt-8 border-t scroll-mt-24 md:scroll-mt-28">
-          <details open={isEdgeToolsOpen} className="group">
-            <summary 
-              className="flex items-center justify-between cursor-pointer text-sm font-medium text-muted-foreground hover:text-foreground transition-colors py-3"
-              onClick={(e) => {
-                e.preventDefault();
-                setIsEdgeToolsOpen(!isEdgeToolsOpen);
-              }}
-            >
-              <span>🔧 Advanced Tools & Data Recovery</span>
-              <span className="group-open:rotate-180 transition-transform">▼</span>
-            </summary>
-            <div className="mt-6 space-y-6">
-              <div id="data-recovery" className="scroll-mt-24 md:scroll-mt-28">
-                <AutomatedDataRestoration />
-              </div>
-              <BulkVerificationEmailSender />
-              <div id="form-monitoring" className="scroll-mt-24 md:scroll-mt-28">
-                <ProfileDataInspector />
-              </div>
-              <ProfileDataRecovery />
-            </div>
-          </details>
-        </div>
       </div>
     </div>
   );
