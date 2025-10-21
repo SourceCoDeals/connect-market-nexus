@@ -21,7 +21,6 @@ export function UserOverviewTab({
   approvedCount,
   rejectedCount 
 }: UserOverviewTabProps) {
-  const [activePreset, setActivePreset] = useState<string | null>(null);
 
   // Calculate trends (real data based on last week)
   const analytics = useMemo(() => {
@@ -173,89 +172,6 @@ export function UserOverviewTab({
   return (
     <div className="space-y-8">
       <HeroStatsSection stats={stats} />
-
-      {/* Quick Actions Panel */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Quick Actions</CardTitle>
-          <CardDescription>
-            Common tasks and recent activity
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {/* Action Items */}
-          {actionItems.length > 0 && (
-            <div className="space-y-3">
-              <p className="text-sm font-medium text-muted-foreground">Action Items</p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {actionItems.map((item) => (
-                  <div 
-                    key={item.label}
-                    className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
-                  >
-                    <div>
-                      <p className="font-medium">{item.label}</p>
-                      <p className="text-sm text-muted-foreground">{item.count} item{item.count !== 1 ? 's' : ''}</p>
-                    </div>
-                    <Button size="sm" variant={item.variant === 'secondary' ? 'default' : 'outline'}>
-                      {item.action}
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Quick Access Buttons */}
-          <div className="space-y-3">
-            <p className="text-sm font-medium text-muted-foreground">Quick Access</p>
-            <div className="flex flex-wrap gap-2">
-              <Button variant="outline" size="sm" className="gap-2">
-                <Download className="h-4 w-4" />
-                Export All Data
-              </Button>
-              <Button variant="outline" size="sm" className="gap-2">
-                <Mail className="h-4 w-4" />
-                Send Bulk Email
-              </Button>
-              <Button variant="outline" size="sm" className="gap-2">
-                <CheckCircle2 className="h-4 w-4" />
-                Approve All Pending
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Smart Filter Presets */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Saved Filters</CardTitle>
-          <CardDescription>
-            Quick access to commonly used filter combinations
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {filterPresets.map((preset) => (
-              <button
-                key={preset.id}
-                onClick={() => setActivePreset(preset.id === activePreset ? null : preset.id)}
-                className={`text-left p-4 border rounded-lg hover:shadow-md transition-all ${
-                  activePreset === preset.id ? 'ring-2 ring-primary bg-primary/5' : ''
-                }`}
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <Badge variant={preset.variant}>{preset.count}</Badge>
-                  <Filter className="h-4 w-4 text-muted-foreground" />
-                </div>
-                <p className="font-semibold mb-1">{preset.label}</p>
-                <p className="text-sm text-muted-foreground">{preset.description}</p>
-              </button>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }
