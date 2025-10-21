@@ -9,18 +9,29 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 
 export default function FirmAgreements() {
   const [isTestingOpen, setIsTestingOpen] = React.useState(false);
+  const [pendingScrollId, setPendingScrollId] = React.useState<string | null>(null);
+
+  const scrollToId = (id: string) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
 
   const openAndScrollTo = (id: string) => {
     setIsTestingOpen(true);
-    setTimeout(() => {
-      const el = document.getElementById(id);
-      if (el) {
-        const headerOffset = 88;
-        const y = el.getBoundingClientRect().top + window.scrollY - headerOffset;
-        window.scrollTo({ top: y, behavior: 'smooth' });
-      }
-    }, 160);
+    setPendingScrollId(id);
   };
+
+  React.useEffect(() => {
+    if (isTestingOpen && pendingScrollId) {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          scrollToId(pendingScrollId);
+          setPendingScrollId(null);
+        });
+      });
+    }
+  }, [isTestingOpen, pendingScrollId]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -45,7 +56,7 @@ export default function FirmAgreements() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuItem onClick={() => openAndScrollTo('system-testing')}>
+                  <DropdownMenuItem onSelect={() => openAndScrollTo('system-testing')}>
                     System Testing Panel
                   </DropdownMenuItem>
                 </DropdownMenuContent>
@@ -82,7 +93,7 @@ export default function FirmAgreements() {
         <FirmAgreementsTable />
 
         {/* System Testing - Collapsible section */}
-        <div id="system-testing" className="mt-12 pt-8 border-t">
+        <div id="system-testing" className="mt-12 pt-8 border-t scroll-mt-24 md:scroll-mt-28">
           <details open={isTestingOpen} className="group">
             <summary 
               className="flex items-center justify-between cursor-pointer text-sm font-medium text-muted-foreground hover:text-foreground transition-colors py-3"

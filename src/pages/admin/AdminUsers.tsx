@@ -24,6 +24,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const AdminUsers = () => {
   const [isEdgeToolsOpen, setIsEdgeToolsOpen] = useState(false);
+  const [pendingScrollId, setPendingScrollId] = useState<string | null>(null);
   const { users } = useAdmin();
   const { data: usersData = [], isLoading, error, refetch } = users;
   const { toast } = useToast();
@@ -36,19 +37,38 @@ const AdminUsers = () => {
     setFilteredUsers(usersData);
   }, [usersData]);
 
-  // Smooth open + scroll helper with sticky-header offset
+  // Smooth scroll helper
+  const scrollToId = (id: string) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  // Open section and trigger scroll
   const openAndScrollTo = (id: string) => {
     setIsEdgeToolsOpen(true);
-    // allow details to open, then scroll with offset for sticky header
-    setTimeout(() => {
-      const el = document.getElementById(id);
-      if (el) {
-        const headerOffset = 88; // ~56-96px depending on viewport
-        const y = el.getBoundingClientRect().top + window.scrollY - headerOffset;
-        window.scrollTo({ top: y, behavior: 'smooth' });
-      }
-    }, 160);
+    setPendingScrollId(id);
   };
+
+  // Handle scroll after section opens
+  useEffect(() => {
+    if (isEdgeToolsOpen && pendingScrollId) {
+      // Determine if we need to scroll to wrapper first
+      const firstTarget = ['data-recovery', 'form-monitoring'].includes(pendingScrollId) 
+        ? 'edge-tools' 
+        : pendingScrollId;
+      
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          scrollToId(firstTarget);
+          if (pendingScrollId !== firstTarget) {
+            requestAnimationFrame(() => scrollToId(pendingScrollId));
+          }
+          setPendingScrollId(null);
+        });
+      });
+    }
+  }, [isEdgeToolsOpen, pendingScrollId]);
   const {
     handleUserApproval,
     handleMakeAdmin,
@@ -135,14 +155,14 @@ const AdminUsers = () => {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuItem onClick={() => openAndScrollTo('data-recovery')}>
+                  <DropdownMenuItem onSelect={() => openAndScrollTo('data-recovery')}>
                     Data Recovery Dashboard
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => openAndScrollTo('form-monitoring')}>
+                  <DropdownMenuItem onSelect={() => openAndScrollTo('form-monitoring')}>
                     Form Validation Monitor
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => openAndScrollTo('edge-tools')}>
+                  <DropdownMenuItem onSelect={() => openAndScrollTo('edge-tools')}>
                     Edge Case Tools
                   </DropdownMenuItem>
                 </DropdownMenuContent>
@@ -222,7 +242,7 @@ const AdminUsers = () => {
         <DeleteDialog />
 
         {/* Edge Case Tools - Collapsible section */}
-        <div id="edge-tools" className="mt-12 pt-8 border-t">
+        <div id="edge-tools" className="mt-12 pt-8 border-t scroll-mt-24 md:scroll-mt-28">
           <details open={isEdgeToolsOpen} className="group">
             <summary 
               className="flex items-center justify-between cursor-pointer text-sm font-medium text-muted-foreground hover:text-foreground transition-colors py-3"
@@ -234,10 +254,12 @@ const AdminUsers = () => {
               <span>🔧 Advanced Tools & Data Recovery</span>
               <span className="group-open:rotate-180 transition-transform">▼</span>
             </summary>
-            <div className="mt-6 space-y-6" id="data-recovery">
-              <AutomatedDataRestoration />
+            <div className="mt-6 space-y-6">
+              <div id="data-recovery" className="scroll-mt-24 md:scroll-mt-28">
+                <AutomatedDataRestoration />
+              </div>
               <BulkVerificationEmailSender />
-              <div id="form-monitoring">
+              <div id="form-monitoring" className="scroll-mt-24 md:scroll-mt-28">
                 <ProfileDataInspector />
               </div>
               <ProfileDataRecovery />
