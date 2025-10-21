@@ -5,13 +5,9 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { User } from '@/types';
-import { Search, Filter, Download, Users, UserCheck, AlertCircle, Database, Activity } from 'lucide-react';
+import { Search, Download, UserCheck } from 'lucide-react';
 import { UserOverviewTab } from './user-overview/UserOverviewTab';
-import { DataRecoveryTab } from './data-recovery/DataRecoveryTab';
-import { FormMonitoringTab } from './form-monitoring/FormMonitoringTab';
-import { AnalyticsTab } from './analytics/AnalyticsTab';
 import { formatFieldValueForExport } from '@/lib/field-formatting';
 
 interface EnhancedUserManagementProps {
@@ -22,8 +18,6 @@ interface EnhancedUserManagementProps {
   onDelete: (user: User) => void;
   isLoading: boolean;
   onFilteredUsersChange?: (filteredUsers: User[]) => void;
-  activeTab?: string;
-  onTabChange?: (tab: string) => void;
 }
 
 export function EnhancedUserManagement({
@@ -33,9 +27,7 @@ export function EnhancedUserManagement({
   onRevokeAdmin,
   onDelete,
   isLoading,
-  onFilteredUsersChange,
-  activeTab = 'overview',
-  onTabChange
+  onFilteredUsersChange
 }: EnhancedUserManagementProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -253,150 +245,121 @@ export function EnhancedUserManagement({
   };
 
   return (
-    <Tabs value={activeTab} onValueChange={onTabChange} className="space-y-8">
-      <TabsList className="h-auto p-1 bg-muted/50 rounded-lg inline-flex gap-1">
-        <TabsTrigger value="overview" className="data-[state=active]:bg-background">
-          User Overview
-        </TabsTrigger>
-        <TabsTrigger value="data-recovery" className="data-[state=active]:bg-background">
-          Data Recovery
-        </TabsTrigger>
-        <TabsTrigger value="form-monitoring" className="data-[state=active]:bg-background">
-          Form Monitoring
-        </TabsTrigger>
-        <TabsTrigger value="analytics" className="data-[state=active]:bg-background">
-          Analytics
-        </TabsTrigger>
-      </TabsList>
+    <div className="space-y-6">
+      <UserOverviewTab
+        users={users}
+        totalUsers={analytics.total}
+        pendingCount={analytics.pending}
+        approvedCount={analytics.approved}
+        rejectedCount={analytics.rejected}
+      />
 
-      <TabsContent value="overview" className="space-y-8 mt-8">
-        <UserOverviewTab
-          users={users}
-          totalUsers={analytics.total}
-          pendingCount={analytics.pending}
-          approvedCount={analytics.approved}
-          rejectedCount={analytics.rejected}
-        />
-
-        {/* Filters Section - Inline, no card wrapper for cleaner look */}
-        <div className="space-y-6 pb-6 border-b">
-          <div className="flex items-center justify-between">
-            <h2 className="text-base font-semibold">Filters</h2>
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={exportData}
-              disabled={filteredUsers.length === 0}
-              className="gap-2 h-9"
-            >
-              <Download className="h-4 w-4" />
-              <span className="hidden sm:inline">Export CSV</span>
-            </Button>
-          </div>
-          
-          <div className="space-y-5">
-              {/* Search and Filters */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-                <div className="lg:col-span-2">
-                  <Label htmlFor="search">Search Users</Label>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="search"
-                      placeholder="Search by name, email, or company..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pl-10"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <Label>Status</Label>
-                  <Select value={statusFilter} onValueChange={setStatusFilter}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Status</SelectItem>
-                      <SelectItem value="pending">Pending</SelectItem>
-                      <SelectItem value="approved">Approved</SelectItem>
-                      <SelectItem value="rejected">Rejected</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <Label>Buyer Type</Label>
-                  <Select value={buyerTypeFilter} onValueChange={setBuyerTypeFilter}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select buyer type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Types</SelectItem>
-                      <SelectItem value="corporate">Corporate</SelectItem>
-                      <SelectItem value="privateEquity">Private Equity</SelectItem>
-                      <SelectItem value="familyOffice">Family Office</SelectItem>
-                      <SelectItem value="searchFund">Search Fund</SelectItem>
-                      <SelectItem value="individual">Individual</SelectItem>
-                      <SelectItem value="independentSponsor">Independent Sponsor</SelectItem>
-                      <SelectItem value="advisor">Advisor / Banker</SelectItem>
-                      <SelectItem value="businessOwner">Business Owner</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-medium text-muted-foreground">Profile Completion</Label>
-                  <Select value={profileCompletionFilter} onValueChange={setProfileCompletionFilter}>
-                    <SelectTrigger className="h-10">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Profiles</SelectItem>
-                      <SelectItem value="complete">Complete (80%+)</SelectItem>
-                      <SelectItem value="incomplete">&lt;80%</SelectItem>
-                    </SelectContent>
-                  </Select>
+      {/* Filters Section - Inline, no card wrapper for cleaner look */}
+      <div className="space-y-6 pb-6 border-b">
+        <div className="flex items-center justify-between">
+          <h2 className="text-base font-semibold">Filters</h2>
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={exportData}
+            disabled={filteredUsers.length === 0}
+            className="gap-2 h-9"
+          >
+            <Download className="h-4 w-4" />
+            <span className="hidden sm:inline">Export CSV</span>
+          </Button>
+        </div>
+        
+        <div className="space-y-5">
+            {/* Search and Filters */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+              <div className="lg:col-span-2">
+                <Label htmlFor="search">Search Users</Label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="search"
+                    placeholder="Search by name, email, or company..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10"
+                  />
                 </div>
               </div>
 
-              {/* Results count - Stripe style */}
-              <div className="flex items-center justify-between text-sm pt-2 border-t">
-                <p className="text-muted-foreground">
-                  Showing <span className="font-medium text-foreground">{filteredUsers.length}</span> of <span className="font-medium text-foreground">{analytics.total}</span> users
-                </p>
+              <div>
+                <Label>Status</Label>
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="approved">Approved</SelectItem>
+                    <SelectItem value="rejected">Rejected</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label>Buyer Type</Label>
+                <Select value={buyerTypeFilter} onValueChange={setBuyerTypeFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select buyer type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Types</SelectItem>
+                    <SelectItem value="corporate">Corporate</SelectItem>
+                    <SelectItem value="privateEquity">Private Equity</SelectItem>
+                    <SelectItem value="familyOffice">Family Office</SelectItem>
+                    <SelectItem value="searchFund">Search Fund</SelectItem>
+                    <SelectItem value="individual">Individual</SelectItem>
+                    <SelectItem value="independentSponsor">Independent Sponsor</SelectItem>
+                    <SelectItem value="advisor">Advisor / Banker</SelectItem>
+                    <SelectItem value="businessOwner">Business Owner</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-muted-foreground">Profile Completion</Label>
+                <Select value={profileCompletionFilter} onValueChange={setProfileCompletionFilter}>
+                  <SelectTrigger className="h-10">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Profiles</SelectItem>
+                    <SelectItem value="complete">Complete (80%+)</SelectItem>
+                    <SelectItem value="incomplete">&lt;80%</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
-          </div>
 
-          {/* Bulk Actions */}
-          {selectedUsers.length > 0 && (
-            <div className="flex items-center gap-3 p-4 bg-accent/50 rounded-lg border">
-              <span className="text-sm font-medium">
-                {selectedUsers.length} user{selectedUsers.length === 1 ? '' : 's'} selected
-              </span>
-              <div className="flex gap-2 ml-auto">
-                <Button size="sm" onClick={handleBulkApprove} variant="default" className="h-9">
-                  <UserCheck className="h-4 w-4 mr-2" />
-                  Approve Selected
-                </Button>
-              </div>
+            {/* Results count - Stripe style */}
+            <div className="flex items-center justify-between text-sm pt-2 border-t">
+              <p className="text-muted-foreground">
+                Showing <span className="font-medium text-foreground">{filteredUsers.length}</span> of <span className="font-medium text-foreground">{analytics.total}</span> users
+              </p>
             </div>
-          )}
-      </TabsContent>
+          </div>
+        </div>
 
-      <TabsContent value="data-recovery" className="space-y-8 mt-8">
-        <DataRecoveryTab users={users} />
-      </TabsContent>
-
-      <TabsContent value="form-monitoring" className="space-y-8 mt-8">
-        <FormMonitoringTab />
-      </TabsContent>
-
-      <TabsContent value="analytics" className="space-y-8 mt-8">
-        <AnalyticsTab users={users} />
-      </TabsContent>
-    </Tabs>
+        {/* Bulk Actions */}
+        {selectedUsers.length > 0 && (
+          <div className="flex items-center gap-3 p-4 bg-accent/50 rounded-lg border">
+            <span className="text-sm font-medium">
+              {selectedUsers.length} user{selectedUsers.length === 1 ? '' : 's'} selected
+            </span>
+            <div className="flex gap-2 ml-auto">
+              <Button size="sm" onClick={handleBulkApprove} variant="default" className="h-9">
+                <UserCheck className="h-4 w-4 mr-2" />
+                Approve Selected
+              </Button>
+            </div>
+          </div>
+        )}
+    </div>
   );
 }

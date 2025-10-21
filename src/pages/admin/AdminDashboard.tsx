@@ -12,8 +12,14 @@ import { PredictiveIntelligenceTab } from "@/components/admin/PredictiveIntellig
 import { AutomatedIntelligenceTab } from "@/components/admin/AutomatedIntelligenceTab";
 import { RevenueOptimizationTab } from "@/components/admin/RevenueOptimizationTab";
 import { ProjectManagementTab } from "@/components/admin/ProjectManagementTab";
+import { DataRecoveryTab } from "@/components/admin/data-recovery/DataRecoveryTab";
+import { FormMonitoringTab } from "@/components/admin/form-monitoring/FormMonitoringTab";
+import { AnalyticsTab } from "@/components/admin/analytics/AnalyticsTab";
+import { useAdmin } from "@/hooks/use-admin";
 
 const AdminDashboard = () => {
+  const { users } = useAdmin();
+  const { data: usersData = [] } = users;
   return (
     <ErrorBoundary
       onError={(error, errorInfo) => {
@@ -27,7 +33,7 @@ const AdminDashboard = () => {
         </div>
 
         <Tabs defaultValue="overview" className="space-y-4 md:space-y-6">
-          <TabsList className="grid w-full grid-cols-3 lg:grid-cols-10 text-xs">
+          <TabsList className="grid w-full grid-cols-3 lg:grid-cols-13 text-xs">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="analytics">Analytics</TabsTrigger>
             <TabsTrigger value="activity">Activity</TabsTrigger>
@@ -38,6 +44,9 @@ const AdminDashboard = () => {
             <TabsTrigger value="revenue">Revenue</TabsTrigger>
             <TabsTrigger value="management">Management</TabsTrigger>
             <TabsTrigger value="project">Project Mgmt</TabsTrigger>
+            <TabsTrigger value="data-recovery">Data Recovery</TabsTrigger>
+            <TabsTrigger value="form-monitoring">Form Monitoring</TabsTrigger>
+            <TabsTrigger value="user-analytics">User Analytics</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview">
@@ -78,6 +87,18 @@ const AdminDashboard = () => {
 
           <TabsContent value="project">
             <ProjectManagementTab />
+          </TabsContent>
+
+          <TabsContent value="data-recovery">
+            <DataRecoveryTab users={usersData} />
+          </TabsContent>
+
+          <TabsContent value="form-monitoring">
+            <FormMonitoringTab />
+          </TabsContent>
+
+          <TabsContent value="user-analytics">
+            <AnalyticsTab users={usersData} />
           </TabsContent>
         </Tabs>
       </div>

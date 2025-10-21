@@ -23,7 +23,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 
 const AdminUsers = () => {
-  const [activeToolsTab, setActiveToolsTab] = useState('overview');
   const { users } = useAdmin();
   const { data: usersData = [], isLoading, error, refetch } = users;
   const { toast } = useToast();
@@ -148,8 +147,6 @@ const AdminUsers = () => {
           onDelete={deleteUser}
           isLoading={isLoading}
           onFilteredUsersChange={setFilteredUsers}
-          activeTab={activeToolsTab}
-          onTabChange={setActiveToolsTab}
         />
 
         {/* Users Table */}
