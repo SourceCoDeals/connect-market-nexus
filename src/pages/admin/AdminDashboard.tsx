@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Search, RefreshCw, Settings, LayoutGrid, Activity, TrendingUp, Users, ShoppingBag, Database, Workflow, Bell, HelpCircle } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { StreamlinedOverviewTab } from "@/components/admin/StreamlinedOverviewTab";
+import { StripeOverviewTab } from "@/components/admin/StripeOverviewTab";
 import { StripeAnalyticsTab } from "@/components/admin/analytics/StripeAnalyticsTab";
 import { StreamlinedManagementTab } from "@/components/admin/StreamlinedManagementTab";
 import { RecentActivityTab } from "@/components/admin/RecentActivityTab";
@@ -45,32 +45,31 @@ const AdminDashboard = () => {
       }}
     >
       <div className="min-h-screen bg-background">
-        {/* Header Section */}
-        <div className="border-b bg-card/50 backdrop-blur-sm">
-          <div className="px-6 py-6">
-            {/* Title and Utility Bar */}
-            <div className="flex flex-col gap-6">
-              {/* Title */}
-              <div className="flex items-start justify-between">
-                <div className="space-y-1">
-                  <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-                    Admin Dashboard
+        {/* Stripe-inspired Header */}
+        <div className="border-b border-border/50 bg-background sticky top-0 z-10">
+          <div className="px-8 py-5">
+            <div className="flex flex-col gap-5">
+              {/* Title Row */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <h1 className="text-xl font-semibold tracking-tight">
+                    Dashboard
                   </h1>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-sm text-muted-foreground/70 mt-0.5">
                     Manage and monitor your marketplace
                   </p>
                 </div>
                 
-                {/* Quick Actions */}
-                <div className="flex items-center gap-2">
+                {/* Quick Actions - Minimal */}
+                <div className="flex items-center gap-1.5">
                   <Button 
                     variant="ghost" 
                     size="icon"
                     onClick={handleRefresh}
-                    className="h-9 w-9"
-                    title="Refresh dashboard"
+                    className="h-8 w-8 hover:bg-muted/50"
+                    title="Refresh"
                   >
-                    <RefreshCw className="h-4 w-4" />
+                    <RefreshCw className="h-3.5 w-3.5" />
                   </Button>
                   
                   <DropdownMenu>
@@ -78,9 +77,9 @@ const AdminDashboard = () => {
                       <Button 
                         variant="ghost" 
                         size="icon"
-                        className="h-9 w-9"
+                        className="h-8 w-8 hover:bg-muted/50"
                       >
-                        <Bell className="h-4 w-4" />
+                        <Bell className="h-3.5 w-3.5" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-80">
@@ -102,9 +101,9 @@ const AdminDashboard = () => {
                       <Button 
                         variant="ghost" 
                         size="icon"
-                        className="h-9 w-9"
+                        className="h-8 w-8 hover:bg-muted/50"
                       >
-                        <Settings className="h-4 w-4" />
+                        <Settings className="h-3.5 w-3.5" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-56">
@@ -132,85 +131,74 @@ const AdminDashboard = () => {
                 </div>
               </div>
 
-              {/* Search Bar */}
-              <div className="max-w-md">
+              {/* Search Bar - Stripe minimal */}
+              <div className="max-w-sm">
                 <div className="relative">
-                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/50" />
                   <Input
-                    placeholder="Search dashboard..."
+                    placeholder="Search..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-9 h-9 bg-background border-border/50 focus-visible:ring-1"
+                    className="pl-9 h-9 text-sm bg-background border-border/50 focus-visible:ring-1 focus-visible:ring-ring/20"
                   />
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Navigation Tabs */}
+          {/* Stripe-style Tabs */}
           <Tabs defaultValue="overview" className="w-full">
-            <div className="px-6 border-b">
-              <TabsList className="inline-flex h-10 items-center justify-start rounded-none border-b-0 bg-transparent p-0 gap-8">
+            <div className="px-8">
+              <TabsList className="inline-flex h-11 items-center justify-start rounded-none border-b-0 bg-transparent p-0 gap-6">
                 <TabsTrigger 
                   value="overview"
-                  className="relative rounded-none border-b-2 border-b-transparent bg-transparent px-0 pb-3.5 pt-0 text-sm font-medium text-muted-foreground shadow-none transition-colors hover:text-foreground data-[state=active]:border-b-primary data-[state=active]:text-foreground data-[state=active]:shadow-none"
+                  className="relative rounded-none border-b-2 border-b-transparent bg-transparent px-0 pb-3 pt-0 text-[13px] font-medium text-muted-foreground/70 shadow-none transition-all hover:text-foreground data-[state=active]:border-b-foreground data-[state=active]:text-foreground data-[state=active]:shadow-none"
                 >
-                  <LayoutGrid className="h-3.5 w-3.5 mr-1.5" />
                   Overview
                 </TabsTrigger>
                 <TabsTrigger 
                   value="analytics"
-                  className="relative rounded-none border-b-2 border-b-transparent bg-transparent px-0 pb-3.5 pt-0 text-sm font-medium text-muted-foreground shadow-none transition-colors hover:text-foreground data-[state=active]:border-b-primary data-[state=active]:text-foreground data-[state=active]:shadow-none"
+                  className="relative rounded-none border-b-2 border-b-transparent bg-transparent px-0 pb-3 pt-0 text-[13px] font-medium text-muted-foreground/70 shadow-none transition-all hover:text-foreground data-[state=active]:border-b-foreground data-[state=active]:text-foreground data-[state=active]:shadow-none"
                 >
-                  <TrendingUp className="h-3.5 w-3.5 mr-1.5" />
                   Analytics
                 </TabsTrigger>
                 <TabsTrigger 
                   value="listings"
-                  className="relative rounded-none border-b-2 border-b-transparent bg-transparent px-0 pb-3.5 pt-0 text-sm font-medium text-muted-foreground shadow-none transition-colors hover:text-foreground data-[state=active]:border-b-primary data-[state=active]:text-foreground data-[state=active]:shadow-none"
+                  className="relative rounded-none border-b-2 border-b-transparent bg-transparent px-0 pb-3 pt-0 text-[13px] font-medium text-muted-foreground/70 shadow-none transition-all hover:text-foreground data-[state=active]:border-b-foreground data-[state=active]:text-foreground data-[state=active]:shadow-none"
                 >
-                  <ShoppingBag className="h-3.5 w-3.5 mr-1.5" />
                   Listings
                 </TabsTrigger>
                 <TabsTrigger 
                   value="management"
-                  className="relative rounded-none border-b-2 border-b-transparent bg-transparent px-0 pb-3.5 pt-0 text-sm font-medium text-muted-foreground shadow-none transition-colors hover:text-foreground data-[state=active]:border-b-primary data-[state=active]:text-foreground data-[state=active]:shadow-none"
+                  className="relative rounded-none border-b-2 border-b-transparent bg-transparent px-0 pb-3 pt-0 text-[13px] font-medium text-muted-foreground/70 shadow-none transition-all hover:text-foreground data-[state=active]:border-b-foreground data-[state=active]:text-foreground data-[state=active]:shadow-none"
                 >
-                  <Users className="h-3.5 w-3.5 mr-1.5" />
                   Users
                 </TabsTrigger>
-                
-                {/* Separator */}
-                <div className="h-5 w-px bg-border/50 self-center" />
-                
                 <TabsTrigger 
                   value="activity"
-                  className="relative rounded-none border-b-2 border-b-transparent bg-transparent px-0 pb-3.5 pt-0 text-sm font-medium text-muted-foreground shadow-none transition-colors hover:text-foreground data-[state=active]:border-b-primary data-[state=active]:text-foreground data-[state=active]:shadow-none"
+                  className="relative rounded-none border-b-2 border-b-transparent bg-transparent px-0 pb-3 pt-0 text-[13px] font-medium text-muted-foreground/70 shadow-none transition-all hover:text-foreground data-[state=active]:border-b-foreground data-[state=active]:text-foreground data-[state=active]:shadow-none"
                 >
-                  <Activity className="h-3.5 w-3.5 mr-1.5" />
                   Activity
                 </TabsTrigger>
                 <TabsTrigger 
                   value="data-recovery"
-                  className="relative rounded-none border-b-2 border-b-transparent bg-transparent px-0 pb-3.5 pt-0 text-sm font-medium text-muted-foreground shadow-none transition-colors hover:text-foreground data-[state=active]:border-b-primary data-[state=active]:text-foreground data-[state=active]:shadow-none"
+                  className="relative rounded-none border-b-2 border-b-transparent bg-transparent px-0 pb-3 pt-0 text-[13px] font-medium text-muted-foreground/70 shadow-none transition-all hover:text-foreground data-[state=active]:border-b-foreground data-[state=active]:text-foreground data-[state=active]:shadow-none"
                 >
-                  <Database className="h-3.5 w-3.5 mr-1.5" />
                   Data
                 </TabsTrigger>
                 <TabsTrigger 
                   value="form-monitoring"
-                  className="relative rounded-none border-b-2 border-b-transparent bg-transparent px-0 pb-3.5 pt-0 text-sm font-medium text-muted-foreground shadow-none transition-colors hover:text-foreground data-[state=active]:border-b-primary data-[state=active]:text-foreground data-[state=active]:shadow-none"
+                  className="relative rounded-none border-b-2 border-b-transparent bg-transparent px-0 pb-3 pt-0 text-[13px] font-medium text-muted-foreground/70 shadow-none transition-all hover:text-foreground data-[state=active]:border-b-foreground data-[state=active]:text-foreground data-[state=active]:shadow-none"
                 >
-                  <Workflow className="h-3.5 w-3.5 mr-1.5" />
                   Forms
                 </TabsTrigger>
               </TabsList>
             </div>
 
-            {/* Content Area */}
-            <div className="px-6 py-6">
+            {/* Content Area - More spacious */}
+            <div className="px-8 py-8">
               <TabsContent value="overview" className="mt-0">
-                <StreamlinedOverviewTab />
+                <StripeOverviewTab />
               </TabsContent>
 
         <TabsContent value="analytics" className="mt-0">

@@ -124,8 +124,17 @@ export default {
 				'tight': 'var(--spacing-tight)',
 			},
 			fontFamily: {
-				sans: ['Inter', 'system-ui', 'sans-serif'],
-				mono: ['Monaco', 'Consolas', 'monospace'],
+				sans: [
+					'Inter',
+					'-apple-system',
+					'BlinkMacSystemFont',
+					'"Segoe UI"',
+					'Roboto',
+					'"Helvetica Neue"',
+					'Arial',
+					'sans-serif'
+				],
+				mono: ['Monaco', 'Consolas', '"Courier New"', 'monospace'],
 			},
 			keyframes: {
 				'accordion-down': {
