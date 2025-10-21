@@ -159,41 +159,33 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Get authorization header from request
-    const authHeader = req.headers.get('Authorization');
-    
-    // Create Supabase client with auth header if provided
+    // Create Supabase client with service role for database operations
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      {
-        global: {
-          headers: authHeader ? { Authorization: authHeader } : {},
-        },
-      }
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
     );
 
-    // Verify user is authenticated
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    
-    if (userError || !user) {
-      console.error('❌ User authentication failed:', userError);
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    console.log('✅ User authenticated:', user.id);
+    console.log('✅ Supabase client initialized');
 
     // Parse request body
     const trackingData: TrackingData = await req.json();
+    
+    // Validate required fields
+    if (!trackingData.user_id || !trackingData.session_id) {
+      console.error('❌ Missing required fields: user_id or session_id');
+      return new Response(
+        JSON.stringify({ error: 'Missing required fields' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
     console.log('📥 Tracking data received:', {
       user_id: trackingData.user_id,
       session_id: trackingData.session_id,
       landing_page: trackingData.landing_page,
-      has_referrer: !!trackingData.referrer,
-      has_utm: !!trackingData.utm_source,
+      referrer: trackingData.referrer,
+      utm_source: trackingData.utm_source,
+      utm_medium: trackingData.utm_medium,
     });
 
     // Check if initial session already exists for this user
