@@ -1,12 +1,31 @@
-import { Users, Store, MessageSquare, Activity, TrendingUp, TrendingDown, UserPlus, Link as LinkIcon, Eye } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
+import { Users, Store, MessageSquare, Activity, TrendingUp, TrendingDown, UserPlus, Link as LinkIcon, Eye, ChevronRight, Heart, Clock } from "lucide-react";
+import { formatDistanceToNow, format } from "date-fns";
 import { useAdmin } from "@/hooks/use-admin";
 import { useRecentUserActivity } from "@/hooks/use-recent-user-activity";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { ActivityDetailsDropdown } from "./ActivityDetailsDropdown";
 import UserDetailsSidePanel from "./UserDetailsSidePanel";
+
+interface GroupedUserActivity {
+  user_id: string;
+  email: string;
+  first_name?: string;
+  last_name?: string;
+  user_name: string;
+  activities: any[];
+  lastActivityTime: string;
+  totalActivities: number;
+  actionCounts: {
+    views: number;
+    saves: number;
+    connections: number;
+    pageViews: number;
+  };
+}
 
 export function StripeOverviewTab() {
   const { useStats } = useAdmin();
@@ -58,23 +77,76 @@ export function StripeOverviewTab() {
     }
   ];
 
-  // Filter activities based on selected tab
-  const filteredActivities = activities.filter(activity => {
+  // Group activities by user first
+  const groupedByUser = useMemo(() => {
+    if (!activities || activities.length === 0) return [];
+
+    const userMap = new Map<string, GroupedUserActivity>();
+
+    activities.forEach(activity => {
+      const userId = activity.user_id;
+      if (!userId) return;
+
+      if (!userMap.has(userId)) {
+        userMap.set(userId, {
+          user_id: userId,
+          email: activity.email,
+          first_name: activity.first_name,
+          last_name: activity.last_name,
+          user_name: activity.user_name || 'Unknown User',
+          activities: [],
+          lastActivityTime: activity.created_at,
+          totalActivities: 0,
+          actionCounts: {
+            views: 0,
+            saves: 0,
+            connections: 0,
+            pageViews: 0,
+          }
+        });
+      }
+
+      const userGroup = userMap.get(userId)!;
+      userGroup.activities.push(activity);
+      userGroup.totalActivities++;
+
+      // Update last activity time if this is more recent
+      if (new Date(activity.created_at) > new Date(userGroup.lastActivityTime)) {
+        userGroup.lastActivityTime = activity.created_at;
+      }
+
+      // Count action types
+      if (activity.activity_type === 'listing_action') {
+        if (activity.action_type === 'view') userGroup.actionCounts.views++;
+        else if (activity.action_type === 'save') userGroup.actionCounts.saves++;
+        else if (activity.action_type === 'request_connection') userGroup.actionCounts.connections++;
+      } else if (activity.activity_type === 'page_view') {
+        userGroup.actionCounts.pageViews++;
+      }
+    });
+
+    // Convert to array and sort by last activity time
+    return Array.from(userMap.values())
+      .sort((a, b) => new Date(b.lastActivityTime).getTime() - new Date(a.lastActivityTime).getTime());
+  }, [activities]);
+
+  // Filter grouped activities based on selected tab
+  const filteredActivities = groupedByUser.filter(userGroup => {
     if (activityFilter === "all") return true;
     if (activityFilter === "users") {
-      return activity.activity_type === 'user_event' || 
-             activity.description.toLowerCase().includes('signup');
+      return userGroup.activities.some(a => 
+        a.activity_type === 'user_event' || 
+        a.description.toLowerCase().includes('signup')
+      );
     }
     if (activityFilter === "listings") {
-      return activity.activity_type === 'listing_action' || 
-             activity.description.toLowerCase().includes('listing');
+      return userGroup.actionCounts.views > 0 || userGroup.actionCounts.saves > 0;
     }
     if (activityFilter === "connections") {
-      return activity.description.toLowerCase().includes('connection') ||
-             activity.description.toLowerCase().includes('request');
+      return userGroup.actionCounts.connections > 0;
     }
     if (activityFilter === "views") {
-      return activity.activity_type === 'page_view';
+      return userGroup.actionCounts.pageViews > 0;
     }
     return true;
   });
@@ -202,65 +274,73 @@ export function StripeOverviewTab() {
             </div>
           ) : filteredActivities.length > 0 ? (
             <div className="max-h-[600px] overflow-y-auto">
-              {filteredActivities.map((activity, index) => {
-                const getActivityIcon = () => {
-                  if (activity.activity_type === "listing_action") {
-                    return <Eye className="h-4 w-4 text-muted-foreground" />;
-                  }
-                  if (activity.activity_type === "page_view") {
-                    return <Activity className="h-4 w-4 text-muted-foreground" />;
-                  }
-                  if (activity.activity_type === "user_event") {
-                    return <UserPlus className="h-4 w-4 text-muted-foreground" />;
-                  }
-                  return <Activity className="h-4 w-4 text-muted-foreground" />;
-                };
+              {filteredActivities.map((userGroup) => {
+                const activitySummary = [];
+                
+                if (userGroup.actionCounts.views > 0) {
+                  activitySummary.push(`${userGroup.actionCounts.views} views`);
+                }
+                if (userGroup.actionCounts.saves > 0) {
+                  activitySummary.push(`${userGroup.actionCounts.saves} saves`);
+                }
+                if (userGroup.actionCounts.connections > 0) {
+                  activitySummary.push(`${userGroup.actionCounts.connections} connections`);
+                }
+                if (userGroup.actionCounts.pageViews > 0) {
+                  activitySummary.push(`${userGroup.actionCounts.pageViews} page views`);
+                }
 
                 return (
                   <div 
-                    key={`${activity.activity_type}-${activity.created_at}-${index}`}
-                    className="flex items-start gap-3 px-6 py-4 hover:bg-muted/10 transition-colors border-b border-border/30 last:border-b-0"
+                    key={userGroup.user_id}
+                    className="flex items-start gap-3 px-6 py-4 hover:bg-muted/10 transition-colors border-b border-border/30 last:border-b-0 cursor-pointer"
+                    onClick={() => handleUserClick(userGroup.user_id)}
                   >
-                    <div className="mt-0.5">
-                      {getActivityIcon()}
-                    </div>
+                    <Avatar className="h-10 w-10 border mt-0.5">
+                      <AvatarFallback className="text-sm">
+                        {userGroup.first_name?.charAt(0) || userGroup.email.charAt(0).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1 min-w-0">
-                          <button
-                            onClick={() => handleUserClick(activity.user_id)}
-                            className="text-sm text-foreground font-semibold hover:text-primary transition-colors text-left"
-                          >
-                            {activity.user_name || "Unknown User"}
-                          </button>
-                          <p className="text-xs text-muted-foreground mt-0.5">
-                            {activity.description}
+                          <p className="text-sm font-semibold text-foreground truncate">
+                            {userGroup.user_name}
                           </p>
-                          <div className="flex items-center gap-3 mt-2">
-                            <p className="text-xs text-muted-foreground">
-                              {formatDistanceToNow(new Date(activity.created_at), { addSuffix: true })}
-                            </p>
-                            <ActivityDetailsDropdown
-                              session_id={activity.session_id}
-                              referrer={activity.referrer}
-                              time_on_page={activity.time_on_page}
-                              scroll_depth={activity.scroll_depth}
-                              page_title={activity.page_title}
-                              event_category={activity.event_category}
-                              event_label={activity.event_label}
-                            />
+                          <p className="text-xs text-muted-foreground truncate">
+                            {userGroup.email}
+                          </p>
+                          
+                          <div className="flex items-center flex-wrap gap-2 mt-2">
+                            {activitySummary.map((summary, idx) => (
+                              <Badge key={idx} variant="secondary" className="text-xs">
+                                {summary}
+                              </Badge>
+                            ))}
                           </div>
-                          {activity.user_id && (
-                            <Button
-                              variant="link"
-                              size="sm"
-                              className="h-auto p-0 mt-1 text-xs text-primary hover:text-primary/80"
-                              onClick={() => handleUserClick(activity.user_id)}
-                            >
-                              See more about this user →
-                            </Button>
-                          )}
+
+                          <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
+                            <Clock className="h-3 w-3" />
+                            {formatDistanceToNow(new Date(userGroup.lastActivityTime), { addSuffix: true })}
+                            <span>•</span>
+                            <span>{userGroup.totalActivities} total actions</span>
+                          </div>
+
+                          <Button
+                            variant="link"
+                            size="sm"
+                            className="h-auto p-0 mt-2 text-xs text-primary hover:text-primary/80"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleUserClick(userGroup.user_id);
+                            }}
+                          >
+                            See more about this user →
+                          </Button>
                         </div>
+                        
+                        <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-1" />
                       </div>
                     </div>
                   </div>
