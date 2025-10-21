@@ -88,62 +88,90 @@ export default function SessionEventsDialog({
               </h3>
               <ScrollArea className="h-[400px] pr-4">
                 <div className="space-y-3">
-                  {groupEventsByTime(data.events).map((eventGroup, groupIdx) => (
-                    <div key={groupIdx}>
-                      {eventGroup.length === 1 ? (
-                        // Single event
-                        <div className="flex items-start gap-3">
+                  {groupEventsByTime(data.events).map((eventGroup, groupIdx) => {
+                    // Special handling for search event chains - show only the last search
+                    const isSearchChain = eventGroup.every(e => e.description.startsWith('Search -'));
+                    
+                    if (isSearchChain && eventGroup.length > 1) {
+                      const lastSearch = eventGroup[eventGroup.length - 1];
+                      return (
+                        <div key={groupIdx} className="flex items-start gap-3">
                           <span className="text-xs text-muted-foreground font-mono min-w-[60px]">
-                            {format(new Date(eventGroup[0].timestamp), 'h:mm a')}
+                            {format(new Date(lastSearch.timestamp), 'h:mm a')}
                           </span>
                           <div className="flex items-start gap-2 flex-1">
                             {(() => {
-                              const Icon = getIcon(eventGroup[0].icon);
+                              const Icon = getIcon(lastSearch.icon);
                               return <Icon className="w-4 h-4 mt-0.5 text-muted-foreground flex-shrink-0" />;
                             })()}
                             <div className="flex-1">
-                              <p className="text-sm font-medium">{eventGroup[0].description}</p>
-                              {eventGroup[0].metadata?.page_path && (
-                                <p className="text-xs text-muted-foreground mt-0.5">
-                                  {eventGroup[0].metadata.page_path}
-                                </p>
-                              )}
-                              {eventGroup[0].metadata?.element_id && (
-                                <p className="text-xs text-muted-foreground mt-0.5">
-                                  Element: {eventGroup[0].metadata.element_id}
-                                </p>
-                              )}
+                              <p className="text-sm font-medium">{lastSearch.description}</p>
+                              <p className="text-xs text-muted-foreground mt-0.5">
+                                ({eventGroup.length} keystrokes)
+                              </p>
                             </div>
                           </div>
                         </div>
-                      ) : (
-                        // Event chain
-                        <div className="flex items-start gap-3">
-                          <span className="text-xs text-muted-foreground font-mono min-w-[60px]">
-                            {format(new Date(eventGroup[0].timestamp), 'h:mm a')}
-                          </span>
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              {eventGroup.map((event, eventIdx) => {
-                                const Icon = getIcon(event.icon);
-                                return (
-                                  <div key={event.id} className="flex items-center gap-2">
-                                    <div className="flex items-center gap-1.5">
-                                      <Icon className="w-3.5 h-3.5 text-muted-foreground" />
-                                      <span className="text-xs font-medium">{event.description}</span>
+                      );
+                    }
+                    
+                    return (
+                      <div key={groupIdx}>
+                        {eventGroup.length === 1 ? (
+                          // Single event
+                          <div className="flex items-start gap-3">
+                            <span className="text-xs text-muted-foreground font-mono min-w-[60px]">
+                              {format(new Date(eventGroup[0].timestamp), 'h:mm a')}
+                            </span>
+                            <div className="flex items-start gap-2 flex-1">
+                              {(() => {
+                                const Icon = getIcon(eventGroup[0].icon);
+                                return <Icon className="w-4 h-4 mt-0.5 text-muted-foreground flex-shrink-0" />;
+                              })()}
+                              <div className="flex-1">
+                                <p className="text-sm font-medium">{eventGroup[0].description}</p>
+                                {eventGroup[0].metadata?.page_path && !eventGroup[0].description.includes(eventGroup[0].metadata.page_path) && (
+                                  <p className="text-xs text-muted-foreground mt-0.5">
+                                    {eventGroup[0].metadata.page_path}
+                                  </p>
+                                )}
+                                {eventGroup[0].metadata?.element_id && (
+                                  <p className="text-xs text-muted-foreground mt-0.5">
+                                    Element: {eventGroup[0].metadata.element_id}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          // Event chain (non-search)
+                          <div className="flex items-start gap-3">
+                            <span className="text-xs text-muted-foreground font-mono min-w-[60px]">
+                              {format(new Date(eventGroup[0].timestamp), 'h:mm a')}
+                            </span>
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                {eventGroup.map((event, eventIdx) => {
+                                  const Icon = getIcon(event.icon);
+                                  return (
+                                    <div key={event.id} className="flex items-center gap-2">
+                                      <div className="flex items-center gap-1.5">
+                                        <Icon className="w-3.5 h-3.5 text-muted-foreground" />
+                                        <span className="text-xs font-medium">{event.description}</span>
+                                      </div>
+                                      {eventIdx < eventGroup.length - 1 && (
+                                        <ArrowRight className="w-3 h-3 text-muted-foreground" />
+                                      )}
                                     </div>
-                                    {eventIdx < eventGroup.length - 1 && (
-                                      <ArrowRight className="w-3 h-3 text-muted-foreground" />
-                                    )}
-                                  </div>
-                                );
-                              })}
+                                  );
+                                })}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      )}
-                    </div>
-                  ))}
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </ScrollArea>
             </div>

@@ -43,10 +43,15 @@ export const useSessionEvents = (sessionId: string | null, userId: string | null
         .eq("user_id", userId)
         .order("created_at", { ascending: true });
 
-      // Fetch listing analytics
+      // Fetch listing analytics with listing titles
       const { data: listingAnalytics } = await supabase
         .from("listing_analytics")
-        .select("*")
+        .select(`
+          *,
+          listings:listing_id (
+            title
+          )
+        `)
         .eq("session_id", sessionId)
         .eq("user_id", userId)
         .order("created_at", { ascending: true });
@@ -96,13 +101,16 @@ export const useSessionEvents = (sessionId: string | null, userId: string | null
 
       // Process listing analytics
       if (listingAnalytics) {
-        listingAnalytics.forEach((la) => {
+        listingAnalytics.forEach((la: any) => {
           allEvents.push({
             id: la.id,
             timestamp: la.created_at,
             source: 'listing_analytics',
             type: la.action_type,
-            description: formatEventDescription('listing_analytics', la),
+            description: formatEventDescription('listing_analytics', {
+              ...la,
+              listing_title: la.listings?.title,
+            }),
             icon: getEventIcon('listing_analytics', null, la.action_type),
             metadata: {
               listing_id: la.listing_id,
