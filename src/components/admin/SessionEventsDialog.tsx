@@ -1,4 +1,4 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useSessionEvents } from "@/hooks/use-session-events";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
@@ -39,6 +39,9 @@ export default function SessionEventsDialog({
           <DialogTitle className="text-base font-semibold">
             Events for Session ID #{truncatedSessionId} from User {userId?.substring(0, 8)}
           </DialogTitle>
+          <DialogDescription className="sr-only">
+            Detailed timeline of all user events during this session
+          </DialogDescription>
         </DialogHeader>
 
         {isLoading ? (
