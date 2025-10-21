@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useState } from "react";
+import { ActivityDetailsDropdown } from "./ActivityDetailsDropdown";
 
 export function StripeOverviewTab() {
   const { useStats } = useAdmin();
@@ -214,16 +215,27 @@ export function StripeOverviewTab() {
                 };
 
                 return (
-                  <div key={activity.id} className="flex items-start gap-3 px-6 py-4 hover:bg-muted/10 transition-colors text-sm">
+                  <div key={activity.id} className="flex items-start gap-3 px-6 py-4 hover:bg-muted/10 transition-colors text-sm group">
                     <div className="h-1.5 w-1.5 bg-primary rounded-full mt-1.5 flex-shrink-0"></div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm leading-relaxed">
                         {getActivityDescription()}
                       </p>
                     </div>
-                    <span className="text-xs text-muted-foreground/60 whitespace-nowrap flex-shrink-0">
-                      {formatDistanceToNow(new Date(activity.created_at), { addSuffix: true })}
-                    </span>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <span className="text-xs text-muted-foreground/60 whitespace-nowrap">
+                        {formatDistanceToNow(new Date(activity.created_at), { addSuffix: true })}
+                      </span>
+                      <ActivityDetailsDropdown
+                        session_id={activity.session_id}
+                        referrer={activity.referrer}
+                        time_on_page={activity.time_on_page}
+                        scroll_depth={activity.scroll_depth}
+                        page_title={activity.page_title}
+                        event_category={activity.event_category}
+                        event_label={activity.event_label}
+                      />
+                    </div>
                   </div>
                 );
               })}
