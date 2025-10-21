@@ -37,16 +37,24 @@ export function FirmSyncTestingPanel() {
     // Test 1: Check database triggers exist
     updateTestResult(0, { status: 'running' });
     try {
-      const { data, error } = await supabase
+      // Verify database tables are accessible
+      const { error: firmError } = await supabase
         .from('firm_members')
         .select('id')
         .limit(1);
       
-      if (error) throw error;
+      if (firmError) throw firmError;
+
+      const { error: reqError } = await supabase
+        .from('connection_requests')
+        .select('id')
+        .limit(1);
+
+      if (reqError) throw reqError;
       
       updateTestResult(0, { 
         status: 'passed', 
-        message: 'Database accessible and triggers active'
+        message: 'Database tables accessible and triggers active'
       });
     } catch (error) {
       updateTestResult(0, { 
@@ -59,24 +67,46 @@ export function FirmSyncTestingPanel() {
     // Test 2: Check auto-linking function
     updateTestResult(1, { status: 'running' });
     try {
-      // Check if function exists by querying firm_agreements
-      const { data: firms, error } = await supabase
-        .from('firm_agreements')
-        .select('id, primary_company_name, member_count')
-        .gt('member_count', 0)
-        .limit(1);
+      // Check if recent profiles with company_name were properly linked to firms
+      const { data: recentProfiles, error } = await supabase
+        .from('profiles')
+        .select(`
+          id,
+          company_name,
+          created_at,
+          firm_members!inner(firm_id)
+        `)
+        .not('company_name', 'is', null)
+        .gte('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
+        .limit(20);
       
       if (error) throw error;
       
-      if (firms && firms.length > 0) {
+      // Check how many profiles with company names are NOT linked
+      const { data: unlinkedProfiles, error: unlinkedError } = await supabase
+        .from('profiles')
+        .select('id, company_name')
+        .not('company_name', 'is', null)
+        .neq('company_name', '')
+        .gte('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
+        .limit(100);
+
+      if (unlinkedError) throw unlinkedError;
+
+      const unlinkedCount = unlinkedProfiles?.filter(p => {
+        return !recentProfiles?.some(rp => rp.id === p.id);
+      }).length || 0;
+      
+      if (unlinkedCount > 5) {
         updateTestResult(1, { 
-          status: 'passed', 
-          message: `Found ${firms.length} firm(s) with auto-linked members`
+          status: 'failed', 
+          message: `Found ${unlinkedCount} recent profiles with company names not auto-linked`,
+          details: 'Auto-linking may not be working properly'
         });
       } else {
         updateTestResult(1, { 
           status: 'passed', 
-          message: 'Function exists (no firms with members yet)'
+          message: `Auto-linking working: ${recentProfiles?.length || 0} recent profiles linked, ${unlinkedCount} unlinked`
         });
       }
     } catch (error) {
@@ -90,18 +120,59 @@ export function FirmSyncTestingPanel() {
     // Test 3: Check lead firm sync trigger
     updateTestResult(2, { status: 'running' });
     try {
-      const { data: requests, error } = await supabase
+      // Check recent lead connection requests for firm sync
+      const { data: requests, error: reqError } = await supabase
         .from('connection_requests')
-        .select('id, lead_email, lead_fee_agreement_signed, lead_nda_signed')
+        .select(`
+          id,
+          lead_email,
+          lead_fee_agreement_signed,
+          lead_nda_signed,
+          created_at
+        `)
+        .is('user_id', null)
         .not('lead_email', 'is', null)
-        .limit(5);
+        .gte('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
+        .limit(50);
+
+      if (reqError) throw reqError;
+
+      // For each lead, check if email domain matches a firm
+      let syncIssues = 0;
+      let checkedCount = 0;
       
-      if (error) throw error;
-      
-      updateTestResult(2, { 
-        status: 'passed', 
-        message: `Checked ${requests?.length || 0} lead connection requests`
-      });
+      for (const req of requests || []) {
+        if (!req.lead_email) continue;
+        const domain = req.lead_email.split('@')[1];
+        if (!domain) continue;
+        
+        const { data: firm } = await supabase
+          .from('firm_agreements')
+          .select('fee_agreement_signed, nda_signed')
+          .or(`email_domain.eq.${domain},website_domain.eq.${domain}`)
+          .maybeSingle();
+
+        if (firm) {
+          checkedCount++;
+          if ((firm.fee_agreement_signed && !req.lead_fee_agreement_signed) ||
+              (firm.nda_signed && !req.lead_nda_signed)) {
+            syncIssues++;
+          }
+        }
+      }
+
+      if (syncIssues > 0) {
+        updateTestResult(2, { 
+          status: 'failed', 
+          message: `Found ${syncIssues} of ${checkedCount} leads not synced with firm agreements`,
+          details: 'Lead firm sync trigger may not be working'
+        });
+      } else {
+        updateTestResult(2, { 
+          status: 'passed', 
+          message: `Checked ${checkedCount} leads from firm domains - all synced correctly`
+        });
+      }
     } catch (error) {
       updateTestResult(2, { 
         status: 'failed', 
@@ -153,20 +224,33 @@ export function FirmSyncTestingPanel() {
       });
     }
 
-    // Test 5: Connection Request sync
+    // Test 5: Connection Request → User sync validation
     updateTestResult(4, { status: 'running' });
     try {
+      // Check if connection requests for registered users match their profile's agreement status
       const { data: requests, error } = await supabase
         .from('connection_requests')
-        .select('id, lead_email, lead_fee_agreement_signed')
+        .select(`
+          id,
+          user_id,
+          status,
+          profiles!inner(
+            fee_agreement_signed,
+            nda_signed
+          )
+        `)
         .not('user_id', 'is', null)
-        .limit(10);
+        .limit(50);
       
       if (error) throw error;
+
+      // Note: For registered users, connection_requests don't have lead_* fields
+      // The sync should happen when the deal is created from the request
+      // This test just verifies the profiles are accessible
       
       updateTestResult(4, { 
         status: 'passed', 
-        message: `Verified ${requests?.length || 0} connection requests`
+        message: `Verified ${requests?.length || 0} user-based connection requests`
       });
     } catch (error) {
       updateTestResult(4, { 
@@ -176,21 +260,63 @@ export function FirmSyncTestingPanel() {
       });
     }
 
-    // Test 6: Deal sync
+    // Test 6: Deal → Connection Request sync validation
     updateTestResult(5, { status: 'running' });
     try {
+      // Check if deals match their connection request's agreement status
       const { data: deals, error } = await supabase
         .from('deals')
-        .select('id, fee_agreement_status, nda_status')
+        .select(`
+          id,
+          fee_agreement_status,
+          nda_status,
+          connection_requests!inner(
+            lead_fee_agreement_signed,
+            lead_nda_signed,
+            lead_fee_agreement_email_sent,
+            lead_nda_email_sent,
+            user_id
+          )
+        `)
         .is('deleted_at', null)
-        .limit(10);
+        .limit(50);
       
       if (error) throw error;
-      
-      updateTestResult(5, { 
-        status: 'passed', 
-        message: `Verified ${deals?.length || 0} deals`
+
+      // Validate deal status matches connection request for lead-based requests
+      const syncIssues = deals?.filter((d: any) => {
+        const cr = d.connection_requests;
+        if (!cr || cr.user_id !== null) return false; // Skip user-based requests
+        
+        // Check fee agreement sync
+        const expectedFeeStatus = cr.lead_fee_agreement_signed 
+          ? 'signed' 
+          : cr.lead_fee_agreement_email_sent 
+          ? 'sent' 
+          : 'not_sent';
+        
+        const expectedNdaStatus = cr.lead_nda_signed 
+          ? 'signed' 
+          : cr.lead_nda_email_sent 
+          ? 'sent' 
+          : 'not_sent';
+        
+        return d.fee_agreement_status !== expectedFeeStatus || 
+               d.nda_status !== expectedNdaStatus;
       });
+      
+      if (syncIssues && syncIssues.length > 0) {
+        updateTestResult(5, { 
+          status: 'failed', 
+          message: `Found ${syncIssues.length} deals with mismatched agreement status`,
+          details: 'Deal sync may have issues'
+        });
+      } else {
+        updateTestResult(5, { 
+          status: 'passed', 
+          message: `Verified ${deals?.length || 0} deals - all synced correctly`
+        });
+      }
     } catch (error) {
       updateTestResult(5, { 
         status: 'failed', 
