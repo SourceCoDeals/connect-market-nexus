@@ -600,8 +600,10 @@ export function UsersTable({
                       <span className="font-medium text-sm">{user.firstName} {user.lastName}</span>
                       {!isLoadingRoles && (() => {
                         const role = getUserRole(user.id);
+                        // Fallback to legacy profile flag while migrating
+                        const effectiveRole: AppRole = role === 'user' && (user as any)?.is_admin === true ? 'admin' : role;
                         // Map 'owner' to 'admin' for display
-                        const displayRole = role === 'owner' ? 'admin' : role;
+                        const displayRole = effectiveRole === 'owner' ? 'admin' : effectiveRole;
                         
                         // Only show badge for admin and moderator
                         if (displayRole === 'admin' || displayRole === 'moderator') {
