@@ -69,6 +69,17 @@ const AdminUsers = () => {
       });
     }
   }, [isEdgeToolsOpen, pendingScrollId]);
+  // Open tools based on URL hash on mount (supports cross-page navigation)
+  useEffect(() => {
+    const hash = window.location.hash.replace('#', '');
+    if (!hash) return;
+    const known = ['edge-tools', 'data-recovery', 'form-monitoring'];
+    if (known.includes(hash)) {
+      setIsEdgeToolsOpen(true);
+      setPendingScrollId(hash);
+    }
+  }, []);
+
   const {
     handleUserApproval,
     handleMakeAdmin,
@@ -178,6 +189,13 @@ const AdminUsers = () => {
                 className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-0 pb-2 pt-0 font-medium text-sm data-[state=active]:text-foreground text-muted-foreground hover:text-foreground transition-colors"
               >
                 Users
+              </TabsTrigger>
+              <TabsTrigger 
+                value="tools"
+                className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-0 pb-2 pt-0 font-medium text-sm data-[state=active]:text-foreground text-muted-foreground hover:text-foreground transition-colors"
+                onClick={() => openAndScrollTo('edge-tools')}
+              >
+                Tools
               </TabsTrigger>
               <TabsTrigger 
                 value="firms"
