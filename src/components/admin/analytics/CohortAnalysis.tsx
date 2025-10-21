@@ -70,11 +70,11 @@ export function CohortAnalysis({ users }: CohortAnalysisProps) {
   };
 
   return (
-    <div className="space-y-6">
-      <Card>
+    <div className="space-y-section">
+      <Card className="border-border/50 shadow-md">
         <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <Calendar className="h-4 w-4" />
+          <CardTitle className="text-lg font-semibold flex items-center gap-2">
+            <Calendar className="h-5 w-5" />
             User Cohort Performance
           </CardTitle>
           <CardDescription>
@@ -82,33 +82,36 @@ export function CohortAnalysis({ users }: CohortAnalysisProps) {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
+          <div className="space-y-3">
             {cohortData.map(([month, data]) => {
               const quality = getQualityBadge(data.avgCompletion, data.approvalRate);
               
               return (
-                <div key={month} className="p-4 border rounded-lg space-y-3">
-                  <div className="flex items-center justify-between">
+                <div 
+                  key={month} 
+                  className="group p-card border border-border/50 rounded-lg hover:shadow-lg transition-all duration-300 bg-gradient-subtle"
+                >
+                  <div className="flex items-center justify-between mb-3">
                     <div>
-                      <p className="font-semibold">{formatMonth(month)}</p>
-                      <p className="text-sm text-muted-foreground">{data.total} new users</p>
+                      <p className="font-semibold text-base">{formatMonth(month)}</p>
+                      <p className="text-sm text-muted-foreground font-medium">{data.total} new users</p>
                     </div>
-                    <Badge variant={quality.variant}>{quality.label}</Badge>
+                    <Badge variant={quality.variant} className="font-bold">{quality.label}</Badge>
                   </div>
 
                   <div className="grid grid-cols-3 gap-4 pt-3 border-t">
-                    <div>
-                      <p className="text-xs text-muted-foreground mb-1">Approved</p>
-                      <p className="text-lg font-semibold tabular-nums">
+                    <div className="p-2.5 rounded-lg bg-card/50">
+                      <p className="text-xs text-muted-foreground mb-1.5 font-medium uppercase tracking-wide">Approved</p>
+                      <p className="text-xl font-bold tabular-nums tracking-tight">
                         {data.approved}
                       </p>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-xs text-muted-foreground font-semibold tabular-nums mt-0.5">
                         {Math.round(data.approvalRate)}%
                       </p>
                     </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground mb-1">Avg Completion</p>
-                      <p className={`text-lg font-semibold tabular-nums ${
+                    <div className="p-2.5 rounded-lg bg-card/50">
+                      <p className="text-xs text-muted-foreground mb-1.5 font-medium uppercase tracking-wide">Avg Completion</p>
+                      <p className={`text-xl font-bold tabular-nums tracking-tight ${
                         data.avgCompletion >= 75 ? 'text-success' : 
                         data.avgCompletion >= 50 ? 'text-warning' : 
                         'text-muted-foreground'
@@ -116,9 +119,9 @@ export function CohortAnalysis({ users }: CohortAnalysisProps) {
                         {Math.round(data.avgCompletion)}%
                       </p>
                     </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground mb-1">Total Users</p>
-                      <p className="text-lg font-semibold tabular-nums">
+                    <div className="p-2.5 rounded-lg bg-card/50">
+                      <p className="text-xs text-muted-foreground mb-1.5 font-medium uppercase tracking-wide">Total Users</p>
+                      <p className="text-xl font-bold tabular-nums tracking-tight">
                         {data.total}
                       </p>
                     </div>
@@ -130,10 +133,10 @@ export function CohortAnalysis({ users }: CohortAnalysisProps) {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="border-border/50 shadow-md">
         <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <TrendingUp className="h-4 w-4" />
+          <CardTitle className="text-lg font-semibold flex items-center gap-2">
+            <TrendingUp className="h-5 w-5" />
             Quality Trends
           </CardTitle>
           <CardDescription>
@@ -141,7 +144,7 @@ export function CohortAnalysis({ users }: CohortAnalysisProps) {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
+          <div className="space-y-3">
             {cohortData.slice(0, 3).map(([month, data], index) => {
               if (index === cohortData.length - 1) return null;
               
@@ -152,13 +155,16 @@ export function CohortAnalysis({ users }: CohortAnalysisProps) {
               const completionChange = data.avgCompletion - prevData.avgCompletion;
 
               return (
-                <div key={month} className="p-4 bg-muted/50 rounded-lg">
-                  <p className="font-medium mb-3">{formatMonth(month)} vs {formatMonth(cohortData[index + 1][0])}</p>
+                <div 
+                  key={month} 
+                  className="p-card bg-gradient-subtle rounded-lg border border-border/50 shadow-sm hover:shadow-md transition-all duration-200"
+                >
+                  <p className="font-semibold mb-3 text-sm">{formatMonth(month)} vs {formatMonth(cohortData[index + 1][0])}</p>
                   <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-xs text-muted-foreground mb-1">Approval Rate</p>
+                    <div className="p-3 rounded-lg bg-card/50">
+                      <p className="text-xs text-muted-foreground mb-2 font-medium uppercase tracking-wide">Approval Rate</p>
                       <div className="flex items-center gap-2">
-                        <span className={`text-sm font-semibold ${
+                        <span className={`text-lg font-bold tabular-nums ${
                           approvalChange > 0 ? 'text-success' : 
                           approvalChange < 0 ? 'text-destructive' : 
                           'text-muted-foreground'
@@ -167,10 +173,10 @@ export function CohortAnalysis({ users }: CohortAnalysisProps) {
                         </span>
                       </div>
                     </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground mb-1">Completion Rate</p>
+                    <div className="p-3 rounded-lg bg-card/50">
+                      <p className="text-xs text-muted-foreground mb-2 font-medium uppercase tracking-wide">Completion Rate</p>
                       <div className="flex items-center gap-2">
-                        <span className={`text-sm font-semibold ${
+                        <span className={`text-lg font-bold tabular-nums ${
                           completionChange > 0 ? 'text-success' : 
                           completionChange < 0 ? 'text-destructive' : 
                           'text-muted-foreground'

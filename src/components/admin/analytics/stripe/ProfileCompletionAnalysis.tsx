@@ -84,37 +84,46 @@ export function ProfileCompletionAnalysis({ users }: ProfileCompletionAnalysisPr
   }, [users]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-section">
       {/* Completion Distribution Chart */}
-      <Card>
+      <Card className="border-border/50 shadow-md">
         <CardHeader>
-          <CardTitle className="text-base font-medium">Profile Completion Distribution</CardTitle>
+          <CardTitle className="text-lg font-semibold">Profile Completion Distribution</CardTitle>
           <CardDescription>User distribution across completion ranges</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="h-[280px]">
+          <div className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={analytics.chartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" strokeOpacity={0.3} />
+              <BarChart data={analytics.chartData} barGap={8}>
+                <CartesianGrid 
+                  strokeDasharray="3 3" 
+                  stroke="hsl(var(--border))" 
+                  strokeOpacity={0.2} 
+                  vertical={false}
+                />
                 <XAxis 
                   dataKey="range" 
-                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
+                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12, fontWeight: 500 }}
                   stroke="hsl(var(--border))"
+                  axisLine={{ strokeOpacity: 0.3 }}
                 />
                 <YAxis 
-                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
+                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12, fontWeight: 500 }}
                   stroke="hsl(var(--border))"
+                  axisLine={{ strokeOpacity: 0.3 }}
                 />
                 <Tooltip 
                   contentStyle={{
                     backgroundColor: 'hsl(var(--card))',
                     border: '1px solid hsl(var(--border))',
-                    borderRadius: '8px',
-                    padding: '12px'
+                    borderRadius: '12px',
+                    padding: '12px 16px',
+                    boxShadow: 'var(--shadow-lg)'
                   }}
                   formatter={(value: number) => [`${value} users`, 'Count']}
+                  cursor={{ fill: 'hsl(var(--muted))', opacity: 0.1 }}
                 />
-                <Bar dataKey="users" radius={[4, 4, 0, 0]}>
+                <Bar dataKey="users" radius={[8, 8, 0, 0]} maxBarSize={80}>
                   {analytics.chartData.map((entry, index) => (
                     <Bar key={`bar-${index}`} dataKey="users" fill={entry.fill} />
                   ))}
@@ -125,85 +134,115 @@ export function ProfileCompletionAnalysis({ users }: ProfileCompletionAnalysisPr
         </CardContent>
       </Card>
 
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="grid gap-section md:grid-cols-2">
         {/* Field Completion Heatmap */}
-        <Card>
+        <Card className="border-border/50 shadow-md">
           <CardHeader>
-            <CardTitle className="text-base font-medium">Field Completion Rates</CardTitle>
+            <CardTitle className="text-lg font-semibold">Field Completion Rates</CardTitle>
             <CardDescription>Completion rate by profile field</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              {analytics.fieldStats.map(field => (
-                <div key={field.field}>
-                  <div className="flex items-center justify-between text-sm mb-1.5">
-                    <span className={field.rate < 50 ? 'text-destructive' : 'text-foreground'}>
-                      {field.field}
-                    </span>
-                    <span className="font-medium tabular-nums">{field.rate.toFixed(0)}%</span>
+            <div className="space-y-2">
+              {analytics.fieldStats.map(field => {
+                const isLow = field.rate < 50;
+                const isMedium = field.rate >= 50 && field.rate < 75;
+                const isHigh = field.rate >= 75;
+                
+                return (
+                  <div 
+                    key={field.field} 
+                    className="p-2.5 rounded-lg hover:bg-muted/30 transition-colors"
+                  >
+                    <div className="flex items-center justify-between text-sm mb-2">
+                      <span className={
+                        isLow ? 'text-destructive font-semibold' : 
+                        isMedium ? 'text-warning font-medium' : 
+                        'text-foreground font-medium'
+                      }>
+                        {field.field}
+                      </span>
+                      <span className="font-bold tabular-nums">{field.rate.toFixed(0)}%</span>
+                    </div>
+                    <Progress value={field.rate} className="h-2.5" />
                   </div>
-                  <Progress 
-                    value={field.rate} 
-                    className="h-2"
-                  />
-                </div>
-              ))}
+                );
+              })}
             </div>
           </CardContent>
         </Card>
 
         {/* Quality Score & Recommendations */}
-        <Card>
+        <Card className="border-border/50 shadow-md">
           <CardHeader>
-            <CardTitle className="text-base font-medium">Quality Overview</CardTitle>
+            <CardTitle className="text-lg font-semibold">Quality Overview</CardTitle>
             <CardDescription>Overall profile quality metrics</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Quality Gauge */}
+          <CardContent className="space-y-section">
+            {/* Quality Gauge - Stripe-inspired radial */}
             <div className="text-center">
-              <div className="inline-flex items-center justify-center w-32 h-32 rounded-full border-8 border-muted mb-2"
-                   style={{
-                     borderTopColor: analytics.avgCompletion >= 75 ? 'hsl(var(--success))' : 
-                                    analytics.avgCompletion >= 50 ? 'hsl(var(--warning))' : 
-                                    'hsl(var(--destructive))',
-                   }}>
-                <div className="text-center">
-                  <p className="text-3xl font-bold tabular-nums">{analytics.avgCompletion.toFixed(0)}%</p>
-                  <p className="text-xs text-muted-foreground">Avg Quality</p>
+              <div className="relative inline-flex items-center justify-center w-40 h-40 mb-3">
+                {/* Background ring */}
+                <div className="absolute inset-0 rounded-full border-[12px] border-muted"></div>
+                {/* Progress ring */}
+                <svg className="absolute inset-0 -rotate-90" viewBox="0 0 160 160">
+                  <circle
+                    cx="80"
+                    cy="80"
+                    r="74"
+                    fill="none"
+                    stroke={
+                      analytics.avgCompletion >= 75 ? 'hsl(var(--success))' : 
+                      analytics.avgCompletion >= 50 ? 'hsl(var(--warning))' : 
+                      'hsl(var(--destructive))'
+                    }
+                    strokeWidth="12"
+                    strokeDasharray={`${(analytics.avgCompletion / 100) * 465} 465`}
+                    strokeLinecap="round"
+                    className="transition-all duration-1000 shadow-glow"
+                  />
+                </svg>
+                {/* Center content */}
+                <div className="text-center z-10">
+                  <p className="text-hero-md font-bold tabular-nums tracking-tight">{analytics.avgCompletion.toFixed(0)}%</p>
+                  <p className="text-xs text-muted-foreground font-medium mt-1">Avg Quality</p>
                 </div>
               </div>
-              <p className="text-sm text-muted-foreground">
+              <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold ${
+                analytics.avgCompletion >= 75 ? 'bg-success/10 text-success' : 
+                analytics.avgCompletion >= 50 ? 'bg-warning/10 text-warning' : 
+                'bg-destructive/10 text-destructive'
+              }`}>
                 {analytics.avgCompletion >= 75 ? 'Excellent' : 
                  analytics.avgCompletion >= 50 ? 'Good' : 'Needs Improvement'}
-              </p>
+              </div>
             </div>
 
             {/* Key Stats */}
-            <div className="space-y-3 pt-4 border-t">
-              <div className="flex items-center justify-between">
+            <div className="space-y-2 pt-4 border-t">
+              <div className="flex items-center justify-between p-3 rounded-lg bg-success/5">
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="h-4 w-4 text-success" />
-                  <span className="text-sm">Complete profiles</span>
+                  <span className="text-sm font-medium">Complete profiles</span>
                 </div>
-                <span className="text-sm font-semibold tabular-nums">
+                <span className="text-sm font-bold tabular-nums">
                   {analytics.distribution['75-100%']}
                 </span>
               </div>
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between p-3 rounded-lg bg-warning/5">
                 <div className="flex items-center gap-2">
                   <AlertCircle className="h-4 w-4 text-warning" />
-                  <span className="text-sm">Incomplete profiles</span>
+                  <span className="text-sm font-medium">Incomplete profiles</span>
                 </div>
-                <span className="text-sm font-semibold tabular-nums">
+                <span className="text-sm font-bold tabular-nums">
                   {analytics.incompleteUsers}
                 </span>
               </div>
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
                 <div className="flex items-center gap-2">
                   <Target className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm">Total users</span>
+                  <span className="text-sm font-medium">Total users</span>
                 </div>
-                <span className="text-sm font-semibold tabular-nums">
+                <span className="text-sm font-bold tabular-nums">
                   {users.length}
                 </span>
               </div>
@@ -213,27 +252,36 @@ export function ProfileCompletionAnalysis({ users }: ProfileCompletionAnalysisPr
       </div>
 
       {/* Recommendations */}
-      <Card className="bg-muted/30 border-border/50">
+      <Card className="bg-gradient-subtle border-border/50 shadow-sm">
         <CardHeader>
-          <CardTitle className="text-sm font-medium flex items-center gap-2">
+          <CardTitle className="text-sm font-semibold flex items-center gap-2">
             <Target className="h-4 w-4" />
             Recommendations
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-2 text-sm">
+        <CardContent className="space-y-2.5 text-sm">
           {analytics.fieldStats[0] && analytics.fieldStats[0].rate < 70 && (
-            <p className="text-warning">
-              • Focus area: <span className="font-semibold">{analytics.fieldStats[0].field}</span> (only {analytics.fieldStats[0].rate.toFixed(0)}% completion)
-            </p>
+            <div className="flex items-start gap-2 p-3 rounded-lg bg-warning/5 border border-warning/20">
+              <div className="w-1.5 h-1.5 rounded-full bg-warning mt-1.5 shrink-0" />
+              <p className="text-warning-foreground">
+                Focus area: <span className="font-semibold">{analytics.fieldStats[0].field}</span> (only {analytics.fieldStats[0].rate.toFixed(0)}% completion)
+              </p>
+            </div>
           )}
           {analytics.incompleteUsers > 0 && (
-            <p>
-              • Send reminder emails to <span className="font-semibold">{analytics.incompleteUsers} users</span> with &lt;50% completion
-            </p>
+            <div className="flex items-start gap-2 p-3 rounded-lg bg-muted/30">
+              <div className="w-1.5 h-1.5 rounded-full bg-foreground/40 mt-1.5 shrink-0" />
+              <p className="text-foreground/90">
+                Send reminder emails to <span className="font-semibold">{analytics.incompleteUsers} users</span> with &lt;50% completion
+              </p>
+            </div>
           )}
-          <p>
-            • Average profile quality: <span className="font-semibold">{analytics.avgCompletion.toFixed(0)}%</span> - {analytics.avgCompletion >= 75 ? 'Excellent work!' : 'Room for improvement'}
-          </p>
+          <div className="flex items-start gap-2 p-3 rounded-lg bg-muted/30">
+            <div className="w-1.5 h-1.5 rounded-full bg-foreground/40 mt-1.5 shrink-0" />
+            <p className="text-foreground/90">
+              Average profile quality: <span className="font-semibold">{analytics.avgCompletion.toFixed(0)}%</span> - {analytics.avgCompletion >= 75 ? 'Excellent work!' : 'Room for improvement'}
+            </p>
+          </div>
         </CardContent>
       </Card>
     </div>
