@@ -76,17 +76,7 @@ export const useRoleManagement = () => {
   const { data: allUserRoles, isLoading: isLoadingRoles } = useQuery({
     queryKey: ['all-user-roles'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('user_roles')
-        .select(`
-          *,
-          profiles:user_id (
-            email,
-            first_name,
-            last_name
-          )
-        `)
-        .order('assigned_at', { ascending: false });
+      const { data, error } = await supabase.rpc('get_all_user_roles');
 
       if (error) throw error;
       return data;

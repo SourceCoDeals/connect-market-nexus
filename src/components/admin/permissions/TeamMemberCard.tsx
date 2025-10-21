@@ -14,10 +14,8 @@ interface TeamMemberCardProps {
 export const TeamMemberCard = ({ user, role }: TeamMemberCardProps) => {
   const initials = `${user.first_name?.[0] || ''}${user.last_name?.[0] || ''}`.toUpperCase() || user.email[0].toUpperCase();
   
-  const isOwner = user.email === 'ahaile14@gmail.com';
-  
-  // Display "Admin" for owner to keep professional appearance
-  const displayRole = isOwner ? 'admin' : role;
+  // Map 'owner' to 'admin' for display
+  const displayRole = role === 'owner' ? 'admin' : role;
 
   return (
     <Card className="group hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5 border-border/50">
@@ -64,7 +62,7 @@ export const TeamMemberCard = ({ user, role }: TeamMemberCardProps) => {
               userId={user.id}
               currentRole={role}
               userEmail={user.email}
-              disabled={isOwner}
+              disabled={role === 'owner'}
             />
           </div>
         </div>

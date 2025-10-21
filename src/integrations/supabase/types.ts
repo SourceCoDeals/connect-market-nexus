@@ -2510,24 +2510,24 @@ export type Database = {
       }
       user_roles: {
         Row: {
-          assigned_at: string
-          assigned_by: string | null
+          granted_at: string
+          granted_by: string | null
           id: string
           reason: string | null
           role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Insert: {
-          assigned_at?: string
-          assigned_by?: string | null
+          granted_at?: string
+          granted_by?: string | null
           id?: string
           reason?: string | null
           role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Update: {
-          assigned_at?: string
-          assigned_by?: string | null
+          granted_at?: string
+          granted_by?: string | null
           id?: string
           reason?: string | null
           role?: Database["public"]["Enums"]["app_role"]
@@ -2679,6 +2679,18 @@ export type Database = {
       generate_deal_identifier: {
         Args: Record<PropertyKey, never>
         Returns: string
+      }
+      get_all_user_roles: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          granted_at: string
+          granted_by: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_email: string
+          user_first_name: string
+          user_id: string
+          user_last_name: string
+        }[]
       }
       get_connection_request_conflicts: {
         Args: Record<PropertyKey, never>

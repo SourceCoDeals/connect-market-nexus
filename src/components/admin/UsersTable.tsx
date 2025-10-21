@@ -376,8 +376,9 @@ export function UsersTable({
   const { allUserRoles, isLoadingRoles } = useRoleManagement();
 
   const getUserRole = (userId: string): AppRole => {
-    if (!allUserRoles) return 'user';
-    return (allUserRoles.find((ur) => ur.user_id === userId)?.role as AppRole) || 'user';
+    if (!allUserRoles || allUserRoles.length === 0) return 'user';
+    const roleData = allUserRoles.find((ur) => ur.user_id === userId);
+    return (roleData?.role as AppRole) || 'user';
   };
   const logEmailMutation = useLogFeeAgreementEmail();
   const logNDAEmail = useLogNDAEmail();
@@ -597,14 +598,14 @@ export function UsersTable({
                   <div className="flex flex-col gap-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-medium text-sm">{user.firstName} {user.lastName}</span>
-                      {(() => {
+                      {!isLoadingRoles && (() => {
                         const role = getUserRole(user.id);
-                        // Only show badge for elevated roles (admin, moderator)
-                        // Show "Admin" for owner to keep it professional
-                        if (role === 'owner') {
-                          return <RoleBadge role="admin" showTooltip={false} />;
-                        } else if (role === 'admin' || role === 'moderator') {
-                          return <RoleBadge role={role} showTooltip={false} />;
+                        // Map 'owner' to 'admin' for display
+                        const displayRole = role === 'owner' ? 'admin' : role;
+                        
+                        // Only show badge for admin and moderator
+                        if (displayRole === 'admin' || displayRole === 'moderator') {
+                          return <RoleBadge role={displayRole} showTooltip={false} />;
                         }
                         return null;
                       })()}
