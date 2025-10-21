@@ -3,20 +3,15 @@ import { adminErrorHandler } from "@/lib/error-handler";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, RefreshCw, Settings, LayoutGrid, Activity, TrendingUp, Users, ShoppingBag, Database, Workflow } from "lucide-react";
+import { Search, RefreshCw, Settings, LayoutGrid, Activity, TrendingUp, Users, ShoppingBag, Database, Workflow, Bell, HelpCircle } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { StreamlinedOverviewTab } from "@/components/admin/StreamlinedOverviewTab";
 import { StreamlinedAnalyticsTab } from "@/components/admin/StreamlinedAnalyticsTab";
 import { StreamlinedManagementTab } from "@/components/admin/StreamlinedManagementTab";
 import { RecentActivityTab } from "@/components/admin/RecentActivityTab";
 import { ListingIntelligenceTab } from "@/components/admin/ListingIntelligenceTab";
-import { MarketIntelligenceTab } from "@/components/admin/MarketIntelligenceTab";
-import { PredictiveIntelligenceTab } from "@/components/admin/PredictiveIntelligenceTab";
-import { AutomatedIntelligenceTab } from "@/components/admin/AutomatedIntelligenceTab";
-import { RevenueOptimizationTab } from "@/components/admin/RevenueOptimizationTab";
-import { ProjectManagementTab } from "@/components/admin/ProjectManagementTab";
 import { DataRecoveryTab } from "@/components/admin/data-recovery/DataRecoveryTab";
 import { FormMonitoringTab } from "@/components/admin/form-monitoring/FormMonitoringTab";
-import { AnalyticsTab } from "@/components/admin/analytics/AnalyticsTab";
 import { useAdmin } from "@/hooks/use-admin";
 import { useState } from "react";
 
@@ -24,9 +19,20 @@ const AdminDashboard = () => {
   const { users } = useAdmin();
   const { data: usersData = [] } = users;
   const [searchQuery, setSearchQuery] = useState("");
+  const [showNotifications, setShowNotifications] = useState(false);
   
   const handleRefresh = () => {
     window.location.reload();
+  };
+
+  const handleExportData = () => {
+    console.log("Exporting dashboard data...");
+    // Add export functionality here
+  };
+
+  const handleManagePermissions = () => {
+    console.log("Managing permissions...");
+    // Add permissions management here
   };
 
   return (
@@ -59,16 +65,61 @@ const AdminDashboard = () => {
                     size="icon"
                     onClick={handleRefresh}
                     className="h-9 w-9"
+                    title="Refresh dashboard"
                   >
                     <RefreshCw className="h-4 w-4" />
                   </Button>
-                  <Button 
-                    variant="ghost" 
-                    size="icon"
-                    className="h-9 w-9"
-                  >
-                    <Settings className="h-4 w-4" />
-                  </Button>
+                  
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button 
+                        variant="ghost" 
+                        size="icon"
+                        className="h-9 w-9"
+                      >
+                        <Bell className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-80">
+                      <div className="flex items-center justify-between px-4 py-2">
+                        <h4 className="font-medium text-sm">Notifications</h4>
+                        <Button variant="ghost" size="sm" className="h-auto p-0 text-xs">
+                          Mark all read
+                        </Button>
+                      </div>
+                      <DropdownMenuSeparator />
+                      <div className="px-4 py-8 text-center text-sm text-muted-foreground">
+                        No new notifications
+                      </div>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button 
+                        variant="ghost" 
+                        size="icon"
+                        className="h-9 w-9"
+                      >
+                        <Settings className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-56">
+                      <DropdownMenuItem onClick={handleManagePermissions}>
+                        <Users className="mr-2 h-4 w-4" />
+                        Manage Permissions
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={handleExportData}>
+                        <Database className="mr-2 h-4 w-4" />
+                        Export Data
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem>
+                        <HelpCircle className="mr-2 h-4 w-4" />
+                        Help & Support
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
               </div>
 
@@ -89,55 +140,59 @@ const AdminDashboard = () => {
 
           {/* Navigation Tabs */}
           <Tabs defaultValue="overview" className="w-full">
-            <div className="px-6">
-              <TabsList className="inline-flex h-9 items-center justify-start rounded-none border-b-0 bg-transparent p-0 gap-6">
+            <div className="px-6 border-b">
+              <TabsList className="inline-flex h-10 items-center justify-start rounded-none border-b-0 bg-transparent p-0 gap-8">
                 <TabsTrigger 
                   value="overview"
-                  className="relative rounded-none border-b-2 border-b-transparent bg-transparent px-0 pb-3 pt-0 font-medium text-muted-foreground shadow-none transition-none hover:text-foreground data-[state=active]:border-b-primary data-[state=active]:text-foreground data-[state=active]:shadow-none"
+                  className="relative rounded-none border-b-2 border-b-transparent bg-transparent px-0 pb-3.5 pt-0 text-sm font-medium text-muted-foreground shadow-none transition-colors hover:text-foreground data-[state=active]:border-b-primary data-[state=active]:text-foreground data-[state=active]:shadow-none"
                 >
-                  <LayoutGrid className="h-4 w-4 mr-2" />
+                  <LayoutGrid className="h-3.5 w-3.5 mr-1.5" />
                   Overview
                 </TabsTrigger>
                 <TabsTrigger 
                   value="analytics"
-                  className="relative rounded-none border-b-2 border-b-transparent bg-transparent px-0 pb-3 pt-0 font-medium text-muted-foreground shadow-none transition-none hover:text-foreground data-[state=active]:border-b-primary data-[state=active]:text-foreground data-[state=active]:shadow-none"
+                  className="relative rounded-none border-b-2 border-b-transparent bg-transparent px-0 pb-3.5 pt-0 text-sm font-medium text-muted-foreground shadow-none transition-colors hover:text-foreground data-[state=active]:border-b-primary data-[state=active]:text-foreground data-[state=active]:shadow-none"
                 >
-                  <TrendingUp className="h-4 w-4 mr-2" />
+                  <TrendingUp className="h-3.5 w-3.5 mr-1.5" />
                   Analytics
                 </TabsTrigger>
                 <TabsTrigger 
-                  value="activity"
-                  className="relative rounded-none border-b-2 border-b-transparent bg-transparent px-0 pb-3 pt-0 font-medium text-muted-foreground shadow-none transition-none hover:text-foreground data-[state=active]:border-b-primary data-[state=active]:text-foreground data-[state=active]:shadow-none"
-                >
-                  <Activity className="h-4 w-4 mr-2" />
-                  Activity
-                </TabsTrigger>
-                <TabsTrigger 
                   value="listings"
-                  className="relative rounded-none border-b-2 border-b-transparent bg-transparent px-0 pb-3 pt-0 font-medium text-muted-foreground shadow-none transition-none hover:text-foreground data-[state=active]:border-b-primary data-[state=active]:text-foreground data-[state=active]:shadow-none"
+                  className="relative rounded-none border-b-2 border-b-transparent bg-transparent px-0 pb-3.5 pt-0 text-sm font-medium text-muted-foreground shadow-none transition-colors hover:text-foreground data-[state=active]:border-b-primary data-[state=active]:text-foreground data-[state=active]:shadow-none"
                 >
-                  <ShoppingBag className="h-4 w-4 mr-2" />
+                  <ShoppingBag className="h-3.5 w-3.5 mr-1.5" />
                   Listings
                 </TabsTrigger>
                 <TabsTrigger 
                   value="management"
-                  className="relative rounded-none border-b-2 border-b-transparent bg-transparent px-0 pb-3 pt-0 font-medium text-muted-foreground shadow-none transition-none hover:text-foreground data-[state=active]:border-b-primary data-[state=active]:text-foreground data-[state=active]:shadow-none"
+                  className="relative rounded-none border-b-2 border-b-transparent bg-transparent px-0 pb-3.5 pt-0 text-sm font-medium text-muted-foreground shadow-none transition-colors hover:text-foreground data-[state=active]:border-b-primary data-[state=active]:text-foreground data-[state=active]:shadow-none"
                 >
-                  <Users className="h-4 w-4 mr-2" />
+                  <Users className="h-3.5 w-3.5 mr-1.5" />
                   Users
+                </TabsTrigger>
+                
+                {/* Separator */}
+                <div className="h-5 w-px bg-border/50 self-center" />
+                
+                <TabsTrigger 
+                  value="activity"
+                  className="relative rounded-none border-b-2 border-b-transparent bg-transparent px-0 pb-3.5 pt-0 text-sm font-medium text-muted-foreground shadow-none transition-colors hover:text-foreground data-[state=active]:border-b-primary data-[state=active]:text-foreground data-[state=active]:shadow-none"
+                >
+                  <Activity className="h-3.5 w-3.5 mr-1.5" />
+                  Activity
                 </TabsTrigger>
                 <TabsTrigger 
                   value="data-recovery"
-                  className="relative rounded-none border-b-2 border-b-transparent bg-transparent px-0 pb-3 pt-0 font-medium text-muted-foreground shadow-none transition-none hover:text-foreground data-[state=active]:border-b-primary data-[state=active]:text-foreground data-[state=active]:shadow-none"
+                  className="relative rounded-none border-b-2 border-b-transparent bg-transparent px-0 pb-3.5 pt-0 text-sm font-medium text-muted-foreground shadow-none transition-colors hover:text-foreground data-[state=active]:border-b-primary data-[state=active]:text-foreground data-[state=active]:shadow-none"
                 >
-                  <Database className="h-4 w-4 mr-2" />
+                  <Database className="h-3.5 w-3.5 mr-1.5" />
                   Data
                 </TabsTrigger>
                 <TabsTrigger 
                   value="form-monitoring"
-                  className="relative rounded-none border-b-2 border-b-transparent bg-transparent px-0 pb-3 pt-0 font-medium text-muted-foreground shadow-none transition-none hover:text-foreground data-[state=active]:border-b-primary data-[state=active]:text-foreground data-[state=active]:shadow-none"
+                  className="relative rounded-none border-b-2 border-b-transparent bg-transparent px-0 pb-3.5 pt-0 text-sm font-medium text-muted-foreground shadow-none transition-colors hover:text-foreground data-[state=active]:border-b-primary data-[state=active]:text-foreground data-[state=active]:shadow-none"
                 >
-                  <Workflow className="h-4 w-4 mr-2" />
+                  <Workflow className="h-3.5 w-3.5 mr-1.5" />
                   Forms
                 </TabsTrigger>
               </TabsList>
