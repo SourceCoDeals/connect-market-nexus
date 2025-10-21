@@ -250,6 +250,12 @@ function UserActionButtons({
   isLoading: boolean;
 }) {
   const { toast } = useToast();
+  const { canManagePermissions } = usePermissions();
+  const { allUserRoles } = useRoleManagement();
+
+  const getUserRole = (userId: string): AppRole => {
+    return (allUserRoles?.find((ur) => ur.user_id === userId)?.role as AppRole) || 'user';
+  };
   const handleSendPasswordReset = async () => {
     try {
       const { error } = await supabase.functions.invoke('password-reset', {
