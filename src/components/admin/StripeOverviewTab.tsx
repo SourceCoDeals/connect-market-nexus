@@ -328,10 +328,9 @@ export function StripeOverviewTab() {
               ))}
             </div>
           ) : filteredActivities.length > 0 ? (
-            <div className="space-y-4 p-6">
+            <div className="max-h-[600px] overflow-y-auto">
               {filteredActivities.map((userGroup) => {
-                const activitySummary = `${userGroup.totalActivities} event${userGroup.totalActivities !== 1 ? 's' : ''} in ${formatDistanceToNow(new Date(userGroup.lastActivityTime))}`;
-                const sessionReferrer = parseReferrerSource(
+                const sessionSource = parseReferrerSource(
                   userGroup.mostRecentSession?.referrer,
                   userGroup.mostRecentSession?.utm_source,
                   userGroup.mostRecentSession?.marketing_channel
@@ -340,62 +339,48 @@ export function StripeOverviewTab() {
                 return (
                   <div 
                     key={userGroup.user_id}
-                    className="border border-border/50 rounded-lg p-6 hover:border-border transition-all bg-card"
+                    className="flex items-start gap-3 px-6 py-4 hover:bg-muted/10 transition-colors border-b border-border/30 last:border-b-0"
                   >
-                    <div className="flex items-start justify-between gap-6">
-                      {/* Left side - User info */}
-                      <div className="flex items-start gap-4 flex-1">
-                        <Avatar className="h-12 w-12 border">
-                          <AvatarFallback className="text-base">
-                            {userGroup.first_name?.charAt(0) || userGroup.email.charAt(0).toUpperCase()}
-                          </AvatarFallback>
-                        </Avatar>
-                        
+                    <Avatar className="h-8 w-8 border mt-0.5">
+                      <AvatarFallback className="text-xs">
+                        {userGroup.first_name?.charAt(0) || userGroup.email.charAt(0).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-2">
                         <div className="flex-1 min-w-0">
-                          <h4 className="text-base font-semibold text-foreground mb-1">
+                          <button
+                            onClick={() => handleUserClick(userGroup.user_id)}
+                            className="text-sm text-foreground font-semibold hover:text-primary transition-colors text-left"
+                          >
                             {userGroup.user_name}
-                          </h4>
-                          
-                          <div className="flex items-center gap-3 text-sm text-muted-foreground mb-3">
-                            <div className="flex items-center gap-1.5">
-                              <Clock className="h-3.5 w-3.5" />
+                          </button>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {userGroup.totalActivities} event{userGroup.totalActivities !== 1 ? 's' : ''} • {sessionSource}
+                          </p>
+                          <div className="flex items-center gap-3 mt-2">
+                            <p className="text-xs text-muted-foreground">
                               {formatDistanceToNow(new Date(userGroup.lastActivityTime), { addSuffix: true })}
-                            </div>
-                            <span>•</span>
-                            <span>{activitySummary}</span>
+                            </p>
+                            <ActivityDetailsDropdown
+                              session_id={userGroup.mostRecentSession?.session_id}
+                              referrer={userGroup.mostRecentSession?.referrer}
+                              time_on_page={userGroup.mostRecentSession?.time_on_page}
+                              scroll_depth={userGroup.mostRecentSession?.scroll_depth}
+                              page_title={userGroup.mostRecentSession?.page_title}
+                              event_category={userGroup.mostRecentSession?.event_category}
+                              event_label={userGroup.mostRecentSession?.event_label}
+                            />
                           </div>
-
                           <Button
                             variant="link"
                             size="sm"
-                            className="h-auto p-0 text-sm text-primary hover:text-primary/80"
+                            className="h-auto p-0 mt-1 text-xs text-primary hover:text-primary/80"
                             onClick={() => handleUserClick(userGroup.user_id)}
                           >
                             See more about this user →
                           </Button>
-                        </div>
-                      </div>
-
-                      {/* Right side - User details */}
-                      <div className="space-y-3 text-sm min-w-[300px]">
-                        <div className="flex justify-between gap-4">
-                          <span className="text-muted-foreground">User ID</span>
-                          <span className="font-mono text-xs">{userGroup.user_id.substring(0, 16)}...</span>
-                        </div>
-                        
-                        <div className="flex justify-between gap-4">
-                          <span className="text-muted-foreground">Date First Seen</span>
-                          <span>{format(new Date(userGroup.dateFirstSeen), 'MMMM d, yyyy')}</span>
-                        </div>
-                        
-                        <div className="flex justify-between gap-4">
-                          <span className="text-muted-foreground">Current Session Source</span>
-                          <span className="font-medium">{sessionReferrer}</span>
-                        </div>
-
-                        <div className="flex justify-between gap-4">
-                          <span className="text-muted-foreground">Email</span>
-                          <span className="truncate text-xs">{userGroup.email}</span>
                         </div>
                       </div>
                     </div>

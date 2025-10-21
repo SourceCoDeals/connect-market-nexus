@@ -13,6 +13,11 @@ interface RecentActivity {
   listing_title?: string;
   session_id?: string;
   referrer?: string;
+  full_referrer?: string;
+  utm_source?: string;
+  utm_medium?: string;
+  utm_campaign?: string;
+  marketing_channel?: string;
   time_on_page?: number;
   scroll_depth?: number;
   page_title?: string;
@@ -79,6 +84,21 @@ export function useRecentUserActivity() {
         .order('created_at', { ascending: false })
         .limit(50);
 
+      // Get all unique session IDs
+      const allSessionIds = [
+        ...(listingAnalytics?.map(l => l.session_id) || []),
+        ...(pageViews?.map(p => p.session_id) || []),
+        ...(userEvents?.map(e => e.session_id) || [])
+      ].filter(Boolean);
+
+      // Fetch session metadata from user_initial_session
+      const { data: sessionMetadata } = await supabase
+        .from('user_initial_session')
+        .select('session_id, referrer, full_referrer, utm_source, utm_medium, utm_campaign, marketing_channel')
+        .in('session_id', [...new Set(allSessionIds)]);
+
+      const sessionMap = new Map(sessionMetadata?.map(s => [s.session_id, s]) || []);
+
       // Get user profiles for all user IDs
       const allUserIds = [
         ...(listingAnalytics?.map(l => l.user_id) || []),
@@ -96,6 +116,7 @@ export function useRecentUserActivity() {
       // Process listing analytics
       listingAnalytics?.forEach(item => {
         const profile = profileMap.get(item.user_id!);
+        const session = sessionMap.get(item.session_id || '');
         if (profile) {
           activities.push({
             id: `listing-${item.id}`,
@@ -107,6 +128,12 @@ export function useRecentUserActivity() {
             last_name: profile.last_name || '',
             listing_title: item.listings?.title || 'Unknown Listing',
             session_id: item.session_id || undefined,
+            referrer: session?.referrer || undefined,
+            full_referrer: session?.full_referrer || undefined,
+            utm_source: session?.utm_source || undefined,
+            utm_medium: session?.utm_medium || undefined,
+            utm_campaign: session?.utm_campaign || undefined,
+            marketing_channel: session?.marketing_channel || undefined,
             user_id: item.user_id || undefined,
             user_name: `${profile.first_name} ${profile.last_name}`.trim(),
             description: `${item.action_type} ${item.listings?.title || 'listing'}`
@@ -117,6 +144,7 @@ export function useRecentUserActivity() {
       // Process page views
       pageViews?.forEach(item => {
         const profile = profileMap.get(item.user_id!);
+        const session = sessionMap.get(item.session_id || '');
         if (profile) {
           activities.push({
             id: `page-${item.id}`,
@@ -128,7 +156,12 @@ export function useRecentUserActivity() {
             page_path: item.page_path,
             page_title: item.page_title || undefined,
             session_id: item.session_id || undefined,
-            referrer: item.referrer || undefined,
+            referrer: session?.referrer || item.referrer || undefined,
+            full_referrer: session?.full_referrer || undefined,
+            utm_source: session?.utm_source || undefined,
+            utm_medium: session?.utm_medium || undefined,
+            utm_campaign: session?.utm_campaign || undefined,
+            marketing_channel: session?.marketing_channel || undefined,
             time_on_page: item.time_on_page || undefined,
             scroll_depth: item.scroll_depth || undefined,
             user_id: item.user_id || undefined,
@@ -141,6 +174,7 @@ export function useRecentUserActivity() {
       // Process user events
       userEvents?.forEach(item => {
         const profile = profileMap.get(item.user_id!);
+        const session = sessionMap.get(item.session_id || '');
         if (profile) {
           activities.push({
             id: `event-${item.id}`,
@@ -152,6 +186,12 @@ export function useRecentUserActivity() {
             last_name: profile.last_name || '',
             page_path: item.page_path || undefined,
             session_id: item.session_id || undefined,
+            referrer: session?.referrer || undefined,
+            full_referrer: session?.full_referrer || undefined,
+            utm_source: session?.utm_source || undefined,
+            utm_medium: session?.utm_medium || undefined,
+            utm_campaign: session?.utm_campaign || undefined,
+            marketing_channel: session?.marketing_channel || undefined,
             event_category: item.event_category || undefined,
             event_label: item.event_label || undefined,
             user_id: item.user_id || undefined,
