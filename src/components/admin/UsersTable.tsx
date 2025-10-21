@@ -302,22 +302,26 @@ function UserActionButtons({
           
           <DropdownMenuSeparator />
           
-          {!user.is_admin ? (
-            <DropdownMenuItem 
-              onClick={() => onMakeAdmin(user)}
-              className="text-blue-600"
-            >
-              <UserPlus className="h-4 w-4 mr-2" />
-              Make Admin
-            </DropdownMenuItem>
-          ) : (
-            <DropdownMenuItem 
-              onClick={() => onRevokeAdmin(user)}
-              className="text-orange-600"
-            >
-              <UserMinus className="h-4 w-4 mr-2" />
-              Revoke Admin
-            </DropdownMenuItem>
+          {canManagePermissions && user.email !== 'ahaile14@gmail.com' && (
+            <>
+              {getUserRole(user.id) !== 'admin' ? (
+                <DropdownMenuItem 
+                  onClick={() => onMakeAdmin(user)}
+                  className="text-blue-600"
+                >
+                  <UserPlus className="h-4 w-4 mr-2" />
+                  Promote to Admin
+                </DropdownMenuItem>
+              ) : (
+                <DropdownMenuItem 
+                  onClick={() => onRevokeAdmin(user)}
+                  className="text-orange-600"
+                >
+                  <UserMinus className="h-4 w-4 mr-2" />
+                  Demote to User
+                </DropdownMenuItem>
+              )}
+            </>
           )}
           
           <DropdownMenuSeparator />
