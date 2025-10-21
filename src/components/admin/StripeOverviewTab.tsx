@@ -1,9 +1,11 @@
-import { Users, Store, MessageSquare, Activity, TrendingUp, TrendingDown, ArrowUpRight } from "lucide-react";
+import { Users, Store, MessageSquare, Activity, TrendingUp, TrendingDown, ArrowUpRight, UserPlus, Link as LinkIcon, Eye } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useAdmin } from "@/hooks/use-admin";
 import { useRecentUserActivity } from "@/hooks/use-recent-user-activity";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useState } from "react";
 
 export function StripeOverviewTab() {
   const { useStats } = useAdmin();
@@ -45,18 +47,17 @@ export function StripeOverviewTab() {
     }
   ];
 
-  const quickActions = [
-    {
-      title: "Pending approvals",
-      count: stats?.pendingUsers || 0,
-      urgent: (stats?.pendingUsers || 0) > 5,
-    },
-    {
-      title: "Connection requests",
-      count: stats?.pendingConnections || 0,
-      urgent: (stats?.pendingConnections || 0) > 10,
-    }
-  ];
+  const [activityFilter, setActivityFilter] = useState<string>("all");
+
+  // Filter activities based on selected tab
+  const filteredActivities = activities.filter(activity => {
+    if (activityFilter === "all") return true;
+    if (activityFilter === "users") return activity.activity_type === 'user_event' || activity.action_type === 'signup';
+    if (activityFilter === "listings") return activity.activity_type === 'listing_action';
+    if (activityFilter === "connections") return activity.action_type?.includes('connection') || activity.action_type?.includes('request');
+    if (activityFilter === "views") return activity.activity_type === 'page_view';
+    return true;
+  });
 
   if (isLoadingStats) {
     return (
@@ -117,53 +118,62 @@ export function StripeOverviewTab() {
         })}
       </div>
 
-      {/* Quick Actions Bar */}
-      {quickActions.some(action => action.count > 0) && (
-        <div className="border border-border/50 rounded-lg p-6 bg-card">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h3 className="text-sm font-semibold">Action required</h3>
-              <p className="text-xs text-muted-foreground/70 mt-0.5">Items need your attention</p>
-            </div>
-          </div>
-          
-          <div className="grid gap-3 md:grid-cols-2">
-            {quickActions.filter(action => action.count > 0).map((action) => (
-              <div key={action.title} className="flex items-center justify-between p-4 border border-border/50 rounded-lg bg-muted/20">
-                <div className="flex items-center gap-3">
-                  <div className="flex flex-col">
-                    <span className="text-sm font-medium">{action.title}</span>
-                    <div className="flex items-center gap-2 mt-1">
-                      <Badge variant={action.urgent ? "destructive" : "secondary"} className="h-5 px-2 text-xs">
-                        {action.count}
-                      </Badge>
-                      {action.urgent && (
-                        <span className="text-xs text-red-600 dark:text-red-400 font-medium">Urgent</span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-                <Button variant="ghost" size="sm" className="h-8 px-3">
-                  Review
-                  <ArrowUpRight className="h-3 w-3 ml-1" />
-                </Button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Live Activity Feed - Minimalist */}
+      {/* Live Activity Feed with Tabs - Unlimited scroll */}
       <div className="border border-border/50 rounded-lg bg-card overflow-hidden">
         <div className="p-6 border-b border-border/50">
-          <h3 className="text-sm font-semibold">Recent activity</h3>
-          <p className="text-xs text-muted-foreground/70 mt-0.5">Live updates from your marketplace</p>
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-sm font-semibold">Activity feed</h3>
+              <p className="text-xs text-muted-foreground/70 mt-0.5">Real-time updates from your marketplace</p>
+            </div>
+          </div>
+
+          {/* Activity Filter Tabs */}
+          <Tabs value={activityFilter} onValueChange={setActivityFilter} className="w-full">
+            <TabsList className="inline-flex h-9 items-center justify-start rounded-md bg-muted/30 p-1 gap-1">
+              <TabsTrigger 
+                value="all"
+                className="rounded-md px-3 py-1.5 text-xs font-medium transition-all data-[state=active]:bg-background data-[state=active]:shadow-sm"
+              >
+                <Activity className="h-3 w-3 mr-1.5" />
+                All activity
+              </TabsTrigger>
+              <TabsTrigger 
+                value="users"
+                className="rounded-md px-3 py-1.5 text-xs font-medium transition-all data-[state=active]:bg-background data-[state=active]:shadow-sm"
+              >
+                <UserPlus className="h-3 w-3 mr-1.5" />
+                Users
+              </TabsTrigger>
+              <TabsTrigger 
+                value="listings"
+                className="rounded-md px-3 py-1.5 text-xs font-medium transition-all data-[state=active]:bg-background data-[state=active]:shadow-sm"
+              >
+                <Store className="h-3 w-3 mr-1.5" />
+                Listings
+              </TabsTrigger>
+              <TabsTrigger 
+                value="connections"
+                className="rounded-md px-3 py-1.5 text-xs font-medium transition-all data-[state=active]:bg-background data-[state=active]:shadow-sm"
+              >
+                <LinkIcon className="h-3 w-3 mr-1.5" />
+                Connections
+              </TabsTrigger>
+              <TabsTrigger 
+                value="views"
+                className="rounded-md px-3 py-1.5 text-xs font-medium transition-all data-[state=active]:bg-background data-[state=active]:shadow-sm"
+              >
+                <Eye className="h-3 w-3 mr-1.5" />
+                Page views
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
         </div>
         
         <div className="divide-y divide-border/50">
           {isLoadingActivities ? (
             <div className="p-6 space-y-4">
-              {[1, 2, 3, 4, 5].map((i) => (
+              {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
                 <div key={i} className="flex items-center gap-3 animate-pulse">
                   <div className="h-2 w-2 bg-muted/50 rounded-full"></div>
                   <div className="h-3 bg-muted/50 rounded flex-1"></div>
@@ -171,9 +181,9 @@ export function StripeOverviewTab() {
                 </div>
               ))}
             </div>
-          ) : activities.length > 0 ? (
-            <div className="max-h-96 overflow-y-auto">
-              {activities.slice(0, 10).map((activity) => {
+          ) : filteredActivities.length > 0 ? (
+            <div className="max-h-[600px] overflow-y-auto">
+              {filteredActivities.map((activity) => {
                 const getActivityDescription = () => {
                   if (activity.activity_type === 'listing_action') {
                     return (
@@ -221,32 +231,11 @@ export function StripeOverviewTab() {
           ) : (
             <div className="p-12 text-center">
               <Activity className="h-8 w-8 text-muted-foreground/30 mx-auto mb-3" />
-              <p className="text-sm text-muted-foreground/70">No recent activity</p>
+              <p className="text-sm text-muted-foreground/70">
+                {activityFilter === "all" ? "No recent activity" : `No ${activityFilter} activity`}
+              </p>
             </div>
           )}
-        </div>
-      </div>
-
-      {/* System Status - Minimalist indicators */}
-      <div className="border border-border/50 rounded-lg p-6 bg-card">
-        <h3 className="text-sm font-semibold mb-4">System status</h3>
-        <div className="grid gap-4 md:grid-cols-4">
-          <div className="flex items-center gap-2.5">
-            <div className="h-1.5 w-1.5 bg-emerald-500 rounded-full"></div>
-            <span className="text-sm text-muted-foreground">Database</span>
-          </div>
-          <div className="flex items-center gap-2.5">
-            <div className="h-1.5 w-1.5 bg-emerald-500 rounded-full"></div>
-            <span className="text-sm text-muted-foreground">Email service</span>
-          </div>
-          <div className="flex items-center gap-2.5">
-            <div className="h-1.5 w-1.5 bg-yellow-500 rounded-full"></div>
-            <span className="text-sm text-muted-foreground">Storage (78%)</span>
-          </div>
-          <div className="flex items-center gap-2.5">
-            <div className="h-1.5 w-1.5 bg-emerald-500 rounded-full"></div>
-            <span className="text-sm text-muted-foreground">API</span>
-          </div>
         </div>
       </div>
     </div>
