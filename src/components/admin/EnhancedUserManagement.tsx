@@ -8,8 +8,10 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { User } from '@/types';
 import { Search, Filter, Download, Users, UserCheck, AlertCircle, Database, Activity } from 'lucide-react';
-import { DataRecoveryDashboard } from './DataRecoveryDashboard';
-import { FormValidationMonitor } from './FormValidationMonitor';
+import { UserOverviewTab } from './user-overview/UserOverviewTab';
+import { DataRecoveryTab } from './data-recovery/DataRecoveryTab';
+import { FormMonitoringTab } from './form-monitoring/FormMonitoringTab';
+import { AnalyticsTab } from './analytics/AnalyticsTab';
 import { formatFieldValueForExport } from '@/lib/field-formatting';
 
 interface EnhancedUserManagementProps {
@@ -268,6 +270,13 @@ export function EnhancedUserManagement({
       </TabsList>
 
       <TabsContent value="overview" className="space-y-8 mt-8">
+        <UserOverviewTab
+          users={users}
+          totalUsers={analytics.totalUsers}
+          pendingCount={analytics.pendingCount}
+          approvedCount={analytics.approvedCount}
+          rejectedCount={analytics.rejectedCount}
+        />
         {/* Analytics Overview - Clean stat cards with generous spacing */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <div className="space-y-2">
@@ -407,40 +416,20 @@ export function EnhancedUserManagement({
           )}
       </TabsContent>
 
-      <TabsContent value="data-recovery" className="mt-8">
-        <DataRecoveryDashboard users={users} />
+      <TabsContent value="data-recovery" className="space-y-8 mt-8">
+        <DataRecoveryTab users={users} />
       </TabsContent>
 
-      <TabsContent value="form-monitoring" className="mt-8">
-        <FormValidationMonitor />
+      <TabsContent value="form-monitoring" className="space-y-8 mt-8">
+        <FormMonitoringTab />
       </TabsContent>
 
-      <TabsContent value="analytics" className="mt-8">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Activity className="h-5 w-5" />
-              User Analytics
-            </CardTitle>
-            <CardDescription>
-              Detailed analytics and insights about your user base
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-6">
-              <div>
-                <h3 className="text-sm font-medium mb-4">Buyer Type Distribution</h3>
-                <div className="space-y-2">
-                  {Object.entries(analytics.buyerTypeBreakdown).map(([type, count]) => (
-                    <div key={type} className="flex items-center justify-between text-sm">
-                      <span className="capitalize">{type.replace(/([A-Z])/g, ' $1').trim()}</span>
-                      <span className="font-medium">{count}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </CardContent>
+      <TabsContent value="analytics" className="space-y-8 mt-8">
+        <AnalyticsTab users={users} />
+      </TabsContent>
+    </Tabs>
+  );
+}
         </Card>
       </TabsContent>
     </Tabs>

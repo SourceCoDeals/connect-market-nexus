@@ -112,29 +112,6 @@ const AdminUsers = () => {
               </p>
             </div>
             
-            {/* Top right actions - Tools dropdown */}
-            <div className="flex items-center gap-2">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="gap-2">
-                    <Settings className="h-4 w-4" />
-                    <span className="hidden sm:inline">Tools</span>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56 bg-background z-50">
-                  <DropdownMenuItem onSelect={() => setActiveToolsTab('data-recovery')}>
-                    Data Recovery Dashboard
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onSelect={() => setActiveToolsTab('form-monitoring')}>
-                    Form Validation Monitor
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onSelect={() => setActiveToolsTab('analytics')}>
-                    Analytics
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
           </div>
 
           {/* Subtle navigation tabs */}
