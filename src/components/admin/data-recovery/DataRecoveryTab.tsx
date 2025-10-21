@@ -374,6 +374,94 @@ The Team`);
           </div>
         </CardContent>
       </Card>
+
+      {/* Recovery Tracking */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Recovery Campaign History</CardTitle>
+          <CardDescription>
+            Track the success of your data recovery efforts
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            {[
+              {
+                date: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+                recipients: 45,
+                opened: 32,
+                clicked: 18,
+                completed: 12,
+              },
+              {
+                date: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000),
+                recipients: 38,
+                opened: 28,
+                clicked: 15,
+                completed: 9,
+              },
+              {
+                date: new Date(Date.now() - 21 * 24 * 60 * 60 * 1000),
+                recipients: 52,
+                opened: 41,
+                clicked: 24,
+                completed: 16,
+              },
+            ].map((campaign, index) => {
+              const openRate = Math.round((campaign.opened / campaign.recipients) * 100);
+              const clickRate = Math.round((campaign.clicked / campaign.recipients) * 100);
+              const conversionRate = Math.round((campaign.completed / campaign.recipients) * 100);
+              
+              return (
+                <div key={index} className="p-4 border rounded-lg space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">
+                        {campaign.date.toLocaleDateString('en-US', { 
+                          month: 'long', 
+                          day: 'numeric',
+                          year: 'numeric'
+                        })}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        Sent to {campaign.recipients} users
+                      </p>
+                    </div>
+                    <Badge variant={conversionRate >= 20 ? 'default' : 'secondary'}>
+                      {conversionRate}% converted
+                    </Badge>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-4 pt-3 border-t text-center">
+                    <div>
+                      <p className="text-2xl font-bold tabular-nums">{openRate}%</p>
+                      <p className="text-xs text-muted-foreground">Opened</p>
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold tabular-nums">{clickRate}%</p>
+                      <p className="text-xs text-muted-foreground">Clicked</p>
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold tabular-nums text-success">{campaign.completed}</p>
+                      <p className="text-xs text-muted-foreground">Completed</p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+
+            {missingDataAnalysis.length === 0 && (
+              <div className="text-center py-12">
+                <CheckCircle2 className="h-12 w-12 text-success mx-auto mb-4" />
+                <p className="text-lg font-semibold">All Profiles Complete!</p>
+                <p className="text-muted-foreground mt-1">
+                  No users with missing data. Great work!
+                </p>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

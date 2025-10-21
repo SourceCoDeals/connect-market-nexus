@@ -15,6 +15,9 @@ import {
 } from 'lucide-react';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { HeroStatsSection } from './HeroStatsSection';
+import { EngagementMetrics } from './EngagementMetrics';
+import { BusinessIntelligence } from './BusinessIntelligence';
+import { CohortAnalysis } from './CohortAnalysis';
 
 interface AnalyticsTabProps {
   users: User[];
@@ -168,10 +171,12 @@ export function AnalyticsTab({ users }: AnalyticsTabProps) {
 
       {/* Charts and Insights */}
       <Tabs defaultValue="growth" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="growth">User Growth</TabsTrigger>
           <TabsTrigger value="buyers">Buyer Intelligence</TabsTrigger>
           <TabsTrigger value="profiles">Profile Analysis</TabsTrigger>
+          <TabsTrigger value="engagement">Engagement</TabsTrigger>
+          <TabsTrigger value="business">Business Intel</TabsTrigger>
         </TabsList>
 
         <TabsContent value="growth" className="space-y-4">
@@ -310,6 +315,17 @@ export function AnalyticsTab({ users }: AnalyticsTabProps) {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="engagement" className="space-y-4">
+          <EngagementMetrics users={users} />
+        </TabsContent>
+
+        <TabsContent value="business" className="space-y-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <BusinessIntelligence users={users} />
+            <CohortAnalysis users={users} />
+          </div>
         </TabsContent>
       </Tabs>
     </div>
