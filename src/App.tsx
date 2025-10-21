@@ -10,6 +10,7 @@ import { AuthProvider } from "@/context/AuthContext";
 import { AnalyticsProvider } from "@/context/AnalyticsContext";
 import { TabVisibilityProvider } from "@/context/TabVisibilityContext";
 import { NavigationStateProvider } from "@/context/NavigationStateContext";
+import SessionTrackingProvider from "@/components/SessionTrackingProvider";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import MainLayout from "@/components/MainLayout";
 import AdminLayout from "@/components/admin/AdminLayout";
@@ -68,9 +69,10 @@ function App() {
         <TabVisibilityProvider>
           <NavigationStateProvider>
             <AuthProvider>
-              <AnalyticsProvider>
-                <SimpleToastProvider>
-                  <Toaster />
+              <SessionTrackingProvider>
+                <AnalyticsProvider>
+                  <SimpleToastProvider>
+                    <Toaster />
           <Routes>
             {/* Authentication routes - no protection needed */}
             <Route path="/login" element={<Login />} />
@@ -110,10 +112,11 @@ function App() {
           </Routes>
                 </SimpleToastProvider>
               </AnalyticsProvider>
-            </AuthProvider>
-          </NavigationStateProvider>
-        </TabVisibilityProvider>
-      </QueryClientProvider>
+            </SessionTrackingProvider>
+          </AuthProvider>
+        </NavigationStateProvider>
+      </TabVisibilityProvider>
+    </QueryClientProvider>
     </ErrorBoundary>
   );
 }
