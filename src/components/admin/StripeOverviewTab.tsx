@@ -77,11 +77,57 @@ export function StripeOverviewTab() {
     }
   ];
 
-  // Group activities by user first
+  // Helper function to parse referrer into a friendly source name
+  const parseReferrerSource = (referrer: string | null | undefined, utmSource: string | null | undefined, marketingChannel: string | null | undefined): string => {
+    if (!referrer && !utmSource && !marketingChannel) return 'Direct';
+    
+    // Check UTM source first (most reliable)
+    if (utmSource) {
+      if (utmSource.toLowerCase().includes('brevo') || utmSource.toLowerCase().includes('sendinblue')) {
+        return 'Brevo/Email';
+      }
+      if (utmSource.toLowerCase().includes('email')) return 'Email';
+      if (utmSource.toLowerCase().includes('google')) return 'Google';
+      if (utmSource.toLowerCase().includes('facebook')) return 'Facebook';
+      if (utmSource.toLowerCase().includes('linkedin')) return 'LinkedIn';
+      return utmSource.charAt(0).toUpperCase() + utmSource.slice(1);
+    }
+
+    // Check marketing channel
+    if (marketingChannel && marketingChannel !== 'Direct') {
+      return marketingChannel;
+    }
+
+    // Parse referrer URL
+    if (referrer) {
+      try {
+        const url = new URL(referrer);
+        const hostname = url.hostname.replace('www.', '');
+        
+        if (hostname.includes('brevo') || hostname.includes('sendinblue')) return 'Brevo/Email';
+        if (hostname.includes('google')) return 'Google';
+        if (hostname.includes('facebook')) return 'Facebook';
+        if (hostname.includes('linkedin')) return 'LinkedIn';
+        if (hostname.includes('t.co') || hostname.includes('twitter')) return 'Twitter/X';
+        
+        return hostname.split('.')[0].charAt(0).toUpperCase() + hostname.split('.')[0].slice(1);
+      } catch {
+        return 'External Link';
+      }
+    }
+
+    return 'Direct';
+  };
+
+  // Group activities by user with session data
   const groupedByUser = useMemo(() => {
     if (!activities || activities.length === 0) return [];
 
-    const userMap = new Map<string, GroupedUserActivity>();
+    const userMap = new Map<string, GroupedUserActivity & { 
+      mostRecentSession: any;
+      dateFirstSeen: string;
+      sessionReferrer: string;
+    }>();
 
     activities.forEach(activity => {
       const userId = activity.user_id;
@@ -93,7 +139,7 @@ export function StripeOverviewTab() {
           email: activity.email,
           first_name: activity.first_name,
           last_name: activity.last_name,
-          user_name: activity.user_name || 'Unknown User',
+          user_name: activity.user_name || `${activity.first_name || ''} ${activity.last_name || ''}`.trim() || activity.email,
           activities: [],
           lastActivityTime: activity.created_at,
           totalActivities: 0,
@@ -102,7 +148,10 @@ export function StripeOverviewTab() {
             saves: 0,
             connections: 0,
             pageViews: 0,
-          }
+          },
+          mostRecentSession: null,
+          dateFirstSeen: activity.created_at,
+          sessionReferrer: 'Direct',
         });
       }
 
@@ -113,6 +162,12 @@ export function StripeOverviewTab() {
       // Update last activity time if this is more recent
       if (new Date(activity.created_at) > new Date(userGroup.lastActivityTime)) {
         userGroup.lastActivityTime = activity.created_at;
+        userGroup.mostRecentSession = activity;
+      }
+
+      // Track earliest activity (date first seen)
+      if (new Date(activity.created_at) < new Date(userGroup.dateFirstSeen)) {
+        userGroup.dateFirstSeen = activity.created_at;
       }
 
       // Count action types
@@ -273,74 +328,75 @@ export function StripeOverviewTab() {
               ))}
             </div>
           ) : filteredActivities.length > 0 ? (
-            <div className="max-h-[600px] overflow-y-auto">
+            <div className="space-y-4 p-6">
               {filteredActivities.map((userGroup) => {
-                const activitySummary = [];
-                
-                if (userGroup.actionCounts.views > 0) {
-                  activitySummary.push(`${userGroup.actionCounts.views} views`);
-                }
-                if (userGroup.actionCounts.saves > 0) {
-                  activitySummary.push(`${userGroup.actionCounts.saves} saves`);
-                }
-                if (userGroup.actionCounts.connections > 0) {
-                  activitySummary.push(`${userGroup.actionCounts.connections} connections`);
-                }
-                if (userGroup.actionCounts.pageViews > 0) {
-                  activitySummary.push(`${userGroup.actionCounts.pageViews} page views`);
-                }
+                const activitySummary = `${userGroup.totalActivities} event${userGroup.totalActivities !== 1 ? 's' : ''} in ${formatDistanceToNow(new Date(userGroup.lastActivityTime))}`;
+                const sessionReferrer = parseReferrerSource(
+                  userGroup.mostRecentSession?.referrer,
+                  userGroup.mostRecentSession?.utm_source,
+                  userGroup.mostRecentSession?.marketing_channel
+                );
 
                 return (
                   <div 
                     key={userGroup.user_id}
-                    className="flex items-start gap-3 px-6 py-4 hover:bg-muted/10 transition-colors border-b border-border/30 last:border-b-0 cursor-pointer"
-                    onClick={() => handleUserClick(userGroup.user_id)}
+                    className="border border-border/50 rounded-lg p-6 hover:border-border transition-all bg-card"
                   >
-                    <Avatar className="h-10 w-10 border mt-0.5">
-                      <AvatarFallback className="text-sm">
-                        {userGroup.first_name?.charAt(0) || userGroup.email.charAt(0).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                    
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-start justify-between gap-6">
+                      {/* Left side - User info */}
+                      <div className="flex items-start gap-4 flex-1">
+                        <Avatar className="h-12 w-12 border">
+                          <AvatarFallback className="text-base">
+                            {userGroup.first_name?.charAt(0) || userGroup.email.charAt(0).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-foreground truncate">
+                          <h4 className="text-base font-semibold text-foreground mb-1">
                             {userGroup.user_name}
-                          </p>
-                          <p className="text-xs text-muted-foreground truncate">
-                            {userGroup.email}
-                          </p>
+                          </h4>
                           
-                          <div className="flex items-center flex-wrap gap-2 mt-2">
-                            {activitySummary.map((summary, idx) => (
-                              <Badge key={idx} variant="secondary" className="text-xs">
-                                {summary}
-                              </Badge>
-                            ))}
-                          </div>
-
-                          <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
-                            <Clock className="h-3 w-3" />
-                            {formatDistanceToNow(new Date(userGroup.lastActivityTime), { addSuffix: true })}
+                          <div className="flex items-center gap-3 text-sm text-muted-foreground mb-3">
+                            <div className="flex items-center gap-1.5">
+                              <Clock className="h-3.5 w-3.5" />
+                              {formatDistanceToNow(new Date(userGroup.lastActivityTime), { addSuffix: true })}
+                            </div>
                             <span>•</span>
-                            <span>{userGroup.totalActivities} total actions</span>
+                            <span>{activitySummary}</span>
                           </div>
 
                           <Button
                             variant="link"
                             size="sm"
-                            className="h-auto p-0 mt-2 text-xs text-primary hover:text-primary/80"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleUserClick(userGroup.user_id);
-                            }}
+                            className="h-auto p-0 text-sm text-primary hover:text-primary/80"
+                            onClick={() => handleUserClick(userGroup.user_id)}
                           >
                             See more about this user →
                           </Button>
                         </div>
+                      </div>
+
+                      {/* Right side - User details */}
+                      <div className="space-y-3 text-sm min-w-[300px]">
+                        <div className="flex justify-between gap-4">
+                          <span className="text-muted-foreground">User ID</span>
+                          <span className="font-mono text-xs">{userGroup.user_id.substring(0, 16)}...</span>
+                        </div>
                         
-                        <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-1" />
+                        <div className="flex justify-between gap-4">
+                          <span className="text-muted-foreground">Date First Seen</span>
+                          <span>{format(new Date(userGroup.dateFirstSeen), 'MMMM d, yyyy')}</span>
+                        </div>
+                        
+                        <div className="flex justify-between gap-4">
+                          <span className="text-muted-foreground">Current Session Source</span>
+                          <span className="font-medium">{sessionReferrer}</span>
+                        </div>
+
+                        <div className="flex justify-between gap-4">
+                          <span className="text-muted-foreground">Email</span>
+                          <span className="truncate text-xs">{userGroup.email}</span>
+                        </div>
                       </div>
                     </div>
                   </div>
