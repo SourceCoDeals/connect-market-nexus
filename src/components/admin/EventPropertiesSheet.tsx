@@ -46,7 +46,7 @@ export default function EventPropertiesSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-[400px] sm:w-[540px]">
+      <SheetContent className="w-[400px] sm:w-[540px] z-[100]">
         <SheetHeader>
           <SheetTitle className="text-base font-semibold flex items-center gap-2">
             Event Properties
