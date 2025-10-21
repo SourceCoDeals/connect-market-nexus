@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Search, RefreshCw, Settings, LayoutGrid, Activity, TrendingUp, Users, ShoppingBag, Database, Workflow, Bell, HelpCircle } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { StreamlinedOverviewTab } from "@/components/admin/StreamlinedOverviewTab";
-import { StreamlinedAnalyticsTab } from "@/components/admin/StreamlinedAnalyticsTab";
+import { StripeAnalyticsTab } from "@/components/admin/analytics/StripeAnalyticsTab";
 import { StreamlinedManagementTab } from "@/components/admin/StreamlinedManagementTab";
 import { RecentActivityTab } from "@/components/admin/RecentActivityTab";
 import { ListingIntelligenceTab } from "@/components/admin/ListingIntelligenceTab";
@@ -204,9 +204,9 @@ const AdminDashboard = () => {
                 <StreamlinedOverviewTab />
               </TabsContent>
 
-              <TabsContent value="analytics" className="mt-0">
-                <StreamlinedAnalyticsTab />
-              </TabsContent>
+        <TabsContent value="analytics" className="mt-0">
+          <StripeAnalyticsTab users={usersData || []} />
+        </TabsContent>
 
               <TabsContent value="activity" className="mt-0">
                 <RecentActivityTab />
