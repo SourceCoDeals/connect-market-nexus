@@ -35,9 +35,20 @@ const AdminUsers = () => {
   useEffect(() => {
     setFilteredUsers(usersData);
   }, [usersData]);
-  
-  
-  // Get user action handlers from the hook
+
+  // Smooth open + scroll helper with sticky-header offset
+  const openAndScrollTo = (id: string) => {
+    setIsEdgeToolsOpen(true);
+    // allow details to open, then scroll with offset for sticky header
+    setTimeout(() => {
+      const el = document.getElementById(id);
+      if (el) {
+        const headerOffset = 88; // ~56-96px depending on viewport
+        const y = el.getBoundingClientRect().top + window.scrollY - headerOffset;
+        window.scrollTo({ top: y, behavior: 'smooth' });
+      }
+    }, 160);
+  };
   const {
     handleUserApproval,
     handleMakeAdmin,
@@ -124,35 +135,14 @@ const AdminUsers = () => {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuItem 
-                    onClick={() => {
-                      setIsEdgeToolsOpen(true);
-                      setTimeout(() => {
-                        document.getElementById('data-recovery')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                      }, 100);
-                    }}
-                  >
+                  <DropdownMenuItem onClick={() => openAndScrollTo('data-recovery')}>
                     Data Recovery Dashboard
                   </DropdownMenuItem>
-                  <DropdownMenuItem 
-                    onClick={() => {
-                      setIsEdgeToolsOpen(true);
-                      setTimeout(() => {
-                        document.getElementById('form-monitoring')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                      }, 100);
-                    }}
-                  >
+                  <DropdownMenuItem onClick={() => openAndScrollTo('form-monitoring')}>
                     Form Validation Monitor
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem 
-                    onClick={() => {
-                      setIsEdgeToolsOpen(true);
-                      setTimeout(() => {
-                        document.getElementById('edge-tools')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                      }, 100);
-                    }}
-                  >
+                  <DropdownMenuItem onClick={() => openAndScrollTo('edge-tools')}>
                     Edge Case Tools
                   </DropdownMenuItem>
                 </DropdownMenuContent>

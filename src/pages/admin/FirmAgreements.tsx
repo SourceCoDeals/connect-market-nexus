@@ -10,6 +10,18 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 export default function FirmAgreements() {
   const [isTestingOpen, setIsTestingOpen] = React.useState(false);
 
+  const openAndScrollTo = (id: string) => {
+    setIsTestingOpen(true);
+    setTimeout(() => {
+      const el = document.getElementById(id);
+      if (el) {
+        const headerOffset = 88;
+        const y = el.getBoundingClientRect().top + window.scrollY - headerOffset;
+        window.scrollTo({ top: y, behavior: 'smooth' });
+      }
+    }, 160);
+  };
+
   return (
     <div className="min-h-screen bg-background">
       {/* Stripe-style header with generous padding - matches Users page */}
@@ -33,14 +45,7 @@ export default function FirmAgreements() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuItem 
-                    onClick={() => {
-                      setIsTestingOpen(true);
-                      setTimeout(() => {
-                        document.getElementById('system-testing')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                      }, 100);
-                    }}
-                  >
+                  <DropdownMenuItem onClick={() => openAndScrollTo('system-testing')}>
                     System Testing Panel
                   </DropdownMenuItem>
                 </DropdownMenuContent>
