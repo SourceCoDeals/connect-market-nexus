@@ -14,12 +14,16 @@ import { DataRecoveryTab } from "@/components/admin/data-recovery/DataRecoveryTa
 import { FormMonitoringTab } from "@/components/admin/form-monitoring/FormMonitoringTab";
 import { useAdmin } from "@/hooks/use-admin";
 import { useState } from "react";
+import { usePermissions } from "@/hooks/permissions/usePermissions";
+import { PermissionsModal } from "@/components/admin/permissions/PermissionsModal";
 
 const AdminDashboard = () => {
   const { users } = useAdmin();
   const { data: usersData = [] } = users;
   const [searchQuery, setSearchQuery] = useState("");
   const [showNotifications, setShowNotifications] = useState(false);
+  const [isPermissionsModalOpen, setIsPermissionsModalOpen] = useState(false);
+  const { canManagePermissions } = usePermissions();
   
   const handleRefresh = () => {
     window.location.reload();
@@ -31,8 +35,7 @@ const AdminDashboard = () => {
   };
 
   const handleManagePermissions = () => {
-    console.log("Managing permissions...");
-    // Add permissions management here
+    setIsPermissionsModalOpen(true);
   };
 
   return (
@@ -105,18 +108,24 @@ const AdminDashboard = () => {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-56">
-                      <DropdownMenuItem onClick={handleManagePermissions}>
-                        <Users className="mr-2 h-4 w-4" />
-                        Manage Permissions
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={handleExportData}>
+                      {canManagePermissions && (
+                        <>
+                          <DropdownMenuItem onClick={handleManagePermissions}>
+                            <Users className="mr-2 h-4 w-4" />
+                            Manage Permissions
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                        </>
+                      )}
+                      <DropdownMenuItem disabled>
                         <Database className="mr-2 h-4 w-4" />
                         Export Data
+                        <span className="ml-auto text-xs text-muted-foreground">Soon</span>
                       </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem>
+                      <DropdownMenuItem disabled>
                         <HelpCircle className="mr-2 h-4 w-4" />
                         Help & Support
+                        <span className="ml-auto text-xs text-muted-foreground">Soon</span>
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -231,6 +240,12 @@ const AdminDashboard = () => {
           </Tabs>
         </div>
       </div>
+
+      {/* Permissions Modal */}
+      <PermissionsModal 
+        open={isPermissionsModalOpen} 
+        onOpenChange={setIsPermissionsModalOpen}
+      />
     </ErrorBoundary>
   );
 };

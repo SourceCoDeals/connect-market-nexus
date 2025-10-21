@@ -1902,6 +1902,39 @@ export type Database = {
         }
         Relationships: []
       }
+      permission_audit_log: {
+        Row: {
+          changed_by: string | null
+          created_at: string
+          id: string
+          metadata: Json | null
+          new_role: Database["public"]["Enums"]["app_role"]
+          old_role: Database["public"]["Enums"]["app_role"] | null
+          reason: string | null
+          target_user_id: string
+        }
+        Insert: {
+          changed_by?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          new_role: Database["public"]["Enums"]["app_role"]
+          old_role?: Database["public"]["Enums"]["app_role"] | null
+          reason?: string | null
+          target_user_id: string
+        }
+        Update: {
+          changed_by?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          new_role?: Database["public"]["Enums"]["app_role"]
+          old_role?: Database["public"]["Enums"]["app_role"] | null
+          reason?: string | null
+          target_user_id?: string
+        }
+        Relationships: []
+      }
       pipeline_views: {
         Row: {
           created_at: string
@@ -2475,6 +2508,33 @@ export type Database = {
           },
         ]
       }
+      user_roles: {
+        Row: {
+          assigned_at: string
+          assigned_by: string | null
+          id: string
+          reason: string | null
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          assigned_at?: string
+          assigned_by?: string | null
+          id?: string
+          reason?: string | null
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          assigned_at?: string
+          assigned_by?: string | null
+          id?: string
+          reason?: string | null
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_sessions: {
         Row: {
           browser: string | null
@@ -2571,6 +2631,14 @@ export type Database = {
           p_total_session_time: number
         }
         Returns: number
+      }
+      change_user_role: {
+        Args: {
+          change_reason?: string
+          new_role: Database["public"]["Enums"]["app_role"]
+          target_user_id: string
+        }
+        Returns: boolean
       }
       cleanup_old_notifications: {
         Args: Record<PropertyKey, never>
@@ -2707,6 +2775,22 @@ export type Database = {
         Args: { p_company_name: string; p_email?: string; p_website?: string }
         Returns: string
       }
+      get_permission_audit_log: {
+        Args: { filter_user_id?: string; limit_count?: number }
+        Returns: {
+          changed_by: string
+          changer_email: string
+          changer_name: string
+          created_at: string
+          id: string
+          new_role: Database["public"]["Enums"]["app_role"]
+          old_role: Database["public"]["Enums"]["app_role"]
+          reason: string
+          target_email: string
+          target_name: string
+          target_user_id: string
+        }[]
+      }
       get_profiles_with_history: {
         Args: Record<PropertyKey, never>
         Returns: {
@@ -2739,8 +2823,23 @@ export type Database = {
         Args: { stage_uuid: string }
         Returns: number
       }
+      get_user_role: {
+        Args: { _user_id: string }
+        Returns: Database["public"]["Enums"]["app_role"]
+      }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
       is_admin: {
         Args: { user_id: string }
+        Returns: boolean
+      }
+      is_owner: {
+        Args: { _user_id: string }
         Returns: boolean
       }
       log_fee_agreement_email: {
@@ -2984,7 +3083,7 @@ export type Database = {
       }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "owner" | "admin" | "moderator" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -3111,6 +3210,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["owner", "admin", "moderator", "user"],
+    },
   },
 } as const

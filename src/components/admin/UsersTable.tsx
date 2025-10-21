@@ -22,6 +22,11 @@ import { formatFieldValue } from '@/lib/field-formatting';
 import { useEnhancedUserExport } from '@/hooks/admin/use-enhanced-user-export';
 import { useLogFeeAgreementEmail } from '@/hooks/admin/use-fee-agreement';
 import { useLogNDAEmail } from '@/hooks/admin/use-nda';
+import { usePermissions } from '@/hooks/permissions/usePermissions';
+import { useRoleManagement } from '@/hooks/permissions/useRoleManagement';
+import { RoleBadge } from './permissions/RoleBadge';
+import { RoleSelector } from './permissions/RoleSelector';
+import { AppRole } from '@/hooks/permissions/usePermissions';
 
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from "@/hooks/use-toast";
@@ -357,6 +362,12 @@ export function UsersTable({
   const [selectedUserForEmail, setSelectedUserForEmail] = useState<User | null>(null);
   const [selectedUserForNDA, setSelectedUserForNDA] = useState<User | null>(null);
   const { exportUsersToCSV } = useEnhancedUserExport();
+  const { canManagePermissions } = usePermissions();
+  const { allUserRoles } = useRoleManagement();
+
+  const getUserRole = (userId: string): AppRole => {
+    return (allUserRoles?.find((ur) => ur.user_id === userId)?.role as AppRole) || 'user';
+  };
   const logEmailMutation = useLogFeeAgreementEmail();
   const logNDAEmail = useLogNDAEmail();
   const { toast } = useToast();
@@ -575,11 +586,7 @@ export function UsersTable({
                   <div className="flex flex-col gap-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-medium text-sm">{user.firstName} {user.lastName}</span>
-                      {user.is_admin && (
-                        <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 px-1 py-0">
-                          Admin
-                        </Badge>
-                      )}
+                      <RoleBadge role={getUserRole(user.id)} showTooltip={false} />
                       {user.email_verified && (
                         <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 px-1 py-0">
                           <CheckCircle className="h-3 w-3 mr-1" />
