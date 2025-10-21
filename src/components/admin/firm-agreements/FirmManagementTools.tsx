@@ -1,27 +1,39 @@
 import { useState } from 'react';
-import { Settings, GitMerge, Link as LinkIcon } from 'lucide-react';
+import { Settings, GitMerge, Link as LinkIcon, AlertTriangle, Check, X, FileCheck, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useFirmAgreements } from '@/hooks/admin/use-firm-agreements';
 import { useQueryClient } from '@tanstack/react-query';
+import { cn } from '@/lib/utils';
 
 export function FirmManagementTools() {
   const { data: firms } = useFirmAgreements();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isMergeDialogOpen, setIsMergeDialogOpen] = useState(false);
+  const [showMergeConfirmation, setShowMergeConfirmation] = useState(false);
   const [isLinkDialogOpen, setIsLinkDialogOpen] = useState(false);
   const [sourceFirmId, setSourceFirmId] = useState('');
   const [targetFirmId, setTargetFirmId] = useState('');
   const [userEmail, setUserEmail] = useState('');
   const [selectedFirmId, setSelectedFirmId] = useState('');
 
-  const handleMergeFirms = async () => {
+  const sourceFirm = firms?.find(f => f.id === sourceFirmId);
+  const targetFirm = firms?.find(f => f.id === targetFirmId);
+  
+  const agreementsDiffer = sourceFirm && targetFirm && (
+    sourceFirm.fee_agreement_signed !== targetFirm.fee_agreement_signed ||
+    sourceFirm.nda_signed !== targetFirm.nda_signed
+  );
+
+  const handleProceedToMerge = () => {
     if (!sourceFirmId || !targetFirmId) {
       toast({
         title: 'Error',
@@ -40,10 +52,11 @@ export function FirmManagementTools() {
       return;
     }
 
+    setShowMergeConfirmation(true);
+  };
+
+  const handleMergeFirms = async () => {
     try {
-      // Get source and target firm details for warning
-      const sourceFirm = firms?.find(f => f.id === sourceFirmId);
-      const targetFirm = firms?.find(f => f.id === targetFirmId);
 
       // Move all members from source to target
       const { error: memberError } = await supabase
@@ -99,6 +112,7 @@ export function FirmManagementTools() {
       queryClient.invalidateQueries({ queryKey: ['firm-members'] });
       queryClient.invalidateQueries({ queryKey: ['connection-requests'] });
       queryClient.invalidateQueries({ queryKey: ['deals'] });
+      setShowMergeConfirmation(false);
       setIsMergeDialogOpen(false);
       setSourceFirmId('');
       setTargetFirmId('');
@@ -217,50 +231,136 @@ export function FirmManagementTools() {
             Merge Firms
           </Button>
         </DialogTrigger>
-        <DialogContent>
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Merge Duplicate Firms</DialogTitle>
+            <DialogDescription>
+              Select the source and target firms. All members will be moved to the target firm.
+            </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label>Source Firm (will be deleted)</Label>
-              <Select value={sourceFirmId} onValueChange={setSourceFirmId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select source firm..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {firms?.map((firm) => (
-                    <SelectItem key={firm.id} value={firm.id}>
-                      {firm.primary_company_name} ({firm.member_count} members)
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+          
+          {!showMergeConfirmation ? (
+            <div className="space-y-4">
+              <div>
+                <Label>Source Firm (will be deleted)</Label>
+                <Select value={sourceFirmId} onValueChange={setSourceFirmId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select source firm..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {firms?.map((firm) => (
+                      <SelectItem key={firm.id} value={firm.id}>
+                        {firm.primary_company_name} ({firm.member_count} members)
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Target Firm (will keep all members)</Label>
+                <Select value={targetFirmId} onValueChange={setTargetFirmId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select target firm..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {firms?.filter(f => f.id !== sourceFirmId).map((firm) => (
+                      <SelectItem key={firm.id} value={firm.id}>
+                        {firm.primary_company_name} ({firm.member_count} members)
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex gap-2 justify-end">
+                <Button variant="outline" onClick={() => setIsMergeDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={handleProceedToMerge} variant="default">
+                  Continue
+                </Button>
+              </div>
             </div>
-            <div>
-              <Label>Target Firm (will keep all members)</Label>
-              <Select value={targetFirmId} onValueChange={setTargetFirmId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select target firm..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {firms?.filter(f => f.id !== sourceFirmId).map((firm) => (
-                    <SelectItem key={firm.id} value={firm.id}>
-                      {firm.primary_company_name} ({firm.member_count} members)
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+          ) : (
+            <div className="space-y-4">
+              {/* Agreement Status Comparison */}
+              <div className="rounded-lg border border-border p-4 space-y-4">
+                <h4 className="font-medium text-sm">Agreement Status Comparison</h4>
+                
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="text-xs font-medium text-muted-foreground">Agreement</div>
+                  <div className="text-xs font-medium text-muted-foreground">
+                    Source Firm
+                    <div className="text-foreground mt-1 font-normal truncate">{sourceFirm?.primary_company_name}</div>
+                  </div>
+                  <div className="text-xs font-medium text-muted-foreground">
+                    Target Firm
+                    <div className="text-foreground mt-1 font-normal truncate">{targetFirm?.primary_company_name}</div>
+                  </div>
+
+                  {/* Fee Agreement Row */}
+                  <div className="flex items-center gap-2 text-sm">
+                    <FileCheck className="h-4 w-4 text-muted-foreground" />
+                    Fee Agreement
+                  </div>
+                  <div>
+                    <AgreementStatusBadge signed={sourceFirm?.fee_agreement_signed} />
+                  </div>
+                  <div>
+                    <AgreementStatusBadge signed={targetFirm?.fee_agreement_signed} />
+                  </div>
+
+                  {/* NDA Row */}
+                  <div className="flex items-center gap-2 text-sm">
+                    <Shield className="h-4 w-4 text-muted-foreground" />
+                    NDA
+                  </div>
+                  <div>
+                    <AgreementStatusBadge signed={sourceFirm?.nda_signed} />
+                  </div>
+                  <div>
+                    <AgreementStatusBadge signed={targetFirm?.nda_signed} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Warning Alert if agreements differ */}
+              {agreementsDiffer && (
+                <Alert variant="destructive">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertTitle>Agreement Status Will Change</AlertTitle>
+                  <AlertDescription>
+                    The source and target firms have different agreement statuses. After merge:
+                    <ul className="list-disc pl-5 mt-2 space-y-1">
+                      <li>All {sourceFirm?.member_count} members from <strong>{sourceFirm?.primary_company_name}</strong> will be moved to <strong>{targetFirm?.primary_company_name}</strong></li>
+                      <li>They will inherit the <strong>target firm's</strong> agreement status</li>
+                      <li>Their connection requests and deals will be updated accordingly</li>
+                    </ul>
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {/* Summary */}
+              <div className="rounded-lg bg-muted/50 p-4 space-y-2">
+                <h4 className="font-medium text-sm">Merge Summary</h4>
+                <ul className="text-sm text-muted-foreground space-y-1">
+                  <li>• {sourceFirm?.member_count} members will be moved to target firm</li>
+                  <li>• Source firm "{sourceFirm?.primary_company_name}" will be deleted</li>
+                  <li>• All logs will be transferred to target firm</li>
+                  <li>• Agreement statuses will sync to match target firm</li>
+                </ul>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-2 justify-end pt-2">
+                <Button variant="outline" onClick={() => setShowMergeConfirmation(false)}>
+                  Back
+                </Button>
+                <Button onClick={handleMergeFirms} variant="destructive">
+                  Confirm Merge
+                </Button>
+              </div>
             </div>
-            <div className="flex gap-2 justify-end">
-              <Button variant="outline" onClick={() => setIsMergeDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleMergeFirms} variant="destructive">
-                Merge Firms
-              </Button>
-            </div>
-          </div>
+          )}
         </DialogContent>
       </Dialog>
 
@@ -312,5 +412,31 @@ export function FirmManagementTools() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+function AgreementStatusBadge({ signed }: { signed?: boolean }) {
+  return (
+    <Badge 
+      variant={signed ? "default" : "outline"}
+      className={cn(
+        "text-xs font-medium",
+        signed 
+          ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20" 
+          : "bg-muted text-muted-foreground"
+      )}
+    >
+      {signed ? (
+        <>
+          <Check className="h-3 w-3 mr-1" />
+          Signed
+        </>
+      ) : (
+        <>
+          <X className="h-3 w-3 mr-1" />
+          Not Signed
+        </>
+      )}
+    </Badge>
   );
 }
