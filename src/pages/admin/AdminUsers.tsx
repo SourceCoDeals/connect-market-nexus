@@ -23,6 +23,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 
 const AdminUsers = () => {
+  const [isEdgeToolsOpen, setIsEdgeToolsOpen] = useState(false);
   const { users } = useAdmin();
   const { data: usersData = [], isLoading, error, refetch } = users;
   const { toast } = useToast();
@@ -123,15 +124,36 @@ const AdminUsers = () => {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuItem asChild>
-                    <a href="#data-recovery">Data Recovery Dashboard</a>
+                  <DropdownMenuItem 
+                    onClick={() => {
+                      setIsEdgeToolsOpen(true);
+                      setTimeout(() => {
+                        document.getElementById('data-recovery')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                      }, 100);
+                    }}
+                  >
+                    Data Recovery Dashboard
                   </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <a href="#form-monitoring">Form Validation Monitor</a>
+                  <DropdownMenuItem 
+                    onClick={() => {
+                      setIsEdgeToolsOpen(true);
+                      setTimeout(() => {
+                        document.getElementById('form-monitoring')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                      }, 100);
+                    }}
+                  >
+                    Form Validation Monitor
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <a href="#edge-tools">Edge Case Tools</a>
+                  <DropdownMenuItem 
+                    onClick={() => {
+                      setIsEdgeToolsOpen(true);
+                      setTimeout(() => {
+                        document.getElementById('edge-tools')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                      }, 100);
+                    }}
+                  >
+                    Edge Case Tools
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -211,8 +233,14 @@ const AdminUsers = () => {
 
         {/* Edge Case Tools - Collapsible section */}
         <div id="edge-tools" className="mt-12 pt-8 border-t">
-          <details className="group">
-            <summary className="flex items-center justify-between cursor-pointer text-sm font-medium text-muted-foreground hover:text-foreground transition-colors py-3">
+          <details open={isEdgeToolsOpen} className="group">
+            <summary 
+              className="flex items-center justify-between cursor-pointer text-sm font-medium text-muted-foreground hover:text-foreground transition-colors py-3"
+              onClick={(e) => {
+                e.preventDefault();
+                setIsEdgeToolsOpen(!isEdgeToolsOpen);
+              }}
+            >
               <span>🔧 Advanced Tools & Data Recovery</span>
               <span className="group-open:rotate-180 transition-transform">▼</span>
             </summary>

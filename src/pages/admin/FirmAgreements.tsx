@@ -1,3 +1,4 @@
+import React from 'react';
 import { Building2, Users, Settings } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { FirmAgreementsTable } from '@/components/admin/firm-agreements/FirmAgreementsTable';
@@ -7,6 +8,8 @@ import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 export default function FirmAgreements() {
+  const [isTestingOpen, setIsTestingOpen] = React.useState(false);
+
   return (
     <div className="min-h-screen bg-background">
       {/* Stripe-style header with generous padding - matches Users page */}
@@ -30,8 +33,15 @@ export default function FirmAgreements() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuItem asChild>
-                    <a href="#system-testing">System Testing Panel</a>
+                  <DropdownMenuItem 
+                    onClick={() => {
+                      setIsTestingOpen(true);
+                      setTimeout(() => {
+                        document.getElementById('system-testing')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                      }, 100);
+                    }}
+                  >
+                    System Testing Panel
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -68,8 +78,14 @@ export default function FirmAgreements() {
 
         {/* System Testing - Collapsible section */}
         <div id="system-testing" className="mt-12 pt-8 border-t">
-          <details className="group">
-            <summary className="flex items-center justify-between cursor-pointer text-sm font-medium text-muted-foreground hover:text-foreground transition-colors py-3">
+          <details open={isTestingOpen} className="group">
+            <summary 
+              className="flex items-center justify-between cursor-pointer text-sm font-medium text-muted-foreground hover:text-foreground transition-colors py-3"
+              onClick={(e) => {
+                e.preventDefault();
+                setIsTestingOpen(!isTestingOpen);
+              }}
+            >
               <span>🔧 System Testing & Diagnostics</span>
               <span className="group-open:rotate-180 transition-transform">▼</span>
             </summary>
