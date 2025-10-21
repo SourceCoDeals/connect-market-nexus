@@ -347,40 +347,62 @@ export function StripeOverviewTab() {
                       </AvatarFallback>
                     </Avatar>
                     
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex-1 min-w-0">
-                          <button
-                            onClick={() => handleUserClick(userGroup.user_id)}
-                            className="text-sm text-foreground font-semibold hover:text-primary transition-colors text-left"
-                          >
-                            {userGroup.user_name}
-                          </button>
-                          <p className="text-xs text-muted-foreground mt-0.5">
-                            {userGroup.totalActivities} event{userGroup.totalActivities !== 1 ? 's' : ''} • {sessionSource}
+                    <div className="flex-1 min-w-0 flex items-start justify-between gap-6">
+                      <div className="flex-1 min-w-0">
+                        <button
+                          onClick={() => handleUserClick(userGroup.user_id)}
+                          className="text-sm text-foreground font-semibold hover:text-primary transition-colors text-left"
+                        >
+                          {userGroup.user_name}
+                        </button>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {userGroup.totalActivities} event{userGroup.totalActivities !== 1 ? 's' : ''} • {sessionSource}
+                        </p>
+                        <div className="flex items-center gap-3 mt-2">
+                          <p className="text-xs text-muted-foreground">
+                            {formatDistanceToNow(new Date(userGroup.lastActivityTime), { addSuffix: true })}
                           </p>
-                          <div className="flex items-center gap-3 mt-2">
-                            <p className="text-xs text-muted-foreground">
-                              {formatDistanceToNow(new Date(userGroup.lastActivityTime), { addSuffix: true })}
-                            </p>
-                            <ActivityDetailsDropdown
-                              session_id={userGroup.mostRecentSession?.session_id}
-                              referrer={userGroup.mostRecentSession?.referrer}
-                              time_on_page={userGroup.mostRecentSession?.time_on_page}
-                              scroll_depth={userGroup.mostRecentSession?.scroll_depth}
-                              page_title={userGroup.mostRecentSession?.page_title}
-                              event_category={userGroup.mostRecentSession?.event_category}
-                              event_label={userGroup.mostRecentSession?.event_label}
-                            />
+                          <ActivityDetailsDropdown
+                            session_id={userGroup.mostRecentSession?.session_id}
+                            referrer={userGroup.mostRecentSession?.referrer}
+                            time_on_page={userGroup.mostRecentSession?.time_on_page}
+                            scroll_depth={userGroup.mostRecentSession?.scroll_depth}
+                            page_title={userGroup.mostRecentSession?.page_title}
+                            event_category={userGroup.mostRecentSession?.event_category}
+                            event_label={userGroup.mostRecentSession?.event_label}
+                          />
+                        </div>
+                        <Button
+                          variant="link"
+                          size="sm"
+                          className="h-auto p-0 mt-1 text-xs text-primary hover:text-primary/80"
+                          onClick={() => handleUserClick(userGroup.user_id)}
+                        >
+                          See more about this user →
+                        </Button>
+                      </div>
+
+                      {/* Right side metadata */}
+                      <div className="flex-shrink-0 space-y-2 text-right">
+                        <div>
+                          <div className="text-xs font-medium text-muted-foreground/70">Date First Seen</div>
+                          <div className="text-xs text-foreground mt-0.5">{format(new Date(userGroup.dateFirstSeen), 'MMM d, yyyy')}</div>
+                        </div>
+                        {userGroup.mostRecentSession?.location && (
+                          <div>
+                            <div className="text-xs font-medium text-muted-foreground/70">Initial Location</div>
+                            <div className="text-xs text-foreground mt-0.5">
+                              {[
+                                userGroup.mostRecentSession.location.city,
+                                userGroup.mostRecentSession.location.region,
+                                userGroup.mostRecentSession.location.country
+                              ].filter(Boolean).join(', ') || 'Unknown'}
+                            </div>
                           </div>
-                          <Button
-                            variant="link"
-                            size="sm"
-                            className="h-auto p-0 mt-1 text-xs text-primary hover:text-primary/80"
-                            onClick={() => handleUserClick(userGroup.user_id)}
-                          >
-                            See more about this user →
-                          </Button>
+                        )}
+                        <div>
+                          <div className="text-xs font-medium text-muted-foreground/70">Current Referrer</div>
+                          <div className="text-xs text-foreground mt-0.5">{sessionSource}</div>
                         </div>
                       </div>
                     </div>
