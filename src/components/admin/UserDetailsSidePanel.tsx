@@ -5,6 +5,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { User, Calendar, Globe, Link as LinkIcon, Monitor, Smartphone, ExternalLink } from "lucide-react";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
+import { useState } from "react";
+import SessionEventsDialog from "./SessionEventsDialog";
 
 interface UserDetailsSidePanelProps {
   userId: string | null;
@@ -15,6 +17,8 @@ interface UserDetailsSidePanelProps {
 const UserDetailsSidePanel = ({ userId, open, onOpenChange }: UserDetailsSidePanelProps) => {
   const { data: userDetails, isLoading: detailsLoading } = useUserDetails(userId);
   const { data: sessions, isLoading: sessionsLoading } = useUserSessions(userId);
+  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
+  const [sessionDialogOpen, setSessionDialogOpen] = useState(false);
 
   const getShortReferrer = (url: string | null) => {
     if (!url) return "Direct";
@@ -79,7 +83,11 @@ const UserDetailsSidePanel = ({ userId, open, onOpenChange }: UserDetailsSidePan
               {sessions.slice(0, 5).map((session) => (
                 <div
                   key={session.session_id}
-                  className="flex items-center justify-between p-2 rounded-md hover:bg-muted/50 transition-colors"
+                  className="flex items-center justify-between p-2 rounded-md hover:bg-muted/50 transition-colors cursor-pointer"
+                  onClick={() => {
+                    setSelectedSessionId(session.session_id);
+                    setSessionDialogOpen(true);
+                  }}
                 >
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-mono text-muted-foreground truncate">
@@ -308,6 +316,12 @@ const UserDetailsSidePanel = ({ userId, open, onOpenChange }: UserDetailsSidePan
           )}
         </div>
       </SheetContent>
+      <SessionEventsDialog
+        sessionId={selectedSessionId}
+        userId={userId}
+        open={sessionDialogOpen}
+        onOpenChange={setSessionDialogOpen}
+      />
     </Sheet>
   );
 };
