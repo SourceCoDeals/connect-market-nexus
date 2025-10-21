@@ -163,6 +163,15 @@ export function StripeOverviewTab() {
       if (new Date(activity.created_at) > new Date(userGroup.lastActivityTime)) {
         userGroup.lastActivityTime = activity.created_at;
         userGroup.mostRecentSession = activity;
+        
+        // Update session referrer from the most recent session data
+        if (activity.referrer || activity.utm_source || activity.marketing_channel) {
+          userGroup.sessionReferrer = parseReferrerSource(
+            activity.referrer,
+            activity.utm_source,
+            activity.marketing_channel
+          );
+        }
       }
 
       // Track earliest activity (date first seen)
