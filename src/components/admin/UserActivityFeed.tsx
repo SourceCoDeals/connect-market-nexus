@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -14,14 +14,92 @@ import {
   User,
   Activity,
   RefreshCw,
-  Radio
+  Radio,
+  ChevronRight
 } from 'lucide-react';
 import { useRecentUserActivity } from '@/hooks/use-recent-user-activity';
 import { Button } from '@/components/ui/button';
 import { format } from 'date-fns';
+import UserDetailsSidePanel from './UserDetailsSidePanel';
+
+interface GroupedUserActivity {
+  user_id: string;
+  email: string;
+  first_name?: string;
+  last_name?: string;
+  activities: any[];
+  lastActivityTime: string;
+  totalActivities: number;
+  actionCounts: {
+    views: number;
+    saves: number;
+    connections: number;
+    pageViews: number;
+  };
+}
+
 
 export function UserActivityFeed() {
   const { data: activities, isLoading, error, refetch, isRefetching } = useRecentUserActivity();
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [sidePanelOpen, setSidePanelOpen] = useState(false);
+
+  const handleUserClick = (userId: string) => {
+    setSelectedUserId(userId);
+    setSidePanelOpen(true);
+  };
+
+  // Group activities by user
+  const groupedActivities: GroupedUserActivity[] = React.useMemo(() => {
+    if (!activities || activities.length === 0) return [];
+
+    const userMap = new Map<string, GroupedUserActivity>();
+
+    activities.forEach(activity => {
+      const userId = activity.user_id;
+      if (!userId) return;
+
+      if (!userMap.has(userId)) {
+        userMap.set(userId, {
+          user_id: userId,
+          email: activity.email,
+          first_name: activity.first_name,
+          last_name: activity.last_name,
+          activities: [],
+          lastActivityTime: activity.created_at,
+          totalActivities: 0,
+          actionCounts: {
+            views: 0,
+            saves: 0,
+            connections: 0,
+            pageViews: 0,
+          }
+        });
+      }
+
+      const userGroup = userMap.get(userId)!;
+      userGroup.activities.push(activity);
+      userGroup.totalActivities++;
+
+      // Update last activity time if this is more recent
+      if (new Date(activity.created_at) > new Date(userGroup.lastActivityTime)) {
+        userGroup.lastActivityTime = activity.created_at;
+      }
+
+      // Count action types
+      if (activity.activity_type === 'listing_action') {
+        if (activity.action_type === 'view') userGroup.actionCounts.views++;
+        else if (activity.action_type === 'save') userGroup.actionCounts.saves++;
+        else if (activity.action_type === 'request_connection') userGroup.actionCounts.connections++;
+      } else if (activity.activity_type === 'page_view') {
+        userGroup.actionCounts.pageViews++;
+      }
+    });
+
+    // Convert to array and sort by last activity time
+    return Array.from(userMap.values())
+      .sort((a, b) => new Date(b.lastActivityTime).getTime() - new Date(a.lastActivityTime).getTime());
+  }, [activities]);
 
   // Set up real-time subscriptions for activity updates
   useEffect(() => {
@@ -221,49 +299,82 @@ export function UserActivityFeed() {
             </p>
           </div>
         ) : (
-          <ScrollArea className="h-96">
-            <div className="space-y-3">
-              {activities.slice(0, 20).map((activity, index) => (
-                <div key={activity.id}>
-                  <div className="flex items-start gap-3">
-                    <Avatar className="h-8 w-8 border">
-                      <AvatarFallback className="text-xs">
-                        {activity.first_name?.charAt(0) || activity.email.charAt(0).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                    
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex-1">
-                          <p className="text-sm font-medium leading-none mb-1">
-                            {getActivityDescription(activity)}
-                          </p>
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            <Clock className="h-3 w-3" />
-                            {format(new Date(activity.created_at), 'MMM d, HH:mm:ss')}
-                            <span className="text-xs">•</span>
-                            <span className="font-mono text-xs">
-                              {activity.email}
-                            </span>
+          <>
+            <ScrollArea className="h-96">
+              <div className="space-y-2">
+                {groupedActivities.slice(0, 20).map((userGroup, index) => {
+                  const userName = `${userGroup.first_name || ''} ${userGroup.last_name || ''}`.trim() || userGroup.email;
+                  const activitySummary = [];
+                  
+                  if (userGroup.actionCounts.views > 0) {
+                    activitySummary.push(`${userGroup.actionCounts.views} views`);
+                  }
+                  if (userGroup.actionCounts.saves > 0) {
+                    activitySummary.push(`${userGroup.actionCounts.saves} saves`);
+                  }
+                  if (userGroup.actionCounts.connections > 0) {
+                    activitySummary.push(`${userGroup.actionCounts.connections} connections`);
+                  }
+                  if (userGroup.actionCounts.pageViews > 0) {
+                    activitySummary.push(`${userGroup.actionCounts.pageViews} page views`);
+                  }
+
+                  return (
+                    <div key={userGroup.user_id}>
+                      <div 
+                        className="flex items-start gap-3 p-3 rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
+                        onClick={() => handleUserClick(userGroup.user_id)}
+                      >
+                        <Avatar className="h-10 w-10 border">
+                          <AvatarFallback className="text-sm">
+                            {userGroup.first_name?.charAt(0) || userGroup.email.charAt(0).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-semibold leading-none mb-1 truncate">
+                                {userName}
+                              </p>
+                              <p className="text-xs text-muted-foreground truncate mb-2">
+                                {userGroup.email}
+                              </p>
+                              <div className="flex items-center flex-wrap gap-2 mb-1">
+                                {activitySummary.map((summary, idx) => (
+                                  <Badge key={idx} variant="secondary" className="text-xs">
+                                    {summary}
+                                  </Badge>
+                                ))}
+                              </div>
+                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <Clock className="h-3 w-3" />
+                                {format(new Date(userGroup.lastActivityTime), 'MMM d, HH:mm')}
+                                <span className="text-xs">•</span>
+                                <span className="text-xs">
+                                  {userGroup.totalActivities} total actions
+                                </span>
+                              </div>
+                            </div>
+                            
+                            <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                           </div>
                         </div>
-                        
-                        <Badge 
-                          variant="outline" 
-                          className={`flex items-center gap-1 ${getActivityColor(activity.activity_type, activity.action_type)}`}
-                        >
-                          {getActivityIcon(activity.activity_type, activity.action_type)}
-                          {activity.action_type || activity.activity_type}
-                        </Badge>
                       </div>
+                      
+                      {index < groupedActivities.length - 1 && <Separator className="my-2" />}
                     </div>
-                  </div>
-                  
-                  {index < activities.length - 1 && <Separator className="mt-3" />}
-                </div>
-              ))}
-            </div>
-          </ScrollArea>
+                  );
+                })}
+              </div>
+            </ScrollArea>
+
+            <UserDetailsSidePanel
+              userId={selectedUserId}
+              open={sidePanelOpen}
+              onOpenChange={setSidePanelOpen}
+            />
+          </>
         )}
       </CardContent>
     </Card>
