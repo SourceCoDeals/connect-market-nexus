@@ -92,6 +92,44 @@ export default {
 				md: 'calc(var(--radius) - 2px)',
 				sm: 'calc(var(--radius) - 4px)'
 			},
+			boxShadow: {
+				'xs': 'var(--shadow-xs)',
+				'sm': 'var(--shadow-sm)',
+				'md': 'var(--shadow-md)',
+				'lg': 'var(--shadow-lg)',
+				'xl': 'var(--shadow-xl)',
+				'2xl': 'var(--shadow-2xl)',
+				'glow': 'var(--shadow-glow)',
+				'glow-lg': 'var(--shadow-glow-lg)',
+			},
+			backgroundImage: {
+				'gradient-subtle': 'var(--gradient-subtle)',
+				'gradient-card': 'var(--gradient-card)',
+				'gradient-primary': 'var(--gradient-primary)',
+				'gradient-accent': 'var(--gradient-accent)',
+				'gradient-shine': 'var(--gradient-shine)',
+			},
+			fontSize: {
+				'hero-sm': ['var(--font-size-hero-sm)', { lineHeight: 'var(--line-height-hero)', letterSpacing: 'var(--letter-spacing-hero)' }],
+				'hero-md': ['var(--font-size-hero-md)', { lineHeight: 'var(--line-height-hero)', letterSpacing: 'var(--letter-spacing-hero)' }],
+				'hero-lg': ['var(--font-size-hero-lg)', { lineHeight: 'var(--line-height-hero)', letterSpacing: 'var(--letter-spacing-hero)' }],
+				'hero-xl': ['var(--font-size-hero-xl)', { lineHeight: 'var(--line-height-hero)', letterSpacing: 'var(--letter-spacing-hero)' }],
+				'hero-2xl': ['var(--font-size-hero-2xl)', { lineHeight: 'var(--line-height-hero)', letterSpacing: 'var(--letter-spacing-hero)' }],
+			},
+			spacing: {
+				'section': 'var(--spacing-section)',
+				'card': 'var(--spacing-card)',
+				'element': 'var(--spacing-element)',
+				'compact': 'var(--spacing-compact)',
+				'tight': 'var(--spacing-tight)',
+			},
+			fontFamily: {
+				sans: ['Inter', 'system-ui', 'sans-serif'],
+				mono: ['Monaco', 'Consolas', 'monospace'],
+			},
+			fontFeatureSettings: {
+				'tabular': '"tnum"',
+			},
 			keyframes: {
 				'accordion-down': {
 					from: {

@@ -83,11 +83,44 @@
     --gradient-premium: linear-gradient(135deg, hsl(var(--premium-primary)), hsl(43 48% 46%));
     --gradient-accent: linear-gradient(135deg, hsl(var(--premium-accent)), hsl(43 48% 76%));
     
+    /* Stripe-Inspired Shadow System */
+    --shadow-xs: 0 1px 2px 0 hsl(var(--foreground) / 0.05);
+    --shadow-sm: 0 1px 3px 0 hsl(var(--foreground) / 0.1), 0 1px 2px -1px hsl(var(--foreground) / 0.1);
+    --shadow-md: 0 4px 6px -1px hsl(var(--foreground) / 0.1), 0 2px 4px -2px hsl(var(--foreground) / 0.1);
+    --shadow-lg: 0 10px 15px -3px hsl(var(--foreground) / 0.1), 0 4px 6px -4px hsl(var(--foreground) / 0.1);
+    --shadow-xl: 0 20px 25px -5px hsl(var(--foreground) / 0.1), 0 8px 10px -6px hsl(var(--foreground) / 0.1);
+    --shadow-2xl: 0 25px 50px -12px hsl(var(--foreground) / 0.25);
+    --shadow-glow: 0 0 20px hsl(var(--primary) / 0.1);
+    --shadow-glow-lg: 0 0 40px hsl(var(--primary) / 0.15);
+    
+    /* Stripe-Inspired Gradient System */
+    --gradient-subtle: linear-gradient(180deg, hsl(var(--background)), hsl(var(--muted) / 0.3));
+    --gradient-card: linear-gradient(135deg, hsl(var(--card)), hsl(var(--muted) / 0.2));
+    --gradient-primary: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary) / 0.8));
+    --gradient-accent: linear-gradient(135deg, hsl(var(--accent)), hsl(var(--accent) / 0.7));
+    --gradient-shine: linear-gradient(110deg, transparent 25%, hsl(var(--foreground) / 0.03) 50%, transparent 75%);
+    
+    /* Stripe-Inspired Typography Scale for Hero Numbers */
+    --font-size-hero-sm: 2rem;      /* 32px */
+    --font-size-hero-md: 2.5rem;    /* 40px */
+    --font-size-hero-lg: 3rem;      /* 48px */
+    --font-size-hero-xl: 3.5rem;    /* 56px */
+    --font-size-hero-2xl: 4rem;     /* 64px */
+    --line-height-hero: 1.1;
+    --letter-spacing-hero: -0.02em;
+    
+    /* Stripe-Inspired Spacing Tokens */
+    --spacing-section: 3rem;        /* 48px - Between major sections */
+    --spacing-card: 1.5rem;         /* 24px - Card padding */
+    --spacing-element: 1rem;        /* 16px - Between elements */
+    --spacing-compact: 0.75rem;     /* 12px - Compact spacing */
+    --spacing-tight: 0.5rem;        /* 8px - Tight spacing */
+    
     /* Enhanced animations and transitions */
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     --transition-bounce: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-    --shadow-elegant: 0 10px 30px -10px hsl(var(--foreground) / 0.1);
-    --shadow-glow: 0 0 40px hsl(var(--primary) / 0.15);
+    --transition-fast: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-spring: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
     
     /* Enhanced Status Colors - Clean, Apple-style */
     --status-signed: 134 239 172; /* Emerald 300 - Success green */
