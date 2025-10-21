@@ -277,36 +277,6 @@ export function EnhancedUserManagement({
           approvedCount={analytics.approved}
           rejectedCount={analytics.rejected}
         />
-        {/* Analytics Overview - Clean stat cards with generous spacing */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <div className="space-y-2">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Total Users</p>
-            <p className="text-4xl font-semibold tracking-tight">{analytics.total}</p>
-          </div>
-
-          <div className="space-y-2">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Pending Approval</p>
-            <div className="flex items-baseline gap-3">
-              <p className="text-4xl font-semibold tracking-tight">{analytics.pending}</p>
-              {analytics.pending > 0 && (
-                <Badge variant="outline" className="text-xs bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-950 dark:text-yellow-300 dark:border-yellow-800">
-                  <AlertCircle className="h-3 w-3 mr-1" />
-                  Action needed
-                </Badge>
-              )}
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Approved</p>
-            <p className="text-4xl font-semibold tracking-tight text-green-600 dark:text-green-400">{analytics.approved}</p>
-          </div>
-
-          <div className="space-y-2">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Avg Profile Completion</p>
-            <p className="text-4xl font-semibold tracking-tight">{analytics.avgCompletion}%</p>
-          </div>
-        </div>
 
         {/* Filters Section - Inline, no card wrapper for cleaner look */}
         <div className="space-y-6 pb-6 border-b">
