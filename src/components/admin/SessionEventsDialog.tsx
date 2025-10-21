@@ -1,5 +1,5 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { useSessionEvents } from "@/hooks/use-session-events";
+import { useSessionEvents, SessionEvent } from "@/hooks/use-session-events";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -7,6 +7,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import * as LucideIcons from "lucide-react";
 import { groupEventsByTime } from "@/lib/session-event-utils";
 import { ArrowRight } from "lucide-react";
+import EventPropertiesSheet from "./EventPropertiesSheet";
+import { useState } from "react";
 
 interface SessionEventsDialogProps {
   sessionId: string | null;
@@ -22,6 +24,13 @@ export default function SessionEventsDialog({
   onOpenChange,
 }: SessionEventsDialogProps) {
   const { data, isLoading } = useSessionEvents(sessionId, userId);
+  const [selectedEvent, setSelectedEvent] = useState<SessionEvent | null>(null);
+  const [propertiesOpen, setPropertiesOpen] = useState(false);
+
+  const handleEventClick = (event: SessionEvent) => {
+    setSelectedEvent(event);
+    setPropertiesOpen(true);
+  };
 
   const truncatedSessionId = sessionId 
     ? `${sessionId.substring(0, 8)}...${sessionId.substring(sessionId.length - 4)}`
@@ -98,7 +107,11 @@ export default function SessionEventsDialog({
                     if (isSearchChain && eventGroup.length > 1) {
                       const lastSearch = eventGroup[eventGroup.length - 1];
                       return (
-                        <div key={groupIdx} className="flex items-start gap-3">
+                        <div 
+                          key={groupIdx} 
+                          className="flex items-start gap-3 cursor-pointer hover:bg-muted/50 rounded-md p-2 -m-2 transition-colors"
+                          onClick={() => handleEventClick(lastSearch)}
+                        >
                           <span className="text-xs text-muted-foreground font-mono min-w-[60px]">
                             {format(new Date(lastSearch.timestamp), 'h:mm a')}
                           </span>
@@ -122,7 +135,10 @@ export default function SessionEventsDialog({
                       <div key={groupIdx}>
                         {eventGroup.length === 1 ? (
                           // Single event
-                          <div className="flex items-start gap-3">
+                          <div 
+                            className="flex items-start gap-3 cursor-pointer hover:bg-muted/50 rounded-md p-2 -m-2 transition-colors"
+                            onClick={() => handleEventClick(eventGroup[0])}
+                          >
                             <span className="text-xs text-muted-foreground font-mono min-w-[60px]">
                               {format(new Date(eventGroup[0].timestamp), 'h:mm a')}
                             </span>
@@ -148,7 +164,10 @@ export default function SessionEventsDialog({
                           </div>
                         ) : (
                           // Event chain (non-search)
-                          <div className="flex items-start gap-3">
+                          <div 
+                            className="flex items-start gap-3 cursor-pointer hover:bg-muted/50 rounded-md p-2 -m-2 transition-colors"
+                            onClick={() => handleEventClick(eventGroup[0])}
+                          >
                             <span className="text-xs text-muted-foreground font-mono min-w-[60px]">
                               {format(new Date(eventGroup[0].timestamp), 'h:mm a')}
                             </span>
@@ -184,6 +203,13 @@ export default function SessionEventsDialog({
             No events found for this session
           </div>
         )}
+
+        <EventPropertiesSheet
+          event={selectedEvent}
+          sessionMetadata={data?.sessionMetadata || null}
+          open={propertiesOpen}
+          onOpenChange={setPropertiesOpen}
+        />
       </DialogContent>
     </Dialog>
   );

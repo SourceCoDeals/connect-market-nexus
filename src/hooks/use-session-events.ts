@@ -21,11 +21,31 @@ export interface SessionEvent {
   };
 }
 
+export interface SessionMetadata {
+  referrer: string | null;
+  full_referrer: string | null;
+  utm_source: string | null;
+  utm_medium: string | null;
+  utm_campaign: string | null;
+  marketing_channel: string | null;
+  device_type: string | null;
+  browser: string | null;
+  landing_page: string | null;
+}
+
 export const useSessionEvents = (sessionId: string | null, userId: string | null) => {
   return useQuery({
     queryKey: ["session-events", sessionId, userId],
     queryFn: async () => {
       if (!sessionId || !userId) return null;
+
+      // Fetch session metadata from user_initial_session
+      const { data: sessionMetadata } = await supabase
+        .from("user_initial_session")
+        .select("referrer, full_referrer, utm_source, utm_medium, utm_campaign, marketing_channel, device_type, browser, landing_page")
+        .eq("session_id", sessionId)
+        .eq("user_id", userId)
+        .maybeSingle();
 
       // Fetch page views
       const { data: pageViews } = await supabase
@@ -144,6 +164,7 @@ export const useSessionEvents = (sessionId: string | null, userId: string | null
         isOngoing,
         mostFrequent,
         totalEvents: allEvents.length,
+        sessionMetadata: sessionMetadata || null,
       };
     },
     enabled: !!sessionId && !!userId,
