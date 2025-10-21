@@ -1,17 +1,27 @@
-import { Users, Store, MessageSquare, Activity, TrendingUp, TrendingDown, ArrowUpRight, UserPlus, Link as LinkIcon, Eye } from "lucide-react";
+import { Users, Store, MessageSquare, Activity, TrendingUp, TrendingDown, UserPlus, Link as LinkIcon, Eye } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useAdmin } from "@/hooks/use-admin";
 import { useRecentUserActivity } from "@/hooks/use-recent-user-activity";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useState } from "react";
 import { ActivityDetailsDropdown } from "./ActivityDetailsDropdown";
+import UserDetailsSidePanel from "./UserDetailsSidePanel";
 
 export function StripeOverviewTab() {
   const { useStats } = useAdmin();
   const { data: stats, isLoading: isLoadingStats } = useStats();
   const { data: activities = [], isLoading: isLoadingActivities } = useRecentUserActivity();
+  const [activityFilter, setActivityFilter] = useState<string>("all");
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [sidePanelOpen, setSidePanelOpen] = useState(false);
+
+  const handleUserClick = (userId: string | null) => {
+    if (userId) {
+      setSelectedUserId(userId);
+      setSidePanelOpen(true);
+    }
+  };
 
   const businessMetrics = [
     {
@@ -48,15 +58,24 @@ export function StripeOverviewTab() {
     }
   ];
 
-  const [activityFilter, setActivityFilter] = useState<string>("all");
-
   // Filter activities based on selected tab
   const filteredActivities = activities.filter(activity => {
     if (activityFilter === "all") return true;
-    if (activityFilter === "users") return activity.activity_type === 'user_event' || activity.action_type === 'signup';
-    if (activityFilter === "listings") return activity.activity_type === 'listing_action';
-    if (activityFilter === "connections") return activity.action_type?.includes('connection') || activity.action_type?.includes('request');
-    if (activityFilter === "views") return activity.activity_type === 'page_view';
+    if (activityFilter === "users") {
+      return activity.activity_type === 'user_event' || 
+             activity.description.toLowerCase().includes('signup');
+    }
+    if (activityFilter === "listings") {
+      return activity.activity_type === 'listing_action' || 
+             activity.description.toLowerCase().includes('listing');
+    }
+    if (activityFilter === "connections") {
+      return activity.description.toLowerCase().includes('connection') ||
+             activity.description.toLowerCase().includes('request');
+    }
+    if (activityFilter === "views") {
+      return activity.activity_type === 'page_view';
+    }
     return true;
   });
 
@@ -82,7 +101,6 @@ export function StripeOverviewTab() {
       <div className="grid gap-4 md:grid-cols-4">
         {businessMetrics.map((metric) => {
           const Icon = metric.icon;
-          const TrendIcon = metric.isPositive ? TrendingUp : TrendingDown;
           
           return (
             <div key={metric.title} className="group relative">
@@ -184,57 +202,66 @@ export function StripeOverviewTab() {
             </div>
           ) : filteredActivities.length > 0 ? (
             <div className="max-h-[600px] overflow-y-auto">
-              {filteredActivities.map((activity) => {
-                const getActivityDescription = () => {
-                  if (activity.activity_type === 'listing_action') {
-                    return (
-                      <>
-                        <span className="font-medium">{activity.first_name} {activity.last_name}</span>
-                        {' '}{activity.action_type}d listing{' '}
-                        <span className="text-muted-foreground">{activity.listing_title}</span>
-                      </>
-                    );
-                  } else if (activity.activity_type === 'page_view') {
-                    return (
-                      <>
-                        <span className="font-medium">{activity.first_name} {activity.last_name}</span>
-                        {' '}viewed{' '}
-                        <span className="text-muted-foreground">{activity.page_path}</span>
-                      </>
-                    );
-                  } else if (activity.activity_type === 'user_event') {
-                    return (
-                      <>
-                        <span className="font-medium">{activity.first_name} {activity.last_name}</span>
-                        {' '}performed{' '}
-                        <span className="text-muted-foreground">{activity.action_type}</span>
-                      </>
-                    );
+              {filteredActivities.map((activity, index) => {
+                const getActivityIcon = () => {
+                  if (activity.activity_type === "listing_action") {
+                    return <Eye className="h-4 w-4 text-muted-foreground" />;
                   }
-                  return 'Unknown activity';
+                  if (activity.activity_type === "page_view") {
+                    return <Activity className="h-4 w-4 text-muted-foreground" />;
+                  }
+                  if (activity.activity_type === "user_event") {
+                    return <UserPlus className="h-4 w-4 text-muted-foreground" />;
+                  }
+                  return <Activity className="h-4 w-4 text-muted-foreground" />;
                 };
 
                 return (
-                  <div key={activity.id} className="flex items-start gap-3 px-6 py-4 hover:bg-muted/10 transition-colors text-sm group">
-                    <div className="h-1.5 w-1.5 bg-primary rounded-full mt-1.5 flex-shrink-0"></div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm leading-relaxed">
-                        {getActivityDescription()}
-                      </p>
+                  <div 
+                    key={`${activity.activity_type}-${activity.created_at}-${index}`}
+                    className="flex items-start gap-3 px-6 py-4 hover:bg-muted/10 transition-colors border-b border-border/30 last:border-b-0"
+                  >
+                    <div className="mt-0.5">
+                      {getActivityIcon()}
                     </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      <span className="text-xs text-muted-foreground/60 whitespace-nowrap">
-                        {formatDistanceToNow(new Date(activity.created_at), { addSuffix: true })}
-                      </span>
-                      <ActivityDetailsDropdown
-                        session_id={activity.session_id}
-                        referrer={activity.referrer}
-                        time_on_page={activity.time_on_page}
-                        scroll_depth={activity.scroll_depth}
-                        page_title={activity.page_title}
-                        event_category={activity.event_category}
-                        event_label={activity.event_label}
-                      />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <button
+                            onClick={() => handleUserClick(activity.user_id)}
+                            className="text-sm text-foreground font-semibold hover:text-primary transition-colors text-left"
+                          >
+                            {activity.user_name || "Unknown User"}
+                          </button>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {activity.description}
+                          </p>
+                          <div className="flex items-center gap-3 mt-2">
+                            <p className="text-xs text-muted-foreground">
+                              {formatDistanceToNow(new Date(activity.created_at), { addSuffix: true })}
+                            </p>
+                            <ActivityDetailsDropdown
+                              session_id={activity.session_id}
+                              referrer={activity.referrer}
+                              time_on_page={activity.time_on_page}
+                              scroll_depth={activity.scroll_depth}
+                              page_title={activity.page_title}
+                              event_category={activity.event_category}
+                              event_label={activity.event_label}
+                            />
+                          </div>
+                          {activity.user_id && (
+                            <Button
+                              variant="link"
+                              size="sm"
+                              className="h-auto p-0 mt-1 text-xs text-primary hover:text-primary/80"
+                              onClick={() => handleUserClick(activity.user_id)}
+                            >
+                              See more about this user →
+                            </Button>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 );
@@ -250,6 +277,13 @@ export function StripeOverviewTab() {
           )}
         </div>
       </div>
+
+      {/* User Details Side Panel */}
+      <UserDetailsSidePanel
+        userId={selectedUserId}
+        open={sidePanelOpen}
+        onOpenChange={setSidePanelOpen}
+      />
     </div>
   );
 }

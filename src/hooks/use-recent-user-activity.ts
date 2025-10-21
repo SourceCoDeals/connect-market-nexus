@@ -18,6 +18,9 @@ interface RecentActivity {
   page_title?: string;
   event_category?: string;
   event_label?: string;
+  user_id?: string;
+  user_name?: string;
+  description?: string;
 }
 
 export function useRecentUserActivity() {
@@ -103,7 +106,10 @@ export function useRecentUserActivity() {
             first_name: profile.first_name || '',
             last_name: profile.last_name || '',
             listing_title: item.listings?.title || 'Unknown Listing',
-            session_id: item.session_id || undefined
+            session_id: item.session_id || undefined,
+            user_id: item.user_id || undefined,
+            user_name: `${profile.first_name} ${profile.last_name}`.trim(),
+            description: `${item.action_type} ${item.listings?.title || 'listing'}`
           });
         }
       });
@@ -124,7 +130,10 @@ export function useRecentUserActivity() {
             session_id: item.session_id || undefined,
             referrer: item.referrer || undefined,
             time_on_page: item.time_on_page || undefined,
-            scroll_depth: item.scroll_depth || undefined
+            scroll_depth: item.scroll_depth || undefined,
+            user_id: item.user_id || undefined,
+            user_name: `${profile.first_name} ${profile.last_name}`.trim(),
+            description: `viewed ${item.page_path}`
           });
         }
       });
@@ -144,7 +153,10 @@ export function useRecentUserActivity() {
             page_path: item.page_path || undefined,
             session_id: item.session_id || undefined,
             event_category: item.event_category || undefined,
-            event_label: item.event_label || undefined
+            event_label: item.event_label || undefined,
+            user_id: item.user_id || undefined,
+            user_name: `${profile.first_name} ${profile.last_name}`.trim(),
+            description: `${item.event_action} event`
           });
         }
       });

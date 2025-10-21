@@ -2466,6 +2466,69 @@ export type Database = {
         }
         Relationships: []
       }
+      user_initial_session: {
+        Row: {
+          browser: string | null
+          browser_type: string | null
+          created_at: string | null
+          device_type: string | null
+          first_seen_at: string | null
+          full_referrer: string | null
+          id: string
+          landing_page: string | null
+          landing_page_query: string | null
+          location: Json | null
+          marketing_channel: string | null
+          platform: string | null
+          referrer: string | null
+          session_id: string | null
+          user_id: string | null
+          utm_campaign: string | null
+          utm_medium: string | null
+          utm_source: string | null
+        }
+        Insert: {
+          browser?: string | null
+          browser_type?: string | null
+          created_at?: string | null
+          device_type?: string | null
+          first_seen_at?: string | null
+          full_referrer?: string | null
+          id?: string
+          landing_page?: string | null
+          landing_page_query?: string | null
+          location?: Json | null
+          marketing_channel?: string | null
+          platform?: string | null
+          referrer?: string | null
+          session_id?: string | null
+          user_id?: string | null
+          utm_campaign?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+        }
+        Update: {
+          browser?: string | null
+          browser_type?: string | null
+          created_at?: string | null
+          device_type?: string | null
+          first_seen_at?: string | null
+          full_referrer?: string | null
+          id?: string
+          landing_page?: string | null
+          landing_page_query?: string | null
+          location?: Json | null
+          marketing_channel?: string | null
+          platform?: string | null
+          referrer?: string | null
+          session_id?: string | null
+          user_id?: string | null
+          utm_campaign?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+        }
+        Relationships: []
+      }
       user_notes: {
         Row: {
           admin_id: string
