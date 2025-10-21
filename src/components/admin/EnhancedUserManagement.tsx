@@ -247,100 +247,55 @@ export function EnhancedUserManagement({
   };
 
   return (
-    <Tabs defaultValue="overview" className="space-y-6">
-      {/* Subtle underline tabs - Stripe style */}
-      <div className="border-b">
-        <TabsList className="h-auto p-0 bg-transparent border-0 gap-6">
-          <TabsTrigger 
-            value="overview"
-            className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-0 pb-3 pt-0 font-medium text-sm data-[state=active]:text-foreground text-muted-foreground hover:text-foreground transition-colors"
-          >
-            Overview
-          </TabsTrigger>
-          <TabsTrigger 
-            value="recovery"
-            className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-0 pb-3 pt-0 font-medium text-sm data-[state=active]:text-foreground text-muted-foreground hover:text-foreground transition-colors"
-          >
-            Data Recovery
-          </TabsTrigger>
-          <TabsTrigger 
-            value="monitoring"
-            className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-0 pb-3 pt-0 font-medium text-sm data-[state=active]:text-foreground text-muted-foreground hover:text-foreground transition-colors"
-          >
-            Form Monitoring
-          </TabsTrigger>
-          <TabsTrigger 
-            value="analytics"
-            className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-0 pb-3 pt-0 font-medium text-sm data-[state=active]:text-foreground text-muted-foreground hover:text-foreground transition-colors"
-          >
-            Analytics
-          </TabsTrigger>
-        </TabsList>
-      </div>
-
-      <TabsContent value="overview" className="space-y-6 pt-6">
-        {/* Analytics Overview - Stripe-style minimal cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card className="border-border/40">
-            <CardContent className="p-6">
-              <div className="space-y-2">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Total Users</p>
-                <p className="text-3xl font-semibold tracking-tight">{analytics.total}</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-border/40">
-            <CardContent className="p-6">
-              <div className="space-y-2">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Pending Approval</p>
-                <div className="flex items-baseline gap-2">
-                  <p className="text-3xl font-semibold tracking-tight">{analytics.pending}</p>
-                  <Badge variant="outline" className="text-xs bg-yellow-500/10 text-yellow-700 border-yellow-200">
-                    <AlertCircle className="h-3 w-3 mr-1" />
-                    Action needed
-                  </Badge>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-border/40">
-            <CardContent className="p-6">
-              <div className="space-y-2">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Approved</p>
-                <p className="text-3xl font-semibold tracking-tight text-green-600">{analytics.approved}</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-border/40">
-            <CardContent className="p-6">
-              <div className="space-y-2">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Avg Profile Completion</p>
-                <p className="text-3xl font-semibold tracking-tight">{analytics.avgCompletion}%</p>
-              </div>
-            </CardContent>
-          </Card>
+    <div className="space-y-8">
+      {/* Analytics Overview - Clean stat cards with generous spacing */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="space-y-2">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Total Users</p>
+          <p className="text-4xl font-semibold tracking-tight">{analytics.total}</p>
         </div>
 
-        {/* Filters and Actions - Clean Stripe layout */}
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold">Filters</h2>
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={exportData}
-              disabled={filteredUsers.length === 0}
-              className="gap-2"
-            >
-              <Download className="h-4 w-4" />
-              Export CSV
-            </Button>
+        <div className="space-y-2">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Pending Approval</p>
+          <div className="flex items-baseline gap-3">
+            <p className="text-4xl font-semibold tracking-tight">{analytics.pending}</p>
+            {analytics.pending > 0 && (
+              <Badge variant="outline" className="text-xs bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-950 dark:text-yellow-300 dark:border-yellow-800">
+                <AlertCircle className="h-3 w-3 mr-1" />
+                Action needed
+              </Badge>
+            )}
           </div>
-          
-          <div className="space-y-4">
+        </div>
+
+        <div className="space-y-2">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Approved</p>
+          <p className="text-4xl font-semibold tracking-tight text-green-600 dark:text-green-400">{analytics.approved}</p>
+        </div>
+
+        <div className="space-y-2">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Avg Profile Completion</p>
+          <p className="text-4xl font-semibold tracking-tight">{analytics.avgCompletion}%</p>
+        </div>
+      </div>
+
+      {/* Filters Section - Inline, no card wrapper for cleaner look */}
+      <div className="space-y-6 pb-6 border-b">
+        <div className="flex items-center justify-between">
+          <h2 className="text-base font-semibold">Filters</h2>
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={exportData}
+            disabled={filteredUsers.length === 0}
+            className="gap-2 h-9"
+          >
+            <Download className="h-4 w-4" />
+            <span className="hidden sm:inline">Export CSV</span>
+          </Button>
+        </div>
+        
+        <div className="space-y-5">
             {/* Search and Filters */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
               <div className="lg:col-span-2">
@@ -423,96 +378,13 @@ export function EnhancedUserManagement({
               {selectedUsers.length} user{selectedUsers.length === 1 ? '' : 's'} selected
             </span>
             <div className="flex gap-2 ml-auto">
-              <Button size="sm" onClick={handleBulkApprove} variant="outline">
+              <Button size="sm" onClick={handleBulkApprove} variant="default" className="h-9">
                 <UserCheck className="h-4 w-4 mr-2" />
-                Bulk Approve
+                Approve Selected
               </Button>
             </div>
           </div>
         )}
-      </TabsContent>
-
-      <TabsContent value="recovery">
-        <DataRecoveryDashboard users={users} />
-      </TabsContent>
-
-      <TabsContent value="monitoring">
-        <FormValidationMonitor />
-      </TabsContent>
-
-      <TabsContent value="analytics" className="space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Activity className="h-5 w-5" />
-              Advanced Analytics
-            </CardTitle>
-            <CardDescription>
-              Comprehensive user behavior and form performance analytics
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {/* Profile Completion Distribution */}
-              <div className="space-y-3">
-                <h4 className="font-medium">Profile Completion Distribution</h4>
-                <div className="space-y-2 text-sm">
-                  {Object.entries(analytics.buyerTypeBreakdown).map(([type, count]) => (
-                    <div key={type} className="flex justify-between">
-                      <span className="capitalize">{type.replace(/([A-Z])/g, ' $1')}</span>
-                      <span>{count} users</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Data Quality Metrics */}
-              <div className="space-y-3">
-                <h4 className="font-medium">Data Quality Metrics</h4>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span>Complete Profiles (90%+)</span>
-                    <span className="text-green-600 font-medium">
-                      {users.filter(u => calculateProfileCompletion(u) >= 90).length}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Incomplete Profiles (&lt;50%)</span>
-                    <span className="text-red-600 font-medium">
-                      {users.filter(u => calculateProfileCompletion(u) < 50).length}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Missing Critical Data</span>
-                    <span className="text-orange-600 font-medium">
-                      {users.filter(u => !u.buyer_type || !u.phone_number).length}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Signup Trends */}
-              <div className="space-y-3">
-                <h4 className="font-medium">Recent Signup Trends</h4>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span>Last 7 days</span>
-                    <span>{users.filter(u => new Date(u.created_at) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)).length}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Last 30 days</span>
-                    <span>{users.filter(u => new Date(u.created_at) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)).length}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Email Verification Rate</span>
-                    <span>{Math.round((users.filter(u => u.email_verified).length / users.length) * 100)}%</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </TabsContent>
-    </Tabs>
-  );
-}
+      </div>
+    );
+  }

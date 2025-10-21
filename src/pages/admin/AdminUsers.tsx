@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useAdmin } from "@/hooks/use-admin";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Search, AlertCircle, RefreshCw, Building2 } from "lucide-react";
+import { Search, AlertCircle, RefreshCw, Building2, Settings } from "lucide-react";
 import { UsersTable } from "@/components/admin/UsersTable";
 import { MobileUsersTable } from "@/components/admin/MobileUsersTable";
 import { User } from "@/types";
@@ -17,6 +17,8 @@ import { BulkVerificationEmailSender } from "@/components/admin/BulkVerification
 import { ProfileDataInspector } from "@/components/admin/ProfileDataInspector";
 import { ProfileDataRecovery } from "@/components/admin/ProfileDataRecovery";
 import { AutomatedDataRestoration } from "@/components/admin/AutomatedDataRestoration";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 
 
@@ -99,88 +101,131 @@ const AdminUsers = () => {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Stripe-like minimal header */}
-      <div className="flex items-start justify-between border-b pb-6">
-        <div className="space-y-1">
-          <h1 className="text-3xl font-semibold tracking-tight">Users</h1>
-          <p className="text-sm text-muted-foreground">
-            Manage registrations, approvals, and profile completion
-          </p>
+    <div className="min-h-screen bg-background">
+      {/* Stripe-style header with generous padding */}
+      <div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-40">
+        <div className="px-8 py-6">
+          <div className="flex items-start justify-between">
+            <div className="space-y-1">
+              <h1 className="text-2xl font-semibold tracking-tight">Users</h1>
+              <p className="text-sm text-muted-foreground">
+                Manage user registrations, approvals, and profile data
+              </p>
+            </div>
+            
+            {/* Top right actions */}
+            <div className="flex items-center gap-2">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-2">
+                    <Settings className="h-4 w-4" />
+                    <span className="hidden sm:inline">Tools</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuItem asChild>
+                    <a href="#data-recovery">Data Recovery Dashboard</a>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <a href="#form-monitoring">Form Validation Monitor</a>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <a href="#edge-tools">Edge Case Tools</a>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </div>
+
+          {/* Subtle navigation tabs */}
+          <Tabs defaultValue="users" className="mt-6">
+            <TabsList className="h-auto p-0 bg-transparent border-0 gap-6">
+              <TabsTrigger 
+                value="users"
+                className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-0 pb-2 pt-0 font-medium text-sm data-[state=active]:text-foreground text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Users
+              </TabsTrigger>
+              <TabsTrigger 
+                value="firms"
+                asChild
+                className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-0 pb-2 pt-0 font-medium text-sm data-[state=active]:text-foreground text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <Link to="/admin/firm-agreements" className="inline-flex items-center gap-2">
+                  <Building2 className="h-4 w-4" />
+                  Firm Agreements
+                </Link>
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
         </div>
-        <Link to="/admin/firm-agreements">
-          <Button variant="outline" size="sm" className="gap-2">
-            <Building2 className="h-4 w-4" />
-            <span className="hidden sm:inline">Firm Agreements</span>
-          </Button>
-        </Link>
       </div>
 
+      {/* Main content with generous padding */}
+      <div className="px-8 py-8">
+        <EnhancedUserManagement
+          users={usersData}
+          onApprove={approveUser}
+          onMakeAdmin={makeAdmin}
+          onRevokeAdmin={revokeAdmin}
+          onDelete={deleteUser}
+          isLoading={isLoading}
+          onFilteredUsersChange={setFilteredUsers}
+        />
 
-      {/* Enhanced User Management with Analytics */}
-      <EnhancedUserManagement
-        users={usersData}
-        onApprove={approveUser}
-        onMakeAdmin={makeAdmin}
-        onRevokeAdmin={revokeAdmin}
-        onDelete={deleteUser}
-        isLoading={isLoading}
-        onFilteredUsersChange={setFilteredUsers}
-      />
+        {/* Users Table */}
+        <div className="mt-8 bg-card rounded-lg border overflow-hidden">
+          {isMobile ? (
+            <div className="p-4">
+              <MobileUsersTable
+                users={filteredUsers}
+                onApprove={approveUser}
+                onMakeAdmin={makeAdmin}
+                onRevokeAdmin={revokeAdmin}
+                onDelete={deleteUser}
+                isLoading={isLoading}
+                onSendFeeAgreement={() => {}}
+                onSendNDAEmail={() => {}}
+              />
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <UsersTable
+                users={filteredUsers}
+                onApprove={approveUser}
+                onMakeAdmin={makeAdmin}
+                onRevokeAdmin={revokeAdmin}
+                onDelete={deleteUser}
+                isLoading={isLoading}
+              />
+            </div>
+          )}
+        </div>
 
+        {/* All user action dialogs */}
+        <ApprovalEmailDialog />
+        <AdminDialog />
+        <RevokeAdminDialog />
+        <DeleteDialog />
 
-      {/* Users Table */}
-      <div className="bg-card rounded-lg border overflow-hidden">
-        {isMobile ? (
-          <div className="p-2 md:p-4">
-            <MobileUsersTable
-              users={filteredUsers}
-              onApprove={approveUser}
-              onMakeAdmin={makeAdmin}
-              onRevokeAdmin={revokeAdmin}
-              onDelete={deleteUser}
-              isLoading={isLoading}
-              onSendFeeAgreement={() => {}}
-              onSendNDAEmail={() => {}}
-            />
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <UsersTable
-              users={filteredUsers}
-              onApprove={approveUser}
-              onMakeAdmin={makeAdmin}
-              onRevokeAdmin={revokeAdmin}
-              onDelete={deleteUser}
-              isLoading={isLoading}
-            />
-          </div>
-        )}
-      </div>
-
-      {/* All user action dialogs */}
-      <ApprovalEmailDialog />
-      <AdminDialog />
-      <RevokeAdminDialog />
-      <DeleteDialog />
-
-      {/* Edge Case Tools - Placed at bottom since rarely used */}
-      <div className="mt-8 border-t pt-6 space-y-4">
-        <details className="group">
-          <summary className="flex items-center justify-between cursor-pointer text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-            <span>🔧 Edge Case Tools (Rarely Used)</span>
-            <span className="group-open:rotate-180 transition-transform">▼</span>
-          </summary>
-          <div className="mt-4 space-y-4">
-            {/* NEW: Automated Data Restoration (smart fix for over-standardized data) */}
-            <AutomatedDataRestoration />
-            <BulkVerificationEmailSender />
-            {/* New: Profile Data Inspector (compares current vs raw snapshots) */}
-            <ProfileDataInspector />
-            {/* New: Profile Data Recovery (restore over-standardized data) */}
-            <ProfileDataRecovery />
-          </div>
-        </details>
+        {/* Edge Case Tools - Collapsible section */}
+        <div id="edge-tools" className="mt-12 pt-8 border-t">
+          <details className="group">
+            <summary className="flex items-center justify-between cursor-pointer text-sm font-medium text-muted-foreground hover:text-foreground transition-colors py-3">
+              <span>🔧 Advanced Tools & Data Recovery</span>
+              <span className="group-open:rotate-180 transition-transform">▼</span>
+            </summary>
+            <div className="mt-6 space-y-6" id="data-recovery">
+              <AutomatedDataRestoration />
+              <BulkVerificationEmailSender />
+              <div id="form-monitoring">
+                <ProfileDataInspector />
+              </div>
+              <ProfileDataRecovery />
+            </div>
+          </details>
+        </div>
       </div>
     </div>
   );
