@@ -72,34 +72,25 @@ export function DealMetricsCard({ listing, status, className }: DealMetricsCardP
 
   return (
     <div className={cn("relative bg-white border border-gray-200 rounded-lg p-6", className)}>
-      {/* Off-Market Badge */}
+      {/* Off-Market Badge - Stripe/Apple minimalist design */}
       <TooltipProvider>
         <Tooltip delayDuration={200}>
           <TooltipTrigger asChild>
-            <div className="absolute -top-3 right-6 z-10">
-              <div className="group relative inline-flex items-center gap-2 px-4 py-1.5 bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 cursor-help">
-                {/* Shimmer Effect */}
-                <div className="absolute inset-0 rounded-full bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                
-                {/* Diamond Icon */}
-                <Diamond className="w-3.5 h-3.5 text-white fill-white/30" />
-                
-                {/* Badge Text */}
-                <span className="relative text-xs font-semibold text-white tracking-wide">
+            <div className="absolute -top-2.5 right-6 z-10">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-white border border-gray-200 rounded-full shadow-sm hover:shadow-md hover:border-gray-300 transition-all duration-200 cursor-help">
+                <Diamond className="w-2.5 h-2.5 text-gray-700" strokeWidth={2.5} />
+                <span className="text-[11px] font-medium text-gray-700 tracking-wide">
                   Off-Market
                 </span>
-                
-                {/* Glow Effect */}
-                <div className="absolute -inset-1 bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 rounded-full opacity-20 blur-lg group-hover:opacity-30 transition-opacity duration-300" />
               </div>
             </div>
           </TooltipTrigger>
           <TooltipContent 
             side="bottom" 
             align="end"
-            className="max-w-sm p-4 bg-gray-900 text-white border-gray-800 shadow-2xl"
+            className="max-w-sm p-4"
           >
-            <p className="text-sm leading-relaxed">
+            <p className="text-xs leading-relaxed">
               We share each deal confidentially with our curated network of buyers and take time to learn about every group's value add, how they approach structure, valuation, and the overall investment thesis, and how their approach fits into seller's expectations and timeline.
               <br /><br />
               We are not representing the seller in this process; we never serve as sell-side representation. There are also no other intermediaries involved in the process. All deals on the marketplace are directly with the owner (seller).
