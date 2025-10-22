@@ -10,6 +10,8 @@ import { DealProcessSteps } from "@/components/deals/DealProcessSteps";
 import { DealDetailsCard } from "@/components/deals/DealDetailsCard";
 import { DealMetricsCard } from "@/components/deals/DealMetricsCard";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 const MyRequests = () => {
   const { user } = useAuth();
@@ -18,6 +20,24 @@ const MyRequests = () => {
   const updateMessage = useUpdateConnectionMessage();
   const isMobile = useIsMobile();
   const [selectedDeal, setSelectedDeal] = useState<string | null>(null);
+
+  // Fetch fresh profile data to avoid stale completeness calculations
+  const { data: freshProfile } = useQuery({
+    queryKey: ['user-profile', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+      
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user?.id,
+    staleTime: 0, // Always refetch to get latest profile data
+  });
 
   // Set first request as default when data loads
   useEffect(() => {
@@ -193,8 +213,8 @@ const MyRequests = () => {
                       message: newMessage,
                     });
                   }}
-                  isProfileComplete={getDataCompleteness(user) >= 90}
-                  profileCompletionPercentage={getDataCompleteness(user)}
+                  isProfileComplete={getDataCompleteness((freshProfile as any) || user) >= 90}
+                  profileCompletionPercentage={getDataCompleteness((freshProfile as any) || user)}
                 />
 
                 {/* Deal Details */}
