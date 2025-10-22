@@ -65,7 +65,7 @@ export function DealMessageEditor({
           className="group w-full text-left border-b border-gray-200 hover:border-gray-400 pb-3 transition-colors duration-200"
         >
           <div className="flex items-start justify-between gap-3">
-            <p className="text-sm text-gray-700 leading-relaxed flex-1 break-words overflow-wrap-anywhere">
+            <p className="text-sm text-gray-700 leading-relaxed flex-1 break-all">
               {message || 'Click to add a message'}
             </p>
             <Pencil className="w-3.5 h-3.5 text-gray-400 group-hover:text-gray-700 transition-colors shrink-0" />
