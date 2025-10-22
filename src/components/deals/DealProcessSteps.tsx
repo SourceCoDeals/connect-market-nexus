@@ -108,8 +108,8 @@ export function DealProcessSteps({ requestStatus, className }: DealProcessStepsP
         };
       case 'approved':
         return {
-          title: 'Connection Approved',
-          message: "The business owner approved your connection request. You'll receive introduction details and next steps shortly.",
+          title: 'Request Approved',
+          message: "We've reviewed your request and connection criteria. Our team will be in touch with next steps shortly.",
           action: false
         };
       case 'rejected':
