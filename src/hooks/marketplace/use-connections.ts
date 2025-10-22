@@ -187,7 +187,16 @@ export const useUserConnectionRequests = () => {
           .select(`
             *,
             listing:listing_id (
-              id, title, category, location, description
+              id, 
+              title, 
+              category, 
+              location, 
+              description,
+              image_url,
+              revenue,
+              ebitda,
+              full_time_employees,
+              part_time_employees
             )
           `)
           .eq('user_id', session.user.id)
