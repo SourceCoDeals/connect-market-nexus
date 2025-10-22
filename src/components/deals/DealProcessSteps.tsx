@@ -35,8 +35,18 @@ export function DealProcessSteps({
   isProfileComplete = false,
   profileCompletionPercentage = 0,
 }: DealProcessStepsProps) {
+  // Normalize various backend statuses into UI buckets
+  const normalizeStatus = (status: string | undefined): 'pending' | 'approved' | 'rejected' => {
+    if (!status) return 'pending';
+    const s = status.toLowerCase();
+    if (['approved', 'accepted'].includes(s)) return 'approved';
+    if (['rejected', 'declined'].includes(s)) return 'rejected';
+    // Treat everything else as pending: 'pending', 'under_review', 'submitted', 'processing', etc.
+    return 'pending';
+  };
+  const normalizedStatus = normalizeStatus(requestStatus as any);
   const getSteps = (): ProcessStep[] => {
-    switch (requestStatus) {
+    switch (normalizedStatus) {
       case 'pending':
         return [
           {
@@ -135,7 +145,7 @@ export function DealProcessSteps({
   };
 
   const getStatusMessage = () => {
-    switch (requestStatus) {
+    switch (normalizedStatus) {
       case 'pending':
         return {
           title: 'Under Review',
@@ -256,11 +266,11 @@ export function DealProcessSteps({
                   {/* Inline Review Panel for Active Under Review Step */}
                   {step.id === 'review' && 
                    step.status === 'active' && 
-                   requestStatus === 'pending' && (
+                   normalizedStatus === 'pending' && (
                     <DealReviewPanel
                       requestId={requestId || ''}
                       userMessage={userMessage}
-                      onMessageUpdate={onMessageUpdate}
+                      onMessageUpdate={onMessageUpdate as any}
                       isProfileComplete={isProfileComplete}
                       profileCompletionPercentage={profileCompletionPercentage}
                     />
