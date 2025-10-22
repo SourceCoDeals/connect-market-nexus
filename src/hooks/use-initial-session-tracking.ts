@@ -1,8 +1,9 @@
 import { useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { v4 as uuidv4 } from 'uuid';
+import { useSessionContext } from '@/contexts/SessionContext';
 
 export const useInitialSessionTracking = () => {
+  const { sessionId, utmParams, referrer } = useSessionContext();
   const hasTracked = useRef(false);
 
   useEffect(() => {
@@ -21,26 +22,6 @@ export const useInitialSessionTracking = () => {
 
         console.log('🎯 Starting initial session tracking for user:', user.id);
 
-        // Get or create session ID
-        let sessionId = sessionStorage.getItem('session_id');
-        if (!sessionId) {
-          sessionId = uuidv4();
-          sessionStorage.setItem('session_id', sessionId);
-          console.log('🆔 New session ID created:', sessionId);
-        }
-
-        // Extract URL parameters
-        const url = new URL(window.location.href);
-        const searchParams = url.searchParams;
-
-        // Get UTM parameters
-        const utmSource = searchParams.get('utm_source');
-        const utmMedium = searchParams.get('utm_medium');
-        const utmCampaign = searchParams.get('utm_campaign');
-
-        // Get referrer
-        const referrer = document.referrer || undefined;
-
         // Get landing page info
         const landingPage = window.location.href;
         const landingPageQuery = window.location.search || undefined;
@@ -52,12 +33,12 @@ export const useInitialSessionTracking = () => {
         const trackingData = {
           user_id: user.id,
           session_id: sessionId,
-          referrer,
+          referrer: referrer || undefined,
           landing_page: landingPage,
           landing_page_query: landingPageQuery,
-          utm_source: utmSource || undefined,
-          utm_medium: utmMedium || undefined,
-          utm_campaign: utmCampaign || undefined,
+          utm_source: utmParams.utm_source || undefined,
+          utm_medium: utmParams.utm_medium || undefined,
+          utm_campaign: utmParams.utm_campaign || undefined,
           user_agent: userAgent,
         };
 
@@ -96,5 +77,5 @@ export const useInitialSessionTracking = () => {
     const timeoutId = setTimeout(trackInitialSession, 1000);
 
     return () => clearTimeout(timeoutId);
-  }, []);
+  }, [sessionId, utmParams, referrer]);
 };

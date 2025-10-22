@@ -26,7 +26,13 @@ interface RecentActivity {
   user_id?: string;
   user_name?: string;
   description?: string;
-  user_created_at?: string; // Date user signed up
+  user_created_at?: string;
+  current_utm_source?: string;
+  current_utm_medium?: string;
+  current_utm_campaign?: string;
+  current_utm_term?: string;
+  current_utm_content?: string;
+  current_referrer?: string;
 }
 
 export function useRecentUserActivity() {
@@ -44,6 +50,12 @@ export function useRecentUserActivity() {
           created_at,
           user_id,
           session_id,
+          utm_source,
+          utm_medium,
+          utm_campaign,
+          utm_term,
+          utm_content,
+          referrer_page,
           listings!listing_analytics_listing_id_fkey(title)
         `)
         .not('user_id', 'is', null)
@@ -62,7 +74,12 @@ export function useRecentUserActivity() {
           session_id,
           referrer,
           time_on_page,
-          scroll_depth
+          scroll_depth,
+          utm_source,
+          utm_medium,
+          utm_campaign,
+          utm_term,
+          utm_content
         `)
         .not('user_id', 'is', null)
         .order('created_at', { ascending: false })
@@ -79,7 +96,12 @@ export function useRecentUserActivity() {
           page_path,
           created_at,
           user_id,
-          session_id
+          session_id,
+          utm_source,
+          utm_medium,
+          utm_campaign,
+          utm_term,
+          utm_content
         `)
         .not('user_id', 'is', null)
         .order('created_at', { ascending: false })
@@ -138,7 +160,13 @@ export function useRecentUserActivity() {
             user_id: item.user_id || undefined,
             user_name: `${profile.first_name} ${profile.last_name}`.trim(),
             description: `${item.action_type} ${item.listings?.title || 'listing'}`,
-            user_created_at: profile.created_at || undefined
+            user_created_at: profile.created_at || undefined,
+            current_utm_source: item.utm_source || undefined,
+            current_utm_medium: item.utm_medium || undefined,
+            current_utm_campaign: item.utm_campaign || undefined,
+            current_utm_term: item.utm_term || undefined,
+            current_utm_content: item.utm_content || undefined,
+            current_referrer: item.referrer_page || undefined,
           });
         }
       });
@@ -169,7 +197,13 @@ export function useRecentUserActivity() {
             user_id: item.user_id || undefined,
             user_name: `${profile.first_name} ${profile.last_name}`.trim(),
             description: `viewed ${item.page_path}`,
-            user_created_at: profile.created_at || undefined
+            user_created_at: profile.created_at || undefined,
+            current_utm_source: item.utm_source || undefined,
+            current_utm_medium: item.utm_medium || undefined,
+            current_utm_campaign: item.utm_campaign || undefined,
+            current_utm_term: item.utm_term || undefined,
+            current_utm_content: item.utm_content || undefined,
+            current_referrer: item.referrer || undefined,
           });
         }
       });
@@ -200,7 +234,12 @@ export function useRecentUserActivity() {
             user_id: item.user_id || undefined,
             user_name: `${profile.first_name} ${profile.last_name}`.trim(),
             description: `${item.event_action} event`,
-            user_created_at: profile.created_at || undefined
+            user_created_at: profile.created_at || undefined,
+            current_utm_source: item.utm_source || undefined,
+            current_utm_medium: item.utm_medium || undefined,
+            current_utm_campaign: item.utm_campaign || undefined,
+            current_utm_term: item.utm_term || undefined,
+            current_utm_content: item.utm_content || undefined,
           });
         }
       });

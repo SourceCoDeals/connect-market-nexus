@@ -1,6 +1,7 @@
 import { useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuthState } from './auth/use-auth-state';
+import { useSessionContext } from '@/contexts/SessionContext';
 
 interface TrackEventParams {
   eventType: string;
@@ -19,36 +20,37 @@ interface TrackPageViewParams {
 
 export function useAnalyticsTracking() {
   const { user } = useAuthState();
-  const sessionIdRef = useRef<string | null>(null);
+  const { sessionId, utmParams, referrer } = useSessionContext();
+  const sessionIdRef = useRef<string>(sessionId);
   const pageStartTimeRef = useRef<number>(Date.now());
   const currentPageRef = useRef<string>('');
 
-  // Generate session ID
+  // Create session record with UTM parameters
   useEffect(() => {
-    if (!sessionIdRef.current) {
-      sessionIdRef.current = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      
-      // Create session record
-      const createSession = async () => {
-        try {
-          await supabase.from('user_sessions').insert({
-            session_id: sessionIdRef.current,
-            user_id: user?.id || null,
-            started_at: new Date().toISOString(),
-            user_agent: navigator.userAgent,
-            referrer: document.referrer || null,
-            device_type: /Mobile|Android|iPhone|iPad/.test(navigator.userAgent) ? 'mobile' : 'desktop',
-            browser: getBrowserName(),
-            os: getOSName(),
-          });
-        } catch (error) {
-          console.error('Failed to create session:', error);
-        }
-      };
+    const createSession = async () => {
+      try {
+        await supabase.from('user_sessions').insert({
+          session_id: sessionIdRef.current,
+          user_id: user?.id || null,
+          started_at: new Date().toISOString(),
+          user_agent: navigator.userAgent,
+          referrer: referrer || null,
+          device_type: /Mobile|Android|iPhone|iPad/.test(navigator.userAgent) ? 'mobile' : 'desktop',
+          browser: getBrowserName(),
+          os: getOSName(),
+          utm_source: utmParams.utm_source || null,
+          utm_medium: utmParams.utm_medium || null,
+          utm_campaign: utmParams.utm_campaign || null,
+          utm_term: utmParams.utm_term || null,
+          utm_content: utmParams.utm_content || null,
+        });
+      } catch (error) {
+        console.error('Failed to create session:', error);
+      }
+    };
 
-      createSession();
-    }
-  }, [user?.id]);
+    createSession();
+  }, [user?.id, referrer, utmParams]);
 
   // Track page views
   const trackPageView = useCallback(async ({ pagePath, pageTitle, referrer }: TrackPageViewParams) => {
@@ -65,6 +67,11 @@ export function useAnalyticsTracking() {
           referrer: referrer || document.referrer || null,
           time_on_page: timeOnPage,
           scroll_depth: getScrollDepth(),
+          utm_source: utmParams.utm_source || null,
+          utm_medium: utmParams.utm_medium || null,
+          utm_campaign: utmParams.utm_campaign || null,
+          utm_term: utmParams.utm_term || null,
+          utm_content: utmParams.utm_content || null,
         });
       }
 
@@ -97,6 +104,11 @@ export function useAnalyticsTracking() {
         event_value: eventValue || null,
         page_path: window.location.pathname,
         metadata: metadata || null,
+        utm_source: utmParams.utm_source || null,
+        utm_medium: utmParams.utm_medium || null,
+        utm_campaign: utmParams.utm_campaign || null,
+        utm_term: utmParams.utm_term || null,
+        utm_content: utmParams.utm_content || null,
       });
     } catch (error) {
       console.error('Failed to track event:', error);
@@ -120,6 +132,11 @@ export function useAnalyticsTracking() {
         referrer_page: document.referrer || null,
         clicked_elements: metadata?.clickedElements || null,
         search_query: metadata?.searchQuery || null,
+        utm_source: utmParams.utm_source || null,
+        utm_medium: utmParams.utm_medium || null,
+        utm_campaign: utmParams.utm_campaign || null,
+        utm_term: utmParams.utm_term || null,
+        utm_content: utmParams.utm_content || null,
       });
 
       // Also track as a general event

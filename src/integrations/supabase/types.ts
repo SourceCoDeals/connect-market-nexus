@@ -1551,6 +1551,11 @@ export type Database = {
           session_id: string | null
           time_spent: number | null
           user_id: string | null
+          utm_campaign: string | null
+          utm_content: string | null
+          utm_medium: string | null
+          utm_source: string | null
+          utm_term: string | null
         }
         Insert: {
           action_type: string
@@ -1564,6 +1569,11 @@ export type Database = {
           session_id?: string | null
           time_spent?: number | null
           user_id?: string | null
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          utm_term?: string | null
         }
         Update: {
           action_type?: string
@@ -1577,6 +1587,11 @@ export type Database = {
           session_id?: string | null
           time_spent?: number | null
           user_id?: string | null
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          utm_term?: string | null
         }
         Relationships: [
           {
@@ -1848,6 +1863,11 @@ export type Database = {
           session_id: string | null
           time_on_page: number | null
           user_id: string | null
+          utm_campaign: string | null
+          utm_content: string | null
+          utm_medium: string | null
+          utm_source: string | null
+          utm_term: string | null
         }
         Insert: {
           created_at?: string | null
@@ -1860,6 +1880,11 @@ export type Database = {
           session_id?: string | null
           time_on_page?: number | null
           user_id?: string | null
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          utm_term?: string | null
         }
         Update: {
           created_at?: string | null
@@ -1872,6 +1897,11 @@ export type Database = {
           session_id?: string | null
           time_on_page?: number | null
           user_id?: string | null
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          utm_term?: string | null
         }
         Relationships: []
       }
@@ -2433,6 +2463,11 @@ export type Database = {
           page_path: string | null
           session_id: string | null
           user_id: string | null
+          utm_campaign: string | null
+          utm_content: string | null
+          utm_medium: string | null
+          utm_source: string | null
+          utm_term: string | null
         }
         Insert: {
           created_at?: string | null
@@ -2448,6 +2483,11 @@ export type Database = {
           page_path?: string | null
           session_id?: string | null
           user_id?: string | null
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          utm_term?: string | null
         }
         Update: {
           created_at?: string | null
@@ -2463,6 +2503,11 @@ export type Database = {
           page_path?: string | null
           session_id?: string | null
           user_id?: string | null
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          utm_term?: string | null
         }
         Relationships: []
       }
@@ -2607,7 +2652,7 @@ export type Database = {
           device_type: string | null
           ended_at: string | null
           id: string
-          ip_address: unknown | null
+          ip_address: unknown
           is_active: boolean | null
           os: string | null
           referrer: string | null
@@ -2617,8 +2662,10 @@ export type Database = {
           user_agent: string | null
           user_id: string | null
           utm_campaign: string | null
+          utm_content: string | null
           utm_medium: string | null
           utm_source: string | null
+          utm_term: string | null
         }
         Insert: {
           browser?: string | null
@@ -2628,7 +2675,7 @@ export type Database = {
           device_type?: string | null
           ended_at?: string | null
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           is_active?: boolean | null
           os?: string | null
           referrer?: string | null
@@ -2638,8 +2685,10 @@ export type Database = {
           user_agent?: string | null
           user_id?: string | null
           utm_campaign?: string | null
+          utm_content?: string | null
           utm_medium?: string | null
           utm_source?: string | null
+          utm_term?: string | null
         }
         Update: {
           browser?: string | null
@@ -2649,7 +2698,7 @@ export type Database = {
           device_type?: string | null
           ended_at?: string | null
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           is_active?: boolean | null
           os?: string | null
           referrer?: string | null
@@ -2659,8 +2708,10 @@ export type Database = {
           user_agent?: string | null
           user_id?: string | null
           utm_campaign?: string | null
+          utm_content?: string | null
           utm_medium?: string | null
           utm_source?: string | null
+          utm_term?: string | null
         }
         Relationships: []
       }
@@ -2703,10 +2754,7 @@ export type Database = {
         }
         Returns: boolean
       }
-      cleanup_old_notifications: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
+      cleanup_old_notifications: { Args: never; Returns: undefined }
       convert_inbound_lead_to_request: {
         Args: { p_lead_id: string; p_listing_id: string }
         Returns: string
@@ -2719,10 +2767,7 @@ export type Database = {
         Args: { target_user_id: string }
         Returns: boolean
       }
-      demote_admin_user: {
-        Args: { target_user_id: string }
-        Returns: boolean
-      }
+      demote_admin_user: { Args: { target_user_id: string }; Returns: boolean }
       enhanced_merge_or_create_connection_request: {
         Args: {
           p_lead_company?: string
@@ -2735,16 +2780,10 @@ export type Database = {
         }
         Returns: Json
       }
-      extract_domain: {
-        Args: { input_text: string }
-        Returns: string
-      }
-      generate_deal_identifier: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
+      extract_domain: { Args: { input_text: string }; Returns: string }
+      generate_deal_identifier: { Args: never; Returns: string }
       get_all_user_roles: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           granted_at: string
           granted_by: string
@@ -2753,7 +2792,7 @@ export type Database = {
         }[]
       }
       get_connection_request_conflicts: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           conflict_details: Json
           conflict_type: string
@@ -2764,7 +2803,7 @@ export type Database = {
         }[]
       }
       get_deals_with_details: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           assigned_to: string
           buyer_company: string
@@ -2864,7 +2903,7 @@ export type Database = {
         }[]
       }
       get_profiles_with_history: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           business_categories_current: Json
           business_categories_dedup: Json
@@ -2891,10 +2930,7 @@ export type Database = {
           total_users: number
         }[]
       }
-      get_stage_deal_count: {
-        Args: { stage_uuid: string }
-        Returns: number
-      }
+      get_stage_deal_count: { Args: { stage_uuid: string }; Returns: number }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
@@ -2906,14 +2942,8 @@ export type Database = {
         }
         Returns: boolean
       }
-      is_admin: {
-        Args: { user_id: string }
-        Returns: boolean
-      }
-      is_owner: {
-        Args: { _user_id: string }
-        Returns: boolean
-      }
+      is_admin: { Args: { user_id: string }; Returns: boolean }
+      is_owner: { Args: { _user_id: string }; Returns: boolean }
       log_fee_agreement_email: {
         Args: {
           admin_notes?: string
@@ -2965,7 +2995,7 @@ export type Database = {
         Returns: string
       }
       preview_profile_data_restoration: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           current_categories: Json
           current_locations: Json
@@ -2981,16 +3011,10 @@ export type Database = {
         Args: { target_user_id: string }
         Returns: boolean
       }
-      refresh_analytics_views: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      restore_deal: {
-        Args: { deal_id: string }
-        Returns: boolean
-      }
+      refresh_analytics_views: { Args: never; Returns: undefined }
+      restore_deal: { Args: { deal_id: string }; Returns: boolean }
       restore_profile_data_automated: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           details: string
           new_value: Json
@@ -3003,14 +3027,8 @@ export type Database = {
         Args: { deal_id: string; deletion_reason?: string }
         Returns: boolean
       }
-      soft_delete_listing: {
-        Args: { listing_id: string }
-        Returns: boolean
-      }
-      soft_delete_profile: {
-        Args: { profile_id: string }
-        Returns: boolean
-      }
+      soft_delete_listing: { Args: { listing_id: string }; Returns: boolean }
+      soft_delete_profile: { Args: { profile_id: string }; Returns: boolean }
       update_connection_request_followup: {
         Args: {
           admin_notes?: string
@@ -3051,10 +3069,7 @@ export type Database = {
         Args: { target_date?: string }
         Returns: undefined
       }
-      update_engagement_scores: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
+      update_engagement_scores: { Args: never; Returns: undefined }
       update_fee_agreement_email_status: {
         Args: { admin_notes?: string; is_sent: boolean; target_user_id: string }
         Returns: boolean
@@ -3086,30 +3101,38 @@ export type Database = {
         }
         Returns: boolean
       }
-      update_lead_fee_agreement_email_status: {
-        Args:
-          | { admin_notes?: string; is_sent: boolean; request_id: string }
-          | { p_request_id: string; p_value: boolean }
-        Returns: boolean
-      }
-      update_lead_fee_agreement_status: {
-        Args:
-          | { admin_notes?: string; is_signed: boolean; request_id: string }
-          | { p_request_id: string; p_value: boolean }
-        Returns: boolean
-      }
-      update_lead_nda_email_status: {
-        Args:
-          | { admin_notes?: string; is_sent: boolean; request_id: string }
-          | { p_request_id: string; p_value: boolean }
-        Returns: boolean
-      }
-      update_lead_nda_status: {
-        Args:
-          | { admin_notes?: string; is_signed: boolean; request_id: string }
-          | { p_request_id: string; p_value: boolean }
-        Returns: boolean
-      }
+      update_lead_fee_agreement_email_status:
+        | { Args: { p_request_id: string; p_value: boolean }; Returns: boolean }
+        | {
+            Args: { admin_notes?: string; is_sent: boolean; request_id: string }
+            Returns: boolean
+          }
+      update_lead_fee_agreement_status:
+        | { Args: { p_request_id: string; p_value: boolean }; Returns: boolean }
+        | {
+            Args: {
+              admin_notes?: string
+              is_signed: boolean
+              request_id: string
+            }
+            Returns: boolean
+          }
+      update_lead_nda_email_status:
+        | { Args: { p_request_id: string; p_value: boolean }; Returns: boolean }
+        | {
+            Args: { admin_notes?: string; is_sent: boolean; request_id: string }
+            Returns: boolean
+          }
+      update_lead_nda_status:
+        | { Args: { p_request_id: string; p_value: boolean }; Returns: boolean }
+        | {
+            Args: {
+              admin_notes?: string
+              is_signed: boolean
+              request_id: string
+            }
+            Returns: boolean
+          }
       update_nda_email_status: {
         Args: { admin_notes?: string; is_sent: boolean; target_user_id: string }
         Returns: boolean
@@ -3141,12 +3164,9 @@ export type Database = {
         }
         Returns: boolean
       }
-      validate_reset_token: {
-        Args: { token_value: string }
-        Returns: string
-      }
+      validate_reset_token: { Args: { token_value: string }; Returns: string }
       verify_production_readiness: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           check_name: string
           details: string

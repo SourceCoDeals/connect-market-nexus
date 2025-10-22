@@ -78,27 +78,43 @@ export function StripeOverviewTab() {
   ];
 
   // Helper function to parse referrer into a friendly source name
-  const parseReferrerSource = (referrer: string | null | undefined, utmSource: string | null | undefined, marketingChannel: string | null | undefined): string => {
-    if (!referrer && !utmSource && !marketingChannel) return 'Direct';
-    
-    // Check UTM source first (most reliable)
-    if (utmSource) {
-      if (utmSource.toLowerCase().includes('brevo') || utmSource.toLowerCase().includes('sendinblue')) {
-        return 'Brevo/Email';
-      }
-      if (utmSource.toLowerCase().includes('email')) return 'Email';
-      if (utmSource.toLowerCase().includes('google')) return 'Google';
-      if (utmSource.toLowerCase().includes('facebook')) return 'Facebook';
-      if (utmSource.toLowerCase().includes('linkedin')) return 'LinkedIn';
-      return utmSource.charAt(0).toUpperCase() + utmSource.slice(1);
-    }
+  const parseReferrerSource = (
+    activity: any,
+    preferCurrent: boolean = false
+  ): string => {
+    // Use current session data if preferCurrent is true and available
+    const utmSource = preferCurrent && activity?.current_utm_source ? activity.current_utm_source : activity?.utm_source;
+    const utmMedium = preferCurrent && activity?.current_utm_medium ? activity.current_utm_medium : activity?.utm_medium;
+    const utmCampaign = preferCurrent && activity?.current_utm_campaign ? activity.current_utm_campaign : activity?.utm_campaign;
+    const referrer = preferCurrent && activity?.current_referrer ? activity.current_referrer : activity?.referrer;
+    const marketingChannel = activity?.marketing_channel;
 
-    // Check marketing channel
-    if (marketingChannel && marketingChannel !== 'Direct') {
+    if (!referrer && !utmSource && !marketingChannel) return 'Direct';
+
+    // Priority 1: Marketing channel from user_initial_session (only for first seen)
+    if (!preferCurrent && marketingChannel && marketingChannel !== 'Direct') {
       return marketingChannel;
     }
+    
+    // Priority 2: UTM source with medium context
+    if (utmSource) {
+      const source = utmSource.toLowerCase();
+      const medium = utmMedium?.toLowerCase();
+      const campaign = utmCampaign?.toLowerCase();
+      
+      if (medium === 'email' || source.includes('newsletter') || source.includes('email') || campaign?.includes('newsletter')) {
+        return 'Email/Newsletter';
+      }
+      if (medium === 'social' || ['linkedin', 'twitter', 'facebook'].includes(source)) {
+        return source.charAt(0).toUpperCase() + source.slice(1);
+      }
+      if (source.includes('brevo') || source.includes('sendinblue')) {
+        return 'Brevo/Email';
+      }
+      return source.charAt(0).toUpperCase() + source.slice(1);
+    }
 
-    // Parse referrer URL
+    // Priority 3: Parse referrer URL
     if (referrer) {
       try {
         const url = new URL(referrer);
@@ -163,22 +179,16 @@ export function StripeOverviewTab() {
       if (new Date(activity.created_at) > new Date(userGroup.lastActivityTime)) {
         userGroup.lastActivityTime = activity.created_at;
         userGroup.mostRecentSession = activity;
-        
-        // Update session referrer from the most recent session data
-        if (activity.referrer || activity.utm_source || activity.marketing_channel) {
-          userGroup.sessionReferrer = parseReferrerSource(
-            activity.referrer,
-            activity.utm_source,
-            activity.marketing_channel
-          );
-        }
       }
 
       // Set date first seen to user signup date (profiles.created_at)
       // This is the CORRECT source - when they actually signed up
-      if (activity.user_created_at && !userGroup.dateFirstSeen) {
+      if (activity.user_created_at) {
         userGroup.dateFirstSeen = activity.user_created_at;
       }
+      
+      // Update session referrer from the most recent activity
+      userGroup.sessionReferrer = parseReferrerSource(userGroup.mostRecentSession, true);
 
       // Count action types
       if (activity.activity_type === 'listing_action') {
@@ -340,11 +350,7 @@ export function StripeOverviewTab() {
           ) : filteredActivities.length > 0 ? (
             <div className="max-h-[600px] overflow-y-auto">
               {filteredActivities.map((userGroup) => {
-                const sessionSource = parseReferrerSource(
-                  userGroup.mostRecentSession?.referrer,
-                  userGroup.mostRecentSession?.utm_source,
-                  userGroup.mostRecentSession?.marketing_channel
-                );
+                const currentSessionSource = parseReferrerSource(userGroup.mostRecentSession, true);
 
                 return (
                   <div 
@@ -366,7 +372,7 @@ export function StripeOverviewTab() {
                           {userGroup.user_name}
                         </button>
                         <p className="text-xs text-muted-foreground mt-0.5">
-                          {userGroup.totalActivities} event{userGroup.totalActivities !== 1 ? 's' : ''} • {sessionSource}
+                          {userGroup.totalActivities} event{userGroup.totalActivities !== 1 ? 's' : ''} • {currentSessionSource}
                         </p>
                         <div className="flex items-center gap-3 mt-2">
                           <p className="text-xs text-muted-foreground">
@@ -411,8 +417,8 @@ export function StripeOverviewTab() {
                           </div>
                         )}
                         <div>
-                          <div className="text-xs font-medium text-muted-foreground/70">Current Referrer</div>
-                          <div className="text-xs text-foreground mt-0.5">{sessionSource}</div>
+                          <div className="text-xs font-medium text-muted-foreground/70">Current Session</div>
+                          <div className="text-xs text-foreground mt-0.5">{currentSessionSource}</div>
                         </div>
                       </div>
                     </div>
