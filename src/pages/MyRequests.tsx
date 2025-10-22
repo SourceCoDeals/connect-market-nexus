@@ -7,7 +7,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DealProcessSteps } from "@/components/deals/DealProcessSteps";
 import { DealDetailsCard } from "@/components/deals/DealDetailsCard";
-import { DealMessageEditor } from "@/components/deals/DealMessageEditor";
 import { DealMetricsCard } from "@/components/deals/DealMetricsCard";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 
@@ -182,24 +181,20 @@ const MyRequests = () => {
                   status={request.status}
                 />
 
-                {/* Process Steps - Stripe-inspired */}
+                {/* Process Steps - Stripe-inspired with integrated review panel */}
                 <DealProcessSteps 
-                  requestStatus={request.status as 'pending' | 'approved' | 'rejected'} 
+                  requestStatus={request.status as 'pending' | 'approved' | 'rejected'}
+                  requestId={request.id}
+                  userMessage={request.user_message}
+                  onMessageUpdate={async (newMessage) => {
+                    await updateMessage.mutateAsync({
+                      requestId: request.id,
+                      message: newMessage,
+                    });
+                  }}
+                  isProfileComplete={false}
+                  profileCompletionPercentage={65}
                 />
-
-                {/* Message Editor */}
-                {request.user_message && (
-                  <DealMessageEditor
-                    requestId={request.id}
-                    initialMessage={request.user_message}
-                    onMessageUpdate={async (newMessage) => {
-                      await updateMessage.mutateAsync({
-                        requestId: request.id,
-                        message: newMessage,
-                      });
-                    }}
-                  />
-                )}
 
                 {/* Deal Details */}
                 <DealDetailsCard

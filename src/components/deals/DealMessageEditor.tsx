@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { MessageSquare, Edit3, Check, X } from "lucide-react";
+import { Pencil, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
@@ -58,67 +58,63 @@ export function DealMessageEditor({
   };
 
   return (
-    <div className={cn("space-y-3", className)}>
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <MessageSquare className="w-4 h-4 text-slate-500" />
-          <h3 className="text-sm font-medium text-slate-900">Your message</h3>
-        </div>
-        
-        {!isEditing && (
+    <div className={cn("relative", className)}>
+      {!isEditing ? (
+        <div className="group relative">
+          <p className="text-sm text-slate-700 leading-relaxed pr-8">
+            {message || 'No message provided'}
+          </p>
           <button
             onClick={() => setIsEditing(true)}
-            className="inline-flex items-center gap-1.5 text-xs text-slate-600 hover:text-slate-900 transition-colors group"
+            className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-all duration-200 text-slate-400 hover:text-slate-900 p-1"
+            aria-label="Edit message"
           >
-            <Edit3 className="w-3 h-3" />
-            <span>Edit</span>
+            <Pencil className="w-3.5 h-3.5" />
           </button>
-        )}
-      </div>
-
-      {isEditing ? (
-        <div className="space-y-3">
+        </div>
+      ) : (
+        <div className="space-y-3 animate-in fade-in-0 duration-200">
           <Textarea
             value={message}
             onChange={(e) => setMessage(e.target.value)}
-            className="min-h-[120px] text-sm resize-none border-slate-200 focus-visible:ring-slate-900"
-            placeholder="Enter your message to the business owner..."
+            placeholder="Enter your message..."
+            className="min-h-[120px] resize-none border-slate-200 bg-white shadow-sm focus:ring-1 focus:ring-slate-900 focus:border-slate-900 transition-all duration-200"
+            autoFocus
+            onKeyDown={(e) => {
+              if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+                handleSave();
+              } else if (e.key === 'Escape') {
+                handleCancel();
+              }
+            }}
           />
-          
-          <div className="flex items-center gap-2">
-            <Button
-              onClick={handleSave}
-              disabled={isSaving}
-              size="sm"
-              className="h-8 px-3 text-xs bg-slate-900 hover:bg-slate-800"
-            >
-              {isSaving ? (
-                <>Saving...</>
-              ) : (
-                <>
-                  <Check className="w-3 h-3 mr-1" />
-                  Save
-                </>
-              )}
-            </Button>
-            
-            <Button
+          <div className="flex items-center justify-end gap-2">
+            <button
               onClick={handleCancel}
               disabled={isSaving}
-              variant="ghost"
-              size="sm"
-              className="h-8 px-3 text-xs text-slate-600 hover:text-slate-900"
+              className="text-sm text-slate-600 hover:text-slate-900 transition-colors duration-200 disabled:opacity-50"
             >
-              <X className="w-3 h-3 mr-1" />
               Cancel
+            </button>
+            <Button
+              size="sm"
+              onClick={handleSave}
+              disabled={isSaving || !message.trim()}
+              className="h-7 px-3 text-xs bg-slate-900 hover:bg-slate-800 transition-colors duration-200"
+            >
+              {isSaving ? (
+                <span className="flex items-center gap-1.5">
+                  <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Saving...
+                </span>
+              ) : (
+                <span className="flex items-center gap-1.5">
+                  <Check className="w-3.5 h-3.5" />
+                  Save
+                </span>
+              )}
             </Button>
           </div>
-        </div>
-      ) : (
-        <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-4">
-          <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">
-            {message}
-          </p>
         </div>
       )}
     </div>

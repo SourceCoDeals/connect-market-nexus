@@ -7,6 +7,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { DealReviewPanel } from "./DealReviewPanel";
 
 interface ProcessStep {
   id: string;
@@ -18,9 +19,22 @@ interface ProcessStep {
 interface DealProcessStepsProps {
   requestStatus: 'pending' | 'approved' | 'rejected';
   className?: string;
+  requestId?: string;
+  userMessage?: string | null;
+  onMessageUpdate?: (message: string) => Promise<void>;
+  isProfileComplete?: boolean;
+  profileCompletionPercentage?: number;
 }
 
-export function DealProcessSteps({ requestStatus, className }: DealProcessStepsProps) {
+export function DealProcessSteps({ 
+  requestStatus, 
+  className,
+  requestId,
+  userMessage,
+  onMessageUpdate,
+  isProfileComplete = false,
+  profileCompletionPercentage = 0,
+}: DealProcessStepsProps) {
   const getSteps = (): ProcessStep[] => {
     switch (requestStatus) {
       case 'pending':
@@ -235,6 +249,21 @@ export function DealProcessSteps({ requestStatus, className }: DealProcessStepsP
                   )}>
                     {step.description}
                   </p>
+
+                  {/* Inline Review Panel for Active Under Review Step */}
+                  {step.id === 'review' && 
+                   step.status === 'active' && 
+                   requestStatus === 'pending' &&
+                   requestId &&
+                   onMessageUpdate && (
+                    <DealReviewPanel
+                      requestId={requestId}
+                      userMessage={userMessage}
+                      onMessageUpdate={onMessageUpdate}
+                      isProfileComplete={isProfileComplete}
+                      profileCompletionPercentage={profileCompletionPercentage}
+                    />
+                  )}
                 </div>
               </div>
             );
