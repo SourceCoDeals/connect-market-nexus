@@ -135,7 +135,7 @@ export function DealProcessSteps({ requestStatus, className }: DealProcessStepsP
         </p>
         {statusInfo.action && (
           <Link
-            to="/buyer-profile"
+            to="/profile"
             className="inline-flex items-center gap-1.5 text-sm text-slate-900 hover:text-slate-600 transition-colors mt-2 group"
           >
             Update your buyer profile
