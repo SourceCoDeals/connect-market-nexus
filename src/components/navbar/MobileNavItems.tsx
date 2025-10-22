@@ -1,6 +1,6 @@
 
 import { Link } from "react-router-dom";
-import { Store, MessageSquare, Heart, Shield } from "lucide-react";
+import { Store, Briefcase, Heart, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface MobileNavItemsProps {
@@ -36,7 +36,7 @@ const MobileNavItems = ({ isAdmin, isApproved, onNavigateToAdmin }: MobileNavIte
         to="/my-requests"
         className="flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md text-muted-foreground hover:text-foreground hover:bg-muted"
       >
-        <MessageSquare className="h-4 w-4" />
+        <Briefcase className="h-4 w-4" strokeWidth={1.5} />
         My Deals
       </Link>
 

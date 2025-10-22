@@ -1,7 +1,7 @@
 
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Store, MessageSquare, Heart, Shield } from "lucide-react";
+import { Store, Briefcase, Heart, Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface DesktopNavItemsProps {
@@ -54,7 +54,7 @@ const DesktopNavItems = ({ isAdmin, isApproved, onNavigateToAdmin }: DesktopNavI
             : "text-muted-foreground hover:text-foreground"
         )}
       >
-        <MessageSquare className="h-4 w-4" />
+        <Briefcase className="h-4 w-4" strokeWidth={1.5} />
         My Deals
       </Link>
 
