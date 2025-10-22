@@ -60,17 +60,16 @@ export function DealMessageEditor({
   return (
     <div className={cn("relative", className)}>
       {!isEditing ? (
-        <div className="group relative">
-          <p className="text-sm text-slate-700 leading-relaxed pr-8">
-            {message || 'No message provided'}
-          </p>
-          <button
-            onClick={() => setIsEditing(true)}
-            className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-all duration-200 text-slate-400 hover:text-slate-900 p-1"
-            aria-label="Edit message"
-          >
-            <Pencil className="w-3.5 h-3.5" />
-          </button>
+        <div className="group relative bg-white border border-gray-200 rounded-lg p-4 hover:border-gray-300 transition-all duration-200 cursor-pointer" onClick={() => setIsEditing(true)}>
+          <div className="flex items-start justify-between gap-3">
+            <p className="text-sm text-gray-700 leading-relaxed flex-1">
+              {message || 'No message provided'}
+            </p>
+            <div className="flex items-center gap-1.5 text-xs text-gray-400 group-hover:text-gray-600 shrink-0">
+              <Pencil className="w-3.5 h-3.5" />
+              <span className="font-medium">Edit</span>
+            </div>
+          </div>
         </div>
       ) : (
         <div className="space-y-3 animate-in fade-in-0 duration-200">
