@@ -47,7 +47,7 @@ export function BuyerProfileStatus({
       )}
       
       <Link
-        to="/buyer-profile"
+        to="/profile"
         className="inline-flex items-center gap-1 text-sm text-slate-900 hover:text-slate-600 transition-colors duration-200 group"
       >
         <span>Review profile</span>

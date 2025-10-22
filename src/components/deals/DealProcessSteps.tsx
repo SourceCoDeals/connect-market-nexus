@@ -48,7 +48,7 @@ export function DealProcessSteps({
           {
             id: 'review',
             label: 'Under Review',
-            description: "We're reviewing your request against the owner's requirements and expectations",
+            description: "Our team is reviewing your buyer profile and presenting your firm to the business owner. They're evaluating your qualifications and investment approach.",
             status: 'active'
           },
           {
@@ -146,25 +146,6 @@ export function DealProcessSteps({
   return (
     <TooltipProvider>
       <div className={cn("space-y-8", className)}>
-        {/* Status Message - Minimal Card */}
-        <div className="border-l-2 border-slate-900 pl-4 py-1">
-          <h3 className="text-sm font-semibold text-slate-900 mb-1">
-            {statusInfo.title}
-          </h3>
-          <p className="text-sm text-slate-600 leading-relaxed">
-            {statusInfo.message}
-          </p>
-          {statusInfo.action && (
-            <Link
-              to="/profile"
-              className="inline-flex items-center gap-1.5 text-sm text-slate-900 hover:text-slate-600 transition-colors mt-2 group"
-            >
-              Update your buyer profile
-              <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
-            </Link>
-          )}
-        </div>
-
         {/* Progress Steps - Minimal Design */}
         <div className="space-y-4" role="list" aria-label="Request progress">
           {steps.map((step, index) => {
