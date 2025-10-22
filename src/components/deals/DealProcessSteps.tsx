@@ -100,6 +100,22 @@ export function DealProcessSteps({
             status: 'completed'
           }
         ];
+      default:
+        // Fallback for undefined or invalid status
+        return [
+          {
+            id: 'submitted',
+            label: 'Submitted',
+            description: 'Request received',
+            status: 'completed'
+          },
+          {
+            id: 'review',
+            label: 'Under Review',
+            description: 'Processing your request',
+            status: 'active'
+          }
+        ];
     }
   };
 
@@ -136,6 +152,12 @@ export function DealProcessSteps({
         return {
           title: 'Request Declined',
           message: 'The business owner declined the connection at this time. Continue exploring other opportunities that match your criteria.',
+          action: false
+        };
+      default:
+        return {
+          title: 'Processing',
+          message: 'Your request is being processed.',
           action: false
         };
     }
