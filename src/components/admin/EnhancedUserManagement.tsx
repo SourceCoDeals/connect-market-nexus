@@ -9,6 +9,7 @@ import { User } from '@/types';
 import { Search, Download, UserCheck } from 'lucide-react';
 import { UserOverviewTab } from './user-overview/UserOverviewTab';
 import { formatFieldValueForExport } from '@/lib/field-formatting';
+import { getProfileCompletionDetails } from '@/lib/buyer-metrics';
 
 interface EnhancedUserManagementProps {
   users: User[];
@@ -35,38 +36,9 @@ export function EnhancedUserManagement({
   const [profileCompletionFilter, setProfileCompletionFilter] = useState<string>('all');
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
 
-  // Calculate profile completion score
+  // Use centralized profile completion calculation
   const calculateProfileCompletion = (user: User): number => {
-    const requiredFields = [
-      'first_name', 'last_name', 'company', 'phone_number', 'website',
-      'linkedin_profile', 'ideal_target_description', 'business_categories'
-    ];
-    
-    const buyerSpecificFields = {
-      corporate: ['estimated_revenue'],
-      privateEquity: ['fund_size', 'investment_size'],
-      familyOffice: ['fund_size', 'aum'],
-      searchFund: ['is_funded', 'target_company_size'],
-      individual: ['funding_source'],
-      independentSponsor: ['investment_size', 'target_deal_size_min', 'target_deal_size_max', 'geographic_focus', 'industry_expertise', 'deal_structure_preference'],
-      advisor: ['on_behalf_of_buyer', 'buyer_role', 'mandate_blurb'],
-      businessOwner: ['owner_intent', 'owner_timeline']
-    };
-
-    const allFields = [
-      ...requiredFields,
-      ...(buyerSpecificFields[user.buyer_type as keyof typeof buyerSpecificFields] || [])
-    ];
-
-    const completedFields = allFields.filter(field => {
-      const value = user[field as keyof User];
-      if (field === 'business_categories') {
-        return Array.isArray(value) && value.length > 0;
-      }
-      return value && value !== '';
-    });
-
-    return Math.round((completedFields.length / allFields.length) * 100);
+    return getProfileCompletionDetails(user).percentage;
   };
 
   // Enhanced filtering and analytics
