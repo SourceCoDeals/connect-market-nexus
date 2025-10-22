@@ -23,12 +23,18 @@ interface SessionTrackingProviderProps {
  * 2. Extracts marketing channel information
  * 3. Stores everything in the user_initial_session table (ONCE per user)
  */
-const SessionTrackingProvider = ({ children }: SessionTrackingProviderProps) => {
+// Internal component that uses the session context
+const SessionTracker = ({ children }: { children: React.ReactNode }) => {
   useInitialSessionTracking();
-  
+  return <>{children}</>;
+};
+
+const SessionTrackingProvider = ({ children }: SessionTrackingProviderProps) => {
   return (
     <SessionContextProvider>
-      {children}
+      <SessionTracker>
+        {children}
+      </SessionTracker>
     </SessionContextProvider>
   );
 };
