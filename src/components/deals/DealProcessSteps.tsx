@@ -124,89 +124,74 @@ export function DealProcessSteps({ requestStatus, className }: DealProcessStepsP
   const statusInfo = getStatusMessage();
 
   return (
-    <div className={cn("space-y-6", className)}>
-      {/* Status Message Card */}
-      <div className={cn(
-        "rounded-lg border p-5 transition-colors",
-        requestStatus === 'pending' && "bg-slate-50 border-slate-200",
-        requestStatus === 'approved' && "bg-slate-50 border-slate-300",
-        requestStatus === 'rejected' && "bg-slate-50 border-slate-200"
-      )}>
-        <div className="flex items-start gap-3">
-          <div className={cn(
-            "flex h-10 w-10 shrink-0 items-center justify-center rounded-full",
-            requestStatus === 'pending' && "bg-slate-100 text-slate-700",
-            requestStatus === 'approved' && "bg-slate-200 text-slate-800",
-            requestStatus === 'rejected' && "bg-slate-100 text-slate-600"
-          )}>
-            {requestStatus === 'pending' && <Clock className="w-5 h-5" />}
-            {requestStatus === 'approved' && <CheckCircle2 className="w-5 h-5" />}
-            {requestStatus === 'rejected' && <XCircle className="w-5 h-5" />}
-          </div>
-          <div className="flex-1 min-w-0 space-y-2">
-            <h3 className="text-base font-semibold text-slate-900">
-              {statusInfo.title}
-            </h3>
-            <p className="text-sm text-slate-600 leading-relaxed">
-              {statusInfo.message}
-            </p>
-            {statusInfo.action && (
-              <Link
-                to="/buyer-profile"
-                className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-700 hover:text-slate-900 transition-colors mt-3 group"
-              >
-                <UserCircle className="w-4 h-4" />
-                Update your buyer profile
-                <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
-              </Link>
-            )}
-          </div>
-        </div>
+    <div className={cn("space-y-8", className)}>
+      {/* Status Message - Minimal Card */}
+      <div className="border-l-2 border-slate-900 pl-4 py-1">
+        <h3 className="text-sm font-semibold text-slate-900 mb-1">
+          {statusInfo.title}
+        </h3>
+        <p className="text-sm text-slate-600 leading-relaxed">
+          {statusInfo.message}
+        </p>
+        {statusInfo.action && (
+          <Link
+            to="/buyer-profile"
+            className="inline-flex items-center gap-1.5 text-sm text-slate-900 hover:text-slate-600 transition-colors mt-2 group"
+          >
+            Update your buyer profile
+            <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+          </Link>
+        )}
       </div>
 
-      {/* Progress Steps */}
-      <div className="space-y-0" role="list" aria-label="Request progress">
+      {/* Progress Steps - Minimal Design */}
+      <div className="space-y-6" role="list" aria-label="Request progress">
         {steps.map((step, index) => {
           const isLast = index === steps.length - 1;
           
           return (
-            <div key={step.id} className="relative flex gap-4 pb-8 last:pb-0" role="listitem">
+            <div key={step.id} className="relative flex gap-4" role="listitem">
               {/* Connector Line */}
               {!isLast && (
                 <div 
                   className={cn(
-                    "absolute left-[18px] top-9 w-px h-full",
-                    step.status === 'completed' ? "bg-slate-300" : "bg-slate-200"
+                    "absolute left-[11px] top-7 w-px h-[calc(100%+1.5rem)]",
+                    step.status === 'completed' ? "bg-slate-900" : "bg-slate-200"
                   )}
                   aria-hidden="true"
                 />
               )}
 
-              {/* Step Icon */}
+              {/* Step Indicator */}
               <div className={cn(
-                "relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 bg-white transition-colors",
-                step.status === 'completed' && step.id !== 'declined' && "border-slate-400 text-slate-700",
-                step.status === 'completed' && step.id === 'declined' && "border-slate-300 text-slate-500",
-                step.status === 'active' && "border-slate-700 text-slate-900 bg-slate-50",
-                step.status === 'pending' && "border-slate-200 text-slate-400"
+                "relative flex h-6 w-6 shrink-0 items-center justify-center rounded-full transition-colors mt-0.5",
+                step.status === 'completed' && step.id !== 'declined' && "bg-slate-900",
+                step.status === 'completed' && step.id === 'declined' && "bg-slate-400",
+                step.status === 'active' && "border-2 border-slate-900 bg-white",
+                step.status === 'pending' && "border-2 border-slate-200 bg-white"
               )}>
-                {getStepIcon(step.status, step.id)}
+                {step.status === 'completed' && (
+                  <CheckCircle2 className="w-4 h-4 text-white" />
+                )}
+                {step.status === 'active' && (
+                  <div className="w-2 h-2 rounded-full bg-slate-900" />
+                )}
               </div>
 
               {/* Step Content */}
-              <div className="flex-1 pt-1">
+              <div className="flex-1 pb-2">
                 <h4 className={cn(
-                  "text-sm font-semibold mb-1 transition-colors",
+                  "text-sm font-medium mb-0.5",
                   step.status === 'completed' && "text-slate-900",
                   step.status === 'active' && "text-slate-900",
-                  step.status === 'pending' && "text-slate-500"
+                  step.status === 'pending' && "text-slate-400"
                 )}>
                   {step.label}
                 </h4>
                 <p className={cn(
-                  "text-sm leading-relaxed transition-colors",
+                  "text-sm leading-relaxed",
                   step.status === 'completed' && "text-slate-600",
-                  step.status === 'active' && "text-slate-700",
+                  step.status === 'active' && "text-slate-600",
                   step.status === 'pending' && "text-slate-400"
                 )}>
                   {step.description}
