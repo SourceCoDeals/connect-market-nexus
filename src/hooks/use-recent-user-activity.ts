@@ -26,6 +26,7 @@ interface RecentActivity {
   user_id?: string;
   user_name?: string;
   description?: string;
+  user_created_at?: string; // Date user signed up
 }
 
 export function useRecentUserActivity() {
@@ -108,7 +109,7 @@ export function useRecentUserActivity() {
 
       const { data: profiles } = await supabase
         .from('profiles')
-        .select('id, first_name, last_name, email')
+        .select('id, first_name, last_name, email, created_at')
         .in('id', [...new Set(allUserIds)]);
 
       const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
@@ -136,7 +137,8 @@ export function useRecentUserActivity() {
             marketing_channel: session?.marketing_channel || undefined,
             user_id: item.user_id || undefined,
             user_name: `${profile.first_name} ${profile.last_name}`.trim(),
-            description: `${item.action_type} ${item.listings?.title || 'listing'}`
+            description: `${item.action_type} ${item.listings?.title || 'listing'}`,
+            user_created_at: profile.created_at || undefined
           });
         }
       });
@@ -166,7 +168,8 @@ export function useRecentUserActivity() {
             scroll_depth: item.scroll_depth || undefined,
             user_id: item.user_id || undefined,
             user_name: `${profile.first_name} ${profile.last_name}`.trim(),
-            description: `viewed ${item.page_path}`
+            description: `viewed ${item.page_path}`,
+            user_created_at: profile.created_at || undefined
           });
         }
       });
@@ -196,7 +199,8 @@ export function useRecentUserActivity() {
             event_label: item.event_label || undefined,
             user_id: item.user_id || undefined,
             user_name: `${profile.first_name} ${profile.last_name}`.trim(),
-            description: `${item.event_action} event`
+            description: `${item.event_action} event`,
+            user_created_at: profile.created_at || undefined
           });
         }
       });

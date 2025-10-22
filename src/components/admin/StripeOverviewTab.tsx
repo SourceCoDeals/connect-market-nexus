@@ -174,9 +174,10 @@ export function StripeOverviewTab() {
         }
       }
 
-      // Track earliest activity (date first seen)
-      if (new Date(activity.created_at) < new Date(userGroup.dateFirstSeen)) {
-        userGroup.dateFirstSeen = activity.created_at;
+      // Set date first seen to user signup date (profiles.created_at)
+      // This is the CORRECT source - when they actually signed up
+      if (activity.user_created_at && !userGroup.dateFirstSeen) {
+        userGroup.dateFirstSeen = activity.user_created_at;
       }
 
       // Count action types
