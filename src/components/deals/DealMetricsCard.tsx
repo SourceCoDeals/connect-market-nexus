@@ -1,9 +1,11 @@
-import { Building2, TrendingUp, Users, DollarSign, MapPin } from "lucide-react";
+import { Building2, TrendingUp, Users, DollarSign, MapPin, ExternalLink } from "lucide-react";
 import { cn, formatCompactCurrency } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import { Link } from "react-router-dom";
 
 interface DealMetricsCardProps {
   listing: {
+    id?: string;
     title: string;
     category?: string;
     location?: string;
@@ -69,7 +71,7 @@ export function DealMetricsCard({ listing, status, className }: DealMetricsCardP
 
   return (
     <div className={cn("bg-white border border-gray-200 rounded-lg p-6", className)}>
-      <div className="flex items-start gap-5">
+      <div className="flex items-start gap-6">
         {/* Image Thumbnail */}
         {listing.image_url && (
           <div className="shrink-0">
@@ -77,7 +79,7 @@ export function DealMetricsCard({ listing, status, className }: DealMetricsCardP
               src={listing.image_url}
               alt={listing.title}
               loading="lazy"
-              className="w-24 h-24 object-cover rounded border border-gray-200 bg-gray-50"
+              className="w-48 h-48 object-cover rounded-lg border border-gray-200 bg-gray-50"
             />
           </div>
         )}
@@ -87,9 +89,20 @@ export function DealMetricsCard({ listing, status, className }: DealMetricsCardP
           {/* Header with Title and Status */}
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1 min-w-0">
-              <h2 className="text-xl font-semibold text-gray-900 mb-1.5 tracking-tight">
-                {listing.title}
-              </h2>
+              <div className="flex items-center gap-2 mb-1.5">
+                <h2 className="text-xl font-semibold text-gray-900 tracking-tight">
+                  {listing.title}
+                </h2>
+                {listing.id && (
+                  <Link
+                    to={`/listing/${listing.id}`}
+                    className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-gray-900 transition-colors"
+                  >
+                    View listing
+                    <ExternalLink className="w-3 h-3" />
+                  </Link>
+                )}
+              </div>
               <div className="flex flex-wrap items-center gap-2 text-sm text-gray-600">
                 {listing.category && (
                   <div className="flex items-center gap-1.5">

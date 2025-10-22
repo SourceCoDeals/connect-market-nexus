@@ -149,9 +149,9 @@ const MyRequests = () => {
   return (
     <div className="w-full bg-white min-h-screen">
       {/* Page Header - Clean, no borders */}
-      <div className="px-4 sm:px-8 pt-8 pb-6">
+      <div className="px-4 sm:px-8 pt-8 pb-6 max-w-7xl mx-auto">
         <h1 className="text-3xl font-semibold text-gray-900 tracking-tight">My Deals</h1>
-        <p className="text-sm text-gray-600 mt-1">
+        <p className="text-sm text-gray-600 mt-1 max-w-md">
           Track and manage your connection requests
         </p>
       </div>
@@ -163,7 +163,7 @@ const MyRequests = () => {
         className="w-full"
       >
         <div className="border-b border-gray-200">
-          <div className="px-4 sm:px-8">
+          <div className="px-4 sm:px-8 max-w-7xl mx-auto">
             <ScrollArea className="w-full -mx-4 sm:-mx-8">
               <div className="px-4 sm:px-8">
                 <TabsList className="inline-flex h-auto items-center justify-start rounded-none border-b-0 bg-transparent p-0 gap-8">
@@ -187,7 +187,7 @@ const MyRequests = () => {
         </div>
 
         {/* Content - Clean layout */}
-        <div className="px-4 sm:px-8 py-8">
+        <div className="px-4 sm:px-8 py-8 max-w-7xl mx-auto">
           {requests.map((request) => (
             <TabsContent 
               key={request.id} 
@@ -198,6 +198,7 @@ const MyRequests = () => {
                 {/* Metrics Card */}
                 <DealMetricsCard
                   listing={{
+                    id: request.listing_id,
                     title: request.listing?.title || "Untitled",
                     category: request.listing?.category,
                     location: request.listing?.location,
