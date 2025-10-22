@@ -134,18 +134,19 @@ export function DealMetricsCard({ listing, status, className }: DealMetricsCardP
                   </Link>
                 )}
               </div>
-              <div className="flex flex-wrap items-center gap-2 text-sm text-gray-600">
+              <div className="flex items-center gap-2">
                 {listing.category && (
-                  <div className="flex items-center gap-1.5">
-                    <Building2 className="w-3.5 h-3.5" />
-                    <span>{listing.category}</span>
-                  </div>
+                  <span className="text-xs font-medium text-gray-600 tracking-wide">
+                    {listing.category}
+                  </span>
+                )}
+                {listing.category && listing.location && (
+                  <span className="text-gray-300 text-xs">•</span>
                 )}
                 {listing.location && (
-                  <>
-                    <span className="text-gray-300">•</span>
-                    <span>{listing.location}</span>
-                  </>
+                  <span className="text-xs font-medium text-gray-600 tracking-wide">
+                    {listing.location}
+                  </span>
                 )}
               </div>
             </div>
@@ -164,14 +165,13 @@ export function DealMetricsCard({ listing, status, className }: DealMetricsCardP
           </div>
 
           {/* Metrics Grid */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 pt-4 border-t border-gray-200">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 pt-5 border-t border-gray-100">
             {metrics.map((metric) => (
-              <div key={metric.label}>
-                <div className="flex items-center gap-1.5 text-xs font-medium text-gray-500 mb-1">
-                  <metric.icon className="w-3.5 h-3.5" />
+              <div key={metric.label} className="space-y-1">
+                <div className="text-[10px] font-medium text-gray-400 uppercase tracking-wider">
                   {metric.label}
                 </div>
-                <div className="text-lg font-semibold text-gray-900 tabular-nums">
+                <div className="text-base font-semibold text-gray-900 tabular-nums">
                   {metric.value}
                 </div>
               </div>
