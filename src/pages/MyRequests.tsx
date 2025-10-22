@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { DealProcessTimeline } from "@/components/deals/DealProcessTimeline";
 import { DealProcessStepper } from "@/components/deals/DealProcessStepper";
 import { DealDetailsCard } from "@/components/deals/DealDetailsCard";
+import { DealMetricsCard } from "@/components/deals/DealMetricsCard";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 
 const MyRequests = () => {
@@ -55,18 +56,25 @@ const MyRequests = () => {
     return stages;
   };
 
-  const getTruncatedTitle = (title: string, maxChars: number = 30) => {
+  // Smart truncation based on screen size with better algorithm
+  const getTruncatedTitle = (title: string, isMobile: boolean = false) => {
+    const maxChars = isMobile ? 25 : 45;
+    
     if (title.length <= maxChars) return title;
     
-    const words = title.split(" ");
-    let truncated = "";
+    // Split by common delimiters (space, dash, comma)
+    const parts = title.split(/[\s\-,]+/);
     
-    for (const word of words) {
-      if ((truncated + word).length > maxChars) break;
-      truncated += (truncated ? " " : "") + word;
+    // Take first 2-3 significant words
+    const wordLimit = isMobile ? 2 : 4;
+    const truncated = parts.slice(0, wordLimit).join(' ');
+    
+    // Ensure we don't exceed char limit
+    if (truncated.length > maxChars) {
+      return truncated.slice(0, maxChars - 3).trim() + '...';
     }
     
-    return truncated + "...";
+    return truncated + '...';
   };
 
   if (error) {
@@ -84,8 +92,10 @@ const MyRequests = () => {
     return (
       <div className="w-full">
         {/* Header Skeleton */}
-        <div className="border-b border-border/50 px-4 sm:px-8 py-5">
-          <Skeleton className="h-7 w-32" />
+        <div className="border-b border-border/50">
+          <div className="px-4 sm:px-8 py-5">
+            <Skeleton className="h-7 w-32" />
+          </div>
         </div>
         
         {/* Tabs Skeleton */}
@@ -111,8 +121,10 @@ const MyRequests = () => {
     return (
       <div className="w-full">
         {/* Header */}
-        <div className="border-b border-border/50 px-4 sm:px-8 py-5">
-          <h1 className="text-xl font-semibold tracking-tight">My Deals</h1>
+        <div className="border-b border-border/50">
+          <div className="px-4 sm:px-8 py-5">
+            <h1 className="text-xl font-semibold tracking-tight">My Deals</h1>
+          </div>
         </div>
         
         {/* Empty State */}
@@ -139,15 +151,17 @@ const MyRequests = () => {
 
   return (
     <div className="w-full">
-      {/* Header */}
-      <div className="border-b border-border/50 px-4 sm:px-8 py-5">
-        <h1 className="text-xl font-semibold tracking-tight">My Deals</h1>
-        <p className="text-sm text-muted-foreground/70 mt-0.5">
-          Track and manage your connection requests
-        </p>
+      {/* Header - Aligned with logo */}
+      <div className="border-b border-border/50">
+        <div className="px-4 sm:px-8 py-5">
+          <h1 className="text-xl font-semibold tracking-tight">My Deals</h1>
+          <p className="text-sm text-muted-foreground/70 mt-0.5">
+            Track and manage your connection requests
+          </p>
+        </div>
       </div>
 
-      {/* Tabs */}
+      {/* Tabs - Full Width */}
       <Tabs 
         value={selectedDeal || requests[0]?.id} 
         onValueChange={setSelectedDeal}
@@ -165,55 +179,60 @@ const MyRequests = () => {
                   >
                     {getTruncatedTitle(
                       request.listing?.title || "Untitled", 
-                      isMobile ? 20 : 35
+                      isMobile
                     )}
                   </TabsTrigger>
                 ))}
               </TabsList>
             </div>
-            <ScrollBar orientation="horizontal" />
+            <ScrollBar orientation="horizontal" className="invisible" />
           </ScrollArea>
         </div>
 
-        {/* Content */}
-        <div className="px-4 sm:px-8 py-8">
+        {/* Content - Center Focused Layout */}
+        <div className="px-4 sm:px-6 lg:px-8 py-6 sm:py-7 lg:py-8">
           {requests.map((request) => (
             <TabsContent 
               key={request.id} 
               value={request.id}
-              className="mt-0"
+              className="mt-0 focus-visible:outline-none focus-visible:ring-0"
             >
-              <div className="max-w-5xl mx-auto">
-                <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-8 lg:gap-12">
-                  {/* Process Visualization */}
-                  <div className="order-2 lg:order-1">
-                    {isMobile ? (
-                      <DealProcessStepper steps={getDealStages(request.status)} />
-                    ) : (
-                      <div className="lg:sticky lg:top-8">
-                        <h3 className="text-[13px] font-semibold text-foreground/90 tracking-tight mb-4">
-                          Progress
-                        </h3>
-                        <DealProcessTimeline steps={getDealStages(request.status)} />
-                      </div>
-                    )}
-                  </div>
+              <div className="max-w-5xl mx-auto space-y-8">
+                {/* Metrics Preview Card */}
+                <DealMetricsCard
+                  listing={{
+                    title: request.listing?.title || "Untitled",
+                    category: request.listing?.category,
+                    location: request.listing?.location,
+                    image_url: request.listing?.image_url,
+                    revenue: request.listing?.revenue,
+                    ebitda: request.listing?.ebitda,
+                    full_time_employees: request.listing?.full_time_employees,
+                    part_time_employees: request.listing?.part_time_employees,
+                  }}
+                />
 
-                  {/* Deal Details */}
-                  <div className="order-1 lg:order-2">
-                    <DealDetailsCard
-                      listing={{
-                        title: request.listing?.title || "Untitled",
-                        category: request.listing?.category,
-                        location: request.listing?.location,
-                        description: request.listing?.description,
-                      }}
-                      userMessage={request.user_message}
-                      status={request.status}
-                      createdAt={request.created_at}
-                    />
-                  </div>
+                {/* Process Visualization */}
+                <div>
+                  {isMobile ? (
+                    <DealProcessStepper steps={getDealStages(request.status)} />
+                  ) : (
+                    <DealProcessTimeline steps={getDealStages(request.status)} />
+                  )}
                 </div>
+
+                {/* Deal Details */}
+                <DealDetailsCard
+                  listing={{
+                    title: request.listing?.title || "Untitled",
+                    category: request.listing?.category,
+                    location: request.listing?.location,
+                    description: request.listing?.description,
+                  }}
+                  userMessage={request.user_message}
+                  status={request.status}
+                  createdAt={request.created_at}
+                />
               </div>
             </TabsContent>
           ))}

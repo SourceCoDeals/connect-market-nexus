@@ -163,6 +163,10 @@ export interface Listing {
   internal_contact_info?: string | null;
   internal_notes?: string | null;
   
+  // Employee information
+  full_time_employees?: number;
+  part_time_employees?: number;
+  
   // Computed properties (aliases for snake_case properties)
   readonly ownerNotes: string;
   readonly createdAt: string;

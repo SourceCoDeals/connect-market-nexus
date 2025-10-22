@@ -15,6 +15,26 @@ interface DealDetailsCardProps {
   createdAt: string;
 }
 
+// Helper to get description preview with natural break point
+const getDescriptionPreview = (description: string, maxLength: number = 200): string => {
+  if (description.length <= maxLength) return description;
+  
+  // Find last period or newline before maxLength
+  const truncated = description.slice(0, maxLength);
+  const lastPeriod = truncated.lastIndexOf('.');
+  const lastNewline = truncated.lastIndexOf('\n');
+  
+  const breakPoint = Math.max(lastPeriod, lastNewline);
+  
+  // If we found a good break point in the last 30% of the truncated text
+  if (breakPoint > 0 && breakPoint > maxLength * 0.7) {
+    return truncated.slice(0, breakPoint + 1);
+  }
+  
+  // Otherwise, just truncate at maxLength
+  return truncated.trim() + '...';
+};
+
 export function DealDetailsCard({ listing, userMessage, status, createdAt }: DealDetailsCardProps) {
   const getStatusConfig = (status: string) => {
     switch (status) {
@@ -76,14 +96,14 @@ export function DealDetailsCard({ listing, userMessage, status, createdAt }: Dea
         <span>Submitted {formatDistanceToNow(new Date(createdAt), { addSuffix: true })}</span>
       </div>
 
-      {/* Description */}
+      {/* Description Preview */}
       {listing.description && (
         <div className="space-y-2 border-t border-border/50 pt-5">
           <h3 className="text-[13px] font-semibold text-foreground/90 tracking-tight">
             About this opportunity
           </h3>
-          <p className="text-sm text-muted-foreground/70 leading-relaxed">
-            {listing.description}
+          <p className="text-sm text-muted-foreground/70 leading-relaxed whitespace-pre-line">
+            {getDescriptionPreview(listing.description)}
           </p>
         </div>
       )}
