@@ -69,49 +69,65 @@ export function DealMetricsCard({ listing, status, className }: DealMetricsCardP
 
 
   return (
-    <div className={cn("bg-muted/20 border border-border/30 rounded-xl p-6", className)}>
-      {/* Header with Title and Status */}
-      <div className="flex items-start justify-between gap-4 mb-4">
-        <div className="flex-1">
-          <h2 className="text-xl font-semibold text-foreground tracking-tight">
-            {listing.title}
-          </h2>
-          <div className="flex items-center gap-2 mt-1.5 text-sm text-muted-foreground/70">
-            {listing.category && (
-              <span className="flex items-center gap-1">
-                <Building2 className="w-3.5 h-3.5" />
-                {listing.category}
-              </span>
-            )}
-            {listing.location && listing.category && (
-              <span className="text-muted-foreground/40">•</span>
-            )}
-            {listing.location && <span>{listing.location}</span>}
+    <div className={cn("bg-muted/20 border border-border/30 rounded-xl p-6 transition-all duration-200 hover:border-border/50", className)}>
+      <div className="flex flex-col sm:flex-row gap-6">
+        {/* Image Thumbnail */}
+        {listing.image_url && (
+          <div className="shrink-0">
+            <img
+              src={listing.image_url}
+              alt={listing.title}
+              className="w-full sm:w-32 sm:h-32 h-48 object-cover rounded-lg border border-border/30 transition-transform duration-200 hover:scale-[1.02]"
+            />
+          </div>
+        )}
+
+        {/* Content */}
+        <div className="flex-1 space-y-4">
+          {/* Header with Title and Status */}
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1">
+              <h2 className="text-xl font-semibold text-foreground tracking-tight">
+                {listing.title}
+              </h2>
+              <div className="flex items-center gap-2 mt-1.5 text-sm text-muted-foreground/70">
+                {listing.category && (
+                  <span className="flex items-center gap-1">
+                    <Building2 className="w-3.5 h-3.5" />
+                    {listing.category}
+                  </span>
+                )}
+                {listing.location && listing.category && (
+                  <span className="text-muted-foreground/40">•</span>
+                )}
+                {listing.location && <span>{listing.location}</span>}
+              </div>
+            </div>
+            
+            {/* Status Badge */}
+            <Badge 
+              variant="outline" 
+              className={cn("text-[11px] font-medium px-2.5 py-0.5 shrink-0 transition-colors", statusConfig.className)}
+            >
+              {statusConfig.label}
+            </Badge>
+          </div>
+
+          {/* Metrics Grid */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {metrics.map((metric) => (
+              <div key={metric.label} className="transition-all duration-200 hover:translate-y-[-2px]">
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground/60 uppercase tracking-wide mb-1">
+                  <metric.icon className="w-3 h-3" />
+                  {metric.label}
+                </div>
+                <div className="text-base font-semibold text-foreground">
+                  {metric.value}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
-        
-        {/* Status Badge */}
-        <Badge 
-          variant="outline" 
-          className={cn("text-[11px] font-medium px-2.5 py-0.5 shrink-0", statusConfig.className)}
-        >
-          {statusConfig.label}
-        </Badge>
-      </div>
-
-      {/* Metrics Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 pt-4 border-t border-border/30">
-        {metrics.map((metric) => (
-          <div key={metric.label}>
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground/60 uppercase tracking-wide mb-1">
-              <metric.icon className="w-3 h-3" />
-              {metric.label}
-            </div>
-            <div className="text-base font-semibold text-foreground">
-              {metric.value}
-            </div>
-          </div>
-        ))}
       </div>
     </div>
   );

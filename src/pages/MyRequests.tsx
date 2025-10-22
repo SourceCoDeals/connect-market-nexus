@@ -151,42 +151,42 @@ const MyRequests = () => {
 
   return (
     <div className="w-full">
-      {/* Header - Aligned with logo */}
-      <div className="border-b border-border/50">
-        <div className="px-4 sm:px-8 py-5">
-          <h1 className="text-xl font-semibold tracking-tight">My Deals</h1>
-          <p className="text-sm text-muted-foreground/70 mt-0.5">
-            Track and manage your connection requests
-          </p>
-        </div>
-      </div>
-
-      {/* Tabs - Full Width */}
+      {/* Tabs - Full Width with Title Inside */}
       <Tabs 
         value={selectedDeal || requests[0]?.id} 
         onValueChange={setSelectedDeal}
         className="w-full"
       >
         <div className="border-b border-border/50">
-          <ScrollArea className="w-full">
-            <div className="px-4 sm:px-8">
-              <TabsList className="inline-flex h-11 items-center justify-start rounded-none border-b-0 bg-transparent p-0 gap-6">
-                {requests.map((request) => (
-                  <TabsTrigger 
-                    key={request.id} 
-                    value={request.id}
-                    className="relative rounded-none border-b-2 border-b-transparent bg-transparent px-0 pb-3 pt-0 text-[13px] font-medium text-muted-foreground/70 shadow-none transition-all hover:text-foreground data-[state=active]:border-b-foreground data-[state=active]:text-foreground data-[state=active]:shadow-none whitespace-nowrap"
-                  >
-                    {getTruncatedTitle(
-                      request.listing?.title || "Untitled", 
-                      isMobile
-                    )}
-                  </TabsTrigger>
-                ))}
-              </TabsList>
+          <div className="px-4 sm:px-8">
+            {/* Title - Not full width, just padded */}
+            <div className="py-5 border-b border-border/50">
+              <h1 className="text-xl font-semibold tracking-tight">My Deals</h1>
+              <p className="text-sm text-muted-foreground/70 mt-0.5">
+                Track and manage your connection requests
+              </p>
             </div>
-            <ScrollBar orientation="horizontal" className="invisible" />
-          </ScrollArea>
+            {/* Tabs - Full Width */}
+            <ScrollArea className="w-full -mx-4 sm:-mx-8">
+              <div className="px-4 sm:px-8">
+                <TabsList className="inline-flex h-11 items-center justify-start rounded-none border-b-0 bg-transparent p-0 gap-6">
+                  {requests.map((request) => (
+                    <TabsTrigger 
+                      key={request.id} 
+                      value={request.id}
+                      className="group relative rounded-none border-b-2 border-b-transparent bg-transparent px-0 pb-3 pt-0 text-[13px] font-medium text-muted-foreground/70 shadow-none transition-all hover:text-foreground data-[state=active]:border-b-foreground data-[state=active]:text-foreground data-[state=active]:shadow-none whitespace-nowrap"
+                    >
+                      {getTruncatedTitle(
+                        request.listing?.title || "Untitled", 
+                        isMobile
+                      )}
+                    </TabsTrigger>
+                  ))}
+                </TabsList>
+              </div>
+              <ScrollBar orientation="horizontal" className="invisible" />
+            </ScrollArea>
+          </div>
         </div>
 
         {/* Content - Center Focused Layout */}
@@ -195,7 +195,7 @@ const MyRequests = () => {
             <TabsContent 
               key={request.id} 
               value={request.id}
-              className="mt-0 focus-visible:outline-none focus-visible:ring-0"
+              className="mt-0 focus-visible:outline-none focus-visible:ring-0 animate-fade-in"
             >
               <div className="max-w-5xl mx-auto space-y-8">
                 {/* Metrics Preview Card */}

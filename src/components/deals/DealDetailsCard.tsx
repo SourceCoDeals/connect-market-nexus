@@ -34,9 +34,9 @@ const getDescriptionPreview = (description: string, maxLength: number = 200): st
 
 export function DealDetailsCard({ listing, userMessage, createdAt }: DealDetailsCardProps) {
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 transition-all duration-200">
       {/* Timeline */}
-      <div className="flex items-center gap-2 text-[13px] text-muted-foreground/60">
+      <div className="flex items-center gap-2 text-[13px] text-muted-foreground/60 transition-colors hover:text-muted-foreground">
         <Calendar className="w-3.5 h-3.5" />
         <span>Submitted {formatDistanceToNow(new Date(createdAt), { addSuffix: true })}</span>
       </div>
@@ -55,14 +55,14 @@ export function DealDetailsCard({ listing, userMessage, createdAt }: DealDetails
 
       {/* User Message */}
       {userMessage && (
-        <div className="space-y-2.5 border-t border-border/50 pt-5">
+        <div className="space-y-2.5 border-t border-border/50 pt-5 transition-all duration-200">
           <div className="flex items-center gap-2">
-            <MessageSquare className="w-3.5 h-3.5 text-muted-foreground/60" />
+            <MessageSquare className="w-3.5 h-3.5 text-muted-foreground/60" aria-hidden="true" />
             <h3 className="text-[13px] font-semibold text-foreground/90 tracking-tight">
               Your message
             </h3>
           </div>
-          <div className="bg-muted/30 rounded-lg p-4 border border-border/50">
+          <div className="bg-muted/30 rounded-lg p-4 border border-border/50 transition-all duration-200 hover:border-border/70 hover:bg-muted/40">
             <p className="text-sm text-foreground/80 leading-relaxed whitespace-pre-wrap">
               {userMessage}
             </p>
