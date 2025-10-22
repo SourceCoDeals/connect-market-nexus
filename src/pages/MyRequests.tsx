@@ -3,6 +3,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useMarketplace } from "@/hooks/use-marketplace";
 import { AlertCircle, FileText } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { getDataCompleteness } from "@/lib/buyer-metrics";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DealProcessSteps } from "@/components/deals/DealProcessSteps";
@@ -192,8 +193,8 @@ const MyRequests = () => {
                       message: newMessage,
                     });
                   }}
-                  isProfileComplete={false}
-                  profileCompletionPercentage={65}
+                  isProfileComplete={getDataCompleteness(user) >= 90}
+                  profileCompletionPercentage={getDataCompleteness(user)}
                 />
 
                 {/* Deal Details */}
