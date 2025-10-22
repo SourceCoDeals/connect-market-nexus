@@ -155,7 +155,6 @@ export function DealProcessSteps({ requestStatus, className }: DealProcessStepsP
         <div className="space-y-4" role="list" aria-label="Request progress">
           {steps.map((step, index) => {
             const isLast = index === steps.length - 1;
-            const isUnderReview = step.id === 'review' && step.status === 'active';
             
             return (
               <div key={step.id} className="relative flex gap-3.5" role="listitem">
@@ -199,7 +198,7 @@ export function DealProcessSteps({ requestStatus, className }: DealProcessStepsP
                     </h4>
                     
                     {/* Tooltip for Under Review */}
-                    {isUnderReview && (
+                    {step.id === 'review' && (
                       <Tooltip delayDuration={0}>
                         <TooltipTrigger asChild>
                           <button className="inline-flex items-center justify-center hover:bg-slate-100 rounded-full p-0.5 transition-colors">
