@@ -190,7 +190,7 @@ export function DealProcessSteps({
                   <div 
                     className={cn(
                       "absolute left-[9px] top-6 w-px h-[calc(100%+1rem)]",
-                      step.status === 'completed' ? "bg-slate-900" : "bg-slate-200"
+                      step.status === 'completed' ? "bg-gray-900" : "bg-gray-200"
                     )}
                     aria-hidden="true"
                   />
@@ -198,17 +198,20 @@ export function DealProcessSteps({
 
                 {/* Step Indicator */}
                 <div className={cn(
-                  "relative flex h-5 w-5 shrink-0 items-center justify-center rounded-full transition-all duration-200",
-                  step.status === 'completed' && step.id !== 'declined' && "bg-slate-900",
-                  step.status === 'completed' && step.id === 'declined' && "bg-slate-400",
-                  step.status === 'active' && "border-2 border-slate-900 bg-white",
-                  step.status === 'pending' && "border border-slate-300 bg-white"
+                  "relative flex h-5 w-5 shrink-0 items-center justify-center rounded-full transition-all duration-300",
+                  step.status === 'completed' && step.id !== 'declined' && "bg-gray-900",
+                  step.status === 'completed' && step.id === 'declined' && "bg-gray-300",
+                  step.status === 'active' && "bg-white ring-2 ring-gray-900 ring-offset-2",
+                  step.status === 'pending' && "bg-gray-100"
                 )}>
                   {step.status === 'completed' && (
-                    <CheckCircle2 className="w-3 h-3 text-white" />
+                    <div className="w-2 h-2 rounded-full bg-white" />
                   )}
                   {step.status === 'active' && (
-                    <div className="w-1.5 h-1.5 rounded-full bg-slate-900" />
+                    <div className="w-2 h-2 rounded-full bg-gray-900" />
+                  )}
+                  {step.status === 'pending' && (
+                    <div className="w-1.5 h-1.5 rounded-full bg-gray-300" />
                   )}
                 </div>
 
@@ -216,10 +219,10 @@ export function DealProcessSteps({
                 <div className="flex-1 pb-1 pt-px">
                   <div className="flex items-center gap-2">
                     <h4 className={cn(
-                      "text-sm font-medium",
-                      step.status === 'completed' && "text-slate-900",
-                      step.status === 'active' && "text-slate-900",
-                      step.status === 'pending' && "text-slate-400"
+                      "text-sm font-semibold tracking-tight",
+                      step.status === 'completed' && "text-gray-900",
+                      step.status === 'active' && "text-gray-900",
+                      step.status === 'pending' && "text-gray-400"
                     )}>
                       {step.label}
                     </h4>
@@ -228,24 +231,24 @@ export function DealProcessSteps({
                     {step.id === 'review' && (
                       <Tooltip delayDuration={0}>
                         <TooltipTrigger asChild>
-                          <button className="inline-flex items-center justify-center hover:bg-slate-100 rounded-full p-0.5 transition-colors">
-                            <Info className="w-3.5 h-3.5 text-slate-400 hover:text-slate-600" />
+                          <button className="inline-flex items-center justify-center hover:bg-gray-50 rounded-full p-1 transition-colors">
+                            <Info className="w-3.5 h-3.5 text-gray-400 hover:text-gray-600" />
                           </button>
                         </TooltipTrigger>
                         <TooltipContent 
                           side="right" 
-                          className="max-w-sm bg-slate-900 text-white border-slate-800 p-4"
+                          className="max-w-sm bg-gray-900 text-white border-gray-800 p-4"
                           sideOffset={8}
                         >
                           <div className="space-y-2.5 text-xs leading-relaxed">
-                            <p className="font-medium text-white">How our process works</p>
-                            <p className="text-slate-200">
+                            <p className="font-semibold text-white">How our process works</p>
+                            <p className="text-gray-200">
                               Once we understand each buyer&apos;s strategy, we present only the options that best align with the seller&apos;s goals. Ultimately, the business owner decides which buyer they&apos;d like to engage with.
                             </p>
-                            <p className="text-slate-200">
+                            <p className="text-gray-200">
                               We typically introduce one buyer at a time. This is intentional because it protects the seller&apos;s time and ensures that when we are compensated by the buyer, the process remains collaborative rather than auction driven.
                             </p>
-                            <p className="text-slate-200">
+                            <p className="text-gray-200">
                               Because of this approach, we can&apos;t guarantee that a seller will elect to engage with a specific buyer. However, we&apos;re always transparent about our process with both sides and prioritize efficiency and respect for everyone&apos;s time.
                             </p>
                           </div>
@@ -255,10 +258,10 @@ export function DealProcessSteps({
                   </div>
                   
                   <p className={cn(
-                    "text-sm leading-relaxed mt-0.5",
-                    step.status === 'completed' && "text-slate-600",
-                    step.status === 'active' && "text-slate-600",
-                    step.status === 'pending' && "text-slate-400"
+                    "text-sm leading-relaxed mt-1",
+                    step.status === 'completed' && "text-gray-600",
+                    step.status === 'active' && "text-gray-600",
+                    step.status === 'pending' && "text-gray-400"
                   )}>
                     {step.description}
                   </p>
