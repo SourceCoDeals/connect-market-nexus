@@ -1,17 +1,13 @@
-import { Badge } from "@/components/ui/badge";
 import { formatDistanceToNow } from "date-fns";
-import { MessageSquare, Calendar, Building2, MapPin } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { MessageSquare, Calendar } from "lucide-react";
 
 interface DealDetailsCardProps {
   listing: {
-    title: string;
     category?: string;
     location?: string;
     description?: string;
   };
   userMessage?: string;
-  status: string;
   createdAt: string;
 }
 
@@ -35,63 +31,12 @@ const getDescriptionPreview = (description: string, maxLength: number = 200): st
   return truncated.trim() + '...';
 };
 
-export function DealDetailsCard({ listing, userMessage, status, createdAt }: DealDetailsCardProps) {
-  const getStatusConfig = (status: string) => {
-    switch (status) {
-      case "approved":
-        return { 
-          label: "Approved", 
-          className: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-800" 
-        };
-      case "rejected":
-        return { 
-          label: "Rejected", 
-          className: "bg-red-50 text-red-700 border-red-200 dark:bg-red-950 dark:text-red-300 dark:border-red-800" 
-        };
-      case "pending":
-      default:
-        return { 
-          label: "Under Review", 
-          className: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800" 
-        };
-    }
-  };
 
-  const statusConfig = getStatusConfig(status);
-
+export function DealDetailsCard({ listing, userMessage, createdAt }: DealDetailsCardProps) {
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-        <div className="space-y-2 flex-1">
-          <h2 className="text-xl font-semibold tracking-tight text-foreground">
-            {listing.title}
-          </h2>
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[13px] text-muted-foreground/70">
-            {listing.category && (
-              <div className="flex items-center gap-1.5">
-                <Building2 className="w-3.5 h-3.5" />
-                <span>{listing.category}</span>
-              </div>
-            )}
-            {listing.location && (
-              <div className="flex items-center gap-1.5">
-                <MapPin className="w-3.5 h-3.5" />
-                <span>{listing.location}</span>
-              </div>
-            )}
-          </div>
-        </div>
-        <Badge 
-          variant="outline" 
-          className={cn("text-[11px] font-medium px-2.5 py-0.5 shrink-0", statusConfig.className)}
-        >
-          {statusConfig.label}
-        </Badge>
-      </div>
-
       {/* Timeline */}
-      <div className="flex items-center gap-2 text-[13px] text-muted-foreground/60 border-t border-border/50 pt-4">
+      <div className="flex items-center gap-2 text-[13px] text-muted-foreground/60">
         <Calendar className="w-3.5 h-3.5" />
         <span>Submitted {formatDistanceToNow(new Date(createdAt), { addSuffix: true })}</span>
       </div>

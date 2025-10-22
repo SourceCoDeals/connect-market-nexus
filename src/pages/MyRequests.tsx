@@ -210,6 +210,7 @@ const MyRequests = () => {
                     full_time_employees: request.listing?.full_time_employees,
                     part_time_employees: request.listing?.part_time_employees,
                   }}
+                  status={request.status}
                 />
 
                 {/* Process Visualization */}
@@ -224,13 +225,11 @@ const MyRequests = () => {
                 {/* Deal Details */}
                 <DealDetailsCard
                   listing={{
-                    title: request.listing?.title || "Untitled",
                     category: request.listing?.category,
                     location: request.listing?.location,
                     description: request.listing?.description,
                   }}
                   userMessage={request.user_message}
-                  status={request.status}
                   createdAt={request.created_at}
                 />
               </div>
