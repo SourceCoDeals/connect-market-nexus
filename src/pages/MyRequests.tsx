@@ -193,7 +193,10 @@ const MyRequests = () => {
                           isMobile
                         )}
                         {unreadForRequest > 0 && (
-                          <span className="absolute top-0 right-0 h-2 w-2 rounded-full bg-red-500" />
+                          <span className="absolute top-0 right-0 flex h-2 w-2">
+                            <span className="absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75"></span>
+                            <span className="relative inline-flex h-2 w-2 rounded-full bg-red-500 ring-2 ring-white"></span>
+                          </span>
                         )}
                       </TabsTrigger>
                     );
