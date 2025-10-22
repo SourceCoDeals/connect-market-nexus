@@ -256,11 +256,9 @@ export function DealProcessSteps({
                   {/* Inline Review Panel for Active Under Review Step */}
                   {step.id === 'review' && 
                    step.status === 'active' && 
-                   requestStatus === 'pending' &&
-                   requestId &&
-                   onMessageUpdate && (
+                   requestStatus === 'pending' && (
                     <DealReviewPanel
-                      requestId={requestId}
+                      requestId={requestId || ''}
                       userMessage={userMessage}
                       onMessageUpdate={onMessageUpdate}
                       isProfileComplete={isProfileComplete}
