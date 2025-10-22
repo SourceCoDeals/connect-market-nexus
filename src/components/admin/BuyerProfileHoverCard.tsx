@@ -7,7 +7,7 @@ import {
 } from "@/components/ui/hover-card";
 import { Badge } from "@/components/ui/badge";
 import { Building2, Target, DollarSign, ExternalLink, Check, X, Mail } from "lucide-react";
-import { getBuyerTier, formatFinancialRange, getPrimaryMetrics, getDataCompleteness } from "@/lib/buyer-metrics";
+import { getBuyerTier, formatFinancialRange, getPrimaryMetrics, getProfileCompletionDetails } from "@/lib/buyer-metrics";
 
 interface BuyerProfileHoverCardProps {
   user: User | null | undefined;
@@ -63,7 +63,8 @@ const CredibilityIndicators: React.FC<{ user: User }> = ({ user }) => {
   const emailStatus = getEmailDomainStatus(user.email);
   const hasLinkedIn = !!user.linkedin_profile;
   const hasWebsite = !!user.website;
-  const dataCompleteness = getDataCompleteness(user as any);
+  const completionDetails = getProfileCompletionDetails(user as any);
+  const dataCompleteness = completionDetails.percentage;
   
   return (
     <div className="flex items-center gap-2 text-xs">

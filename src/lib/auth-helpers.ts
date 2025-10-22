@@ -13,7 +13,7 @@ export function createUserObject(profile: any): User {
       email: profile.email || '',
       first_name: profile.first_name || '',
       last_name: profile.last_name || '',
-      company: profile.company || '',
+      company: profile.company || profile.company_name || '',
       website: profile.website || '',
       phone_number: profile.phone_number || '',
       role: 'buyer' as const,

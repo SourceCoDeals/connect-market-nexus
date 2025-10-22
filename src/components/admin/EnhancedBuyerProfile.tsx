@@ -1,7 +1,7 @@
 import React from 'react';
 import { User, ExternalLink, Linkedin, Trophy, CheckCircle, AlertCircle, XCircle } from 'lucide-react';
 import { User as UserType } from '@/types';
-import { getBuyerTier, getPrimaryMetrics, getDataCompleteness, BuyerMetric } from '@/lib/buyer-metrics';
+import { getBuyerTier, getPrimaryMetrics, getProfileCompletionDetails, BuyerMetric } from '@/lib/buyer-metrics';
 import { formatInvestmentSize } from '@/lib/currency-utils';
 import { Badge } from '@/components/ui/badge';
 
@@ -69,7 +69,8 @@ export const EnhancedBuyerProfile: React.FC<EnhancedBuyerProfileProps> = ({
 
   const tierInfo = getBuyerTier(user);
   const metrics = getPrimaryMetrics(user);
-  const completeness = getDataCompleteness(user);
+  const completionDetails = getProfileCompletionDetails(user);
+  const completeness = completionDetails.percentage;
 
   return (
     <div className={`space-y-3 ${className}`}>

@@ -4,7 +4,7 @@ import { Progress } from '@/components/ui/progress';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { User } from '@/types';
 import { CheckCircle2, AlertCircle, Info } from 'lucide-react';
-import { getRelevantFieldsForBuyerType, FIELD_LABELS } from '@/lib/buyer-type-fields';
+import { getProfileCompletionDetails } from '@/lib/buyer-metrics';
 
 interface UserDataCompletenessProps {
   user: User;
@@ -13,40 +13,10 @@ interface UserDataCompletenessProps {
 }
 
 export function UserDataCompleteness({ user, showProgress = false, size = 'md' }: UserDataCompletenessProps) {
-  // Handle admin users and users without buyer_type
-  const effectiveBuyerType = user.is_admin ? 'admin' : (user.buyer_type || 'corporate');
-  
-  // Get relevant fields for this user's buyer type using the central mapping
-  const relevantFieldKeys = getRelevantFieldsForBuyerType(effectiveBuyerType as any);
-  
-  // Create field objects with labels and categories for completion calculation
-  const applicableFields = relevantFieldKeys.map(key => ({
-    key,
-    label: FIELD_LABELS[key as keyof typeof FIELD_LABELS] || key,
-    category: getCategoryForField(key),
-  }));
-
-  function getCategoryForField(fieldKey: string): string {
-    if (['first_name', 'last_name', 'email', 'phone_number', 'company', 'website', 'linkedin_profile'].includes(fieldKey)) {
-      return 'contact';
-    }
-    if (['ideal_target_description', 'business_categories', 'target_locations', 'specific_business_search', 'revenue_range_min', 'revenue_range_max'].includes(fieldKey)) {
-      return 'profile';
-    }
-    return 'financial';
-  }
-
-  // Calculate completion
-  const completedFields = applicableFields.filter(field => {
-    const value = user[field.key as keyof User];
-    if (field.key === 'business_categories') {
-      return Array.isArray(value) && value.length > 0;
-    }
-    return value !== null && value !== undefined && value !== '';
-  });
-
-  const completionPercentage = Math.round((completedFields.length / applicableFields.length) * 100);
-  const missingCount = applicableFields.length - completedFields.length;
+  // Use centralized completion logic
+  const completionDetails = getProfileCompletionDetails(user);
+  const completionPercentage = completionDetails.percentage;
+  const missingCount = completionDetails.missingFields.length;
 
   // Get styling based on completion with better color coding
   const getCompletionBadge = (percentage: number) => {
@@ -57,21 +27,9 @@ export function UserDataCompleteness({ user, showProgress = false, size = 'md' }
 
   const { variant, className, icon: Icon } = getCompletionBadge(completionPercentage);
 
-  // Missing fields summary
-  const missingFields = applicableFields.filter(field => {
-    const value = user[field.key as keyof User];
-    if (field.key === 'business_categories') {
-      return !Array.isArray(value) || value.length === 0;
-    }
-    return value === null || value === undefined || value === '';
-  });
-
-  const getMissingFieldsByCategory = () => {
-    return missingFields.reduce((acc, field) => {
-      if (!acc[field.category]) acc[field.category] = [];
-      acc[field.category].push(field.label);
-      return acc;
-    }, {} as Record<string, string[]>);
+  // Format missing fields for display
+  const getMissingFieldsFormatted = () => {
+    return completionDetails.missingFieldLabels.join(', ');
   };
 
   if (size === 'sm') {
@@ -88,17 +46,12 @@ export function UserDataCompleteness({ user, showProgress = false, size = 'md' }
             <div className="space-y-2">
               <p className="font-medium">Profile Completion: {completionPercentage}%</p>
               <p className="text-xs">
-                {completedFields.length} of {applicableFields.length} fields completed
+                {completionDetails.requiredFields.length - missingCount} of {completionDetails.requiredFields.length} fields completed
               </p>
               {missingCount > 0 && (
                 <div className="text-xs">
                   <p className="font-medium text-amber-600">Missing {missingCount} fields:</p>
-                  {Object.entries(getMissingFieldsByCategory()).map(([category, fields]) => (
-                    <div key={category} className="mt-1">
-                      <span className="capitalize font-medium">{category}:</span>
-                      <span className="ml-1">{fields.join(', ')}</span>
-                    </div>
-                  ))}
+                  <p className="mt-1">{getMissingFieldsFormatted()}</p>
                 </div>
               )}
             </div>
@@ -116,7 +69,7 @@ export function UserDataCompleteness({ user, showProgress = false, size = 'md' }
           {completionPercentage}% Complete
         </Badge>
         <span className="text-sm text-muted-foreground">
-          {completedFields.length}/{applicableFields.length} fields
+          {completionDetails.requiredFields.length - missingCount}/{completionDetails.requiredFields.length} fields
         </span>
       </div>
 
@@ -125,9 +78,7 @@ export function UserDataCompleteness({ user, showProgress = false, size = 'md' }
           <Progress value={completionPercentage} className="h-2" />
           {missingCount > 0 && (
             <div className="text-xs text-muted-foreground">
-              Missing: {Object.entries(getMissingFieldsByCategory()).map(([category, fields]) => 
-                `${category} (${fields.length})`
-              ).join(', ')}
+              Missing: {getMissingFieldsFormatted()}
             </div>
           )}
         </div>

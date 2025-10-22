@@ -520,9 +520,26 @@ export function formatFinancialRange(min?: string | number | null, max?: string 
   return 'Not specified';
 }
 
-// Strict profile completion aligned with admin logic
-export function getStrictProfileCompletion(user: User | null): { percentage: number; isComplete: boolean } {
-  if (!user) return { percentage: 0, isComplete: false };
+/**
+ * Centralized profile completion logic
+ * Returns detailed completion information for strict profile validation
+ */
+export function getProfileCompletionDetails(user: User | null): {
+  percentage: number;
+  isComplete: boolean;
+  requiredFields: string[];
+  missingFields: string[];
+  missingFieldLabels: string[];
+} {
+  if (!user) {
+    return {
+      percentage: 0,
+      isComplete: false,
+      requiredFields: [],
+      missingFields: [],
+      missingFieldLabels: [],
+    };
+  }
 
   const relevantFields = getRelevantFieldsForBuyerType(user.buyer_type || 'individual');
   const optionalFields = ['website', 'linkedin_profile'];
@@ -536,10 +553,36 @@ export function getStrictProfileCompletion(user: User | null): { percentage: num
     return value !== null && value !== undefined && value !== '';
   };
 
-  const completedRequired = requiredFields.filter(isCompleteField).length;
+  const missingFields = requiredFields.filter(key => !isCompleteField(key));
+  const completedRequired = requiredFields.length - missingFields.length;
   const percentage = requiredFields.length > 0
     ? Math.round((completedRequired / requiredFields.length) * 100)
     : 100;
 
-  return { percentage, isComplete: percentage === 100 };
+  // Import field labels from buyer-type-fields if available, or use simple formatting
+  const formatFieldLabel = (key: string): string => {
+    return key
+      .split('_')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  };
+
+  return {
+    percentage,
+    isComplete: percentage === 100,
+    requiredFields,
+    missingFields,
+    missingFieldLabels: missingFields.map(formatFieldLabel),
+  };
+}
+
+// Legacy function - kept for backward compatibility
+// NOTE: For user-facing completeness percentages, use getProfileCompletionDetails instead
+// This function uses weighted heuristics and is primarily for credibility signals
+export function getStrictProfileCompletion(user: User | null): { percentage: number; isComplete: boolean } {
+  const details = getProfileCompletionDetails(user);
+  return {
+    percentage: details.percentage,
+    isComplete: details.isComplete,
+  };
 }
