@@ -2,6 +2,7 @@
 import { Link } from "react-router-dom";
 import { Store, Briefcase, Heart, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useUserNotifications } from "@/hooks/use-user-notifications";
 
 interface MobileNavItemsProps {
   isAdmin: boolean;
@@ -10,6 +11,8 @@ interface MobileNavItemsProps {
 }
 
 const MobileNavItems = ({ isAdmin, isApproved, onNavigateToAdmin }: MobileNavItemsProps) => {
+  const { unreadCount } = useUserNotifications();
+  
   if (!isApproved) {
     return null;
   }
@@ -34,10 +37,13 @@ const MobileNavItems = ({ isAdmin, isApproved, onNavigateToAdmin }: MobileNavIte
 
       <Link
         to="/my-requests"
-        className="flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md text-muted-foreground hover:text-foreground hover:bg-muted"
+        className="relative flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md text-muted-foreground hover:text-foreground hover:bg-muted"
       >
         <Briefcase className="h-4 w-4" strokeWidth={1.5} />
         My Deals
+        {unreadCount > 0 && (
+          <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-red-500" />
+        )}
       </Link>
 
       {isAdmin && (

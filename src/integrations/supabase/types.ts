@@ -2616,6 +2616,53 @@ export type Database = {
           },
         ]
       }
+      user_notifications: {
+        Row: {
+          connection_request_id: string | null
+          created_at: string | null
+          id: string
+          is_read: boolean | null
+          message: string
+          metadata: Json | null
+          notification_type: string
+          read_at: string | null
+          title: string
+          user_id: string
+        }
+        Insert: {
+          connection_request_id?: string | null
+          created_at?: string | null
+          id?: string
+          is_read?: boolean | null
+          message: string
+          metadata?: Json | null
+          notification_type: string
+          read_at?: string | null
+          title: string
+          user_id: string
+        }
+        Update: {
+          connection_request_id?: string | null
+          created_at?: string | null
+          id?: string
+          is_read?: boolean | null
+          message?: string
+          metadata?: Json | null
+          notification_type?: string
+          read_at?: string | null
+          title?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_notifications_connection_request_id_fkey"
+            columns: ["connection_request_id"]
+            isOneToOne: false
+            referencedRelation: "connection_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           granted_at: string

@@ -12,6 +12,7 @@ import { DealMetricsCard } from "@/components/deals/DealMetricsCard";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useUserNotifications, useMarkRequestNotificationsAsRead } from "@/hooks/use-user-notifications";
 
 const MyRequests = () => {
   const { user } = useAuth();
@@ -20,6 +21,8 @@ const MyRequests = () => {
   const updateMessage = useUpdateConnectionMessage();
   const isMobile = useIsMobile();
   const [selectedDeal, setSelectedDeal] = useState<string | null>(null);
+  const { unreadByRequest } = useUserNotifications();
+  const markRequestNotificationsAsRead = useMarkRequestNotificationsAsRead();
 
   // Fetch fresh profile data to avoid stale completeness calculations
   const { data: freshProfile } = useQuery({
@@ -56,6 +59,13 @@ const MyRequests = () => {
       setSelectedDeal(requests[0].id);
     }
   }, [requests, selectedDeal]);
+
+  // Mark notifications as read when a deal tab is selected
+  useEffect(() => {
+    if (selectedDeal) {
+      markRequestNotificationsAsRead.mutate(selectedDeal);
+    }
+  }, [selectedDeal]);
 
 
   // Smart truncation based on screen size with better algorithm
@@ -169,18 +179,25 @@ const MyRequests = () => {
             <ScrollArea className="w-full -mx-4 sm:-mx-8">
               <div className="px-4 sm:px-8">
                 <TabsList className="inline-flex h-auto items-center justify-start rounded-none border-b-0 bg-transparent p-0 gap-8">
-                  {requests.map((request) => (
-                    <TabsTrigger 
-                      key={request.id} 
-                      value={request.id}
-                      className="relative rounded-none border-b-2 border-b-transparent bg-transparent px-0 pb-3 pt-0 text-sm font-medium text-gray-600 shadow-none transition-colors hover:text-gray-900 data-[state=active]:border-b-gray-900 data-[state=active]:text-gray-900 whitespace-nowrap"
-                    >
-                      {getTruncatedTitle(
-                        request.listing?.title || "Untitled", 
-                        isMobile
-                      )}
-                    </TabsTrigger>
-                  ))}
+                  {requests.map((request) => {
+                    const unreadForRequest = unreadByRequest[request.id] || 0;
+                    
+                    return (
+                      <TabsTrigger 
+                        key={request.id} 
+                        value={request.id}
+                        className="relative rounded-none border-b-2 border-b-transparent bg-transparent px-0 pb-3 pt-0 text-sm font-medium text-gray-600 shadow-none transition-colors hover:text-gray-900 data-[state=active]:border-b-gray-900 data-[state=active]:text-gray-900 whitespace-nowrap"
+                      >
+                        {getTruncatedTitle(
+                          request.listing?.title || "Untitled", 
+                          isMobile
+                        )}
+                        {unreadForRequest > 0 && (
+                          <span className="absolute top-0 right-0 h-2 w-2 rounded-full bg-red-500" />
+                        )}
+                      </TabsTrigger>
+                    );
+                  })}
                 </TabsList>
               </div>
               <ScrollBar orientation="horizontal" className="invisible" />

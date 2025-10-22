@@ -59,6 +59,7 @@ export function useRealtimeConnections() {
           queryClient.invalidateQueries({ queryKey: ['connection-status'] });
           queryClient.invalidateQueries({ queryKey: ['user-connection-requests'] });
           queryClient.invalidateQueries({ queryKey: ['admin-connection-requests'] });
+          queryClient.invalidateQueries({ queryKey: ['user-notifications'] });
         }
       )
       .subscribe((status) => {
