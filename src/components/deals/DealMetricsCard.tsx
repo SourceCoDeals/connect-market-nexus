@@ -89,14 +89,16 @@ export function DealMetricsCard({ listing, status, className }: DealMetricsCardP
           {/* Header with Title and Status */}
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-1.5">
+              <div className="flex items-center gap-3 mb-1.5">
                 <h2 className="text-xl font-semibold text-gray-900 tracking-tight">
                   {listing.title}
                 </h2>
                 {listing.id && (
                   <Link
                     to={`/listing/${listing.id}`}
-                    className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-gray-900 transition-colors"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-gray-600 hover:text-gray-900 bg-gray-50 hover:bg-gray-100 rounded-md transition-colors"
                   >
                     View listing
                     <ExternalLink className="w-3 h-3" />
