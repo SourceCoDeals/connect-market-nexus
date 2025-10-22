@@ -59,10 +59,7 @@ const DesktopNavItems = ({ isAdmin, isApproved, onNavigateToAdmin }: DesktopNavI
         <Briefcase className="h-4 w-4" strokeWidth={1.5} />
         My Deals
         {unreadCount > 0 && (
-          <span className="absolute top-0.5 right-2 flex h-2 w-2">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-500 opacity-40"></span>
-            <span className="relative inline-flex h-2 w-2 rounded-full bg-red-500 ring-1 ring-white shadow-sm"></span>
-          </span>
+          <span className="absolute top-0.5 right-2 h-2 w-2 rounded-full bg-red-600 ring-1 ring-white shadow-sm"></span>
         )}
       </Link>
 
