@@ -168,10 +168,10 @@ export function DealMetricsCard({ listing, status, className }: DealMetricsCardP
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 pt-5 mt-5 border-t border-gray-100">
             {metrics.map((metric) => (
               <div key={metric.label} className="space-y-1.5">
-                <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-[0.1em]">
+                <div className="text-[11px] font-semibold text-gray-400 uppercase tracking-[0.1em]">
                   {metric.label}
                 </div>
-                <div className="text-lg font-semibold text-gray-900 tabular-nums">
+                <div className="text-xl font-semibold text-gray-900 tabular-nums">
                   {metric.value}
                 </div>
               </div>
