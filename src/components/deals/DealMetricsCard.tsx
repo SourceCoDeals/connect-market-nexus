@@ -1,4 +1,4 @@
-import { Building2, TrendingUp, Users, DollarSign } from "lucide-react";
+import { Building2, TrendingUp, Users, DollarSign, MapPin } from "lucide-react";
 import { cn, formatCompactCurrency } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 
@@ -26,18 +26,18 @@ export function DealMetricsCard({ listing, status, className }: DealMetricsCardP
       case "approved":
         return { 
           label: "Approved", 
-          className: "bg-emerald-50/50 text-emerald-700 border-emerald-200/50" 
+          className: "bg-emerald-50 text-emerald-700 border-emerald-100" 
         };
       case "rejected":
         return { 
           label: "Rejected", 
-          className: "bg-red-50/50 text-red-700 border-red-200/50" 
+          className: "bg-red-50 text-red-700 border-red-100" 
         };
       case "pending":
       default:
         return { 
           label: "Under Review", 
-          className: "bg-amber-50/50 text-amber-700 border-amber-200/50" 
+          className: "bg-amber-50 text-amber-700 border-amber-100" 
         };
     }
   };
@@ -63,65 +63,71 @@ export function DealMetricsCard({ listing, status, className }: DealMetricsCardP
     {
       label: "Location",
       value: listing.location || "N/A",
-      icon: Building2,
+      icon: MapPin,
     },
   ];
 
-
   return (
-    <div className={cn("bg-muted/20 border border-border/30 rounded-xl p-6 transition-all duration-200 hover:border-border/50", className)}>
-      <div className="flex flex-col sm:flex-row gap-6">
+    <div className={cn("bg-white border border-gray-200 rounded-lg p-6", className)}>
+      <div className="flex items-start gap-5">
         {/* Image Thumbnail */}
         {listing.image_url && (
           <div className="shrink-0">
             <img
               src={listing.image_url}
               alt={listing.title}
-              className="w-full sm:w-32 sm:h-32 h-48 object-cover rounded-lg border border-border/30 transition-transform duration-200 hover:scale-[1.02]"
+              loading="lazy"
+              className="w-24 h-24 object-cover rounded border border-gray-200 bg-gray-50"
             />
           </div>
         )}
 
         {/* Content */}
-        <div className="flex-1 space-y-4">
+        <div className="flex-1 min-w-0 space-y-5">
           {/* Header with Title and Status */}
           <div className="flex items-start justify-between gap-4">
-            <div className="flex-1">
-              <h2 className="text-xl font-semibold text-foreground tracking-tight">
+            <div className="flex-1 min-w-0">
+              <h2 className="text-xl font-semibold text-gray-900 mb-1.5 tracking-tight">
                 {listing.title}
               </h2>
-              <div className="flex items-center gap-2 mt-1.5 text-sm text-muted-foreground/70">
+              <div className="flex flex-wrap items-center gap-2 text-sm text-gray-600">
                 {listing.category && (
-                  <span className="flex items-center gap-1">
+                  <div className="flex items-center gap-1.5">
                     <Building2 className="w-3.5 h-3.5" />
-                    {listing.category}
-                  </span>
+                    <span>{listing.category}</span>
+                  </div>
                 )}
-                {listing.location && listing.category && (
-                  <span className="text-muted-foreground/40">•</span>
+                {listing.location && (
+                  <>
+                    <span className="text-gray-300">•</span>
+                    <span>{listing.location}</span>
+                  </>
                 )}
-                {listing.location && <span>{listing.location}</span>}
               </div>
             </div>
             
             {/* Status Badge */}
             <Badge 
               variant="outline" 
-              className={cn("text-[11px] font-medium px-2.5 py-0.5 shrink-0 transition-colors", statusConfig.className)}
+              className={cn(
+                "inline-flex items-center gap-1.5 h-6 px-2.5 py-0 text-xs font-medium rounded-full shrink-0",
+                statusConfig.className
+              )}
             >
+              <div className="w-1.5 h-1.5 rounded-full bg-current" />
               {statusConfig.label}
             </Badge>
           </div>
 
           {/* Metrics Grid */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 pt-4 border-t border-gray-200">
             {metrics.map((metric) => (
-              <div key={metric.label} className="transition-all duration-200 hover:translate-y-[-2px]">
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground/60 uppercase tracking-wide mb-1">
-                  <metric.icon className="w-3 h-3" />
+              <div key={metric.label}>
+                <div className="flex items-center gap-1.5 text-xs font-medium text-gray-500 mb-1">
+                  <metric.icon className="w-3.5 h-3.5" />
                   {metric.label}
                 </div>
-                <div className="text-base font-semibold text-foreground">
+                <div className="text-lg font-semibold text-gray-900 tabular-nums">
                   {metric.value}
                 </div>
               </div>

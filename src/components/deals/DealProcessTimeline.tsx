@@ -22,68 +22,70 @@ export function DealProcessTimeline({ steps, className }: DealProcessTimelinePro
         const isLast = index === steps.length - 1;
         
         return (
-          <div key={step.id} className="relative flex gap-4 pb-8 group" role="listitem">
+          <div key={step.id} className="relative flex gap-4 pb-6" role="listitem">
             {/* Connector Line */}
             {!isLast && (
               <div 
                 className={cn(
-                  "absolute left-4 top-8 w-0.5 h-full transition-colors duration-300",
-                  step.completed ? "bg-primary" : "bg-border"
+                  "absolute left-3 top-7 w-px h-full",
+                  step.completed ? "bg-gray-300" : "bg-gray-200"
                 )}
                 aria-hidden="true"
               />
             )}
 
-            {/* Step Icon Circle with Number */}
-            <div className="relative flex h-8 w-8 shrink-0 items-center justify-center">
+            {/* Step Icon */}
+            <div className="relative flex h-6 w-6 shrink-0 items-center justify-center">
               {step.completed ? (
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground transition-all duration-300 group-hover:scale-110">
-                  <CheckCircle2 className="h-5 w-5" aria-label="Completed" />
+                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 text-white">
+                  <CheckCircle2 className="h-4 w-4" aria-label="Completed" />
                 </div>
               ) : step.active ? (
-                <div className="relative flex h-8 w-8 items-center justify-center rounded-full border-2 border-primary bg-background transition-all duration-300 animate-pulse group-hover:scale-110">
-                  <span className="text-sm font-semibold text-primary">{index + 1}</span>
-                  <div className="absolute inset-0 rounded-full border-2 border-primary animate-ping opacity-20" aria-hidden="true" />
+                <div className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-gray-900 bg-white">
+                  <div className="h-2 w-2 rounded-full bg-gray-900" />
                 </div>
               ) : (
-                <div className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-border bg-background text-muted-foreground transition-all duration-300 group-hover:border-muted-foreground">
-                  <span className="text-sm font-semibold">{index + 1}</span>
-                </div>
+                <div className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-gray-300 bg-white" />
               )}
             </div>
 
             {/* Step Content */}
-            <div className="flex-1 pt-0.5 transition-all duration-200">
-              <div className="flex items-center justify-between gap-2 mb-1">
+            <div className="flex-1 pt-0">
+              <div className="flex items-start justify-between gap-2 mb-1">
                 <h3 
                   className={cn(
-                    "text-sm font-semibold transition-colors duration-200",
-                    step.completed && "text-foreground",
-                    step.active && "text-foreground",
-                    !step.completed && !step.active && "text-muted-foreground"
+                    "text-sm font-semibold",
+                    step.completed && "text-gray-900",
+                    step.active && "text-gray-900",
+                    !step.completed && !step.active && "text-gray-500"
                   )}
                 >
                   {step.label}
                 </h3>
                 
-                {/* Status Badge */}
-                <Badge
-                  variant="outline"
-                  className={cn(
-                    "text-[10px] px-2 py-0 h-5 transition-all duration-200",
-                    step.completed && "bg-primary/10 text-primary border-primary/20",
-                    step.active && "bg-amber-50/50 text-amber-700 border-amber-200/50 dark:bg-amber-950/50 dark:text-amber-300",
-                    !step.completed && !step.active && "bg-muted/30 text-muted-foreground/50 border-border/30"
-                  )}
-                >
-                  {step.completed ? "Complete" : step.active ? "In Progress" : "Pending"}
-                </Badge>
+                {/* Status Badge - Simple pill */}
+                {step.active && (
+                  <Badge
+                    variant="outline"
+                    className="text-xs px-2 py-0 h-5 bg-amber-50 text-amber-700 border-amber-200 rounded-full font-medium"
+                  >
+                    In Progress
+                  </Badge>
+                )}
+                {step.completed && (
+                  <Badge
+                    variant="outline"
+                    className="text-xs px-2 py-0 h-5 bg-emerald-50 text-emerald-700 border-emerald-200 rounded-full font-medium"
+                  >
+                    Complete
+                  </Badge>
+                )}
               </div>
               
               <p 
                 className={cn(
-                  "text-xs leading-relaxed transition-colors duration-200",
-                  step.active ? "text-muted-foreground" : "text-muted-foreground/60"
+                  "text-sm leading-6",
+                  step.active ? "text-gray-600" : "text-gray-500"
                 )}
               >
                 {step.description}

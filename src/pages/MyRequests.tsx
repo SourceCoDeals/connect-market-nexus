@@ -90,27 +90,26 @@ const MyRequests = () => {
 
   if (isLoading) {
     return (
-      <div className="w-full">
+      <div className="w-full bg-white min-h-screen">
         {/* Header Skeleton */}
-        <div className="border-b border-border/50">
-          <div className="px-4 sm:px-8 py-5">
-            <Skeleton className="h-7 w-32" />
-          </div>
+        <div className="px-4 sm:px-8 pt-8 pb-6">
+          <Skeleton className="h-9 w-40" />
+          <Skeleton className="h-5 w-64 mt-2" />
         </div>
         
         {/* Tabs Skeleton */}
-        <div className="border-b border-border/50 px-4 sm:px-8 py-3">
-          <div className="flex gap-6">
-            <Skeleton className="h-5 w-24" />
-            <Skeleton className="h-5 w-24" />
+        <div className="border-b border-gray-200 px-4 sm:px-8">
+          <div className="flex gap-8 pb-3">
+            <Skeleton className="h-5 w-32" />
+            <Skeleton className="h-5 w-32" />
           </div>
         </div>
         
         {/* Content Skeleton */}
         <div className="px-4 sm:px-8 py-8">
-          <div className="max-w-5xl mx-auto space-y-6">
-            <Skeleton className="h-48 w-full" />
-            <Skeleton className="h-32 w-full" />
+          <div className="max-w-4xl mx-auto space-y-6">
+            <Skeleton className="h-48 w-full rounded-lg" />
+            <Skeleton className="h-32 w-full rounded-lg" />
           </div>
         </div>
       </div>
@@ -119,24 +118,22 @@ const MyRequests = () => {
 
   if (!requests || requests.length === 0) {
     return (
-      <div className="w-full">
+      <div className="w-full bg-white min-h-screen">
         {/* Header */}
-        <div className="border-b border-border/50">
-          <div className="px-4 sm:px-8 py-5">
-            <h1 className="text-xl font-semibold tracking-tight">My Deals</h1>
-          </div>
+        <div className="px-4 sm:px-8 pt-8 pb-6">
+          <h1 className="text-3xl font-semibold text-gray-900 tracking-tight">My Deals</h1>
         </div>
         
         {/* Empty State */}
         <div className="min-h-[50vh] flex items-center justify-center px-4">
-          <div className="text-center space-y-3 max-w-md">
+          <div className="text-center space-y-4 max-w-sm">
             <div className="flex justify-center">
-              <div className="rounded-full bg-muted/50 p-4">
-                <FileText className="h-8 w-8 text-muted-foreground/50" />
+              <div className="rounded-full bg-gray-100 p-3">
+                <FileText className="h-6 w-6 text-gray-400" />
               </div>
             </div>
-            <h2 className="text-lg font-semibold tracking-tight">No deals yet</h2>
-            <p className="text-sm text-muted-foreground/70 leading-relaxed">
+            <h2 className="text-base font-semibold text-gray-900">No deals yet</h2>
+            <p className="text-sm text-gray-600 leading-6">
               You haven't submitted any connection requests yet. Browse the marketplace to find opportunities.
             </p>
           </div>
@@ -150,31 +147,31 @@ const MyRequests = () => {
     : requests[0];
 
   return (
-    <div className="w-full">
-      {/* Tabs - Full Width with Title Inside */}
+    <div className="w-full bg-white min-h-screen">
+      {/* Page Header - Clean, no borders */}
+      <div className="px-4 sm:px-8 pt-8 pb-6">
+        <h1 className="text-3xl font-semibold text-gray-900 tracking-tight">My Deals</h1>
+        <p className="text-sm text-gray-600 mt-1">
+          Track and manage your connection requests
+        </p>
+      </div>
+
+      {/* Tabs - Simple underline style */}
       <Tabs 
         value={selectedDeal || requests[0]?.id} 
         onValueChange={setSelectedDeal}
         className="w-full"
       >
-        <div className="border-b border-border/50">
+        <div className="border-b border-gray-200">
           <div className="px-4 sm:px-8">
-            {/* Title - Not full width, just padded */}
-            <div className="py-5 border-b border-border/50">
-              <h1 className="text-xl font-semibold tracking-tight">My Deals</h1>
-              <p className="text-sm text-muted-foreground/70 mt-0.5">
-                Track and manage your connection requests
-              </p>
-            </div>
-            {/* Tabs - Full Width */}
             <ScrollArea className="w-full -mx-4 sm:-mx-8">
               <div className="px-4 sm:px-8">
-                <TabsList className="inline-flex h-11 items-center justify-start rounded-none border-b-0 bg-transparent p-0 gap-6">
+                <TabsList className="inline-flex h-auto items-center justify-start rounded-none border-b-0 bg-transparent p-0 gap-8">
                   {requests.map((request) => (
                     <TabsTrigger 
                       key={request.id} 
                       value={request.id}
-                      className="group relative rounded-none border-b-2 border-b-transparent bg-transparent px-0 pb-3 pt-0 text-[13px] font-medium text-muted-foreground/70 shadow-none transition-all hover:text-foreground data-[state=active]:border-b-foreground data-[state=active]:text-foreground data-[state=active]:shadow-none whitespace-nowrap"
+                      className="relative rounded-none border-b-2 border-b-transparent bg-transparent px-0 pb-3 pt-0 text-sm font-medium text-gray-600 shadow-none transition-colors hover:text-gray-900 data-[state=active]:border-b-gray-900 data-[state=active]:text-gray-900 whitespace-nowrap"
                     >
                       {getTruncatedTitle(
                         request.listing?.title || "Untitled", 
@@ -189,16 +186,16 @@ const MyRequests = () => {
           </div>
         </div>
 
-        {/* Content - Center Focused Layout */}
-        <div className="px-4 sm:px-6 lg:px-8 py-6 sm:py-7 lg:py-8">
+        {/* Content - Clean layout */}
+        <div className="px-4 sm:px-8 py-8">
           {requests.map((request) => (
             <TabsContent 
               key={request.id} 
               value={request.id}
-              className="mt-0 focus-visible:outline-none focus-visible:ring-0 animate-fade-in"
+              className="mt-0 focus-visible:outline-none focus-visible:ring-0"
             >
-              <div className="max-w-5xl mx-auto space-y-8">
-                {/* Metrics Preview Card */}
+              <div className="max-w-4xl mx-auto space-y-6">
+                {/* Metrics Card */}
                 <DealMetricsCard
                   listing={{
                     title: request.listing?.title || "Untitled",
@@ -213,8 +210,8 @@ const MyRequests = () => {
                   status={request.status}
                 />
 
-                {/* Process Visualization */}
-                <div>
+                {/* Process Timeline */}
+                <div className="bg-white border border-gray-200 rounded-lg p-6">
                   {isMobile ? (
                     <DealProcessStepper steps={getDealStages(request.status)} />
                   ) : (

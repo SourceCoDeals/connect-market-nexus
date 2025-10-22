@@ -18,14 +18,14 @@ export function DealProcessStepper({ steps, className }: DealProcessStepperProps
   const progressPercentage = ((completedSteps - 1) / (steps.length - 1)) * 100;
 
   return (
-    <div className={cn("w-full px-4", className)} role="progressbar" aria-valuenow={completedSteps} aria-valuemax={steps.length}>
+    <div className={cn("w-full", className)} role="progressbar" aria-valuenow={completedSteps} aria-valuemax={steps.length}>
       {/* Progress Line */}
       <div className="relative mb-8">
         {/* Background Line */}
-        <div className="absolute top-4 left-0 right-0 h-0.5 bg-border" aria-hidden="true" />
+        <div className="absolute top-3 left-0 right-0 h-px bg-gray-200" aria-hidden="true" />
         {/* Progress Line */}
         <div 
-          className="absolute top-4 left-0 h-0.5 bg-primary transition-all duration-500 ease-out"
+          className="absolute top-3 left-0 h-px bg-gray-400 transition-all duration-300"
           style={{ width: `${progressPercentage}%` }}
           aria-hidden="true"
         />
@@ -33,32 +33,29 @@ export function DealProcessStepper({ steps, className }: DealProcessStepperProps
         {/* Step Markers */}
         <div className="relative flex justify-between">
           {steps.map((step, index) => (
-            <div key={step.id} className="flex flex-col items-center group">
-              {/* Step Circle with Number */}
+            <div key={step.id} className="flex flex-col items-center">
+              {/* Step Circle */}
               <div className="relative mb-2">
                 {step.completed ? (
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground transition-all duration-300 group-hover:scale-110 shadow-sm">
-                    <CheckCircle2 className="h-5 w-5" aria-label="Completed" />
+                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 text-white">
+                    <CheckCircle2 className="h-4 w-4" aria-label="Completed" />
                   </div>
                 ) : step.active ? (
-                  <div className="relative flex h-8 w-8 items-center justify-center rounded-full border-2 border-primary bg-background transition-all duration-300 animate-pulse group-hover:scale-110 shadow-sm">
-                    <span className="text-sm font-semibold text-primary">{index + 1}</span>
-                    <div className="absolute inset-0 rounded-full border-2 border-primary animate-ping opacity-20" aria-hidden="true" />
+                  <div className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-gray-900 bg-white">
+                    <div className="h-2 w-2 rounded-full bg-gray-900" />
                   </div>
                 ) : (
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-border bg-background text-muted-foreground transition-all duration-300 group-hover:border-muted-foreground">
-                    <span className="text-sm font-semibold">{index + 1}</span>
-                  </div>
+                  <div className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-gray-300 bg-white" />
                 )}
               </div>
 
               {/* Step Label */}
               <span 
                 className={cn(
-                  "text-xs text-center max-w-[80px] transition-colors duration-200",
-                  step.completed && "text-foreground font-medium",
-                  step.active && "text-foreground font-medium",
-                  !step.completed && !step.active && "text-muted-foreground/60"
+                  "text-xs text-center max-w-[80px]",
+                  step.completed && "text-gray-900 font-medium",
+                  step.active && "text-gray-900 font-medium",
+                  !step.completed && !step.active && "text-gray-500"
                 )}
               >
                 {step.label}
