@@ -49,13 +49,13 @@ export function DealProcessSteps({ requestStatus, className }: DealProcessStepsP
           {
             id: 'review',
             label: 'Under Review',
-            description: 'Owner reviewed your profile',
+            description: 'Profile and criteria reviewed',
             status: 'completed'
           },
           {
             id: 'approved',
             label: 'Approved',
-            description: 'Owner approved connection',
+            description: 'Request approved successfully',
             status: 'completed'
           }
         ];
