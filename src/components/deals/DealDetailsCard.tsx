@@ -1,5 +1,5 @@
 import { formatDistanceToNow } from "date-fns";
-import { Calendar } from "lucide-react";
+import { MessageSquare, Calendar } from "lucide-react";
 
 interface DealDetailsCardProps {
   listing: {
@@ -7,6 +7,7 @@ interface DealDetailsCardProps {
     location?: string;
     description?: string;
   };
+  userMessage?: string;
   createdAt: string;
 }
 
@@ -31,7 +32,7 @@ const getDescriptionPreview = (description: string, maxLength: number = 200): st
 };
 
 
-export function DealDetailsCard({ listing, createdAt }: DealDetailsCardProps) {
+export function DealDetailsCard({ listing, userMessage, createdAt }: DealDetailsCardProps) {
   return (
     <div className="space-y-6">
       {/* Timeline */}
@@ -49,6 +50,23 @@ export function DealDetailsCard({ listing, createdAt }: DealDetailsCardProps) {
           <p className="text-sm text-gray-600 leading-6 whitespace-pre-line">
             {getDescriptionPreview(listing.description)}
           </p>
+        </div>
+      )}
+
+      {/* User Message */}
+      {userMessage && (
+        <div className="space-y-2.5 border-t border-gray-200 pt-5">
+          <div className="flex items-center gap-2">
+            <MessageSquare className="w-4 h-4 text-gray-500" aria-hidden="true" />
+            <h3 className="text-sm font-semibold text-gray-900">
+              Your message
+            </h3>
+          </div>
+          <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+            <p className="text-sm text-gray-700 leading-6 whitespace-pre-wrap">
+              {userMessage}
+            </p>
+          </div>
         </div>
       )}
     </div>

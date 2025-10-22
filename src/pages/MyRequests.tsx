@@ -194,66 +194,41 @@ const MyRequests = () => {
               value={request.id}
               className="mt-0 focus-visible:outline-none focus-visible:ring-0"
             >
-              <div className="max-w-6xl mx-auto">
+              <div className="max-w-4xl mx-auto space-y-6">
                 {/* Metrics Card */}
-                <div className="mb-6">
-                  <DealMetricsCard
-                    listing={{
-                      id: request.listing_id,
-                      title: request.listing?.title || "Untitled",
-                      category: request.listing?.category,
-                      location: request.listing?.location,
-                      image_url: request.listing?.image_url,
-                      revenue: request.listing?.revenue,
-                      ebitda: request.listing?.ebitda,
-                      full_time_employees: request.listing?.full_time_employees,
-                      part_time_employees: request.listing?.part_time_employees,
-                    }}
-                    status={request.status}
-                  />
+                <DealMetricsCard
+                  listing={{
+                    title: request.listing?.title || "Untitled",
+                    category: request.listing?.category,
+                    location: request.listing?.location,
+                    image_url: request.listing?.image_url,
+                    revenue: request.listing?.revenue,
+                    ebitda: request.listing?.ebitda,
+                    full_time_employees: request.listing?.full_time_employees,
+                    part_time_employees: request.listing?.part_time_employees,
+                  }}
+                  status={request.status}
+                />
+
+                {/* Process Timeline */}
+                <div className="bg-white border border-gray-200 rounded-lg p-6">
+                  {isMobile ? (
+                    <DealProcessStepper steps={getDealStages(request.status)} />
+                  ) : (
+                    <DealProcessTimeline steps={getDealStages(request.status)} />
+                  )}
                 </div>
 
-                {/* Grid Layout: Main content + Sidebar */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                  {/* Main Content - 2 columns */}
-                  <div className="lg:col-span-2 space-y-6">
-                    {/* Process Timeline */}
-                    <div className="bg-white border border-gray-200 rounded-lg p-6">
-                      <h3 className="text-base font-semibold text-gray-900 mb-4">Deal Progress</h3>
-                      {isMobile ? (
-                        <DealProcessStepper steps={getDealStages(request.status)} />
-                      ) : (
-                        <DealProcessTimeline steps={getDealStages(request.status)} />
-                      )}
-                    </div>
-
-                    {/* Deal Details - Only description */}
-                    <div className="bg-white border border-gray-200 rounded-lg p-6">
-                      <DealDetailsCard
-                        listing={{
-                          category: request.listing?.category,
-                          location: request.listing?.location,
-                          description: request.listing?.description,
-                        }}
-                        createdAt={request.created_at}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Sidebar - 1 column */}
-                  <div className="lg:col-span-1">
-                    {request.user_message && (
-                      <div className="bg-white border border-gray-200 rounded-lg p-5 sticky top-6">
-                        <h3 className="text-sm font-semibold text-gray-900 mb-3">
-                          Your message
-                        </h3>
-                        <p className="text-sm text-gray-600 leading-6 whitespace-pre-wrap">
-                          {request.user_message}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </div>
+                {/* Deal Details */}
+                <DealDetailsCard
+                  listing={{
+                    category: request.listing?.category,
+                    location: request.listing?.location,
+                    description: request.listing?.description,
+                  }}
+                  userMessage={request.user_message}
+                  createdAt={request.created_at}
+                />
               </div>
             </TabsContent>
           ))}
