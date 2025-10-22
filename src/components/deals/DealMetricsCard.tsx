@@ -71,7 +71,7 @@ export function DealMetricsCard({ listing, status, className }: DealMetricsCardP
   ];
 
   return (
-    <div className={cn("relative bg-white rounded-lg p-6 shadow-[0_2px_8px_0_rgba(0,0,0,0.04),0_1px_3px_0_rgba(0,0,0,0.06)] hover:shadow-[0_8px_16px_0_rgba(0,0,0,0.06),0_2px_6px_0_rgba(0,0,0,0.08)] transition-shadow duration-300", className)}>
+    <div className={cn("relative bg-white rounded-lg p-6 shadow-[0_2px_12px_0_rgba(0,0,0,0.05),0_1px_4px_0_rgba(0,0,0,0.08)] hover:shadow-[0_8px_16px_0_rgba(0,0,0,0.06),0_2px_6px_0_rgba(0,0,0,0.08)] transition-shadow duration-300", className)}>
       {/* Off-Market Badge - Stripe/Apple minimalist design */}
       <TooltipProvider>
         <Tooltip delayDuration={200}>
