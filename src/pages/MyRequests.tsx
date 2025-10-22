@@ -7,13 +7,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DealProcessSteps } from "@/components/deals/DealProcessSteps";
 import { DealDetailsCard } from "@/components/deals/DealDetailsCard";
+import { DealMessageEditor } from "@/components/deals/DealMessageEditor";
 import { DealMetricsCard } from "@/components/deals/DealMetricsCard";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 
 const MyRequests = () => {
   const { user } = useAuth();
-  const { useUserConnectionRequests } = useMarketplace();
+  const { useUserConnectionRequests, useUpdateConnectionMessage } = useMarketplace();
   const { data: requests = [], isLoading, error } = useUserConnectionRequests();
+  const updateMessage = useUpdateConnectionMessage();
   const isMobile = useIsMobile();
   const [selectedDeal, setSelectedDeal] = useState<string | null>(null);
 
@@ -185,6 +187,20 @@ const MyRequests = () => {
                   requestStatus={request.status as 'pending' | 'approved' | 'rejected'} 
                 />
 
+                {/* Message Editor */}
+                {request.user_message && (
+                  <DealMessageEditor
+                    requestId={request.id}
+                    initialMessage={request.user_message}
+                    onMessageUpdate={async (newMessage) => {
+                      await updateMessage.mutateAsync({
+                        requestId: request.id,
+                        message: newMessage,
+                      });
+                    }}
+                  />
+                )}
+
                 {/* Deal Details */}
                 <DealDetailsCard
                   listing={{
@@ -192,7 +208,6 @@ const MyRequests = () => {
                     location: request.listing?.location,
                     description: request.listing?.description,
                   }}
-                  userMessage={request.user_message}
                   createdAt={request.created_at}
                 />
               </div>
