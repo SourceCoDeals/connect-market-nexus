@@ -34,7 +34,7 @@ export function DealProcessSteps({ requestStatus, className }: DealProcessStepsP
           {
             id: 'review',
             label: 'Under Review',
-            description: "We're presenting your firm to the business owner",
+            description: "We're reviewing your request against the owner's requirements and expectations",
             status: 'active'
           },
           {
