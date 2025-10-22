@@ -1,4 +1,4 @@
-import { Building2, TrendingUp, Users, DollarSign, MapPin, ExternalLink, Diamond } from "lucide-react";
+import { Building2, TrendingUp, Users, DollarSign, MapPin, ExternalLink, Gem, Info } from "lucide-react";
 import { cn, formatCompactCurrency } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Link } from "react-router-dom";
@@ -76,18 +76,19 @@ export function DealMetricsCard({ listing, status, className }: DealMetricsCardP
       <TooltipProvider>
         <Tooltip delayDuration={200}>
           <TooltipTrigger asChild>
-            <div className="absolute -top-2.5 right-6 z-10">
+            <div className="absolute -top-2.5 left-6 z-10">
               <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-white border border-gray-200 rounded-full shadow-sm hover:shadow-md hover:border-gray-300 transition-all duration-200 cursor-help">
-                <Diamond className="w-2.5 h-2.5 text-gray-700" strokeWidth={2.5} />
+                <Gem className="w-3 h-3 text-gray-700 fill-gray-100" strokeWidth={2} />
                 <span className="text-[11px] font-medium text-gray-700 tracking-wide">
                   Off-Market
                 </span>
+                <Info className="w-3 h-3 text-gray-400" strokeWidth={2} />
               </div>
             </div>
           </TooltipTrigger>
           <TooltipContent 
             side="bottom" 
-            align="end"
+            align="start"
             className="max-w-sm p-4"
           >
             <p className="text-xs leading-relaxed">
