@@ -145,6 +145,27 @@
     --status-pending-foreground: 51 65 85; /* Blue-gray 700 */
     --status-pending-border: 148 163 184; /* Blue-gray 400 */
 
+    /* Professional Process Steps - Stripe-inspired neutral palette */
+    --process-completed: 226 232 240; /* Slate 200 */
+    --process-completed-foreground: 30 41 59; /* Slate 800 */
+    --process-completed-border: 148 163 184; /* Slate 400 */
+    
+    --process-active: 241 245 249; /* Slate 100 */
+    --process-active-foreground: 15 23 42; /* Slate 900 */
+    --process-active-border: 51 65 85; /* Slate 700 */
+    
+    --process-pending: 248 250 252; /* Slate 50 */
+    --process-pending-foreground: 100 116 139; /* Slate 500 */
+    --process-pending-border: 226 232 240; /* Slate 200 */
+    
+    --process-approved: 241 245 249; /* Subtle slate for approved */
+    --process-approved-foreground: 30 41 59; /* Slate 800 */
+    --process-approved-border: 100 116 139; /* Slate 500 */
+    
+    --process-rejected: 248 250 252; /* Very subtle for rejected */
+    --process-rejected-foreground: 71 85 105; /* Slate 600 */
+    --process-rejected-border: 203 213 225; /* Slate 300 */
+
     /* Enhanced Buyer Type Colors - Professional, distinctive */
     --buyer-pe: 221 214 254; /* Purple 200 - Premium purple for PE */
     --buyer-pe-foreground: 88 28 135; /* Purple 800 */

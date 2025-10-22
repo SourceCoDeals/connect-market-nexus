@@ -5,8 +5,7 @@ import { AlertCircle, FileText } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
-import { DealProcessTimeline } from "@/components/deals/DealProcessTimeline";
-import { DealProcessStepper } from "@/components/deals/DealProcessStepper";
+import { DealProcessSteps } from "@/components/deals/DealProcessSteps";
 import { DealDetailsCard } from "@/components/deals/DealDetailsCard";
 import { DealMetricsCard } from "@/components/deals/DealMetricsCard";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
@@ -25,36 +24,6 @@ const MyRequests = () => {
     }
   }, [requests, selectedDeal]);
 
-  const getDealStages = (status: string) => {
-    const stages = [
-      {
-        id: "submitted",
-        label: "Submitted",
-        description: "Your connection request has been received",
-        completed: true,
-        active: false,
-      },
-      {
-        id: "review",
-        label: "Under Review",
-        description: "Our team is reviewing your inquiry",
-        completed: status === "approved" || status === "rejected",
-        active: status === "pending",
-      },
-      {
-        id: "decision",
-        label: status === "approved" ? "Approved" : status === "rejected" ? "Rejected" : "Decision Pending",
-        description: status === "approved" 
-          ? "Your request has been approved" 
-          : status === "rejected" 
-          ? "Your request was not approved at this time" 
-          : "Awaiting final decision",
-        completed: status === "approved" || status === "rejected",
-        active: status === "approved" || status === "rejected",
-      },
-    ];
-    return stages;
-  };
 
   // Smart truncation based on screen size with better algorithm
   const getTruncatedTitle = (title: string, isMobile: boolean = false) => {
@@ -211,14 +180,10 @@ const MyRequests = () => {
                   status={request.status}
                 />
 
-                {/* Process Timeline */}
-                <div className="bg-white border border-gray-200 rounded-lg p-6">
-                  {isMobile ? (
-                    <DealProcessStepper steps={getDealStages(request.status)} />
-                  ) : (
-                    <DealProcessTimeline steps={getDealStages(request.status)} />
-                  )}
-                </div>
+                {/* Process Steps - Stripe-inspired */}
+                <DealProcessSteps 
+                  requestStatus={request.status as 'pending' | 'approved' | 'rejected'} 
+                />
 
                 {/* Deal Details */}
                 <DealDetailsCard
