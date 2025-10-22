@@ -26,21 +26,18 @@ export function DealMetricsCard({ listing, status, className }: DealMetricsCardP
       case "approved":
         return { 
           label: "Approved", 
-          variant: "outline" as const,
-          className: "bg-emerald-50 text-emerald-700 border-emerald-200" 
+          className: "bg-emerald-50/50 text-emerald-700 border-emerald-200/50" 
         };
       case "rejected":
         return { 
-          label: "Rejected",
-          variant: "outline" as const, 
-          className: "bg-red-50 text-red-700 border-red-200" 
+          label: "Rejected", 
+          className: "bg-red-50/50 text-red-700 border-red-200/50" 
         };
       case "pending":
       default:
         return { 
-          label: "Under Review",
-          variant: "outline" as const, 
-          className: "bg-amber-50 text-amber-700 border-amber-200" 
+          label: "Under Review", 
+          className: "bg-amber-50/50 text-amber-700 border-amber-200/50" 
         };
     }
   };
@@ -72,71 +69,65 @@ export function DealMetricsCard({ listing, status, className }: DealMetricsCardP
 
 
   return (
-    <div className={cn(
-      "bg-white border border-gray-200 rounded-xl p-6 shadow-sm transition-all duration-200 hover:shadow-md hover:border-gray-300 hover:-translate-y-0.5",
-      className
-    )}>
-      <div className="flex gap-6 mb-6">
-        {/* Image */}
-        <div className="shrink-0">
-          {listing.image_url ? (
+    <div className={cn("bg-muted/20 border border-border/30 rounded-xl p-6 transition-all duration-200 hover:border-border/50", className)}>
+      <div className="flex flex-col sm:flex-row gap-6">
+        {/* Image Thumbnail */}
+        {listing.image_url && (
+          <div className="shrink-0">
             <img
               src={listing.image_url}
               alt={listing.title}
-              loading="lazy"
-              className="w-32 h-32 object-cover rounded-lg border border-gray-200 shadow-sm bg-gray-100 transition-all duration-200 hover:shadow-md"
+              className="w-full sm:w-32 sm:h-32 h-48 object-cover rounded-lg border border-border/30 transition-transform duration-200 hover:scale-[1.02]"
             />
-          ) : (
-            <div className="w-32 h-32 rounded-lg border border-gray-200 bg-gray-100 flex items-center justify-center shadow-sm">
-              <Building2 className="w-8 h-8 text-gray-400" />
-            </div>
-          )}
-        </div>
+          </div>
+        )}
 
-        {/* Title and Status */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-start justify-between gap-4 mb-2">
-            <h2 className="text-xl font-semibold text-foreground truncate tracking-tight">
-              {listing.title}
-            </h2>
+        {/* Content */}
+        <div className="flex-1 space-y-4">
+          {/* Header with Title and Status */}
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1">
+              <h2 className="text-xl font-semibold text-foreground tracking-tight">
+                {listing.title}
+              </h2>
+              <div className="flex items-center gap-2 mt-1.5 text-sm text-muted-foreground/70">
+                {listing.category && (
+                  <span className="flex items-center gap-1">
+                    <Building2 className="w-3.5 h-3.5" />
+                    {listing.category}
+                  </span>
+                )}
+                {listing.location && listing.category && (
+                  <span className="text-muted-foreground/40">•</span>
+                )}
+                {listing.location && <span>{listing.location}</span>}
+              </div>
+            </div>
+            
+            {/* Status Badge */}
             <Badge 
-              variant={statusConfig.variant}
-              className="shrink-0 inline-flex items-center gap-1.5 h-5 px-2 py-0 text-[11px] font-medium rounded-md transition-all duration-200"
+              variant="outline" 
+              className={cn("text-[11px] font-medium px-2.5 py-0.5 shrink-0 transition-colors", statusConfig.className)}
             >
-              <div className="w-1.5 h-1.5 rounded-full bg-current" />
               {statusConfig.label}
             </Badge>
           </div>
-          
-          {/* Category and Location */}
-          <div className="flex items-center gap-2 text-sm text-gray-600">
-            {listing.category && (
-              <>
-                <span>{listing.category}</span>
-                {listing.location && <span>•</span>}
-              </>
-            )}
-            {listing.location && <span>{listing.location}</span>}
+
+          {/* Metrics Grid */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {metrics.map((metric) => (
+              <div key={metric.label} className="transition-all duration-200 hover:translate-y-[-2px]">
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground/60 uppercase tracking-wide mb-1">
+                  <metric.icon className="w-3 h-3" />
+                  {metric.label}
+                </div>
+                <div className="text-base font-semibold text-foreground">
+                  {metric.value}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
-      </div>
-
-      {/* Metrics Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        {metrics.map((metric) => (
-          <div 
-            key={metric.label} 
-            className="group transition-all duration-200 hover:translate-y-[-1px] cursor-default"
-          >
-            <div className="flex items-center gap-1.5 text-[11px] font-medium text-gray-600 uppercase tracking-wide mb-1.5">
-              <metric.icon className="w-3 h-3" />
-              {metric.label}
-            </div>
-            <div className="text-2xl font-semibold text-foreground tabular-nums tracking-tight">
-              {metric.value || "—"}
-            </div>
-          </div>
-        ))}
       </div>
     </div>
   );

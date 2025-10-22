@@ -34,20 +34,20 @@ const getDescriptionPreview = (description: string, maxLength: number = 200): st
 
 export function DealDetailsCard({ listing, userMessage, createdAt }: DealDetailsCardProps) {
   return (
-    <div className="space-y-5">
+    <div className="space-y-6 transition-all duration-200">
       {/* Timeline */}
-      <div className="flex items-center gap-2 text-sm text-gray-500 transition-colors duration-200 hover:text-gray-700">
+      <div className="flex items-center gap-2 text-[13px] text-muted-foreground/60 transition-colors hover:text-muted-foreground">
         <Calendar className="w-3.5 h-3.5" />
         <span>Submitted {formatDistanceToNow(new Date(createdAt), { addSuffix: true })}</span>
       </div>
 
       {/* Description Preview */}
       {listing.description && (
-        <div className="space-y-3 border-t border-gray-200 pt-5">
-          <h3 className="text-base font-semibold text-foreground tracking-tight">
+        <div className="space-y-2 border-t border-border/50 pt-5">
+          <h3 className="text-[13px] font-semibold text-foreground/90 tracking-tight">
             About this opportunity
           </h3>
-          <p className="text-sm text-gray-700 leading-6 whitespace-pre-line">
+          <p className="text-sm text-muted-foreground/70 leading-relaxed whitespace-pre-line">
             {getDescriptionPreview(listing.description)}
           </p>
         </div>
@@ -55,15 +55,15 @@ export function DealDetailsCard({ listing, userMessage, createdAt }: DealDetails
 
       {/* User Message */}
       {userMessage && (
-        <div className="space-y-3 border-t border-gray-200 pt-5">
+        <div className="space-y-2.5 border-t border-border/50 pt-5 transition-all duration-200">
           <div className="flex items-center gap-2">
-            <MessageSquare className="w-3.5 h-3.5 text-gray-600" aria-hidden="true" />
-            <h3 className="text-base font-semibold text-foreground tracking-tight">
+            <MessageSquare className="w-3.5 h-3.5 text-muted-foreground/60" aria-hidden="true" />
+            <h3 className="text-[13px] font-semibold text-foreground/90 tracking-tight">
               Your message
             </h3>
           </div>
-          <div className="bg-gray-50/50 rounded-lg p-4 border border-gray-200 transition-all duration-200 hover:border-gray-300 hover:bg-gray-50">
-            <p className="text-sm text-gray-700 leading-6 whitespace-pre-wrap">
+          <div className="bg-muted/30 rounded-lg p-4 border border-border/50 transition-all duration-200 hover:border-border/70 hover:bg-muted/40">
+            <p className="text-sm text-foreground/80 leading-relaxed whitespace-pre-wrap">
               {userMessage}
             </p>
           </div>
