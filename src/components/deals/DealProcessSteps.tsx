@@ -58,7 +58,7 @@ export function DealProcessSteps({
           {
             id: 'review',
             label: 'Under Review',
-            description: "Our team is reviewing your buyer profile and presenting your firm to the business owner. They're evaluating your qualifications and investment approach.",
+            description: "Our team is reviewing your buyer profile, investment and operating approach, and preferred transaction structures, and presenting your firm to the business owner. They evaluate your profile and investment approach.",
             status: 'active'
           },
           {
