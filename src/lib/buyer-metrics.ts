@@ -1,6 +1,7 @@
 import { BuyerType, User } from '@/types';
 import { parseCurrency, formatCurrency, formatInvestmentSize, formatRevenueRange } from './currency-utils';
 import { processUrl } from './url-utils';
+import { getRelevantFieldsForBuyerType } from './buyer-type-fields';
 
 /**
  * Format financial values that are entered as raw numbers but represent millions
@@ -517,4 +518,28 @@ export function formatFinancialRange(min?: string | number | null, max?: string 
   }
   
   return 'Not specified';
+}
+
+// Strict profile completion aligned with admin logic
+export function getStrictProfileCompletion(user: User | null): { percentage: number; isComplete: boolean } {
+  if (!user) return { percentage: 0, isComplete: false };
+
+  const relevantFields = getRelevantFieldsForBuyerType(user.buyer_type || 'individual');
+  const optionalFields = ['website', 'linkedin_profile'];
+  const requiredFields = relevantFields.filter(f => !optionalFields.includes(f));
+
+  const isCompleteField = (key: string) => {
+    const value = (user as any)[key];
+    if (key === 'business_categories' || key === 'target_locations') {
+      return Array.isArray(value) && value.length > 0;
+    }
+    return value !== null && value !== undefined && value !== '';
+  };
+
+  const completedRequired = requiredFields.filter(isCompleteField).length;
+  const percentage = requiredFields.length > 0
+    ? Math.round((completedRequired / requiredFields.length) * 100)
+    : 100;
+
+  return { percentage, isComplete: percentage === 100 };
 }

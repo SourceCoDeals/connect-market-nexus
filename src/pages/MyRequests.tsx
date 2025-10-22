@@ -1,9 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useMarketplace } from "@/hooks/use-marketplace";
 import { AlertCircle, FileText } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { getDataCompleteness } from "@/lib/buyer-metrics";
+import { getStrictProfileCompletion } from "@/lib/buyer-metrics";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DealProcessSteps } from "@/components/deals/DealProcessSteps";
@@ -30,14 +30,25 @@ const MyRequests = () => {
         .from('profiles')
         .select('*')
         .eq('id', user.id)
-        .single();
+        .maybeSingle();
       
       if (error) throw error;
       return data;
     },
     enabled: !!user?.id,
-    staleTime: 0, // Always refetch to get latest profile data
+    staleTime: 0,
+    refetchOnWindowFocus: true,
+    refetchOnMount: 'always',
   });
+
+  const profileForCalc = useMemo(() => {
+    const src: any = freshProfile ?? user;
+    if (!src) return null as any;
+    return {
+      ...src,
+      company: src.company ?? src.company_name ?? '',
+    } as any;
+  }, [freshProfile, user]);
 
   // Set first request as default when data loads
   useEffect(() => {
@@ -213,8 +224,8 @@ const MyRequests = () => {
                       message: newMessage,
                     });
                   }}
-                  isProfileComplete={getDataCompleteness((freshProfile as any) || user) >= 90}
-                  profileCompletionPercentage={getDataCompleteness((freshProfile as any) || user)}
+                  isProfileComplete={getStrictProfileCompletion(profileForCalc).isComplete}
+                  profileCompletionPercentage={getStrictProfileCompletion(profileForCalc).percentage}
                 />
 
                 {/* Deal Details */}
