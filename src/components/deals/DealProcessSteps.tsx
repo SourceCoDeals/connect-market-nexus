@@ -231,8 +231,8 @@ export function DealProcessSteps({
                     {step.id === 'review' && (
                       <Tooltip delayDuration={0}>
                         <TooltipTrigger asChild>
-                          <button className="inline-flex items-center justify-center hover:bg-gray-50 rounded-full p-1 transition-colors">
-                            <Info className="w-3.5 h-3.5 text-gray-400 hover:text-gray-600" />
+                          <button className="inline-flex items-center justify-center hover:bg-gray-100 rounded-full p-1 transition-colors">
+                            <Info className="w-4 h-4 text-gray-500 hover:text-gray-700" strokeWidth={2} />
                           </button>
                         </TooltipTrigger>
                         <TooltipContent 
