@@ -37,7 +37,7 @@ const MobileNavItems = ({ isAdmin, isApproved, onNavigateToAdmin }: MobileNavIte
         className="flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md text-muted-foreground hover:text-foreground hover:bg-muted"
       >
         <MessageSquare className="h-4 w-4" />
-        My Requests
+        My Deals
       </Link>
 
       {isAdmin && (

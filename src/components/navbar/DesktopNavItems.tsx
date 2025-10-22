@@ -55,7 +55,7 @@ const DesktopNavItems = ({ isAdmin, isApproved, onNavigateToAdmin }: DesktopNavI
         )}
       >
         <MessageSquare className="h-4 w-4" />
-        My Requests
+        My Deals
       </Link>
 
       {isAdmin && (
