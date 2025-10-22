@@ -157,51 +157,54 @@ const MyRequests = () => {
         onValueChange={setSelectedDeal}
         className="w-full"
       >
-        <div className="border-b border-border/50">
-          <div className="px-4 sm:px-8">
-            {/* Title - Not full width, just padded */}
-            <div className="py-5 border-b border-border/50">
-              <h1 className="text-xl font-semibold tracking-tight">My Deals</h1>
-              <p className="text-sm text-muted-foreground/70 mt-0.5">
-                Track and manage your connection requests
-              </p>
-            </div>
-            {/* Tabs - Full Width */}
-            <ScrollArea className="w-full -mx-4 sm:-mx-8">
-              <div className="px-4 sm:px-8">
-                <TabsList className="inline-flex h-11 items-center justify-start rounded-none border-b-0 bg-transparent p-0 gap-6">
-                  {requests.map((request) => (
-                    <TabsTrigger 
-                      key={request.id} 
-                      value={request.id}
-                      className="group relative rounded-none border-b-2 border-b-transparent bg-transparent px-0 pb-3 pt-0 text-[13px] font-medium text-muted-foreground/70 shadow-none transition-all hover:text-foreground data-[state=active]:border-b-foreground data-[state=active]:text-foreground data-[state=active]:shadow-none whitespace-nowrap"
-                    >
-                      {getTruncatedTitle(
-                        request.listing?.title || "Untitled", 
-                        isMobile
-                      )}
-                    </TabsTrigger>
-                  ))}
-                </TabsList>
-              </div>
-              <ScrollBar orientation="horizontal" className="invisible" />
-            </ScrollArea>
+        {/* Header */}
+        <div className="border-b border-gray-200">
+          <div className="px-4 sm:px-8 py-4">
+            <h1 className="text-2xl font-semibold text-foreground tracking-tight">
+              My Deals
+            </h1>
+            <p className="text-sm text-gray-600 mt-1">
+              Track and manage your business acquisition opportunities
+            </p>
           </div>
         </div>
 
-        {/* Content - Center Focused Layout */}
-        <div className="px-4 sm:px-6 lg:px-8 py-6 sm:py-7 lg:py-8">
+        {/* Tabs Section - Full Width */}
+        <div className="border-b border-gray-200">
+          <ScrollArea className="w-full">
+            <div className="px-4 sm:px-8">
+              <TabsList className="inline-flex h-10 items-center justify-start gap-6 bg-transparent p-0 pb-2.5 pt-0 w-auto">
+                {requests.map((request) => (
+                  <TabsTrigger 
+                    key={request.id} 
+                    value={request.id}
+                    className="group relative rounded-none border-b-2 border-b-transparent bg-transparent px-0 pb-2.5 pt-0 text-[13px] font-medium text-gray-600 shadow-none transition-all duration-200 hover:text-gray-900 hover:bg-gray-50/50 data-[state=active]:border-b-gray-900 data-[state=active]:text-gray-900 data-[state=active]:bg-gray-50/30 whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20 focus-visible:ring-offset-2"
+                  >
+                    {getTruncatedTitle(
+                      request.listing?.title || "Untitled", 
+                      isMobile
+                    )}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            </div>
+            <ScrollBar orientation="horizontal" />
+          </ScrollArea>
+        </div>
+
+        {/* Content */}
+        <div className="px-4 sm:px-8 py-6 bg-gradient-to-b from-gray-50 to-white min-h-screen">
           {requests.map((request) => (
             <TabsContent 
               key={request.id} 
               value={request.id}
-              className="mt-0 focus-visible:outline-none focus-visible:ring-0 animate-fade-in"
+              className="mt-0 animate-in fade-in duration-300"
             >
-              <div className="max-w-5xl mx-auto space-y-8">
-                {/* Metrics Preview Card */}
+              <div className="space-y-6 max-w-5xl">
+                {/* Metrics Card */}
                 <DealMetricsCard
                   listing={{
-                    title: request.listing?.title || "Untitled",
+                    title: request.listing?.title || "Unknown Listing",
                     category: request.listing?.category,
                     location: request.listing?.location,
                     image_url: request.listing?.image_url,
@@ -213,25 +216,32 @@ const MyRequests = () => {
                   status={request.status}
                 />
 
-                {/* Process Visualization */}
-                <div>
+                {/* Process Card */}
+                <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+                  <h3 className="text-base font-semibold mb-4 text-foreground">Deal Progress</h3>
                   {isMobile ? (
-                    <DealProcessStepper steps={getDealStages(request.status)} />
+                    <DealProcessStepper
+                      steps={getDealStages(request.status)}
+                    />
                   ) : (
-                    <DealProcessTimeline steps={getDealStages(request.status)} />
+                    <DealProcessTimeline
+                      steps={getDealStages(request.status)}
+                    />
                   )}
                 </div>
 
-                {/* Deal Details */}
-                <DealDetailsCard
-                  listing={{
-                    category: request.listing?.category,
-                    location: request.listing?.location,
-                    description: request.listing?.description,
-                  }}
-                  userMessage={request.user_message}
-                  createdAt={request.created_at}
-                />
+                {/* Details Card */}
+                <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+                  <DealDetailsCard
+                    listing={{
+                      category: request.listing?.category,
+                      location: request.listing?.location,
+                      description: request.listing?.description,
+                    }}
+                    userMessage={request.user_message}
+                    createdAt={request.created_at}
+                  />
+                </div>
               </div>
             </TabsContent>
           ))}

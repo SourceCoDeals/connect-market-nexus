@@ -20,9 +20,9 @@ export function DealProcessStepper({ steps, className }: DealProcessStepperProps
   return (
     <div className={cn("w-full px-4", className)} role="progressbar" aria-valuenow={completedSteps} aria-valuemax={steps.length}>
       {/* Progress Line */}
-      <div className="relative mb-8">
+      <div className="relative mb-6">
         {/* Background Line */}
-        <div className="absolute top-4 left-0 right-0 h-0.5 bg-border" aria-hidden="true" />
+        <div className="absolute top-4 left-0 right-0 h-0.5 bg-gray-200" aria-hidden="true" />
         {/* Progress Line */}
         <div 
           className="absolute top-4 left-0 h-0.5 bg-primary transition-all duration-500 ease-out"
@@ -41,12 +41,12 @@ export function DealProcessStepper({ steps, className }: DealProcessStepperProps
                     <CheckCircle2 className="h-5 w-5" aria-label="Completed" />
                   </div>
                 ) : step.active ? (
-                  <div className="relative flex h-8 w-8 items-center justify-center rounded-full border-2 border-primary bg-background transition-all duration-300 animate-pulse group-hover:scale-110 shadow-sm">
+                  <div className="relative flex h-8 w-8 items-center justify-center rounded-full border-2 border-primary bg-white transition-all duration-300 animate-pulse group-hover:scale-110 shadow-sm">
                     <span className="text-sm font-semibold text-primary">{index + 1}</span>
                     <div className="absolute inset-0 rounded-full border-2 border-primary animate-ping opacity-20" aria-hidden="true" />
                   </div>
                 ) : (
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-border bg-background text-muted-foreground transition-all duration-300 group-hover:border-muted-foreground">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-gray-200 bg-white text-gray-600 transition-all duration-300 group-hover:border-gray-300">
                     <span className="text-sm font-semibold">{index + 1}</span>
                   </div>
                 )}
@@ -58,7 +58,7 @@ export function DealProcessStepper({ steps, className }: DealProcessStepperProps
                   "text-xs text-center max-w-[80px] transition-colors duration-200",
                   step.completed && "text-foreground font-medium",
                   step.active && "text-foreground font-medium",
-                  !step.completed && !step.active && "text-muted-foreground/60"
+                  !step.completed && !step.active && "text-gray-600"
                 )}
               >
                 {step.label}
