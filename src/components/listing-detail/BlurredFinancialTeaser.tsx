@@ -37,10 +37,10 @@ const BlurredFinancialTeaser = ({
   };
 
   return (
-    <div className="relative bg-gradient-to-br from-slate-50 to-white border border-slate-200/80 overflow-hidden rounded-lg shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
+    <div className="relative bg-white border border-slate-200/80 overflow-hidden rounded-lg shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
       <div className="relative p-8">
         {/* Minimal blurred preview */}
-        <div className="mb-8 space-y-4 blur-[2px] select-none pointer-events-none opacity-40">
+        <div className="mb-8 space-y-4 blur-[2px] select-none pointer-events-none opacity-30">
           <div className="grid grid-cols-3 gap-6">
             <div className="space-y-1.5">
               <div className="h-2 bg-slate-300 rounded w-16"></div>
@@ -64,23 +64,23 @@ const BlurredFinancialTeaser = ({
         </div>
 
         {/* Clean CTA overlay */}
-        <div className="absolute inset-0 flex items-center justify-center bg-white/80 backdrop-blur-sm">
+        <div className="absolute inset-0 flex items-center justify-center bg-white/95">
           <div className="text-center px-6 max-w-md">
-            <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-slate-100 mb-4">
-              <LockIcon className="w-5 h-5 text-slate-600" />
+            <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-slate-100 mb-5">
+              <LockIcon className="w-6 h-6 text-slate-600" />
             </div>
             
-            <h3 className="text-base font-semibold text-slate-900 mb-2">
+            <h3 className="text-lg font-bold text-slate-900 mb-2">
               Unlock Detailed Financial Analysis
             </h3>
-            <p className="text-sm text-slate-600 mb-6 leading-relaxed">
+            <p className="text-[15px] text-slate-600 mb-6 leading-relaxed">
               Request a connection to access comprehensive financial data, historical performance, and detailed business metrics.
             </p>
             
             <Button
               onClick={handleButtonClick}
               disabled={isRequesting || (hasConnection && connectionStatus !== "rejected")}
-              className="bg-sourceco-accent text-white hover:bg-sourceco-accent/90 transition-colors px-6 h-10 text-sm font-medium rounded-md shadow-sm"
+              className="bg-sourceco-accent text-white hover:bg-sourceco-accent/90 transition-colors px-8 h-11 text-sm font-medium rounded-md shadow-sm"
             >
               <LockIcon className="w-4 h-4 mr-2" />
               {isRequesting ? "Sending Request..." : hasConnection && connectionStatus !== "rejected" ? "Request Sent" : "Request Connection"}

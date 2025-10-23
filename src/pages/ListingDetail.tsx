@@ -239,7 +239,7 @@ const ListingDetail = () => {
                   <DocumentIcon className="w-[15px] h-[15px] text-slate-500" />
                   <span className="text-sm font-semibold text-slate-900 tracking-tight">Business Overview</span>
                 </div>
-                <div className="prose prose-slate max-w-none">
+                <div className="prose max-w-none">
                   <EditableDescription
                     listingId={listing.id}
                     initialHtml={listing.description_html}
@@ -336,7 +336,7 @@ const ListingDetail = () => {
             )}
 
             {/* Financial Teaser */}
-            <div className="document-section py-6">
+            <div className="py-8 border-t border-slate-100">
               <BlurredFinancialTeaser 
                 onRequestConnection={handleRequestConnection}
                 isRequesting={isRequesting}
