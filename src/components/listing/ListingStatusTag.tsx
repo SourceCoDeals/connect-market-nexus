@@ -44,8 +44,8 @@ const ListingStatusTag = ({ status, className }: ListingStatusTagProps) => {
     <Badge
       variant="default"
       className={cn(
-        "absolute right-3 bottom-0 translate-y-1/2 z-20 px-2.5 py-1.5 text-[9.5px] font-semibold rounded-lg uppercase tracking-[0.06em]",
-        "flex items-center gap-1.5 backdrop-blur-md ring-1 ring-black/5",
+        "absolute -bottom-3 left-4 z-10 px-3 py-1.5 text-[10px] font-bold rounded-full uppercase tracking-[0.06em]",
+        "inline-flex items-center gap-1.5 shadow-md transition-all duration-200",
         config.bgClass,
         className
       )}

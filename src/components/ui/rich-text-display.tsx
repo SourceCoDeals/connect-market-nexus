@@ -40,12 +40,12 @@ export function RichTextDisplay({ content, className, compact = false }: RichTex
     return (
       <div 
         className={cn(
-          "text-[11px] leading-[1.5] text-slate-600 tracking-[-0.005em]",
+          "text-[13px] leading-[1.6] text-slate-600 tracking-[-0.005em]",
           "[&_p]:m-0 [&_p]:inline",
           "[&_ul]:m-0 [&_ul]:inline [&_li]:m-0 [&_li]:inline [&_li]:before:content-none",
           "[&_ol]:m-0 [&_ol]:inline",
           "[&_strong]:font-semibold [&_em]:italic",
-          "[&_*]:text-[11px] [&_*]:leading-[1.5]",
+          "[&_*]:text-[13px] [&_*]:leading-[1.6]",
           className
         )}
         dangerouslySetInnerHTML={{ __html: sanitizedContent }}

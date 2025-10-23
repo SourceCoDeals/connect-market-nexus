@@ -56,9 +56,10 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
         <Card 
           className={`
             h-full cursor-pointer transition-all duration-300 ease-out
-            border border-border/40 hover:border-border/60
-            bg-card shadow-sm hover:shadow-xl
-            hover:-translate-y-0.5
+            bg-white border border-slate-200/70 rounded-xl
+            shadow-[0_1px_3px_0_rgba(0,0,0,0.08)]
+            hover:border-slate-300 hover:shadow-[0_8px_16px_0_rgba(0,0,0,0.1)]
+            hover:-translate-y-1
             ${viewType === "list" 
               ? "flex flex-row items-stretch" 
               : "flex flex-col"
@@ -76,11 +77,12 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
           </div>
             
             <div className={`flex flex-col ${viewType === "list" ? "w-2/4" : ""} flex-1`}>
-              <CardContent className="p-5 flex-1 flex flex-col gap-4">
+              <CardContent className="p-5 flex-1 flex flex-col gap-3.5">
                 {/* Header Section */}
-                <div className="space-y-2.5">
+                <div className="space-y-2">
                   <ListingCardBadges 
                     location={listing.location}
+                    categories={listing.categories || (listing.category ? [listing.category] : [])}
                   />
                   
                   <ListingCardTitle 
@@ -99,12 +101,12 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
                 />
                 
                 {/* Description Section */}
-                <div className="flex-1 min-h-0">
+                <div className="flex-1 min-h-0 pt-1">
                   <div className="line-clamp-2">
                     {listing.description_html ? (
                       <RichTextDisplay content={listing.description_html} compact={true} />
                     ) : (
-                      <p className="text-[11px] leading-[1.5] text-slate-600 tracking-[-0.005em]">
+                      <p className="text-[13px] leading-[1.6] text-slate-600 tracking-[-0.005em]">
                         {listing.description}
                       </p>
                     )}

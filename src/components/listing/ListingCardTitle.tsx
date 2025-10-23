@@ -25,9 +25,11 @@ const ListingCardTitle = ({
         );
       case "approved":
         return (
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200/60">
-            <CheckCircle className="h-3.5 w-3.5" />
-            <span className="text-[11px] font-medium tracking-wide">CONNECTED</span>
+          <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-emerald-50/50 border border-emerald-200/60">
+            <CheckCircle className="h-3.5 w-3.5 text-emerald-600" />
+            <span className="text-[11px] font-semibold uppercase tracking-[0.05em] text-emerald-700">
+              Access Granted
+            </span>
           </div>
         );
       case "rejected":
@@ -44,7 +46,7 @@ const ListingCardTitle = ({
 
   return (
     <div>
-      <h3 className="text-[15px] font-semibold text-slate-900 tracking-[-0.01em] leading-[1.3] line-clamp-2">
+      <h3 className="text-[16px] font-semibold text-slate-900 tracking-[-0.015em] leading-[1.3] line-clamp-2">
         {title}
       </h3>
       {connectionExists && (

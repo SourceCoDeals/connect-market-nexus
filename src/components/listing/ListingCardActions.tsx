@@ -43,10 +43,10 @@ const ListingCardActions = ({
         case "approved":
           return { 
             icon: CheckCircle2, 
-            text: "Connected", 
+            text: "Access Granted", 
             variant: "connected" as const, 
             disabled: true,
-            className: "bg-emerald-50 text-emerald-700 border border-emerald-200"
+            className: "bg-emerald-50/40 text-emerald-700 border border-emerald-200/40"
           };
         case "rejected":
           return { 
@@ -94,22 +94,18 @@ const ListingCardActions = ({
     <>
       {/* Action Buttons - All connected */}
       <div className="space-y-1.5">
-        {/* Connected State - Show only secondary actions */}
+        {/* Access Granted State - Subtle status with secondary actions */}
         {connectionExists && connectionStatus === "approved" ? (
           <>
-            <Button
-              disabled
-              className="w-full h-10 px-4 text-sm font-medium rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-none"
-              variant="outline"
-            >
-              <CheckCircle2 className="h-4 w-4 mr-2 text-emerald-600" />
-              <span>Connected</span>
-            </Button>
+            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-50/40 border border-emerald-200/40">
+              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+              <span className="text-[12px] font-medium text-emerald-700">Access Granted</span>
+            </div>
             
-            <div className="grid grid-cols-2 gap-1.5">
+            <div className="grid grid-cols-2 gap-1.5 mt-1">
               <Button
-                variant="outline"
-                className="h-8 px-3 text-xs font-medium border-border/60 hover:border-border hover:bg-muted/40 transition-all duration-200"
+                variant="ghost"
+                className="h-9 px-3 text-[12px] font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900 rounded-lg transition-colors"
                 size="sm"
               >
                 <Eye className="h-3.5 w-3.5 mr-1.5" />
@@ -117,15 +113,15 @@ const ListingCardActions = ({
               </Button>
 
               <Button
-                variant="outline"
+                variant="ghost"
                 size="sm"
-                className="h-8 px-3 text-xs font-medium border-border/60 hover:border-border hover:bg-muted/40 transition-all duration-200"
+                className="h-9 px-3 text-[12px] font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900 rounded-lg transition-colors"
                 onClick={handleToggleSave}
                 disabled={isSaving}
               >
                 <Bookmark
                   className={`h-3.5 w-3.5 mr-1.5 transition-colors ${
-                    isSaved ? "fill-foreground text-foreground" : "text-muted-foreground"
+                    isSaved ? "fill-[#D7B65C] text-[#D7B65C]" : "text-slate-500"
                   }`}
                 />
                 <span>{isSaved ? "Saved" : "Save"}</span>
@@ -134,43 +130,43 @@ const ListingCardActions = ({
           </>
         ) : (
           <>
-            {/* Primary CTA - Request Connection */}
+            {/* Primary CTA - Request Access */}
             <Button
-              className={`w-full h-10 px-4 text-[12px] font-semibold rounded-lg relative overflow-hidden transition-all duration-200 
+              className={`w-full h-11 px-4 text-[13px] font-semibold rounded-lg transition-all duration-200 
                 ${connectionDisabled && connectionStatus !== "rejected"
                   ? connectionClassName + " shadow-none"
-                  : "bg-foreground text-background hover:bg-foreground/90 shadow-sm hover:shadow-md"
+                  : "bg-[#D7B65C] hover:bg-[#C9A84F] text-slate-900 shadow-sm hover:shadow-md active:shadow-sm"
                 }`}
               onClick={handleConnectionClick}
               disabled={isRequesting || (connectionDisabled && connectionStatus !== "rejected")}
             >
-              <div className="relative flex items-center justify-center gap-2">
-                <ConnectionIcon className="h-3.5 w-3.5" />
+              <div className="flex items-center justify-center gap-2">
+                <ConnectionIcon className="h-4 w-4" />
                 <span>{isRequesting ? "Sending..." : connectionText}</span>
               </div>
             </Button>
 
             {/* Secondary Actions */}
-            <div className="grid grid-cols-2 gap-1.5">
+            <div className="grid grid-cols-2 gap-1.5 mt-1">
               <Button
-                variant="outline"
-                className="h-9 px-3 text-[11px] font-medium border-slate-200 hover:border-slate-300 hover:bg-slate-50 rounded-lg shadow-sm transition-all duration-200"
+                variant="ghost"
+                className="h-9 px-3 text-[12px] font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900 rounded-lg transition-colors"
                 size="sm"
               >
-                <Eye className="h-3 w-3 mr-1.5" />
+                <Eye className="h-3.5 w-3.5 mr-1.5" />
                 <span>Details</span>
               </Button>
 
               <Button
-                variant="outline"
+                variant="ghost"
                 size="sm"
-                className="h-9 px-3 text-[11px] font-medium border-slate-200 hover:border-slate-300 hover:bg-slate-50 rounded-lg shadow-sm transition-all duration-200"
+                className="h-9 px-3 text-[12px] font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900 rounded-lg transition-colors"
                 onClick={handleToggleSave}
                 disabled={isSaving}
               >
                 <Bookmark
-                  className={`h-3 w-3 mr-1.5 transition-colors ${
-                    isSaved ? "fill-[#D7B65C] text-[#D7B65C]" : "text-slate-400"
+                  className={`h-3.5 w-3.5 mr-1.5 transition-colors ${
+                    isSaved ? "fill-[#D7B65C] text-[#D7B65C]" : "text-slate-500"
                   }`}
                 />
                 <span>{isSaved ? "Saved" : "Save"}</span>
