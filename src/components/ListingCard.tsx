@@ -75,9 +75,9 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
             </div>
             <ListingStatusTag status={listing.status_tag} />
             
-            {/* Approved badge on image - clean pill design */}
+            {/* Approved badge - half in/half out at top of image */}
             {connectionExists && connectionStatus?.status === "approved" && (
-              <div className="absolute top-3 right-3 z-10 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-50 border border-emerald-100 shadow-sm">
+              <div className="absolute -top-3 left-4 z-10 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-50 border border-emerald-100 shadow-sm">
                 <svg className="w-4 h-4 text-emerald-600" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M13.3333 4L6 11.3333L2.66667 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
