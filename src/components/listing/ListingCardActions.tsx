@@ -98,7 +98,7 @@ const ListingCardActions = ({
         {connectionExists && connectionStatus === "approved" ? (
           <>
             <Button
-              className="w-full h-10 px-4 text-[13px] font-semibold rounded-lg bg-slate-900 hover:bg-slate-800 text-white shadow-sm hover:shadow transition-all duration-200"
+              className={`w-full ${viewType === 'list' ? 'h-9' : 'h-10'} px-4 text-[13px] font-semibold rounded-lg bg-slate-900 hover:bg-slate-800 text-white shadow-sm hover:shadow transition-all duration-200`}
             >
               <Eye className="h-3.5 w-3.5 mr-2" />
               <span>View Deal Details</span>
@@ -107,7 +107,7 @@ const ListingCardActions = ({
             <Button
               variant="ghost"
               size="sm"
-              className="w-full h-9 px-3 text-[12px] font-medium text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
+              className={`w-full ${viewType === 'list' ? 'h-8' : 'h-9'} px-3 text-[12px] font-medium text-slate-700 hover:bg-slate-100 rounded-lg transition-colors`}
               onClick={handleToggleSave}
               disabled={isSaving}
             >
@@ -119,7 +119,7 @@ const ListingCardActions = ({
           <>
             {/* Primary CTA - Dark Slate instead of Gold */}
             <Button
-              className={`w-full h-11 px-4 text-[13px] font-semibold rounded-lg transition-all duration-200 
+              className={`w-full ${viewType === 'list' ? 'h-9' : 'h-11'} px-4 text-[13px] font-semibold rounded-lg transition-all duration-200 
                 ${connectionDisabled && connectionStatus !== "rejected"
                   ? connectionClassName + " shadow-none"
                   : "bg-slate-900 hover:bg-slate-800 text-white shadow-sm hover:shadow-md active:shadow-sm"
@@ -137,7 +137,7 @@ const ListingCardActions = ({
             <div className="grid grid-cols-2 gap-1.5 mt-1.5">
               <Button
                 variant="ghost"
-                className="h-9 px-3 text-[12px] font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900 rounded-lg transition-colors"
+                className={`${viewType === 'list' ? 'h-8' : 'h-9'} px-3 text-[12px] font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900 rounded-lg transition-colors`}
                 size="sm"
               >
                 <Eye className="h-3.5 w-3.5 mr-1.5" />
@@ -147,7 +147,7 @@ const ListingCardActions = ({
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-9 px-3 text-[12px] font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900 rounded-lg transition-colors"
+                className={`${viewType === 'list' ? 'h-8' : 'h-9'} px-3 text-[12px] font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900 rounded-lg transition-colors`}
                 onClick={handleToggleSave}
                 disabled={isSaving}
               >

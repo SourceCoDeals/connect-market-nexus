@@ -133,7 +133,7 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
                 </div>
                 
                 {/* Actions Section */}
-                <div className={viewType === "list" ? "mt-auto pt-3" : ""}>
+                <div className={viewType === "list" ? "mt-auto pt-2" : ""}>
                   <ListingCardActions
                     viewType={viewType}
                     connectionExists={connectionExists}

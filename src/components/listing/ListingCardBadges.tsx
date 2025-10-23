@@ -132,19 +132,22 @@ const getCategoryIcon = (category: string) => {
 };
 
 const ListingCardBadges = ({ location, categories = [] }: ListingCardBadgesProps) => {
-  const primaryCategory = categories[0];
+  const categoriesToShow = categories.slice(0, 2);
   
   return (
-    <div className="flex items-center gap-2">
-      {/* Category badge */}
-      {primaryCategory && (
-        <div className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white border border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.06)]">
-          {getCategoryIcon(primaryCategory)}
+    <div className="flex items-center gap-2 flex-wrap">
+      {/* Category badges (up to 2) */}
+      {categoriesToShow.map((cat, idx) => (
+        <div
+          key={`${cat}-${idx}`}
+          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white border border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.06)]"
+        >
+          {getCategoryIcon(cat)}
           <span className="text-[10px] font-medium text-slate-700 tracking-[0.02em]">
-            {primaryCategory}
+            {cat}
           </span>
         </div>
-      )}
+      ))}
       
       {/* Location badge */}
       <div className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white border border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.06)]">
