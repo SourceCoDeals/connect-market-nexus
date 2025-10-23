@@ -37,7 +37,8 @@ const DesktopNavItems = ({ isAdmin, isApproved, onNavigateToAdmin }: DesktopNavI
       label: "My Deals",
       icon: DealsIcon,
       isActive: location.pathname === "/my-requests",
-      badge: unreadCount,
+      // Only add badge property if there are actual unread notifications
+      ...(unreadCount > 0 && { badge: unreadCount }),
     },
   ];
 
@@ -58,8 +59,8 @@ const DesktopNavItems = ({ isAdmin, isApproved, onNavigateToAdmin }: DesktopNavI
           >
             <Icon className="w-[15px] h-[15px]" />
             <span>{item.label}</span>
-            {item.badge !== undefined && item.badge > 0 && (
-              <span className="ml-0.5 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-600 px-1.5 text-[10px] font-bold text-white shadow-sm">
+            {'badge' in item && (
+              <span className="ml-0.5 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-600 px-1.5 text-[10px] font-bold text-white shadow-sm ring-2 ring-white">
                 {item.badge > 99 ? '99+' : item.badge}
               </span>
             )}
