@@ -318,7 +318,7 @@ const Marketplace = () => {
               ) : !isLoading && (
                 <div className={cn(
                   viewType === "grid" 
-                    ? "grid grid-cols-1 md:grid-cols-2 gap-4" 
+                    ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6" 
                     : "flex flex-col gap-3"
                 )}>
                   {listings.map((listing) => (
