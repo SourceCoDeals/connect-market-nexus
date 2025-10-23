@@ -42,7 +42,7 @@ const DesktopNavItems = ({ isAdmin, isApproved, onNavigateToAdmin }: DesktopNavI
   ];
 
   return (
-    <nav className="flex items-center gap-1">
+    <nav className="flex items-center gap-1.5">
       {navItems.map((item) => {
         const Icon = item.icon;
         return (
@@ -50,20 +50,17 @@ const DesktopNavItems = ({ isAdmin, isApproved, onNavigateToAdmin }: DesktopNavI
             key={item.to}
             to={item.to}
             className={cn(
-              "relative inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-[13px] font-medium transition-all duration-200",
+              "relative inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-[13px] font-medium transition-all duration-200",
               item.isActive
-                ? "bg-slate-100 text-slate-900"
-                : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+                ? "bg-slate-900 text-white shadow-sm"
+                : "text-slate-700 hover:text-slate-900 hover:bg-slate-100"
             )}
           >
-            <Icon className={cn(
-              "w-4 h-4 transition-colors",
-              item.isActive ? "text-slate-700" : "text-slate-500"
-            )} />
-            {item.label}
-            {item.badge && item.badge > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-600 text-[9px] font-semibold text-white ring-2 ring-white shadow-sm">
-                {item.badge > 9 ? '9+' : item.badge}
+            <Icon className="w-[15px] h-[15px]" />
+            <span>{item.label}</span>
+            {item.badge !== undefined && item.badge > 0 && (
+              <span className="ml-0.5 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-600 px-1.5 text-[10px] font-bold text-white shadow-sm">
+                {item.badge > 99 ? '99+' : item.badge}
               </span>
             )}
           </Link>
@@ -75,9 +72,9 @@ const DesktopNavItems = ({ isAdmin, isApproved, onNavigateToAdmin }: DesktopNavI
           variant="outline"
           size="sm"
           onClick={onNavigateToAdmin}
-          className="ml-2 h-8 gap-2 border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900 hover:border-slate-300"
+          className="ml-2 h-9 gap-2 rounded-lg border-slate-200 bg-white text-[13px] font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900 hover:border-slate-300 transition-all duration-200"
         >
-          <AdminIcon className="w-4 h-4" />
+          <AdminIcon className="w-[15px] h-[15px]" />
           Admin
         </Button>
       )}
