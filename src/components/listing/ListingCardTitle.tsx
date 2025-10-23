@@ -44,7 +44,7 @@ const ListingCardTitle = ({
 
   return (
     <div className="mb-3">
-      <h3 className="text-lg font-semibold text-foreground line-clamp-2 mb-1">
+      <h3 className="text-[15px] font-semibold text-foreground line-clamp-2 mb-1.5 tracking-[-0.01em] leading-snug">
         {title}
       </h3>
       {getStatusIndicator()}
