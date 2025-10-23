@@ -94,7 +94,7 @@ const ListingCardActions = ({
     <>
       {/* Primary CTA - Request Connection */}
       <Button
-        className={`w-full h-11 px-5 text-sm font-medium rounded-lg relative overflow-hidden transition-all duration-200 
+        className={`w-full h-10 px-4 text-sm font-medium rounded-lg relative overflow-hidden transition-all duration-200 
           ${connectionDisabled && connectionStatus !== "rejected"
             ? connectionClassName + " shadow-none"
             : "bg-foreground text-background hover:bg-foreground/90 shadow-sm hover:shadow-md"
@@ -109,10 +109,10 @@ const ListingCardActions = ({
       </Button>
 
       {/* Secondary Actions */}
-      <div className="grid grid-cols-2 gap-2 mt-3">
+      <div className="grid grid-cols-2 gap-2 mt-2">
         <Button
           variant="outline"
-          className="h-9 px-3 text-xs font-medium border-border/60 hover:border-border hover:bg-muted/40 transition-all duration-200"
+          className="h-8 px-3 text-xs font-medium border-border/60 hover:border-border hover:bg-muted/40 transition-all duration-200"
           size="sm"
         >
           <Eye className="h-3.5 w-3.5 mr-1.5" />
@@ -122,7 +122,7 @@ const ListingCardActions = ({
         <Button
           variant="outline"
           size="sm"
-          className="h-9 px-3 text-xs font-medium border-border/60 hover:border-border hover:bg-muted/40 transition-all duration-200"
+          className="h-8 px-3 text-xs font-medium border-border/60 hover:border-border hover:bg-muted/40 transition-all duration-200"
           onClick={handleToggleSave}
           disabled={isSaving}
         >

@@ -14,16 +14,16 @@ const ListingCardFinancials = ({ revenue, ebitda, description = "", formatCurren
   const ebitdaMargin = revenue > 0 ? ((ebitda / revenue) * 100) : 0;
   
   return (
-    <div className="grid grid-cols-2 gap-6 py-4 border-y border-border/40">
-      <div className="space-y-1.5">
+    <div className="grid grid-cols-2 gap-5 py-3 border-y border-border/40">
+      <div className="space-y-1">
         <p className="text-[10px] font-medium uppercase tracking-[0.8px] text-muted-foreground/60">
           Revenue
         </p>
-        <p className="text-[22px] font-semibold text-foreground tracking-tight">
+        <p className="text-[20px] font-semibold text-foreground tracking-tight">
           {formatCurrency(revenue)}
         </p>
       </div>
-      <div className="space-y-1.5">
+      <div className="space-y-1">
         <div className="flex items-center justify-between">
           <p className="text-[10px] font-medium uppercase tracking-[0.8px] text-muted-foreground/60">
             EBITDA
@@ -35,7 +35,7 @@ const ListingCardFinancials = ({ revenue, ebitda, description = "", formatCurren
             {ebitdaMargin.toFixed(0)}%
           </Badge>
         </div>
-        <p className="text-[22px] font-semibold text-foreground tracking-tight">
+        <p className="text-[20px] font-semibold text-foreground tracking-tight">
           {formatCurrency(ebitda)}
         </p>
       </div>

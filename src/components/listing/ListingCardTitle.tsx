@@ -44,11 +44,11 @@ const ListingCardTitle = ({
 
   return (
     <div>
-      <h3 className="text-[19px] font-semibold text-foreground leading-tight tracking-tight line-clamp-2">
+      <h3 className="text-[18px] font-semibold text-foreground leading-snug tracking-tight line-clamp-2">
         {title}
       </h3>
       {connectionExists && (
-        <div className="mt-2.5">
+        <div className="mt-2">
           {getStatusIndicator()}
         </div>
       )}

@@ -76,9 +76,9 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
           </div>
             
             <div className={`flex flex-col ${viewType === "list" ? "w-2/4" : ""} flex-1`}>
-              <CardContent className="p-6 flex-1 flex flex-col gap-6">
+              <CardContent className="p-5 flex-1 flex flex-col gap-4">
                 {/* Header Section */}
-                <div className="space-y-4">
+                <div className="space-y-2.5">
                   <ListingCardBadges 
                     categories={(listing as any).categories || []} 
                     location={listing.location}
@@ -101,8 +101,8 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
                 />
                 
                 {/* Description Section */}
-                <div className="flex-1 min-h-[60px]">
-                  <div className="text-[13px] leading-relaxed text-muted-foreground/80 line-clamp-3">
+                <div className="flex-1 min-h-[48px]">
+                  <div className="text-[13px] leading-relaxed text-muted-foreground/80 line-clamp-2">
                     {listing.description_html ? (
                       <RichTextDisplay content={listing.description_html} />
                     ) : (
