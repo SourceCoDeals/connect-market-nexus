@@ -1,5 +1,5 @@
 
-import { CheckCircle, Clock, XCircle, AlertCircle } from "lucide-react";
+import { Clock, XCircle, AlertCircle } from "lucide-react";
 
 interface ListingCardTitleProps {
   title: string;
@@ -24,14 +24,8 @@ const ListingCardTitle = ({
           </div>
         );
       case "approved":
-        return (
-          <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50/60 border border-emerald-200/50">
-            <CheckCircle className="h-2.5 w-2.5 text-emerald-600" strokeWidth={2.5} />
-            <span className="text-[10px] font-semibold uppercase tracking-[0.06em] text-emerald-700">
-              Approved
-            </span>
-          </div>
-        );
+        // Approved badge is now on the image, not here
+        return null;
       case "rejected":
         return (
           <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-red-50 text-red-700 border border-red-200/60">

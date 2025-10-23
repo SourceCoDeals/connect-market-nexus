@@ -74,6 +74,16 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
               />
             </div>
             <ListingStatusTag status={listing.status_tag} />
+            
+            {/* Approved badge on image - ultra-minimal */}
+            {connectionExists && connectionStatus?.status === "approved" && (
+              <div className="absolute top-3 right-3 z-10 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white/95 backdrop-blur-sm border border-emerald-200/60 shadow-sm">
+                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                <span className="text-[10px] font-semibold uppercase tracking-[0.06em] text-emerald-700">
+                  Approved
+                </span>
+              </div>
+            )}
           </div>
             
             <div className={`flex flex-col ${viewType === "list" ? "w-2/4" : ""} flex-1`}>
@@ -103,7 +113,7 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
                 />
                 
                 {/* Description Section */}
-                <div className="flex-1 min-h-0 pt-3">
+                <div className="flex-1 min-h-0 pt-1.5">
                   <div className="line-clamp-3">
                     {listing.description_html ? (
                       <RichTextDisplay content={listing.description_html} compact={true} />

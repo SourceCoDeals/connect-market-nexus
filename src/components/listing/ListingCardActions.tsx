@@ -94,7 +94,7 @@ const ListingCardActions = ({
     <>
       {/* Action Buttons */}
       <div className="space-y-1.5">
-        {/* Approved State - Primary "View Deal Details" and Secondary "Save" */}
+        {/* Approved State - Dark "View Deal Details" primary */}
         {connectionExists && connectionStatus === "approved" ? (
           <>
             <Button
@@ -117,12 +117,12 @@ const ListingCardActions = ({
           </>
         ) : (
           <>
-            {/* Primary CTA - Request Access */}
+            {/* Primary CTA - Dark Slate instead of Gold */}
             <Button
               className={`w-full h-11 px-4 text-[13px] font-semibold rounded-lg transition-all duration-200 
                 ${connectionDisabled && connectionStatus !== "rejected"
                   ? connectionClassName + " shadow-none"
-                  : "bg-[#D7B65C] hover:bg-[#C9A84F] text-slate-900 shadow-sm hover:shadow-md active:shadow-sm"
+                  : "bg-slate-900 hover:bg-slate-800 text-white shadow-sm hover:shadow-md active:shadow-sm"
                 }`}
               onClick={handleConnectionClick}
               disabled={isRequesting || (connectionDisabled && connectionStatus !== "rejected")}
