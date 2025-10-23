@@ -64,16 +64,16 @@ const BlurredFinancialTeaser = ({
         </div>
 
         {/* Clean CTA overlay */}
-        <div className="absolute inset-0 flex items-center justify-center bg-white/95">
-          <div className="text-center px-6 max-w-md">
+        <div className="absolute inset-0 flex items-center justify-center bg-white/95 p-8">
+          <div className="text-center w-full max-w-lg mx-auto">
             <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-slate-100 mb-5">
               <LockIcon className="w-6 h-6 text-slate-600" />
             </div>
             
-            <h3 className="text-lg font-bold text-slate-900 mb-2">
+            <h3 className="text-lg font-bold text-slate-900 mb-3">
               Unlock Detailed Financial Analysis
             </h3>
-            <p className="text-[15px] text-slate-600 mb-6 leading-relaxed">
+            <p className="text-[15px] text-slate-600 mb-6 leading-relaxed px-4">
               Request a connection to access comprehensive financial data, historical performance, and detailed business metrics.
             </p>
             
