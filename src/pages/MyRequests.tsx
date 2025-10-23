@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useMarketplace } from "@/hooks/use-marketplace";
-import { AlertCircle, FileText, Briefcase } from "lucide-react";
+import { AlertCircle, FileText } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { getProfileCompletionDetails } from "@/lib/buyer-metrics";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -15,6 +15,28 @@ import { supabase } from "@/integrations/supabase/client";
 import { useUserNotifications, useMarkRequestNotificationsAsRead } from "@/hooks/use-user-notifications";
 import { useSearchParams } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import {
+  TechnologyIcon,
+  HealthcareIcon,
+  ManufacturingIcon,
+  FinanceIcon,
+  RetailIcon,
+  RealEstateIcon,
+  FoodBeverageIcon,
+  ProfessionalServicesIcon,
+  ConstructionIcon,
+  TransportationIcon,
+  EducationIcon,
+  HospitalityIcon,
+  EnergyIcon,
+  MediaIcon,
+  AutomotiveIcon,
+  AgricultureIcon,
+  TelecommunicationsIcon,
+  ConsumerGoodsIcon,
+  BusinessServicesIcon,
+  DefaultCategoryIcon,
+} from "@/components/icons/CategoryIcons";
 
 const MyRequests = () => {
   const { user } = useAuth();
@@ -75,6 +97,43 @@ const MyRequests = () => {
     }
   }, [selectedDeal]);
 
+  // Helper function to get category icon
+  const getCategoryIcon = (category?: string) => {
+    if (!category) return DefaultCategoryIcon;
+    
+    const cat = category.toLowerCase();
+    
+    if (cat.includes('technology') || cat.includes('software')) return TechnologyIcon;
+    if (cat.includes('healthcare') || cat.includes('medical')) return HealthcareIcon;
+    if (cat.includes('manufacturing')) return ManufacturingIcon;
+    if (cat.includes('finance') || cat.includes('insurance')) return FinanceIcon;
+    if (cat.includes('retail') || cat.includes('e-commerce')) return RetailIcon;
+    if (cat.includes('real estate')) return RealEstateIcon;
+    if (cat.includes('food') || cat.includes('beverage')) return FoodBeverageIcon;
+    if (cat.includes('professional services')) return ProfessionalServicesIcon;
+    if (cat.includes('construction')) return ConstructionIcon;
+    if (cat.includes('transportation') || cat.includes('logistics')) return TransportationIcon;
+    if (cat.includes('education')) return EducationIcon;
+    if (cat.includes('hospitality') || cat.includes('tourism')) return HospitalityIcon;
+    if (cat.includes('energy') || cat.includes('utilities')) return EnergyIcon;
+    if (cat.includes('media') || cat.includes('entertainment')) return MediaIcon;
+    if (cat.includes('automotive')) return AutomotiveIcon;
+    if (cat.includes('agriculture')) return AgricultureIcon;
+    if (cat.includes('telecommunications')) return TelecommunicationsIcon;
+    if (cat.includes('consumer goods')) return ConsumerGoodsIcon;
+    if (cat.includes('business services')) return BusinessServicesIcon;
+    
+    return DefaultCategoryIcon;
+  };
+
+  // Helper function to get status color
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'approved': return 'bg-emerald-500';
+      case 'rejected': return 'bg-red-500';
+      default: return 'bg-amber-500';
+    }
+  };
 
   // Smart truncation based on screen size with better algorithm
   const getTruncatedTitle = (title: string, isMobile: boolean = false) => {
@@ -176,38 +235,53 @@ const MyRequests = () => {
         </p>
       </div>
 
-      {/* Tabs - Pill style matching navigation */}
+      {/* Tabs - Professional pill style with category icons and status */}
       <Tabs 
         value={selectedDeal || requests[0]?.id} 
         onValueChange={setSelectedDeal}
         className="w-full"
       >
-        <div className="border-b border-gray-100 bg-white">
-          <div className="px-4 sm:px-8 max-w-7xl mx-auto py-4">
+        <div className="border-b border-slate-100 bg-white">
+          <div className="px-4 sm:px-8 max-w-7xl mx-auto py-3">
             <ScrollArea className="w-full">
               <TabsList className="inline-flex h-auto items-center justify-start bg-transparent p-0 gap-2">
                 {requests.map((request) => {
                   const unreadForRequest = unreadByRequest[request.id] || 0;
                   const isActive = selectedDeal === request.id || (!selectedDeal && request.id === requests[0]?.id);
+                  const CategoryIcon = getCategoryIcon(request.listing?.category);
                   
                   return (
                     <TabsTrigger 
                       key={request.id} 
                       value={request.id}
                       className={cn(
-                        "inline-flex items-center gap-2 px-4 py-2 rounded-lg text-[13px] font-medium transition-all duration-200 shadow-none border-0",
+                        "inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-[13px] font-medium transition-all duration-200 shadow-none border-0 relative",
                         isActive
                           ? "bg-slate-900 text-white"
-                          : "bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-900 border border-slate-200"
+                          : "bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900 border border-slate-200"
                       )}
                     >
-                      <Briefcase className="w-[14px] h-[14px] shrink-0" />
-                      <span className="truncate max-w-[200px]">
+                      {/* Status indicator dot */}
+                      <div className={cn(
+                        "w-1.5 h-1.5 rounded-full shrink-0",
+                        getStatusColor(request.status)
+                      )} />
+                      
+                      {/* Category icon */}
+                      <CategoryIcon className={cn(
+                        "w-[14px] h-[14px] shrink-0",
+                        isActive ? "text-white" : "text-slate-500"
+                      )} />
+                      
+                      {/* Deal title */}
+                      <span className="truncate max-w-[180px]">
                         {getTruncatedTitle(
                           request.listing?.title || "Untitled", 
                           isMobile
                         )}
                       </span>
+                      
+                      {/* Notification badge */}
                       {unreadForRequest > 0 && (
                         <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-600 px-1.5 text-[10px] font-bold text-white shadow-sm ring-2 ring-white">
                           {unreadForRequest > 99 ? '99+' : unreadForRequest}
