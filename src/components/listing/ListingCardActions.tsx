@@ -97,10 +97,14 @@ const ListingCardActions = ({
         {/* Connected State - Show only secondary actions */}
         {connectionExists && connectionStatus === "approved" ? (
           <>
-            <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-emerald-50/50 border border-emerald-200/40">
-              <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-              <span className="text-sm font-medium text-emerald-700">Connected</span>
-            </div>
+            <Button
+              disabled
+              className="w-full h-10 px-4 text-sm font-medium rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-none"
+              variant="outline"
+            >
+              <CheckCircle2 className="h-4 w-4 mr-2 text-emerald-600" />
+              <span>Connected</span>
+            </Button>
             
             <div className="grid grid-cols-2 gap-1.5">
               <Button
