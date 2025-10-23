@@ -184,7 +184,7 @@ const Marketplace = () => {
         <div className="flex flex-col gap-6">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div className="flex items-center gap-3">
-              <h1 className="text-3xl font-bold">Marketplace Listings</h1>
+              <h1 className="text-3xl font-bold">Off-Market, Founder-Led Deals</h1>
               {listingsConnected && (
                 <div className="flex items-center gap-1 text-green-600 text-sm">
                   <Wifi className="h-4 w-4" />
