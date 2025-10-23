@@ -9,26 +9,13 @@ interface ListingCardBadgesProps {
 }
 
 const ListingCardBadges = ({ categories, location, category }: ListingCardBadgesProps) => {
-  // Use categories array or fall back to single category for backward compatibility
-  const displayCategories = categories && categories.length > 0 ? categories : (category ? [category] : []);
-  
   return (
-    <div className="flex flex-wrap gap-2 mb-3">
-      {displayCategories.map((cat, index) => (
-        <Badge 
-          key={index} 
-          variant="subtle" 
-          className="text-[10px] font-medium px-2 py-0.5 rounded-md uppercase tracking-wider text-muted-foreground/70 border-border/40 bg-transparent"
-        >
-          <Building2 className="h-2.5 w-2.5 mr-1 opacity-50" />
-          {cat}
-        </Badge>
-      ))}
+    <div className="flex flex-wrap gap-1.5 mb-3">
       <Badge 
         variant="subtle" 
-        className="text-[10px] font-medium px-2 py-0.5 rounded-md uppercase tracking-wider text-muted-foreground/70 border-border/40 bg-transparent"
+        className="text-[11px] font-medium px-2 py-0.5 rounded-md uppercase tracking-wide text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50"
       >
-        <MapPin className="h-2.5 w-2.5 mr-1 opacity-50" />
+        <MapPin className="h-3 w-3 mr-1" />
         {location}
       </Badge>
     </div>

@@ -63,8 +63,8 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
               : "flex flex-col"
             } h-full`}
           >
-          <div className="relative rounded-t-lg">
-            <div className="overflow-hidden rounded-t-lg">
+          <div className="relative">
+            <div className="overflow-hidden rounded-t-xl">
               <ListingCardImage 
                 imageUrl={listing.image_url} 
                 title={listing.title}
@@ -101,7 +101,7 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
                 
                 {/* Rich description preview */}
                 <div className="flex-1">
-                  <div className="mt-3 text-[13px] leading-[1.6] text-slate-600 dark:text-slate-400 line-clamp-3">
+                  <div className="mt-3 text-[12px] leading-relaxed text-slate-500 dark:text-slate-400 line-clamp-3">
                     {listing.description_html ? (
                       <RichTextDisplay content={listing.description_html} />
                     ) : (

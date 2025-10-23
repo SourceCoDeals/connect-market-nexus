@@ -11,23 +11,23 @@ interface ListingStatusTagProps {
 const STATUS_CONFIG = {
   just_listed: {
     icon: CheckCircle,
-    bgClass: "bg-white/98 text-slate-800 border-l-[3px] border-l-slate-900 border border-slate-200/60 backdrop-blur-sm shadow-sm",
+    bgClass: "bg-slate-900/95 text-white border border-slate-800 backdrop-blur-md shadow-lg",
   },
   reviewing_buyers: {
     icon: Eye,
-    bgClass: "bg-white/98 text-amber-800 border-l-[3px] border-l-amber-500 border border-amber-200/50 backdrop-blur-sm shadow-sm",
+    bgClass: "bg-amber-500/95 text-white border border-amber-600 backdrop-blur-md shadow-lg",
   },
   in_diligence: {
     icon: FileText,
-    bgClass: "bg-white/98 text-blue-800 border-l-[3px] border-l-blue-500 border border-blue-200/50 backdrop-blur-sm shadow-sm",
+    bgClass: "bg-blue-500/95 text-white border border-blue-600 backdrop-blur-md shadow-lg",
   },
   under_loi: {
     icon: PenTool,
-    bgClass: "bg-white/98 text-purple-800 border-l-[3px] border-l-purple-500 border border-purple-200/50 backdrop-blur-sm shadow-sm",
+    bgClass: "bg-purple-500/95 text-white border border-purple-600 backdrop-blur-md shadow-lg",
   },
   accepted_offer: {
     icon: Handshake,
-    bgClass: "bg-white/98 text-emerald-800 border-l-[3px] border-l-emerald-500 border border-emerald-200/50 backdrop-blur-sm shadow-sm",
+    bgClass: "bg-emerald-500/95 text-white border border-emerald-600 backdrop-blur-md shadow-lg",
   },
 } as const;
 
@@ -44,13 +44,13 @@ const ListingStatusTag = ({ status, className }: ListingStatusTagProps) => {
     <Badge
       variant="default"
       className={cn(
-        "absolute top-3 left-3 z-20 px-2 py-1 text-[9px] font-semibold rounded uppercase tracking-[0.06em]",
-        "flex items-center gap-1.5 shadow-sm",
+        "absolute top-4 left-4 z-20 px-3 py-1.5 text-[10px] font-bold rounded-lg uppercase tracking-wider",
+        "flex items-center gap-1.5",
         config.bgClass,
         className
       )}
     >
-      <IconComponent size={10} className="opacity-70" />
+      <IconComponent size={12} className="opacity-90" />
       {label}
     </Badge>
   );
