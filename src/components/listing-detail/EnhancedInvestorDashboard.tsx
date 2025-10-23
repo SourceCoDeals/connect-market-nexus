@@ -66,10 +66,10 @@ export function EnhancedInvestorDashboard({ listing, formatCurrency }: EnhancedI
   return (
     <div className="space-y-8">
       {/* Financial Summary - Clean Minimal Grid */}
-      <div className="space-y-4">
+      <div className="space-y-3">
         <div className="flex items-center gap-2.5">
           <ChartIcon className="w-[15px] h-[15px] text-slate-500" />
-          <span className="text-[15px] font-semibold text-slate-900 tracking-tight">Financial Snapshot</span>
+          <span className="text-[16px] font-semibold text-slate-900 tracking-tight">Financial Snapshot</span>
         </div>
         
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-6">

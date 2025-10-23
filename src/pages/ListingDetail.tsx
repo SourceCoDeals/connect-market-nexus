@@ -225,7 +225,7 @@ const ListingDetail = () => {
             </div>
 
             {/* Financial Summary */}
-            <div className="py-8 border-t border-slate-100">
+            <div className="pt-8">
               <EnhancedInvestorDashboard 
                 listing={listing}
                 formatCurrency={formatCurrency}
