@@ -37,7 +37,7 @@ const BlurredFinancialTeaser = ({
   };
 
   return (
-    <div className="relative bg-white border border-slate-200/80 overflow-hidden rounded-lg shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
+    <div className="relative bg-white border border-slate-200/80 overflow-hidden rounded-lg shadow-[0_1px_3px_rgba(0,0,0,0.06)] min-h-[280px] sm:min-h-[320px]">
       <div className="relative p-8">
         {/* Minimal blurred preview */}
         <div className="mb-8 space-y-4 blur-[2px] select-none pointer-events-none opacity-30">
