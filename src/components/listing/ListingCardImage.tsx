@@ -36,7 +36,7 @@ const ListingCardImage = ({ imageUrl: initialImageUrl, title, viewType }: Listin
 
   return (
     <div className={viewType === "list" ? "w-1/4 min-w-[200px]" : ""}>
-      <AspectRatio ratio={viewType === "list" ? 3/4 : 16/9} className={`bg-muted/30 relative overflow-hidden ${viewType === 'grid' ? 'rounded-t-xl' : 'rounded-lg'}`}>
+      <AspectRatio ratio={viewType === "list" ? 3/4 : 16/9} className="bg-muted/30 relative overflow-hidden rounded-lg">
         {imageError || !imageUrl ? (
           <div className="w-full h-full flex items-center justify-center bg-muted/50">
             <ImageIcon className="h-8 w-8 text-muted-foreground/30" />

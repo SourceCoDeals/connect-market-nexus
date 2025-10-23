@@ -119,7 +119,7 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
                 
                 {/* Description Section */}
                 <div className={`flex-1 min-h-0 ${viewType === "grid" ? "pt-2" : "pt-1.5"}`}>
-                  <div className={viewType === "grid" ? "line-clamp-2" : "line-clamp-3"}>
+                  <div className="line-clamp-3">
                     {listing.description_html ? (
                       <RichTextDisplay content={listing.description_html} compact={true} />
                     ) : (
