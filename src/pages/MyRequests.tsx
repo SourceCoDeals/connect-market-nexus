@@ -61,13 +61,11 @@ const MyRequests = () => {
       const requestIdFromUrl = searchParams.get('request');
       if (requestIdFromUrl && requests.find(r => r.id === requestIdFromUrl)) {
         setSelectedDeal(requestIdFromUrl);
-        // Clear the URL parameter after setting the selected deal
-        setSearchParams({}, { replace: true });
       } else if (!selectedDeal) {
         setSelectedDeal(requests[0].id);
       }
     }
-  }, [requests, selectedDeal, searchParams, setSearchParams]);
+  }, [requests, selectedDeal, searchParams]);
 
   // Mark notifications as read when a deal tab is selected
   useEffect(() => {
