@@ -37,7 +37,7 @@ const BlurredFinancialTeaser = ({
   };
 
   return (
-    <div className="relative bg-white border border-slate-200/80 overflow-hidden rounded-lg shadow-[0_1px_3px_rgba(0,0,0,0.06)] min-h-[280px] sm:min-h-[320px]">
+    <div className="relative bg-white border border-slate-200/80 overflow-hidden rounded-lg shadow-[0_1px_3px_rgba(0,0,0,0.06)] min-h-[360px]">
       <div className="relative p-8">
         {/* Minimal blurred preview */}
         <div className="mb-8 space-y-4 blur-[2px] select-none pointer-events-none opacity-30">
@@ -64,7 +64,7 @@ const BlurredFinancialTeaser = ({
         </div>
 
         {/* Clean CTA overlay */}
-        <div className="absolute inset-0 flex items-center justify-center bg-white/95 py-12 px-8">
+        <div className="absolute inset-0 flex items-start justify-center bg-white pt-16 md:pt-24 px-8">
           <div className="text-center w-full max-w-lg mx-auto">
             <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-slate-100 mb-5">
               <LockIcon className="w-6 h-6 text-slate-600" />
