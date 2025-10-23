@@ -20,7 +20,7 @@ const ListingCardTitle = ({
     switch (connectionStatus) {
       case "pending":
         return (
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-amber-50 text-amber-700 border border-amber-200/60">
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-sourceco-muted text-sourceco-accent border border-sourceco-form">
             <Clock className="h-3.5 w-3.5" />
             <span className="text-[11px] font-medium tracking-wide">PENDING</span>
           </div>

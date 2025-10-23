@@ -43,7 +43,7 @@ const ConnectionButton = ({
           return {
             icon: Clock,
             text: "Connection Request Sent",
-            className: "bg-[#F5F1E8] text-[#8B7355] border-2 border-[#E5DCC8] cursor-default hover:bg-[#F5F1E8]",
+            className: "bg-sourceco-muted text-sourceco-accent border-2 border-sourceco-form cursor-default hover:bg-sourceco-muted",
             disabled: true
           };
         case "approved":
@@ -114,10 +114,7 @@ const ConnectionButton = ({
       <Button
         onClick={handleButtonClick}
         disabled={disabled || isRequesting}
-        className="w-full h-11 text-sm font-medium transition-colors duration-200"
-        style={{ backgroundColor: '#d7b65c', color: 'white' }}
-        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#c4a550'}
-        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#d7b65c'}
+        className={`w-full h-11 text-sm font-medium transition-colors duration-200 ${className}`}
       >
         <div className="flex items-center justify-center gap-2">
           <ButtonIcon className="h-4 w-4" />

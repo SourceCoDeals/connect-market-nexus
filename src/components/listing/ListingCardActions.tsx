@@ -38,7 +38,7 @@ const ListingCardActions = ({
             text: "Request Sent", 
             variant: "pending" as const, 
             disabled: true,
-            className: "bg-[#F5F1E8] text-[#8B7355] border border-[#E5DCC8] hover:bg-[#F5F1E8]"
+            className: "bg-sourceco-muted text-sourceco-accent border border-sourceco-form hover:bg-sourceco-muted"
           };
         case "approved":
           return { 
@@ -111,7 +111,7 @@ const ListingCardActions = ({
               onClick={handleToggleSave}
               disabled={isSaving}
             >
-              <Bookmark className={`h-3 w-3 mr-2 ${isSaved ? "fill-[#C9A961] text-[#C9A961]" : "text-slate-400"}`} />
+              <Bookmark className={`h-3 w-3 mr-2 ${isSaved ? "fill-current text-sourceco-accent" : "text-slate-400"}`} />
               <span>{isSaved ? "Saved" : "Save Deal"}</span>
             </Button>
           </>
@@ -153,7 +153,7 @@ const ListingCardActions = ({
               >
                 <Bookmark
                   className={`h-3.5 w-3.5 mr-1.5 transition-colors ${
-                    isSaved ? "fill-[#C9A961] text-[#C9A961]" : "text-slate-500"
+                    isSaved ? "fill-current text-sourceco-accent" : "text-slate-500"
                   }`}
                 />
                 <span>{isSaved ? "Saved" : "Save"}</span>
