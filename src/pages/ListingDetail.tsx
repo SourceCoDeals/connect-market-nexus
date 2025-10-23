@@ -191,71 +191,62 @@ const ListingDetail = () => {
                 isEditing={isAdmin && editModeEnabled && !userViewEnabled}
               />
               
-              {/* Location, Category & Listed Date */}
-              <div className="flex items-center gap-3 text-sm text-slate-500">
+              {/* Location, Category & Listed Date - Ultra Clean */}
+              <div className="flex items-center gap-3 flex-wrap">
                 <CategoryLocationBadges 
                   category={listing.category}
                   location={listing.location}
-                  variant="inline"
+                  variant="default"
                 />
-                <span className="text-slate-300">•</span>
-                <div className="flex items-center gap-1.5">
-                  <CalendarIcon className="w-[14px] h-[14px] text-slate-400" />
-                  <span>Listed {(() => {
-                    const listedDate = new Date(listing.created_at);
-                    const now = new Date();
-                    const daysDiff = Math.floor((now.getTime() - listedDate.getTime()) / (1000 * 3600 * 24));
-                    
-                    if (daysDiff > 30) {
-                      return "30+ days ago";
-                    }
-                    if (daysDiff === 0) {
-                      return "today";
-                    }
-                    if (daysDiff === 1) {
-                      return "yesterday";
-                    }
-                    if (daysDiff < 7) {
-                      return `${daysDiff} days ago`;
-                    }
-                    return listedDate.toLocaleDateString('en-US', { 
-                      month: 'short', 
-                      day: 'numeric', 
-                      year: 'numeric' 
-                    });
-                  })()}</span>
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white border border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.06)]">
+                  <CalendarIcon className="w-3.5 h-3.5 text-slate-500" />
+                  <span className="text-[10px] font-medium text-slate-700 tracking-[0.02em]">
+                    {(() => {
+                      const listedDate = new Date(listing.created_at);
+                      const now = new Date();
+                      const daysDiff = Math.floor((now.getTime() - listedDate.getTime()) / (1000 * 3600 * 24));
+                      
+                      if (daysDiff === 0) return "Listed today";
+                      if (daysDiff === 1) return "Listed yesterday";
+                      if (daysDiff < 7) return `Listed ${daysDiff}d ago`;
+                      if (daysDiff < 30) return `Listed ${Math.floor(daysDiff / 7)}w ago`;
+                      return "Listed 30+ days ago";
+                    })()}
+                  </span>
                 </div>
                 {isInactive && isAdmin && (
-                  <>
-                    <span className="text-slate-300">•</span>
-                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-red-50 text-red-700 text-xs font-medium border border-red-200">
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-red-50 border border-red-200">
+                    <span className="text-[10px] font-medium text-red-700 tracking-[0.02em]">
                       Inactive
                     </span>
-                  </>
+                  </div>
                 )}
               </div>
             </div>
 
             {/* Financial Summary */}
-            <div className="document-section py-3">
+            <div className="py-8 border-t border-slate-100">
               <EnhancedInvestorDashboard 
                 listing={listing}
                 formatCurrency={formatCurrency}
               />
             </div>
+            
             {/* Business Overview */}
-            <div className="document-section py-6">
-              <div className="space-y-4">
-                <div className="flex items-center gap-2">
-                  <DocumentIcon className="w-4 h-4 text-slate-600" />
-                  <span className="document-label">Business Overview</span>
+            <div className="py-8 border-t border-slate-100">
+              <div className="space-y-5">
+                <div className="flex items-center gap-2.5">
+                  <DocumentIcon className="w-[15px] h-[15px] text-slate-500" />
+                  <span className="text-sm font-semibold text-slate-900 tracking-tight">Business Overview</span>
                 </div>
-                <EditableDescription
-                  listingId={listing.id}
-                  initialHtml={listing.description_html}
-                  initialPlain={listing.description}
-                  isEditing={isAdmin && editModeEnabled && !userViewEnabled}
-                />
+                <div className="prose prose-slate max-w-none">
+                  <EditableDescription
+                    listingId={listing.id}
+                    initialHtml={listing.description_html}
+                    initialPlain={listing.description}
+                    isEditing={isAdmin && editModeEnabled && !userViewEnabled}
+                  />
+                </div>
               </div>
             </div>
 

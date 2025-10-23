@@ -43,7 +43,7 @@ export function EnhancedInvestorDashboard({ listing, formatCurrency }: EnhancedI
   const metrics = [
     {
       icon: RevenueIcon,
-      label: "2024 Revenue",
+      label: "Revenue",
       value: formatCurrency(listing.revenue),
     },
     {
@@ -53,44 +53,38 @@ export function EnhancedInvestorDashboard({ listing, formatCurrency }: EnhancedI
     },
     {
       icon: MarginIcon,
-      label: "EBITDA Margin",
+      label: "Margin",
       value: `${ebitdaMargin.toFixed(1)}%`,
     },
     ...(hasEmployees ? [{
       icon: EmployeesIcon,
-      label: "Employees",
+      label: "Team",
       value: employeesDisplay(),
     }] : []),
   ];
 
   return (
-    <div className="space-y-6">
-      {/* Financial Summary - Card-based Layout with Icons */}
+    <div className="space-y-8">
+      {/* Financial Summary - Clean Minimal Grid */}
       <div className="space-y-5">
-        <div className="flex items-center gap-2">
-          <ChartIcon className="w-4 h-4 text-slate-600" />
-          <span className="document-label">Financial Summary</span>
+        <div className="flex items-center gap-2.5">
+          <ChartIcon className="w-[15px] h-[15px] text-slate-500" />
+          <span className="text-sm font-semibold text-slate-900 tracking-tight">Financial Snapshot</span>
         </div>
-        <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+        
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-6">
           {metrics.map((metric, index) => {
             const Icon = metric.icon;
             return (
-              <div 
-                key={index}
-                className="relative bg-white rounded-lg border border-slate-200/80 p-4 hover:border-slate-300 transition-colors"
-              >
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-slate-100">
-                    <Icon className="w-5 h-5 text-slate-700" />
-                  </div>
-                </div>
-                <div className="space-y-1">
-                  <div className="text-xs font-medium text-slate-500 uppercase tracking-wider">
+              <div key={index} className="space-y-2.5">
+                <div className="flex items-center gap-2">
+                  <Icon className="w-[14px] h-[14px] text-slate-400" />
+                  <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
                     {metric.label}
-                  </div>
-                  <div className="text-2xl font-semibold text-slate-900 tracking-tight">
-                    {metric.value}
-                  </div>
+                  </span>
+                </div>
+                <div className="text-2xl font-semibold text-slate-900 tracking-tight">
+                  {metric.value}
                 </div>
               </div>
             );
