@@ -77,14 +77,16 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
           </div>
             
             <div className={`flex flex-col ${viewType === "list" ? "w-2/4" : ""} flex-1`}>
-              <CardContent className="p-5 flex-1 flex flex-col gap-3.5">
+              <CardContent className="p-6 flex-1 flex flex-col gap-4">
                 {/* Header Section */}
-                <div className="space-y-2">
+                <div className="flex items-center gap-2">
                   <ListingCardBadges 
                     location={listing.location}
                     categories={listing.categories || (listing.category ? [listing.category] : [])}
                   />
-                  
+                </div>
+
+                <div className="space-y-1.5 mb-0.5">
                   <ListingCardTitle 
                     title={listing.title}
                     connectionExists={connectionExists}
@@ -101,12 +103,12 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
                 />
                 
                 {/* Description Section */}
-                <div className="flex-1 min-h-0 pt-1">
-                  <div className="line-clamp-2">
+                <div className="flex-1 min-h-0 pt-3">
+                  <div className="line-clamp-3">
                     {listing.description_html ? (
                       <RichTextDisplay content={listing.description_html} compact={true} />
                     ) : (
-                      <p className="text-[13px] leading-[1.6] text-slate-600 tracking-[-0.005em]">
+                      <p className="text-[14px] leading-[1.65] text-slate-700 tracking-[-0.003em]">
                         {listing.description}
                       </p>
                     )}

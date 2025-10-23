@@ -44,13 +44,13 @@ const ListingStatusTag = ({ status, className }: ListingStatusTagProps) => {
     <Badge
       variant="default"
       className={cn(
-        "absolute -bottom-3 left-4 z-10 px-3 py-1.5 text-[10px] font-bold rounded-full uppercase tracking-[0.06em]",
-        "inline-flex items-center gap-1.5 shadow-md transition-all duration-200",
+        "absolute -bottom-3 left-4 z-10 px-3 py-1.5 text-[11px] font-bold rounded-full uppercase tracking-[0.06em]",
+        "inline-flex items-center gap-1.5 shadow-lg transition-all duration-200",
         config.bgClass,
         className
       )}
     >
-      <IconComponent size={10} strokeWidth={2.5} />
+      <IconComponent size={12} strokeWidth={2.5} />
       {label}
     </Badge>
   );

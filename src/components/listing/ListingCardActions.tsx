@@ -92,41 +92,28 @@ const ListingCardActions = ({
 
   return (
     <>
-      {/* Action Buttons - All connected */}
+      {/* Action Buttons */}
       <div className="space-y-1.5">
-        {/* Access Granted State - Subtle status with secondary actions */}
+        {/* Approved State - Primary "View Deal Details" and Secondary "Save" */}
         {connectionExists && connectionStatus === "approved" ? (
           <>
-            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-50/40 border border-emerald-200/40">
-              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-              <span className="text-[12px] font-medium text-emerald-700">Access Granted</span>
-            </div>
+            <Button
+              className="w-full h-10 px-4 text-[13px] font-semibold rounded-lg bg-slate-900 hover:bg-slate-800 text-white shadow-sm hover:shadow transition-all duration-200"
+            >
+              <Eye className="h-3.5 w-3.5 mr-2" />
+              <span>View Deal Details</span>
+            </Button>
             
-            <div className="grid grid-cols-2 gap-1.5 mt-1">
-              <Button
-                variant="ghost"
-                className="h-9 px-3 text-[12px] font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900 rounded-lg transition-colors"
-                size="sm"
-              >
-                <Eye className="h-3.5 w-3.5 mr-1.5" />
-                <span>Details</span>
-              </Button>
-
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-9 px-3 text-[12px] font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900 rounded-lg transition-colors"
-                onClick={handleToggleSave}
-                disabled={isSaving}
-              >
-                <Bookmark
-                  className={`h-3.5 w-3.5 mr-1.5 transition-colors ${
-                    isSaved ? "fill-[#D7B65C] text-[#D7B65C]" : "text-slate-500"
-                  }`}
-                />
-                <span>{isSaved ? "Saved" : "Save"}</span>
-              </Button>
-            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full h-9 px-3 text-[12px] font-medium text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
+              onClick={handleToggleSave}
+              disabled={isSaving}
+            >
+              <Bookmark className={`h-3 w-3 mr-2 ${isSaved ? "fill-[#D7B65C] text-[#D7B65C]" : "text-slate-400"}`} />
+              <span>{isSaved ? "Saved" : "Save Deal"}</span>
+            </Button>
           </>
         ) : (
           <>
@@ -147,7 +134,7 @@ const ListingCardActions = ({
             </Button>
 
             {/* Secondary Actions */}
-            <div className="grid grid-cols-2 gap-1.5 mt-1">
+            <div className="grid grid-cols-2 gap-1.5 mt-1.5">
               <Button
                 variant="ghost"
                 className="h-9 px-3 text-[12px] font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900 rounded-lg transition-colors"

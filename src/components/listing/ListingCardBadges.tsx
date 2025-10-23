@@ -24,18 +24,18 @@ const ListingCardBadges = ({ location, categories = [] }: ListingCardBadgesProps
     <div className="flex items-center gap-2">
       {/* Category badge */}
       {primaryCategory && CategoryIcon && (
-        <div className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white border border-slate-200/60 shadow-sm">
-          <CategoryIcon className="w-3 h-3 text-slate-500" strokeWidth={2} />
-          <span className="text-[10px] font-medium text-slate-700 tracking-tight">
+        <div className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white border border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.06)]">
+          <CategoryIcon className="w-3.5 h-3.5 text-slate-500" strokeWidth={2} />
+          <span className="text-[10px] font-medium text-slate-700 tracking-[0.02em]">
             {primaryCategory}
           </span>
         </div>
       )}
       
       {/* Location badge */}
-      <div className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white border border-slate-200/60 shadow-sm">
-        <MapPin className="w-3 h-3 text-slate-500" strokeWidth={2} />
-        <span className="text-[10px] font-medium text-slate-700 tracking-tight">
+      <div className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white border border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.06)]">
+        <MapPin className="w-3.5 h-3.5 text-slate-500" strokeWidth={2} />
+        <span className="text-[10px] font-medium text-slate-700 tracking-[0.02em]">
           {location}
         </span>
       </div>
