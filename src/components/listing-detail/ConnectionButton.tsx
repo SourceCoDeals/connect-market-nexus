@@ -43,7 +43,7 @@ const ConnectionButton = ({
           return {
             icon: Clock,
             text: "Connection Request Sent",
-            className: "bg-amber-50 text-amber-700 border-2 border-amber-200 cursor-default hover:bg-amber-50",
+            className: "bg-[#F5F1E8] text-[#8B7355] border-2 border-[#E5DCC8] cursor-default hover:bg-[#F5F1E8]",
             disabled: true
           };
         case "approved":
