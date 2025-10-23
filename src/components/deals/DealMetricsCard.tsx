@@ -46,7 +46,7 @@ export function DealMetricsCard({ listing, status, className }: DealMetricsCardP
       default:
         return { 
           label: "Under Review", 
-          className: "bg-slate-100 text-slate-700 border-slate-200" 
+          className: "bg-[#F5F0E8] text-[#8B6F47] border-[#E5DDD0]" 
         };
     }
   };
