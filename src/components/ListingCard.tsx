@@ -89,7 +89,7 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
           </div>
             
             <div className={`flex flex-col ${viewType === "list" ? "w-2/4" : ""} flex-1`}>
-              <CardContent className={`${viewType === "grid" ? "p-7" : "p-6"} flex-1 flex flex-col ${viewType === "grid" ? "gap-5" : "gap-4"}`}>
+              <CardContent className={`${viewType === "grid" ? "p-8" : "p-6"} flex-1 flex flex-col ${viewType === "grid" ? "gap-6" : "gap-4"}`}>
                 {/* Header Section */}
                 <div className="flex items-center gap-2 flex-wrap">
                   <ListingCardBadges 
@@ -98,7 +98,7 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
                   />
                 </div>
 
-                <div className={viewType === "grid" ? "-mt-1" : "space-y-1.5 mb-0.5"}>
+                <div className={viewType === "grid" ? "-mt-2" : "space-y-1.5 mb-0.5"}>
                   <ListingCardTitle 
                     title={listing.title}
                     connectionExists={connectionExists}
@@ -118,7 +118,7 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
                 />
                 
                 {/* Description Section */}
-                <div className={`flex-1 min-h-0 ${viewType === "grid" ? "pt-2" : "pt-1.5"}`}>
+                <div className={`flex-1 min-h-0 ${viewType === "grid" ? "pt-3" : "pt-1.5"}`}>
                   <div className="line-clamp-3">
                     {listing.description_html ? (
                       <RichTextDisplay content={listing.description_html} compact={true} />
