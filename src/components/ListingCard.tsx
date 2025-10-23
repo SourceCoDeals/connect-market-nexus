@@ -89,7 +89,8 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
           </div>
             
             <div className={`flex flex-col ${viewType === "list" ? "flex-1" : ""}`}>
-              <CardContent className={`${viewType === "grid" ? "p-6" : "p-4"} flex-1 flex flex-col ${viewType === "grid" ? "gap-4" : "gap-2.5"}`}>
+              <CardContent className={`${viewType === "grid" ? "p-6" : "px-4 pt-3.5 pb-3"} flex-1 flex flex-col ${viewType === "grid" ? "gap-4" : "gap-2"}`}>
+
                 {/* Header Section */}
                 <div className="flex items-center gap-1.5 flex-wrap">
                   <ListingCardBadges 
@@ -132,17 +133,19 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
                 </div>
                 
                 {/* Actions Section */}
-                <ListingCardActions
-                  viewType={viewType}
-                  connectionExists={connectionExists}
-                  connectionStatus={connectionStatus?.status || 'none'}
-                  isRequesting={isRequesting}
-                  isSaved={isSaved}
-                  isSaving={isSaving}
-                  handleToggleSave={handleToggleSave}
-                  handleRequestConnection={handleRequestConnection}
-                  listingTitle={listing.title}
-                />
+                <div className={viewType === "list" ? "mt-auto pt-3" : ""}>
+                  <ListingCardActions
+                    viewType={viewType}
+                    connectionExists={connectionExists}
+                    connectionStatus={connectionStatus?.status || 'none'}
+                    isRequesting={isRequesting}
+                    isSaved={isSaved}
+                    isSaving={isSaving}
+                    handleToggleSave={handleToggleSave}
+                    handleRequestConnection={handleRequestConnection}
+                    listingTitle={listing.title}
+                  />
+                </div>
               </CardContent>
             </div>
           </Card>
