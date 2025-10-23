@@ -143,7 +143,8 @@ export function DealMetricsCard({ listing, status, className }: DealMetricsCardP
               <CategoryLocationBadges 
                 category={standardCategory}
                 location={standardLocation}
-                variant="text-only"
+                variant="default"
+                className="mt-0.5"
               />
             </div>
             
