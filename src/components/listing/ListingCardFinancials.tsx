@@ -14,26 +14,31 @@ const ListingCardFinancials = ({ revenue, ebitda, description = "", formatCurren
   const ebitdaMargin = revenue > 0 ? ((ebitda / revenue) * 100) : 0;
   
   return (
-    <div className="space-y-3 mb-3">
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <p className="text-xs text-muted-foreground mb-1">Annual Revenue</p>
-          <p className="font-semibold text-sm">{formatCurrency(revenue)}</p>
-        </div>
-        <div>
-          <div className="flex items-center justify-between mb-1">
-            <p className="text-xs text-muted-foreground">Annual EBITDA</p>
-            <Badge 
-              variant={ebitdaMargin > 20 ? "default" : ebitdaMargin > 10 ? "secondary" : "outline"}
-              className="text-xs px-1.5 py-0.5 h-auto"
-            >
-              {ebitdaMargin.toFixed(1)}%
-            </Badge>
-          </div>
-          <p className="font-semibold text-sm">{formatCurrency(ebitda)}</p>
-        </div>
+    <div className="grid grid-cols-2 gap-6 py-4 border-y border-border/40">
+      <div className="space-y-1.5">
+        <p className="text-[10px] font-medium uppercase tracking-[0.8px] text-muted-foreground/60">
+          Revenue
+        </p>
+        <p className="text-[22px] font-semibold text-foreground tracking-tight">
+          {formatCurrency(revenue)}
+        </p>
       </div>
-      
+      <div className="space-y-1.5">
+        <div className="flex items-center justify-between">
+          <p className="text-[10px] font-medium uppercase tracking-[0.8px] text-muted-foreground/60">
+            EBITDA
+          </p>
+          <Badge 
+            variant={ebitdaMargin > 20 ? "default" : ebitdaMargin > 10 ? "secondary" : "outline"}
+            className="text-[10px] font-semibold px-2 py-0.5 h-auto tracking-wide"
+          >
+            {ebitdaMargin.toFixed(0)}%
+          </Badge>
+        </div>
+        <p className="text-[22px] font-semibold text-foreground tracking-tight">
+          {formatCurrency(ebitda)}
+        </p>
+      </div>
     </div>
   );
 };

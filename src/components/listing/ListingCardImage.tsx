@@ -36,24 +36,19 @@ const ListingCardImage = ({ imageUrl: initialImageUrl, title, viewType }: Listin
 
   return (
     <div className={viewType === "list" ? "w-1/4 min-w-[180px]" : ""}>
-      <AspectRatio ratio={viewType === "list" ? 4/3 : 16/9} className="bg-muted relative">
+      <AspectRatio ratio={viewType === "list" ? 4/3 : 16/9} className="bg-muted/30 relative overflow-hidden">
         {imageError || !imageUrl ? (
-          <div className="w-full h-full flex items-center justify-center bg-gray-100">
-            <ImageIcon className="h-8 w-8 text-gray-400" />
+          <div className="w-full h-full flex items-center justify-center bg-muted/50">
+            <ImageIcon className="h-8 w-8 text-muted-foreground/30" />
           </div>
         ) : (
           <img 
             src={imageUrl} 
             alt={title} 
-            className="object-cover w-full h-full" 
+            className="object-cover w-full h-full transition-transform duration-500 group-hover:scale-105" 
             onError={handleImageError}
           />
         )}
-        <div className="absolute top-2 right-2">
-          <Badge className="bg-primary text-white opacity-0 group-hover:opacity-100 transition-opacity">
-            <ArrowRight className="h-3 w-3" />
-          </Badge>
-        </div>
       </AspectRatio>
     </div>
   );

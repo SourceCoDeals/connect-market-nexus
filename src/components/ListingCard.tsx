@@ -55,15 +55,17 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
       <Link to={`/listing/${listing.id}`} className="block h-full">
         <Card 
           className={`
-            h-full cursor-pointer transition-all duration-200 
-            hover:shadow-lg hover:shadow-black/5 hover:-translate-y-1
+            h-full cursor-pointer transition-all duration-300 ease-out
+            border border-border/40 hover:border-border/60
+            bg-card shadow-sm hover:shadow-xl
+            hover:-translate-y-0.5
             ${viewType === "list" 
               ? "flex flex-row items-stretch" 
               : "flex flex-col"
-            } h-full`}
+            } h-full overflow-hidden`}
           >
-          <div className="relative rounded-t-lg">
-            <div className="overflow-hidden rounded-t-lg">
+          <div className="relative">
+            <div className="overflow-hidden">
               <ListingCardImage 
                 imageUrl={listing.image_url} 
                 title={listing.title}
@@ -74,10 +76,9 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
           </div>
             
             <div className={`flex flex-col ${viewType === "list" ? "w-2/4" : ""} flex-1`}>
-              <CardContent
-                className={`p-4 md:p-6 flex-1 flex flex-col`}
-              >
-                <div>
+              <CardContent className="p-6 flex-1 flex flex-col gap-6">
+                {/* Header Section */}
+                <div className="space-y-4">
                   <ListingCardBadges 
                     categories={(listing as any).categories || []} 
                     location={listing.location}
@@ -89,18 +90,19 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
                     connectionExists={connectionExists}
                     connectionStatus={connectionStatus?.status}
                   />
-                  
-                  <ListingCardFinancials 
-                    revenue={listing.revenue}
-                    ebitda={listing.ebitda}
-                    description={listing.description}
-                    formatCurrency={formatCurrency}
-                  />
                 </div>
                 
-                {/* Rich description preview */}
-                <div className="flex-1">
-                  <div className="mt-3 text-sm text-muted-foreground line-clamp-3">
+                {/* Financials Section */}
+                <ListingCardFinancials 
+                  revenue={listing.revenue}
+                  ebitda={listing.ebitda}
+                  description={listing.description}
+                  formatCurrency={formatCurrency}
+                />
+                
+                {/* Description Section */}
+                <div className="flex-1 min-h-[60px]">
+                  <div className="text-[13px] leading-relaxed text-muted-foreground/80 line-clamp-3">
                     {listing.description_html ? (
                       <RichTextDisplay content={listing.description_html} />
                     ) : (
@@ -109,6 +111,7 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
                   </div>
                 </div>
                 
+                {/* Actions Section */}
                 <ListingCardActions
                   viewType={viewType}
                   connectionExists={connectionExists}
