@@ -131,7 +131,7 @@ const MyRequests = () => {
     switch (status) {
       case 'approved': return 'bg-emerald-500';
       case 'rejected': return 'bg-red-500';
-      default: return 'bg-amber-500';
+      default: return 'bg-[#8B6F47]'; // Warm brown to match "Under Review" badge
     }
   };
 
