@@ -44,7 +44,7 @@ const ListingCardTitle = ({
 
   return (
     <div>
-      <h3 className="text-[18px] font-semibold text-foreground leading-snug tracking-tight line-clamp-2">
+      <h3 className="text-[15px] font-semibold text-slate-900 tracking-[-0.01em] leading-[1.3] line-clamp-2">
         {title}
       </h3>
       {connectionExists && (

@@ -80,9 +80,7 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
                 {/* Header Section */}
                 <div className="space-y-2.5">
                   <ListingCardBadges 
-                    categories={(listing as any).categories || []} 
                     location={listing.location}
-                    category={listing.category}
                   />
                   
                   <ListingCardTitle 
@@ -101,14 +99,16 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
                 />
                 
                 {/* Description Section */}
-                <div className="flex-1 min-h-[36px]">
-                  <p className="text-[12px] leading-[1.45] text-muted-foreground/75 line-clamp-3 tracking-[-0.008em] font-normal">
+                <div className="flex-1 min-h-0">
+                  <div className="line-clamp-2">
                     {listing.description_html ? (
-                      <RichTextDisplay content={listing.description_html} />
+                      <RichTextDisplay content={listing.description_html} compact={true} />
                     ) : (
-                      listing.description
+                      <p className="text-[11px] leading-[1.5] text-slate-600 tracking-[-0.005em]">
+                        {listing.description}
+                      </p>
                     )}
-                  </p>
+                  </div>
                 </div>
                 
                 {/* Actions Section */}

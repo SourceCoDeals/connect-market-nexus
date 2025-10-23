@@ -136,7 +136,7 @@ const ListingCardActions = ({
           <>
             {/* Primary CTA - Request Connection */}
             <Button
-              className={`w-full h-10 px-4 text-sm font-medium rounded-lg relative overflow-hidden transition-all duration-200 
+              className={`w-full h-10 px-4 text-[12px] font-semibold rounded-lg relative overflow-hidden transition-all duration-200 
                 ${connectionDisabled && connectionStatus !== "rejected"
                   ? connectionClassName + " shadow-none"
                   : "bg-foreground text-background hover:bg-foreground/90 shadow-sm hover:shadow-md"
@@ -145,7 +145,7 @@ const ListingCardActions = ({
               disabled={isRequesting || (connectionDisabled && connectionStatus !== "rejected")}
             >
               <div className="relative flex items-center justify-center gap-2">
-                <ConnectionIcon className="h-4 w-4" />
+                <ConnectionIcon className="h-3.5 w-3.5" />
                 <span>{isRequesting ? "Sending..." : connectionText}</span>
               </div>
             </Button>
@@ -154,23 +154,23 @@ const ListingCardActions = ({
             <div className="grid grid-cols-2 gap-1.5">
               <Button
                 variant="outline"
-                className="h-8 px-3 text-xs font-medium border-border/60 hover:border-border hover:bg-muted/40 transition-all duration-200"
+                className="h-9 px-3 text-[11px] font-medium border-slate-200 hover:border-slate-300 hover:bg-slate-50 rounded-lg shadow-sm transition-all duration-200"
                 size="sm"
               >
-                <Eye className="h-3.5 w-3.5 mr-1.5" />
+                <Eye className="h-3 w-3 mr-1.5" />
                 <span>Details</span>
               </Button>
 
               <Button
                 variant="outline"
                 size="sm"
-                className="h-8 px-3 text-xs font-medium border-border/60 hover:border-border hover:bg-muted/40 transition-all duration-200"
+                className="h-9 px-3 text-[11px] font-medium border-slate-200 hover:border-slate-300 hover:bg-slate-50 rounded-lg shadow-sm transition-all duration-200"
                 onClick={handleToggleSave}
                 disabled={isSaving}
               >
                 <Bookmark
-                  className={`h-3.5 w-3.5 mr-1.5 transition-colors ${
-                    isSaved ? "fill-foreground text-foreground" : "text-muted-foreground"
+                  className={`h-3 w-3 mr-1.5 transition-colors ${
+                    isSaved ? "fill-[#D7B65C] text-[#D7B65C]" : "text-slate-400"
                   }`}
                 />
                 <span>{isSaved ? "Saved" : "Save"}</span>

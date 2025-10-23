@@ -15,27 +15,27 @@ const ListingCardFinancials = ({ revenue, ebitda, description = "", formatCurren
   
   return (
     <div className="grid grid-cols-2 gap-5 py-3 border-y border-border/40">
-      <div className="space-y-1">
-        <p className="text-[10px] font-medium uppercase tracking-[0.8px] text-muted-foreground/60">
-          Revenue
+      <div className="space-y-1.5">
+        <p className="text-[9px] font-medium uppercase tracking-[0.06em] text-slate-500">
+          ANNUAL REVENUE
         </p>
-        <p className="text-[20px] font-semibold text-foreground tracking-tight">
+        <p className="text-[18px] font-normal text-slate-900 tracking-[-0.015em]">
           {formatCurrency(revenue)}
         </p>
       </div>
-      <div className="space-y-1">
+      <div className="space-y-1.5">
         <div className="flex items-center justify-between">
-          <p className="text-[10px] font-medium uppercase tracking-[0.8px] text-muted-foreground/60">
+          <p className="text-[9px] font-medium uppercase tracking-[0.06em] text-slate-500">
             EBITDA
           </p>
           <Badge 
             variant={ebitdaMargin > 20 ? "default" : ebitdaMargin > 10 ? "secondary" : "outline"}
-            className="text-[10px] font-semibold px-2 py-0.5 h-auto tracking-wide"
+            className="text-[10px] font-semibold px-2 py-0.5 h-auto bg-emerald-50 text-emerald-700 border-emerald-200"
           >
-            {ebitdaMargin.toFixed(0)}%
+            {ebitdaMargin.toFixed(1)}%
           </Badge>
         </div>
-        <p className="text-[20px] font-semibold text-foreground tracking-tight">
+        <p className="text-[18px] font-normal text-slate-900 tracking-[-0.015em]">
           {formatCurrency(ebitda)}
         </p>
       </div>

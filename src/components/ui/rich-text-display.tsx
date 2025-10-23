@@ -5,9 +5,10 @@ import { cn } from '@/lib/utils';
 interface RichTextDisplayProps {
   content: string;
   className?: string;
+  compact?: boolean;
 }
 
-export function RichTextDisplay({ content, className }: RichTextDisplayProps) {
+export function RichTextDisplay({ content, className, compact = false }: RichTextDisplayProps) {
   // Enhanced sanitization for business content with security-first approach
   const sanitizedContent = DOMPurify.sanitize(content, {
     ALLOWED_TAGS: [
@@ -34,6 +35,25 @@ export function RichTextDisplay({ content, className }: RichTextDisplayProps) {
     SAFE_FOR_TEMPLATES: true,
   });
 
+  // Compact mode for card previews - Stripe-inspired minimalism
+  if (compact) {
+    return (
+      <div 
+        className={cn(
+          "text-[11px] leading-[1.5] text-slate-600 tracking-[-0.005em]",
+          "[&_p]:m-0 [&_p]:inline",
+          "[&_ul]:m-0 [&_ul]:inline [&_li]:m-0 [&_li]:inline [&_li]:before:content-none",
+          "[&_ol]:m-0 [&_ol]:inline",
+          "[&_strong]:font-semibold [&_em]:italic",
+          "[&_*]:text-[11px] [&_*]:leading-[1.5]",
+          className
+        )}
+        dangerouslySetInnerHTML={{ __html: sanitizedContent }}
+      />
+    );
+  }
+
+  // Regular mode for detail pages
   return (
     <div 
       className={cn(
