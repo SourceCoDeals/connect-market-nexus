@@ -79,7 +79,7 @@ export function EnhancedInvestorDashboard({ listing, formatCurrency }: EnhancedI
               <div key={index} className="space-y-2.5">
                 <div className="flex items-center gap-2">
                   <Icon className="w-[14px] h-[14px] text-slate-400" />
-                  <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                  <span className="text-[11.5px] font-semibold text-slate-500 uppercase tracking-wider">
                     {metric.label}
                   </span>
                 </div>
