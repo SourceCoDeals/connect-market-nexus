@@ -15,7 +15,7 @@ const STATUS_CONFIG = {
   },
   reviewing_buyers: {
     icon: Eye,
-    bgClass: "bg-gradient-to-br from-indigo-600 via-indigo-700 to-indigo-800 text-white border border-white/15 shadow-lg shadow-indigo-900/30",
+    bgClass: "bg-gradient-to-br from-slate-600 via-slate-700 to-slate-800 text-white border border-white/15 shadow-lg shadow-slate-900/25",
   },
   in_diligence: {
     icon: FileCheck,
@@ -23,7 +23,7 @@ const STATUS_CONFIG = {
   },
   under_loi: {
     icon: Edit3,
-    bgClass: "bg-gradient-to-br from-violet-600 via-violet-700 to-violet-800 text-white border border-white/15 shadow-lg shadow-violet-900/30",
+    bgClass: "bg-gradient-to-br from-slate-700 via-slate-800 to-slate-900 text-white border border-white/15 shadow-lg shadow-slate-900/30",
   },
   accepted_offer: {
     icon: HandshakeIcon,
