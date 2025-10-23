@@ -35,6 +35,7 @@ import { toStandardCategory, toStandardLocation } from "@/lib/standardization";
 
 interface CategoryLocationBadgesProps {
   category?: string;
+  categories?: string[];
   location?: string;
   variant?: "default" | "text-only" | "inline";
   className?: string;
@@ -137,24 +138,26 @@ const getCategoryIcon = (category: string) => {
 };
 
 export const CategoryLocationBadges = ({ 
-  category, 
+  category,
+  categories,
   location, 
   variant = "default",
   className = "" 
 }: CategoryLocationBadgesProps) => {
-  // Standardize the values
-  const standardCategory = category ? toStandardCategory(category) : undefined;
+  // Use categories array if provided, otherwise fall back to single category
+  const categoryList = categories && categories.length > 0 ? categories : (category ? [category] : []);
+  const standardCategories = categoryList.map(cat => toStandardCategory(cat)).filter(Boolean);
   const standardLocation = location ? toStandardLocation(location) : undefined;
 
   if (variant === "text-only") {
     return (
       <div className={`flex items-center gap-2 ${className}`}>
-        {standardCategory && (
-          <span className="text-xs font-medium text-gray-600 tracking-wide">
-            {standardCategory}
+        {standardCategories.map((cat, index) => (
+          <span key={index} className="text-xs font-medium text-gray-600 tracking-wide">
+            {cat}
           </span>
-        )}
-        {standardCategory && standardLocation && (
+        ))}
+        {standardCategories.length > 0 && standardLocation && (
           <span className="text-gray-300 text-xs">•</span>
         )}
         {standardLocation && (
@@ -169,9 +172,9 @@ export const CategoryLocationBadges = ({
   if (variant === "inline") {
     return (
       <div className={`flex items-center gap-2 text-sm text-slate-500 ${className}`}>
-        {standardCategory && (
-          <span>{standardCategory}</span>
-        )}
+        {standardCategories.map((cat, index) => (
+          <span key={index}>{cat}</span>
+        ))}
         {standardLocation && (
           <>
             <span>•</span>
@@ -188,14 +191,14 @@ export const CategoryLocationBadges = ({
   // Default variant - badge style
   return (
     <div className={`flex items-center gap-2 flex-wrap ${className}`}>
-      {standardCategory && (
-        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white border border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.06)]">
+      {standardCategories.map((standardCategory, index) => (
+        <div key={index} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white border border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.06)]">
           {getCategoryIcon(standardCategory)}
           <span className="text-[11px] font-medium text-slate-700 tracking-[0.02em]">
             {standardCategory}
           </span>
         </div>
-      )}
+      ))}
       
       {standardLocation && (
         <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white border border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.06)]">
