@@ -1,5 +1,4 @@
 
-import { Badge } from "@/components/ui/badge";
 import { extractFinancialMetrics } from "@/lib/financial-parser";
 
 interface ListingCardFinancialsProps {
@@ -7,39 +6,61 @@ interface ListingCardFinancialsProps {
   ebitda: number;
   description?: string;
   formatCurrency: (value: number) => string;
+  fullTimeEmployees?: number;
+  partTimeEmployees?: number;
 }
 
-const ListingCardFinancials = ({ revenue, ebitda, description = "", formatCurrency }: ListingCardFinancialsProps) => {
+const ListingCardFinancials = ({ 
+  revenue, 
+  ebitda, 
+  description = "", 
+  formatCurrency,
+  fullTimeEmployees = 0,
+  partTimeEmployees = 0
+}: ListingCardFinancialsProps) => {
   const extractedMetrics = extractFinancialMetrics(description);
   const ebitdaMargin = revenue > 0 ? ((ebitda / revenue) * 100) : 0;
+  const totalEmployees = fullTimeEmployees + partTimeEmployees;
   
   return (
-    <div className="grid grid-cols-2 gap-8 px-5 py-4 bg-slate-50/30 border-y border-slate-200/40">
+    <div className="grid grid-cols-2 gap-6 px-5 py-4 border-y border-slate-200/30">
+      {/* Revenue */}
       <div className="flex flex-col justify-between">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500 mb-2">
           ANNUAL REVENUE
         </p>
-        <p className="text-[20px] font-normal text-slate-900 tracking-[-0.025em] mt-auto">
+        <p className="text-[20px] font-normal text-slate-900 tracking-[-0.025em]">
           {formatCurrency(revenue)}
         </p>
       </div>
+
+      {/* EBITDA */}
       <div className="flex flex-col justify-between">
-        <div className="flex items-center justify-between">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500">
-            EBITDA
-          </p>
-          <div className="flex items-center gap-1.5">
-            <span className="text-[9px] font-medium uppercase tracking-[0.08em] text-slate-400">Margin</span>
-            <Badge 
-              variant="outline"
-              className="text-[11px] font-semibold px-2.5 py-1 h-auto bg-white text-slate-700 border-slate-300 shadow-sm"
-            >
-              {ebitdaMargin.toFixed(1)}%
-            </Badge>
-          </div>
-        </div>
-        <p className="text-[20px] font-normal text-slate-900 tracking-[-0.025em] mt-auto">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500 mb-2">
+          EBITDA
+        </p>
+        <p className="text-[20px] font-normal text-slate-900 tracking-[-0.025em]">
           {formatCurrency(ebitda)}
+        </p>
+      </div>
+
+      {/* EBITDA Margin */}
+      <div className="flex flex-col justify-between">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500 mb-2">
+          EBITDA MARGIN
+        </p>
+        <p className="text-[20px] font-normal text-slate-900 tracking-[-0.025em]">
+          {ebitdaMargin.toFixed(1)}%
+        </p>
+      </div>
+
+      {/* Employees */}
+      <div className="flex flex-col justify-between">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500 mb-2">
+          EMPLOYEES
+        </p>
+        <p className="text-[20px] font-normal text-slate-900 tracking-[-0.025em]">
+          {totalEmployees > 0 ? totalEmployees : '—'}
         </p>
       </div>
     </div>
