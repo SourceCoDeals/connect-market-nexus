@@ -7,8 +7,8 @@
   :root {
     --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;
-  --card: 0 0% 100%;
-  --card-foreground: 222 47% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
     --primary: 222.2 47.4% 11.2%;
@@ -64,8 +64,8 @@
     --info-foreground: 0 0% 100%;
     --warning: 35 91% 65%;
     --warning-foreground: 24 45% 20%;
-    --border: 0 0% 94%;
-    --input: 0 0% 96%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
     --ring: 222.2 84% 4.9%;
     --radius: 0.5rem;
     
@@ -83,15 +83,15 @@
     --gradient-premium: linear-gradient(135deg, hsl(var(--premium-primary)), hsl(43 48% 46%));
     --gradient-accent: linear-gradient(135deg, hsl(var(--premium-accent)), hsl(43 48% 76%));
     
-    /* Ultra-refined Stripe/Apple-inspired Shadow System - Whisper-light */
-    --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.01);
-    --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.03);
-    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.04), 0 2px 4px -1px rgb(0 0 0 / 0.02);
-    --shadow-lg: 0 4px 12px 0 rgb(0 0 0 / 0.06);
-    --shadow-xl: 0 8px 16px 0 rgb(0 0 0 / 0.08);
-    --shadow-2xl: 0 12px 24px 0 rgb(0 0 0 / 0.1);
-    --shadow-glow: 0 0 16px rgb(215 182 92 / 0.1);
-    --shadow-glow-lg: 0 0 24px rgb(215 182 92 / 0.12);
+    /* Stripe-Inspired Shadow System */
+    --shadow-xs: 0 1px 2px 0 hsl(var(--foreground) / 0.05);
+    --shadow-sm: 0 1px 3px 0 hsl(var(--foreground) / 0.1), 0 1px 2px -1px hsl(var(--foreground) / 0.1);
+    --shadow-md: 0 4px 6px -1px hsl(var(--foreground) / 0.1), 0 2px 4px -2px hsl(var(--foreground) / 0.1);
+    --shadow-lg: 0 10px 15px -3px hsl(var(--foreground) / 0.1), 0 4px 6px -4px hsl(var(--foreground) / 0.1);
+    --shadow-xl: 0 20px 25px -5px hsl(var(--foreground) / 0.1), 0 8px 10px -6px hsl(var(--foreground) / 0.1);
+    --shadow-2xl: 0 25px 50px -12px hsl(var(--foreground) / 0.25);
+    --shadow-glow: 0 0 20px hsl(var(--primary) / 0.1);
+    --shadow-glow-lg: 0 0 40px hsl(var(--primary) / 0.15);
     
     /* Stripe-Inspired Gradient System */
     --gradient-subtle: linear-gradient(180deg, hsl(var(--background)), hsl(var(--muted) / 0.3));
@@ -106,18 +106,14 @@
     --gradient-user: linear-gradient(135deg, hsl(215 16% 47%), hsl(214 32% 91%));
     --gradient-shine: linear-gradient(110deg, transparent 25%, hsl(var(--foreground) / 0.03) 50%, transparent 75%);
     
-    /* Refined Inter-based Typography System - Investment-grade precision */
+    /* Stripe-Inspired Typography Scale for Hero Numbers */
     --font-size-hero-sm: 2rem;      /* 32px */
     --font-size-hero-md: 2.5rem;    /* 40px */
     --font-size-hero-lg: 3rem;      /* 48px */
     --font-size-hero-xl: 3.5rem;    /* 56px */
     --font-size-hero-2xl: 4rem;     /* 64px */
     --line-height-hero: 1.1;
-    --letter-spacing-hero: -0.025em;
-    --letter-spacing-tight: -0.015em;
-    --letter-spacing-normal: -0.005em;
-    --letter-spacing-wide: 0.025em;
-    --letter-spacing-wider: 0.05em;
+    --letter-spacing-hero: -0.02em;
     
     /* Stripe-Inspired Spacing Tokens */
     --spacing-section: 3rem;        /* 48px - Between major sections */
