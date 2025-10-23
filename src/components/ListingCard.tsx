@@ -57,10 +57,10 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
         <Card 
           className={cn(
             "h-full cursor-pointer overflow-hidden",
-            "bg-white border border-slate-200/60 rounded-xl",
-            "shadow-[0_1px_2px_0_rgba(0,0,0,0.05)]",
-            "hover:border-slate-300 hover:shadow-[0_4px_12px_0_rgba(0,0,0,0.08)]",
-            "hover:-translate-y-0.5 transition-all duration-200",
+            "bg-white border border-slate-200/80 rounded-2xl",
+            "shadow-[0_1px_3px_0_rgba(0,0,0,0.04)]",
+            "hover:border-slate-300 hover:shadow-[0_8px_16px_0_rgba(0,0,0,0.06)]",
+            "hover:-translate-y-1 transition-all duration-200",
             viewType === "list" ? "flex flex-row" : "flex flex-col"
           )}
         >
@@ -76,28 +76,24 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
           </div>
             
           <div className={`flex flex-col ${viewType === "list" ? "w-2/4" : ""} flex-1`}>
-            <CardContent className="p-6 flex-1 flex flex-col">
-              <div>
-                <ListingCardBadges 
-                  location={listing.location}
-                />
-                
-                <ListingCardTitle 
-                  title={listing.title}
-                  connectionExists={connectionExists}
-                  connectionStatus={connectionStatus?.status}
-                />
-                
-                <ListingCardFinancials 
-                  revenue={listing.revenue}
-                  ebitda={listing.ebitda}
-                  formatCurrency={formatCurrency}
-                />
-              </div>
+            <CardContent className="p-7 flex-1 flex flex-col">
+              <ListingCardBadges location={listing.location} />
+              
+              <ListingCardTitle 
+                title={listing.title}
+                connectionExists={connectionExists}
+                connectionStatus={connectionStatus?.status}
+              />
+              
+              <ListingCardFinancials 
+                revenue={listing.revenue}
+                ebitda={listing.ebitda}
+                formatCurrency={formatCurrency}
+              />
               
               {/* Rich description preview */}
               <div className="flex-1 min-h-0">
-                <div className="text-[12px] leading-relaxed text-slate-600 line-clamp-3 mt-4">
+                <div className="text-[14px] leading-relaxed text-slate-600 line-clamp-3">
                   {listing.description_html ? (
                     <RichTextDisplay content={listing.description_html} />
                   ) : (

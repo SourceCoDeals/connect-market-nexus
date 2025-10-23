@@ -1,5 +1,5 @@
 
-import { Badge } from "@/components/ui/badge";
+
 
 interface ListingCardFinancialsProps {
   revenue: number;
@@ -11,28 +11,31 @@ const ListingCardFinancials = ({ revenue, ebitda, formatCurrency }: ListingCardF
   const ebitdaMargin = revenue > 0 ? ((ebitda / revenue) * 100) : 0;
   
   return (
-    <div className="mb-5">
-      <div className="grid grid-cols-2 gap-6">
-        <div>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.05em] text-slate-600 mb-2">
-            Annual Revenue
+    <div className="grid grid-cols-2 gap-8 py-6">
+      <div>
+        <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-500 mb-1.5">
+          Annual Revenue
+        </p>
+        <p className="text-[22px] font-medium text-slate-900 tracking-tight">{formatCurrency(revenue)}</p>
+      </div>
+      <div>
+        <div className="flex items-center justify-between mb-1.5">
+          <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-500">
+            Annual EBITDA
           </p>
-          <p className="text-[17px] font-normal text-slate-900 tracking-[-0.01em]">{formatCurrency(revenue)}</p>
+          <span 
+            className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold ${
+              ebitdaMargin > 20 
+                ? "bg-slate-900 text-white" 
+                : ebitdaMargin > 10 
+                ? "bg-slate-100 text-slate-700" 
+                : "bg-slate-50 text-slate-600 border border-slate-200"
+            }`}
+          >
+            {ebitdaMargin.toFixed(1)}%
+          </span>
         </div>
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.05em] text-slate-600">
-              Annual EBITDA
-            </p>
-            <Badge 
-              variant={ebitdaMargin > 20 ? "default" : ebitdaMargin > 10 ? "secondary" : "outline"}
-              className="text-[11px] font-semibold px-2 py-0.5 h-auto"
-            >
-              {ebitdaMargin.toFixed(1)}%
-            </Badge>
-          </div>
-          <p className="text-[17px] font-normal text-slate-900 tracking-[-0.01em]">{formatCurrency(ebitda)}</p>
-        </div>
+        <p className="text-[22px] font-medium text-slate-900 tracking-tight">{formatCurrency(ebitda)}</p>
       </div>
     </div>
   );

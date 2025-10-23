@@ -36,10 +36,10 @@ const ListingCardActions = ({
         case "pending":
           return { 
             icon: Clock, 
-            text: "Request Sent", 
+            text: "Request Pending", 
             variant: "pending" as const, 
             disabled: true,
-            className: "bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100"
+            className: "bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-50"
           };
         case "approved":
           return { 
@@ -47,20 +47,20 @@ const ListingCardActions = ({
             text: "Connected", 
             variant: "connected" as const, 
             disabled: true,
-            className: "bg-emerald-50 text-emerald-700 border border-emerald-200"
+            className: "bg-white text-emerald-700 border border-emerald-200 hover:bg-white"
           };
         case "rejected":
           return { 
-            icon: XCircle, 
-            text: "Request Declined", 
-            variant: "rejected" as const, 
+            icon: Send, 
+            text: "Resubmit Request", 
+            variant: "default" as const, 
             disabled: false,
-            className: "bg-red-50 text-red-700 border border-red-200 hover:bg-red-100"
+            className: ""
           };
         default:
           return { 
             icon: Send, 
-            text: "Request Access", 
+            text: "Request Connection", 
             variant: "default" as const, 
             disabled: false,
             className: ""
@@ -69,7 +69,7 @@ const ListingCardActions = ({
     }
     return { 
       icon: Send, 
-      text: "Request Access", 
+      text: "Request Connection", 
       variant: "default" as const, 
       disabled: false,
       className: ""
@@ -92,49 +92,46 @@ const ListingCardActions = ({
   };
 
   return (
-    <div className="flex flex-col gap-2 w-full mt-auto pt-4">
+    <div className="flex flex-col gap-3 w-full mt-6 pt-6 border-t border-slate-100">
       {/* Primary CTA - Request Connection */}
       <Button
         className={cn(
-          "w-full h-10 px-4 text-[13px] font-semibold rounded-lg",
-          "transition-all duration-200",
+          "w-full h-11 px-4 text-[13px] font-semibold rounded-lg transition-all duration-150",
           connectionDisabled && connectionStatus !== "rejected"
             ? connectionClassName
-            : "bg-[#D7B65C] hover:bg-[#C9A84F] text-slate-900 shadow-sm hover:shadow-md"
+            : "bg-[#D7B65C] hover:bg-[#C9A84F] text-slate-900 border-0 shadow-sm"
         )}
         onClick={handleConnectionClick}
         disabled={isRequesting || (connectionDisabled && connectionStatus !== "rejected")}
       >
-        <div className="flex items-center justify-center gap-2">
-          <ConnectionIcon className="h-3.5 w-3.5" />
-          <span>{isRequesting ? "Sending..." : connectionText}</span>
-        </div>
+        <ConnectionIcon className="h-4 w-4 mr-2" />
+        <span>{isRequesting ? "Sending..." : connectionText}</span>
       </Button>
 
       {/* Secondary Actions */}
-      <div className="flex gap-2">
+      <div className="grid grid-cols-2 gap-2">
         <Button
-          className="flex-1 h-9 px-3 text-[12px] font-medium bg-slate-900 hover:bg-slate-800 text-white rounded-lg shadow-sm transition-colors duration-200"
+          className="h-10 px-4 text-[13px] font-medium bg-slate-900 hover:bg-slate-800 text-white rounded-lg transition-colors duration-150"
           size="sm"
         >
-          <Eye className="h-3 w-3 mr-1.5" />
-          <span>Details</span>
+          <Eye className="h-3.5 w-3.5 mr-2" />
+          Details
         </Button>
 
         <Button
           variant="outline"
           size="sm"
-          className="flex-1 h-9 px-3 text-[12px] font-medium border-slate-200 hover:border-slate-300 hover:bg-slate-50 rounded-lg shadow-sm transition-all duration-200"
+          className="h-10 px-4 text-[13px] font-medium border-slate-200 hover:border-slate-300 hover:bg-slate-50 rounded-lg transition-all duration-150"
           onClick={handleToggleSave}
           disabled={isSaving}
         >
           <Bookmark
             className={cn(
-              "h-3 w-3 mr-1.5",
+              "h-3.5 w-3.5 mr-2",
               isSaved ? "fill-[#D7B65C] text-[#D7B65C]" : "text-slate-400"
             )}
           />
-          <span>{isSaved ? "Saved" : "Save"}</span>
+          {isSaved ? "Saved" : "Save"}
         </Button>
       </div>
 

@@ -18,28 +18,28 @@ const ListingCardTitle = ({
     switch (connectionStatus) {
       case "pending":
         return (
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-amber-50 border border-amber-200">
-            <Clock className="h-3.5 w-3.5 text-amber-700" />
-            <span className="text-[11px] font-semibold uppercase tracking-[0.05em] text-amber-800">
+          <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-50 border border-amber-200/60">
+            <Clock className="h-3 w-3 text-amber-600" />
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-700">
               Pending
             </span>
           </div>
         );
       case "approved":
         return (
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-emerald-50 border border-emerald-200">
-            <CheckCircle className="h-3.5 w-3.5 text-emerald-700" />
-            <span className="text-[11px] font-bold uppercase tracking-[0.05em] text-emerald-800">
+          <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 border border-emerald-200/60">
+            <CheckCircle className="h-3 w-3 text-emerald-600" />
+            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700">
               Connected
             </span>
           </div>
         );
       case "rejected":
         return (
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-red-50 border border-red-200">
-            <XCircle className="h-3.5 w-3.5 text-red-700" />
-            <span className="text-[11px] font-medium text-red-800">
-              Request Declined
+          <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-red-50 border border-red-200/60">
+            <XCircle className="h-3 w-3 text-red-600" />
+            <span className="text-[10px] font-medium uppercase tracking-wider text-red-700">
+              Declined
             </span>
           </div>
         );
@@ -49,8 +49,8 @@ const ListingCardTitle = ({
   };
 
   return (
-    <div className="mb-3">
-      <h3 className="text-[16px] font-semibold text-slate-900 tracking-[-0.01em] leading-tight mb-2">
+    <div className="space-y-2.5">
+      <h3 className="text-[20px] font-semibold text-slate-900 tracking-tight leading-snug">
         {title}
       </h3>
       {getStatusIndicator()}
