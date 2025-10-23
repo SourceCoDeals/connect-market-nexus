@@ -55,7 +55,7 @@ const ListingCardTitle = ({
               </span>
             </div>
             <Link
-              to={requestId ? `/buyer/my-deals?request=${requestId}` : "/buyer/my-deals"}
+              to={requestId ? `/my-requests?request=${requestId}` : "/my-requests"}
               onClick={(e) => e.stopPropagation()}
               className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-all duration-200 group"
             >
