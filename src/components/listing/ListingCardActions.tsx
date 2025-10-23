@@ -94,48 +94,86 @@ const ListingCardActions = ({
     <>
       {/* Action Buttons - All connected */}
       <div className="space-y-1.5">
-        {/* Primary CTA - Request Connection */}
-        <Button
-          className={`w-full h-10 px-4 text-sm font-medium rounded-lg relative overflow-hidden transition-all duration-200 
-            ${connectionDisabled && connectionStatus !== "rejected"
-              ? connectionClassName + " shadow-none"
-              : "bg-foreground text-background hover:bg-foreground/90 shadow-sm hover:shadow-md"
-            }`}
-          onClick={handleConnectionClick}
-          disabled={isRequesting || (connectionDisabled && connectionStatus !== "rejected")}
-        >
-          <div className="relative flex items-center justify-center gap-2">
-            <ConnectionIcon className="h-4 w-4" />
-            <span>{isRequesting ? "Sending..." : connectionText}</span>
-          </div>
-        </Button>
+        {/* Connected State - Show only secondary actions */}
+        {connectionExists && connectionStatus === "approved" ? (
+          <>
+            <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-emerald-50/50 border border-emerald-200/40">
+              <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+              <span className="text-sm font-medium text-emerald-700">Connected</span>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-1.5">
+              <Button
+                variant="outline"
+                className="h-8 px-3 text-xs font-medium border-border/60 hover:border-border hover:bg-muted/40 transition-all duration-200"
+                size="sm"
+              >
+                <Eye className="h-3.5 w-3.5 mr-1.5" />
+                <span>Details</span>
+              </Button>
 
-        {/* Secondary Actions */}
-        <div className="grid grid-cols-2 gap-1.5">
-          <Button
-            variant="outline"
-            className="h-8 px-3 text-xs font-medium border-border/60 hover:border-border hover:bg-muted/40 transition-all duration-200"
-            size="sm"
-          >
-            <Eye className="h-3.5 w-3.5 mr-1.5" />
-            <span>Details</span>
-          </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 px-3 text-xs font-medium border-border/60 hover:border-border hover:bg-muted/40 transition-all duration-200"
+                onClick={handleToggleSave}
+                disabled={isSaving}
+              >
+                <Bookmark
+                  className={`h-3.5 w-3.5 mr-1.5 transition-colors ${
+                    isSaved ? "fill-foreground text-foreground" : "text-muted-foreground"
+                  }`}
+                />
+                <span>{isSaved ? "Saved" : "Save"}</span>
+              </Button>
+            </div>
+          </>
+        ) : (
+          <>
+            {/* Primary CTA - Request Connection */}
+            <Button
+              className={`w-full h-10 px-4 text-sm font-medium rounded-lg relative overflow-hidden transition-all duration-200 
+                ${connectionDisabled && connectionStatus !== "rejected"
+                  ? connectionClassName + " shadow-none"
+                  : "bg-foreground text-background hover:bg-foreground/90 shadow-sm hover:shadow-md"
+                }`}
+              onClick={handleConnectionClick}
+              disabled={isRequesting || (connectionDisabled && connectionStatus !== "rejected")}
+            >
+              <div className="relative flex items-center justify-center gap-2">
+                <ConnectionIcon className="h-4 w-4" />
+                <span>{isRequesting ? "Sending..." : connectionText}</span>
+              </div>
+            </Button>
 
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 px-3 text-xs font-medium border-border/60 hover:border-border hover:bg-muted/40 transition-all duration-200"
-            onClick={handleToggleSave}
-            disabled={isSaving}
-          >
-            <Bookmark
-              className={`h-3.5 w-3.5 mr-1.5 transition-colors ${
-                isSaved ? "fill-foreground text-foreground" : "text-muted-foreground"
-              }`}
-            />
-            <span>{isSaved ? "Saved" : "Save"}</span>
-          </Button>
-        </div>
+            {/* Secondary Actions */}
+            <div className="grid grid-cols-2 gap-1.5">
+              <Button
+                variant="outline"
+                className="h-8 px-3 text-xs font-medium border-border/60 hover:border-border hover:bg-muted/40 transition-all duration-200"
+                size="sm"
+              >
+                <Eye className="h-3.5 w-3.5 mr-1.5" />
+                <span>Details</span>
+              </Button>
+
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 px-3 text-xs font-medium border-border/60 hover:border-border hover:bg-muted/40 transition-all duration-200"
+                onClick={handleToggleSave}
+                disabled={isSaving}
+              >
+                <Bookmark
+                  className={`h-3.5 w-3.5 mr-1.5 transition-colors ${
+                    isSaved ? "fill-foreground text-foreground" : "text-muted-foreground"
+                  }`}
+                />
+                <span>{isSaved ? "Saved" : "Save"}</span>
+              </Button>
+            </div>
+          </>
+        )}
       </div>
 
       <ConnectionRequestDialog
