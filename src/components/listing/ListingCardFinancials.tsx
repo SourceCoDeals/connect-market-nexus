@@ -1,47 +1,39 @@
 
 import { Badge } from "@/components/ui/badge";
-import { extractFinancialMetrics } from "@/lib/financial-parser";
 
 interface ListingCardFinancialsProps {
   revenue: number;
   ebitda: number;
-  description?: string;
   formatCurrency: (value: number) => string;
 }
 
-const ListingCardFinancials = ({ revenue, ebitda, description = "", formatCurrency }: ListingCardFinancialsProps) => {
-  const extractedMetrics = extractFinancialMetrics(description);
+const ListingCardFinancials = ({ revenue, ebitda, formatCurrency }: ListingCardFinancialsProps) => {
   const ebitdaMargin = revenue > 0 ? ((ebitda / revenue) * 100) : 0;
   
   return (
-    <div className="space-y-3 mb-3">
-      <div className="grid grid-cols-2 gap-3">
+    <div className="mb-5">
+      <div className="grid grid-cols-2 gap-6">
         <div>
-          <div className="flex items-center justify-between mb-1">
-            <p className="text-xs text-muted-foreground">Annual Revenue</p>
-            {extractedMetrics.revenueModel && (
-              <Badge variant="outline" className="text-xs px-1.5 py-0.5 h-auto">
-                {extractedMetrics.revenueModel.includes('Recurring') ? 'Recurring' : 
-                 extractedMetrics.revenueModel.includes('Project') ? 'Project' : 'Contract'}
-              </Badge>
-            )}
-          </div>
-          <p className="font-semibold text-sm">{formatCurrency(revenue)}</p>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.05em] text-slate-600 mb-2">
+            Annual Revenue
+          </p>
+          <p className="text-[17px] font-normal text-slate-900 tracking-[-0.01em]">{formatCurrency(revenue)}</p>
         </div>
         <div>
-          <div className="flex items-center justify-between mb-1">
-            <p className="text-xs text-muted-foreground">Annual EBITDA</p>
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.05em] text-slate-600">
+              Annual EBITDA
+            </p>
             <Badge 
               variant={ebitdaMargin > 20 ? "default" : ebitdaMargin > 10 ? "secondary" : "outline"}
-              className="text-xs px-1.5 py-0.5 h-auto"
+              className="text-[11px] font-semibold px-2 py-0.5 h-auto"
             >
               {ebitdaMargin.toFixed(1)}%
             </Badge>
           </div>
-          <p className="font-semibold text-sm">{formatCurrency(ebitda)}</p>
+          <p className="text-[17px] font-normal text-slate-900 tracking-[-0.01em]">{formatCurrency(ebitda)}</p>
         </div>
       </div>
-      
     </div>
   );
 };
