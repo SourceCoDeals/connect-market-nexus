@@ -13,22 +13,22 @@ const ListingCardBadges = ({ categories, location, category }: ListingCardBadges
   const displayCategories = categories && categories.length > 0 ? categories : (category ? [category] : []);
   
   return (
-    <div className="flex flex-wrap gap-1.5 mb-3">
+    <div className="flex flex-wrap gap-2 mb-3">
       {displayCategories.map((cat, index) => (
         <Badge 
           key={index} 
-          variant="outline" 
-          className="bg-muted/40 border-border/50 text-muted-foreground text-[11px] font-medium px-2 py-0.5 rounded-md tracking-wide"
+          variant="subtle" 
+          className="text-[10px] font-medium px-2 py-0.5 rounded-md uppercase tracking-wider text-muted-foreground/70 border-border/40 bg-transparent"
         >
-          <Building2 className="h-3 w-3 mr-1 opacity-60" />
+          <Building2 className="h-2.5 w-2.5 mr-1 opacity-50" />
           {cat}
         </Badge>
       ))}
       <Badge 
-        variant="secondary" 
-        className="bg-primary/8 text-primary/90 border border-primary/15 text-[11px] font-medium px-2 py-0.5 rounded-md tracking-wide"
+        variant="subtle" 
+        className="text-[10px] font-medium px-2 py-0.5 rounded-md uppercase tracking-wider text-muted-foreground/70 border-border/40 bg-transparent"
       >
-        <MapPin className="h-3 w-3 mr-1 opacity-70" />
+        <MapPin className="h-2.5 w-2.5 mr-1 opacity-50" />
         {location}
       </Badge>
     </div>

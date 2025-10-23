@@ -14,31 +14,31 @@ const ListingCardFinancials = ({ revenue, ebitda, description = "", formatCurren
   const ebitdaMargin = revenue > 0 ? ((ebitda / revenue) * 100) : 0;
   
   return (
-    <div className="space-y-3 mb-4">
-      <div className="grid grid-cols-2 gap-4">
+    <div className="space-y-4 mb-5">
+      <div className="grid grid-cols-2 gap-5">
         <div>
-          <div className="flex items-center justify-between mb-1.5">
-            <p className="text-[11px] font-medium text-muted-foreground/80 uppercase tracking-wider">Revenue</p>
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-[10px] font-medium text-muted-foreground/60 uppercase tracking-[0.05em]">Revenue</p>
             {extractedMetrics.revenueModel && (
-              <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-auto font-medium border-border/50 bg-muted/30">
+              <Badge variant="subtle" className="text-[9px] px-1.5 py-0 h-auto font-medium border-border/30 bg-transparent uppercase tracking-wider">
                 {extractedMetrics.revenueModel.includes('Recurring') ? 'Recurring' : 
                  extractedMetrics.revenueModel.includes('Project') ? 'Project' : 'Contract'}
               </Badge>
             )}
           </div>
-          <p className="font-semibold text-[15px] text-foreground tracking-tight">{formatCurrency(revenue)}</p>
+          <p className="font-normal text-[18px] text-slate-900 dark:text-slate-100 tracking-[-0.01em]">{formatCurrency(revenue)}</p>
         </div>
         <div>
-          <div className="flex items-center justify-between mb-1.5">
-            <p className="text-[11px] font-medium text-muted-foreground/80 uppercase tracking-wider">EBITDA</p>
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-[10px] font-medium text-muted-foreground/60 uppercase tracking-[0.05em]">EBITDA</p>
             <Badge 
-              variant={ebitdaMargin > 20 ? "default" : ebitdaMargin > 10 ? "secondary" : "outline"}
-              className="text-[10px] px-1.5 py-0 h-auto font-semibold"
+              variant="subtle"
+              className="text-[9px] px-1.5 py-0 h-auto font-medium border-border/30 bg-transparent uppercase tracking-wider"
             >
               {ebitdaMargin.toFixed(1)}%
             </Badge>
           </div>
-          <p className="font-semibold text-[15px] text-foreground tracking-tight">{formatCurrency(ebitda)}</p>
+          <p className="font-normal text-[18px] text-slate-900 dark:text-slate-100 tracking-[-0.01em]">{formatCurrency(ebitda)}</p>
         </div>
       </div>
       
