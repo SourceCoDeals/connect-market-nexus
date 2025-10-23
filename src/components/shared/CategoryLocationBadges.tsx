@@ -43,7 +43,7 @@ interface CategoryLocationBadgesProps {
 // Helper function to get location icon based on location string
 const getLocationIcon = (location: string) => {
   const loc = location.toLowerCase();
-  const iconClass = "w-3.5 h-3.5 text-slate-500";
+  const iconClass = "w-4 h-4 text-slate-500";
   
   // US and US regions get US flag
   if (loc.includes('us') || loc === 'united states' || 
@@ -73,7 +73,7 @@ const getLocationIcon = (location: string) => {
 // Helper function to get category icon based on category string
 const getCategoryIcon = (category: string) => {
   const cat = category.toLowerCase();
-  const iconClass = "w-3.5 h-3.5 text-slate-500";
+  const iconClass = "w-4 h-4 text-slate-500";
   
   if (cat.includes('technology') || cat.includes('software')) {
     return <TechnologyIcon className={iconClass} />;
@@ -189,18 +189,18 @@ export const CategoryLocationBadges = ({
   return (
     <div className={`flex items-center gap-2 flex-wrap ${className}`}>
       {standardCategory && (
-        <div className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white border border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.06)]">
+        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white border border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.06)]">
           {getCategoryIcon(standardCategory)}
-          <span className="text-[10px] font-medium text-slate-700 tracking-[0.02em]">
+          <span className="text-[11px] font-medium text-slate-700 tracking-[0.02em]">
             {standardCategory}
           </span>
         </div>
       )}
       
       {standardLocation && (
-        <div className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white border border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.06)]">
+        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white border border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.06)]">
           {getLocationIcon(standardLocation)}
-          <span className="text-[10px] font-medium text-slate-700 tracking-[0.02em]">
+          <span className="text-[11px] font-medium text-slate-700 tracking-[0.02em]">
             {standardLocation}
           </span>
         </div>

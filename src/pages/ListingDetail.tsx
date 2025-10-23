@@ -198,22 +198,21 @@ const ListingDetail = () => {
                   location={listing.location}
                   variant="default"
                 />
-                <div className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white border border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.06)]">
-                  <CalendarIcon className="w-3.5 h-3.5 text-slate-500" />
-                  <span className="text-[10px] font-medium text-slate-700 tracking-[0.02em]">
-                    {(() => {
-                      const listedDate = new Date(listing.created_at);
-                      const now = new Date();
-                      const daysDiff = Math.floor((now.getTime() - listedDate.getTime()) / (1000 * 3600 * 24));
-                      
-                      if (daysDiff === 0) return "Listed today";
-                      if (daysDiff === 1) return "Listed yesterday";
-                      if (daysDiff < 7) return `Listed ${daysDiff}d ago`;
-                      if (daysDiff < 30) return `Listed ${Math.floor(daysDiff / 7)}w ago`;
-                      return "Listed 30+ days ago";
-                    })()}
-                  </span>
-                </div>
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white border border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.06)]">
+                <CalendarIcon className="w-4 h-4 text-slate-500" />
+                <span className="text-[11px] font-medium text-slate-700 tracking-[0.02em]">
+                  {(() => {
+                    const listedDate = new Date(listing.created_at);
+                    const now = new Date();
+                    const daysDiff = Math.floor((now.getTime() - listedDate.getTime()) / (1000 * 3600 * 24));
+                    if (daysDiff === 0) return "Listed today";
+                    if (daysDiff === 1) return "Listed yesterday";
+                    if (daysDiff < 7) return `Listed ${daysDiff}d ago`;
+                    if (daysDiff < 30) return `Listed ${Math.floor(daysDiff / 7)}w ago`;
+                    return "Listed 30+ days ago";
+                  })()}
+                </span>
+              </div>
                 {isInactive && isAdmin && (
                   <div className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-red-50 border border-red-200">
                     <span className="text-[10px] font-medium text-red-700 tracking-[0.02em]">
