@@ -1,9 +1,9 @@
 
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Store, Briefcase, Heart, Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUserNotifications } from "@/hooks/use-user-notifications";
+import { MarketplaceIcon, SavedIcon, DealsIcon, AdminIcon } from "@/components/icons/NavIcons";
 
 interface DesktopNavItemsProps {
   isAdmin: boolean;
@@ -19,62 +19,69 @@ const DesktopNavItems = ({ isAdmin, isApproved, onNavigateToAdmin }: DesktopNavI
     return null;
   }
 
-  return (
-    <div className="flex items-center space-x-6">
-      <Link
-        to="/"
-        className={cn(
-          "flex items-center gap-2 px-3 py-2 text-sm font-medium transition-colors",
-          location.pathname === "/" 
-            ? "text-foreground" 
-            : "text-muted-foreground hover:text-foreground"
-        )}
-      >
-        <Store className="h-4 w-4" />
-        Marketplace
-      </Link>
-      
-      <Link
-        to="/saved-listings"
-        className={cn(
-          "flex items-center gap-2 px-3 py-2 text-sm font-medium transition-colors",
-          location.pathname === "/saved-listings" 
-            ? "text-foreground" 
-            : "text-muted-foreground hover:text-foreground"
-        )}
-      >
-        <Heart className="h-4 w-4" />
-        Saved Listings
-      </Link>
+  const navItems = [
+    {
+      to: "/",
+      label: "Marketplace",
+      icon: MarketplaceIcon,
+      isActive: location.pathname === "/",
+    },
+    {
+      to: "/saved-listings",
+      label: "Saved",
+      icon: SavedIcon,
+      isActive: location.pathname === "/saved-listings",
+    },
+    {
+      to: "/my-requests",
+      label: "My Deals",
+      icon: DealsIcon,
+      isActive: location.pathname === "/my-requests",
+      badge: unreadCount,
+    },
+  ];
 
-      <Link
-        to="/my-requests"
-        className={cn(
-          "relative flex items-center gap-2 px-3 py-2 text-sm font-medium transition-colors",
-          location.pathname === "/my-requests" 
-            ? "text-foreground" 
-            : "text-muted-foreground hover:text-foreground"
-        )}
-      >
-        <Briefcase className="h-4 w-4" strokeWidth={1.5} />
-        My Deals
-        {unreadCount > 0 && (
-          <span className="absolute top-0.5 right-2 h-2 w-2 rounded-full bg-red-600 ring-1 ring-white shadow-sm"></span>
-        )}
-      </Link>
+  return (
+    <nav className="flex items-center gap-1">
+      {navItems.map((item) => {
+        const Icon = item.icon;
+        return (
+          <Link
+            key={item.to}
+            to={item.to}
+            className={cn(
+              "relative inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-[13px] font-medium transition-all duration-200",
+              item.isActive
+                ? "bg-slate-100 text-slate-900"
+                : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+            )}
+          >
+            <Icon className={cn(
+              "w-4 h-4 transition-colors",
+              item.isActive ? "text-slate-700" : "text-slate-500"
+            )} />
+            {item.label}
+            {item.badge && item.badge > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-600 text-[9px] font-semibold text-white ring-2 ring-white shadow-sm">
+                {item.badge > 9 ? '9+' : item.badge}
+              </span>
+            )}
+          </Link>
+        );
+      })}
 
       {isAdmin && (
         <Button
           variant="outline"
           size="sm"
           onClick={onNavigateToAdmin}
-          className="flex items-center gap-2"
+          className="ml-2 h-8 gap-2 border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900 hover:border-slate-300"
         >
-          <Shield className="h-4 w-4" />
-          Admin Dashboard
+          <AdminIcon className="w-4 h-4" />
+          Admin
         </Button>
       )}
-    </div>
+    </nav>
   );
 };
 
