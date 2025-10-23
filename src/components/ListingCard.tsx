@@ -89,7 +89,7 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
           </div>
             
             <div className={`flex flex-col ${viewType === "list" ? "flex-1" : ""}`}>
-              <CardContent className={`${viewType === "grid" ? "p-6" : "p-5"} flex-1 flex flex-col ${viewType === "grid" ? "gap-4" : "gap-3.5"}`}>
+              <CardContent className={`${viewType === "grid" ? "p-6" : "p-4"} flex-1 flex flex-col ${viewType === "grid" ? "gap-4" : "gap-2.5"}`}>
                 {/* Header Section */}
                 <div className="flex items-center gap-1.5 flex-wrap">
                   <ListingCardBadges 
@@ -98,11 +98,12 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
                   />
                 </div>
 
-                <div className={viewType === "grid" ? "" : "space-y-1.5 mb-0.5"}>
+                <div className={viewType === "grid" ? "" : "space-y-1 mb-0"}>
                   <ListingCardTitle 
                     title={listing.title}
                     connectionExists={connectionExists}
                     connectionStatus={connectionStatus?.status}
+                    viewType={viewType}
                   />
                 </div>
                 
@@ -118,12 +119,12 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
                 />
                 
                 {/* Description Section */}
-                <div className={`flex-1 min-h-0 ${viewType === "grid" ? "pt-2" : "pt-1.5"}`}>
-                  <div className={viewType === "grid" ? "line-clamp-3" : "line-clamp-2"}>
+                <div className={`flex-1 min-h-0 ${viewType === "grid" ? "pt-2" : "pt-0.5"}`}>
+                  <div className={viewType === "grid" ? "line-clamp-3" : "line-clamp-1"}>
                     {listing.description_html ? (
                       <RichTextDisplay content={listing.description_html} compact={true} />
                     ) : (
-                      <p className="text-[14px] leading-[1.65] text-slate-600 tracking-[-0.003em]">
+                      <p className={`${viewType === "grid" ? "text-[14px]" : "text-[13px]"} leading-[1.65] text-slate-600 tracking-[-0.003em]`}>
                         {listing.description}
                       </p>
                     )}

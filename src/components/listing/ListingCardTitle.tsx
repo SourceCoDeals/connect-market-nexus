@@ -5,12 +5,14 @@ interface ListingCardTitleProps {
   title: string;
   connectionExists?: boolean;
   connectionStatus?: string;
+  viewType?: "grid" | "list";
 }
 
 const ListingCardTitle = ({ 
   title, 
   connectionExists = false, 
-  connectionStatus = "" 
+  connectionStatus = "",
+  viewType = "grid"
 }: ListingCardTitleProps) => {
   const getStatusIndicator = () => {
     if (!connectionExists) return null;
@@ -40,7 +42,7 @@ const ListingCardTitle = ({
 
   return (
     <div>
-      <h3 className="text-[20px] font-semibold text-slate-900 tracking-[-0.02em] leading-[1.35] line-clamp-2">
+      <h3 className={`${viewType === "grid" ? "text-[20px]" : "text-[18px]"} font-semibold text-slate-900 tracking-[-0.02em] leading-[1.35] line-clamp-2`}>
         {title}
       </h3>
       {connectionExists && (
