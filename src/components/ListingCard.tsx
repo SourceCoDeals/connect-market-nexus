@@ -65,31 +65,31 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
               : "flex flex-col"
             } h-full overflow-hidden`}
           >
-          <div className="relative">
-            <div className="overflow-hidden">
+          <div className={`relative ${viewType === "list" ? "shrink-0" : ""}`}>
+            <div className="relative overflow-hidden">
               <ListingCardImage 
                 imageUrl={listing.image_url} 
                 title={listing.title}
                 viewType={viewType}
               />
+              <ListingStatusTag status={listing.status_tag} />
+              
+              {/* Approved badge - smaller pill at top of image, fully visible */}
+              {connectionExists && connectionStatus?.status === "approved" && (
+                <div className="absolute top-3 left-3 z-20 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-100 shadow-sm">
+                  <svg className="w-3.5 h-3.5 text-emerald-600" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M13.3333 4L6 11.3333L2.66667 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                  <span className="text-[12px] font-semibold text-emerald-700">
+                    Approved
+                  </span>
+                </div>
+              )}
             </div>
-            <ListingStatusTag status={listing.status_tag} />
-            
-            {/* Approved badge - smaller pill at top of image, fully visible */}
-            {connectionExists && connectionStatus?.status === "approved" && (
-              <div className="absolute top-3 left-4 z-10 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-100 shadow-sm">
-                <svg className="w-3.5 h-3.5 text-emerald-600" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M13.3333 4L6 11.3333L2.66667 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-                <span className="text-[12px] font-semibold text-emerald-700">
-                  Approved
-                </span>
-              </div>
-            )}
           </div>
             
-            <div className={`flex flex-col ${viewType === "list" ? "w-2/4" : ""} flex-1`}>
-              <CardContent className={`${viewType === "grid" ? "p-6" : "p-6"} flex-1 flex flex-col ${viewType === "grid" ? "gap-4" : "gap-4"}`}>
+            <div className={`flex flex-col ${viewType === "list" ? "flex-1" : ""}`}>
+              <CardContent className={`${viewType === "grid" ? "p-6" : "p-5"} flex-1 flex flex-col ${viewType === "grid" ? "gap-4" : "gap-3.5"}`}>
                 {/* Header Section */}
                 <div className="flex items-center gap-1.5 flex-wrap">
                   <ListingCardBadges 
