@@ -1,5 +1,7 @@
 import { ImageIcon } from "lucide-react";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
+import { Badge } from "@/components/ui/badge";
+import { ArrowRight } from "lucide-react";
 import { useState, useEffect } from "react";
 import { DEFAULT_IMAGE } from "@/lib/storage-utils";
 
@@ -43,10 +45,15 @@ const ListingCardImage = ({ imageUrl: initialImageUrl, title, viewType }: Listin
           <img 
             src={imageUrl} 
             alt={title} 
-            className="object-cover w-full h-full transition-transform duration-200 group-hover:scale-[1.02]" 
+            className="object-cover w-full h-full" 
             onError={handleImageError}
           />
         )}
+        <div className="absolute top-2 right-2">
+          <Badge className="bg-primary text-white opacity-0 group-hover:opacity-100 transition-opacity">
+            <ArrowRight className="h-3 w-3" />
+          </Badge>
+        </div>
       </AspectRatio>
     </div>
   );

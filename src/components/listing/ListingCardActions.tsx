@@ -1,8 +1,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Bookmark, CheckCircle2, Clock, XCircle, Send, Eye } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Bookmark, CheckCircle2, Clock, XCircle, Send, ArrowUpRight, Eye } from "lucide-react";
 import ConnectionRequestDialog from "@/components/connection/ConnectionRequestDialog";
 
 interface ListingCardActionsProps {
@@ -36,10 +35,10 @@ const ListingCardActions = ({
         case "pending":
           return { 
             icon: Clock, 
-            text: "Request Pending", 
+            text: "Request Sent", 
             variant: "pending" as const, 
             disabled: true,
-            className: "bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-50"
+            className: "bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100"
           };
         case "approved":
           return { 
@@ -47,20 +46,20 @@ const ListingCardActions = ({
             text: "Connected", 
             variant: "connected" as const, 
             disabled: true,
-            className: "bg-white text-emerald-700 border border-emerald-200 hover:bg-white"
+            className: "bg-emerald-50 text-emerald-700 border border-emerald-200"
           };
         case "rejected":
           return { 
-            icon: Send, 
-            text: "Resubmit Request", 
-            variant: "default" as const, 
+            icon: XCircle, 
+            text: "Request Declined", 
+            variant: "rejected" as const, 
             disabled: false,
-            className: ""
+            className: "bg-red-50 text-red-700 border border-red-200 hover:bg-red-100"
           };
         default:
           return { 
             icon: Send, 
-            text: "Request Connection", 
+            text: "Request Access", 
             variant: "default" as const, 
             disabled: false,
             className: ""
@@ -69,7 +68,7 @@ const ListingCardActions = ({
     }
     return { 
       icon: Send, 
-      text: "Request Connection", 
+      text: "Request Access", 
       variant: "default" as const, 
       disabled: false,
       className: ""
@@ -92,46 +91,61 @@ const ListingCardActions = ({
   };
 
   return (
-    <div className="flex flex-col gap-3 w-full mt-6 pt-6 border-t border-slate-100">
+    <div className="flex flex-col gap-2.5 w-full mt-auto">
       {/* Primary CTA - Request Connection */}
-      <Button
-        className={cn(
-          "w-full h-11 px-4 text-[13px] font-semibold rounded-lg transition-all duration-150",
-          connectionDisabled && connectionStatus !== "rejected"
-            ? connectionClassName
-            : "bg-[#D7B65C] hover:bg-[#C9A84F] text-slate-900 border-0 shadow-sm"
-        )}
-        onClick={handleConnectionClick}
-        disabled={isRequesting || (connectionDisabled && connectionStatus !== "rejected")}
-      >
-        <ConnectionIcon className="h-4 w-4 mr-2" />
-        <span>{isRequesting ? "Sending..." : connectionText}</span>
-      </Button>
+      <div className="group relative">
+        <Button
+          className={`w-full h-9 px-4 py-2 text-xs font-semibold tracking-wide rounded-md relative overflow-hidden cursor-pointer border-0 transition-all duration-300 ease-out hover:scale-[1.01] active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:shadow-none ${
+            connectionDisabled && connectionStatus !== "rejected"
+              ? connectionClassName
+              : "text-slate-900 bg-gradient-to-r from-[#D7B65C] via-[#E5C76A] to-[#D7B65C] hover:shadow-lg hover:shadow-[rgba(215,182,92,0.2)]"
+          }`}
+          onClick={handleConnectionClick}
+          disabled={isRequesting || (connectionDisabled && connectionStatus !== "rejected")}
+        >
+          {/* Hover Effects for Active States Only */}
+          {!connectionDisabled && (
+            <>
+              <div className="absolute inset-0 bg-gradient-to-r from-[#E5C76A] via-[#F0D478] to-[#E5C76A] opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[rgba(255,255,255,0.15)] to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-500 ease-out" />
+            </>
+          )}
+          
+          <div className="relative flex items-center justify-center gap-1.5">
+            <ConnectionIcon className="h-3.5 w-3.5" />
+            <span className="font-medium">{isRequesting ? "Sending..." : connectionText}</span>
+          </div>
+        </Button>
+      </div>
 
       {/* Secondary Actions */}
-      <div className="grid grid-cols-2 gap-2">
+      <div className="flex gap-1.5">
         <Button
-          className="h-10 px-4 text-[13px] font-medium bg-slate-900 hover:bg-slate-800 text-white rounded-lg transition-colors duration-150"
+          className="flex-1 h-8 px-3 py-1.5 text-xs font-medium text-white bg-slate-900 hover:bg-slate-800 border-0 transition-all duration-200 hover:scale-[1.01] rounded-md shadow-sm"
           size="sm"
         >
-          <Eye className="h-3.5 w-3.5 mr-2" />
-          Details
+          <Eye className="h-3 w-3 mr-1" />
+          <span>Details</span>
+          <ArrowUpRight className="h-3 w-3 ml-1 opacity-70" />
         </Button>
 
         <Button
           variant="outline"
           size="sm"
-          className="h-10 px-4 text-[13px] font-medium border-slate-200 hover:border-slate-300 hover:bg-slate-50 rounded-lg transition-all duration-150"
+          className="h-8 px-3 py-1.5 border border-slate-200 hover:border-[#D7B65C] hover:bg-[#D7B65C]/5 transition-all duration-200 hover:scale-[1.01] bg-white shadow-sm rounded-md flex-1"
           onClick={handleToggleSave}
           disabled={isSaving}
         >
           <Bookmark
-            className={cn(
-              "h-3.5 w-3.5 mr-2",
-              isSaved ? "fill-[#D7B65C] text-[#D7B65C]" : "text-slate-400"
-            )}
+            className={`h-3.5 w-3.5 mr-1.5 transition-colors duration-200 ${
+              isSaved 
+                ? "fill-[#D7B65C] text-[#D7B65C]" 
+                : "text-slate-400 hover:text-[#D7B65C]"
+            }`}
           />
-          {isSaved ? "Saved" : "Save"}
+          <span className="text-xs font-medium">
+            {isSaved ? "Saved" : "Save deal"}
+          </span>
         </Button>
       </div>
 

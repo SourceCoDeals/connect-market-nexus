@@ -130,7 +130,9 @@ export function EditorLivePreview({ formValues, imagePreview }: EditorLivePrevie
               <CardContent className="p-4 md:p-6">
                 <div>
                   <ListingCardBadges
+                    categories={formValues.categories || []}
                     location={formValues.location?.[0] || ""}
+                    category={formValues.categories?.[0] || ""}
                   />
                   
                   <ListingCardTitle
@@ -142,6 +144,7 @@ export function EditorLivePreview({ formValues, imagePreview }: EditorLivePrevie
                   <ListingCardFinancials
                     revenue={formValues.revenue ? parseFloat(formValues.revenue.toString()) : 0}
                     ebitda={formValues.ebitda ? parseFloat(formValues.ebitda.toString()) : 0}
+                    description={formValues.description || ""}
                     formatCurrency={formatCurrency}
                   />
                 </div>

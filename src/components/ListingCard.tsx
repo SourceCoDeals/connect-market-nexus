@@ -4,7 +4,6 @@ import { useAnalytics } from "@/context/AnalyticsContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { RichTextDisplay } from "@/components/ui/rich-text-display";
 import { formatCurrency } from "@/lib/currency-utils";
-import { cn } from "@/lib/utils";
 import { Listing } from "@/types";
 import ListingCardImage from "./listing/ListingCardImage";
 import ListingCardBadges from "./listing/ListingCardBadges";
@@ -55,17 +54,16 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
     <div className="group">
       <Link to={`/listing/${listing.id}`} className="block h-full">
         <Card 
-          className={cn(
-            "h-full cursor-pointer overflow-hidden",
-            "bg-white border border-slate-200/80 rounded-2xl",
-            "shadow-[0_1px_3px_0_rgba(0,0,0,0.04)]",
-            "hover:border-slate-300 hover:shadow-[0_8px_16px_0_rgba(0,0,0,0.06)]",
-            "hover:-translate-y-1 transition-all duration-200",
-            viewType === "list" ? "flex flex-row" : "flex flex-col"
-          )}
-        >
-          <div className="relative">
-            <div className="overflow-hidden rounded-t-xl">
+          className={`
+            h-full cursor-pointer transition-all duration-200 
+            hover:shadow-lg hover:shadow-black/5 hover:-translate-y-1
+            ${viewType === "list" 
+              ? "flex flex-row items-stretch" 
+              : "flex flex-col"
+            } h-full`}
+          >
+          <div className="relative rounded-t-lg">
+            <div className="overflow-hidden rounded-t-lg">
               <ListingCardImage 
                 imageUrl={listing.image_url} 
                 title={listing.title}
@@ -75,49 +73,58 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
             <ListingStatusTag status={listing.status_tag} />
           </div>
             
-          <div className={`flex flex-col ${viewType === "list" ? "w-2/4" : ""} flex-1`}>
-            <CardContent className="p-7 flex-1 flex flex-col">
-              <ListingCardBadges location={listing.location} />
-              
-              <ListingCardTitle 
-                title={listing.title}
-                connectionExists={connectionExists}
-                connectionStatus={connectionStatus?.status}
-              />
-              
-              <ListingCardFinancials 
-                revenue={listing.revenue}
-                ebitda={listing.ebitda}
-                formatCurrency={formatCurrency}
-              />
-              
-              {/* Rich description preview */}
-              <div className="flex-1 min-h-0">
-                <div className="text-[14px] leading-relaxed text-slate-600 line-clamp-3">
-                  {listing.description_html ? (
-                    <RichTextDisplay content={listing.description_html} />
-                  ) : (
-                    <span>{listing.description}</span>
-                  )}
+            <div className={`flex flex-col ${viewType === "list" ? "w-2/4" : ""} flex-1`}>
+              <CardContent
+                className={`p-4 md:p-6 flex-1 flex flex-col`}
+              >
+                <div>
+                  <ListingCardBadges 
+                    categories={(listing as any).categories || []} 
+                    location={listing.location}
+                    category={listing.category}
+                  />
+                  
+                  <ListingCardTitle 
+                    title={listing.title}
+                    connectionExists={connectionExists}
+                    connectionStatus={connectionStatus?.status}
+                  />
+                  
+                  <ListingCardFinancials 
+                    revenue={listing.revenue}
+                    ebitda={listing.ebitda}
+                    description={listing.description}
+                    formatCurrency={formatCurrency}
+                  />
                 </div>
-              </div>
-              
-              <ListingCardActions
-                viewType={viewType}
-                connectionExists={connectionExists}
-                connectionStatus={connectionStatus?.status || 'none'}
-                isRequesting={isRequesting}
-                isSaved={isSaved}
-                isSaving={isSaving}
-                handleToggleSave={handleToggleSave}
-                handleRequestConnection={handleRequestConnection}
-                listingTitle={listing.title}
-              />
-            </CardContent>
-          </div>
-        </Card>
-      </Link>
-    </div>
+                
+                {/* Rich description preview */}
+                <div className="flex-1">
+                  <div className="mt-3 text-sm text-muted-foreground line-clamp-3">
+                    {listing.description_html ? (
+                      <RichTextDisplay content={listing.description_html} />
+                    ) : (
+                      <span>{listing.description}</span>
+                    )}
+                  </div>
+                </div>
+                
+                <ListingCardActions
+                  viewType={viewType}
+                  connectionExists={connectionExists}
+                  connectionStatus={connectionStatus?.status || 'none'}
+                  isRequesting={isRequesting}
+                  isSaved={isSaved}
+                  isSaving={isSaving}
+                  handleToggleSave={handleToggleSave}
+                  handleRequestConnection={handleRequestConnection}
+                  listingTitle={listing.title}
+                />
+              </CardContent>
+            </div>
+          </Card>
+        </Link>
+      </div>
   );
 };
 

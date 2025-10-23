@@ -11,23 +11,23 @@ interface ListingStatusTagProps {
 const STATUS_CONFIG = {
   just_listed: {
     icon: CheckCircle,
-    bgClass: "bg-white text-slate-800 border border-slate-300",
+    bgClass: "bg-slate-800 text-white border border-slate-700/50 backdrop-blur-sm",
   },
   reviewing_buyers: {
     icon: Eye,
-    bgClass: "bg-white text-amber-800 border border-amber-300",
+    bgClass: "bg-amber-50 text-amber-900 border border-amber-200/60 backdrop-blur-sm",
   },
   in_diligence: {
     icon: FileText,
-    bgClass: "bg-white text-stone-800 border border-stone-300",
+    bgClass: "bg-stone-100 text-stone-800 border border-stone-200/60 backdrop-blur-sm",
   },
   under_loi: {
     icon: PenTool,
-    bgClass: "bg-white text-slate-800 border border-slate-300",
+    bgClass: "bg-slate-800 text-white border border-slate-700/50 backdrop-blur-sm",
   },
   accepted_offer: {
     icon: Handshake,
-    bgClass: "bg-white text-emerald-800 border border-emerald-300",
+    bgClass: "bg-emerald-800 text-white border border-emerald-700/50 backdrop-blur-sm",
   },
 } as const;
 
@@ -44,15 +44,13 @@ const ListingStatusTag = ({ status, className }: ListingStatusTagProps) => {
     <Badge
       variant="default"
       className={cn(
-        "absolute top-3 left-4 z-10",
-        "inline-flex items-center gap-1.5 px-2.5 py-1.5",
-        "text-[10px] font-bold uppercase tracking-widest",
-        "rounded-full backdrop-blur-sm",
+        "absolute -top-2 left-3 z-20 px-3 py-1.5 text-xs font-medium rounded-lg uppercase tracking-wide",
+        "flex items-center gap-1.5 shadow-lg",
         config.bgClass,
         className
       )}
     >
-      <IconComponent size={11} strokeWidth={2.5} />
+      <IconComponent size={12} className="opacity-90" />
       {label}
     </Badge>
   );
