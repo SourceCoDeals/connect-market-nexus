@@ -18,6 +18,7 @@ import {
 import { AdminListing } from "@/types/admin";
 import ListingStatusTag from "@/components/listing/ListingStatusTag";
 import { formatCurrency } from "@/lib/utils";
+import { CategoryLocationBadges } from "@/components/shared/CategoryLocationBadges";
 import { StatusTagEditor } from "./StatusTagEditor";
 import { StatusTagSwitcher } from "./StatusTagSwitcher";
 import { StatusTagValue } from "@/constants/statusTags";
@@ -302,20 +303,15 @@ export function AdminListingCard({
 
           {/* Categories and Location */}
           <div className="flex flex-wrap gap-1.5">
-            {displayCategories.slice(0, 2).map((cat, index) => (
-              <Badge key={index} variant="outline" className="text-xs bg-background">
-                {cat}
-              </Badge>
-            ))}
-            {displayCategories.length > 2 && (
+            <CategoryLocationBadges 
+              category={displayCategories[0]}
+              location={listing.location}
+            />
+            {displayCategories.length > 1 && (
               <Badge variant="outline" className="text-xs bg-background">
-                +{displayCategories.length - 2}
+                +{displayCategories.length - 1} more
               </Badge>
             )}
-            <Badge variant="outline" className="text-xs bg-background">
-              <MapPin className="h-3 w-3 mr-1" />
-              {listing.location}
-            </Badge>
             {listing.deal_identifier && (
               <Badge variant="outline" className="text-xs font-mono bg-background">
                 {listing.deal_identifier}

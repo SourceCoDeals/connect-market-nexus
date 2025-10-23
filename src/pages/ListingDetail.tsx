@@ -32,6 +32,7 @@ import ListingStatusTag from "@/components/listing/ListingStatusTag";
 import { AdminListingSidebar } from "@/components/listing-detail/AdminListingSidebar";
 import { EditableTitle } from "@/components/listing-detail/EditableTitle";
 import { EditableDescription } from "@/components/listing-detail/EditableDescription";
+import { CategoryLocationBadges } from "@/components/shared/CategoryLocationBadges";
 
 
 const ListingDetail = () => {
@@ -191,11 +192,12 @@ const ListingDetail = () => {
               
               {/* Location, Category & Listed Date */}
               <div className="flex items-center gap-4 text-sm text-slate-500">
-                <div className="flex items-center gap-1">
-                  <MapPin className="h-4 w-4" />
-                  <span>{listing.location}</span>
-                </div>
-                <span>{listing.category}</span>
+                <CategoryLocationBadges 
+                  category={listing.category}
+                  location={listing.location}
+                  variant="inline"
+                />
+                <span>•</span>
                 <span>Listed {(() => {
                   const listedDate = new Date(listing.created_at);
                   const now = new Date();

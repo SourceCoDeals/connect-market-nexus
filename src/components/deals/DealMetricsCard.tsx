@@ -3,6 +3,7 @@ import { cn, formatCompactCurrency } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Link } from "react-router-dom";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { CategoryLocationBadges } from "@/components/shared/CategoryLocationBadges";
 
 interface DealMetricsCardProps {
   listing: {
@@ -134,21 +135,11 @@ export function DealMetricsCard({ listing, status, className }: DealMetricsCardP
                   </Link>
                 )}
               </div>
-              <div className="flex items-center gap-2">
-                {listing.category && (
-                  <span className="text-xs font-medium text-gray-600 tracking-wide">
-                    {listing.category}
-                  </span>
-                )}
-                {listing.category && listing.location && (
-                  <span className="text-gray-300 text-xs">•</span>
-                )}
-                {listing.location && (
-                  <span className="text-xs font-medium text-gray-600 tracking-wide">
-                    {listing.location}
-                  </span>
-                )}
-              </div>
+              <CategoryLocationBadges 
+                category={listing.category}
+                location={listing.location}
+                variant="text-only"
+              />
             </div>
             
             {/* Status Badge */}
