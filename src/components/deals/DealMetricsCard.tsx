@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Link } from "react-router-dom";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { CategoryLocationBadges } from "@/components/shared/CategoryLocationBadges";
+import { toStandardCategory, toStandardLocation } from "@/lib/standardization";
 
 interface DealMetricsCardProps {
   listing: {
@@ -24,6 +25,10 @@ interface DealMetricsCardProps {
 
 export function DealMetricsCard({ listing, status, className }: DealMetricsCardProps) {
   const totalEmployees = (listing.full_time_employees || 0) + (listing.part_time_employees || 0);
+  
+  // Standardize category and location
+  const standardCategory = listing.category ? toStandardCategory(listing.category) : undefined;
+  const standardLocation = listing.location ? toStandardLocation(listing.location) : undefined;
   
   const getStatusConfig = (status: string) => {
     switch (status) {
@@ -66,7 +71,7 @@ export function DealMetricsCard({ listing, status, className }: DealMetricsCardP
     },
     {
       label: "Location",
-      value: listing.location || "N/A",
+      value: standardLocation || "N/A",
       icon: MapPin,
     },
   ];
@@ -136,8 +141,8 @@ export function DealMetricsCard({ listing, status, className }: DealMetricsCardP
                 )}
               </div>
               <CategoryLocationBadges 
-                category={listing.category}
-                location={listing.location}
+                category={standardCategory}
+                location={standardLocation}
                 variant="text-only"
               />
             </div>
