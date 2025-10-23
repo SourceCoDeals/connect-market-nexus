@@ -1,7 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { STATUS_TAG_LABELS } from "@/constants/statusTags";
-import { CheckCircle, Eye, FileText, PenTool, Handshake } from "lucide-react";
+import { Sparkles, Eye, FileCheck, Edit3, HandshakeIcon } from "lucide-react";
 
 interface ListingStatusTagProps {
   status: string | null;
@@ -10,24 +10,24 @@ interface ListingStatusTagProps {
 
 const STATUS_CONFIG = {
   just_listed: {
-    icon: CheckCircle,
-    bgClass: "bg-slate-800 text-white border border-slate-700/50 backdrop-blur-sm",
+    icon: Sparkles,
+    bgClass: "bg-gradient-to-br from-slate-900 to-slate-800 text-white border border-white/10 shadow-lg shadow-slate-900/20",
   },
   reviewing_buyers: {
     icon: Eye,
-    bgClass: "bg-amber-50 text-amber-900 border border-amber-200/60 backdrop-blur-sm",
+    bgClass: "bg-gradient-to-br from-amber-500 to-amber-600 text-white border border-white/20 shadow-lg shadow-amber-500/30",
   },
   in_diligence: {
-    icon: FileText,
-    bgClass: "bg-stone-100 text-stone-800 border border-stone-200/60 backdrop-blur-sm",
+    icon: FileCheck,
+    bgClass: "bg-gradient-to-br from-blue-500 to-blue-600 text-white border border-white/20 shadow-lg shadow-blue-500/30",
   },
   under_loi: {
-    icon: PenTool,
-    bgClass: "bg-slate-800 text-white border border-slate-700/50 backdrop-blur-sm",
+    icon: Edit3,
+    bgClass: "bg-gradient-to-br from-violet-500 to-violet-600 text-white border border-white/20 shadow-lg shadow-violet-500/30",
   },
   accepted_offer: {
-    icon: Handshake,
-    bgClass: "bg-emerald-800 text-white border border-emerald-700/50 backdrop-blur-sm",
+    icon: HandshakeIcon,
+    bgClass: "bg-gradient-to-br from-emerald-500 to-emerald-600 text-white border border-white/20 shadow-lg shadow-emerald-500/30",
   },
 } as const;
 
@@ -44,13 +44,13 @@ const ListingStatusTag = ({ status, className }: ListingStatusTagProps) => {
     <Badge
       variant="default"
       className={cn(
-        "absolute top-3 right-3 z-20 px-2.5 py-1.5 text-[10px] font-semibold rounded-md uppercase tracking-wider",
-        "flex items-center gap-1.5 shadow-md backdrop-blur-sm",
+        "absolute -top-2 right-3 z-20 px-2.5 py-1.5 text-[9.5px] font-semibold rounded-lg uppercase tracking-[0.06em]",
+        "flex items-center gap-1.5 backdrop-blur-md",
         config.bgClass,
         className
       )}
     >
-      <IconComponent size={11} />
+      <IconComponent size={10} strokeWidth={2.5} />
       {label}
     </Badge>
   );

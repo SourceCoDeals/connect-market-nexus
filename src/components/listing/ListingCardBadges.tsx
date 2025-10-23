@@ -1,6 +1,6 @@
 
 import { Badge } from "@/components/ui/badge";
-import { Building2, MapPin } from "lucide-react";
+import { Briefcase, MapPin } from "lucide-react";
 
 interface ListingCardBadgesProps {
   categories: string[];
@@ -15,22 +15,20 @@ const ListingCardBadges = ({ categories, location, category }: ListingCardBadges
   return (
     <div className="flex flex-wrap gap-1.5">
       {displayCategories.map((cat, index) => (
-        <Badge 
+        <div 
           key={index} 
-          variant="outline" 
-          className="bg-muted/40 border-border/40 font-medium text-[11px] px-2.5 py-0.5 tracking-wide"
+          className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-muted/30 border border-border/30 text-[10.5px] font-medium tracking-wide text-foreground/70"
         >
-          <Building2 className="h-3 w-3 mr-1" />
-          {cat}
-        </Badge>
+          <Briefcase className="h-2.5 w-2.5 opacity-60" strokeWidth={2.5} />
+          <span>{cat}</span>
+        </div>
       ))}
-      <Badge 
-        variant="secondary" 
-        className="bg-muted/60 text-foreground font-medium border-border/40 text-[11px] px-2.5 py-0.5 tracking-wide"
+      <div 
+        className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-muted/30 border border-border/30 text-[10.5px] font-medium tracking-wide text-foreground/70"
       >
-        <MapPin className="h-3 w-3 mr-1" />
-        {location}
-      </Badge>
+        <MapPin className="h-2.5 w-2.5 opacity-60" strokeWidth={2.5} />
+        <span>{location}</span>
+      </div>
     </div>
   );
 };

@@ -101,8 +101,8 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
                 />
                 
                 {/* Description Section */}
-                <div className="flex-1 min-h-[48px]">
-                  <div className="text-[13px] leading-relaxed text-muted-foreground/80 line-clamp-2">
+                <div className="flex-1 min-h-[40px]">
+                  <div className="text-[12.5px] leading-[1.5] text-muted-foreground/70 line-clamp-2 tracking-[-0.01em]">
                     {listing.description_html ? (
                       <RichTextDisplay content={listing.description_html} />
                     ) : (
