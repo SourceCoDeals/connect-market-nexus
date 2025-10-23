@@ -1,83 +1,81 @@
-// Custom minimal SVG icons for locations - Stripe-inspired design
+// Custom minimal SVG icons for locations - Clean, filled style inspired by Baton Market
 
 interface IconProps {
   className?: string;
 }
 
 export const USFlagIcon = ({ className = "w-4 h-4" }: IconProps) => (
-  <svg className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-    {/* Minimal US flag - simplified stripes and star field */}
-    <rect x="1" y="2" width="14" height="12" rx="1" stroke="currentColor" strokeWidth="1.5" fill="none"/>
-    <line x1="1" y1="5" x2="15" y2="5" stroke="currentColor" strokeWidth="1.5"/>
-    <line x1="1" y1="8" x2="15" y2="8" stroke="currentColor" strokeWidth="1.5"/>
-    <line x1="1" y1="11" x2="15" y2="11" stroke="currentColor" strokeWidth="1.5"/>
-    <rect x="1" y="2" width="6" height="6" fill="currentColor" fillOpacity="0.15"/>
-    <circle cx="4" cy="4.5" r="0.8" fill="currentColor"/>
+  <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    {/* Stripes */}
+    <path d="M0.375 16.125H23.625V17.25H0.375V16.125Z" fill="currentColor"/>
+    <path d="M0.375 12.375H23.625V13.5H0.375V12.375Z" fill="currentColor"/>
+    <path d="M0.375 18.75C0.375 18.8495 0.414509 18.9448 0.484835 19.0152C0.555161 19.0855 0.650544 19.125 0.75 19.125H23.25C23.3495 19.125 23.4448 19.0855 23.5152 19.0152C23.5855 18.9448 23.625 18.8495 23.625 18.75V18H0.375V18.75Z" fill="currentColor"/>
+    <path d="M0.375 14.25H23.625V15.375H0.375V14.25Z" fill="currentColor"/>
+    <path d="M10.5 10.5H23.625V11.625H10.5V10.5Z" fill="currentColor"/>
+    <path d="M23.25 4.875H10.5V6H23.625V5.25C23.625 5.15054 23.5855 5.05516 23.5152 4.98484C23.4448 4.91451 23.3495 4.875 23.25 4.875Z" fill="currentColor"/>
+    <path d="M10.5 6.75H23.625V7.875H10.5V6.75Z" fill="currentColor"/>
+    <path d="M10.5 8.625H23.625V9.75H10.5V8.625Z" fill="currentColor"/>
+    {/* Star field */}
+    <path d="M9.75 4.875H0.75C0.650544 4.875 0.555161 4.91451 0.484835 4.98484C0.414509 5.05516 0.375 5.15054 0.375 5.25V11.625H9.75V4.875ZM1.875 10.5C1.80083 10.5 1.72833 10.478 1.66666 10.4368C1.60499 10.3956 1.55693 10.337 1.52855 10.2685C1.50016 10.2 1.49274 10.1246 1.50721 10.0518C1.52167 9.9791 1.55739 9.91228 1.60984 9.85983C1.66228 9.80739 1.7291 9.77168 1.80184 9.75721C1.87458 9.74274 1.94998 9.75016 2.01851 9.77855C2.08703 9.80693 2.1456 9.85499 2.1868 9.91666C2.22801 9.97833 2.25 10.0508 2.25 10.125C2.25 10.2245 2.21049 10.3198 2.14016 10.3902C2.06984 10.4605 1.97446 10.5 1.875 10.5ZM1.875 8.625C1.80083 8.625 1.72833 8.60301 1.66666 8.5618C1.60499 8.5206 1.55693 8.46203 1.52855 8.39351C1.50016 8.32498 1.49274 8.24958 1.50721 8.17684C1.52167 8.1041 1.55739 8.03728 1.60984 7.98483C1.66228 7.93239 1.7291 7.89667 1.80184 7.88221C1.87458 7.86774 1.94998 7.87516 2.01851 7.90355C2.08703 7.93193 2.1456 7.97999 2.1868 8.04166C2.22801 8.10333 2.25 8.17583 2.25 8.25C2.25 8.34946 2.21049 8.44484 2.14016 8.51517C2.06984 8.58549 1.97446 8.625 1.875 8.625ZM1.875 6.75C1.80083 6.75 1.72833 6.72801 1.66666 6.6868C1.60499 6.6456 1.55693 6.58703 1.52855 6.51851C1.50016 6.44998 1.49274 6.37458 1.50721 6.30184C1.52167 6.2291 1.55739 6.16228 1.60984 6.10983C1.66228 6.05739 1.7291 6.02167 1.80184 6.00721C1.87458 5.99274 1.94998 6.00016 2.01851 6.02855C2.08703 6.05693 2.1456 6.10499 2.1868 6.16666C2.22801 6.22833 2.25 6.30083 2.25 6.375C2.25 6.47446 2.21049 6.56984 2.14016 6.64017C2.06984 6.71049 1.97446 6.75 1.875 6.75ZM3.46875 9.5625C3.39458 9.5625 3.32208 9.54051 3.26041 9.4993C3.19874 9.4581 3.15068 9.39953 3.1223 9.33101C3.09391 9.26248 3.08649 9.18708 3.10096 9.11434C3.11542 9.0416 3.15114 8.97478 3.20359 8.92233C3.25603 8.86989 3.32285 8.83417 3.39559 8.81971C3.46833 8.80524 3.54373 8.81266 3.61226 8.84105C3.68078 8.86943 3.73935 8.91749 3.78055 8.97916C3.82176 9.04083 3.84375 9.11333 3.84375 9.1875C3.84375 9.28696 3.80424 9.38234 3.73391 9.45267C3.66359 9.52299 3.56821 9.5625 3.46875 9.5625ZM3.46875 7.6875C3.39458 7.6875 3.32208 7.66551 3.26041 7.6243C3.19874 7.5831 3.15068 7.52453 3.1223 7.45601C3.09391 7.38748 3.08649 7.31208 3.10096 7.23934C3.11542 7.1666 3.15114 7.09978 3.20359 7.04733C3.25603 6.99489 3.32285 6.95917 3.39559 6.94471C3.46833 6.93024 3.54373 6.93766 3.61226 6.96605C3.68078 6.99443 3.73935 7.04249 3.78055 7.10416C3.82176 7.16583 3.84375 7.23833 3.84375 7.3125C3.84375 7.41196 3.80424 7.50734 3.73391 7.57767C3.66359 7.64799 3.56821 7.6875 3.46875 7.6875ZM5.0625 10.5C4.98833 10.5 4.91583 10.478 4.85416 10.4368C4.79249 10.3956 4.74443 10.337 4.71605 10.2685C4.68766 10.2 4.68024 10.1246 4.69471 10.0518C4.70918 9.9791 4.74489 9.91228 4.79734 9.85983C4.84978 9.80739 4.9166 9.77168 4.98934 9.75721C5.06208 9.74274 5.13748 9.75016 5.20601 9.77855C5.27453 9.80693 5.3331 9.85499 5.3743 9.91666C5.41551 9.97833 5.4375 10.0508 5.4375 10.125C5.4375 10.2245 5.39799 10.3198 5.32766 10.3902C5.25734 10.4605 5.16196 10.5 5.0625 10.5ZM5.0625 8.625C4.98833 8.625 4.91583 8.60301 4.85416 8.5618C4.79249 8.5206 4.74443 8.46203 4.71605 8.39351C4.68766 8.32498 4.68024 8.24958 4.69471 8.17684C4.70918 8.1041 4.74489 8.03728 4.79734 7.98483C4.84978 7.93239 4.9166 7.89667 4.98934 7.88221C5.06208 7.86774 5.13748 7.87516 5.20601 7.90355C5.27453 7.93193 5.3331 7.97999 5.3743 8.04166C5.41551 8.10333 5.4375 8.17583 5.4375 8.25C5.4375 8.34946 5.39799 8.44484 5.32766 8.51517C5.25734 8.58549 5.16196 8.625 5.0625 8.625ZM5.0625 6.75C4.98833 6.75 4.91583 6.72801 4.85416 6.6868C4.79249 6.6456 4.74443 6.58703 4.71605 6.51851C4.68766 6.44998 4.68024 6.37458 4.69471 6.30184C4.70918 6.2291 4.74489 6.16228 4.79734 6.10983C4.84978 6.05739 4.9166 6.02167 4.98934 6.00721C5.06208 5.99274 5.13748 6.00016 5.20601 6.02855C5.27453 6.05693 5.3331 6.10499 5.3743 6.16666C5.41551 6.22833 5.4375 6.30083 5.4375 6.375C5.4375 6.47446 5.39799 6.56984 5.32766 6.64017C5.25734 6.71049 5.16196 6.75 5.0625 6.75ZM6.65625 9.5625C6.58208 9.5625 6.50958 9.54051 6.44791 9.4993C6.38624 9.4581 6.33818 9.39953 6.3098 9.33101C6.28141 9.26248 6.27399 9.18708 6.28846 9.11434C6.30293 9.0416 6.33864 8.97478 6.39108 8.92233C6.44353 8.86989 6.51035 8.83417 6.58309 8.81971C6.65583 8.80524 6.73123 8.81266 6.79976 8.84105C6.86828 8.86943 6.92685 8.91749 6.96805 8.97916C7.00926 9.04083 7.03125 9.11333 7.03125 9.1875C7.03125 9.28696 6.99174 9.38234 6.92142 9.45267C6.85109 9.52299 6.75571 9.5625 6.65625 9.5625ZM6.65625 7.6875C6.58208 7.6875 6.50958 7.66551 6.44791 7.6243C6.38624 7.5831 6.33818 7.52453 6.3098 7.45601C6.28141 7.38748 6.27399 7.31208 6.28846 7.23934C6.30293 7.1666 6.33864 7.09978 6.39108 7.04733C6.44353 6.99489 6.51035 6.95917 6.58309 6.94471C6.65583 6.93024 6.73123 6.93766 6.79976 6.96605C6.86828 6.99443 6.92685 7.04249 6.96805 7.10416C7.00926 7.16583 7.03125 7.23833 7.03125 7.3125C7.03125 7.41196 6.99174 7.50734 6.92142 7.57767C6.85109 7.64799 6.75571 7.6875 6.65625 7.6875ZM8.25 10.5C8.17583 10.5 8.10333 10.478 8.04166 10.4368C7.97999 10.3956 7.93193 10.337 7.90355 10.2685C7.87516 10.2 7.86774 10.1246 7.88221 10.0518C7.89668 9.9791 7.93239 9.91228 7.98483 9.85983C8.03728 9.80739 8.1041 9.77168 8.17684 9.75721C8.24958 9.74274 8.32498 9.75016 8.39351 9.77855C8.46203 9.80693 8.5206 9.85499 8.5618 9.91666C8.60301 9.97833 8.625 10.0508 8.625 10.125C8.625 10.2245 8.58549 10.3198 8.51517 10.3902C8.44484 10.4605 8.34946 10.5 8.25 10.5ZM8.25 8.625C8.17583 8.625 8.10333 8.60301 8.04166 8.5618C7.97999 8.5206 7.93193 8.46203 7.90355 8.39351C7.87516 8.32498 7.86774 8.24958 7.88221 8.17684C7.89668 8.1041 7.93239 8.03728 7.98483 7.98483C8.03728 7.93239 8.1041 7.89667 8.17684 7.88221C8.24958 7.86774 8.32498 7.87516 8.39351 7.90355C8.46203 7.93193 8.5206 7.97999 8.5618 8.04166C8.60301 8.10333 8.625 8.17583 8.625 8.25C8.625 8.34946 8.58549 8.44484 8.51517 8.51517C8.44484 8.58549 8.34946 8.625 8.25 8.625ZM8.25 6.75C8.17583 6.75 8.10333 6.72801 8.04166 6.6868C7.97999 6.6456 7.93193 6.58703 7.90355 6.51851C7.87516 6.44998 7.86774 6.37458 7.88221 6.30184C7.89668 6.2291 7.93239 6.16228 7.98483 6.10983C8.03728 6.05739 8.1041 6.02167 8.17684 6.00721C8.24958 5.99274 8.32498 6.00016 8.39351 6.02855C8.46203 6.05693 8.5206 6.10499 8.5618 6.16666C8.60301 6.22833 8.625 6.30083 8.625 6.375C8.625 6.47446 8.58549 6.56984 8.51517 6.64017C8.44484 6.71049 8.34946 6.75 8.25 6.75Z" fill="currentColor"/>
   </svg>
 );
 
 export const CanadaIcon = ({ className = "w-4 h-4" }: IconProps) => (
-  <svg className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-    {/* Minimal maple leaf */}
-    <path d="M8 2L7 5H5L7 7L6 10L8 9L10 10L9 7L11 5H9L8 2Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
-    <line x1="8" y1="9" x2="8" y2="14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+  <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M12 6L11 10.5L9 9.5L8 13L11 13.5L10 17L12 15.5L14 17L13 13.5L16 13L15 9.5L13 10.5L12 6Z" fill="currentColor"/>
+    <rect x="11" y="16" width="2" height="3" fill="currentColor"/>
   </svg>
 );
 
 export const NorthAmericaIcon = ({ className = "w-4 h-4" }: IconProps) => (
-  <svg className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-    {/* Minimal continental outline */}
-    <path d="M3 3C3 3 5 2 7 2C9 2 10 3 11 3C12 3 13 2 13 2L13 8C13 8 12 9 11 10C10 11 9 12 8 13C7 12 6 11 5 10C4 9 3 8 3 8L3 3Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+  <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M5 5H7V7H9V5H11V7H13V9H15V11H17V15H15V17H13V19H11V17H9V15H7V13H5V11H7V9H5V5Z" fill="currentColor"/>
+    <rect x="17" y="7" width="2" height="4" fill="currentColor"/>
   </svg>
 );
 
 export const EuropeIcon = ({ className = "w-4 h-4" }: IconProps) => (
-  <svg className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-    {/* Minimal EU stars in circle */}
-    <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5" fill="none"/>
-    <circle cx="8" cy="3.5" r="0.7" fill="currentColor"/>
-    <circle cx="11.5" cy="5.5" r="0.7" fill="currentColor"/>
-    <circle cx="11.5" cy="10.5" r="0.7" fill="currentColor"/>
-    <circle cx="8" cy="12.5" r="0.7" fill="currentColor"/>
-    <circle cx="4.5" cy="10.5" r="0.7" fill="currentColor"/>
-    <circle cx="4.5" cy="5.5" r="0.7" fill="currentColor"/>
+  <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="12" cy="5" r="1.2" fill="currentColor"/>
+    <circle cx="17" cy="8" r="1.2" fill="currentColor"/>
+    <circle cx="19" cy="13" r="1.2" fill="currentColor"/>
+    <circle cx="17" cy="18" r="1.2" fill="currentColor"/>
+    <circle cx="12" cy="20" r="1.2" fill="currentColor"/>
+    <circle cx="7" cy="18" r="1.2" fill="currentColor"/>
+    <circle cx="5" cy="13" r="1.2" fill="currentColor"/>
+    <circle cx="7" cy="8" r="1.2" fill="currentColor"/>
   </svg>
 );
 
 export const UKIcon = ({ className = "w-4 h-4" }: IconProps) => (
-  <svg className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-    {/* Minimal Union Jack elements */}
-    <rect x="1" y="2" width="14" height="12" rx="1" stroke="currentColor" strokeWidth="1.5" fill="none"/>
-    <line x1="1" y1="2" x2="15" y2="14" stroke="currentColor" strokeWidth="1" opacity="0.5"/>
-    <line x1="15" y1="2" x2="1" y2="14" stroke="currentColor" strokeWidth="1" opacity="0.5"/>
-    <line x1="8" y1="2" x2="8" y2="14" stroke="currentColor" strokeWidth="1.5"/>
-    <line x1="1" y1="8" x2="15" y2="8" stroke="currentColor" strokeWidth="1.5"/>
+  <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="11" y="5" width="2" height="14" fill="currentColor"/>
+    <rect x="5" y="11" width="14" height="2" fill="currentColor"/>
+    <path d="M5 5L11 11H13L19 5L18 4L12 10L6 4L5 5Z" fill="currentColor" opacity="0.5"/>
+    <path d="M5 19L11 13H13L19 19L18 20L12 14L6 20L5 19Z" fill="currentColor" opacity="0.5"/>
   </svg>
 );
 
 export const AsiaPacificIcon = ({ className = "w-4 h-4" }: IconProps) => (
-  <svg className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-    {/* Minimal regional symbol - stylized waves/mountain */}
-    <path d="M2 10C3 8 4 7 6 7C7 7 8 8 8 8C8 8 9 7 10 7C12 7 13 8 14 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" fill="none"/>
-    <circle cx="8" cy="4" r="2" stroke="currentColor" strokeWidth="1.5" fill="none"/>
-    <path d="M4 13H12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+  <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="12" cy="7" r="3" fill="currentColor" opacity="0.3"/>
+    <path d="M5 14C7 13 9 13 12 14C15 15 17 15 19 14V16C17 17 15 17 12 16C9 15 7 15 5 16V14Z" fill="currentColor"/>
+    <rect x="9" y="18" width="6" height="1.5" fill="currentColor"/>
   </svg>
 );
 
 export const GlobalIcon = ({ className = "w-4 h-4" }: IconProps) => (
-  <svg className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-    {/* Minimal globe with meridians */}
-    <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5" fill="none"/>
-    <ellipse cx="8" cy="8" rx="2.5" ry="6" stroke="currentColor" strokeWidth="1.5" fill="none"/>
-    <line x1="2" y1="8" x2="14" y2="8" stroke="currentColor" strokeWidth="1.5"/>
-    <path d="M8 2C9.5 4 9.5 12 8 14" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+  <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="12" cy="12" r="8" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+    <ellipse cx="12" cy="12" rx="3.5" ry="8" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+    <line x1="4" y1="12" x2="20" y2="12" stroke="currentColor" strokeWidth="1.5"/>
+    <path d="M12 4C14 7 14 17 12 20" stroke="currentColor" strokeWidth="1.5" fill="none"/>
   </svg>
 );
 
 export const MapPinIcon = ({ className = "w-4 h-4" }: IconProps) => (
-  <svg className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-    {/* Fallback minimal map pin */}
-    <path d="M8 2C5.79 2 4 3.79 4 6C4 9 8 14 8 14C8 14 12 9 12 6C12 3.79 10.21 2 8 2Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
-    <circle cx="8" cy="6" r="1.5" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+  <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M12 4C9 4 6.5 6.5 6.5 9.5C6.5 14 12 20 12 20C12 20 17.5 14 17.5 9.5C17.5 6.5 15 4 12 4Z" fill="currentColor" opacity="0.3"/>
+    <circle cx="12" cy="9.5" r="2.5" fill="currentColor"/>
   </svg>
 );

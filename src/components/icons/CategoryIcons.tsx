@@ -1,190 +1,170 @@
-// Custom minimal SVG icons for business categories - Stripe-inspired design
+// Custom minimal SVG icons for business categories - Clean, filled style
 
 interface IconProps {
   className?: string;
 }
 
 export const TechnologyIcon = ({ className = "w-4 h-4" }: IconProps) => (
-  <svg className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-    {/* Code brackets */}
-    <path d="M5 4L2 8L5 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-    <path d="M11 4L14 8L11 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-    <line x1="9" y1="3" x2="7" y2="13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+  <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M8 7L4 12L8 17" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+    <path d="M16 7L20 12L16 17" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
   </svg>
 );
 
 export const HealthcareIcon = ({ className = "w-4 h-4" }: IconProps) => (
-  <svg className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-    {/* Medical cross */}
-    <path d="M8 3V13M3 8H13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-    <rect x="6" y="2" width="4" height="5" rx="0.5" stroke="currentColor" strokeWidth="1.5" fill="none"/>
-    <rect x="6" y="9" width="4" height="5" rx="0.5" stroke="currentColor" strokeWidth="1.5" fill="none"/>
-    <rect x="2" y="6" width="5" height="4" rx="0.5" stroke="currentColor" strokeWidth="1.5" fill="none"/>
-    <rect x="9" y="6" width="5" height="4" rx="0.5" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+  <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="10" y="5" width="4" height="14" fill="currentColor"/>
+    <rect x="5" y="10" width="14" height="4" fill="currentColor"/>
   </svg>
 );
 
 export const ManufacturingIcon = ({ className = "w-4 h-4" }: IconProps) => (
-  <svg className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-    {/* Gear */}
-    <circle cx="8" cy="8" r="3" stroke="currentColor" strokeWidth="1.5" fill="none"/>
-    <circle cx="8" cy="8" r="1" fill="currentColor"/>
-    <line x1="8" y1="2" x2="8" y2="4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-    <line x1="8" y1="12" x2="8" y2="14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-    <line x1="2" y1="8" x2="4" y2="8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-    <line x1="12" y1="8" x2="14" y2="8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+  <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="12" cy="12" r="4" fill="currentColor" opacity="0.3"/>
+    <circle cx="12" cy="12" r="2" fill="currentColor"/>
+    <rect x="11" y="4" width="2" height="4" fill="currentColor"/>
+    <rect x="11" y="16" width="2" height="4" fill="currentColor"/>
+    <rect x="4" y="11" width="4" height="2" fill="currentColor"/>
+    <rect x="16" y="11" width="4" height="2" fill="currentColor"/>
   </svg>
 );
 
 export const FinanceIcon = ({ className = "w-4 h-4" }: IconProps) => (
-  <svg className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-    {/* Graph line trending up */}
-    <polyline points="2,12 5,8 8,10 11,5 14,7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
-    <polyline points="11,5 14,5 14,7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="currentColor"/>
+  <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M4 18L8 14L12 16L16 10L20 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+    <path d="M16 10L20 10L20 12" fill="currentColor"/>
   </svg>
 );
 
 export const RetailIcon = ({ className = "w-4 h-4" }: IconProps) => (
-  <svg className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-    {/* Shopping bag */}
-    <rect x="3" y="5" width="10" height="9" rx="1" stroke="currentColor" strokeWidth="1.5" fill="none"/>
-    <path d="M6 5V4C6 2.89543 6.89543 2 8 2C9.10457 2 10 2.89543 10 4V5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+  <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M6 8V7C6 5.34315 7.34315 4 9 4H15C16.6569 4 18 5.34315 18 7V8" stroke="currentColor" strokeWidth="2"/>
+    <rect x="4" y="8" width="16" height="12" rx="1" fill="currentColor" opacity="0.3"/>
   </svg>
 );
 
 export const RealEstateIcon = ({ className = "w-4 h-4" }: IconProps) => (
-  <svg className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-    {/* House */}
-    <path d="M2 7L8 2L14 7V13C14 13.5523 13.5523 14 13 14H3C2.44772 14 2 13.5523 2 13V7Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
-    <path d="M6 14V10H10V14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+  <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M4 10L12 4L20 10V19H4V10Z" fill="currentColor" opacity="0.3"/>
+    <rect x="10" y="14" width="4" height="5" fill="currentColor"/>
   </svg>
 );
 
 export const FoodBeverageIcon = ({ className = "w-4 h-4" }: IconProps) => (
-  <svg className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-    {/* Coffee cup */}
-    <path d="M3 5H11C11 5 11 7 11 9C11 11 9.5 13 7 13C4.5 13 3 11 3 9C3 7 3 5 3 5Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
-    <path d="M11 7H12C12.5523 7 13 7.44772 13 8V8C13 8.55228 12.5523 9 12 9H11" stroke="currentColor" strokeWidth="1.5"/>
-    <path d="M5 3L6 5M8 3L8 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+  <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M6 8H14V12C14 14.2091 12.2091 16 10 16C7.79086 16 6 14.2091 6 12V8Z" fill="currentColor" opacity="0.3"/>
+    <path d="M14 10H16C16.5523 10 17 10.4477 17 11C17 11.5523 16.5523 12 16 12H14" stroke="currentColor" strokeWidth="1.5"/>
+    <line x1="8" y1="5" x2="9" y2="8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
   </svg>
 );
 
 export const ProfessionalServicesIcon = ({ className = "w-4 h-4" }: IconProps) => (
-  <svg className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-    {/* Briefcase */}
-    <rect x="2" y="5" width="12" height="8" rx="1" stroke="currentColor" strokeWidth="1.5" fill="none"/>
-    <path d="M6 5V4C6 3.44772 6.44772 3 7 3H9C9.55228 3 10 3.44772 10 4V5" stroke="currentColor" strokeWidth="1.5"/>
-    <line x1="2" y1="9" x2="14" y2="9" stroke="currentColor" strokeWidth="1.5"/>
+  <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="4" y="8" width="16" height="10" rx="1" fill="currentColor" opacity="0.3"/>
+    <path d="M9 8V7C9 6.44772 9.44772 6 10 6H14C14.5523 6 15 6.44772 15 7V8" stroke="currentColor" strokeWidth="1.5"/>
+    <line x1="4" y1="13" x2="20" y2="13" stroke="currentColor" strokeWidth="1.5"/>
   </svg>
 );
 
 export const ConstructionIcon = ({ className = "w-4 h-4" }: IconProps) => (
-  <svg className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-    {/* Hard hat / building */}
-    <path d="M2 10L2 13C2 13.5523 2.44772 14 3 14H13C13.5523 14 14 13.5523 14 13V10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-    <path d="M3 10C3 7 5 5 8 5C11 5 13 7 13 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
-    <line x1="8" y1="2" x2="8" y2="5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+  <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M5 14C5 10 7.5 8 12 8C16.5 8 19 10 19 14" fill="currentColor" opacity="0.3"/>
+    <rect x="4" y="14" width="16" height="5" fill="currentColor" opacity="0.3"/>
+    <line x1="12" y1="5" x2="12" y2="8" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
   </svg>
 );
 
 export const TransportationIcon = ({ className = "w-4 h-4" }: IconProps) => (
-  <svg className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-    {/* Truck */}
-    <rect x="2" y="5" width="8" height="6" rx="0.5" stroke="currentColor" strokeWidth="1.5" fill="none"/>
-    <path d="M10 7H12L14 9V11H10V7Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" fill="none"/>
-    <circle cx="5" cy="11" r="1.5" stroke="currentColor" strokeWidth="1.5" fill="none"/>
-    <circle cx="12" cy="11" r="1.5" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+  <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="4" y="9" width="11" height="7" rx="0.5" fill="currentColor" opacity="0.3"/>
+    <path d="M15 11H18L20 13V16H15V11Z" fill="currentColor" opacity="0.3"/>
+    <circle cx="8" cy="16" r="1.5" fill="currentColor"/>
+    <circle cx="17" cy="16" r="1.5" fill="currentColor"/>
   </svg>
 );
 
 export const EducationIcon = ({ className = "w-4 h-4" }: IconProps) => (
-  <svg className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-    {/* Graduation cap */}
-    <path d="M2 6L8 3L14 6L8 9L2 6Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
-    <path d="M4 7.5V10.5C4 10.5 5.5 12 8 12C10.5 12 12 10.5 12 10.5V7.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+  <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M3 9L12 5L21 9L12 13L3 9Z" fill="currentColor" opacity="0.3"/>
+    <path d="M6 11V15C6 15 8 17 12 17C16 17 18 15 18 15V11" stroke="currentColor" strokeWidth="1.5"/>
   </svg>
 );
 
 export const HospitalityIcon = ({ className = "w-4 h-4" }: IconProps) => (
-  <svg className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-    {/* Bed / hotel */}
-    <rect x="2" y="6" width="12" height="7" rx="0.5" stroke="currentColor" strokeWidth="1.5" fill="none"/>
-    <circle cx="5" cy="4" r="1.5" stroke="currentColor" strokeWidth="1.5" fill="none"/>
-    <line x1="2" y1="10" x2="14" y2="10" stroke="currentColor" strokeWidth="1.5"/>
+  <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="4" y="10" width="16" height="8" fill="currentColor" opacity="0.3"/>
+    <circle cx="8" cy="7" r="2" fill="currentColor" opacity="0.5"/>
+    <line x1="4" y1="14" x2="20" y2="14" stroke="currentColor" strokeWidth="1.5"/>
   </svg>
 );
 
 export const EnergyIcon = ({ className = "w-4 h-4" }: IconProps) => (
-  <svg className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-    {/* Lightning bolt */}
-    <path d="M9 2L4 9H8L7 14L12 7H8L9 2Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+  <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M13 4L7 13H11L10 20L16 11H12L13 4Z" fill="currentColor"/>
   </svg>
 );
 
 export const MediaIcon = ({ className = "w-4 h-4" }: IconProps) => (
-  <svg className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-    {/* Camera / media */}
-    <rect x="2" y="4" width="12" height="9" rx="1" stroke="currentColor" strokeWidth="1.5" fill="none"/>
-    <circle cx="8" cy="8.5" r="2.5" stroke="currentColor" strokeWidth="1.5" fill="none"/>
-    <path d="M5 4L6 2H10L11 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+  <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="4" y="7" width="16" height="12" rx="1" fill="currentColor" opacity="0.3"/>
+    <circle cx="12" cy="13" r="3" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+    <path d="M8 7L10 5H14L16 7" stroke="currentColor" strokeWidth="1.5"/>
   </svg>
 );
 
 export const AutomotiveIcon = ({ className = "w-4 h-4" }: IconProps) => (
-  <svg className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-    {/* Car */}
-    <path d="M3 9L4 6H12L13 9M3 9V12H4M3 9H13M13 9V12H12M4 12H12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
-    <circle cx="5" cy="9" r="0.5" fill="currentColor"/>
-    <circle cx="11" cy="9" r="0.5" fill="currentColor"/>
+  <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M5 13L7 9H17L19 13H5Z" fill="currentColor" opacity="0.3"/>
+    <rect x="5" y="13" width="14" height="4" fill="currentColor" opacity="0.3"/>
+    <circle cx="8" cy="13" r="1" fill="currentColor"/>
+    <circle cx="16" cy="13" r="1" fill="currentColor"/>
   </svg>
 );
 
 export const AgricultureIcon = ({ className = "w-4 h-4" }: IconProps) => (
-  <svg className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-    {/* Plant / sprout */}
-    <path d="M8 14V8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-    <path d="M8 8C8 8 6 6 4 6C4 6 4 8 6 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
-    <path d="M8 8C8 8 10 6 12 6C12 6 12 8 10 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
-    <path d="M8 10C8 10 10 9 11 10C11 10 10 11 9 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+  <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <line x1="12" y1="20" x2="12" y2="12" stroke="currentColor" strokeWidth="2"/>
+    <path d="M12 12C12 12 10 10 8 10C8 10 8 12 10 13" fill="currentColor" opacity="0.5"/>
+    <path d="M12 12C12 12 14 10 16 10C16 10 16 12 14 13" fill="currentColor" opacity="0.5"/>
+    <path d="M12 14C12 14 14 13 15 14C15 14 14 15 13 15" fill="currentColor" opacity="0.5"/>
   </svg>
 );
 
 export const TelecommunicationsIcon = ({ className = "w-4 h-4" }: IconProps) => (
-  <svg className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-    {/* Signal waves */}
-    <path d="M8 8V8.01M5 5C6.5 6.5 9.5 6.5 11 5M3 3C5.5 5.5 10.5 5.5 13 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-    <line x1="8" y1="10" x2="8" y2="14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+  <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="12" cy="12" r="1.5" fill="currentColor"/>
+    <path d="M8 8C10 10 14 10 16 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+    <path d="M6 5C9 8 15 8 18 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+    <line x1="12" y1="14" x2="12" y2="19" stroke="currentColor" strokeWidth="2"/>
   </svg>
 );
 
 export const ConsumerGoodsIcon = ({ className = "w-4 h-4" }: IconProps) => (
-  <svg className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-    {/* Package box */}
-    <path d="M2 5L8 2L14 5V11L8 14L2 11V5Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
-    <path d="M2 5L8 8M8 8L14 5M8 8V14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+  <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M4 9L12 5L20 9V16L12 20L4 16V9Z" fill="currentColor" opacity="0.3"/>
+    <line x1="12" y1="12" x2="12" y2="20" stroke="currentColor" strokeWidth="1.5"/>
+    <line x1="4" y1="9" x2="12" y2="12" stroke="currentColor" strokeWidth="1.5"/>
+    <line x1="20" y1="9" x2="12" y2="12" stroke="currentColor" strokeWidth="1.5"/>
   </svg>
 );
 
 export const BusinessServicesIcon = ({ className = "w-4 h-4" }: IconProps) => (
-  <svg className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-    {/* Building */}
-    <rect x="3" y="2" width="10" height="12" rx="0.5" stroke="currentColor" strokeWidth="1.5" fill="none"/>
-    <line x1="6" y1="5" x2="6" y2="5.01" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-    <line x1="10" y1="5" x2="10" y2="5.01" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-    <line x1="6" y1="8" x2="6" y2="8.01" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-    <line x1="10" y1="8" x2="10" y2="8.01" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-    <rect x="7" y="11" width="2" height="3" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+  <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="6" y="5" width="12" height="14" rx="0.5" fill="currentColor" opacity="0.3"/>
+    <rect x="9" y="8" width="2" height="2" fill="currentColor"/>
+    <rect x="13" y="8" width="2" height="2" fill="currentColor"/>
+    <rect x="9" y="12" width="2" height="2" fill="currentColor"/>
+    <rect x="13" y="12" width="2" height="2" fill="currentColor"/>
+    <rect x="10" y="16" width="4" height="3" fill="currentColor" opacity="0.7"/>
   </svg>
 );
 
-// Default fallback icon
 export const DefaultCategoryIcon = ({ className = "w-4 h-4" }: IconProps) => (
-  <svg className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-    {/* Generic building */}
-    <rect x="4" y="3" width="8" height="11" rx="0.5" stroke="currentColor" strokeWidth="1.5" fill="none"/>
-    <line x1="7" y1="6" x2="7" y2="6.01" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-    <line x1="9" y1="6" x2="9" y2="6.01" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-    <line x1="7" y1="9" x2="7" y2="9.01" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-    <line x1="9" y1="9" x2="9" y2="9.01" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+  <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="7" y="6" width="10" height="13" rx="0.5" fill="currentColor" opacity="0.3"/>
+    <rect x="10" y="9" width="2" height="2" fill="currentColor"/>
+    <rect x="12" y="9" width="2" height="2" fill="currentColor"/>
+    <rect x="10" y="13" width="2" height="2" fill="currentColor"/>
+    <rect x="12" y="13" width="2" height="2" fill="currentColor"/>
   </svg>
 );
