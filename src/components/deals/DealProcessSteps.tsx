@@ -64,7 +64,7 @@ export function DealProcessSteps({
           {
             id: 'decision',
             label: 'Decision',
-            description: 'Awaiting owner decision',
+            description: 'Owner reviewing your profile and investment approach',
             status: 'pending'
           }
         ];
@@ -85,7 +85,7 @@ export function DealProcessSteps({
           {
             id: 'approved',
             label: 'Approved',
-            description: "Great news! Your request has been approved. Expect an email from us in your inbox shortly—we'll walk you through the next steps and opportunity details.",
+            description: "Great news! Your request has been approved. Expect an email from us in your inbox shortly - we'll walk you through the next steps and opportunity details.",
             status: 'completed'
           }
         ];
