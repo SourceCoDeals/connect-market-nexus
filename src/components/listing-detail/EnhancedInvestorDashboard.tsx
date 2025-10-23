@@ -66,20 +66,20 @@ export function EnhancedInvestorDashboard({ listing, formatCurrency }: EnhancedI
   return (
     <div className="space-y-8">
       {/* Financial Summary - Clean Minimal Grid */}
-      <div className="space-y-5">
+      <div className="space-y-4">
         <div className="flex items-center gap-2.5">
           <ChartIcon className="w-[15px] h-[15px] text-slate-500" />
-          <span className="text-sm font-semibold text-slate-900 tracking-tight">Financial Snapshot</span>
+          <span className="text-[15px] font-semibold text-slate-900 tracking-tight">Financial Snapshot</span>
         </div>
         
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-6">
           {metrics.map((metric, index) => {
             const Icon = metric.icon;
             return (
-              <div key={index} className="space-y-2.5">
+              <div key={index} className="space-y-2">
                 <div className="flex items-center gap-2">
                   <Icon className="w-[14px] h-[14px] text-slate-400" />
-                  <span className="text-[11.5px] font-semibold text-slate-500 uppercase tracking-wider">
+                  <span className="text-[12px] font-semibold text-slate-500 uppercase tracking-wider">
                     {metric.label}
                   </span>
                 </div>

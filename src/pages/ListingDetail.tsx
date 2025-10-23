@@ -234,10 +234,10 @@ const ListingDetail = () => {
             
             {/* Business Overview */}
             <div className="py-8 border-t border-slate-100">
-              <div className="space-y-5">
+              <div className="space-y-4">
                 <div className="flex items-center gap-2.5">
                   <DocumentIcon className="w-[15px] h-[15px] text-slate-500" />
-                  <span className="text-sm font-semibold text-slate-900 tracking-tight">Business Overview</span>
+                  <span className="text-[15px] font-semibold text-slate-900 tracking-tight">Business Overview</span>
                 </div>
                 <div className="prose max-w-none">
                   <EditableDescription
@@ -253,10 +253,10 @@ const ListingDetail = () => {
             {/* Ownership Structure */}
             {((listing as any).ownership_structure || (listing as any).seller_motivation) && (
               <div className="document-section py-8 border-t border-slate-100">
-                <div className="space-y-6">
-                  <div className="flex items-center gap-2.5 mb-5">
+                <div className="space-y-5">
+                  <div className="flex items-center gap-2.5 mb-4">
                     <BuildingIcon className="w-[15px] h-[15px] text-slate-500" />
-                    <span className="text-sm font-semibold text-slate-900 tracking-tight">Ownership & Transaction Overview</span>
+                    <span className="text-[15px] font-semibold text-slate-900 tracking-tight">Ownership & Transaction Overview</span>
                   </div>
                   
                   <div className="bg-sourceco-background rounded-lg p-6 space-y-6">
