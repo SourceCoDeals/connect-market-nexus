@@ -144,15 +144,15 @@ export const useConnectionStatus = (listingId: string | undefined) => {
   return useQuery({
     queryKey: createQueryKey.connectionStatus(listingId),
     queryFn: async () => {
-      if (!listingId) return { exists: false, status: '' };
+      if (!listingId) return { exists: false, status: '', id: '' };
       
       try {
         const { data: { session } } = await supabase.auth.getSession();
-        if (!session) return { exists: false, status: '' };
+        if (!session) return { exists: false, status: '', id: '' };
         
         const { data, error } = await supabase
           .from('connection_requests')
-          .select('status')
+          .select('id, status')
           .eq('listing_id', listingId)
           .eq('user_id', session.user.id)
           .maybeSingle();
@@ -161,11 +161,12 @@ export const useConnectionStatus = (listingId: string | undefined) => {
         
         return {
           exists: !!data,
-          status: data?.status || ''
+          status: data?.status || '',
+          id: data?.id || ''
         };
       } catch (error: any) {
         console.error('Error checking connection status:', error);
-        return { exists: false, status: '' };
+        return { exists: false, status: '', id: '' };
       }
     },
     enabled: !!listingId,

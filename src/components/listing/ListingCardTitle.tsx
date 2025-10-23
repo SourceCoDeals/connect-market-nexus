@@ -7,13 +7,15 @@ interface ListingCardTitleProps {
   connectionExists?: boolean;
   connectionStatus?: string;
   viewType?: "grid" | "list";
+  requestId?: string;
 }
 
 const ListingCardTitle = ({ 
   title, 
   connectionExists = false, 
   connectionStatus = "",
-  viewType = "grid"
+  viewType = "grid",
+  requestId
 }: ListingCardTitleProps) => {
   const getStatusIndicator = () => {
     if (!connectionExists) return null;
@@ -53,7 +55,7 @@ const ListingCardTitle = ({
               </span>
             </div>
             <Link
-              to="/buyer/my-deals"
+              to={requestId ? `/buyer/my-deals?request=${requestId}` : "/buyer/my-deals"}
               onClick={(e) => e.stopPropagation()}
               className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-all duration-200 group"
             >

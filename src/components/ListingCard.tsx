@@ -105,6 +105,7 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
                     connectionExists={connectionExists}
                     connectionStatus={connectionStatus?.status}
                     viewType={viewType}
+                    requestId={connectionStatus?.id}
                   />
                 </div>
                 

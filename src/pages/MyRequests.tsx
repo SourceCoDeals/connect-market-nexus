@@ -13,6 +13,7 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserNotifications, useMarkRequestNotificationsAsRead } from "@/hooks/use-user-notifications";
+import { useSearchParams } from "react-router-dom";
 
 const MyRequests = () => {
   const { user } = useAuth();
@@ -20,6 +21,7 @@ const MyRequests = () => {
   const { data: requests = [], isLoading, error } = useUserConnectionRequests();
   const updateMessage = useUpdateConnectionMessage();
   const isMobile = useIsMobile();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [selectedDeal, setSelectedDeal] = useState<string | null>(null);
   const { unreadByRequest } = useUserNotifications();
   const markRequestNotificationsAsRead = useMarkRequestNotificationsAsRead();
@@ -53,12 +55,19 @@ const MyRequests = () => {
     } as any;
   }, [freshProfile, user]);
 
-  // Set first request as default when data loads
+  // Set selected deal from URL parameter or default to first request
   useEffect(() => {
-    if (requests && requests.length > 0 && !selectedDeal) {
-      setSelectedDeal(requests[0].id);
+    if (requests && requests.length > 0) {
+      const requestIdFromUrl = searchParams.get('request');
+      if (requestIdFromUrl && requests.find(r => r.id === requestIdFromUrl)) {
+        setSelectedDeal(requestIdFromUrl);
+        // Clear the URL parameter after setting the selected deal
+        setSearchParams({}, { replace: true });
+      } else if (!selectedDeal) {
+        setSelectedDeal(requests[0].id);
+      }
     }
-  }, [requests, selectedDeal]);
+  }, [requests, selectedDeal, searchParams, setSearchParams]);
 
   // Mark notifications as read when a deal tab is selected
   useEffect(() => {
