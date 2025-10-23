@@ -64,7 +64,7 @@ const BlurredFinancialTeaser = ({
         </div>
 
         {/* Clean CTA overlay */}
-        <div className="absolute inset-0 flex items-center justify-center bg-white/95 p-8">
+        <div className="absolute inset-0 flex items-center justify-center bg-white/95 py-12 px-8">
           <div className="text-center w-full max-w-lg mx-auto">
             <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-slate-100 mb-5">
               <LockIcon className="w-6 h-6 text-slate-600" />
