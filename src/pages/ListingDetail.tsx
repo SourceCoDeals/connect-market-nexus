@@ -33,7 +33,7 @@ import { AdminListingSidebar } from "@/components/listing-detail/AdminListingSid
 import { EditableTitle } from "@/components/listing-detail/EditableTitle";
 import { EditableDescription } from "@/components/listing-detail/EditableDescription";
 import { CategoryLocationBadges } from "@/components/shared/CategoryLocationBadges";
-import { CalendarIcon, DocumentIcon } from "@/components/icons/MetricIcons";
+import { CalendarIcon, DocumentIcon, BuildingIcon } from "@/components/icons/MetricIcons";
 
 
 const ListingDetail = () => {
@@ -252,9 +252,12 @@ const ListingDetail = () => {
 
             {/* Ownership Structure */}
             {((listing as any).ownership_structure || (listing as any).seller_motivation) && (
-              <div className="document-section py-8 border-t border-sourceco-form">
+              <div className="document-section py-8 border-t border-slate-100">
                 <div className="space-y-6">
-                  <span className="document-label">Ownership & Transaction Overview</span>
+                  <div className="flex items-center gap-2.5 mb-5">
+                    <BuildingIcon className="w-[15px] h-[15px] text-slate-500" />
+                    <span className="text-sm font-semibold text-slate-900 tracking-tight">Ownership & Transaction Overview</span>
+                  </div>
                   
                   <div className="bg-sourceco-background rounded-lg p-6 space-y-6">
                     <div className="flex items-start gap-4">
@@ -296,7 +299,7 @@ const ListingDetail = () => {
 
             {/* Transaction Preferences */}
             {((listing as any).seller_motivation || (listing as any).timeline_preference || (listing as any).seller_involvement_preference) && (
-              <div className="document-section py-8 border-t border-sourceco-form">
+              <div className="document-section py-8 border-t border-slate-100">
                 <div className="space-y-4">
                   <span className="document-label">Transaction Preferences</span>
                   {(listing as any).seller_motivation && (
@@ -323,7 +326,7 @@ const ListingDetail = () => {
 
             {/* Custom Sections */}
             {(listing as any).custom_sections && Array.isArray((listing as any).custom_sections) && (listing as any).custom_sections.length > 0 && (
-              <div className="document-section py-8 border-t border-sourceco-form">
+              <div className="document-section py-8 border-t border-slate-100">
                 <div className="space-y-6">
                   {(listing as any).custom_sections.map((section: any, index: number) => (
                     <CustomSection key={index} section={section} />
@@ -346,7 +349,7 @@ const ListingDetail = () => {
 
 
             {isAdmin && listing.owner_notes && (
-              <div className="document-section py-8 border-t border-sourceco-form">
+              <div className="document-section py-8 border-t border-slate-100">
                 <div className="space-y-4">
                   <span className="document-label">Admin Notes</span>
                   <p className="document-subtitle leading-relaxed">{listing.owner_notes}</p>

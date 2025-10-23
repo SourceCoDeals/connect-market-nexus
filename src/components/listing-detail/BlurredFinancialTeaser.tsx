@@ -1,9 +1,7 @@
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Lock, TrendingUp, Calculator, PieChart, BarChart3 } from "lucide-react";
 import ConnectionRequestDialog from "@/components/connection/ConnectionRequestDialog";
-import financialMetricsBg from "@/assets/financial-metrics-bg.jpg";
+import { LockIcon } from "@/components/icons/MetricIcons";
 
 interface BlurredFinancialTeaserProps {
   onRequestConnection: (message?: string) => void;
@@ -39,77 +37,52 @@ const BlurredFinancialTeaser = ({
   };
 
   return (
-    <div className="relative border border-slate-200 bg-white overflow-hidden rounded-lg">
-      {/* Background image */}
-      <div className="absolute inset-0">
-        <img 
-          src={financialMetricsBg} 
-          alt=""
-          className="w-full h-full object-cover opacity-15 blur-[1px]"
-        />
-      </div>
-      
-      <div className="relative p-6">
-        <span className="document-label">Detailed Financial Analysis</span>
-        
-        {/* Blurred content preview */}
-        <div className="mt-6 space-y-6 blur-sm select-none pointer-events-none">
-          <div className="grid grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <span className="document-label">Cash Flow Analysis</span>
-              <div className="h-3 bg-slate-200 rounded w-24"></div>
-              <div className="h-2 bg-slate-200 rounded w-16"></div>
+    <div className="relative bg-gradient-to-br from-slate-50 to-white border border-slate-200/80 overflow-hidden rounded-lg shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
+      <div className="relative p-8">
+        {/* Minimal blurred preview */}
+        <div className="mb-8 space-y-4 blur-[2px] select-none pointer-events-none opacity-40">
+          <div className="grid grid-cols-3 gap-6">
+            <div className="space-y-1.5">
+              <div className="h-2 bg-slate-300 rounded w-16"></div>
+              <div className="h-3 bg-slate-300 rounded w-20"></div>
             </div>
-            <div className="space-y-2">
-              <span className="document-label">Profit Margins</span>
-              <div className="h-3 bg-slate-200 rounded w-20"></div>
-              <div className="h-2 bg-slate-200 rounded w-14"></div>
+            <div className="space-y-1.5">
+              <div className="h-2 bg-slate-300 rounded w-16"></div>
+              <div className="h-3 bg-slate-300 rounded w-20"></div>
+            </div>
+            <div className="space-y-1.5">
+              <div className="h-2 bg-slate-300 rounded w-16"></div>
+              <div className="h-3 bg-slate-300 rounded w-20"></div>
             </div>
           </div>
           
           <div className="space-y-2">
-            <span className="document-label">Historical Performance</span>
-            <div className="space-y-2">
-              <div className="h-2 bg-slate-200 rounded w-full"></div>
-              <div className="h-2 bg-slate-200 rounded w-4/5"></div>
-              <div className="h-2 bg-slate-200 rounded w-3/4"></div>
-            </div>
-          </div>
-          
-          <div className="grid grid-cols-3 gap-4">
-            <div className="space-y-1">
-              <div className="h-2 bg-slate-200 rounded"></div>
-              <div className="h-2 bg-slate-200 rounded w-3/4"></div>
-            </div>
-            <div className="space-y-1">
-              <div className="h-2 bg-slate-200 rounded"></div>
-              <div className="h-2 bg-slate-200 rounded w-2/3"></div>
-            </div>
-            <div className="space-y-1">
-              <div className="h-2 bg-slate-200 rounded"></div>
-              <div className="h-2 bg-slate-200 rounded w-4/5"></div>
-            </div>
+            <div className="h-2 bg-slate-300 rounded w-full"></div>
+            <div className="h-2 bg-slate-300 rounded w-5/6"></div>
+            <div className="h-2 bg-slate-300 rounded w-4/5"></div>
           </div>
         </div>
 
-        {/* Overlay with call to action */}
-        <div className="absolute inset-0 bg-white/95 flex items-center justify-center">
-          <div className="text-center px-6 py-8">
-            <div className="mb-6">
-              <Lock className="h-8 w-8 text-slate-500 mx-auto mb-4" />
-              <h3 className="document-value mb-2">Unlock Detailed Financial Analysis</h3>
-              <p className="document-subtitle max-w-md mx-auto mb-6">
-                Request a connection to access comprehensive financial data, historical performance, 
-                and detailed business metrics.
-              </p>
+        {/* Clean CTA overlay */}
+        <div className="absolute inset-0 flex items-center justify-center bg-white/80 backdrop-blur-sm">
+          <div className="text-center px-6 max-w-md">
+            <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-slate-100 mb-4">
+              <LockIcon className="w-5 h-5 text-slate-600" />
             </div>
+            
+            <h3 className="text-base font-semibold text-slate-900 mb-2">
+              Unlock Detailed Financial Analysis
+            </h3>
+            <p className="text-sm text-slate-600 mb-6 leading-relaxed">
+              Request a connection to access comprehensive financial data, historical performance, and detailed business metrics.
+            </p>
             
             <Button
               onClick={handleButtonClick}
               disabled={isRequesting || (hasConnection && connectionStatus !== "rejected")}
-              className="bg-[#d7b65c] text-white hover:bg-[#d7b65c]/90 transition-colors px-6 py-2 text-sm font-medium rounded-md"
+              className="bg-sourceco-accent text-white hover:bg-sourceco-accent/90 transition-colors px-6 h-10 text-sm font-medium rounded-md shadow-sm"
             >
-              <Lock className="h-4 w-4 mr-2" />
+              <LockIcon className="w-4 h-4 mr-2" />
               {isRequesting ? "Sending Request..." : hasConnection && connectionStatus !== "rejected" ? "Request Sent" : "Request Connection"}
             </Button>
           </div>
