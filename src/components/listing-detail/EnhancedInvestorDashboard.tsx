@@ -1,5 +1,6 @@
 // No UI imports needed - using pure document styling
 import { AdminListing } from "@/types/admin";
+import { RevenueIcon, EBITDAIcon, MarginIcon, EmployeesIcon, ChartIcon } from "@/components/icons/MetricIcons";
 
 interface EnhancedInvestorDashboardProps {
   listing: AdminListing;
@@ -39,30 +40,61 @@ export function EnhancedInvestorDashboard({ listing, formatCurrency }: EnhancedI
   const marginQuality = getMarginQuality(ebitdaMargin);
   const customerRisk = getCustomerRisk(listing.customer_concentration);
 
+  const metrics = [
+    {
+      icon: RevenueIcon,
+      label: "2024 Revenue",
+      value: formatCurrency(listing.revenue),
+    },
+    {
+      icon: EBITDAIcon,
+      label: "EBITDA",
+      value: formatCurrency(listing.ebitda),
+    },
+    {
+      icon: MarginIcon,
+      label: "EBITDA Margin",
+      value: `${ebitdaMargin.toFixed(1)}%`,
+    },
+    ...(hasEmployees ? [{
+      icon: EmployeesIcon,
+      label: "Employees",
+      value: employeesDisplay(),
+    }] : []),
+  ];
+
   return (
     <div className="space-y-6">
-      {/* Financial Summary - Horizontal Layout */}
-      <div className="space-y-4">
-        <span className="document-label">Financial Summary</span>
-        <div className={`grid gap-6 ${hasEmployees ? 'grid-cols-4' : 'grid-cols-3'}`}>
-          <div className="space-y-1">
-            <span className="text-xs text-slate-500 uppercase tracking-wider">2024 Revenue</span>
-            <div className="text-xl font-semibold text-slate-900">{formatCurrency(listing.revenue)}</div>
-          </div>
-          <div className="space-y-1">
-            <span className="text-xs text-slate-500 uppercase tracking-wider">EBITDA</span>
-            <div className="text-xl font-semibold text-slate-900">{formatCurrency(listing.ebitda)}</div>
-          </div>
-          <div className="space-y-1">
-            <span className="text-xs text-slate-500 uppercase tracking-wider">EBITDA Margin</span>
-            <div className="text-xl font-semibold text-slate-900">{ebitdaMargin.toFixed(1)}%</div>
-          </div>
-          {hasEmployees && (
-            <div className="space-y-1">
-              <span className="text-xs text-slate-500 uppercase tracking-wider">Employees</span>
-              <div className="text-xl font-semibold text-slate-900">{employeesDisplay()}</div>
-            </div>
-          )}
+      {/* Financial Summary - Card-based Layout with Icons */}
+      <div className="space-y-5">
+        <div className="flex items-center gap-2">
+          <ChartIcon className="w-4 h-4 text-slate-600" />
+          <span className="document-label">Financial Summary</span>
+        </div>
+        <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+          {metrics.map((metric, index) => {
+            const Icon = metric.icon;
+            return (
+              <div 
+                key={index}
+                className="relative bg-white rounded-lg border border-slate-200/80 p-4 hover:border-slate-300 transition-colors"
+              >
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-slate-100">
+                    <Icon className="w-5 h-5 text-slate-700" />
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <div className="text-xs font-medium text-slate-500 uppercase tracking-wider">
+                    {metric.label}
+                  </div>
+                  <div className="text-2xl font-semibold text-slate-900 tracking-tight">
+                    {metric.value}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
 

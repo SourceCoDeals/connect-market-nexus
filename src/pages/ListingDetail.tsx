@@ -33,6 +33,7 @@ import { AdminListingSidebar } from "@/components/listing-detail/AdminListingSid
 import { EditableTitle } from "@/components/listing-detail/EditableTitle";
 import { EditableDescription } from "@/components/listing-detail/EditableDescription";
 import { CategoryLocationBadges } from "@/components/shared/CategoryLocationBadges";
+import { CalendarIcon, DocumentIcon } from "@/components/icons/MetricIcons";
 
 
 const ListingDetail = () => {
@@ -191,29 +192,46 @@ const ListingDetail = () => {
               />
               
               {/* Location, Category & Listed Date */}
-              <div className="flex items-center gap-4 text-sm text-slate-500">
+              <div className="flex items-center gap-3 text-sm text-slate-500">
                 <CategoryLocationBadges 
                   category={listing.category}
                   location={listing.location}
                   variant="inline"
                 />
-                <span>•</span>
-                <span>Listed {(() => {
-                  const listedDate = new Date(listing.created_at);
-                  const now = new Date();
-                  const daysDiff = Math.floor((now.getTime() - listedDate.getTime()) / (1000 * 3600 * 24));
-                  
-                  if (daysDiff > 30) {
-                    return "More than 30 days ago";
-                  }
-                  return listedDate.toLocaleDateString('en-US', { 
-                    month: 'long', 
-                    day: 'numeric', 
-                    year: 'numeric' 
-                  });
-                })()}</span>
+                <span className="text-slate-300">•</span>
+                <div className="flex items-center gap-1.5">
+                  <CalendarIcon className="w-[14px] h-[14px] text-slate-400" />
+                  <span>Listed {(() => {
+                    const listedDate = new Date(listing.created_at);
+                    const now = new Date();
+                    const daysDiff = Math.floor((now.getTime() - listedDate.getTime()) / (1000 * 3600 * 24));
+                    
+                    if (daysDiff > 30) {
+                      return "30+ days ago";
+                    }
+                    if (daysDiff === 0) {
+                      return "today";
+                    }
+                    if (daysDiff === 1) {
+                      return "yesterday";
+                    }
+                    if (daysDiff < 7) {
+                      return `${daysDiff} days ago`;
+                    }
+                    return listedDate.toLocaleDateString('en-US', { 
+                      month: 'short', 
+                      day: 'numeric', 
+                      year: 'numeric' 
+                    });
+                  })()}</span>
+                </div>
                 {isInactive && isAdmin && (
-                  <span className="text-red-600 font-medium">Inactive</span>
+                  <>
+                    <span className="text-slate-300">•</span>
+                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-red-50 text-red-700 text-xs font-medium border border-red-200">
+                      Inactive
+                    </span>
+                  </>
                 )}
               </div>
             </div>
@@ -228,7 +246,10 @@ const ListingDetail = () => {
             {/* Business Overview */}
             <div className="document-section py-6">
               <div className="space-y-4">
-                <span className="document-label">Business Overview</span>
+                <div className="flex items-center gap-2">
+                  <DocumentIcon className="w-4 h-4 text-slate-600" />
+                  <span className="document-label">Business Overview</span>
+                </div>
                 <EditableDescription
                   listingId={listing.id}
                   initialHtml={listing.description_html}
