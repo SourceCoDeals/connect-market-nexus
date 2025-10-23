@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useMarketplace } from "@/hooks/use-marketplace";
-import { AlertCircle, FileText } from "lucide-react";
+import { AlertCircle, FileText, Briefcase } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { getProfileCompletionDetails } from "@/lib/buyer-metrics";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -14,6 +14,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserNotifications, useMarkRequestNotificationsAsRead } from "@/hooks/use-user-notifications";
 import { useSearchParams } from "react-router-dom";
+import { cn } from "@/lib/utils";
 
 const MyRequests = () => {
   const { user } = useAuth();
@@ -175,39 +176,48 @@ const MyRequests = () => {
         </p>
       </div>
 
-      {/* Tabs - Simple underline style */}
+      {/* Tabs - Pill style matching navigation */}
       <Tabs 
         value={selectedDeal || requests[0]?.id} 
         onValueChange={setSelectedDeal}
         className="w-full"
       >
-        <div className="border-b border-gray-200">
-          <div className="px-4 sm:px-8 max-w-7xl mx-auto">
-            <ScrollArea className="w-full -mx-4 sm:-mx-8">
-              <div className="px-4 sm:px-8">
-                <TabsList className="inline-flex h-auto items-center justify-start rounded-none border-b-0 bg-transparent p-0 gap-8">
-                  {requests.map((request) => {
-                    const unreadForRequest = unreadByRequest[request.id] || 0;
-                    
-                    return (
-                      <TabsTrigger 
-                        key={request.id} 
-                        value={request.id}
-                        className="relative rounded-none border-b-2 border-b-transparent bg-transparent px-0 pb-3 pt-0 text-sm font-medium text-gray-600 shadow-none transition-colors hover:text-gray-900 data-[state=active]:border-b-gray-900 data-[state=active]:text-gray-900 whitespace-nowrap"
-                      >
+        <div className="border-b border-gray-100 bg-white">
+          <div className="px-4 sm:px-8 max-w-7xl mx-auto py-4">
+            <ScrollArea className="w-full">
+              <TabsList className="inline-flex h-auto items-center justify-start bg-transparent p-0 gap-2">
+                {requests.map((request) => {
+                  const unreadForRequest = unreadByRequest[request.id] || 0;
+                  const isActive = selectedDeal === request.id || (!selectedDeal && request.id === requests[0]?.id);
+                  
+                  return (
+                    <TabsTrigger 
+                      key={request.id} 
+                      value={request.id}
+                      className={cn(
+                        "inline-flex items-center gap-2 px-4 py-2 rounded-lg text-[13px] font-medium transition-all duration-200 shadow-none border-0",
+                        isActive
+                          ? "bg-slate-900 text-white"
+                          : "bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-900 border border-slate-200"
+                      )}
+                    >
+                      <Briefcase className="w-[14px] h-[14px] shrink-0" />
+                      <span className="truncate max-w-[200px]">
                         {getTruncatedTitle(
                           request.listing?.title || "Untitled", 
                           isMobile
                         )}
-                        {unreadForRequest > 0 && (
-                          <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-red-600 ring-1 ring-white shadow-sm"></span>
-                        )}
-                      </TabsTrigger>
-                    );
-                  })}
-                </TabsList>
-              </div>
-              <ScrollBar orientation="horizontal" className="invisible" />
+                      </span>
+                      {unreadForRequest > 0 && (
+                        <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-600 px-1.5 text-[10px] font-bold text-white shadow-sm ring-2 ring-white">
+                          {unreadForRequest > 99 ? '99+' : unreadForRequest}
+                        </span>
+                      )}
+                    </TabsTrigger>
+                  );
+                })}
+              </TabsList>
+              <ScrollBar orientation="horizontal" className="h-2" />
             </ScrollArea>
           </div>
         </div>
