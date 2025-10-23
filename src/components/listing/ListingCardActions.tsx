@@ -98,7 +98,7 @@ const ListingCardActions = ({
         {connectionExists && connectionStatus === "approved" ? (
           <>
             <Button
-              className={`w-full ${viewType === 'list' ? 'h-9' : 'h-10'} px-4 text-[13px] font-semibold rounded-lg bg-slate-900 hover:bg-slate-800 text-white shadow-sm hover:shadow transition-all duration-200`}
+              className={`w-full ${viewType === 'list' ? 'h-8' : 'h-10'} px-4 text-[13px] font-semibold rounded-lg bg-slate-900 hover:bg-slate-800 text-white shadow-sm hover:shadow transition-all duration-200`}
             >
               <Eye className="h-3.5 w-3.5 mr-2" />
               <span>View Deal Details</span>
@@ -119,7 +119,7 @@ const ListingCardActions = ({
           <>
             {/* Primary CTA - Dark Slate instead of Gold */}
             <Button
-              className={`w-full ${viewType === 'list' ? 'h-9' : 'h-11'} px-4 text-[13px] font-semibold rounded-lg transition-all duration-200 
+              className={`w-full ${viewType === 'list' ? 'h-8' : 'h-11'} px-4 text-[13px] font-semibold rounded-lg transition-all duration-200 
                 ${connectionDisabled && connectionStatus !== "rejected"
                   ? connectionClassName + " shadow-none"
                   : "bg-slate-900 hover:bg-slate-800 text-white shadow-sm hover:shadow-md active:shadow-sm"

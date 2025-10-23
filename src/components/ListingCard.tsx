@@ -88,7 +88,7 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
             </div>
           </div>
             
-            <div className={`flex flex-col ${viewType === "list" ? "flex-1" : ""}`}>
+            <div className="flex flex-col flex-1">
               <CardContent className={`${viewType === "grid" ? "p-6" : "px-4 pt-3.5 pb-3"} flex-1 flex flex-col ${viewType === "grid" ? "gap-4" : "gap-2"}`}>
 
                 {/* Header Section */}
