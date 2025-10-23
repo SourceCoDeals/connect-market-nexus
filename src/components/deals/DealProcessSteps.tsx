@@ -85,7 +85,7 @@ export function DealProcessSteps({
           {
             id: 'approved',
             label: 'Approved',
-            description: 'Request approved successfully',
+            description: "Great news! Your request has been approved. Expect an email from us in your inbox shortly—we'll walk you through the next steps and opportunity details.",
             status: 'completed'
           }
         ];
