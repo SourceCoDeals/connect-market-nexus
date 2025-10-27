@@ -6,7 +6,7 @@ export function useNonMarketplaceUsers() {
   return useQuery({
     queryKey: ['admin', 'non-marketplace-users'],
     queryFn: async () => {
-      // Fetch connection requests with lead data
+      // Fetch connection requests with lead data AND firm info
       const { data: connectionRequests, error: crError } = await supabase
         .from('connection_requests')
         .select(`
@@ -19,13 +19,17 @@ export function useNonMarketplaceUsers() {
           created_at,
           lead_nda_signed,
           lead_fee_agreement_signed,
-          firm_id
+          firm_id,
+          firm_agreements!inner(
+            id,
+            primary_company_name
+          )
         `)
         .not('lead_email', 'is', null);
 
       if (crError) throw crError;
 
-      // Fetch inbound leads
+      // Fetch inbound leads with firm info
       const { data: inboundLeads, error: ilError } = await supabase
         .from('inbound_leads')
         .select(`
@@ -36,16 +40,21 @@ export function useNonMarketplaceUsers() {
           role,
           phone_number,
           created_at,
-          firm_id
+          firm_id,
+          firm_agreements(
+            id,
+            primary_company_name
+          )
         `);
 
       if (ilError) throw ilError;
 
-      // Fetch deals with contact information
+      // Fetch deals with contact information AND listing title
       const { data: deals, error: dealsError } = await supabase
         .from('deals')
         .select(`
           id,
+          title,
           contact_email,
           contact_name,
           contact_company,
@@ -53,7 +62,11 @@ export function useNonMarketplaceUsers() {
           contact_phone,
           created_at,
           nda_status,
-          fee_agreement_status
+          fee_agreement_status,
+          listing:listings(
+            id,
+            title
+          )
         `)
         .not('contact_email', 'is', null);
 
@@ -106,7 +119,16 @@ export function useNonMarketplaceUsers() {
         if (cr.lead_company) data.companies.add(cr.lead_company);
         if (cr.lead_role) data.roles.add(cr.lead_role);
         if (cr.lead_phone) data.phones.add(cr.lead_phone);
-        if (cr.firm_id) data.firms.add({ id: cr.firm_id, name: 'Firm' }); // Firm name lookup can be added later
+        
+        // Extract firm info from nested relation
+        const firmData = (cr as any).firm_agreements;
+        if (firmData && cr.firm_id) {
+          const firmName = Array.isArray(firmData) ? firmData[0]?.primary_company_name : firmData?.primary_company_name;
+          if (firmName) {
+            data.firms.add({ id: cr.firm_id, name: firmName });
+          }
+        }
+        
         data.connection_requests.push(cr);
         if (cr.created_at < data.earliest_date) data.earliest_date = cr.created_at;
       });
@@ -137,7 +159,16 @@ export function useNonMarketplaceUsers() {
         if (il.company_name) data.companies.add(il.company_name);
         if (il.role) data.roles.add(il.role);
         if (il.phone_number) data.phones.add(il.phone_number);
-        if (il.firm_id) data.firms.add({ id: il.firm_id, name: 'Firm' }); // Firm name lookup can be added later
+        
+        // Extract firm info from nested relation
+        const firmData = (il as any).firm_agreements;
+        if (firmData && il.firm_id) {
+          const firmName = Array.isArray(firmData) ? firmData[0]?.primary_company_name : firmData?.primary_company_name;
+          if (firmName) {
+            data.firms.add({ id: il.firm_id, name: firmName });
+          }
+        }
+        
         data.inbound_leads.push(il);
         if (il.created_at < data.earliest_date) data.earliest_date = il.created_at;
       });

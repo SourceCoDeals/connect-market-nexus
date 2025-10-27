@@ -18,11 +18,11 @@ interface NonMarketplaceUsersTableProps {
 const SourceBadge = ({ source }: { source: 'connection_request' | 'inbound_lead' | 'deal' }) => {
   const config = {
     connection_request: {
-      label: 'Connection Request',
+      label: 'Request',
       className: 'bg-blue-50 text-blue-700 border-blue-200',
     },
     inbound_lead: {
-      label: 'Inbound Lead',
+      label: 'Lead',
       className: 'bg-emerald-50 text-emerald-700 border-emerald-200',
     },
     deal: {
@@ -34,7 +34,7 @@ const SourceBadge = ({ source }: { source: 'connection_request' | 'inbound_lead'
   const { label, className } = config[source];
 
   return (
-    <Badge variant="outline" className={cn("text-xs", className)}>
+    <Badge variant="outline" className={cn("text-xs font-medium", className)}>
       {label}
     </Badge>
   );
@@ -188,9 +188,23 @@ export function NonMarketplaceUsersTable({ users, isLoading, filters }: NonMarke
                     )}
                   </TableCell>
                   <TableCell className="text-center">
-                    <Badge variant="secondary" className="text-xs">
-                      {totalActivity}
-                    </Badge>
+                    <div className="flex items-center justify-center gap-1">
+                      {user.connection_requests_count > 0 && (
+                        <Badge variant="secondary" className="text-xs">
+                          {user.connection_requests_count} CR
+                        </Badge>
+                      )}
+                      {user.inbound_leads_count > 0 && (
+                        <Badge variant="secondary" className="text-xs">
+                          {user.inbound_leads_count} IL
+                        </Badge>
+                      )}
+                      {user.deals_count > 0 && (
+                        <Badge variant="secondary" className="text-xs">
+                          {user.deals_count} D
+                        </Badge>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell className="text-center">
                     <div className="flex gap-1 justify-center">
@@ -290,16 +304,29 @@ export function NonMarketplaceUsersTable({ users, isLoading, filters }: NonMarke
                                 Deals ({user.deals_count})
                               </h4>
                               <div className="space-y-2">
-                                {user.associated_records.deals.map((deal) => (
+                                {user.associated_records.deals.map((deal: any) => (
                                   <div key={deal.id} className="text-xs bg-card rounded p-2 border">
-                                    <div className="text-muted-foreground">
+                                    <div className="font-medium">{deal.title}</div>
+                                    {deal.listing && (
+                                      <div className="text-muted-foreground text-xs mt-0.5">
+                                        Listing: {Array.isArray(deal.listing) ? deal.listing[0]?.title : deal.listing?.title}
+                                      </div>
+                                    )}
+                                    <div className="text-muted-foreground mt-1">
                                       {formatDistanceToNow(new Date(deal.created_at), { addSuffix: true })}
                                     </div>
-                                    {deal.nda_status && deal.nda_status !== 'not_sent' && (
-                                      <Badge variant="outline" className="mt-1 text-xs">
-                                        NDA: {deal.nda_status}
-                                      </Badge>
-                                    )}
+                                    <div className="flex gap-1 mt-1">
+                                      {deal.nda_status && deal.nda_status !== 'not_sent' && (
+                                        <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+                                          NDA: {deal.nda_status}
+                                        </Badge>
+                                      )}
+                                      {deal.fee_agreement_status && deal.fee_agreement_status !== 'not_sent' && (
+                                        <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                                          Fee: {deal.fee_agreement_status}
+                                        </Badge>
+                                      )}
+                                    </div>
                                   </div>
                                 ))}
                               </div>
