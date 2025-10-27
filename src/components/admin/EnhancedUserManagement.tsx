@@ -10,6 +10,7 @@ import { Search, Download, UserCheck } from 'lucide-react';
 import { UserOverviewTab } from './user-overview/UserOverviewTab';
 import { formatFieldValueForExport } from '@/lib/field-formatting';
 import { getProfileCompletionDetails } from '@/lib/buyer-metrics';
+import { cn } from '@/lib/utils';
 
 interface EnhancedUserManagementProps {
   users: User[];
@@ -30,6 +31,7 @@ export function EnhancedUserManagement({
   isLoading,
   onFilteredUsersChange
 }: EnhancedUserManagementProps) {
+  const [activeView, setActiveView] = useState<'marketplace' | 'non-marketplace'>('marketplace');
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [buyerTypeFilter, setBuyerTypeFilter] = useState<string>('all');
@@ -218,16 +220,53 @@ export function EnhancedUserManagement({
 
   return (
     <div className="space-y-6">
-      <UserOverviewTab
-        users={users}
-        totalUsers={analytics.total}
-        pendingCount={analytics.pending}
-        approvedCount={analytics.approved}
-        rejectedCount={analytics.rejected}
-      />
+      {/* View Switcher */}
+      <div className="flex items-center gap-3 p-1 bg-muted/30 rounded-lg border w-fit">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setActiveView('marketplace')}
+          className={cn(
+            "relative h-9 px-4 text-sm font-medium transition-all",
+            activeView === 'marketplace'
+              ? "bg-background shadow-sm text-foreground"
+              : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          Marketplace Users
+          <Badge variant="secondary" className="ml-2 h-5 px-1.5 text-xs">
+            {users.length}
+          </Badge>
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setActiveView('non-marketplace')}
+          className={cn(
+            "relative h-9 px-4 text-sm font-medium transition-all",
+            activeView === 'non-marketplace'
+              ? "bg-background shadow-sm text-foreground"
+              : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          Non-Marketplace Contacts
+        </Button>
+      </div>
+
+      {/* Overview Stats - Only for marketplace view */}
+      {activeView === 'marketplace' && (
+        <UserOverviewTab
+          users={users}
+          totalUsers={analytics.total}
+          pendingCount={analytics.pending}
+          approvedCount={analytics.approved}
+          rejectedCount={analytics.rejected}
+        />
+      )}
 
       {/* Filters Section - Inline, no card wrapper for cleaner look */}
-      <div className="space-y-6 pb-6 border-b">
+      {activeView === 'marketplace' && (
+        <div className="space-y-6 pb-6 border-b">
         <div className="flex items-center justify-between">
           <h2 className="text-base font-semibold">Filters</h2>
           <Button 
@@ -318,22 +357,23 @@ export function EnhancedUserManagement({
               </p>
             </div>
           </div>
-        </div>
 
-        {/* Bulk Actions */}
-        {selectedUsers.length > 0 && (
-          <div className="flex items-center gap-3 p-4 bg-accent/50 rounded-lg border">
-            <span className="text-sm font-medium">
-              {selectedUsers.length} user{selectedUsers.length === 1 ? '' : 's'} selected
-            </span>
-            <div className="flex gap-2 ml-auto">
-              <Button size="sm" onClick={handleBulkApprove} variant="default" className="h-9">
-                <UserCheck className="h-4 w-4 mr-2" />
-                Approve Selected
-              </Button>
+          {/* Bulk Actions */}
+          {selectedUsers.length > 0 && (
+            <div className="flex items-center gap-3 p-4 bg-accent/50 rounded-lg border">
+              <span className="text-sm font-medium">
+                {selectedUsers.length} user{selectedUsers.length === 1 ? '' : 's'} selected
+              </span>
+              <div className="flex gap-2 ml-auto">
+                <Button size="sm" onClick={handleBulkApprove} variant="default" className="h-9">
+                  <UserCheck className="h-4 w-4 mr-2" />
+                  Approve Selected
+                </Button>
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
+      )}
     </div>
   );
 }
