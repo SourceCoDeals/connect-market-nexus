@@ -139,16 +139,16 @@ export function EditorBasicInfoSection({ form }: EditorBasicInfoSectionProps) {
                     <span className="text-sm text-muted-foreground">No Tag</span>
                   </SelectItem>
                   <SelectItem value="just_listed">
-                    <ListingStatusTag status="just_listed" />
+                    <ListingStatusTag status="just_listed" variant="inline" />
                   </SelectItem>
                   <SelectItem value="in_diligence">
-                    <ListingStatusTag status="in_diligence" />
+                    <ListingStatusTag status="in_diligence" variant="inline" />
                   </SelectItem>
                   <SelectItem value="under_loi">
-                    <ListingStatusTag status="under_loi" />
+                    <ListingStatusTag status="under_loi" variant="inline" />
                   </SelectItem>
                   <SelectItem value="accepted_offer">
-                    <ListingStatusTag status="accepted_offer" />
+                    <ListingStatusTag status="accepted_offer" variant="inline" />
                   </SelectItem>
                 </SelectContent>
               </Select>

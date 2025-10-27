@@ -6,6 +6,7 @@ import { Sparkles, Eye, FileCheck, Edit3, HandshakeIcon } from "lucide-react";
 interface ListingStatusTagProps {
   status: string | null;
   className?: string;
+  variant?: 'absolute' | 'inline';
 }
 
 const STATUS_CONFIG = {
@@ -31,7 +32,7 @@ const STATUS_CONFIG = {
   },
 } as const;
 
-const ListingStatusTag = ({ status, className }: ListingStatusTagProps) => {
+const ListingStatusTag = ({ status, className, variant = 'absolute' }: ListingStatusTagProps) => {
   if (!status || !(status in STATUS_CONFIG)) {
     return null;
   }
@@ -44,8 +45,9 @@ const ListingStatusTag = ({ status, className }: ListingStatusTagProps) => {
     <Badge
       variant="default"
       className={cn(
-        "absolute bottom-3 left-3 z-10 px-3 py-1.5 text-[11px] font-bold rounded-full uppercase tracking-[0.06em]",
+        "px-3 py-1.5 text-[11px] font-bold rounded-full uppercase tracking-[0.06em]",
         "inline-flex items-center gap-1.5 shadow-lg transition-all duration-200",
+        variant === 'absolute' && "absolute bottom-3 left-3 z-10",
         config.bgClass,
         className
       )}
