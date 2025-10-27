@@ -95,7 +95,7 @@ export function useAdminEmail() {
         subject: "SourceCo Marketplace Account Status Update",
         message: `Hi ${user.first_name},\n\nThank you for your interest in SourceCo Marketplace. After reviewing your application, we are unable to approve your account at this time.\n\n${reason ? `Reason: ${reason}\n\n` : ''}If you believe this decision was made in error or if you have additional information to share, please don't hesitate to contact our support team.\n\nWe appreciate your understanding.`,
         type: 'error',
-        actionUrl: 'mailto:support@sourcecodeals.com',
+        actionUrl: 'mailto:adam.haile@sourcecodeals.com',
         actionText: 'Contact Support'
       };
       

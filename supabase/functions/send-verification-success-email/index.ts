@@ -143,7 +143,7 @@ const handler = async (req: Request): Promise<Response> => {
                 
                 <div class="support">
                   <p><strong>Questions?</strong> Our support team is here to help.</p>
-                  <p>Email us at <a href="mailto:support@sourcecodeals.com">support@sourcecodeals.com</a></p>
+                  <p>Email us at <a href="mailto:adam.haile@sourcecodeals.com">adam.haile@sourcecodeals.com</a></p>
                   <p>Visit our marketplace: <a href="https://marketplace.sourcecodeals.com">marketplace.sourcecodeals.com</a></p>
                 </div>
               </div>
@@ -175,7 +175,7 @@ Feel free to log in to your account and complete your profile. You can also book
 Log in: https://marketplace.sourcecodeals.com/login
 
 Questions? Our support team is here to help.
-Email: support@sourcecodeals.com
+Email: adam.haile@sourcecodeals.com
 Website: https://marketplace.sourcecodeals.com
 
 Best regards,

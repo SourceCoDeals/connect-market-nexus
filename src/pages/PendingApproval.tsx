@@ -362,10 +362,10 @@ const PendingApproval = () => {
             <div className="text-xs text-center text-muted-foreground">
               Need help? Contact{" "}
               <a
-                href="mailto:support@sourcecodeals.com"
+                href="mailto:adam.haile@sourcecodeals.com"
                 className="text-primary hover:underline"
               >
-                support@sourcecodeals.com
+                adam.haile@sourcecodeals.com
               </a>
 
             </div>

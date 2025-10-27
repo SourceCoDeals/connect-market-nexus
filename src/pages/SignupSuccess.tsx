@@ -227,8 +227,8 @@ const SignupSuccess = () => {
             <div className="text-center">
               <p className="text-xs text-muted-foreground">
                 Need help? Contact us at{' '}
-                <a href="mailto:support@sourcecodeals.com" className="text-primary hover:underline">
-                  support@sourcecodeals.com
+                <a href="mailto:adam.haile@sourcecodeals.com" className="text-primary hover:underline">
+                  adam.haile@sourcecodeals.com
                 </a>
               </p>
             </div>

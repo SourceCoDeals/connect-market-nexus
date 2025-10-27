@@ -178,7 +178,7 @@ Once you verify your email, we'll review and approve your account. You'll receiv
 
 Login after approval: https://marketplace.sourcecodeals.com/login
 
-Questions? Email us at support@sourcecodeals.com
+Questions? Email us at adam.haile@sourcecodeals.com
 
 Thank you for your patience.
 
