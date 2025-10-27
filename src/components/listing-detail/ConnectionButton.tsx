@@ -109,6 +109,31 @@ const ConnectionButton = ({
     );
   }
 
+  // Special layout for rejected connections
+  if (connectionExists && connectionStatus === "rejected") {
+    return (
+      <div className="space-y-3">
+        <div className="flex items-center gap-3 p-3 bg-gradient-to-br from-red-50 to-red-100/80 border border-red-200 rounded-lg shadow-sm">
+          <XCircle className="h-5 w-5 text-red-600" />
+          <div>
+            <p className="text-sm font-semibold text-red-700">Not Selected</p>
+            <p className="text-xs text-red-600">The owner has made their selection for this opportunity</p>
+          </div>
+        </div>
+        <Button
+          onClick={handleButtonClick}
+          disabled={isRequesting}
+          className="w-full h-11 text-sm font-medium transition-colors duration-200 bg-slate-900 hover:bg-slate-800 text-white"
+        >
+          <div className="flex items-center justify-center gap-2">
+            <Send className="h-4 w-4" />
+            <span>{isRequesting ? "Sending Request..." : "Explore Other Opportunities"}</span>
+          </div>
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <>
       <Button
