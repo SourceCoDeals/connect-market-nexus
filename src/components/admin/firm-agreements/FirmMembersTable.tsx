@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { FirmMember } from "@/hooks/admin/use-firm-agreements";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Check, Clock, X } from "lucide-react";
 import { useMemberRequestsDeals } from "@/hooks/admin/use-member-requests-deals";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
@@ -83,30 +83,30 @@ function MemberRow({ member }: { member: FirmMember }) {
 
       {/* Expanded Activity View */}
       {isExpanded && hasActivity && (
-        <div className="px-6 pb-5 pt-4 bg-muted/5 border-t border-border/30">
+        <div className="px-6 pb-5 pt-4 bg-slate-50/40 border-t border-slate-200/40">
           {isLoading ? (
             <div className="flex items-center justify-center py-8">
-              <div className="h-4 w-4 animate-spin rounded-full border-2 border-muted-foreground/20 border-t-muted-foreground" />
+              <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-200 border-t-slate-600" />
             </div>
           ) : (
             <div className="max-w-4xl">
               <Tabs defaultValue="requests" className="w-full">
-                <TabsList className="inline-flex h-9 items-center justify-center rounded-lg bg-muted/50 p-1 mb-4">
+                <TabsList className="inline-flex h-9 items-center justify-center rounded-lg bg-slate-50 border border-slate-200/60 shadow-sm p-1 mb-5">
                   <TabsTrigger 
                     value="requests" 
-                    className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1.5 text-xs font-medium transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm"
+                    className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1.5 text-xs font-medium transition-all data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-slate-200/60"
                   >
                     Requests
-                    <span className="ml-1.5 text-[10px] text-muted-foreground">
+                    <span className="ml-2 inline-flex items-center justify-center w-5 h-5 text-[10px] font-medium bg-slate-100 text-slate-600 rounded-full">
                       {data?.requests?.length || 0}
                     </span>
                   </TabsTrigger>
                   <TabsTrigger 
                     value="deals" 
-                    className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1.5 text-xs font-medium transition-all data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm"
+                    className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1.5 text-xs font-medium transition-all data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-slate-200/60"
                   >
                     Deals
-                    <span className="ml-1.5 text-[10px] text-muted-foreground">
+                    <span className="ml-2 inline-flex items-center justify-center w-5 h-5 text-[10px] font-medium bg-slate-100 text-slate-600 rounded-full">
                       {data?.deals?.length || 0}
                     </span>
                   </TabsTrigger>
@@ -114,33 +114,31 @@ function MemberRow({ member }: { member: FirmMember }) {
 
                 <TabsContent value="requests" className="mt-0">
                   {data?.requests && data.requests.length > 0 ? (
-                    <div className="max-h-[360px] overflow-y-auto pr-1 space-y-1.5 scrollbar-thin scrollbar-thumb-muted-foreground/10 scrollbar-track-transparent">
+                    <div className="max-h-[360px] overflow-y-auto pr-1 space-y-1 scrollbar-thin scrollbar-thumb-slate-200/60 scrollbar-track-transparent hover:scrollbar-thumb-slate-300/60">
                       {data.requests.map((request: any) => (
                         <div
                           key={request.id}
-                          className="flex items-center justify-between gap-4 py-2.5 px-3.5 rounded-md bg-background/50 border border-transparent hover:border-border/50 hover:bg-background transition-all duration-150"
+                          className="flex items-center justify-between gap-4 py-2 px-3 rounded-md bg-slate-50/30 border border-slate-200/50 hover:border-slate-300 hover:bg-slate-50/60 hover:shadow-sm shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-all duration-150"
                         >
                           <div className="flex-1 min-w-0">
-                            <div className="text-sm font-medium text-foreground truncate">
+                            <div className="text-sm font-medium text-slate-900 truncate">
                               {request.listing?.title || 'Untitled Listing'}
                             </div>
-                            <div className="text-xs text-muted-foreground mt-0.5">
+                            <div className="text-xs text-slate-600 mt-0.5">
                               {format(new Date(request.created_at), 'MMM d, yyyy')}
                             </div>
                           </div>
-                          <span className={cn(
-                            "inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium whitespace-nowrap",
-                            request.status === 'approved' && "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
-                            request.status === 'pending' && "bg-amber-500/10 text-amber-700 dark:text-amber-400",
-                            request.status === 'rejected' && "bg-muted text-muted-foreground"
-                          )}>
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-white border border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.06)] text-[11px] font-medium text-slate-700 tracking-[0.02em] whitespace-nowrap">
+                            {request.status === 'approved' && <Check className="h-3 w-3 text-emerald-600" />}
+                            {request.status === 'pending' && <Clock className="h-3 w-3 text-amber-600" />}
+                            {request.status === 'rejected' && <X className="h-3 w-3 text-slate-500" />}
                             {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
                           </span>
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <div className="flex items-center justify-center py-12 text-sm text-muted-foreground">
+                    <div className="flex items-center justify-center py-12 text-sm text-slate-600">
                       No connection requests
                     </div>
                   )}
@@ -148,22 +146,22 @@ function MemberRow({ member }: { member: FirmMember }) {
 
                 <TabsContent value="deals" className="mt-0">
                   {data?.deals && data.deals.length > 0 ? (
-                    <div className="max-h-[360px] overflow-y-auto pr-1 space-y-1.5 scrollbar-thin scrollbar-thumb-muted-foreground/10 scrollbar-track-transparent">
+                    <div className="max-h-[360px] overflow-y-auto pr-1 space-y-1 scrollbar-thin scrollbar-thumb-slate-200/60 scrollbar-track-transparent hover:scrollbar-thumb-slate-300/60">
                       {data.deals.map((deal: any) => (
                         <div
                           key={deal.id}
-                          className="flex items-center justify-between gap-4 py-2.5 px-3.5 rounded-md bg-background/50 border border-transparent hover:border-border/50 hover:bg-background transition-all duration-150"
+                          className="flex items-center justify-between gap-4 py-2 px-3 rounded-md bg-slate-50/30 border border-slate-200/50 hover:border-slate-300 hover:bg-slate-50/60 hover:shadow-sm shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-all duration-150"
                         >
                           <div className="flex-1 min-w-0">
-                            <div className="text-sm font-medium text-foreground truncate">
+                            <div className="text-sm font-medium text-slate-900 truncate">
                               {deal.title}
                             </div>
-                            <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
+                            <div className="flex items-center gap-2 text-xs text-slate-600 mt-0.5">
                               <span>{format(new Date(deal.created_at), 'MMM d, yyyy')}</span>
                               {deal.value && (
                                 <>
                                   <span>•</span>
-                                  <span className="font-medium text-foreground">
+                                  <span className="font-semibold text-slate-900">
                                     ${deal.value.toLocaleString()}
                                   </span>
                                 </>
@@ -172,12 +170,13 @@ function MemberRow({ member }: { member: FirmMember }) {
                           </div>
                           {deal.stage && (
                             <span 
-                              className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium whitespace-nowrap"
-                              style={{ 
-                                backgroundColor: `${deal.stage.color}15`,
-                                color: deal.stage.color
-                              }}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-white border border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.06)] text-[11px] font-medium tracking-[0.02em] whitespace-nowrap"
+                              style={{ color: deal.stage.color }}
                             >
+                              <span 
+                                className="w-1.5 h-1.5 rounded-full"
+                                style={{ backgroundColor: deal.stage.color }}
+                              />
                               {deal.stage.name}
                             </span>
                           )}
@@ -185,7 +184,7 @@ function MemberRow({ member }: { member: FirmMember }) {
                       ))}
                     </div>
                   ) : (
-                    <div className="flex items-center justify-center py-12 text-sm text-muted-foreground">
+                    <div className="flex items-center justify-center py-12 text-sm text-slate-600">
                       No deals
                     </div>
                   )}
