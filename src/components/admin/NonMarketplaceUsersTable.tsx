@@ -172,20 +172,20 @@ export const NonMarketplaceUsersTable = ({ users, isLoading, filters }: NonMarke
                     <SourceBadge source={user.source} />
                   </TableCell>
                   
-                  <TableCell className="text-center">
-                    <div className="flex items-center justify-center gap-3">
-                      <AgreementToggle
-                        user={user}
-                        type="nda"
-                        checked={user.nda_status === 'signed'}
-                      />
-                      <AgreementToggle
-                        user={user}
-                        type="fee"
-                        checked={user.fee_agreement_status === 'signed'}
-                      />
-                    </div>
-                  </TableCell>
+              <TableCell>
+                <div className="flex items-center justify-center gap-4">
+                  <AgreementToggle
+                    user={user}
+                    type="nda"
+                    checked={user.nda_status === 'signed'}
+                  />
+                  <AgreementToggle
+                    user={user}
+                    type="fee"
+                    checked={user.fee_agreement_status === 'signed'}
+                  />
+                </div>
+              </TableCell>
                   
                   <TableCell>
                     <span className="text-xs text-muted-foreground">

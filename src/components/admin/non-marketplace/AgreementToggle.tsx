@@ -1,13 +1,14 @@
 import { useState, useEffect } from "react";
 import { Switch } from "@/components/ui/switch";
-import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
+import { Badge } from "@/components/ui/badge";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { format } from "date-fns";
+import { Check, X } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
 import type { NonMarketplaceUser } from "@/types/non-marketplace-user";
 
 interface AgreementToggleProps {
@@ -22,29 +23,30 @@ export const AgreementToggle = ({ user, type, checked }: AgreementToggleProps) =
   const [showDialog, setShowDialog] = useState(false);
   const [selectedSignerId, setSelectedSignerId] = useState<string>("");
   const [firmMembers, setFirmMembers] = useState<any[]>([]);
-  const [signerInfo, setSignerInfo] = useState<{ name: string; date: string } | null>(null);
+  const [signerName, setSignerName] = useState<string | null>(null);
+  const [signedAt, setSignedAt] = useState<string | null>(null);
 
   // Fetch signer information if agreement is signed
   useEffect(() => {
     const fetchSignerInfo = async () => {
       if (!checked) {
-        setSignerInfo(null);
+        setSignerName(null);
+        setSignedAt(null);
         return;
       }
 
       try {
         // Get the first associated record to find signer info
         let signerId: string | null = null;
-        let signedAt: string | null = null;
+        let signingDate: string | null = null;
 
         if (user.associated_records.connection_requests.length > 0) {
           const cr = user.associated_records.connection_requests[0];
           signerId = type === 'nda' ? cr.lead_nda_signed_by : cr.lead_fee_agreement_signed_by;
-          signedAt = type === 'nda' ? cr.lead_nda_signed_at : cr.lead_fee_agreement_signed_at;
+          signingDate = type === 'nda' ? cr.lead_nda_signed_at : cr.lead_fee_agreement_signed_at;
         } else if (user.associated_records.deals.length > 0) {
           const deal = user.associated_records.deals[0];
-          // Deals don't store signer info currently, so we'll skip for now
-          signedAt = deal.created_at;
+          signingDate = deal.created_at;
         }
 
         if (signerId) {
@@ -54,18 +56,14 @@ export const AgreementToggle = ({ user, type, checked }: AgreementToggleProps) =
             .eq('id', signerId)
             .single();
 
-          if (profile && signedAt) {
-            const fullName = [profile.first_name, profile.last_name].filter(Boolean).join(' ') || 'Unknown';
-            setSignerInfo({
-              name: fullName,
-              date: format(new Date(signedAt), 'MMM d, yyyy'),
-            });
+          if (profile) {
+            const fullName = [profile.first_name, profile.last_name].filter(Boolean).join(' ');
+            setSignerName(fullName || 'Unknown');
           }
-        } else if (signedAt) {
-          setSignerInfo({
-            name: 'Unknown',
-            date: format(new Date(signedAt), 'MMM d, yyyy'),
-          });
+        }
+
+        if (signingDate) {
+          setSignedAt(signingDate);
         }
       } catch (error) {
         console.error('Error fetching signer info:', error);
@@ -175,31 +173,51 @@ export const AgreementToggle = ({ user, type, checked }: AgreementToggleProps) =
 
   return (
     <>
-      <TooltipProvider>
-        <Tooltip delayDuration={300}>
-          <TooltipTrigger asChild>
-            <div className="flex items-center gap-1.5">
-              <Switch
-                checked={checked}
-                onCheckedChange={handleToggle}
-                disabled={updateMutation.isPending}
-                className="h-4 w-7 data-[state=checked]:bg-primary data-[state=unchecked]:bg-input"
-              />
-              <span className="text-xs text-muted-foreground font-normal">
-                {type.toUpperCase()}
-              </span>
-            </div>
-          </TooltipTrigger>
-          {checked && signerInfo && (
-            <TooltipContent side="top" className="bg-popover text-popover-foreground border shadow-md">
-              <div className="text-xs">
-                <div className="font-medium">{signerInfo.name}</div>
-                <div className="text-muted-foreground">{signerInfo.date}</div>
-              </div>
-            </TooltipContent>
+      <div className="group/toggle">
+        {/* Toggle + Status Badge */}
+        <div className="flex items-center gap-2">
+          <Switch
+            checked={checked}
+            onCheckedChange={handleToggle}
+            disabled={updateMutation.isPending}
+            className="data-[state=checked]:bg-emerald-600"
+          />
+          {checked ? (
+            <Badge 
+              variant="outline" 
+              className="h-5 px-2 border-emerald-500/20 bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400 font-medium text-[11px]"
+            >
+              <Check className="h-2.5 w-2.5 mr-1" />
+              {type.toUpperCase()}
+            </Badge>
+          ) : (
+            <Badge 
+              variant="outline" 
+              className="h-5 px-2 border-border/40 bg-muted/30 text-muted-foreground font-medium text-[11px]"
+            >
+              <X className="h-2.5 w-2.5 mr-1" />
+              {type.toUpperCase()}
+            </Badge>
           )}
-        </Tooltip>
-      </TooltipProvider>
+        </div>
+
+        {/* Metadata - Ultra subtle, show on hover, only takes space when visible */}
+        {checked && (signerName || signedAt) && (
+          <div className="max-h-0 opacity-0 group-hover/toggle:max-h-10 group-hover/toggle:opacity-100 group-hover/toggle:mt-1.5 transition-all duration-200 overflow-hidden">
+            <div className="flex items-center gap-1 text-[10px] text-muted-foreground/60 pl-0.5 whitespace-nowrap">
+              {signerName && (
+                <span>{signerName}</span>
+              )}
+              {signerName && signedAt && (
+                <span>•</span>
+              )}
+              {signedAt && (
+                <span>{formatDistanceToNow(new Date(signedAt), { addSuffix: true })}</span>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
 
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
         <DialogContent>
