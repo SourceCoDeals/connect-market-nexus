@@ -406,13 +406,22 @@ function FirmRow({
           </div>
         </div>
 
-        {/* Member Count */}
+        {/* Member Count with Stats */}
         <div className="col-span-2">
-          <div className="flex items-center gap-1.5">
-            <Users className="h-3.5 w-3.5 text-muted-foreground/40" />
-            <span className="text-sm text-muted-foreground font-normal">
-              {firm.member_count}
-            </span>
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-1.5">
+              <Users className="h-3.5 w-3.5 text-muted-foreground/40" />
+              <span className="text-sm text-muted-foreground font-normal">
+                {firm.member_count} {firm.member_count === 1 ? 'member' : 'members'}
+              </span>
+            </div>
+            {(firm.lead_count || firm.request_count || firm.deal_count) && (
+              <div className="text-xs text-muted-foreground/50 flex gap-2">
+                {!!firm.lead_count && <span>{firm.lead_count} leads</span>}
+                {!!firm.request_count && <span>{firm.request_count} requests</span>}
+                {!!firm.deal_count && <span>{firm.deal_count} deals</span>}
+              </div>
+            )}
           </div>
         </div>
 

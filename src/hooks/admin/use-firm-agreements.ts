@@ -35,6 +35,10 @@ export interface FirmAgreement {
       email: string | null;
     } | null;
   }>;
+  // Stats for leads, requests, and deals
+  lead_count?: number;
+  request_count?: number;
+  deal_count?: number;
 }
 
 export interface FirmMember {
@@ -74,7 +78,41 @@ export function useFirmAgreements() {
         .order('primary_company_name');
 
       if (error) throw error;
-      return data as FirmAgreement[];
+
+      // Fetch stats for each firm
+      const firmsWithStats = await Promise.all(
+        (data || []).map(async (firm) => {
+          const [leadsResult, requestsResult, dealsResult] = await Promise.all([
+            supabase
+              .from('inbound_leads')
+              .select('id', { count: 'exact', head: true })
+              .eq('firm_id', firm.id),
+            supabase
+              .from('connection_requests')
+              .select('id', { count: 'exact', head: true })
+              .eq('firm_id', firm.id),
+            supabase
+              .from('deals')
+              .select('id', { count: 'exact', head: true })
+              .in('connection_request_id', 
+                await supabase
+                  .from('connection_requests')
+                  .select('id')
+                  .eq('firm_id', firm.id)
+                  .then(({ data }) => data?.map(r => r.id) || [])
+              ),
+          ]);
+
+          return {
+            ...firm,
+            lead_count: leadsResult.count || 0,
+            request_count: requestsResult.count || 0,
+            deal_count: dealsResult.count || 0,
+          } as FirmAgreement;
+        })
+      );
+
+      return firmsWithStats;
     },
   });
 }
