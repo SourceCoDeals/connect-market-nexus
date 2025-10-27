@@ -106,7 +106,7 @@ export function DealProcessSteps({
           {
             id: 'declined',
             label: 'Not Selected',
-            description: 'The owner selected a different buyer from the qualified pool. We encourage you to explore other opportunities on the marketplace.',
+            description: 'The owner has decided on the best fit for their specific objectives. We encourage you to explore other opportunities on the marketplace.',
             status: 'completed'
           }
         ];
@@ -161,7 +161,7 @@ export function DealProcessSteps({
       case 'rejected':
         return {
           title: 'Not Selected',
-          message: 'The owner selected a different buyer from the qualified pool. This is part of our competitive selection process—we encourage you to explore other opportunities that may be an even better strategic fit.',
+          message: 'The owner has made their selection for this opportunity. This is part of our competitive selection process—we encourage you to explore other opportunities that may be an even better strategic fit.',
           action: false
         };
       default:
