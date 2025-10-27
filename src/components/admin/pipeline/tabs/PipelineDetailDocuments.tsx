@@ -8,6 +8,7 @@ import { DocumentHistory } from '../DocumentHistory';
 import { useQueryClient } from '@tanstack/react-query';
 import { Label } from '@/components/ui/label';
 import { DealFirmInfo } from '../DealFirmInfo';
+import { DealFirmWarning } from '../DealFirmWarning';
 
 interface PipelineDetailDocumentsProps {
   deal: Deal;
@@ -123,6 +124,12 @@ export function PipelineDetailDocuments({ deal }: PipelineDetailDocumentsProps) 
       <div className="flex gap-6 px-6 py-6">
         {/* Left Column - Main Content */}
         <div className="flex-1 space-y-6 max-w-3xl">
+          {/* Firm Warning if applicable */}
+          <DealFirmWarning 
+            connectionRequestId={deal.connection_request_id} 
+            actionType="fee_agreement" 
+          />
+          
           {/* Workflow Progress */}
           <div className="space-y-3">
             <h3 className="text-sm font-medium text-foreground">Workflow Progress</h3>

@@ -45,6 +45,7 @@ import { getBuyerTier } from '@/lib/buyer-metrics';
 import { processUrl, extractDomainFromEmail, mapRoleToBuyerType, getLeadTierInfo } from '@/lib/url-utils';
 import { DuplicateChannelWarning } from './DuplicateChannelWarning';
 import { MessageConflictDisplay } from './MessageConflictDisplay';
+import { ConnectionRequestFirmBadge } from './ConnectionRequestFirmBadge';
 
 // Helper function to format listing display name (Title/Company Name)
 const formatListingForDisplay = (title: string, companyName?: string | null): string => {
@@ -429,6 +430,7 @@ function ReactiveRequestCard({
                 <CleanTierDisplay user={request.user} leadRole={request.lead_role} />
                 <StatusBadge status={request.status} />
                 <SourceBadge source={request.source || 'marketplace'} />
+                <ConnectionRequestFirmBadge requestId={request.id} compact={true} />
               </div>
                <div className="text-sm text-muted-foreground space-y-1">
                  <div className="flex items-center gap-2">

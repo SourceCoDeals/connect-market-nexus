@@ -17,6 +17,7 @@ import {
   MoreHorizontal
 } from "lucide-react";
 import { InboundLead } from "@/hooks/admin/use-inbound-leads";
+import { LeadFirmBadge } from "@/components/admin/LeadFirmBadge";
 
 interface CompactLeadCardProps {
   lead: InboundLead;

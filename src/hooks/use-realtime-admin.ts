@@ -182,6 +182,8 @@ export function useRealtimeAdmin() {
           queryClient.refetchQueries({ queryKey: ['firm-agreements'], type: 'active' });
           queryClient.invalidateQueries({ queryKey: ['admin-users'] });
           queryClient.invalidateQueries({ queryKey: ['connection-requests'] });
+          queryClient.invalidateQueries({ queryKey: ['inbound-leads'] });
+          queryClient.invalidateQueries({ queryKey: ['deals'] });
         }
       )
       .on(
@@ -195,6 +197,7 @@ export function useRealtimeAdmin() {
           console.log('👥 Firm member updated:', payload);
           queryClient.refetchQueries({ queryKey: ['firm-members'], type: 'active' });
           queryClient.invalidateQueries({ queryKey: ['firm-agreements'] });
+          queryClient.invalidateQueries({ queryKey: ['admin-users'] });
         }
       )
       .subscribe((status) => {
