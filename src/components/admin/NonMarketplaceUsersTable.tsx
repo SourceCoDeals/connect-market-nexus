@@ -2,12 +2,10 @@ import { useState, useMemo } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ChevronDown, ChevronRight, Mail, FileText, Briefcase, ExternalLink, Eye, Send } from "lucide-react";
+import { ChevronDown, ChevronRight, Mail, FileText, Briefcase } from "lucide-react";
 import { format } from "date-fns";
-import { useNavigate } from "react-router-dom";
 import type { NonMarketplaceUser, NonMarketplaceUserFilters } from "@/types/non-marketplace-user";
 import { AgreementToggle } from "./non-marketplace/AgreementToggle";
-import { SendInvitationDialog } from "./non-marketplace/SendInvitationDialog";
 
 interface NonMarketplaceUsersTableProps {
   users: NonMarketplaceUser[];
@@ -49,9 +47,7 @@ const NonMarketplaceUsersTableSkeleton = () => (
 );
 
 export const NonMarketplaceUsersTable = ({ users, isLoading, filters }: NonMarketplaceUsersTableProps) => {
-  const navigate = useNavigate();
   const [expandedUserId, setExpandedUserId] = useState<string | null>(null);
-  const [invitationUser, setInvitationUser] = useState<NonMarketplaceUser | null>(null);
 
   // Filter users based on filters prop
   const filteredUsers = useMemo(() => {
@@ -92,16 +88,6 @@ export const NonMarketplaceUsersTable = ({ users, isLoading, filters }: NonMarke
 
   const toggleExpanded = (userId: string) => {
     setExpandedUserId(expandedUserId === userId ? null : userId);
-  };
-
-  const handleViewAllRecords = (user: NonMarketplaceUser) => {
-    if (user.source === 'connection_request') {
-      navigate(`/admin/connection-requests?email=${user.email}`);
-    } else if (user.source === 'inbound_lead') {
-      navigate(`/admin/inbound-leads?email=${user.email}`);
-    } else if (user.source === 'deal') {
-      navigate(`/admin/deals?contact=${user.email}`);
-    }
   };
 
   if (isLoading) {
@@ -289,66 +275,18 @@ export const NonMarketplaceUsersTable = ({ users, isLoading, filters }: NonMarke
                                   ))}
                                 </div>
                               </div>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Actions */}
-                        <div>
-                          <h4 className="text-sm font-semibold mb-3 text-foreground">Actions</h4>
-                          <div className="flex flex-wrap gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setInvitationUser(user);
-                              }}
-                            >
-                              <Send className="h-4 w-4 mr-2" />
-                              Send Invitation
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleViewAllRecords(user);
-                              }}
-                            >
-                              <Eye className="h-4 w-4 mr-2" />
-                              View All Records
-                            </Button>
-                            {user.potential_profile_id && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  navigate(`/admin/users?profile=${user.potential_profile_id}`);
-                                }}
-                              >
-                                <ExternalLink className="h-4 w-4 mr-2" />
-                                Review Match
-                              </Button>
-                            )}
-                          </div>
-                        </div>
+                        )}
                       </div>
-                    </TableCell>
-                  </TableRow>
-                )}
+                    </div>
+                  </div>
+                </TableCell>
+              </TableRow>
+            )}
               </>
             );
           })}
         </TableBody>
       </Table>
-
-      <SendInvitationDialog
-        user={invitationUser}
-        open={!!invitationUser}
-        onOpenChange={(open) => !open && setInvitationUser(null)}
-      />
     </div>
   );
 };
