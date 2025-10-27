@@ -4,6 +4,7 @@ import { ChevronDown } from "lucide-react";
 import { useMemberRequestsDeals } from "@/hooks/admin/use-member-requests-deals";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface FirmMembersTableProps {
   members: FirmMember[];
@@ -88,99 +89,109 @@ function MemberRow({ member }: { member: FirmMember }) {
               <div className="h-4 w-4 animate-spin rounded-full border-2 border-muted-foreground/20 border-t-muted-foreground" />
             </div>
           ) : (
-            <div className="max-w-4xl">
-              {/* Scrollable container for high-volume content */}
-              <div className="max-h-[500px] overflow-y-auto pr-2 space-y-6 scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent">
-                {/* Connection Requests */}
-                {data?.requests && data.requests.length > 0 && (
-                  <div>
-                    <div className="flex items-center gap-2 mb-3 sticky top-0 bg-background/95 backdrop-blur-sm pb-2 z-10">
-                      <h4 className="text-xs font-medium text-foreground/70">
-                        Connection Requests
-                      </h4>
-                      <span className="inline-flex items-center justify-center h-5 min-w-[20px] px-1.5 text-[10px] font-medium text-muted-foreground bg-muted rounded">
-                        {data.requests.length}
-                      </span>
-                    </div>
-                    <div className="space-y-2">
-                      {data.requests.map((request: any) => (
-                        <div
-                          key={request.id}
-                          className="group flex items-start justify-between gap-4 py-3 px-4 rounded-lg bg-card border border-border/40 hover:border-border hover:shadow-sm transition-all duration-200"
-                        >
-                          <div className="flex-1 min-w-0">
-                            <div className="text-sm font-medium text-foreground mb-1 truncate">
-                              {request.listing?.title || 'Untitled Listing'}
-                            </div>
-                            <div className="text-xs text-muted-foreground">
-                              {format(new Date(request.created_at), 'MMM d, yyyy')}
-                            </div>
-                          </div>
-                          <span className={cn(
-                            "inline-flex items-center px-2.5 py-1 rounded-md text-[11px] font-medium whitespace-nowrap border transition-colors",
-                            request.status === 'approved' && "bg-success/5 text-success border-success/20",
-                            request.status === 'pending' && "bg-amber-500/5 text-amber-600 dark:text-amber-500 border-amber-500/20",
-                            request.status === 'rejected' && "bg-muted/50 text-muted-foreground border-muted-foreground/20"
-                          )}>
-                            {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
+            <div className="max-w-5xl">
+              <Tabs defaultValue="requests" className="w-full">
+                <TabsList className="grid w-full max-w-[400px] grid-cols-2 mb-4 h-9 bg-muted/50">
+                  <TabsTrigger value="requests" className="text-xs data-[state=active]:bg-background">
+                    Connection Requests
+                    <span className="ml-1.5 inline-flex items-center justify-center h-4 min-w-[16px] px-1 text-[10px] font-medium text-muted-foreground bg-muted-foreground/10 rounded">
+                      {data?.requests?.length || 0}
+                    </span>
+                  </TabsTrigger>
+                  <TabsTrigger value="deals" className="text-xs data-[state=active]:bg-background">
+                    Deals
+                    <span className="ml-1.5 inline-flex items-center justify-center h-4 min-w-[16px] px-1 text-[10px] font-medium text-muted-foreground bg-muted-foreground/10 rounded">
+                      {data?.deals?.length || 0}
+                    </span>
+                  </TabsTrigger>
+                </TabsList>
 
-                {/* Deals */}
-                {data?.deals && data.deals.length > 0 && (
-                  <div>
-                    <div className="flex items-center gap-2 mb-3 sticky top-0 bg-background/95 backdrop-blur-sm pb-2 z-10">
-                      <h4 className="text-xs font-medium text-foreground/70">
-                        Deals
-                      </h4>
-                      <span className="inline-flex items-center justify-center h-5 min-w-[20px] px-1.5 text-[10px] font-medium text-muted-foreground bg-muted rounded">
-                        {data.deals.length}
-                      </span>
-                    </div>
-                    <div className="space-y-2">
-                      {data.deals.map((deal: any) => (
-                        <div
-                          key={deal.id}
-                          className="group flex items-start justify-between gap-4 py-3 px-4 rounded-lg bg-card border border-border/40 hover:border-border hover:shadow-sm transition-all duration-200"
-                        >
-                          <div className="flex-1 min-w-0">
-                            <div className="text-sm font-medium text-foreground mb-1 truncate">
-                              {deal.title}
+                <TabsContent value="requests" className="mt-0">
+                  {data?.requests && data.requests.length > 0 ? (
+                    <div className="max-h-[400px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent">
+                      <div className="space-y-2">
+                        {data.requests.map((request: any) => (
+                          <div
+                            key={request.id}
+                            className="group flex items-center justify-between gap-4 py-3 px-4 rounded-lg bg-card border border-border/40 hover:border-border hover:shadow-sm transition-all duration-200"
+                          >
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm font-medium text-foreground mb-1 truncate">
+                                {request.listing?.title || 'Untitled Listing'}
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                {format(new Date(request.created_at), 'MMM d, yyyy')}
+                              </div>
                             </div>
-                            <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
-                              <span>{format(new Date(deal.created_at), 'MMM d, yyyy')}</span>
-                              {deal.value && (
-                                <>
-                                  <span className="text-muted-foreground/40">•</span>
-                                  <span className="font-medium text-foreground/80">
-                                    ${deal.value.toLocaleString()}
-                                  </span>
-                                </>
-                              )}
-                            </div>
-                          </div>
-                          {deal.stage && (
-                            <span 
-                              className="inline-flex items-center px-2.5 py-1 rounded-md text-[11px] font-medium whitespace-nowrap border transition-colors"
-                              style={{ 
-                                backgroundColor: `${deal.stage.color}08`,
-                                borderColor: `${deal.stage.color}25`,
-                                color: deal.stage.color
-                              }}
-                            >
-                              {deal.stage.name}
+                            <span className={cn(
+                              "inline-flex items-center px-2.5 py-1 rounded-md text-[11px] font-medium whitespace-nowrap border transition-colors",
+                              request.status === 'approved' && "bg-success/5 text-success border-success/20",
+                              request.status === 'pending' && "bg-amber-500/5 text-amber-600 dark:text-amber-500 border-amber-500/20",
+                              request.status === 'rejected' && "bg-muted/50 text-muted-foreground border-muted-foreground/20"
+                            )}>
+                              {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
                             </span>
-                          )}
-                        </div>
-                      ))}
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                )}
-              </div>
+                  ) : (
+                    <div className="flex items-center justify-center py-12 text-sm text-muted-foreground">
+                      No connection requests
+                    </div>
+                  )}
+                </TabsContent>
+
+                <TabsContent value="deals" className="mt-0">
+                  {data?.deals && data.deals.length > 0 ? (
+                    <div className="max-h-[400px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent">
+                      <div className="space-y-2">
+                        {data.deals.map((deal: any) => (
+                          <div
+                            key={deal.id}
+                            className="group flex items-center justify-between gap-4 py-3.5 px-4 rounded-lg bg-card border border-border/40 hover:border-border hover:shadow-sm transition-all duration-200"
+                          >
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm font-medium text-foreground mb-1.5 truncate">
+                                {deal.title}
+                              </div>
+                              <div className="flex items-center gap-3 text-xs">
+                                <span className="text-muted-foreground">
+                                  {format(new Date(deal.created_at), 'MMM d, yyyy')}
+                                </span>
+                                {deal.value && (
+                                  <>
+                                    <span className="text-border">|</span>
+                                    <span className="font-semibold text-foreground">
+                                      ${deal.value.toLocaleString()}
+                                    </span>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                            {deal.stage && (
+                              <span 
+                                className="inline-flex items-center px-2.5 py-1 rounded-md text-[11px] font-medium whitespace-nowrap border transition-colors"
+                                style={{ 
+                                  backgroundColor: `${deal.stage.color}08`,
+                                  borderColor: `${deal.stage.color}25`,
+                                  color: deal.stage.color
+                                }}
+                              >
+                                {deal.stage.name}
+                              </span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-center py-12 text-sm text-muted-foreground">
+                      No deals
+                    </div>
+                  )}
+                </TabsContent>
+              </Tabs>
             </div>
           )}
         </div>
