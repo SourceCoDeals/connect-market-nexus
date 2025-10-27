@@ -323,6 +323,7 @@ export type Database = {
           created_at: string
           decision_at: string | null
           decision_notes: string | null
+          firm_id: string | null
           followed_up: boolean | null
           followed_up_at: string | null
           followed_up_by: string | null
@@ -372,6 +373,7 @@ export type Database = {
           created_at?: string
           decision_at?: string | null
           decision_notes?: string | null
+          firm_id?: string | null
           followed_up?: boolean | null
           followed_up_at?: string | null
           followed_up_by?: string | null
@@ -421,6 +423,7 @@ export type Database = {
           created_at?: string
           decision_at?: string | null
           decision_notes?: string | null
+          firm_id?: string | null
           followed_up?: boolean | null
           followed_up_at?: string | null
           followed_up_by?: string | null
@@ -466,6 +469,13 @@ export type Database = {
             columns: ["converted_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "connection_requests_firm_id_fkey"
+            columns: ["firm_id"]
+            isOneToOne: false
+            referencedRelation: "firm_agreements"
             referencedColumns: ["id"]
           },
           {
@@ -1443,6 +1453,7 @@ export type Database = {
           created_at: string
           duplicate_info: string | null
           email: string
+          firm_id: string | null
           id: string
           is_duplicate: boolean | null
           mapped_at: string | null
@@ -1467,6 +1478,7 @@ export type Database = {
           created_at?: string
           duplicate_info?: string | null
           email: string
+          firm_id?: string | null
           id?: string
           is_duplicate?: boolean | null
           mapped_at?: string | null
@@ -1491,6 +1503,7 @@ export type Database = {
           created_at?: string
           duplicate_info?: string | null
           email?: string
+          firm_id?: string | null
           id?: string
           is_duplicate?: boolean | null
           mapped_at?: string | null
@@ -1520,6 +1533,13 @@ export type Database = {
             columns: ["converted_to_request_id"]
             isOneToOne: false
             referencedRelation: "connection_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inbound_leads_firm_id_fkey"
+            columns: ["firm_id"]
+            isOneToOne: false
+            referencedRelation: "firm_agreements"
             referencedColumns: ["id"]
           },
           {
@@ -3155,7 +3175,10 @@ export type Database = {
             Returns: boolean
           }
       update_lead_fee_agreement_status:
-        | { Args: { p_request_id: string; p_value: boolean }; Returns: boolean }
+        | {
+            Args: { p_request_id: string; p_value: boolean }
+            Returns: undefined
+          }
         | {
             Args: {
               admin_notes?: string
@@ -3171,7 +3194,10 @@ export type Database = {
             Returns: boolean
           }
       update_lead_nda_status:
-        | { Args: { p_request_id: string; p_value: boolean }; Returns: boolean }
+        | {
+            Args: { p_request_id: string; p_value: boolean }
+            Returns: undefined
+          }
         | {
             Args: {
               admin_notes?: string
