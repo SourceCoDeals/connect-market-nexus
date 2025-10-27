@@ -44,7 +44,13 @@ export interface FirmAgreement {
 export interface FirmMember {
   id: string;
   firm_id: string;
-  user_id: string;
+  user_id: string | null;
+  member_type: 'marketplace_user' | 'lead';
+  lead_email: string | null;
+  lead_name: string | null;
+  lead_company: string | null;
+  connection_request_id: string | null;
+  inbound_lead_id: string | null;
   is_primary_contact: boolean;
   added_at: string;
   user?: {
@@ -52,9 +58,9 @@ export interface FirmMember {
     email: string;
     first_name: string;
     last_name: string;
-    company: string;
+    company_name: string;
     buyer_type: string;
-  };
+  } | null;
 }
 
 export function useFirmAgreements() {
@@ -132,11 +138,12 @@ export function useFirmMembers(firmId: string | null) {
             email,
             first_name,
             last_name,
-            company,
+            company_name,
             buyer_type
           )
         `)
         .eq('firm_id', firmId)
+        .order('member_type', { ascending: false })
         .order('is_primary_contact', { ascending: false });
 
       if (error) throw error;

@@ -56,11 +56,12 @@ export function FirmAgreementToggles({ firm, members, type = 'both' }: FirmAgree
             email,
             first_name,
             last_name,
-            company,
+            company_name,
             buyer_type
           )
         `)
         .eq('firm_id', firm.id)
+        .order('member_type', { ascending: false })
         .order('is_primary_contact', { ascending: false });
       
       if (error) throw error;

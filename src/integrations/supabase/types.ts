@@ -1406,33 +1406,65 @@ export type Database = {
         Row: {
           added_at: string
           added_by: string | null
+          connection_request_id: string | null
           firm_id: string
           id: string
+          inbound_lead_id: string | null
           is_primary_contact: boolean | null
-          user_id: string
+          lead_company: string | null
+          lead_email: string | null
+          lead_name: string | null
+          member_type: string
+          user_id: string | null
         }
         Insert: {
           added_at?: string
           added_by?: string | null
+          connection_request_id?: string | null
           firm_id: string
           id?: string
+          inbound_lead_id?: string | null
           is_primary_contact?: boolean | null
-          user_id: string
+          lead_company?: string | null
+          lead_email?: string | null
+          lead_name?: string | null
+          member_type?: string
+          user_id?: string | null
         }
         Update: {
           added_at?: string
           added_by?: string | null
+          connection_request_id?: string | null
           firm_id?: string
           id?: string
+          inbound_lead_id?: string | null
           is_primary_contact?: boolean | null
-          user_id?: string
+          lead_company?: string | null
+          lead_email?: string | null
+          lead_name?: string | null
+          member_type?: string
+          user_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "firm_members_connection_request_id_fkey"
+            columns: ["connection_request_id"]
+            isOneToOne: false
+            referencedRelation: "connection_requests"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "firm_members_firm_id_fkey"
             columns: ["firm_id"]
             isOneToOne: false
             referencedRelation: "firm_agreements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "firm_members_inbound_lead_id_fkey"
+            columns: ["inbound_lead_id"]
+            isOneToOne: false
+            referencedRelation: "inbound_leads"
             referencedColumns: ["id"]
           },
           {
