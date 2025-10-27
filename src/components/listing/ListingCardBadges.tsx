@@ -8,6 +8,7 @@ import {
   GlobalIcon,
   MapPinIcon,
 } from "@/components/icons/LocationIcons";
+import AcquisitionTypeBadge from "./AcquisitionTypeBadge";
 
 import {
   TechnologyIcon,
@@ -35,6 +36,7 @@ import {
 interface ListingCardBadgesProps {
   location: string;
   categories?: string[];
+  acquisitionType?: 'add_on' | 'platform' | string | null;
 }
 
 // Helper function to get location icon based on location string
@@ -131,11 +133,14 @@ const getCategoryIcon = (category: string) => {
   return <DefaultCategoryIcon className="w-3.5 h-3.5 text-slate-500" />;
 };
 
-const ListingCardBadges = ({ location, categories = [] }: ListingCardBadgesProps) => {
+const ListingCardBadges = ({ location, categories = [], acquisitionType }: ListingCardBadgesProps) => {
   const categoriesToShow = categories.slice(0, 2);
   
   return (
     <div className="flex items-center gap-2 flex-wrap">
+      {/* Acquisition Type badge - FIRST (most strategic info) */}
+      <AcquisitionTypeBadge type={acquisitionType} />
+      
       {/* Category badges (up to 2) */}
       {categoriesToShow.map((cat, idx) => (
         <div

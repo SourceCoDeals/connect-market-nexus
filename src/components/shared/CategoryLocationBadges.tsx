@@ -8,6 +8,7 @@ import {
   GlobalIcon,
   MapPinIcon,
 } from "@/components/icons/LocationIcons";
+import AcquisitionTypeBadge from "@/components/listing/AcquisitionTypeBadge";
 
 import {
   TechnologyIcon,
@@ -36,6 +37,7 @@ import { toStandardCategory, toStandardLocation } from "@/lib/standardization";
 interface CategoryLocationBadgesProps {
   category?: string;
   categories?: string[];
+  acquisitionType?: 'add_on' | 'platform' | string | null;
   location?: string;
   variant?: "default" | "text-only" | "inline";
   className?: string;
@@ -140,6 +142,7 @@ const getCategoryIcon = (category: string) => {
 export const CategoryLocationBadges = ({ 
   category,
   categories,
+  acquisitionType,
   location, 
   variant = "default",
   className = "" 
@@ -191,6 +194,9 @@ export const CategoryLocationBadges = ({
   // Default variant - badge style
   return (
     <div className={`flex items-center gap-2 flex-wrap ${className}`}>
+      {/* Acquisition Type badge - FIRST */}
+      <AcquisitionTypeBadge type={acquisitionType} />
+      
       {standardCategories.map((standardCategory, index) => (
         <div key={index} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white border border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.06)]">
           {getCategoryIcon(standardCategory)}

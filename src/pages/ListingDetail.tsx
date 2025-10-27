@@ -194,6 +194,7 @@ const ListingDetail = () => {
               {/* Location, Category & Listed Date - Ultra Clean */}
               <div className="flex items-center gap-3 flex-wrap">
                 <CategoryLocationBadges 
+                  acquisitionType={listing.acquisition_type}
                   categories={listing.categories}
                   category={listing.category}
                   location={listing.location}

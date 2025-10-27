@@ -22,6 +22,7 @@ import { EditorLivePreview } from "./editor-sections/EditorLivePreview";
 const listingFormSchema = z.object({
   title: z.string().min(5, "Title must be at least 5 characters").max(100),
   categories: z.array(z.string()).min(1, "Please select at least one category"),
+  acquisition_type: z.enum(['add_on', 'platform']).nullable().optional(),
   location: z.string().min(2, "Location is required"),
   revenue: z.string()
     .transform((val) => parseCurrency(val))
@@ -62,6 +63,7 @@ const listingFormSchema = z.object({
 type ListingFormInput = {
   title: string;
   categories: string[];
+  acquisition_type?: 'add_on' | 'platform' | string | null;
   location: string;
   revenue: string;
   ebitda: string;
@@ -94,6 +96,7 @@ const convertListingToFormInput = (listing?: AdminListing): ListingFormInput => 
   return {
     title: listing?.title || "",
     categories: listing?.categories || (listing?.category ? [listing.category] : []),
+    acquisition_type: listing?.acquisition_type || null,
     location: listing?.location || "",
     revenue: listing?.revenue ? formatNumber(Number(listing.revenue)) : "",
     ebitda: listing?.ebitda ? formatNumber(Number(listing.ebitda)) : "",
@@ -175,6 +178,7 @@ export function ImprovedListingEditor({
       const transformedData: ListingFormValues & { description_html?: string; description_json?: any } = {
         title: formData.title,
         categories: formData.categories,
+        acquisition_type: (formData.acquisition_type === 'add_on' || formData.acquisition_type === 'platform') ? formData.acquisition_type : null,
         location: formData.location,
         revenue: parseCurrency(formData.revenue),
         ebitda: parseCurrency(formData.ebitda),

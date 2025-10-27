@@ -28,6 +28,7 @@ interface DatabaseListingInsert {
   title: string;
   categories: string[];
   category: string;
+  acquisition_type?: 'add_on' | 'platform' | null;
   description: string;
   description_html: string | null;
   description_json: any;
@@ -73,6 +74,9 @@ export function useRobustListingCreation() {
           title: sanitizeStringField(listing.title),
           categories: sanitizedCategories,
           category: sanitizedCategories[0], // First category for backward compatibility
+          acquisition_type: (listing.acquisition_type === 'add_on' || listing.acquisition_type === 'platform') 
+            ? listing.acquisition_type 
+            : null,
           description: sanitizeStringField(listing.description),
           description_html: listing.description_html || null,
           description_json: listing.description_json || null,

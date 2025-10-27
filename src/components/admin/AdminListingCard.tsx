@@ -304,6 +304,7 @@ export function AdminListingCard({
           {/* Categories and Location */}
           <div className="flex flex-wrap gap-1.5">
             <CategoryLocationBadges 
+              acquisitionType={listing.acquisition_type}
               category={displayCategories[0]}
               location={listing.location}
             />

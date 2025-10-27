@@ -1690,6 +1690,7 @@ export type Database = {
       }
       listings: {
         Row: {
+          acquisition_type: string | null
           categories: string[] | null
           category: string
           created_at: string
@@ -1734,6 +1735,7 @@ export type Database = {
           visible_to_buyer_types: string[] | null
         }
         Insert: {
+          acquisition_type?: string | null
           categories?: string[] | null
           category: string
           created_at?: string
@@ -1778,6 +1780,7 @@ export type Database = {
           visible_to_buyer_types?: string[] | null
         }
         Update: {
+          acquisition_type?: string | null
           categories?: string[] | null
           category?: string
           created_at?: string

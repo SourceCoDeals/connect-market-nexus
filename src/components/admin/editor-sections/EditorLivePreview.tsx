@@ -130,7 +130,9 @@ export function EditorLivePreview({ formValues, imagePreview }: EditorLivePrevie
               <CardContent className="p-4 md:p-6">
                 <div>
                   <ListingCardBadges
+                    acquisitionType={formValues.acquisition_type}
                     location={formValues.location?.[0] || ""}
+                    categories={formValues.categories}
                   />
                   
                   <ListingCardTitle

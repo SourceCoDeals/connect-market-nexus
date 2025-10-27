@@ -6,6 +6,7 @@ export interface AdminListing {
   title: string;
   categories: string[]; // Array of categories
   category?: string; // Keep for backward compatibility
+  acquisition_type?: 'add_on' | 'platform' | string | null;
   location: string;
   revenue: number;
   ebitda: number;
@@ -53,6 +54,7 @@ export interface AdminListing {
 export interface CreateListingData {
   title: string;
   categories: string[];
+  acquisition_type?: 'add_on' | 'platform' | string | null;
   location: string;
   revenue: number;
   ebitda: number;

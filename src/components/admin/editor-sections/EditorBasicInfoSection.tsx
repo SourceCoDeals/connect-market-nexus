@@ -3,7 +3,7 @@ import { Input } from "@/components/ui/input";
 import { UseFormReturn } from "react-hook-form";
 import { EnhancedMultiCategorySelect } from "@/components/ui/enhanced-category-select";
 import { EnhancedMultiLocationSelect } from "@/components/ui/enhanced-location-select";
-import { Building2, Tag } from "lucide-react";
+import { Building2, Tag, Target } from "lucide-react";
 import { EditorBuyerVisibilitySection } from "./EditorBuyerVisibilitySection";
 import {
   Select,
@@ -154,6 +154,54 @@ export function EditorBasicInfoSection({ form }: EditorBasicInfoSectionProps) {
                   </SelectItem>
                 </SelectContent>
               </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="acquisition_type"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel className="text-sm font-medium flex items-center gap-2">
+                <Target className="h-4 w-4" />
+                Acquisition Type (Optional)
+              </FormLabel>
+              <Select
+                onValueChange={(value) => field.onChange(value === "none" ? null : value)}
+                defaultValue={field.value || "none"}
+              >
+                <FormControl>
+                  <SelectTrigger className="h-11 bg-background border-border">
+                    <SelectValue placeholder="Select type" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value="none">
+                    <span className="text-sm text-muted-foreground">Not specified</span>
+                  </SelectItem>
+                  <SelectItem value="add_on">
+                    <div className="flex items-center gap-2">
+                      <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-purple-50 border border-purple-200">
+                        <span className="text-xs font-medium text-purple-700">Add-On</span>
+                      </div>
+                      <span className="text-xs text-muted-foreground">Complements existing platforms</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="platform">
+                    <div className="flex items-center gap-2">
+                      <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-blue-50 border border-blue-200">
+                        <span className="text-xs font-medium text-blue-700">Platform</span>
+                      </div>
+                      <span className="text-xs text-muted-foreground">Scalable foundation business</span>
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground mt-1.5">
+                Helps buyers identify strategic fit: Add-ons integrate with existing portfolio companies, Platforms serve as acquisition foundations.
+              </p>
               <FormMessage />
             </FormItem>
           )}

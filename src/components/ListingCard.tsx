@@ -94,6 +94,7 @@ const ListingCard = ({ listing, viewType }: ListingCardProps) => {
                 {/* Header Section */}
                 <div className="flex items-center gap-1.5 flex-wrap">
                   <ListingCardBadges 
+                    acquisitionType={listing.acquisition_type}
                     location={listing.location}
                     categories={listing.categories || (listing.category ? [listing.category] : [])}
                   />
