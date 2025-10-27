@@ -20,6 +20,7 @@ export function useNonMarketplaceUsers() {
           lead_nda_signed,
           lead_fee_agreement_signed,
           firm_id,
+          listing:listings(id, title),
           firm_agreements!inner(
             id,
             primary_company_name
