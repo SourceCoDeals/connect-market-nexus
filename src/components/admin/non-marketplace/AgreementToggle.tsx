@@ -1,11 +1,13 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Switch } from "@/components/ui/switch";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { format } from "date-fns";
 import type { NonMarketplaceUser } from "@/types/non-marketplace-user";
 
 interface AgreementToggleProps {
@@ -20,6 +22,58 @@ export const AgreementToggle = ({ user, type, checked }: AgreementToggleProps) =
   const [showDialog, setShowDialog] = useState(false);
   const [selectedSignerId, setSelectedSignerId] = useState<string>("");
   const [firmMembers, setFirmMembers] = useState<any[]>([]);
+  const [signerInfo, setSignerInfo] = useState<{ name: string; date: string } | null>(null);
+
+  // Fetch signer information if agreement is signed
+  useEffect(() => {
+    const fetchSignerInfo = async () => {
+      if (!checked) {
+        setSignerInfo(null);
+        return;
+      }
+
+      try {
+        // Get the first associated record to find signer info
+        let signerId: string | null = null;
+        let signedAt: string | null = null;
+
+        if (user.associated_records.connection_requests.length > 0) {
+          const cr = user.associated_records.connection_requests[0];
+          signerId = type === 'nda' ? cr.lead_nda_signed_by : cr.lead_fee_agreement_signed_by;
+          signedAt = type === 'nda' ? cr.lead_nda_signed_at : cr.lead_fee_agreement_signed_at;
+        } else if (user.associated_records.deals.length > 0) {
+          const deal = user.associated_records.deals[0];
+          // Deals don't store signer info currently, so we'll skip for now
+          signedAt = deal.created_at;
+        }
+
+        if (signerId) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('first_name, last_name')
+            .eq('id', signerId)
+            .single();
+
+          if (profile && signedAt) {
+            const fullName = [profile.first_name, profile.last_name].filter(Boolean).join(' ') || 'Unknown';
+            setSignerInfo({
+              name: fullName,
+              date: format(new Date(signedAt), 'MMM d, yyyy'),
+            });
+          }
+        } else if (signedAt) {
+          setSignerInfo({
+            name: 'Unknown',
+            date: format(new Date(signedAt), 'MMM d, yyyy'),
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching signer info:', error);
+      }
+    };
+
+    fetchSignerInfo();
+  }, [checked, user, type]);
 
   const updateMutation = useMutation({
     mutationFn: async ({ isSigned, signerId }: { isSigned: boolean; signerId?: string }) => {
@@ -121,17 +175,31 @@ export const AgreementToggle = ({ user, type, checked }: AgreementToggleProps) =
 
   return (
     <>
-      <div className="flex items-center gap-1.5">
-        <Switch
-          checked={checked}
-          onCheckedChange={handleToggle}
-          disabled={updateMutation.isPending}
-          className="h-4 w-7 data-[state=checked]:bg-primary data-[state=unchecked]:bg-input"
-        />
-        <span className="text-xs text-muted-foreground font-normal">
-          {type.toUpperCase()}
-        </span>
-      </div>
+      <TooltipProvider>
+        <Tooltip delayDuration={300}>
+          <TooltipTrigger asChild>
+            <div className="flex items-center gap-1.5">
+              <Switch
+                checked={checked}
+                onCheckedChange={handleToggle}
+                disabled={updateMutation.isPending}
+                className="h-4 w-7 data-[state=checked]:bg-primary data-[state=unchecked]:bg-input"
+              />
+              <span className="text-xs text-muted-foreground font-normal">
+                {type.toUpperCase()}
+              </span>
+            </div>
+          </TooltipTrigger>
+          {checked && signerInfo && (
+            <TooltipContent side="top" className="bg-popover text-popover-foreground border shadow-md">
+              <div className="text-xs">
+                <div className="font-medium">{signerInfo.name}</div>
+                <div className="text-muted-foreground">{signerInfo.date}</div>
+              </div>
+            </TooltipContent>
+          )}
+        </Tooltip>
+      </TooltipProvider>
 
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
         <DialogContent>

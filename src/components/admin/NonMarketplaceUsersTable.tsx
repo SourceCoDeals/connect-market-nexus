@@ -216,7 +216,7 @@ export const NonMarketplaceUsersTable = ({ users, isLoading, filters }: NonMarke
                                   {user.associated_records.connection_requests.map((cr: any) => (
                                     <div key={cr.id} className="space-y-1">
                                       {cr.listing?.title && (
-                                        <div className="font-medium text-sm">{cr.listing.title}</div>
+                                        <div className="font-medium text-sm text-foreground">{cr.listing.title}</div>
                                       )}
                                       <div className="text-xs text-muted-foreground">
                                         {format(new Date(cr.created_at), 'MMM d, yyyy')} · {format(new Date(cr.created_at), 'h:mm a')}
