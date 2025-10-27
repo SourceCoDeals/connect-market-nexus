@@ -12,27 +12,21 @@ const AcquisitionTypeBadge = ({ type, className = "" }: AcquisitionTypeBadgeProp
     add_on: {
       icon: AddOnIcon,
       label: "Add-On",
-      bgClass: "bg-purple-50",
-      borderClass: "border-purple-200/80",
-      textClass: "text-purple-700",
       iconClass: "text-purple-500"
     },
     platform: {
       icon: PlatformIcon,
       label: "Platform",
-      bgClass: "bg-blue-50",
-      borderClass: "border-blue-200/80",
-      textClass: "text-blue-700",
       iconClass: "text-blue-500"
     }
   };
 
-  const { icon: Icon, label, bgClass, borderClass, textClass, iconClass } = config[type];
+  const { icon: Icon, label, iconClass } = config[type];
 
   return (
-    <div className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg ${bgClass} border ${borderClass} shadow-[0_1px_2px_rgba(0,0,0,0.06)] ${className}`}>
+    <div className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white border border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.06)] ${className}`}>
       <Icon className={`w-3.5 h-3.5 ${iconClass}`} />
-      <span className={`text-[10px] font-medium tracking-[0.02em] ${textClass}`}>
+      <span className="text-[10px] font-medium text-slate-700 tracking-[0.02em]">
         {label}
       </span>
     </div>
