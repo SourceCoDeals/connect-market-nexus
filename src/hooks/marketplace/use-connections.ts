@@ -197,7 +197,8 @@ export const useUserConnectionRequests = () => {
               revenue,
               ebitda,
               full_time_employees,
-              part_time_employees
+              part_time_employees,
+              acquisition_type
             )
           `)
           .eq('user_id', session.user.id)

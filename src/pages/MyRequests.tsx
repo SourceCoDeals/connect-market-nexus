@@ -317,6 +317,7 @@ const MyRequests = () => {
                     ebitda: request.listing?.ebitda,
                     full_time_employees: request.listing?.full_time_employees,
                     part_time_employees: request.listing?.part_time_employees,
+                    acquisition_type: request.listing?.acquisition_type,
                   }}
                   status={request.status}
                 />

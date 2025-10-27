@@ -5,6 +5,7 @@ import { Link } from "react-router-dom";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { CategoryLocationBadges } from "@/components/shared/CategoryLocationBadges";
 import { toStandardCategory, toStandardLocation } from "@/lib/standardization";
+import AcquisitionTypeBadge from "@/components/listing/AcquisitionTypeBadge";
 
 interface DealMetricsCardProps {
   listing: {
@@ -17,6 +18,7 @@ interface DealMetricsCardProps {
     ebitda?: number;
     full_time_employees?: number;
     part_time_employees?: number;
+    acquisition_type?: 'add_on' | 'platform' | string | null;
   };
   status: string;
   className?: string;
@@ -140,12 +142,17 @@ export function DealMetricsCard({ listing, status, className }: DealMetricsCardP
                   </Link>
                 )}
               </div>
-              <CategoryLocationBadges 
-                category={standardCategory}
-                location={standardLocation}
-                variant="default"
-                className="mt-0.5"
-              />
+              <div className="flex items-center gap-2">
+                <CategoryLocationBadges 
+                  category={standardCategory}
+                  location={standardLocation}
+                  variant="default"
+                  className="mt-0.5"
+                />
+                {listing.acquisition_type && (
+                  <AcquisitionTypeBadge type={listing.acquisition_type} />
+                )}
+              </div>
             </div>
             
             {/* Status Badge */}
