@@ -31,7 +31,6 @@ export function EnhancedUserManagement({
   isLoading,
   onFilteredUsersChange
 }: EnhancedUserManagementProps) {
-  const [activeView, setActiveView] = useState<'marketplace' | 'non-marketplace'>('marketplace');
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [buyerTypeFilter, setBuyerTypeFilter] = useState<string>('all');
@@ -220,53 +219,17 @@ export function EnhancedUserManagement({
 
   return (
     <div className="space-y-6">
-      {/* View Switcher */}
-      <div className="flex items-center gap-3 p-1 bg-muted/30 rounded-lg border w-fit">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setActiveView('marketplace')}
-          className={cn(
-            "relative h-9 px-4 text-sm font-medium transition-all",
-            activeView === 'marketplace'
-              ? "bg-background shadow-sm text-foreground"
-              : "text-muted-foreground hover:text-foreground"
-          )}
-        >
-          Marketplace Users
-          <Badge variant="secondary" className="ml-2 h-5 px-1.5 text-xs">
-            {users.length}
-          </Badge>
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setActiveView('non-marketplace')}
-          className={cn(
-            "relative h-9 px-4 text-sm font-medium transition-all",
-            activeView === 'non-marketplace'
-              ? "bg-background shadow-sm text-foreground"
-              : "text-muted-foreground hover:text-foreground"
-          )}
-        >
-          Non-Marketplace Contacts
-        </Button>
-      </div>
-
-      {/* Overview Stats - Only for marketplace view */}
-      {activeView === 'marketplace' && (
-        <UserOverviewTab
-          users={users}
-          totalUsers={analytics.total}
-          pendingCount={analytics.pending}
-          approvedCount={analytics.approved}
-          rejectedCount={analytics.rejected}
-        />
-      )}
+      {/* User Overview Stats */}
+      <UserOverviewTab
+        users={users}
+        totalUsers={analytics.total}
+        pendingCount={analytics.pending}
+        approvedCount={analytics.approved}
+        rejectedCount={analytics.rejected}
+      />
 
       {/* Filters Section - Inline, no card wrapper for cleaner look */}
-      {activeView === 'marketplace' && (
-        <div className="space-y-6 pb-6 border-b">
+      <div className="space-y-6 pb-6 border-b">
         <div className="flex items-center justify-between">
           <h2 className="text-base font-semibold">Filters</h2>
           <Button 
@@ -373,7 +336,6 @@ export function EnhancedUserManagement({
             </div>
           )}
         </div>
-      )}
     </div>
   );
 }

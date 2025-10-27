@@ -3176,15 +3176,25 @@ export type Database = {
         Args: { admin_notes?: string; is_sent: boolean; target_user_id: string }
         Returns: boolean
       }
-      update_fee_agreement_firm_status: {
-        Args: {
-          p_firm_id: string
-          p_is_signed: boolean
-          p_signed_by_name?: string
-          p_signed_by_user_id?: string
-        }
-        Returns: undefined
-      }
+      update_fee_agreement_firm_status:
+        | {
+            Args: {
+              p_firm_id: string
+              p_is_signed: boolean
+              p_signed_by_name?: string
+              p_signed_by_user_id?: string
+            }
+            Returns: undefined
+          }
+        | {
+            Args: {
+              p_firm_id: string
+              p_is_signed: boolean
+              p_signed_at?: string
+              p_signed_by_user_id?: string
+            }
+            Returns: boolean
+          }
       update_fee_agreement_firm_status_with_notes: {
         Args: {
           p_admin_notes?: string
@@ -3245,15 +3255,25 @@ export type Database = {
         Args: { admin_notes?: string; is_sent: boolean; target_user_id: string }
         Returns: boolean
       }
-      update_nda_firm_status: {
-        Args: {
-          p_firm_id: string
-          p_is_signed: boolean
-          p_signed_by_name?: string
-          p_signed_by_user_id?: string
-        }
-        Returns: undefined
-      }
+      update_nda_firm_status:
+        | {
+            Args: {
+              p_firm_id: string
+              p_is_signed: boolean
+              p_signed_by_name?: string
+              p_signed_by_user_id?: string
+            }
+            Returns: undefined
+          }
+        | {
+            Args: {
+              p_firm_id: string
+              p_is_signed: boolean
+              p_signed_at?: string
+              p_signed_by_user_id?: string
+            }
+            Returns: boolean
+          }
       update_nda_firm_status_with_notes: {
         Args: {
           p_admin_notes?: string

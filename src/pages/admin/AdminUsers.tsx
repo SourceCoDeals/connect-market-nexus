@@ -19,16 +19,21 @@ import { ProfileDataRecovery } from "@/components/admin/ProfileDataRecovery";
 import { AutomatedDataRestoration } from "@/components/admin/AutomatedDataRestoration";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useNonMarketplaceUsers } from "@/hooks/admin/use-non-marketplace-users";
+import { NonMarketplaceUsersTable } from "@/components/admin/NonMarketplaceUsersTable";
+import { UserViewSwitcher } from "@/components/admin/UserViewSwitcher";
 
-
+type UserView = 'marketplace' | 'non-marketplace';
 
 const AdminUsers = () => {
   const { users } = useAdmin();
   const { data: usersData = [], isLoading, error, refetch } = users;
+  const { data: nonMarketplaceUsers = [], isLoading: isLoadingNonMarketplace } = useNonMarketplaceUsers();
   const { toast } = useToast();
   const isMobile = useIsMobile();
-  const { isConnected } = useRealtimeAdmin(); // Enable real-time updates
+  const { isConnected } = useRealtimeAdmin();
   const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
+  const [activeView, setActiveView] = useState<UserView>('marketplace');
 
   // Update filtered users when usersData changes
   useEffect(() => {
@@ -149,32 +154,50 @@ const AdminUsers = () => {
           onFilteredUsersChange={setFilteredUsers}
         />
 
-        {/* Users Table */}
-        <div className="mt-8 bg-card rounded-lg border overflow-hidden">
-          {isMobile ? (
-            <div className="p-4">
-              <MobileUsersTable
-                users={filteredUsers}
-                onApprove={approveUser}
-                onMakeAdmin={makeAdmin}
-                onRevokeAdmin={revokeAdmin}
-                onDelete={deleteUser}
-                isLoading={isLoading}
-                onSendFeeAgreement={() => {}}
-                onSendNDAEmail={() => {}}
-              />
-            </div>
+        {/* View Switcher - Positioned above table */}
+        <div className="mt-8 mb-4">
+          <UserViewSwitcher
+            activeView={activeView}
+            onViewChange={setActiveView}
+            marketplaceCount={usersData.length}
+            nonMarketplaceCount={nonMarketplaceUsers.length}
+          />
+        </div>
+
+        {/* Conditional Table Rendering */}
+        <div className="bg-card rounded-lg border overflow-hidden">
+          {activeView === 'marketplace' ? (
+            isMobile ? (
+              <div className="p-4">
+                <MobileUsersTable
+                  users={filteredUsers}
+                  onApprove={approveUser}
+                  onMakeAdmin={makeAdmin}
+                  onRevokeAdmin={revokeAdmin}
+                  onDelete={deleteUser}
+                  isLoading={isLoading}
+                  onSendFeeAgreement={() => {}}
+                  onSendNDAEmail={() => {}}
+                />
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <UsersTable
+                  users={filteredUsers}
+                  onApprove={approveUser}
+                  onMakeAdmin={makeAdmin}
+                  onRevokeAdmin={revokeAdmin}
+                  onDelete={deleteUser}
+                  isLoading={isLoading}
+                />
+              </div>
+            )
           ) : (
-            <div className="overflow-x-auto">
-              <UsersTable
-                users={filteredUsers}
-                onApprove={approveUser}
-                onMakeAdmin={makeAdmin}
-                onRevokeAdmin={revokeAdmin}
-                onDelete={deleteUser}
-                isLoading={isLoading}
-              />
-            </div>
+            <NonMarketplaceUsersTable
+              users={nonMarketplaceUsers}
+              isLoading={isLoadingNonMarketplace}
+              filters={{}}
+            />
           )}
         </div>
 

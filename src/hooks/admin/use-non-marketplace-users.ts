@@ -179,6 +179,9 @@ export function useNonMarketplaceUsers() {
         // Find potential profile match
         const profileMatch = profiles?.find((p) => p.email?.toLowerCase() === email);
 
+        // SKIP if this email already has a registered profile - they belong in Marketplace Users tab
+        if (profileMatch) return;
+
         // Determine primary source (most recent)
         let source: 'connection_request' | 'inbound_lead' | 'deal' = 'connection_request';
         let sourceId = '';
