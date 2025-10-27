@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { ChevronRight, Building2, Users, Globe, Check, X, Circle, MoreHorizontal, Download, Filter as FilterIcon, FileCheck, Shield } from 'lucide-react';
+import { ChevronRight, Building2, Users, Globe, Check, X, Circle, MoreHorizontal, Download, Filter as FilterIcon, FileCheck, Shield, FileText, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -471,18 +471,40 @@ function FirmRow({
                 {isExpanded ? 'Collapse' : 'Expand'} details
               </DropdownMenuItem>
               <DropdownMenuSeparator className="bg-border/60" />
-              <DropdownMenuItem className="cursor-pointer focus:bg-muted/80 focus:text-foreground">
+              <DropdownMenuItem 
+                onClick={onToggleExpand}
+                className="cursor-pointer focus:bg-muted/80 focus:text-foreground"
+              >
                 <Users className="h-4 w-4 mr-2" />
-                View members
+                {isExpanded ? 'Hide' : 'View'} members
               </DropdownMenuItem>
-              <DropdownMenuItem className="cursor-pointer focus:bg-muted/80 focus:text-foreground">
-                <Globe className="h-4 w-4 mr-2" />
-                Send agreements
-              </DropdownMenuItem>
-              <DropdownMenuItem className="cursor-pointer focus:bg-muted/80 focus:text-foreground">
-                <Building2 className="h-4 w-4 mr-2" />
-                View history
-              </DropdownMenuItem>
+              {firm.lead_count > 0 && (
+                <DropdownMenuItem 
+                  onClick={() => window.location.href = `/admin/inbound-leads?firm=${firm.id}`}
+                  className="cursor-pointer focus:bg-muted/80 focus:text-foreground"
+                >
+                  <FileText className="h-4 w-4 mr-2" />
+                  View {firm.lead_count} lead{firm.lead_count !== 1 ? 's' : ''}
+                </DropdownMenuItem>
+              )}
+              {firm.request_count > 0 && (
+                <DropdownMenuItem 
+                  onClick={() => window.location.href = `/admin/connection-requests?firm=${firm.id}`}
+                  className="cursor-pointer focus:bg-muted/80 focus:text-foreground"
+                >
+                  <MessageSquare className="h-4 w-4 mr-2" />
+                  View {firm.request_count} request{firm.request_count !== 1 ? 's' : ''}
+                </DropdownMenuItem>
+              )}
+              {firm.deal_count > 0 && (
+                <DropdownMenuItem 
+                  onClick={() => window.location.href = `/admin/pipeline?firm=${firm.id}`}
+                  className="cursor-pointer focus:bg-muted/80 focus:text-foreground"
+                >
+                  <Building2 className="h-4 w-4 mr-2" />
+                  View {firm.deal_count} deal{firm.deal_count !== 1 ? 's' : ''}
+                </DropdownMenuItem>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

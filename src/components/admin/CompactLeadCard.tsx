@@ -113,7 +113,7 @@ export const CompactLeadCard = ({
               
               {/* Main Content */}
               <div className="flex-1 min-w-0">
-                {/* Name and Company */}
+                {/* Name and Duplicate Warning */}
                 <div className="flex items-center gap-2 mb-1">
                   <h3 className="font-semibold text-gray-900 text-sm truncate">
                     {lead.name}
@@ -157,6 +157,7 @@ export const CompactLeadCard = ({
           <div className="flex items-center gap-2 flex-wrap">
             <StatusBadge status={lead.status} />
             <SourceBadge source={lead.source} />
+            <LeadFirmBadge leadId={lead.id} compact={true} />
           </div>
 
           {/* Message Preview */}
