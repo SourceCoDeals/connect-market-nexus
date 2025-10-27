@@ -90,7 +90,8 @@ export function FirmManagementTools() {
       const { error: syncError } = await supabase.rpc('update_fee_agreement_firm_status', {
         p_firm_id: targetFirmId,
         p_is_signed: targetFirm?.fee_agreement_signed || false,
-        p_signed_by_user_id: targetFirm?.fee_agreement_signed_by
+        p_signed_by_user_id: targetFirm?.fee_agreement_signed_by,
+        p_signed_at: targetFirm?.fee_agreement_signed ? (targetFirm?.fee_agreement_signed_at || new Date().toISOString()) : null,
       });
 
       if (syncError) console.warn('Warning: Could not sync fee agreements after merge:', syncError);
@@ -98,7 +99,8 @@ export function FirmManagementTools() {
       const { error: ndaSyncError } = await supabase.rpc('update_nda_firm_status', {
         p_firm_id: targetFirmId,
         p_is_signed: targetFirm?.nda_signed || false,
-        p_signed_by_user_id: targetFirm?.nda_signed_by
+        p_signed_by_user_id: targetFirm?.nda_signed_by,
+        p_signed_at: targetFirm?.nda_signed ? (targetFirm?.nda_signed_at || new Date().toISOString()) : null,
       });
 
       if (ndaSyncError) console.warn('Warning: Could not sync NDAs after merge:', ndaSyncError);

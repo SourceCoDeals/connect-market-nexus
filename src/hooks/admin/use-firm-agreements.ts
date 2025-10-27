@@ -198,7 +198,7 @@ export function useUpdateFirmFeeAgreement() {
         p_firm_id: firmId,
         p_is_signed: isSigned,
         p_signed_by_user_id: signedByUserId,
-        p_signed_by_name: signedByName,
+        p_signed_at: isSigned ? new Date().toISOString() : null,
       });
 
       if (error) throw error;
@@ -269,7 +269,7 @@ export function useUpdateFirmNDA() {
         p_firm_id: firmId,
         p_is_signed: isSigned,
         p_signed_by_user_id: signedByUserId,
-        p_signed_by_name: signedByName,
+        p_signed_at: isSigned ? new Date().toISOString() : null,
       });
 
       if (error) throw error;

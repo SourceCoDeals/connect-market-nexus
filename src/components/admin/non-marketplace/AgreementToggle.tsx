@@ -124,6 +124,9 @@ export const AgreementToggle = ({ user, type, checked }: AgreementToggleProps) =
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin','non-marketplace-users'] });
+      queryClient.invalidateQueries({ queryKey: ['firm-agreements'] });
+      queryClient.invalidateQueries({ queryKey: ['connection-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['deals'] });
       toast({
         title: `${type.toUpperCase()} ${checked ? 'unsigned' : 'signed'}`,
         description: `Successfully updated ${type.toUpperCase()} status`,
