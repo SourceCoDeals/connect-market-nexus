@@ -183,16 +183,18 @@ export function EditorBasicInfoSection({ form }: EditorBasicInfoSectionProps) {
                   </SelectItem>
                   <SelectItem value="add_on">
                     <div className="flex items-center gap-2">
-                      <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-purple-50 border border-purple-200">
-                        <span className="text-xs font-medium text-purple-700">Add-On</span>
+                      <div className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white border border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.06)]">
+                        <span className="w-3.5 h-3.5 text-purple-500">●</span>
+                        <span className="text-[10px] font-medium text-slate-700 tracking-[0.02em]">Add-On</span>
                       </div>
                       <span className="text-xs text-muted-foreground">Complements existing platforms</span>
                     </div>
                   </SelectItem>
                   <SelectItem value="platform">
                     <div className="flex items-center gap-2">
-                      <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-blue-50 border border-blue-200">
-                        <span className="text-xs font-medium text-blue-700">Platform</span>
+                      <div className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white border border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.06)]">
+                        <span className="w-3.5 h-3.5 text-blue-500">●</span>
+                        <span className="text-[10px] font-medium text-slate-700 tracking-[0.02em]">Platform</span>
                       </div>
                       <span className="text-xs text-muted-foreground">Scalable foundation business</span>
                     </div>
