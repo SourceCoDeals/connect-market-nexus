@@ -58,13 +58,13 @@ export function DealProcessSteps({
           {
             id: 'review',
             label: 'Under Review',
-            description: "Our team is reviewing your buyer profile, investment and operating approach, and preferred transaction structures, and presenting your firm to the business owner. They evaluate your profile and investment approach.",
+            description: "We're presenting your profile to the business owner alongside other qualified buyers. The owner will review all interested parties and select the buyer that best aligns with their strategic goals and transaction preferences.",
             status: 'active'
           },
           {
             id: 'decision',
-            label: 'Decision',
-            description: "Once approved, expect an email from us in your inbox shortly - we'll walk you through the next steps and opportunity details.",
+            label: 'Selection',
+            description: "The owner is making their selection from all qualified buyers. You'll be notified once a decision is made.",
             status: 'pending'
           }
         ];
@@ -79,13 +79,13 @@ export function DealProcessSteps({
           {
             id: 'review',
             label: 'Under Review',
-            description: 'Profile and criteria reviewed',
+            description: 'Your profile was presented alongside other qualified buyers',
             status: 'completed'
           },
           {
             id: 'approved',
-            label: 'Approved',
-            description: "Great news! Your request has been approved. Expect an email from us in your inbox shortly - we'll walk you through the next steps and opportunity details.",
+            label: 'Selected',
+            description: "Great news! The owner selected your firm. Expect an email from us in your inbox shortly with next steps and opportunity details.",
             status: 'completed'
           }
         ];
@@ -100,13 +100,13 @@ export function DealProcessSteps({
           {
             id: 'review',
             label: 'Under Review',
-            description: 'Owner reviewed your profile',
+            description: 'Your profile was presented to the owner alongside other qualified buyers',
             status: 'completed'
           },
           {
             id: 'declined',
             label: 'Not Selected',
-            description: 'The owner has chosen to move forward with other buyers',
+            description: 'The owner selected a different buyer from the qualified pool. We encourage you to explore other opportunities on the marketplace.',
             status: 'completed'
           }
         ];
@@ -148,20 +148,20 @@ export function DealProcessSteps({
     switch (normalizedStatus) {
       case 'pending':
         return {
-          title: 'Under Review',
-          message: "Our team is reviewing your buyer profile and presenting your firm to the business owner. They're evaluating your qualifications and investment approach.",
+          title: 'Competitive Selection Process',
+          message: "You're being presented to the owner alongside other qualified buyers. The owner will review all interested parties and select the buyer that best fits their strategic objectives. This is a competitive process—not a qualification review.",
           action: true
         };
       case 'approved':
         return {
-          title: 'Request Approved',
-          message: "We've reviewed your request and connection criteria. Our team will be in touch with next steps shortly.",
+          title: 'You Were Selected',
+          message: "The owner selected your firm from the pool of qualified buyers. Our team will be in touch with next steps shortly.",
           action: false
         };
       case 'rejected':
         return {
           title: 'Not Selected',
-          message: 'Based on their current objectives and the other buyers under consideration, the owner has decided to pursue a different match. This is a normal part of our selective process—we encourage you to continue exploring other opportunities.',
+          message: 'The owner selected a different buyer from the qualified pool. This is part of our competitive selection process—we encourage you to explore other opportunities that may be an even better strategic fit.',
           action: false
         };
       default:
@@ -241,15 +241,15 @@ export function DealProcessSteps({
                           sideOffset={8}
                         >
                           <div className="space-y-2.5 text-xs leading-relaxed">
-                            <p className="font-semibold text-white">How our process works</p>
+                            <p className="font-semibold text-white">Understanding our selection process</p>
                             <p className="text-gray-200">
-                              Once we understand each buyer&apos;s strategy, we present only the options that best align with the seller&apos;s goals. Ultimately, the business owner decides which buyer they&apos;d like to engage with.
+                              We present qualified buyers to sellers one at a time or in small groups. The owner evaluates all interested buyers and selects the one that best aligns with their goals.
                             </p>
                             <p className="text-gray-200">
-                              We typically introduce one buyer at a time. This is intentional because it protects the seller&apos;s time and ensures that when we are compensated by the buyer, the process remains collaborative rather than auction driven.
+                              This approach protects everyone's time and ensures a collaborative process. Because we can't guarantee a seller will choose any specific buyer, we encourage you to stay active and explore multiple opportunities.
                             </p>
                             <p className="text-gray-200">
-                              Because of this approach, we can&apos;t guarantee that a seller will elect to engage with a specific buyer. However, we&apos;re always transparent about our process with both sides and prioritize efficiency and respect for everyone&apos;s time.
+                              Your qualification to be on the platform means you're a serious buyer—selection is about strategic fit for this particular deal, not your overall qualifications.
                             </p>
                           </div>
                         </TooltipContent>
@@ -270,12 +270,12 @@ export function DealProcessSteps({
                           sideOffset={8}
                         >
                           <div className="space-y-2.5 text-xs leading-relaxed">
-                            <p className="font-semibold text-white">Understanding the selection process</p>
+                            <p className="font-semibold text-white">Why "Not Selected"?</p>
                             <p className="text-gray-200">
-                              The owner carefully reviews all qualified buyers and selects the one that best aligns with their goals and timeline. This decision is based on strategic fit, not on any deficiency in your profile.
+                              The owner reviewed multiple qualified buyers and selected the one that best matched their specific strategic goals, timeline, and transaction structure preferences for this deal.
                             </p>
                             <p className="text-gray-200">
-                              Our selective approach means that even highly qualified buyers may not be chosen for a particular opportunity. We encourage you to continue exploring other listings that may be an even better match for your investment criteria.
+                              This decision reflects deal-specific fit, not your qualifications as a buyer. We encourage you to continue exploring opportunities where your investment approach may be the perfect match.
                             </p>
                           </div>
                         </TooltipContent>
