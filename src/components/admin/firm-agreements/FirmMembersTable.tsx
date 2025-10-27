@@ -82,89 +82,105 @@ function MemberRow({ member }: { member: FirmMember }) {
 
       {/* Expanded Activity View */}
       {isExpanded && hasActivity && (
-        <div className="px-6 pb-6 pt-2 bg-muted/10 border-t border-border/50">
+        <div className="px-6 pb-6 pt-4 bg-muted/5 border-t border-border/50">
           {isLoading ? (
             <div className="flex items-center justify-center py-8">
               <div className="h-4 w-4 animate-spin rounded-full border-2 border-muted-foreground/20 border-t-muted-foreground" />
             </div>
           ) : (
-            <div className="space-y-4 max-w-4xl">
-              {/* Connection Requests */}
-              {data?.requests && data.requests.length > 0 && (
-                <div>
-                  <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-3 px-1">
-                    Connection Requests ({data.requests.length})
-                  </div>
-                  <div className="space-y-1.5">
-                    {data.requests.map((request: any) => (
-                      <div
-                        key={request.id}
-                        className="flex items-center justify-between py-2.5 px-3 rounded-md bg-card border border-transparent hover:border-border/50 transition-all duration-150"
-                      >
-                        <div className="flex-1 min-w-0">
-                          <div className="text-sm font-medium text-foreground truncate">
-                            {request.listing?.title || 'Untitled Listing'}
+            <div className="max-w-4xl">
+              {/* Scrollable container for high-volume content */}
+              <div className="max-h-[500px] overflow-y-auto pr-2 space-y-6 scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent">
+                {/* Connection Requests */}
+                {data?.requests && data.requests.length > 0 && (
+                  <div>
+                    <div className="flex items-center gap-2 mb-3 sticky top-0 bg-background/95 backdrop-blur-sm pb-2 z-10">
+                      <h4 className="text-xs font-medium text-foreground/70">
+                        Connection Requests
+                      </h4>
+                      <span className="inline-flex items-center justify-center h-5 min-w-[20px] px-1.5 text-[10px] font-medium text-muted-foreground bg-muted rounded">
+                        {data.requests.length}
+                      </span>
+                    </div>
+                    <div className="space-y-2">
+                      {data.requests.map((request: any) => (
+                        <div
+                          key={request.id}
+                          className="group flex items-start justify-between gap-4 py-3 px-4 rounded-lg bg-card border border-border/40 hover:border-border hover:shadow-sm transition-all duration-200"
+                        >
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm font-medium text-foreground mb-1 truncate">
+                              {request.listing?.title || 'Untitled Listing'}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {format(new Date(request.created_at), 'MMM d, yyyy')}
+                            </div>
                           </div>
-                          <div className="text-xs text-muted-foreground mt-0.5">
-                            {format(new Date(request.created_at), 'MMM d, yyyy')}
-                          </div>
-                        </div>
-                        <span className={cn(
-                          "ml-3 px-2 py-0.5 rounded text-[10px] font-medium whitespace-nowrap",
-                          request.status === 'approved' && "bg-success/10 text-success",
-                          request.status === 'pending' && "bg-warning/10 text-warning-foreground",
-                          request.status === 'rejected' && "bg-muted text-muted-foreground"
-                        )}>
-                          {request.status}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Deals */}
-              {data?.deals && data.deals.length > 0 && (
-                <div>
-                  <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-3 px-1">
-                    Deals ({data.deals.length})
-                  </div>
-                  <div className="space-y-1.5">
-                    {data.deals.map((deal: any) => (
-                      <div
-                        key={deal.id}
-                        className="flex items-center justify-between py-2.5 px-3 rounded-md bg-card border border-transparent hover:border-border/50 transition-all duration-150"
-                      >
-                        <div className="flex-1 min-w-0">
-                          <div className="text-sm font-medium text-foreground truncate">
-                            {deal.title}
-                          </div>
-                          <div className="text-xs text-muted-foreground mt-0.5">
-                            {format(new Date(deal.created_at), 'MMM d, yyyy')}
-                            {deal.value && <span className="ml-2">•</span>}
-                            {deal.value && (
-                              <span className="ml-2 font-medium">
-                                ${deal.value.toLocaleString()}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        {deal.stage && (
-                          <span 
-                            className="ml-3 px-2 py-0.5 rounded text-[10px] font-medium whitespace-nowrap"
-                            style={{ 
-                              backgroundColor: `${deal.stage.color}15`,
-                              color: deal.stage.color
-                            }}
-                          >
-                            {deal.stage.name}
+                          <span className={cn(
+                            "inline-flex items-center px-2.5 py-1 rounded-md text-[11px] font-medium whitespace-nowrap border transition-colors",
+                            request.status === 'approved' && "bg-success/5 text-success border-success/20",
+                            request.status === 'pending' && "bg-amber-500/5 text-amber-600 dark:text-amber-500 border-amber-500/20",
+                            request.status === 'rejected' && "bg-muted/50 text-muted-foreground border-muted-foreground/20"
+                          )}>
+                            {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
                           </span>
-                        )}
-                      </div>
-                    ))}
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
+
+                {/* Deals */}
+                {data?.deals && data.deals.length > 0 && (
+                  <div>
+                    <div className="flex items-center gap-2 mb-3 sticky top-0 bg-background/95 backdrop-blur-sm pb-2 z-10">
+                      <h4 className="text-xs font-medium text-foreground/70">
+                        Deals
+                      </h4>
+                      <span className="inline-flex items-center justify-center h-5 min-w-[20px] px-1.5 text-[10px] font-medium text-muted-foreground bg-muted rounded">
+                        {data.deals.length}
+                      </span>
+                    </div>
+                    <div className="space-y-2">
+                      {data.deals.map((deal: any) => (
+                        <div
+                          key={deal.id}
+                          className="group flex items-start justify-between gap-4 py-3 px-4 rounded-lg bg-card border border-border/40 hover:border-border hover:shadow-sm transition-all duration-200"
+                        >
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm font-medium text-foreground mb-1 truncate">
+                              {deal.title}
+                            </div>
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
+                              <span>{format(new Date(deal.created_at), 'MMM d, yyyy')}</span>
+                              {deal.value && (
+                                <>
+                                  <span className="text-muted-foreground/40">•</span>
+                                  <span className="font-medium text-foreground/80">
+                                    ${deal.value.toLocaleString()}
+                                  </span>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                          {deal.stage && (
+                            <span 
+                              className="inline-flex items-center px-2.5 py-1 rounded-md text-[11px] font-medium whitespace-nowrap border transition-colors"
+                              style={{ 
+                                backgroundColor: `${deal.stage.color}08`,
+                                borderColor: `${deal.stage.color}25`,
+                                color: deal.stage.color
+                              }}
+                            >
+                              {deal.stage.name}
+                            </span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>
