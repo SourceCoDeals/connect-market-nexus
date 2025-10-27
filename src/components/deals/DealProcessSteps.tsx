@@ -105,8 +105,8 @@ export function DealProcessSteps({
           },
           {
             id: 'declined',
-            label: 'Declined',
-            description: 'Owner declined at this time',
+            label: 'Not Selected',
+            description: 'The owner has chosen to move forward with other buyers',
             status: 'completed'
           }
         ];
@@ -160,8 +160,8 @@ export function DealProcessSteps({
         };
       case 'rejected':
         return {
-          title: 'Request Declined',
-          message: 'The business owner declined the connection at this time. Continue exploring other opportunities that match your criteria.',
+          title: 'Not Selected',
+          message: 'Based on their current objectives and the other buyers under consideration, the owner has decided to pursue a different match. This is a normal part of our selective process—we encourage you to continue exploring other opportunities.',
           action: false
         };
       default:
@@ -250,6 +250,32 @@ export function DealProcessSteps({
                             </p>
                             <p className="text-gray-200">
                               Because of this approach, we can&apos;t guarantee that a seller will elect to engage with a specific buyer. However, we&apos;re always transparent about our process with both sides and prioritize efficiency and respect for everyone&apos;s time.
+                            </p>
+                          </div>
+                        </TooltipContent>
+                      </Tooltip>
+                    )}
+
+                    {/* Tooltip for Not Selected */}
+                    {step.id === 'declined' && (
+                      <Tooltip delayDuration={0}>
+                        <TooltipTrigger asChild>
+                          <button className="inline-flex items-center justify-center hover:bg-gray-100 rounded-full p-1 transition-colors">
+                            <Info className="w-4 h-4 text-gray-500 hover:text-gray-700" strokeWidth={2} />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent 
+                          side="right" 
+                          className="max-w-sm bg-gray-900 text-white border-gray-800 p-4"
+                          sideOffset={8}
+                        >
+                          <div className="space-y-2.5 text-xs leading-relaxed">
+                            <p className="font-semibold text-white">Understanding the selection process</p>
+                            <p className="text-gray-200">
+                              The owner carefully reviews all qualified buyers and selects the one that best aligns with their goals and timeline. This decision is based on strategic fit, not on any deficiency in your profile.
+                            </p>
+                            <p className="text-gray-200">
+                              Our selective approach means that even highly qualified buyers may not be chosen for a particular opportunity. We encourage you to continue exploring other listings that may be an even better match for your investment criteria.
                             </p>
                           </div>
                         </TooltipContent>

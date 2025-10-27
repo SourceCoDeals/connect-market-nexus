@@ -39,8 +39,8 @@ export function DealMetricsCard({ listing, status, className }: DealMetricsCardP
         };
       case "rejected":
         return { 
-          label: "Rejected", 
-          className: "bg-red-50 text-red-700 border-red-100" 
+          label: "Not Selected", 
+          className: "bg-slate-50 text-slate-700 border-slate-200" 
         };
       case "pending":
       default:
