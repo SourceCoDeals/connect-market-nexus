@@ -21,14 +21,25 @@ export function FirmSignerSelector({ members, onSelect, label = 'Signed by' }: F
   const [selectedMemberId, setSelectedMemberId] = useState<string>('');
   const [manualName, setManualName] = useState<string>('');
 
-  const handleMemberSelect = (memberId: string) => {
-    setSelectedMemberId(memberId);
-    const member = members.find(m => m.user_id === memberId);
-    if (member?.user) {
-      onSelect(
-        member.user_id,
-        `${member.user.first_name} ${member.user.last_name}`.trim()
-      );
+  const handleMemberSelect = (compositeId: string) => {
+    setSelectedMemberId(compositeId);
+    
+    // Parse composite identifier: "user:{user_id}" or "lead:{member_id}"
+    const [type, id] = compositeId.split(':');
+    
+    if (type === 'user') {
+      const member = members.find(m => m.user_id === id);
+      if (member?.user) {
+        onSelect(
+          member.user_id,
+          `${member.user.first_name} ${member.user.last_name}`.trim()
+        );
+      }
+    } else if (type === 'lead') {
+      const member = members.find(m => m.id === id);
+      if (member) {
+        onSelect(null, member.lead_name || '');
+      }
     }
   };
 
@@ -74,11 +85,25 @@ export function FirmSignerSelector({ members, onSelect, label = 'Signed by' }: F
             <SelectValue placeholder="Select a member..." />
           </SelectTrigger>
           <SelectContent>
-            {members.map((member) => (
-              <SelectItem key={member.user_id} value={member.user_id}>
-                {member.user?.first_name} {member.user?.last_name} ({member.user?.email})
-              </SelectItem>
-            ))}
+            {members.map((member) => {
+              // Marketplace user
+              if (member.user_id && member.user) {
+                return (
+                  <SelectItem key={member.user_id} value={`user:${member.user_id}`}>
+                    {member.user.first_name} {member.user.last_name} ({member.user.email})
+                  </SelectItem>
+                );
+              }
+              // Lead member
+              else if (member.lead_name) {
+                return (
+                  <SelectItem key={member.id} value={`lead:${member.id}`}>
+                    {member.lead_name} ({member.lead_email}) <span className="text-slate-500">• Lead</span>
+                  </SelectItem>
+                );
+              }
+              return null;
+            })}
           </SelectContent>
         </Select>
       )}
