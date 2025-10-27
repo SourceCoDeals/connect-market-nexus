@@ -123,7 +123,7 @@ export const AgreementToggle = ({ user, type, checked }: AgreementToggleProps) =
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['non-marketplace-users'] });
+      queryClient.invalidateQueries({ queryKey: ['admin','non-marketplace-users'] });
       toast({
         title: `${type.toUpperCase()} ${checked ? 'unsigned' : 'signed'}`,
         description: `Successfully updated ${type.toUpperCase()} status`,
@@ -152,7 +152,7 @@ export const AgreementToggle = ({ user, type, checked }: AgreementToggleProps) =
       // Fetch firm members
       const { data: members } = await supabase
         .from('firm_members')
-        .select('user_id, profiles(id, full_name)')
+        .select('user_id, profiles(id, first_name, last_name)')
         .eq('firm_id', user.firm_id)
         .not('user_id', 'is', null);
 
@@ -236,7 +236,7 @@ export const AgreementToggle = ({ user, type, checked }: AgreementToggleProps) =
               <SelectContent>
                 {firmMembers.map((member) => (
                   <SelectItem key={member.user_id} value={member.user_id}>
-                    {member.profiles?.full_name || 'Unknown'}
+                    {`${member.profiles?.first_name ?? ''} ${member.profiles?.last_name ?? ''}`.trim() || 'Unknown'}
                   </SelectItem>
                 ))}
               </SelectContent>
