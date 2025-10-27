@@ -14,10 +14,12 @@ import {
   ArrowRight,
   Check,
   AlertTriangle,
-  MoreHorizontal
+  MoreHorizontal,
+  Eye
 } from "lucide-react";
 import { InboundLead } from "@/hooks/admin/use-inbound-leads";
 import { LeadFirmBadge } from "@/components/admin/LeadFirmBadge";
+import { LeadDetailsModal } from "@/components/admin/LeadDetailsModal";
 
 interface CompactLeadCardProps {
   lead: InboundLead;
@@ -86,6 +88,7 @@ export const CompactLeadCard = ({
   showCheckbox = false
 }: CompactLeadCardProps) => {
   const [showActions, setShowActions] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
 
   return (
     <Card 
@@ -199,6 +202,16 @@ export const CompactLeadCard = ({
               showActions || isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
             }`}>
               <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setShowDetails(true)}
+                  className="h-7 text-xs px-3"
+                >
+                  <Eye className="h-3 w-3 mr-1" />
+                  View
+                </Button>
+                
                 {lead.status === 'pending' && (
                   <Button
                     size="sm"
@@ -206,7 +219,7 @@ export const CompactLeadCard = ({
                     className="h-7 text-xs px-3 bg-blue-600 hover:bg-blue-700 text-white border-0"
                   >
                     <MapPin className="h-3 w-3 mr-1" />
-                    Map to Listing
+                    Map
                   </Button>
                 )}
                 
@@ -234,6 +247,12 @@ export const CompactLeadCard = ({
           )}
         </div>
       </CardContent>
+      
+      <LeadDetailsModal 
+        lead={lead}
+        isOpen={showDetails}
+        onClose={() => setShowDetails(false)}
+      />
     </Card>
   );
 };

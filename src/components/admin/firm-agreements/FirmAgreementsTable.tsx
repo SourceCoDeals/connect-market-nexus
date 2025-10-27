@@ -394,6 +394,11 @@ function FirmRow({
             <div className="flex items-center gap-2 mb-1">
               <Building2 className="h-4 w-4 text-muted-foreground/60 flex-shrink-0" />
               <h3 className="font-medium text-sm truncate">{firm.primary_company_name}</h3>
+              {firm.member_count === 0 && (firm.lead_count > 0 || firm.request_count > 0 || firm.deal_count > 0) && (
+                <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-amber-50 text-amber-700 border-amber-200">
+                  Lead-Only
+                </Badge>
+              )}
             </div>
             {firm.website_domain && (
               <div className="flex items-center gap-1.5">
@@ -412,7 +417,10 @@ function FirmRow({
             <div className="flex items-center gap-1.5">
               <Users className="h-3.5 w-3.5 text-muted-foreground/40" />
               <span className="text-sm text-muted-foreground font-normal">
-                {firm.member_count} {firm.member_count === 1 ? 'member' : 'members'}
+                {firm.member_count === 0 
+                  ? 'No marketplace users' 
+                  : `${firm.member_count} ${firm.member_count === 1 ? 'member' : 'members'}`
+                }
               </span>
             </div>
             {(firm.lead_count || firm.request_count || firm.deal_count) && (
