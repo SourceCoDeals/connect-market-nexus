@@ -174,7 +174,7 @@ export const useConnectionStatus = (listingId: string | undefined) => {
   });
 };
 
-// Get user connection requests
+// Get user connection requests with full listing details including acquisition type
 export const useUserConnectionRequests = () => {
   return useQuery({
     queryKey: createQueryKey.userConnectionRequests(),
