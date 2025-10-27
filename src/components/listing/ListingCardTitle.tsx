@@ -90,7 +90,7 @@ const ListingCardTitle = ({
           <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-br from-red-50 to-red-100/80 border border-red-200 shadow-sm">
             <XCircle className="h-3.5 w-3.5 text-red-600" />
             <span className="text-[11px] font-semibold text-red-700 tracking-[0.03em] uppercase">
-              Request Declined
+              Not Selected
             </span>
           </div>
         );

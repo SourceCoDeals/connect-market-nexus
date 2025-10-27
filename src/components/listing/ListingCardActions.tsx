@@ -51,7 +51,7 @@ const ListingCardActions = ({
         case "rejected":
           return { 
             icon: XCircle, 
-            text: "Request Declined", 
+            text: "Not Selected", 
             variant: "rejected" as const, 
             disabled: false,
             className: "bg-red-50 text-red-700 border border-red-200 hover:bg-red-100"
