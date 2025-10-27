@@ -83,24 +83,30 @@ function MemberRow({ member }: { member: FirmMember }) {
 
       {/* Expanded Activity View */}
       {isExpanded && hasActivity && (
-        <div className="px-6 pb-6 pt-4 bg-muted/5 border-t border-border/50">
+        <div className="px-8 pb-8 pt-6 bg-gradient-to-b from-muted/5 to-transparent border-t border-border/30">
           {isLoading ? (
-            <div className="flex items-center justify-center py-8">
+            <div className="flex items-center justify-center py-12">
               <div className="h-4 w-4 animate-spin rounded-full border-2 border-muted-foreground/20 border-t-muted-foreground" />
             </div>
           ) : (
             <div className="max-w-5xl">
               <Tabs defaultValue="requests" className="w-full">
-                <TabsList className="grid w-full max-w-[400px] grid-cols-2 mb-4 h-9 bg-muted/50">
-                  <TabsTrigger value="requests" className="text-xs data-[state=active]:bg-background">
-                    Connection Requests
-                    <span className="ml-1.5 inline-flex items-center justify-center h-4 min-w-[16px] px-1 text-[10px] font-medium text-muted-foreground bg-muted-foreground/10 rounded">
+                <TabsList className="grid w-full max-w-[420px] grid-cols-2 mb-6 h-10 bg-muted/30 p-1">
+                  <TabsTrigger 
+                    value="requests" 
+                    className="text-xs font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all"
+                  >
+                    Requests
+                    <span className="ml-2 inline-flex items-center justify-center h-5 min-w-[20px] px-1.5 text-[10px] font-semibold text-muted-foreground data-[state=active]:text-foreground/70 bg-background/50 data-[state=active]:bg-muted/50 rounded transition-colors">
                       {data?.requests?.length || 0}
                     </span>
                   </TabsTrigger>
-                  <TabsTrigger value="deals" className="text-xs data-[state=active]:bg-background">
+                  <TabsTrigger 
+                    value="deals" 
+                    className="text-xs font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all"
+                  >
                     Deals
-                    <span className="ml-1.5 inline-flex items-center justify-center h-4 min-w-[16px] px-1 text-[10px] font-medium text-muted-foreground bg-muted-foreground/10 rounded">
+                    <span className="ml-2 inline-flex items-center justify-center h-5 min-w-[20px] px-1.5 text-[10px] font-semibold text-muted-foreground data-[state=active]:text-foreground/70 bg-background/50 data-[state=active]:bg-muted/50 rounded transition-colors">
                       {data?.deals?.length || 0}
                     </span>
                   </TabsTrigger>
@@ -108,26 +114,30 @@ function MemberRow({ member }: { member: FirmMember }) {
 
                 <TabsContent value="requests" className="mt-0">
                   {data?.requests && data.requests.length > 0 ? (
-                    <div className="max-h-[400px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent">
-                      <div className="space-y-2">
-                        {data.requests.map((request: any) => (
+                    <div className="max-h-[420px] overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-muted-foreground/15 scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/25">
+                      <div className="space-y-2.5">
+                        {data.requests.map((request: any, index: number) => (
                           <div
                             key={request.id}
-                            className="group flex items-center justify-between gap-4 py-3 px-4 rounded-lg bg-card border border-border/40 hover:border-border hover:shadow-sm transition-all duration-200"
+                            className="group relative flex items-center justify-between gap-6 py-4 px-5 rounded-xl bg-card/50 border border-border/30 hover:border-border/60 hover:bg-card hover:shadow-sm transition-all duration-200"
+                            style={{ animationDelay: `${index * 30}ms` }}
                           >
+                            {/* Left content */}
                             <div className="flex-1 min-w-0">
-                              <div className="text-sm font-medium text-foreground mb-1 truncate">
+                              <div className="text-[15px] font-medium text-foreground mb-1.5 truncate leading-snug">
                                 {request.listing?.title || 'Untitled Listing'}
                               </div>
-                              <div className="text-xs text-muted-foreground">
+                              <div className="text-[13px] text-muted-foreground/80">
                                 {format(new Date(request.created_at), 'MMM d, yyyy')}
                               </div>
                             </div>
+                            
+                            {/* Status badge */}
                             <span className={cn(
-                              "inline-flex items-center px-2.5 py-1 rounded-md text-[11px] font-medium whitespace-nowrap border transition-colors",
-                              request.status === 'approved' && "bg-success/5 text-success border-success/20",
-                              request.status === 'pending' && "bg-amber-500/5 text-amber-600 dark:text-amber-500 border-amber-500/20",
-                              request.status === 'rejected' && "bg-muted/50 text-muted-foreground border-muted-foreground/20"
+                              "inline-flex items-center px-3 py-1.5 rounded-lg text-[11px] font-semibold whitespace-nowrap border shadow-sm transition-all duration-200",
+                              request.status === 'approved' && "bg-success/10 text-success border-success/30 shadow-success/5",
+                              request.status === 'pending' && "bg-amber-500/10 text-amber-600 dark:text-amber-500 border-amber-500/30 shadow-amber-500/5",
+                              request.status === 'rejected' && "bg-muted/60 text-muted-foreground/90 border-muted-foreground/20"
                             )}>
                               {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
                             </span>
@@ -136,46 +146,55 @@ function MemberRow({ member }: { member: FirmMember }) {
                       </div>
                     </div>
                   ) : (
-                    <div className="flex items-center justify-center py-12 text-sm text-muted-foreground">
-                      No connection requests
+                    <div className="flex flex-col items-center justify-center py-16 px-4">
+                      <div className="w-12 h-12 rounded-full bg-muted/40 flex items-center justify-center mb-3">
+                        <ChevronDown className="h-5 w-5 text-muted-foreground/40" />
+                      </div>
+                      <div className="text-sm font-medium text-foreground/60 mb-1">No connection requests</div>
+                      <div className="text-xs text-muted-foreground/50">This member hasn't made any requests yet</div>
                     </div>
                   )}
                 </TabsContent>
 
                 <TabsContent value="deals" className="mt-0">
                   {data?.deals && data.deals.length > 0 ? (
-                    <div className="max-h-[400px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent">
-                      <div className="space-y-2">
-                        {data.deals.map((deal: any) => (
+                    <div className="max-h-[420px] overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-muted-foreground/15 scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/25">
+                      <div className="space-y-2.5">
+                        {data.deals.map((deal: any, index: number) => (
                           <div
                             key={deal.id}
-                            className="group flex items-center justify-between gap-4 py-3.5 px-4 rounded-lg bg-card border border-border/40 hover:border-border hover:shadow-sm transition-all duration-200"
+                            className="group relative flex items-center justify-between gap-6 py-4 px-5 rounded-xl bg-card/50 border border-border/30 hover:border-border/60 hover:bg-card hover:shadow-sm transition-all duration-200"
+                            style={{ animationDelay: `${index * 30}ms` }}
                           >
+                            {/* Left content */}
                             <div className="flex-1 min-w-0">
-                              <div className="text-sm font-medium text-foreground mb-1.5 truncate">
+                              <div className="text-[15px] font-medium text-foreground mb-2 truncate leading-snug">
                                 {deal.title}
                               </div>
-                              <div className="flex items-center gap-3 text-xs">
-                                <span className="text-muted-foreground">
+                              <div className="flex items-center gap-3 text-[13px]">
+                                <span className="text-muted-foreground/80">
                                   {format(new Date(deal.created_at), 'MMM d, yyyy')}
                                 </span>
                                 {deal.value && (
                                   <>
-                                    <span className="text-border">|</span>
-                                    <span className="font-semibold text-foreground">
+                                    <span className="w-1 h-1 rounded-full bg-border/60" />
+                                    <span className="font-semibold text-foreground/90 tracking-tight">
                                       ${deal.value.toLocaleString()}
                                     </span>
                                   </>
                                 )}
                               </div>
                             </div>
+                            
+                            {/* Stage badge */}
                             {deal.stage && (
                               <span 
-                                className="inline-flex items-center px-2.5 py-1 rounded-md text-[11px] font-medium whitespace-nowrap border transition-colors"
+                                className="inline-flex items-center px-3 py-1.5 rounded-lg text-[11px] font-semibold whitespace-nowrap border shadow-sm transition-all duration-200"
                                 style={{ 
-                                  backgroundColor: `${deal.stage.color}08`,
-                                  borderColor: `${deal.stage.color}25`,
-                                  color: deal.stage.color
+                                  backgroundColor: `${deal.stage.color}0A`,
+                                  borderColor: `${deal.stage.color}30`,
+                                  color: deal.stage.color,
+                                  boxShadow: `0 1px 2px ${deal.stage.color}08`
                                 }}
                               >
                                 {deal.stage.name}
@@ -186,8 +205,12 @@ function MemberRow({ member }: { member: FirmMember }) {
                       </div>
                     </div>
                   ) : (
-                    <div className="flex items-center justify-center py-12 text-sm text-muted-foreground">
-                      No deals
+                    <div className="flex flex-col items-center justify-center py-16 px-4">
+                      <div className="w-12 h-12 rounded-full bg-muted/40 flex items-center justify-center mb-3">
+                        <ChevronDown className="h-5 w-5 text-muted-foreground/40" />
+                      </div>
+                      <div className="text-sm font-medium text-foreground/60 mb-1">No deals</div>
+                      <div className="text-xs text-muted-foreground/50">No deals have been created yet</div>
                     </div>
                   )}
                 </TabsContent>
