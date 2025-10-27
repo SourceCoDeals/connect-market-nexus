@@ -13,6 +13,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import AcquisitionTypeBadge from "@/components/listing/AcquisitionTypeBadge";
+import ListingStatusTag from "@/components/listing/ListingStatusTag";
 
 interface EditorBasicInfoSectionProps {
   form: UseFormReturn<any>;
@@ -102,16 +104,10 @@ export function EditorBasicInfoSection({ form }: EditorBasicInfoSectionProps) {
                 </FormControl>
                 <SelectContent>
                   <SelectItem value="active">
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline" className="bg-success/10 text-success border-success/20">Active</Badge>
-                      <span className="text-sm text-muted-foreground">Visible to buyers</span>
-                    </div>
+                    <Badge variant="outline" className="bg-success/10 text-success border-success/20">Active</Badge>
                   </SelectItem>
                   <SelectItem value="inactive">
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline" className="bg-muted text-muted-foreground">Inactive</Badge>
-                      <span className="text-sm text-muted-foreground">Hidden from marketplace</span>
-                    </div>
+                    <Badge variant="outline" className="bg-muted text-muted-foreground">Inactive</Badge>
                   </SelectItem>
                 </SelectContent>
               </Select>
@@ -139,18 +135,20 @@ export function EditorBasicInfoSection({ form }: EditorBasicInfoSectionProps) {
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  <SelectItem value="none">No Tag</SelectItem>
+                  <SelectItem value="none">
+                    <span className="text-sm text-muted-foreground">No Tag</span>
+                  </SelectItem>
                   <SelectItem value="just_listed">
-                    <Badge className="bg-sourceco-accent text-sourceco-accent-foreground">Just Listed</Badge>
+                    <ListingStatusTag status="just_listed" />
                   </SelectItem>
                   <SelectItem value="in_diligence">
-                    <Badge className="bg-info text-info-foreground">In Diligence</Badge>
+                    <ListingStatusTag status="in_diligence" />
                   </SelectItem>
                   <SelectItem value="under_loi">
-                    <Badge className="bg-warning text-warning-foreground">Under LOI</Badge>
+                    <ListingStatusTag status="under_loi" />
                   </SelectItem>
                   <SelectItem value="accepted_offer">
-                    <Badge className="bg-success text-success-foreground">Accepted Offer</Badge>
+                    <ListingStatusTag status="accepted_offer" />
                   </SelectItem>
                 </SelectContent>
               </Select>
@@ -182,28 +180,13 @@ export function EditorBasicInfoSection({ form }: EditorBasicInfoSectionProps) {
                     <span className="text-sm text-muted-foreground">Not specified</span>
                   </SelectItem>
                   <SelectItem value="add_on">
-                    <div className="flex items-center gap-2">
-                      <div className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white border border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.06)]">
-                        <span className="w-3.5 h-3.5 text-purple-500">●</span>
-                        <span className="text-[10px] font-medium text-slate-700 tracking-[0.02em]">Add-On</span>
-                      </div>
-                      <span className="text-xs text-muted-foreground">Complements existing platforms</span>
-                    </div>
+                    <AcquisitionTypeBadge type="add_on" />
                   </SelectItem>
                   <SelectItem value="platform">
-                    <div className="flex items-center gap-2">
-                      <div className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white border border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.06)]">
-                        <span className="w-3.5 h-3.5 text-blue-500">●</span>
-                        <span className="text-[10px] font-medium text-slate-700 tracking-[0.02em]">Platform</span>
-                      </div>
-                      <span className="text-xs text-muted-foreground">Scalable foundation business</span>
-                    </div>
+                    <AcquisitionTypeBadge type="platform" />
                   </SelectItem>
                 </SelectContent>
               </Select>
-              <p className="text-xs text-muted-foreground mt-1.5">
-                Helps buyers identify strategic fit: Add-ons integrate with existing portfolio companies, Platforms serve as acquisition foundations.
-              </p>
               <FormMessage />
             </FormItem>
           )}
