@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
 
-export type AppRole = 'owner' | 'admin' | 'moderator' | 'user';
+export type AppRole = 'owner' | 'admin' | 'user';
 
 export interface UserRole {
   id: string;
@@ -38,15 +38,13 @@ export const usePermissions = () => {
 
   const isOwner = userRole === 'owner';
   const isAdmin = userRole === 'admin' || isOwner;
-  const isModerator = userRole === 'moderator' || isAdmin;
 
   const checkPermission = (requiredRole: AppRole): boolean => {
     if (!userRole) return false;
 
     const roleHierarchy: Record<AppRole, number> = {
-      owner: 4,
-      admin: 3,
-      moderator: 2,
+      owner: 3,
+      admin: 2,
       user: 1,
     };
 
@@ -59,7 +57,6 @@ export const usePermissions = () => {
     userRole,
     isOwner,
     isAdmin,
-    isModerator,
     isLoading,
     checkPermission,
     canManagePermissions,

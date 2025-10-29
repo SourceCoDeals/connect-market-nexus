@@ -25,6 +25,7 @@ import { useEnhancedUserExport } from '@/hooks/admin/use-enhanced-user-export';
 import { useLogFeeAgreementEmail } from '@/hooks/admin/use-fee-agreement';
 import { useLogNDAEmail } from '@/hooks/admin/use-nda';
 import { usePermissions } from '@/hooks/permissions/usePermissions';
+import { useAuth } from '@/context/AuthContext';
 import { useRoleManagement } from '@/hooks/permissions/useRoleManagement';
 import { RoleBadge } from './permissions/RoleBadge';
 import { RoleSelector } from './permissions/RoleSelector';
@@ -32,7 +33,6 @@ import { AppRole } from '@/hooks/permissions/usePermissions';
 
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/context/AuthContext";
 
 interface UsersTableProps {
   users: User[];
@@ -253,6 +253,7 @@ function UserActionButtons({
 }) {
   const { toast } = useToast();
   const { canManagePermissions } = usePermissions();
+  const { user: currentUser } = useAuth();
   const { allUserRoles } = useRoleManagement();
   const [isRoleDialogOpen, setIsRoleDialogOpen] = useState(false);
 
@@ -331,13 +332,21 @@ function UserActionButtons({
               <Mail className="h-4 w-4 mr-2" />
               Send password reset
             </DropdownMenuItem>
-            <DropdownMenuItem 
-              onClick={() => onDelete(user)}
-              className="text-red-600"
-            >
-              <Trash2 className="h-4 w-4 mr-2" />
-              Delete User
-            </DropdownMenuItem>
+            
+            {/* Only owner can delete users (not even self) */}
+            {canManagePermissions && user.id !== currentUser?.id && (
+              <DropdownMenuItem 
+                onClick={() => {
+                  if (window.confirm(`Are you sure you want to permanently delete ${user.email}? This action cannot be undone.`)) {
+                    onDelete(user);
+                  }
+                }}
+                className="text-red-600"
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete User
+              </DropdownMenuItem>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
@@ -633,7 +642,7 @@ export function UsersTable({
                         const displayRole = effectiveRole === 'owner' ? 'admin' : effectiveRole;
                         
                         // Only show badge for admin and moderator
-                        if (displayRole === 'admin' || displayRole === 'moderator') {
+                        if (displayRole === 'admin') {
                           return <RoleBadge role={displayRole} showTooltip={false} />;
                         }
                         return null;

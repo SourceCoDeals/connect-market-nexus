@@ -31,7 +31,6 @@ interface RoleSelectorProps {
 const roleOptions: { value: AppRole; label: string; description: string }[] = [
   { value: 'owner', label: 'Owner', description: 'Full system access (restricted)' },
   { value: 'admin', label: 'Admin', description: 'Administrative access' },
-  { value: 'moderator', label: 'Moderator', description: 'Content moderation' },
   { value: 'user', label: 'User', description: 'Standard access' },
 ];
 
