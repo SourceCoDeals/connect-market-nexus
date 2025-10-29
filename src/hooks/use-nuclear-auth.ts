@@ -334,7 +334,8 @@ export function useNuclearAuth() {
     updateUserProfile,
     refreshUserProfile,
     isLoading,
-    // Use is_admin from profile for admin check (synced by change_user_role function)
+    // SECURITY NOTE: is_admin flag is auto-synced from user_roles table via database trigger
+    // Source of truth is user_roles table, this flag is kept in sync automatically
     isAdmin: user?.is_admin === true,
     isBuyer: user?.role === "buyer",
     authChecked,
