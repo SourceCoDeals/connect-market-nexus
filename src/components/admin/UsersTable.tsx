@@ -4,7 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { User } from "@/types";
-import { CheckCircle, XCircle, MoreHorizontal, UserCheck, UserPlus, UserMinus, Trash2, ChevronDown, ChevronRight, ExternalLink, Mail, Building, UserIcon, Linkedin, Download } from "lucide-react";
+import { CheckCircle, XCircle, MoreHorizontal, UserCheck, UserPlus, UserMinus, Trash2, ChevronDown, ChevronRight, ExternalLink, Mail, Building, UserIcon, Linkedin, Download, Shield } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatDistanceToNow } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -252,10 +254,14 @@ function UserActionButtons({
   const { toast } = useToast();
   const { canManagePermissions } = usePermissions();
   const { allUserRoles } = useRoleManagement();
+  const [isRoleDialogOpen, setIsRoleDialogOpen] = useState(false);
 
   const getUserRole = (userId: string): AppRole => {
     return (allUserRoles?.find((ur) => ur.user_id === userId)?.role as AppRole) || 'user';
   };
+
+  const currentUserRole = getUserRole(user.id);
+
   const handleSendPasswordReset = async () => {
     try {
       const { error } = await supabase.functions.invoke('password-reset', {
@@ -274,77 +280,98 @@ function UserActionButtons({
       });
     }
   };
+
   return (
-    <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" disabled={isLoading}>
-            <MoreHorizontal className="h-4 w-4" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuLabel>User Actions</DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          
-          {user.approval_status === "pending" && (
-            <DropdownMenuItem 
-              onClick={() => onApprove(user)}
-              className="text-green-600"
-            >
-              <UserCheck className="h-4 w-4 mr-2" />
-              Approve User
+    <>
+      <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" disabled={isLoading}>
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuLabel>User Actions</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            
+            {user.approval_status === "pending" && (
+              <DropdownMenuItem 
+                onClick={() => onApprove(user)}
+                className="text-green-600"
+              >
+                <UserCheck className="h-4 w-4 mr-2" />
+                Approve User
+              </DropdownMenuItem>
+            )}
+            
+            {user.approval_status === "rejected" && (
+              <DropdownMenuItem 
+                onClick={() => onApprove(user)}
+                className="text-green-600"
+              >
+                <UserCheck className="h-4 w-4 mr-2" />
+                Approve User
+              </DropdownMenuItem>
+            )}
+            
+            <DropdownMenuSeparator />
+            
+            {canManagePermissions && user.email !== 'ahaile14@gmail.com' && (
+              <DropdownMenuItem 
+                onClick={() => setIsRoleDialogOpen(true)}
+                className="text-blue-600"
+              >
+                <Shield className="h-4 w-4 mr-2" />
+                Change Role
+              </DropdownMenuItem>
+            )}
+            
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={handleSendPasswordReset}>
+              <Mail className="h-4 w-4 mr-2" />
+              Send password reset
             </DropdownMenuItem>
-          )}
-          
-          {user.approval_status === "rejected" && (
             <DropdownMenuItem 
-              onClick={() => onApprove(user)}
-              className="text-green-600"
+              onClick={() => onDelete(user)}
+              className="text-red-600"
             >
-              <UserCheck className="h-4 w-4 mr-2" />
-              Approve User
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete User
             </DropdownMenuItem>
-          )}
-          
-          <DropdownMenuSeparator />
-          
-          {canManagePermissions && user.email !== 'ahaile14@gmail.com' && (
-            <>
-              {getUserRole(user.id) !== 'admin' ? (
-                <DropdownMenuItem 
-                  onClick={() => onMakeAdmin(user)}
-                  className="text-blue-600"
-                >
-                  <UserPlus className="h-4 w-4 mr-2" />
-                  Promote to Admin
-                </DropdownMenuItem>
-              ) : (
-                <DropdownMenuItem 
-                  onClick={() => onRevokeAdmin(user)}
-                  className="text-orange-600"
-                >
-                  <UserMinus className="h-4 w-4 mr-2" />
-                  Demote to User
-                </DropdownMenuItem>
-              )}
-            </>
-          )}
-          
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={handleSendPasswordReset}>
-            <Mail className="h-4 w-4 mr-2" />
-            Send password reset
-          </DropdownMenuItem>
-          <DropdownMenuItem 
-            onClick={() => onDelete(user)}
-            className="text-red-600"
-          >
-            <Trash2 className="h-4 w-4 mr-2" />
-            Delete User
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
+      <Dialog open={isRoleDialogOpen} onOpenChange={setIsRoleDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Manage User Role</DialogTitle>
+            <DialogDescription>
+              Change the role for <strong>{user.email}</strong>
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Current Role</Label>
+              <div>
+                <RoleBadge role={currentUserRole} showTooltip={true} />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Select New Role</Label>
+              <RoleSelector 
+                userId={user.id}
+                currentRole={currentUserRole}
+                userEmail={user.email}
+                disabled={false}
+              />
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
