@@ -82,7 +82,7 @@ export const RoleSelector = ({ userId, currentRole, userEmail, disabled }: RoleS
             <SelectItem
               key={option.value}
               value={option.value}
-              disabled={option.value === 'owner' && userEmail !== 'ahaile14@gmail.com'}
+              disabled={option.value === 'owner'}
             >
               <div className="flex flex-col gap-1">
                 <span className="font-medium">{option.label}</span>

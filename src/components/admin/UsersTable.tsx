@@ -317,7 +317,7 @@ function UserActionButtons({
             
             <DropdownMenuSeparator />
             
-            {canManagePermissions && user.email !== 'ahaile14@gmail.com' && (
+            {canManagePermissions && (
               <DropdownMenuItem 
                 onClick={() => setIsRoleDialogOpen(true)}
                 className="text-blue-600"
@@ -641,7 +641,7 @@ export function UsersTable({
                         // Map 'owner' to 'admin' for display
                         const displayRole = effectiveRole === 'owner' ? 'admin' : effectiveRole;
                         
-                        // Only show badge for admin and moderator
+                        // Only show badge for admin
                         if (displayRole === 'admin') {
                           return <RoleBadge role={displayRole} showTooltip={false} />;
                         }
