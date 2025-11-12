@@ -35,7 +35,7 @@ import {
 } from "lucide-react";
 import { Deal } from "@/hooks/admin/use-deals";
 
-export type DealStatusFilter = 'all' | 'new_inquiry' | 'approved' | 'info_sent' | 'buyer_seller_call' | 'due_diligence' | 'loi_submitted' | 'closed';
+export type DealStatusFilter = 'all' | 'new_inquiry' | 'info_sent' | 'buyer_seller_call' | 'due_diligence' | 'loi_submitted' | 'closed';
 export type BuyerTypeFilter = 'all' | 'privateEquity' | 'familyOffice' | 'searchFund' | 'corporate' | 'individual' | 'independentSponsor' | 'advisor' | 'businessOwner';
 export type ListingFilter = 'all' | string; // listing ID
 export type AdminFilter = 'all' | 'unassigned' | 'assigned_to_me' | string; // admin ID
@@ -82,7 +82,6 @@ export function DealFilters({
   const statusCounts = {
     all: deals.length,
     new_inquiry: deals.filter(d => d.stage_name === 'New Inquiry').length,
-    approved: deals.filter(d => d.stage_name === 'Approved').length,
     info_sent: deals.filter(d => d.stage_name === 'Info Sent').length,
     buyer_seller_call: deals.filter(d => d.stage_name === 'Buyer/Seller Call').length,
     due_diligence: deals.filter(d => d.stage_name === 'Due Diligence').length,
@@ -112,7 +111,6 @@ export function DealFilters({
   const statusOptions = [
     { value: 'all', label: 'All Deals', icon: Target, count: statusCounts.all },
     { value: 'new_inquiry', label: 'New Inquiry', icon: Clock, count: statusCounts.new_inquiry },
-    { value: 'approved', label: 'Approved', icon: CheckCircle2, count: statusCounts.approved },
     { value: 'info_sent', label: 'Info Sent', icon: FileCheck, count: statusCounts.info_sent },
     { value: 'buyer_seller_call', label: 'Buyer/Seller Call', icon: Users, count: statusCounts.buyer_seller_call },
     { value: 'due_diligence', label: 'Due Diligence', icon: AlertTriangle, count: statusCounts.due_diligence },

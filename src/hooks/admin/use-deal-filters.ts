@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { Deal } from './use-deals';
 import { useMarketplaceCompanies } from './use-marketplace-companies';
 
-export type DealStatusFilter = 'all' | 'new_inquiry' | 'approved' | 'info_sent' | 'buyer_seller_call' | 'due_diligence' | 'loi_submitted' | 'closed';
+export type DealStatusFilter = 'all' | 'new_inquiry' | 'info_sent' | 'buyer_seller_call' | 'due_diligence' | 'loi_submitted' | 'closed';
 export type BuyerTypeFilter = 'all' | 'privateEquity' | 'familyOffice' | 'searchFund' | 'corporate' | 'individual' | 'independentSponsor' | 'advisor' | 'businessOwner';
 export type ListingFilter = 'all' | string;
 export type CompanyFilter = string[]; // Changed to array for multiselect
@@ -51,9 +51,6 @@ export function useDealFilters(deals: Deal[], currentAdminId?: string) {
       switch (statusFilter) {
         case 'new_inquiry':
           filtered = filtered.filter(d => d.stage_name === 'New Inquiry');
-          break;
-        case 'approved':
-          filtered = filtered.filter(d => d.stage_name === 'Approved');
           break;
         case 'info_sent':
           filtered = filtered.filter(d => d.stage_name === 'Info Sent');
