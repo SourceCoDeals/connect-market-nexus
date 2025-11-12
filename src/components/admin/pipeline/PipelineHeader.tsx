@@ -34,12 +34,17 @@ import {
   ChevronDown,
   Check,
   ChevronsUpDown,
+  Settings2,
+  LayoutGrid,
+  ArrowUpDown,
+  EyeOff,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { usePipelineCore, ViewMode } from '@/hooks/admin/use-pipeline-core';
-import { PipelineViewSwitcher } from './PipelineViewSwitcher';
 import { useAdminProfiles } from '@/hooks/admin/use-admin-profiles';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { PIPELINE_FEATURES, DISABLED_FEATURE_MESSAGE } from '@/config/pipeline-features';
 
 
 interface PipelineHeaderProps {
@@ -84,16 +89,6 @@ export function PipelineHeader({ pipeline, onOpenCreateDeal, onOpenBulkImport, o
             <Badge variant="secondary" className="hidden sm:inline-flex">
               {`${pipeline.deals.length} deals`}
             </Badge>
-          </div>
-
-          {/* Pipeline View Switcher - Desktop only */}
-          <div className="hidden md:block">
-            <PipelineViewSwitcher
-              currentViewId={pipeline.currentViewId || undefined}
-              onViewChange={pipeline.setCurrentViewId}
-              getCurrentFilterConfig={pipeline.getCurrentFilterConfig}
-              stages={pipeline.stages}
-            />
           </div>
 
           {/* Desktop Search */}
@@ -142,26 +137,93 @@ export function PipelineHeader({ pipeline, onOpenCreateDeal, onOpenBulkImport, o
             New Deal
           </Button>
 
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={() => {
-              // Open stage library (global stage management)
-              const event = new CustomEvent('open-stage-management');
-              window.dispatchEvent(event);
-            }}
-            title="Manage the global stage library (affects all views)"
-          >
-            Stage Library
-          </Button>
-
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="sm">
                 <MoreVertical className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
+            <DropdownMenuContent align="end" className="z-[100] bg-background">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div>
+                      <DropdownMenuItem
+                        onSelect={(e) => e.preventDefault()}
+                        className="opacity-60 cursor-not-allowed"
+                        title={DISABLED_FEATURE_MESSAGE}
+                      >
+                        <Settings2 className="h-4 w-4 mr-2" />
+                        Stage Library
+                      </DropdownMenuItem>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent side="left" className="max-w-xs">
+                    {DISABLED_FEATURE_MESSAGE}
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div>
+                      <DropdownMenuItem
+                        onSelect={(e) => e.preventDefault()}
+                        className="opacity-60 cursor-not-allowed"
+                        title={DISABLED_FEATURE_MESSAGE}
+                      >
+                        <LayoutGrid className="h-4 w-4 mr-2" />
+                        Add/Remove Stages
+                      </DropdownMenuItem>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent side="left" className="max-w-xs">
+                    {DISABLED_FEATURE_MESSAGE}
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div>
+                      <DropdownMenuItem
+                        onSelect={(e) => e.preventDefault()}
+                        className="opacity-60 cursor-not-allowed"
+                        title={DISABLED_FEATURE_MESSAGE}
+                      >
+                        <ArrowUpDown className="h-4 w-4 mr-2" />
+                        Reorder Stages
+                      </DropdownMenuItem>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent side="left" className="max-w-xs">
+                    {DISABLED_FEATURE_MESSAGE}
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div>
+                      <DropdownMenuItem
+                        onSelect={(e) => e.preventDefault()}
+                        className="opacity-60 cursor-not-allowed"
+                        title={DISABLED_FEATURE_MESSAGE}
+                      >
+                        <EyeOff className="h-4 w-4 mr-2" />
+                        New Custom View
+                      </DropdownMenuItem>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent side="left" className="max-w-xs">
+                    {DISABLED_FEATURE_MESSAGE}
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+
               <DropdownMenuItem>Export Pipeline</DropdownMenuItem>
               <DropdownMenuItem onClick={onOpenBulkImport}>Bulk Import CSV</DropdownMenuItem>
               <DropdownMenuItem onClick={onOpenUndoImport}>Undo Import</DropdownMenuItem>
