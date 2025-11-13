@@ -140,7 +140,7 @@ const handler = async (req: Request): Promise<Response> => {
     console.log("Sending deal owner change notification to:", previousOwner.email);
     
     const emailPayload = {
-      sender: { name: "SourceCo Pipeline", email: "pipeline@sourcecodeals.com" },
+      sender: { name: "SourceCo Notifications", email: "notifications@sourcecodeals.com" },
       to: [{ email: previousOwner.email, name: previousOwnerName }],
       subject: subject,
       htmlContent: htmlContent,

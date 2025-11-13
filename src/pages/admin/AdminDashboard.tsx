@@ -16,6 +16,7 @@ import { useAdmin } from "@/hooks/use-admin";
 import { useState } from "react";
 import { usePermissions } from "@/hooks/permissions/usePermissions";
 import { PermissionsModal } from "@/components/admin/permissions/PermissionsModal";
+import { MyDealsWidget } from "@/components/admin/dashboard/MyDealsWidget";
 
 const AdminDashboard = () => {
   const { users } = useAdmin();
@@ -197,7 +198,8 @@ const AdminDashboard = () => {
 
             {/* Content Area - More spacious */}
             <div className="px-8 py-8">
-              <TabsContent value="overview" className="mt-0">
+              <TabsContent value="overview" className="mt-0 space-y-6">
+                <MyDealsWidget />
                 <StripeOverviewTab />
               </TabsContent>
 
