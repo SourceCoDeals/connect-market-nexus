@@ -401,7 +401,7 @@ export function PipelineDetailOverview({ deal }: PipelineDetailOverviewProps) {
                         htmlFor={`deal-overview-${otherDeal.id}`}
                         className="text-xs text-foreground cursor-pointer flex items-center gap-2"
                       >
-                        {otherDeal.listing_real_company_name || otherDeal.listing_title || otherDeal.title}
+                        {otherDeal.title}
                         {otherDeal.followed_up && (
                           <Badge variant="outline" className="text-xs">
                             <CheckCheck className="h-2.5 w-2.5 mr-1" />
