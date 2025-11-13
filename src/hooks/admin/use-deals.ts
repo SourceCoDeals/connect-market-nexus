@@ -282,7 +282,7 @@ export function useUpdateDealStage() {
       console.log('[useUpdateDealStage] Calling RPC with:', { dealId, stageId, currentAdminId });
       
       // Use new RPC function with ownership logic
-      const { data, error } = await supabase.rpc('move_deal_stage_with_ownership', {
+      const { data, error } = await supabase.rpc('move_deal_stage_with_ownership' as any, {
         p_deal_id: dealId,
         p_new_stage_id: stageId,
         p_current_admin_id: currentAdminId
@@ -323,6 +323,43 @@ export function useUpdateDealStage() {
           description: `This deal is owned by ${data.previous_owner_name || 'another admin'}. They will be notified of this change.`,
           variant: 'default',
         });
+        
+        // Send email notification to original owner
+        const deals = queryClient.getQueryData<Deal[]>(['deals']);
+        const deal = deals?.find(d => d.deal_id === variables.dealId);
+        
+        if (deal && data.previous_owner_id && data.previous_owner_name) {
+          try {
+            // Get current admin info
+            const { data: { user } } = await supabase.auth.getUser();
+            const { data: currentAdmin } = await supabase
+              .from('profiles')
+              .select('first_name, last_name')
+              .eq('id', user?.id)
+              .single();
+            
+            const currentAdminName = currentAdmin 
+              ? `${currentAdmin.first_name} ${currentAdmin.last_name}`.trim()
+              : 'Another admin';
+            
+            await supabase.functions.invoke('notify-deal-owner-change', {
+              body: {
+                dealId: deal.deal_id,
+                dealTitle: deal.title,
+                previousOwnerId: data.previous_owner_id,
+                previousOwnerName: data.previous_owner_name,
+                modifyingAdminId: user?.id,
+                modifyingAdminName: currentAdminName,
+                oldStageName: data.old_stage_name,
+                newStageName: data.new_stage_name,
+                listingTitle: deal.listing_title
+              }
+            });
+          } catch (error) {
+            console.error('Failed to send owner change notification:', error);
+            // Don't fail the stage move, just log
+          }
+        }
       }
       
       // Check if moved to "Owner intro requested" stage and trigger email
