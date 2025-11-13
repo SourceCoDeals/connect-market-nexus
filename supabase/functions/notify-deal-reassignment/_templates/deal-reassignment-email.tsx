@@ -36,108 +36,76 @@ export const DealReassignmentEmail = ({
   <Html>
     <Head />
     <Preview>
-      {isUnassignment 
-        ? `Your deal "${dealTitle}" has been unassigned`
-        : `Your deal "${dealTitle}" has been reassigned to ${newOwnerName}`
-      }
+      {companyName || dealTitle} • Deal {isUnassignment ? 'unassigned' : `reassigned to ${newOwnerName}`}
     </Preview>
     <Body style={main}>
       <Container style={container}>
-        {/* Header */}
+        {/* Simple Header */}
         <Section style={header}>
-          <Text style={headerLabel}>SOURCECO PIPELINE</Text>
-          <Heading style={heading}>
-            {isUnassignment ? 'Deal Unassigned' : 'Deal Reassignment'}
-          </Heading>
-          <Text style={headerSubtext}>
-            FYI: Changes have been made to a deal you own
-          </Text>
+          <Text style={logo}>SourceCo</Text>
         </Section>
 
-        {/* Alert Box */}
-        <Section style={alertBox}>
-          <Text style={alertText}>
-            Hi {previousOwnerName}, {isUnassignment 
-              ? 'your deal has been unassigned.' 
-              : `your deal has been reassigned to ${newOwnerName}.`
-            }
-          </Text>
-        </Section>
+        {/* Main Message */}
+        <Heading style={h1}>
+          Deal {isUnassignment ? 'Unassigned' : 'Reassigned'}
+        </Heading>
+        <Text style={introText}>
+          {isUnassignment 
+            ? 'This deal has been unassigned from you.'
+            : `This deal has been reassigned to ${newOwnerName}.`
+          }
+        </Text>
 
         {/* Deal Information */}
-        <Section style={infoCard}>
-          <Heading style={infoHeading}>Deal Information</Heading>
-          
+        <Section style={infoSection}>
           {companyName && (
-            <>
-              <table style={infoTable}>
-                <tr>
-                  <td style={infoLabel}>Company</td>
-                  <td style={infoValue}>{companyName}</td>
-                </tr>
-              </table>
-            </>
+            <div style={infoRow}>
+              <Text style={infoLabel}>Company</Text>
+              <Text style={infoValue}>{companyName}</Text>
+            </div>
           )}
           
-          <table style={infoTable}>
-            <tr>
-              <td style={infoLabel}>Contact</td>
-              <td style={infoValue}>{dealTitle}</td>
-            </tr>
-          </table>
+          <div style={infoRow}>
+            <Text style={infoLabel}>Contact</Text>
+            <Text style={infoValue}>{dealTitle}</Text>
+          </div>
 
           {listingTitle && (
-            <table style={infoTable}>
-              <tr>
-                <td style={infoLabel}>Listing</td>
-                <td style={infoValue}>{listingTitle}</td>
-              </tr>
-            </table>
+            <div style={infoRow}>
+              <Text style={infoLabel}>Listing</Text>
+              <Text style={infoValue}>{listingTitle}</Text>
+            </div>
           )}
 
           {!isUnassignment && newOwnerName && (
             <>
               <Hr style={divider} />
-              <table style={infoTable}>
-                <tr>
-                  <td style={infoLabel}>Reassigned To</td>
-                  <td style={infoValue}>
-                    {newOwnerName}
-                    {newOwnerEmail && (
-                      <span style={infoValueSecondary}> • {newOwnerEmail}</span>
-                    )}
-                  </td>
-                </tr>
-              </table>
+              <div style={infoRow}>
+                <Text style={infoLabel}>New Owner</Text>
+                <Text style={infoValue}>
+                  {newOwnerName}
+                  {newOwnerEmail && (
+                    <span style={infoSecondary}> • {newOwnerEmail}</span>
+                  )}
+                </Text>
+              </div>
             </>
           )}
         </Section>
 
         {/* CTA Button */}
-        <Section style={buttonContainer}>
+        <Section style={buttonSection}>
           <Link
             style={button}
             href={`https://marketplace.sourcecodeals.com/admin/pipeline?deal=${dealId}`}
           >
-            View Deal Details
+            View Deal
           </Link>
-        </Section>
-
-        {/* Why am I getting this */}
-        <Section style={infoBox}>
-          <Text style={infoBoxHeading}>Why am I getting this?</Text>
-          <Text style={infoBoxText}>
-            You're assigned as the owner of this deal. When another admin makes changes, 
-            we notify you to keep everyone in sync. This is expected behavior and doesn't 
-            require any action unless you want to review the changes.
-          </Text>
         </Section>
 
         {/* Footer */}
         <Text style={footer}>
-          This is an automated notification from SourceCo Pipeline
-          <br />
-          <span style={footerMuted}>Deal ID: {dealId}</span>
+          SourceCo • Deal ID: {dealId}
         </Text>
       </Container>
     </Body>
@@ -146,111 +114,91 @@ export const DealReassignmentEmail = ({
 
 export default DealReassignmentEmail;
 
-// Styles
+// Stripe-inspired minimal styles
 const main = {
   backgroundColor: '#ffffff',
-  fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", sans-serif',
+  fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
 };
 
 const container = {
   margin: '0 auto',
-  padding: '20px 0',
+  padding: '40px 20px',
   maxWidth: '600px',
 };
 
 const header = {
-  background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
-  padding: '32px 24px',
-  borderRadius: '8px',
-  marginBottom: '24px',
+  marginBottom: '32px',
 };
 
-const headerLabel = {
-  fontSize: '11px',
+const logo = {
+  fontSize: '18px',
   fontWeight: '600',
-  letterSpacing: '0.8px',
-  color: '#94a3b8',
-  margin: '0 0 8px 0',
-  textTransform: 'uppercase' as const,
+  color: '#1a1a1a',
+  margin: '0',
+  letterSpacing: '-0.01em',
 };
 
-const heading = {
-  color: '#ffffff',
+const h1 = {
+  color: '#1a1a1a',
   fontSize: '24px',
-  fontWeight: '700',
-  margin: '0',
+  fontWeight: '600',
   lineHeight: '1.3',
+  margin: '0 0 8px 0',
+  letterSpacing: '-0.02em',
 };
 
-const headerSubtext = {
-  color: '#cbd5e1',
-  fontSize: '14px',
-  margin: '8px 0 0 0',
+const introText = {
+  color: '#666666',
+  fontSize: '15px',
+  lineHeight: '1.5',
+  margin: '0 0 32px 0',
 };
 
-const alertBox = {
-  background: '#fef9f3',
-  borderLeft: '4px solid #d7b65c',
-  padding: '16px 20px',
-  borderRadius: '4px',
-  marginBottom: '24px',
+const infoSection = {
+  background: '#fafafa',
+  border: '1px solid #e5e5e5',
+  borderRadius: '6px',
+  padding: '20px 24px',
+  marginBottom: '32px',
 };
 
-const alertText = {
-  margin: '0',
-  color: '#78350f',
-  fontWeight: '500',
-  fontSize: '14px',
-};
-
-const infoCard = {
-  background: '#f8fafc',
-  padding: '24px',
-  borderRadius: '8px',
-  marginBottom: '24px',
-  border: '1px solid #e2e8f0',
-};
-
-const infoHeading = {
-  margin: '0 0 16px 0',
-  color: '#0f172a',
-  fontSize: '16px',
-  fontWeight: '700',
-};
-
-const infoTable = {
-  width: '100%',
+const infoRow = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'flex-start',
   marginBottom: '12px',
-};
+} as const;
 
 const infoLabel = {
-  color: '#64748b',
+  color: '#999999',
   fontSize: '13px',
   fontWeight: '500',
-  paddingRight: '16px',
-  verticalAlign: 'top',
-  width: '120px',
+  margin: '0',
+  flex: '0 0 120px',
 };
 
 const infoValue = {
-  color: '#0f172a',
+  color: '#1a1a1a',
   fontSize: '14px',
-  fontWeight: '600',
+  fontWeight: '500',
+  margin: '0',
+  flex: '1',
+  textAlign: 'right' as const,
 };
 
-const infoValueSecondary = {
-  color: '#64748b',
+const infoSecondary = {
+  color: '#999999',
   fontWeight: '400',
 };
 
 const divider = {
-  borderColor: '#e2e8f0',
+  borderColor: '#e5e5e5',
   margin: '16px 0',
 };
 
-const buttonContainer = {
+const buttonSection = {
   textAlign: 'center' as const,
-  marginBottom: '32px',
+  marginBottom: '40px',
 };
 
 const button = {
@@ -261,42 +209,17 @@ const button = {
   textDecoration: 'none',
   textAlign: 'center' as const,
   display: 'inline-block',
-  padding: '12px 32px',
+  padding: '12px 28px',
   borderRadius: '6px',
-  transition: 'background-color 0.2s ease',
-};
-
-const infoBox = {
-  background: '#fffbeb',
-  padding: '20px',
-  borderRadius: '8px',
-  marginBottom: '24px',
-  border: '1px solid #fde68a',
-};
-
-const infoBoxHeading = {
-  margin: '0 0 8px 0',
-  color: '#92400e',
-  fontSize: '14px',
-  fontWeight: '700',
-};
-
-const infoBoxText = {
-  margin: '0',
-  color: '#78350f',
-  fontSize: '13px',
-  lineHeight: '1.6',
+  lineHeight: '1',
 };
 
 const footer = {
-  color: '#94a3b8',
+  color: '#999999',
   fontSize: '12px',
-  lineHeight: '20px',
+  lineHeight: '1.5',
   textAlign: 'center' as const,
-  marginTop: '24px',
-};
-
-const footerMuted = {
-  color: '#cbd5e1',
-  fontSize: '11px',
+  margin: '0',
+  borderTop: '1px solid #e5e5e5',
+  paddingTop: '24px',
 };
