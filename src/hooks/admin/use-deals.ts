@@ -459,7 +459,26 @@ export function useUpdateDeal() {
 
   return useMutation({
     mutationFn: async ({ dealId, updates }: { dealId: string; updates: any }) => {
-      // Read-only fields that should never be updated (they come from joins/computed)
+      // Special handling for owner changes - use dedicated RPC to avoid view/column issues
+      const isOwnerChangeOnly = updates.assigned_to !== undefined && Object.keys(updates).length === 1;
+      
+      if (isOwnerChangeOnly) {
+        const { data: user } = await supabase.auth.getUser();
+        const { data, error } = await supabase.rpc('update_deal_owner', {
+          p_deal_id: dealId,
+          p_assigned_to: updates.assigned_to === 'unassigned' || updates.assigned_to === '' ? null : updates.assigned_to,
+          p_actor_id: user.user?.id
+        });
+        
+        if (error) {
+          console.error('[useUpdateDeal] Owner change RPC error:', error);
+          throw error;
+        }
+        
+        return data as any;
+      }
+      
+      // For other updates, use standard update with field filtering
       const readOnlyFields = [
         'listing_real_company_name',
         'real_company_name',
@@ -510,7 +529,7 @@ export function useUpdateDeal() {
         'deal_negative_followed_up_by'
       ];
 
-      // Sanitize updates: strip undefined, read-only fields, convert 'undefined' or empty string for UUIDs to null
+      // Sanitize updates
       const safeUpdates = Object.fromEntries(
         Object.entries(updates || {})
           .filter(([key, v]) => v !== undefined && !readOnlyFields.includes(key))
@@ -521,10 +540,6 @@ export function useUpdateDeal() {
           })
       );
 
-      console.log('[useUpdateDeal] Incoming updates:', updates);
-      console.log('[useUpdateDeal] Safe updates after filtering:', safeUpdates);
-
-      // Only select columns that actually exist in the deals table (not computed/joined fields)
       const { data, error } = await supabase
         .from('deals')
         .update(safeUpdates)
@@ -559,30 +574,15 @@ export function useUpdateDeal() {
       return { previousDeals };
     },
     onSuccess: async (_, { dealId, updates }) => {
-      // Log assignment changes
-      if (updates.assigned_to !== undefined) {
-        const { data: adminProfiles } = await supabase
-          .from('profiles')
-          .select('email, first_name, last_name')
-          .eq('id', updates.assigned_to)
-          .maybeSingle();
-        
-        const assignedToName = adminProfiles 
-          ? `${adminProfiles.first_name} ${adminProfiles.last_name}` 
-          : 'Unassigned';
-        
-        await logDealActivity({
-          dealId,
-          activityType: 'assignment_changed',
-          title: 'Deal Reassigned',
-          description: `Deal assigned to ${assignedToName}`,
-          metadata: { assigned_to: updates.assigned_to }
-        });
-      }
+      // Note: Assignment logging is now handled by the update_deal_owner RPC
+      // Only show appropriate toast message
+      const isOwnerChangeOnly = updates.assigned_to !== undefined && Object.keys(updates).length === 1;
       
       toast({
-        title: 'Deal Updated',
-        description: 'Deal has been updated successfully.',
+        title: isOwnerChangeOnly ? 'Owner Updated' : 'Deal Updated',
+        description: isOwnerChangeOnly 
+          ? 'The deal owner has been changed successfully.' 
+          : 'Deal has been updated successfully.',
       });
     },
     onError: (error: any, _, context) => {
