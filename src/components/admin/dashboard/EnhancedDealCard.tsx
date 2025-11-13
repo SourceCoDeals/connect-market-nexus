@@ -1,9 +1,16 @@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
-import { CheckCircle2, Clock, DollarSign, Calendar, AlertCircle } from 'lucide-react';
-import { formatCompactCurrency } from '@/lib/utils';
+import { Card } from '@/components/ui/card';
+import { CheckCircle2, Clock, Calendar, MessageSquare, Circle } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { useState, useMemo } from 'react';
+import { cn } from '@/lib/utils';
+import { useDealActivities } from '@/hooks/admin/use-deal-activities';
+import { useUpdateDeal } from '@/hooks/admin/use-update-deal';
+import { logDealActivity } from '@/lib/deal-activity-logger';
+import { ActivityTimelineItem } from './ActivityTimelineItem';
+import { QuickNoteInput } from './QuickNoteInput';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface Deal {
   id: string;
@@ -33,29 +40,39 @@ interface EnhancedDealCardProps {
 }
 
 export function EnhancedDealCard({ deal, onDealClick }: EnhancedDealCardProps) {
+  const [isAddingNote, setIsAddingNote] = useState(false);
+  const { data: activities = [] } = useDealActivities(deal.id);
+  const updateDeal = useUpdateDeal();
+  const queryClient = useQueryClient();
+  
   const terminalStages = ['Closed Won', 'Closed Lost'];
   const isClosed = deal.stage && terminalStages.includes(deal.stage.name);
+  const isClosedWon = deal.stage?.name === 'Closed Won';
 
   // Calculate if deal is stale (7+ days in same stage, excluding terminal stages)
-  const isStale = () => {
+  const isStale = useMemo(() => {
     if (isClosed) return false;
-    
     const weekAgo = new Date();
     weekAgo.setDate(weekAgo.getDate() - 7);
     return new Date(deal.stage_entered_at) < weekAgo;
-  };
+  }, [deal.stage_entered_at, isClosed]);
 
-  // Determine priority badge (only for active deals)
-  const getPriorityBadge = () => {
+  // Get recent activities
+  const recentActivities = useMemo(
+    () => activities.slice(0, 3),
+    [activities]
+  );
+
+  // Get priority dot (minimal indicator)
+  const getPriorityDot = () => {
     if (isClosed) return null;
-    
-    if (isStale()) {
-      return <Badge variant="destructive" className="text-xs">Stale</Badge>;
+    if (isStale) {
+      return <div className="w-2 h-2 rounded-full bg-destructive" />;
     }
     if (!deal.followed_up) {
-      return <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30 text-xs">Follow-up</Badge>;
+      return <div className="w-2 h-2 rounded-full bg-amber-500" />;
     }
-    return null;
+    return <div className="w-2 h-2 rounded-full bg-emerald-500" />;
   };
 
   // Format relative time
@@ -67,123 +84,187 @@ export function EnhancedDealCard({ deal, onDealClick }: EnhancedDealCardProps) {
     }
   };
 
-  // Calculate progress based on probability (only for active deals)
-  const progress = isClosed ? 100 : (deal.probability || 0);
+  // Get days in stage
+  const getDaysInStage = () => {
+    const days = Math.floor(
+      (new Date().getTime() - new Date(deal.stage_entered_at).getTime()) / (1000 * 60 * 60 * 24)
+    );
+    return days;
+  };
 
+  // Handle mark as followed up
+  const handleMarkFollowedUp = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    await updateDeal.mutateAsync({
+      dealId: deal.id,
+      updates: {
+        followed_up: !deal.followed_up,
+      },
+    });
+
+    await logDealActivity({
+      dealId: deal.id,
+      activityType: 'follow_up',
+      title: 'Follow-up completed',
+      description: deal.followed_up ? 'Unmarked as followed up' : 'Marked as followed up',
+    });
+  };
+
+  // Handle quick note
+  const handleQuickNote = async (noteText: string) => {
+    await logDealActivity({
+      dealId: deal.id,
+      activityType: 'task_created',
+      title: 'Quick note added',
+      description: noteText,
+    });
+
+    setIsAddingNote(false);
+    queryClient.invalidateQueries({ queryKey: ['deal-activities', deal.id] });
+  };
+
+  // Closed deal simplified view
+  if (isClosed) {
+    return (
+      <Card 
+        onClick={() => onDealClick(deal.id)}
+        className="opacity-75 bg-muted/5 cursor-pointer hover:border-border hover:shadow-sm transition-all"
+      >
+        <div className="px-6 py-4">
+          <div className="flex items-start justify-between mb-2">
+            <Badge variant={isClosedWon ? "default" : "secondary"} className="text-xs">
+              {deal.stage?.name}
+            </Badge>
+            <span className="text-xs text-muted-foreground/60">
+              Closed {getRelativeTime(deal.updated_at)}
+            </span>
+          </div>
+          
+          <h3 className="font-semibold text-base mb-1">
+            {deal.title || deal.listing?.title || 'Untitled Deal'}
+          </h3>
+          <p className="text-sm text-muted-foreground/70 mb-3">
+            {deal.contact_name}
+            {deal.contact_email && ` • ${deal.contact_email}`}
+          </p>
+          
+          <div className="flex items-center justify-between text-xs text-muted-foreground/60">
+            <span>Pipeline duration: {getDaysInStage()} days</span>
+            <Button 
+              variant="ghost" 
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDealClick(deal.id);
+              }}
+              className="h-7 text-xs"
+            >
+              View details →
+            </Button>
+          </div>
+        </div>
+      </Card>
+    );
+  }
+
+  // Active deal detailed view
   return (
-    <div
+    <Card 
       onClick={() => onDealClick(deal.id)}
-      className={`border border-border/50 rounded-lg p-6 bg-card hover:border-border hover:shadow-sm transition-all cursor-pointer group ${
-        isClosed ? 'opacity-60 bg-muted/10' : ''
-      }`}
+      className="group cursor-pointer hover:shadow-md transition-all duration-200 border-border/40 hover:border-border"
     >
-      {/* Header with badges */}
-      <div className="flex items-start justify-between mb-3">
-        <div className="flex-1 min-w-0">
-          {getPriorityBadge()}
+      {/* ZONE 1: Status Bar */}
+      <div className="flex items-center justify-between px-6 pt-4 pb-2">
+        <div className="flex items-center gap-2">
+          {getPriorityDot()}
+          <span className="text-xs text-muted-foreground/70">
+            {getDaysInStage()} days in stage
+          </span>
         </div>
         {deal.stage && (
-          <Badge 
-            variant="outline" 
-            className="text-xs"
-            style={deal.stage.color ? { 
-              borderColor: deal.stage.color,
-              color: deal.stage.color,
-            } : {}}
-          >
+          <Badge variant="outline" className="text-xs">
             {deal.stage.name}
           </Badge>
         )}
       </div>
 
-      {/* Deal Title and Company */}
-      <div className="mb-5">
-        <h3 className="font-semibold text-lg mb-1.5 group-hover:text-primary transition-colors line-clamp-1">
+      {/* ZONE 2: Core Info */}
+      <div className="px-6 py-3 space-y-1">
+        <h3 className="font-semibold text-base leading-tight group-hover:text-primary transition-colors">
           {deal.title || deal.listing?.title || 'Untitled Deal'}
         </h3>
-        {deal.contact_name && (
-          <p className="text-sm text-muted-foreground/80">
-            {deal.contact_name}
-            {deal.contact_email && (
-              <span className="text-muted-foreground/60"> • {deal.contact_email}</span>
-            )}
-          </p>
-        )}
+        <p className="text-sm text-muted-foreground/70">
+          {deal.contact_name || 'No contact'}
+          {deal.contact_email && ` • ${deal.contact_email}`}
+        </p>
       </div>
 
-      {/* Key Metrics */}
-      {!isClosed && (
-        <div className="grid grid-cols-2 gap-4 mb-4">
-          <div className="flex items-start gap-2">
-            <Clock className="h-4 w-4 text-muted-foreground/50 mt-0.5" />
-            <div className="min-w-0">
-              <p className="text-xs text-muted-foreground/70 mb-0.5">Last contact</p>
-              <p className="text-sm font-medium text-foreground">
-                {getRelativeTime(deal.updated_at)}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-start gap-2">
-            <Clock className="h-4 w-4 text-muted-foreground/50 mt-0.5" />
-            <div className="min-w-0">
-              <p className="text-xs text-muted-foreground/70 mb-0.5">In stage</p>
-              <p className="text-sm font-medium text-foreground">
-                {getRelativeTime(deal.stage_entered_at)}
-              </p>
-            </div>
+      {/* ZONE 3: Activity Timeline */}
+      {recentActivities.length > 0 && (
+        <div className="px-6 py-3 border-t border-border/30">
+          <div className="space-y-2">
+            {recentActivities.map((activity) => (
+              <ActivityTimelineItem key={activity.id} activity={activity} />
+            ))}
+            {activities.length > 3 && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDealClick(deal.id);
+                }}
+                className="text-xs text-muted-foreground/60 hover:text-primary transition-colors"
+              >
+                View all {activities.length} activities →
+              </button>
+            )}
           </div>
         </div>
       )}
 
-      {isClosed && (
-        <div className="mb-4">
-          <div className="flex items-start gap-2">
-            <Calendar className="h-4 w-4 text-muted-foreground/50 mt-0.5" />
-            <div className="min-w-0">
-              <p className="text-xs text-muted-foreground/70 mb-0.5">Closed</p>
-              <p className="text-sm font-medium text-foreground">
-                {getRelativeTime(deal.updated_at)}
-              </p>
-            </div>
+      {/* ZONE 4: Quick Actions */}
+      <div className="px-6 pb-4 pt-3 border-t border-border/30">
+        {isAddingNote ? (
+          <QuickNoteInput 
+            onSubmit={handleQuickNote}
+            onCancel={() => setIsAddingNote(false)}
+          />
+        ) : (
+          <div className="flex items-center gap-2">
+            <Button 
+              size="sm" 
+              variant={deal.followed_up ? "secondary" : "ghost"}
+              onClick={handleMarkFollowedUp}
+              className="h-7 text-xs"
+            >
+              {deal.followed_up ? (
+                <>
+                  <CheckCircle2 className="h-3 w-3 mr-1" />
+                  Followed up
+                </>
+              ) : (
+                <>
+                  <Circle className="h-3 w-3 mr-1" />
+                  Mark followed up
+                </>
+              )}
+            </Button>
+            
+            <Button 
+              size="sm" 
+              variant="ghost"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsAddingNote(true);
+              }}
+              className="h-7 text-xs"
+            >
+              <MessageSquare className="h-3 w-3 mr-1" />
+              Note
+            </Button>
           </div>
-        </div>
-      )}
-
-      {/* Progress Bar - Only for active deals */}
-      {!isClosed && (
-        <div className="mb-4">
-          <div className="flex items-center justify-between mb-1.5">
-            <span className="text-xs text-muted-foreground/70">Progress</span>
-            <span className="text-xs font-medium text-foreground">{progress}%</span>
-          </div>
-          <Progress value={progress} className="h-1.5" />
-        </div>
-      )}
-
-      {/* Quick Action Indicators - Only for active deals */}
-      {!isClosed && (
-        <div className="flex items-center gap-3 text-xs">
-          {deal.followed_up ? (
-            <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
-              <CheckCircle2 className="h-3.5 w-3.5" />
-              <span className="font-medium">Followed up</span>
-            </div>
-          ) : (
-            <div className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400">
-              <AlertCircle className="h-3.5 w-3.5" />
-              <span className="font-medium">Needs follow-up</span>
-            </div>
-          )}
-          
-          {isStale() && (
-            <div className="flex items-center gap-1.5 text-destructive">
-              <Clock className="h-3.5 w-3.5" />
-              <span className="font-medium">Stale</span>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
+        )}
+      </div>
+    </Card>
   );
 }

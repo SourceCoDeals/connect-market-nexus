@@ -104,24 +104,30 @@ export function MyDealsTab() {
             value: stats.activeDeals,
             icon: <Briefcase className="h-5 w-5" />,
             description: 'Currently in pipeline',
+            onClick: () => setFilter('active'),
+            isActive: filter === 'active',
           },
           {
             label: 'Need Attention',
             value: stats.needAttention,
             icon: <Target className="h-5 w-5" />,
-            description: 'Require follow-up or stale',
+            description: 'Require follow-up',
+            onClick: () => setFilter('needs-follow-up'),
+            isActive: filter === 'needs-follow-up',
           },
           {
             label: 'This Week',
             value: stats.thisWeek,
             icon: <Clock className="h-5 w-5" />,
-            description: 'New or updated recently',
+            description: 'Created or updated',
           },
           {
             label: 'Stale Deals',
             value: stats.staleDeals,
             icon: <Clock className="h-5 w-5" />,
-            description: '7+ days in same stage',
+            description: '7+ days in stage',
+            onClick: () => setFilter('stale'),
+            isActive: filter === 'stale',
           },
         ]}
       />
