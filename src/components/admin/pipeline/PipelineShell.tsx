@@ -11,6 +11,7 @@ import { StageManagementModal } from '@/components/admin/StageManagementModal';
 import { BulkDealImportDialog } from '@/components/admin/BulkDealImportDialog';
 import { ManualUndoImportDialog } from '@/components/admin/ManualUndoImportDialog';
 import { useBulkDealImport } from '@/hooks/admin/use-bulk-deal-import';
+import { useNotificationEmailSender } from '@/hooks/admin/use-notification-email-sender';
 
 
 
@@ -22,6 +23,9 @@ export function PipelineShell() {
   const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
   const [isUndoImportOpen, setIsUndoImportOpen] = useState(false);
   const { bulkImport, isLoading: isBulkImporting } = useBulkDealImport();
+  
+  // Automatically send emails for pending notifications
+  useNotificationEmailSender();
 
   const handleOpenCreateDeal = (stageId?: string) => {
     setPrefilledStageId(stageId);

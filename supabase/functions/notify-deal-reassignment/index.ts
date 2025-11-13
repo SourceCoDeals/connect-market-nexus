@@ -10,6 +10,7 @@ interface DealReassignmentRequest {
   dealId: string;
   dealTitle: string;
   listingTitle?: string;
+  companyName?: string;
   previousOwnerId: string;
   previousOwnerName: string;
   previousOwnerEmail: string;
@@ -28,6 +29,7 @@ const handler = async (req: Request): Promise<Response> => {
       dealId,
       dealTitle,
       listingTitle,
+      companyName,
       previousOwnerId,
       previousOwnerName,
       previousOwnerEmail,
@@ -62,6 +64,12 @@ const handler = async (req: Request): Promise<Response> => {
           <h2 style="margin: 0 0 15px 0; color: #1e293b; font-size: 18px;">Deal Information</h2>
           
           <table style="width: 100%; border-collapse: collapse;">
+            ${companyName ? `
+            <tr>
+              <td style="padding: 8px 0; color: #475569; font-weight: 500;">Company:</td>
+              <td style="padding: 8px 0; color: #1e293b; font-weight: 600;">${companyName}</td>
+            </tr>
+            ` : ''}
             <tr>
               <td style="padding: 8px 0; color: #475569; font-weight: 500;">Deal Title:</td>
               <td style="padding: 8px 0; color: #1e293b;">${dealTitle}</td>
@@ -87,8 +95,8 @@ const handler = async (req: Request): Promise<Response> => {
 
         <div style="text-align: center; margin: 30px 0;">
           <a href="https://marketplace.sourcecodeals.com/admin/pipeline?deal=${dealId}" 
-             style="background: #f59e0b; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px; display: inline-block;">
-            View Deal in Pipeline
+             style="background: #f59e0b; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px; display: inline-block; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+            Open Deal in Pipeline
           </a>
         </div>
 
