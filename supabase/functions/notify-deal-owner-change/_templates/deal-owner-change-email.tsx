@@ -98,16 +98,27 @@ export const DealOwnerChangeEmail = ({
             </tr>
           </table>
 
-          <table style={infoTable}>
-            <tr>
-              <td style={infoLabel}>Stage Change</td>
-              <td style={infoValue}>
-                <span style={stageOld}>{oldStageName}</span>
-                <span style={stageArrow}> → </span>
-                <span style={stageNew}>{newStageName}</span>
-              </td>
-            </tr>
-          </table>
+          {oldStageName !== newStageName ? (
+            <table style={infoTable}>
+              <tr>
+                <td style={infoLabel}>Stage Change</td>
+                <td style={infoValue}>
+                  <span style={stageOld}>{oldStageName}</span>
+                  <span style={stageArrow}> → </span>
+                  <span style={stageNew}>{newStageName}</span>
+                </td>
+              </tr>
+            </table>
+          ) : (
+            <table style={infoTable}>
+              <tr>
+                <td style={infoLabel}>Change Type</td>
+                <td style={infoValue}>
+                  <span style={stageNew}>Owner Reassignment</span>
+                </td>
+              </tr>
+            </table>
+          )}
         </Section>
 
         {/* CTA Button */}
