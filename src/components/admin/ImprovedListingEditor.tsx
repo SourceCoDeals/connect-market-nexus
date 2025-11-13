@@ -41,7 +41,8 @@ const listingFormSchema = z.object({
   
   // Admin-only internal fields
   internal_company_name: z.string().optional(),
-  internal_primary_owner: z.string().optional(),
+  internal_primary_owner: z.string().optional(), // Deprecated
+  primary_owner_id: z.string().uuid().nullable().optional(),
   internal_salesforce_link: z.string().optional(),
   internal_deal_memo_link: z.string().optional(),
   internal_contact_info: z.string().optional(),
@@ -77,7 +78,8 @@ type ListingFormInput = {
   status_tag?: string | null;
   visible_to_buyer_types?: string[] | null;
   internal_company_name?: string;
-  internal_primary_owner?: string;
+  internal_primary_owner?: string; // Deprecated
+  primary_owner_id?: string | null;
   internal_salesforce_link?: string;
   internal_deal_memo_link?: string;
   internal_contact_info?: string;
@@ -111,6 +113,7 @@ const convertListingToFormInput = (listing?: AdminListing): ListingFormInput => 
     visible_to_buyer_types: listing?.visible_to_buyer_types || null,
     internal_company_name: listing?.internal_company_name || "",
     internal_primary_owner: listing?.internal_primary_owner || "",
+    primary_owner_id: listing?.primary_owner_id || null,
     internal_salesforce_link: listing?.internal_salesforce_link || "",
     internal_deal_memo_link: listing?.internal_deal_memo_link || "",
     internal_contact_info: listing?.internal_contact_info || "",

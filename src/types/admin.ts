@@ -27,7 +27,8 @@ export interface AdminListing {
   
   // Admin-only internal company information
   internal_company_name?: string;
-  internal_primary_owner?: string;
+  internal_primary_owner?: string; // Deprecated - use primary_owner_id
+  primary_owner_id?: string | null; // UUID reference to profiles
   internal_salesforce_link?: string;
   internal_deal_memo_link?: string;
   internal_contact_info?: string;
@@ -71,7 +72,8 @@ export interface CreateListingData {
   
   // Admin-only internal company information
   internal_company_name?: string;
-  internal_primary_owner?: string;
+  internal_primary_owner?: string; // Deprecated - use primary_owner_id
+  primary_owner_id?: string | null; // UUID reference to profiles
   internal_salesforce_link?: string;
   internal_deal_memo_link?: string;
   internal_contact_info?: string;
