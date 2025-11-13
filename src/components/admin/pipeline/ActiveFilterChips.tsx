@@ -21,20 +21,28 @@ export function ActiveFilterChips({ pipeline }: ActiveFilterChipsProps) {
     });
   }
 
-  // Stage filter
+  // Stage filter - Dynamic stage name lookup
   if (pipeline.statusFilter !== 'all') {
-    const stageLabels: Record<string, string> = {
-      'new_inquiry': 'New Inquiry',
-      'approved': 'Approved',
-      'info_sent': 'Info Sent',
-      'buyer_seller_call': 'Buyer/Seller Call',
-      'due_diligence': 'Due Diligence',
-      'loi_submitted': 'LOI Submitted',
-      'closed': 'Closed',
-    };
+    let stageLabel = pipeline.statusFilter;
+    
+    // Check for special filters
+    if (pipeline.statusFilter === 'active_only') {
+      stageLabel = 'Active Only';
+    } else if (pipeline.statusFilter === 'closed_won') {
+      stageLabel = 'Closed Won';
+    } else if (pipeline.statusFilter === 'closed_lost') {
+      stageLabel = 'Closed Lost';
+    } else if (pipeline.statusFilter === 'closed') {
+      stageLabel = 'Closed (All)';
+    } else {
+      // Try to find the stage name from pipeline.stages
+      const stage = pipeline.stages.find(s => s.id === pipeline.statusFilter);
+      stageLabel = stage?.name || pipeline.statusFilter;
+    }
+    
     activeFilters.push({
       key: 'stage',
-      label: `Stage: ${stageLabels[pipeline.statusFilter] || pipeline.statusFilter}`,
+      label: `Stage: ${stageLabel}`,
       onRemove: () => pipeline.setStatusFilter('all'),
     });
   }
