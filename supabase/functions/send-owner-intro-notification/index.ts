@@ -94,9 +94,12 @@ const handler = async (req: Request): Promise<Response> => {
         </div>
         
         <!-- Alert Box -->
-        <div style="background: #fffbeb; border-left: 4px solid #d7b65c; padding: 16px 20px; border-radius: 4px; margin-bottom: 24px;">
-          <p style="margin: 0; color: #78350f; font-weight: 500; font-size: 14px;">
-            Hi ${ownerName}, ${buyerName} from ${buyerCompany || 'a qualified firm'} is ready to speak with the owner of ${companyName}.
+        <div style="background: #fffbeb; border-left: 4px solid #d7b65c; padding: 20px 24px; border-radius: 4px; margin-bottom: 24px;">
+          <p style="margin: 0 0 12px 0; color: #78350f; font-weight: 600; font-size: 15px;">
+            Hi ${ownerName},
+          </p>
+          <p style="margin: 0; color: #78350f; font-size: 14px; line-height: 1.6;">
+            ${dealOwnerName || 'Your deal owner'} has coordinated an introduction with <strong>${buyerName}</strong> from ${buyerCompany || 'a qualified firm'}. The buyer is ready to speak with the owner of <strong>${companyName}</strong>.
           </p>
         </div>
 
@@ -171,26 +174,47 @@ const handler = async (req: Request): Promise<Response> => {
         <!-- CTA Button -->
         <div style="text-align: center; margin-bottom: 32px;">
           <a href="https://marketplace.sourcecodeals.com/admin/pipeline?deal=${dealId}" 
-             style="background-color: #d7b65c; color: #ffffff; font-size: 14px; font-weight: 600; text-decoration: none; text-align: center; display: inline-block; padding: 12px 32px; border-radius: 6px;">
+             style="background-color: #d7b65c; color: #ffffff; font-size: 14px; font-weight: 600; text-decoration: none; text-align: center; display: inline-block; padding: 14px 40px; border-radius: 6px; box-shadow: 0 2px 8px rgba(215, 182, 92, 0.25);">
             View Deal in Pipeline
           </a>
         </div>
 
         <!-- Next Steps -->
-        <div style="background: #fffbeb; padding: 20px; border-radius: 8px; margin-bottom: 24px; border: 1px solid #fde68a;">
-          <h3 style="margin: 0 0 8px 0; color: #92400e; font-size: 14px; font-weight: 700;">Next Steps:</h3>
-          <ul style="margin: 0; padding-left: 20px; color: #78350f; font-size: 13px; line-height: 1.6;">
-            <li>Review buyer's profile in the pipeline</li>
-            <li>Coordinate with ${dealOwnerName || 'the deal owner'} to arrange intro call</li>
-            <li>Prepare the owner for the conversation</li>
+        <div style="background: #fffbeb; padding: 24px; border-radius: 8px; margin-bottom: 24px; border: 1px solid #fde68a;">
+          <h3 style="margin: 0 0 12px 0; color: #78350f; font-size: 15px; font-weight: 700;">📋 Next Steps</h3>
+          <ul style="margin: 0; padding-left: 20px; color: #78350f; font-size: 14px; line-height: 1.7;">
+            <li style="margin-bottom: 8px;">
+              <strong>${dealOwnerName || 'Your deal owner'}</strong> will coordinate the introduction timing and logistics
+            </li>
+            <li style="margin-bottom: 8px;">
+              Review the buyer's qualifications and background in the pipeline
+            </li>
+            <li style="margin-bottom: 8px;">
+              Prepare any key materials or talking points for the owner conversation
+            </li>
+            <li style="margin-bottom: 0;">
+              Reach out to ${dealOwnerName || 'your deal owner'} if you have questions or need more context
+            </li>
           </ul>
         </div>
 
+        <!-- Additional Context -->
+        <div style="background: #f8fafc; padding: 20px 24px; border-radius: 6px; margin-bottom: 24px; border-left: 3px solid #cbd5e1;">
+          <p style="margin: 0 0 8px 0; color: #0f172a; font-size: 13px; font-weight: 600;">💡 Context</p>
+          <p style="margin: 0; color: #64748b; font-size: 13px; line-height: 1.6;">
+            This buyer has been qualified by our team and has expressed strong interest in ${companyName}. 
+            They've signed all necessary agreements and are ready for substantive discussions.
+          </p>
+        </div>
+
         <!-- Footer -->
-        <div style="color: #94a3b8; font-size: 12px; line-height: 20px; text-align: center; margin-top: 24px;">
-          This is an automated notification from SourceCo Pipeline
-          <br />
-          <span style="color: #cbd5e1; font-size: 11px;">Deal ID: ${dealId}</span>
+        <div style="text-align: center; padding: 24px 0; border-top: 1px solid #e2e8f0;">
+          <p style="margin: 0 0 8px 0; color: #94a3b8; font-size: 12px;">
+            SourceCo Deals • M&A Advisory Platform
+          </p>
+          <p style="margin: 0; color: #cbd5e1; font-size: 11px;">
+            This is an automated notification from your SourceCo pipeline
+          </p>
         </div>
       </div>
     `;
