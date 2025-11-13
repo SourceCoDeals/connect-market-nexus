@@ -24,6 +24,7 @@ export function PipelineShell() {
   const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
   const [isUndoImportOpen, setIsUndoImportOpen] = useState(false);
   const { bulkImport, isLoading: isBulkImporting } = useBulkDealImport();
+  const hasProcessedUrlParams = React.useRef(false);
   
   // Automatically send emails for pending notifications
   useNotificationEmailSender();
@@ -104,8 +105,11 @@ export function PipelineShell() {
     };
   }, [pipeline.deals, pipeline.setSelectedDeal]);
 
-  // Check URL params on mount for deep linking from notifications
+  // Check URL params ONCE on mount for deep linking from notifications
   React.useEffect(() => {
+    // Only process URL params once to prevent re-opening on every state change
+    if (hasProcessedUrlParams.current) return;
+    
     const urlParams = new URLSearchParams(window.location.search);
     const dealId = urlParams.get('deal');
     const tab = urlParams.get('tab');
@@ -115,9 +119,22 @@ export function PipelineShell() {
       const deal = pipeline.deals.find(d => d.deal_id === dealId);
       if (deal) {
         pipeline.setSelectedDeal(deal);
+        
+        // Mark as processed and clear URL params immediately
+        hasProcessedUrlParams.current = true;
+        const newUrl = window.location.pathname;
+        window.history.replaceState(null, '', newUrl);
+        console.log('[PipelineShell] Cleared URL params to prevent re-processing');
       }
     }
   }, [pipeline.deals]);
+
+  // Reset URL param processing flag on unmount
+  React.useEffect(() => {
+    return () => {
+      hasProcessedUrlParams.current = false;
+    };
+  }, []);
   
   if (pipeline.isLoading) {
     return (
