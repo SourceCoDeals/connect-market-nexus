@@ -129,7 +129,7 @@ export function PipelineDetailOverview({ deal }: PipelineDetailOverviewProps) {
 
       const { data: allDeals } = await supabase
         .from('deals')
-        .select('id, title, listing_title, listing_real_company_name, stage_id, followed_up, negative_followed_up')
+        .select('id, title, stage_id, followed_up, negative_followed_up')
         .eq('contact_email', deal.contact_email)
         .neq('id', deal.deal_id);
 
