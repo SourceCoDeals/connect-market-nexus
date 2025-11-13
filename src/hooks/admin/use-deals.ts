@@ -272,14 +272,41 @@ export function useUpdateDealStage() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async ({ dealId, stageId, currentAdminId }: { 
+    mutationFn: async ({ dealId, stageId, currentAdminId, skipOwnerCheck }: { 
       dealId: string; 
       stageId: string;
       fromStage?: string;
       toStage?: string;
       currentAdminId?: string;
+      skipOwnerCheck?: boolean;
     }) => {
       console.log('[useUpdateDealStage] Calling RPC with:', { dealId, stageId, currentAdminId });
+      
+      // If not skipping owner check, verify ownership first
+      if (!skipOwnerCheck && currentAdminId) {
+        const { data: dealData } = await supabase
+          .from('deals')
+          .select('assigned_to, title, assigned_admin:profiles!deals_assigned_to_fkey(first_name, last_name)')
+          .eq('id', dealId)
+          .single();
+
+        // Check if someone else owns this deal
+        if (dealData?.assigned_to && dealData.assigned_to !== currentAdminId) {
+          const ownerName = dealData.assigned_admin 
+            ? `${dealData.assigned_admin.first_name} ${dealData.assigned_admin.last_name}`.trim()
+            : 'Another admin';
+          
+          // Return a special error that will trigger the warning dialog
+          throw {
+            type: 'OWNER_WARNING',
+            ownerName,
+            dealTitle: dealData.title,
+            ownerId: dealData.assigned_to,
+            dealId,
+            stageId
+          };
+        }
+      }
       
       // Use new RPC function with ownership logic
       const { data, error } = await supabase.rpc('move_deal_stage_with_ownership' as any, {
