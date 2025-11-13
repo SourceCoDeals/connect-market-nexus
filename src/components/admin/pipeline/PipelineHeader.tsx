@@ -302,7 +302,7 @@ export function PipelineHeader({ pipeline, onOpenCreateDeal, onOpenBulkImport, o
           </PopoverContent>
         </Popover>
 
-        {/* Stage Filter - NOW SECOND */}
+        {/* Stage Filter - Dynamic from database */}
         <Select
           value={pipeline.statusFilter}
           onValueChange={(value) => pipeline.setStatusFilter(value as any)}
@@ -312,13 +312,21 @@ export function PipelineHeader({ pipeline, onOpenCreateDeal, onOpenBulkImport, o
           </SelectTrigger>
           <SelectContent className="bg-background z-[100]">
             <SelectItem value="all">All Stages</SelectItem>
-            <SelectItem value="new_inquiry">New Inquiry</SelectItem>
-            <SelectItem value="approved">Approved</SelectItem>
-            <SelectItem value="info_sent">Info Sent</SelectItem>
-            <SelectItem value="buyer_seller_call">Buyer/Seller Call</SelectItem>
-            <SelectItem value="due_diligence">Due Diligence</SelectItem>
-            <SelectItem value="loi_submitted">LOI Submitted</SelectItem>
-            <SelectItem value="closed">Closed</SelectItem>
+            <SelectItem value="active_only">Active Only</SelectItem>
+            
+            {/* Dynamic stages from database */}
+            {pipeline.stages
+              .filter(stage => stage.is_active && (stage.stage_type === 'active' || !stage.stage_type))
+              .map((stage) => (
+                <SelectItem key={stage.id} value={stage.id}>
+                  {stage.name}
+                </SelectItem>
+              ))}
+            
+            {/* Closed stages */}
+            <SelectItem value="closed_won">Closed Won</SelectItem>
+            <SelectItem value="closed_lost">Closed Lost</SelectItem>
+            <SelectItem value="closed">Closed (All)</SelectItem>
           </SelectContent>
         </Select>
 
