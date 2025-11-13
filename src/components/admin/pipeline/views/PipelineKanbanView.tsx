@@ -127,7 +127,7 @@ export function PipelineKanbanView({ pipeline, onOpenCreateDeal }: PipelineKanba
             <div id="kanban-scroll-container" className="absolute inset-0 overflow-x-auto overflow-y-hidden" style={{ WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none' }}>
               <div className="flex gap-4 p-4 h-full min-w-min" style={{ minHeight: '600px' }}>
                 {stagesWithMetrics.map((stage) => (
-                  <PipelineKanbanColumn key={stage.id} stage={stage} deals={stage.deals} onDealClick={(deal) => {}} onOpenCreateDeal={onOpenCreateDeal} totalStages={pipeline.stages.length} />
+                  <PipelineKanbanColumn key={stage.id} stage={stage} deals={stage.deals} onDealClick={pipeline.handleDealSelect} onOpenCreateDeal={onOpenCreateDeal} totalStages={pipeline.stages.length} />
                 ))}
               </div>
             </div>
