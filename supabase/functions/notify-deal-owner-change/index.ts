@@ -157,18 +157,6 @@ const handler = async (req: Request): Promise<Response> => {
         </div>
       </div>
     `;
-          <p style="margin: 0; color: #78350f; font-size: 14px;">
-            You're assigned as the owner of this deal. When another admin makes changes, we notify you to keep everyone in sync. 
-            This is expected behavior and doesn't require any action unless you want to review the changes.
-          </p>
-        </div>
-
-        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e2e8f0; color: #64748b; font-size: 12px; text-align: center;">
-          <p style="margin: 0;">This is an automated notification from SourceCo Pipeline</p>
-          <p style="margin: 5px 0 0 0;">Deal ID: ${dealId}</p>
-        </div>
-      </div>
-    `;
 
     // Send email via Brevo
     const brevoApiKey = Deno.env.get("BREVO_API_KEY");
