@@ -46,7 +46,7 @@ export function PipelineKanbanView({ pipeline, onOpenCreateDeal }: PipelineKanba
   const handleDragStart = (event: DragStartEvent) => setActiveId(String(event.active.id));
   const handleDragOver = (event: DragOverEvent) => {};
   
-  const handleDragEnd = (event: DragEndEvent) => {
+  const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
     const activeIdStr = String(active?.id ?? '');
     const overIdStr = String(over?.id ?? '');
@@ -73,10 +73,33 @@ export function PipelineKanbanView({ pipeline, onOpenCreateDeal }: PipelineKanba
 
     if (!deal || !targetStage || deal.stage_id === destStageId) { setActiveId(null); return; }
 
-    updateDealStage.mutate(
-      { dealId, stageId: destStageId, fromStage: deal.stage_name || undefined, toStage: targetStage.name, currentAdminId: currentUserId, skipOwnerCheck: false },
-      { onError: (error: any) => { if (error?.type === 'OWNER_WARNING') setOwnerWarning({ show: true, ownerName: error.ownerName, dealTitle: error.dealTitle, dealId: error.dealId, stageId: error.stageId }); } }
-    );
+    // Check if this deal belongs to another owner BEFORE attempting the mutation
+    if (currentUserId && deal.assigned_to && deal.assigned_to !== currentUserId) {
+      const ownerName = deal.assigned_admin_name 
+        ? `${deal.assigned_admin_name}`.trim()
+        : 'Another admin';
+      
+      // Show warning dialog and store the pending move
+      setOwnerWarning({ 
+        show: true, 
+        ownerName, 
+        dealTitle: deal.title, 
+        dealId, 
+        stageId: destStageId 
+      });
+      setActiveId(null);
+      return;
+    }
+
+    // No ownership conflict, proceed with the move
+    updateDealStage.mutate({
+      dealId,
+      stageId: destStageId,
+      fromStage: deal.stage_name || undefined,
+      toStage: targetStage.name,
+      currentAdminId: currentUserId,
+      skipOwnerCheck: true // We already checked above
+    });
     setActiveId(null);
   };
 
