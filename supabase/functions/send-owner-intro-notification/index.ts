@@ -1,6 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { Resend } from "npm:resend@2.0.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -159,19 +158,38 @@ const handler = async (req: Request): Promise<Response> => {
       </div>
     `;
 
-    // Send email via Resend
-    const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
+    // Send email via Brevo
+    const brevoApiKey = Deno.env.get("BREVO_API_KEY");
+    if (!brevoApiKey) {
+      throw new Error("BREVO_API_KEY is not set");
+    }
     
     console.log("Sending owner intro notification to:", primaryOwner.email);
     
-    const emailResponse = await resend.emails.send({
-      from: "SourceCo Pipeline <pipeline@sourcecodeals.com>",
-      to: [primaryOwner.email],
+    const emailPayload = {
+      sender: { name: "SourceCo Pipeline", email: "pipeline@sourcecodeals.com" },
+      to: [{ email: primaryOwner.email, name: ownerName }],
       subject: subject,
-      html: htmlContent,
+      htmlContent: htmlContent,
+    };
+
+    const emailResponse = await fetch("https://api.brevo.com/v3/smtp/email", {
+      method: "POST",
+      headers: {
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+        "api-key": brevoApiKey,
+      },
+      body: JSON.stringify(emailPayload),
     });
 
-    console.log("Email sent successfully:", emailResponse);
+    if (!emailResponse.ok) {
+      const errorText = await emailResponse.text();
+      throw new Error(`Failed to send email: ${errorText}`);
+    }
+
+    const emailResult = await emailResponse.json();
+    console.log("Email sent successfully:", emailResult);
 
     // Log to database
     await supabase
@@ -182,7 +200,7 @@ const handler = async (req: Request): Promise<Response> => {
         primary_owner_id: listing.primary_owner_id,
         email_status: 'sent',
         metadata: {
-          email_id: emailResponse.id,
+          message_id: emailResult.messageId,
           buyer_name: buyerName,
           buyer_email: buyerEmail,
           email_subject: subject,
@@ -192,7 +210,7 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(
       JSON.stringify({ 
         success: true,
-        email_id: emailResponse.id,
+        message_id: emailResult.messageId,
         recipient: primaryOwner.email
       }),
       {
