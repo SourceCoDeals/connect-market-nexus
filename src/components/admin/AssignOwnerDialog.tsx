@@ -43,7 +43,7 @@ export function AssignOwnerDialog({ open, onOpenChange, dealTitle, onConfirm }: 
               {isLoading ? <div className="flex items-center justify-center py-4"><Loader2 className="h-5 w-5 animate-spin" /></div> : (
                 <Select value={selectedOwnerId} onValueChange={setSelectedOwnerId}>
                   <SelectTrigger><SelectValue placeholder="Choose an admin..." /></SelectTrigger>
-                  <SelectContent position="popper" className="z-[70] bg-background text-foreground border border-border shadow-lg max-h-64">
+                  <SelectContent position="popper" className="z-[100] bg-background text-foreground border border-border shadow-lg max-h-64" sideOffset={4}>
                     {admins.length > 0 ? (
                       admins.map((a) => (
                         <SelectItem key={a.id} value={a.id}>

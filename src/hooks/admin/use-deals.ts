@@ -590,10 +590,52 @@ export function useUpdateDeal() {
       
       return { previousDeals };
     },
-    onSuccess: async (_, { dealId, updates }) => {
+    onSuccess: async (data, { dealId, updates }) => {
       // Note: Assignment logging is now handled by the update_deal_owner RPC
-      // Only show appropriate toast message
       const isOwnerChangeOnly = updates.assigned_to !== undefined && Object.keys(updates).length === 1;
+      
+      // If owner was changed (not just stage move), notify the previous owner
+      if (isOwnerChangeOnly && data?.owner_changed && data.previous_owner_id) {
+        try {
+          const deals = queryClient.getQueryData<Deal[]>(['deals']);
+          const deal = deals?.find(d => d.deal_id === dealId);
+          
+          if (deal) {
+            // Get current admin info
+            const { data: { user } } = await supabase.auth.getUser();
+            const { data: currentAdmin } = await supabase
+              .from('profiles')
+              .select('first_name, last_name, email')
+              .eq('id', user?.id)
+              .single();
+            
+            const currentAdminName = currentAdmin 
+              ? `${currentAdmin.first_name} ${currentAdmin.last_name}`.trim()
+              : 'Another admin';
+            
+            await supabase.functions.invoke('notify-deal-owner-change', {
+              body: {
+                dealId: deal.deal_id,
+                dealTitle: deal.title,
+                previousOwnerId: data.previous_owner_id,
+                previousOwnerName: data.previous_owner_name,
+                modifyingAdminId: user?.id,
+                modifyingAdminName: currentAdminName,
+                modifyingAdminEmail: currentAdmin?.email,
+                oldStageName: data.stage_name || deal.stage_name,
+                newStageName: data.stage_name || deal.stage_name, // Same stage, just owner change
+                listingTitle: deal.listing_title,
+                companyName: deal.listing_real_company_name
+              }
+            });
+            
+            console.log('Owner change notification sent to:', data.previous_owner_name);
+          }
+        } catch (error) {
+          console.error('Failed to send owner change notification:', error);
+          // Don't fail the update, just log
+        }
+      }
       
       toast({
         title: isOwnerChangeOnly ? 'Owner Updated' : 'Deal Updated',
