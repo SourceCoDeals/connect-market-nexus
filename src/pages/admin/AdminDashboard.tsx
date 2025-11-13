@@ -16,7 +16,7 @@ import { useAdmin } from "@/hooks/use-admin";
 import { useState } from "react";
 import { usePermissions } from "@/hooks/permissions/usePermissions";
 import { PermissionsModal } from "@/components/admin/permissions/PermissionsModal";
-import { MyDealsWidget } from "@/components/admin/dashboard/MyDealsWidget";
+import { MyDealsTab } from "@/components/admin/dashboard/MyDealsTab";
 
 const AdminDashboard = () => {
   const { users } = useAdmin();
@@ -158,6 +158,12 @@ const AdminDashboard = () => {
                   Overview
                 </TabsTrigger>
                 <TabsTrigger 
+                  value="my-deals"
+                  className="relative rounded-none border-b-2 border-b-transparent bg-transparent px-0 pb-3 pt-0 text-[13px] font-medium text-muted-foreground/70 shadow-none transition-all hover:text-foreground data-[state=active]:border-b-foreground data-[state=active]:text-foreground data-[state=active]:shadow-none"
+                >
+                  My Deals
+                </TabsTrigger>
+                <TabsTrigger 
                   value="analytics"
                   className="relative rounded-none border-b-2 border-b-transparent bg-transparent px-0 pb-3 pt-0 text-[13px] font-medium text-muted-foreground/70 shadow-none transition-all hover:text-foreground data-[state=active]:border-b-foreground data-[state=active]:text-foreground data-[state=active]:shadow-none"
                 >
@@ -199,13 +205,16 @@ const AdminDashboard = () => {
             {/* Content Area - More spacious */}
             <div className="px-8 py-8">
               <TabsContent value="overview" className="mt-0 space-y-6">
-                <MyDealsWidget />
                 <StripeOverviewTab />
               </TabsContent>
 
-        <TabsContent value="analytics" className="mt-0">
-          <StripeAnalyticsTab users={usersData || []} />
-        </TabsContent>
+              <TabsContent value="my-deals" className="mt-0">
+                <MyDealsTab />
+              </TabsContent>
+
+              <TabsContent value="analytics" className="mt-0">
+                <StripeAnalyticsTab users={usersData || []} />
+              </TabsContent>
 
               <TabsContent value="activity" className="mt-0">
                 <RecentActivityTab />
