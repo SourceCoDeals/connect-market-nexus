@@ -82,9 +82,25 @@ export function PipelineKanbanView({ pipeline, onOpenCreateDeal }: PipelineKanba
 
   const handleOwnerWarningConfirm = () => {
     if (!ownerWarning) return;
+    
     const deal = pipeline.deals.find(d => d.deal_id === ownerWarning.dealId);
-    const targetStage = pipeline.stages.find(s => s.id === ownerWarning.stageId);
-    updateDealStage.mutate({ dealId: ownerWarning.dealId, stageId: ownerWarning.stageId, fromStage: deal?.stage_name || undefined, toStage: targetStage?.name, currentAdminId: currentUserId, skipOwnerCheck: true });
+    const targetStage = stagesWithMetrics.find(s => s.id === ownerWarning.stageId);
+    
+    if (!deal || !targetStage) {
+      console.error('[Owner Warning] Deal or stage not found', { dealId: ownerWarning.dealId, stageId: ownerWarning.stageId });
+      setOwnerWarning(null);
+      return;
+    }
+    
+    updateDealStage.mutate({
+      dealId: ownerWarning.dealId,
+      stageId: ownerWarning.stageId,
+      fromStage: deal.stage_name || undefined,
+      toStage: targetStage.name || undefined,
+      currentAdminId: currentUserId,
+      skipOwnerCheck: true
+    });
+    
     setOwnerWarning(null);
   };
   
