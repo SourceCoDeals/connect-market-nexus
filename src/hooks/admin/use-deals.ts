@@ -379,7 +379,8 @@ export function useUpdateDealStage() {
                 modifyingAdminName: currentAdminName,
                 oldStageName: data.old_stage_name,
                 newStageName: data.new_stage_name,
-                listingTitle: deal.listing_title
+                listingTitle: deal.listing_title,
+                companyName: deal.listing_real_company_name
               }
             });
           } catch (error) {

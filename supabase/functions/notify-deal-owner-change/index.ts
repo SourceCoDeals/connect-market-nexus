@@ -19,6 +19,7 @@ interface DealOwnerChangeRequest {
   oldStageName: string;
   newStageName: string;
   listingTitle?: string;
+  companyName?: string;
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -36,7 +37,8 @@ const handler = async (req: Request): Promise<Response> => {
       modifyingAdminName,
       oldStageName,
       newStageName,
-      listingTitle
+      listingTitle,
+      companyName
     }: DealOwnerChangeRequest = await req.json();
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -61,21 +63,8 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Get deal with listing details to show real company name
-    const { data: dealData } = await supabase
-      .from('deals')
-      .select(`
-        id,
-        title,
-        listing:listings(
-          title,
-          real_company_name
-        )
-      `)
-      .eq('id', dealId)
-      .single();
-
-    const companyName = dealData?.listing?.real_company_name || listingTitle || dealData?.listing?.title || null;
+    // Use companyName passed from frontend, fallback to listingTitle
+    const displayCompanyName = companyName || listingTitle || null;
 
     // Get modifying admin's email
     const { data: modifyingAdmin } = await supabase
@@ -84,7 +73,7 @@ const handler = async (req: Request): Promise<Response> => {
       .eq('id', modifyingAdminId)
       .single();
 
-    const subject = `Deal Modified: ${companyName || dealTitle}`;
+    const subject = `Deal Modified: ${displayCompanyName || dealTitle}`;
     
     // Render React Email template
     const htmlContent = await renderAsync(
@@ -93,7 +82,7 @@ const handler = async (req: Request): Promise<Response> => {
         modifyingAdminName,
         modifyingAdminEmail: modifyingAdmin?.email,
         dealTitle,
-        companyName: companyName || undefined,
+        companyName: displayCompanyName || undefined,
         listingTitle,
         oldStageName,
         newStageName,
