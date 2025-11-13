@@ -463,11 +463,13 @@ export function useUpdateDeal() {
       const isOwnerChangeOnly = updates.assigned_to !== undefined && Object.keys(updates).length === 1;
       
       if (isOwnerChangeOnly) {
-        const { data: user } = await supabase.auth.getUser();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error('Not authenticated');
+
         const { data, error } = await supabase.rpc('update_deal_owner', {
           p_deal_id: dealId,
           p_assigned_to: updates.assigned_to === 'unassigned' || updates.assigned_to === '' ? null : updates.assigned_to,
-          p_actor_id: user.user?.id
+          p_actor_id: user.id
         });
         
         if (error) {
@@ -475,7 +477,8 @@ export function useUpdateDeal() {
           throw error;
         }
         
-        return data as any;
+        // Parse JSONB response if it's a string
+        return typeof data === 'string' ? JSON.parse(data) : data;
       }
       
       // For other updates, use standard update with field filtering
