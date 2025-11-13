@@ -26,7 +26,7 @@ export function AssignOwnerDialog({ open, onOpenChange, dealTitle, onConfirm }: 
     if (open) {
       setIsLoading(true);
       const client = createClient(SUPABASE_URL, SUPABASE_KEY);
-      client.from('profiles').select('id, email, first_name, last_name').eq('role', 'admin').order('first_name').then((result: any) => {
+      client.from('profiles').select('id, email, first_name, last_name').eq('is_admin', true).order('first_name').then((result: any) => {
         if (result.data) setAdmins(result.data);
         setIsLoading(false);
       });
