@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { DndContext, DragEndEvent, DragOverEvent, DragStartEvent, PointerSensor, useSensor, useSensors, DragOverlay, closestCorners } from '@dnd-kit/core';
 import { usePipelineCore } from '@/hooks/admin/use-pipeline-core';
 import { useUpdateDealStage } from '@/hooks/admin/use-deals';
@@ -26,6 +26,22 @@ export function PipelineKanbanView({ pipeline, onOpenCreateDeal }: PipelineKanba
   }, []);
   
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
+  
+  // Transform stages to include metrics
+  const stagesWithMetrics = useMemo(() => {
+    return pipeline.stages.map(stage => {
+      const stageDeals = pipeline.deals.filter(d => d.stage_id === stage.id);
+      return {
+        ...stage,
+        dealCount: stageDeals.length,
+        totalValue: stageDeals.reduce((sum, d) => sum + (Number(d.deal_value) || 0), 0),
+        avgProbability: stageDeals.length > 0 
+          ? stageDeals.reduce((sum, d) => sum + (d.deal_probability || 0), 0) / stageDeals.length 
+          : 0,
+        deals: stageDeals
+      };
+    });
+  }, [pipeline.stages, pipeline.deals]);
   
   const handleDragStart = (event: DragStartEvent) => setActiveId(String(event.active.id));
   const handleDragOver = (event: DragOverEvent) => {};
@@ -94,8 +110,8 @@ export function PipelineKanbanView({ pipeline, onOpenCreateDeal }: PipelineKanba
             </div>
             <div id="kanban-scroll-container" className="absolute inset-0 overflow-x-auto overflow-y-hidden" style={{ WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none' }}>
               <div className="flex gap-4 p-4 h-full min-w-min" style={{ minHeight: '600px' }}>
-                {pipeline.stages.map((stage) => (
-                  <PipelineKanbanColumn key={stage.id} stage={stage} deals={pipeline.deals.filter(d => d.stage_id === stage.id)} onOpenCreateDeal={onOpenCreateDeal} />
+                {stagesWithMetrics.map((stage) => (
+                  <PipelineKanbanColumn key={stage.id} stage={stage} deals={stage.deals} onDealClick={(deal) => {}} onOpenCreateDeal={onOpenCreateDeal} totalStages={pipeline.stages.length} />
                 ))}
               </div>
             </div>
