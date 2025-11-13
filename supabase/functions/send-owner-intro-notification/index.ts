@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { Resend } from "npm:resend@2.0.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -158,12 +159,19 @@ const handler = async (req: Request): Promise<Response> => {
       </div>
     `;
 
-    // Send email using Supabase Edge Function email (you may need to configure your email provider)
-    // For now, we'll use a simple fetch to a hypothetical email service
-    // In production, integrate with Resend or your email service
+    // Send email via Resend
+    const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
     
-    console.log("Owner intro notification email prepared for:", primaryOwner.email);
-    console.log("Subject:", subject);
+    console.log("Sending owner intro notification to:", primaryOwner.email);
+    
+    const emailResponse = await resend.emails.send({
+      from: "SourceCo Pipeline <pipeline@sourcecodeals.com>",
+      to: [primaryOwner.email],
+      subject: subject,
+      html: htmlContent,
+    });
+
+    console.log("Email sent successfully:", emailResponse);
 
     // Log to database
     await supabase
@@ -174,19 +182,17 @@ const handler = async (req: Request): Promise<Response> => {
         primary_owner_id: listing.primary_owner_id,
         email_status: 'sent',
         metadata: {
+          email_id: emailResponse.id,
           buyer_name: buyerName,
           buyer_email: buyerEmail,
           email_subject: subject,
         }
       });
-
-    // TODO: Integrate with actual email service (Resend, SendGrid, etc.)
-    // For now, just log and return success
     
     return new Response(
       JSON.stringify({ 
         success: true,
-        message: 'Notification logged (email integration pending)',
+        email_id: emailResponse.id,
         recipient: primaryOwner.email
       }),
       {

@@ -41,7 +41,6 @@ const listingFormSchema = z.object({
   
   // Admin-only internal fields
   internal_company_name: z.string().optional(),
-  internal_primary_owner: z.string().optional(), // Deprecated
   primary_owner_id: z.string().uuid().nullable().optional(),
   internal_salesforce_link: z.string().optional(),
   internal_deal_memo_link: z.string().optional(),
@@ -78,7 +77,6 @@ type ListingFormInput = {
   status_tag?: string | null;
   visible_to_buyer_types?: string[] | null;
   internal_company_name?: string;
-  internal_primary_owner?: string; // Deprecated
   primary_owner_id?: string | null;
   internal_salesforce_link?: string;
   internal_deal_memo_link?: string;
@@ -112,7 +110,6 @@ const convertListingToFormInput = (listing?: AdminListing): ListingFormInput => 
     status_tag: listing?.status_tag ?? null,
     visible_to_buyer_types: listing?.visible_to_buyer_types || null,
     internal_company_name: listing?.internal_company_name || "",
-    internal_primary_owner: listing?.internal_primary_owner || "",
     primary_owner_id: listing?.primary_owner_id || null,
     internal_salesforce_link: listing?.internal_salesforce_link || "",
     internal_deal_memo_link: listing?.internal_deal_memo_link || "",
@@ -195,7 +192,7 @@ export function ImprovedListingEditor({
         status_tag: formData.status_tag && formData.status_tag !== "none" ? formData.status_tag : null,
         visible_to_buyer_types: (formData.visible_to_buyer_types || null) as ('privateEquity' | 'corporate' | 'familyOffice' | 'searchFund' | 'individual' | 'independentSponsor' | 'advisor' | 'businessOwner')[] | null,
         internal_company_name: formData.internal_company_name || null,
-        internal_primary_owner: formData.internal_primary_owner || null,
+        primary_owner_id: formData.primary_owner_id || null,
         internal_salesforce_link: formData.internal_salesforce_link || null,
         internal_deal_memo_link: formData.internal_deal_memo_link || null,
         internal_contact_info: formData.internal_contact_info || null,
