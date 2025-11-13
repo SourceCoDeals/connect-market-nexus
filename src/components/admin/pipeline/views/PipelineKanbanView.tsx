@@ -5,9 +5,11 @@ import { useUpdateDealStage } from '@/hooks/admin/use-deals';
 import { PipelineKanbanColumn } from './PipelineKanbanColumn';
 import { PipelineKanbanCardOverlay } from './PipelineKanbanCardOverlay';
 import { DealOwnerWarningDialog } from '@/components/admin/DealOwnerWarningDialog';
+import { AssignOwnerDialog } from '@/components/admin/AssignOwnerDialog';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { useUpdateDeal } from '@/hooks/admin/use-deals';
 
 interface PipelineKanbanViewProps {
   pipeline: ReturnType<typeof usePipelineCore>;
@@ -19,7 +21,9 @@ export function PipelineKanbanView({ pipeline, onOpenCreateDeal }: PipelineKanba
   const [scrollPosition, setScrollPosition] = useState(0);
   const [currentUserId, setCurrentUserId] = useState<string | undefined>();
   const [ownerWarning, setOwnerWarning] = useState<{ show: boolean; ownerName: string; dealTitle: string; dealId: string; stageId: string; } | null>(null);
+  const [ownerAssignmentNeeded, setOwnerAssignmentNeeded] = useState<{ show: boolean; dealTitle: string; dealId: string; stageId: string; fromStage?: string; toStage?: string; } | null>(null);
   const updateDealStage = useUpdateDealStage();
+  const updateDeal = useUpdateDeal();
   
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setCurrentUserId(data.user?.id));
@@ -72,6 +76,20 @@ export function PipelineKanbanView({ pipeline, onOpenCreateDeal }: PipelineKanba
     const targetStage = pipeline.stages.find(s => s.id === destStageId);
 
     if (!deal || !targetStage || deal.stage_id === destStageId) { setActiveId(null); return; }
+
+    // Check if moving to "Owner intro requested" stage without an assigned owner
+    if (targetStage.name === 'Owner intro requested' && !deal.assigned_to) {
+      setOwnerAssignmentNeeded({
+        show: true,
+        dealTitle: deal.title,
+        dealId: deal.deal_id,
+        stageId: destStageId,
+        fromStage: deal.stage_name || undefined,
+        toStage: targetStage.name
+      });
+      setActiveId(null);
+      return;
+    }
 
     // Check if this deal belongs to another owner BEFORE attempting the mutation
     if (currentUserId && deal.assigned_to && deal.assigned_to !== currentUserId) {
@@ -126,6 +144,45 @@ export function PipelineKanbanView({ pipeline, onOpenCreateDeal }: PipelineKanba
     
     setOwnerWarning(null);
   };
+
+  const handleOwnerAssignmentConfirm = async (ownerId: string) => {
+    if (!ownerAssignmentNeeded) return;
+
+    const deal = pipeline.deals.find(d => d.deal_id === ownerAssignmentNeeded.dealId);
+    const targetStage = stagesWithMetrics.find(s => s.id === ownerAssignmentNeeded.stageId);
+
+    if (!deal || !targetStage) {
+      console.error('[Owner Assignment] Deal or stage not found', { dealId: ownerAssignmentNeeded.dealId, stageId: ownerAssignmentNeeded.stageId });
+      setOwnerAssignmentNeeded(null);
+      return;
+    }
+
+    // First assign the owner
+    updateDeal.mutate(
+      {
+        dealId: ownerAssignmentNeeded.dealId,
+        updates: { assigned_to: ownerId },
+      },
+      {
+        onSuccess: () => {
+          // After owner is assigned, proceed with stage move
+          updateDealStage.mutate({
+            dealId: ownerAssignmentNeeded.dealId,
+            stageId: ownerAssignmentNeeded.stageId,
+            fromStage: ownerAssignmentNeeded.fromStage,
+            toStage: ownerAssignmentNeeded.toStage,
+            currentAdminId: currentUserId,
+            skipOwnerCheck: true
+          });
+          setOwnerAssignmentNeeded(null);
+        },
+        onError: (error) => {
+          console.error('[Owner Assignment] Failed to assign owner:', error);
+          setOwnerAssignmentNeeded(null);
+        }
+      }
+    );
+  };
   
   const scrollToStage = (direction: 'left' | 'right') => {
     const container = document.getElementById('kanban-scroll-container');
@@ -159,6 +216,7 @@ export function PipelineKanbanView({ pipeline, onOpenCreateDeal }: PipelineKanba
         </DndContext>
       </div>
       {ownerWarning && <DealOwnerWarningDialog open={ownerWarning.show} onOpenChange={(open) => !open && setOwnerWarning(null)} ownerName={ownerWarning.ownerName} dealTitle={ownerWarning.dealTitle} onConfirm={handleOwnerWarningConfirm} />}
+      {ownerAssignmentNeeded && <AssignOwnerDialog open={ownerAssignmentNeeded.show} onOpenChange={(open) => !open && setOwnerAssignmentNeeded(null)} dealTitle={ownerAssignmentNeeded.dealTitle} onConfirm={handleOwnerAssignmentConfirm} />}
     </>
   );
 }
