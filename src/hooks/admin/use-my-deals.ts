@@ -47,30 +47,60 @@ export function useMyDealStats() {
         throw new Error('User not authenticated');
       }
 
+      // Get deals with stage information to identify terminal stages
       const { data: deals, error } = await supabase
         .from('deals')
-        .select('id, stage_id, value, followed_up, stage_entered_at')
+        .select(`
+          id, 
+          stage_id, 
+          value, 
+          followed_up, 
+          stage_entered_at,
+          created_at,
+          updated_at,
+          stage:deal_stages(name, stage_type)
+        `)
         .eq('assigned_to', user.id)
         .is('deleted_at', null);
 
       if (error) throw error;
 
-      const totalDeals = deals?.length || 0;
-      const totalValue = deals?.reduce((sum, d) => sum + (Number(d.value) || 0), 0) || 0;
-      const needsFollowUp = deals?.filter(d => !d.followed_up).length || 0;
-      
-      // Deals that haven't moved in 7+ days
-      const weekAgo = new Date();
-      weekAgo.setDate(weekAgo.getDate() - 7);
-      const stale = deals?.filter(d => 
+      const now = new Date();
+      const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+      // Filter active deals (exclude closed won/lost)
+      const activeDeals = deals?.filter(d => {
+        const stageType = d.stage?.stage_type;
+        return stageType !== 'closed_won' && stageType !== 'closed_lost';
+      }) || [];
+
+      // Active deals count
+      const activeDealCount = activeDeals.length;
+
+      // Need attention: not followed up OR stale (7+ days in same stage)
+      const needAttention = activeDeals.filter(d => 
+        !d.followed_up || new Date(d.stage_entered_at) < weekAgo
+      ).length;
+
+      // This week: created or updated in last 7 days
+      const thisWeek = activeDeals.filter(d => 
+        new Date(d.created_at) >= weekAgo || new Date(d.updated_at) >= weekAgo
+      ).length;
+
+      // Stale deals (7+ days, only active)
+      const staleDeals = activeDeals.filter(d => 
         new Date(d.stage_entered_at) < weekAgo
-      ).length || 0;
+      ).length;
+
+      // Needs follow-up (only active)
+      const needsFollowUp = activeDeals.filter(d => !d.followed_up).length;
 
       return {
-        totalDeals,
-        totalValue,
+        activeDeals: activeDealCount,
+        needAttention,
+        thisWeek,
+        staleDeals,
         needsFollowUp,
-        staleDeals: stale,
       };
     },
     staleTime: 1000 * 60 * 5, // 5 minutes

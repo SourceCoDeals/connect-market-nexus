@@ -23,17 +23,17 @@ function StatCard({ label, value, icon, trend, description }: StatCardProps) {
           <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
             {label}
           </span>
-          <div className="text-muted-foreground/40 group-hover:text-muted-foreground/60 transition-colors">
+          <div className="text-muted-foreground/30 group-hover:text-muted-foreground/50 transition-colors">
             {icon}
           </div>
         </div>
 
         {/* Main value */}
         <div className="flex items-baseline gap-3">
-          <span className="text-4xl font-semibold tracking-tight text-foreground">
+          <span className="text-3xl font-semibold tracking-tight text-foreground">
             {value}
           </span>
-          {trend && (
+          {trend && trend.value !== 0 && (
             <div className="flex items-center gap-1.5 text-sm">
               <span
                 className={cn(
@@ -51,7 +51,7 @@ function StatCard({ label, value, icon, trend, description }: StatCardProps) {
 
         {/* Description */}
         {description && (
-          <p className="text-xs text-muted-foreground/70">
+          <p className="text-xs text-muted-foreground/60 mt-1">
             {description}
           </p>
         )}
