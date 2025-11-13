@@ -398,6 +398,18 @@ export function useUpdateDealStage() {
         
         if (deal && deal.listing_id) {
           try {
+            // Get deal owner info
+            const { data: ownerData } = await supabase
+              .from('profiles')
+              .select('first_name, last_name, email')
+              .eq('id', deal.assigned_to)
+              .single();
+
+            const dealOwnerName = ownerData 
+              ? `${ownerData.first_name} ${ownerData.last_name}`.trim()
+              : undefined;
+            const dealOwnerEmail = ownerData?.email;
+
             const result = await supabase.functions.invoke('send-owner-intro-notification', {
               body: {
                 dealId: deal.deal_id,
@@ -406,7 +418,9 @@ export function useUpdateDealStage() {
                 buyerEmail: deal.buyer_email || deal.contact_email || '',
                 buyerCompany: deal.buyer_company || deal.contact_company,
                 dealValue: deal.deal_value,
-                dealTitle: deal.title
+                dealTitle: deal.title,
+                dealOwnerName,
+                dealOwnerEmail
               }
             });
             

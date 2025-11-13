@@ -14,6 +14,8 @@ interface OwnerIntroRequest {
   buyerCompany?: string;
   dealValue?: number;
   dealTitle: string;
+  dealOwnerName?: string;
+  dealOwnerEmail?: string;
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -29,7 +31,9 @@ const handler = async (req: Request): Promise<Response> => {
       buyerEmail,
       buyerCompany,
       dealValue,
-      dealTitle
+      dealTitle,
+      dealOwnerName,
+      dealOwnerEmail
     }: OwnerIntroRequest = await req.json();
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -81,79 +85,112 @@ const handler = async (req: Request): Promise<Response> => {
     const subject = `🤝 Owner Intro Requested: ${buyerName} → ${companyName}`;
     
     const htmlContent = `
-      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-        <div style="background: linear-gradient(135deg, #059669 0%, #047857 100%); color: white; padding: 30px; border-radius: 12px; margin-bottom: 20px;">
-          <h1 style="margin: 0; font-size: 24px; font-weight: 600;">Owner Introduction Requested</h1>
-          <p style="margin: 10px 0 0 0; opacity: 0.9;">A buyer is requesting to speak with the owner</p>
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <!-- Header -->
+        <div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); padding: 32px 24px; border-radius: 8px; margin-bottom: 24px;">
+          <div style="font-size: 11px; font-weight: 600; letter-spacing: 0.8px; color: #94a3b8; margin: 0 0 8px 0; text-transform: uppercase;">SOURCECO PIPELINE</div>
+          <h1 style="color: #ffffff; font-size: 24px; font-weight: 700; margin: 0; line-height: 1.3;">Owner Introduction Requested</h1>
+          <p style="color: #cbd5e1; font-size: 14px; margin: 8px 0 0 0;">A qualified buyer is ready to speak with the owner</p>
         </div>
         
-        <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 16px; border-radius: 4px; margin-bottom: 20px;">
-          <p style="margin: 0; color: #856404; font-weight: 500;">
-            Hi ${ownerName}, a qualified buyer is ready to speak with the owner of ${companyName}.
+        <!-- Alert Box -->
+        <div style="background: #fffbeb; border-left: 4px solid #d7b65c; padding: 16px 20px; border-radius: 4px; margin-bottom: 24px;">
+          <p style="margin: 0; color: #78350f; font-weight: 500; font-size: 14px;">
+            Hi ${ownerName}, ${buyerName} from ${buyerCompany || 'a qualified firm'} is ready to speak with the owner of ${companyName}.
           </p>
         </div>
 
-        <div style="background: #f8fafc; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
-          <h2 style="margin: 0 0 15px 0; color: #1e293b; font-size: 18px;">Buyer Details</h2>
+        <!-- Buyer Information -->
+        <div style="background: #f8fafc; padding: 24px; border-radius: 8px; margin-bottom: 24px; border: 1px solid #e2e8f0;">
+          <h2 style="margin: 0 0 16px 0; color: #0f172a; font-size: 16px; font-weight: 700;">Buyer Information</h2>
           
-          <table style="width: 100%; border-collapse: collapse;">
+          <table style="width: 100%; margin-bottom: 12px;">
             <tr>
-              <td style="padding: 8px 0; color: #475569; font-weight: 500;">Name:</td>
-              <td style="padding: 8px 0; color: #1e293b;">${buyerName}</td>
+              <td style="color: #64748b; font-size: 13px; font-weight: 500; padding-right: 16px; vertical-align: top; width: 120px;">Name</td>
+              <td style="color: #0f172a; font-size: 14px; font-weight: 600;">${buyerName}</td>
             </tr>
+          </table>
+
+          <table style="width: 100%; margin-bottom: 12px;">
             <tr>
-              <td style="padding: 8px 0; color: #475569; font-weight: 500;">Email:</td>
-              <td style="padding: 8px 0; color: #1e293b;">${buyerEmail}</td>
+              <td style="color: #64748b; font-size: 13px; font-weight: 500; padding-right: 16px; vertical-align: top; width: 120px;">Email</td>
+              <td style="color: #0f172a; font-size: 14px; font-weight: 600;">${buyerEmail}</td>
             </tr>
-            ${buyerCompany ? `
+          </table>
+
+          ${buyerCompany ? `
+          <table style="width: 100%; margin-bottom: 12px;">
             <tr>
-              <td style="padding: 8px 0; color: #475569; font-weight: 500;">Company:</td>
-              <td style="padding: 8px 0; color: #1e293b;">${buyerCompany}</td>
+              <td style="color: #64748b; font-size: 13px; font-weight: 500; padding-right: 16px; vertical-align: top; width: 120px;">Company</td>
+              <td style="color: #0f172a; font-size: 14px; font-weight: 600;">${buyerCompany}</td>
             </tr>
-            ` : ''}
+          </table>
+          ` : ''}
+
+          <table style="width: 100%; margin-bottom: 12px;">
             <tr>
-              <td style="padding: 8px 0; color: #475569; font-weight: 500;">Deal Value:</td>
-              <td style="padding: 8px 0; color: #1e293b;">${dealValueText}</td>
+              <td style="color: #64748b; font-size: 13px; font-weight: 500; padding-right: 16px; vertical-align: top; width: 120px;">Deal Value</td>
+              <td style="color: #0f172a; font-size: 14px; font-weight: 600;">${dealValueText}</td>
             </tr>
           </table>
         </div>
 
-        <div style="background: #f8fafc; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
-          <h2 style="margin: 0 0 15px 0; color: #1e293b; font-size: 18px;">Company Details</h2>
+        <!-- Company Information -->
+        <div style="background: #f8fafc; padding: 24px; border-radius: 8px; margin-bottom: 24px; border: 1px solid #e2e8f0;">
+          <h2 style="margin: 0 0 16px 0; color: #0f172a; font-size: 16px; font-weight: 700;">Company Details</h2>
           
-          <table style="width: 100%; border-collapse: collapse;">
+          <table style="width: 100%; margin-bottom: 12px;">
             <tr>
-              <td style="padding: 8px 0; color: #475569; font-weight: 500;">Listing Title:</td>
-              <td style="padding: 8px 0; color: #1e293b;">${listing.title}</td>
+              <td style="color: #64748b; font-size: 13px; font-weight: 500; padding-right: 16px; vertical-align: top; width: 120px;">Listing Title</td>
+              <td style="color: #0f172a; font-size: 14px; font-weight: 600;">${listing.title}</td>
             </tr>
-            ${companyName !== listing.title ? `
-            <tr>
-              <td style="padding: 8px 0; color: #475569; font-weight: 500;">Real Company Name:</td>
-              <td style="padding: 8px 0; color: #1e293b;">${companyName}</td>
-            </tr>
-            ` : ''}
           </table>
+
+          ${companyName !== listing.title ? `
+          <table style="width: 100%; margin-bottom: 12px;">
+            <tr>
+              <td style="color: #64748b; font-size: 13px; font-weight: 500; padding-right: 16px; vertical-align: top; width: 120px;">Real Company Name</td>
+              <td style="color: #0f172a; font-size: 14px; font-weight: 600;">${companyName}</td>
+            </tr>
+          </table>
+          ` : ''}
+
+          ${dealOwnerName ? `
+          <table style="width: 100%; margin-bottom: 12px;">
+            <tr>
+              <td style="color: #64748b; font-size: 13px; font-weight: 500; padding-right: 16px; vertical-align: top; width: 120px;">Deal Owner</td>
+              <td style="color: #0f172a; font-size: 14px; font-weight: 600;">
+                ${dealOwnerName}
+                ${dealOwnerEmail ? `<span style="color: #64748b; font-weight: 400;"> • ${dealOwnerEmail}</span>` : ''}
+              </td>
+            </tr>
+          </table>
+          ` : ''}
         </div>
 
-        <div style="text-align: center; margin: 30px 0;">
-          <a href="https://marketplace.sourcecodeals.com/admin/pipeline" 
-             style="background: #059669; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px; display: inline-block;">
+        <!-- CTA Button -->
+        <div style="text-align: center; margin-bottom: 32px;">
+          <a href="https://marketplace.sourcecodeals.com/admin/pipeline?deal=${dealId}" 
+             style="background-color: #d7b65c; color: #ffffff; font-size: 14px; font-weight: 600; text-decoration: none; text-align: center; display: inline-block; padding: 12px 32px; border-radius: 6px;">
             View Deal in Pipeline
           </a>
         </div>
 
-        <div style="background: #e0f2fe; padding: 16px; border-radius: 8px; border-left: 4px solid #0891b2;">
-          <h3 style="margin: 0 0 10px 0; color: #1e293b; font-size: 14px; font-weight: 600;">Next Steps:</h3>
-          <ul style="margin: 0; padding-left: 20px; color: #475569; font-size: 14px;">
+        <!-- Next Steps -->
+        <div style="background: #fffbeb; padding: 20px; border-radius: 8px; margin-bottom: 24px; border: 1px solid #fde68a;">
+          <h3 style="margin: 0 0 8px 0; color: #92400e; font-size: 14px; font-weight: 700;">Next Steps:</h3>
+          <ul style="margin: 0; padding-left: 20px; color: #78350f; font-size: 13px; line-height: 1.6;">
             <li>Review buyer's profile in the pipeline</li>
-            <li>Coordinate with the deal owner to arrange intro call</li>
+            <li>Coordinate with ${dealOwnerName || 'the deal owner'} to arrange intro call</li>
             <li>Prepare the owner for the conversation</li>
           </ul>
         </div>
 
-        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e2e8f0; color: #64748b; font-size: 12px; text-align: center;">
-          <p style="margin: 0;">This is an automated notification from SourceCo Marketplace</p>
-          <p style="margin: 5px 0 0 0;">Deal ID: ${dealId}</p>
+        <!-- Footer -->
+        <div style="color: #94a3b8; font-size: 12px; line-height: 20px; text-align: center; margin-top: 24px;">
+          This is an automated notification from SourceCo Pipeline
+          <br />
+          <span style="color: #cbd5e1; font-size: 11px;">Deal ID: ${dealId}</span>
         </div>
       </div>
     `;
