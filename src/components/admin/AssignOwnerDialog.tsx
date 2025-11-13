@@ -3,10 +3,9 @@ import { AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogFoo
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2 } from 'lucide-react';
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '@/integrations/supabase/client';
 
-const SUPABASE_URL = "https://vhzipqarkmmfuqadefep.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZoemlwcWFya21tZnVxYWRlZmVwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY2MTcxMTMsImV4cCI6MjA2MjE5MzExM30.M653TuQcthJx8vZW4jPkUTdB67D_Dm48ItLcu_XBh2g";
+// Using shared Supabase client from integrations
 
 interface AssignOwnerDialogProps {
   open: boolean;
@@ -25,8 +24,7 @@ export function AssignOwnerDialog({ open, onOpenChange, dealTitle, onConfirm }: 
   useEffect(() => {
     if (open) {
       setIsLoading(true);
-      const client = createClient(SUPABASE_URL, SUPABASE_KEY);
-      client.from('profiles').select('id, email, first_name, last_name').eq('is_admin', true).order('first_name').then((result: any) => {
+      supabase.from('profiles').select('id, email, first_name, last_name').eq('is_admin', true).order('first_name').then((result: any) => {
         if (result.data) setAdmins(result.data);
         setIsLoading(false);
       });
