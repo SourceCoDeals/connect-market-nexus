@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   DndContext,
   DragEndEvent,
@@ -18,6 +18,7 @@ import { PipelineKanbanCard } from './PipelineKanbanCard';
 import { PipelineKanbanCardOverlay } from './PipelineKanbanCardOverlay';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 interface PipelineKanbanViewProps {
   pipeline: ReturnType<typeof usePipelineCore>;
@@ -27,7 +28,15 @@ interface PipelineKanbanViewProps {
 export function PipelineKanbanView({ pipeline, onOpenCreateDeal }: PipelineKanbanViewProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [scrollPosition, setScrollPosition] = useState(0);
+  const [currentUserId, setCurrentUserId] = useState<string | undefined>();
   const updateDealStage = useUpdateDealStage();
+  
+  // Get current user ID
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      setCurrentUserId(data.user?.id);
+    });
+  }, []);
   
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -99,7 +108,8 @@ export function PipelineKanbanView({ pipeline, onOpenCreateDeal }: PipelineKanba
       dealId,
       stageId: destStageId,
       fromStage: deal.stage_name || undefined,
-      toStage: targetStage.name
+      toStage: targetStage.name,
+      currentAdminId: currentUserId
     });
     setActiveId(null);
   };

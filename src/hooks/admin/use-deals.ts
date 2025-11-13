@@ -49,10 +49,17 @@ export interface Deal {
   negative_followed_up_at?: string;
   negative_followed_up_by?: string;
   
-  // Assignment information
-  assigned_to?: string;
+  // Assignment information (Deal Owner)
+  assigned_to?: string; // Deal Owner ID
   assigned_admin_name?: string;
   assigned_admin_email?: string;
+  owner_assigned_at?: string;
+  owner_assigned_by?: string;
+  
+  // Primary Owner info (from listing)
+  primary_owner_id?: string;
+  primary_owner_name?: string;
+  primary_owner_email?: string;
   
   // Task counts
   total_tasks: number;
@@ -265,17 +272,20 @@ export function useUpdateDealStage() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async ({ dealId, stageId }: { 
+    mutationFn: async ({ dealId, stageId, currentAdminId }: { 
       dealId: string; 
       stageId: string;
       fromStage?: string;
       toStage?: string;
+      currentAdminId?: string;
     }) => {
-      console.log('[useUpdateDealStage] Calling RPC with:', { dealId, stageId });
-      // Use atomic RPC function for stage move
-      const { data, error } = await supabase.rpc('move_deal_stage', {
-        deal_id: dealId,
-        new_stage_id: stageId
+      console.log('[useUpdateDealStage] Calling RPC with:', { dealId, stageId, currentAdminId });
+      
+      // Use new RPC function with ownership logic
+      const { data, error } = await supabase.rpc('move_deal_stage_with_ownership', {
+        p_deal_id: dealId,
+        p_new_stage_id: stageId,
+        p_current_admin_id: currentAdminId
       });
       
       console.log('[useUpdateDealStage] RPC result:', { data, error: error?.message });
@@ -298,13 +308,65 @@ export function useUpdateDealStage() {
       }
       return { previousDeals };
     },
-    onSuccess: () => {
+    onSuccess: async (data: any, variables) => {
+      // Handle ownership assignment notifications
+      if (data?.owner_assigned) {
+        toast({
+          title: 'Deal Assigned',
+          description: 'You have been assigned as the owner of this deal.',
+        });
+      }
+      
+      if (data?.different_owner_warning) {
+        toast({
+          title: 'Different Owner',
+          description: `This deal is owned by ${data.previous_owner_name || 'another admin'}. They will be notified of this change.`,
+          variant: 'default',
+        });
+      }
+      
+      // Check if moved to "Owner intro requested" stage and trigger email
+      const newStageName = data?.new_stage_name;
+      if (newStageName === 'Owner intro requested') {
+        const deals = queryClient.getQueryData<Deal[]>(['deals']);
+        const deal = deals?.find(d => d.deal_id === variables.dealId);
+        
+        if (deal && deal.listing_id) {
+          try {
+            const result = await supabase.functions.invoke('send-owner-intro-notification', {
+              body: {
+                dealId: deal.deal_id,
+                listingId: deal.listing_id,
+                buyerName: deal.buyer_name || deal.contact_name || 'Unknown',
+                buyerEmail: deal.buyer_email || deal.contact_email || '',
+                buyerCompany: deal.buyer_company || deal.contact_company,
+                dealValue: deal.deal_value,
+                dealTitle: deal.title
+              }
+            });
+            
+            if (result.data?.success) {
+              toast({
+                title: 'Owner Notified',
+                description: 'The primary owner has been notified of this intro request.',
+              });
+            }
+          } catch (error) {
+            console.error('Failed to send owner intro notification:', error);
+            // Don't fail the stage move, just log
+          }
+        }
+      }
+      
       queryClient.invalidateQueries({ queryKey: ['deals'] });
       queryClient.invalidateQueries({ queryKey: ['deal-activities'] });
-      toast({
-        title: 'Deal Updated',
-        description: 'Deal stage has been updated successfully.',
-      });
+      
+      if (!data?.owner_assigned && !data?.different_owner_warning) {
+        toast({
+          title: 'Deal Updated',
+          description: 'Deal stage has been updated successfully.',
+        });
+      }
     },
     onError: (error, _vars, context) => {
       if (context?.previousDeals) {

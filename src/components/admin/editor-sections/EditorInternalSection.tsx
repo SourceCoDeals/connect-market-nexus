@@ -2,6 +2,7 @@ import { useState } from "react";
 import { FormField, FormItem, FormLabel, FormControl, FormMessage, FormDescription } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Shield, Building, User, Link as LinkIcon, FileText, Clipboard, ChevronDown } from "lucide-react";
 import { UseFormReturn } from "react-hook-form";
 import { processUrl, isValidUrlFormat } from "@/lib/url-utils";
@@ -9,6 +10,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
+import { useSourceCoAdmins } from "@/hooks/admin/use-source-co-admins";
 
 interface EditorInternalSectionProps {
   form: UseFormReturn<any>;
@@ -17,6 +19,7 @@ interface EditorInternalSectionProps {
 
 export function EditorInternalSection({ form, dealIdentifier }: EditorInternalSectionProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const { data: sourceCoAdmins, isLoading: loadingAdmins } = useSourceCoAdmins();
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
@@ -98,22 +101,33 @@ export function EditorInternalSection({ form, dealIdentifier }: EditorInternalSe
 
                 <FormField
                   control={form.control}
-                  name="internal_primary_owner"
+                  name="primary_owner_id"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel className="flex items-center gap-2">
                         <User className="h-4 w-4" />
                         Primary Owner/Lead
                       </FormLabel>
-                      <FormControl>
-                        <Input 
-                          placeholder="e.g., John Smith"
-                          {...field}
-                          className="bg-background border-border"
-                        />
-                      </FormControl>
+                      <Select 
+                        onValueChange={field.onChange} 
+                        value={field.value || undefined}
+                        disabled={loadingAdmins}
+                      >
+                        <FormControl>
+                          <SelectTrigger className="bg-background border-border">
+                            <SelectValue placeholder={loadingAdmins ? "Loading team members..." : "Select team member..."} />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {sourceCoAdmins?.map((admin) => (
+                            <SelectItem key={admin.id} value={admin.id}>
+                              {admin.displayName} ({admin.email})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <FormDescription>
-                        Team member responsible for this deal
+                        SourceCo/CapTarget employee who owns the relationship with the business owner
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
