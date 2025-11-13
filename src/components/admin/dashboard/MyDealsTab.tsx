@@ -59,7 +59,11 @@ export function MyDealsTab() {
       case 'stale':
         const weekAgo = new Date();
         weekAgo.setDate(weekAgo.getDate() - 7);
-        filtered = filtered.filter(d => new Date(d.stage_entered_at) < weekAgo);
+        const terminalStages = ['Closed Won', 'Closed Lost'];
+        filtered = filtered.filter(d => {
+          const isTerminal = d.stage && terminalStages.includes(d.stage.name);
+          return !isTerminal && new Date(d.stage_entered_at) < weekAgo;
+        });
         break;
       case 'high-value':
         const avgValue = deals.reduce((sum, d) => sum + (Number(d.value) || 0), 0) / deals.length;
@@ -76,11 +80,14 @@ export function MyDealsTab() {
         filtered.sort((a, b) => (Number(b.value) || 0) - (Number(a.value) || 0));
         break;
       case 'urgency':
-        const weekAgo = new Date();
-        weekAgo.setDate(weekAgo.getDate() - 7);
+        const weekAgoUrgency = new Date();
+        weekAgoUrgency.setDate(weekAgoUrgency.getDate() - 7);
+        const terminalStagesUrgency = ['Closed Won', 'Closed Lost'];
         filtered.sort((a, b) => {
-          const aStale = new Date(a.stage_entered_at) < weekAgo ? 1 : 0;
-          const bStale = new Date(b.stage_entered_at) < weekAgo ? 1 : 0;
+          const aIsTerminal = a.stage && terminalStagesUrgency.includes(a.stage.name);
+          const bIsTerminal = b.stage && terminalStagesUrgency.includes(b.stage.name);
+          const aStale = !aIsTerminal && new Date(a.stage_entered_at) < weekAgoUrgency ? 1 : 0;
+          const bStale = !bIsTerminal && new Date(b.stage_entered_at) < weekAgoUrgency ? 1 : 0;
           const aFollowUp = !a.followed_up ? 1 : 0;
           const bFollowUp = !b.followed_up ? 1 : 0;
           return (bStale + bFollowUp) - (aStale + aFollowUp);

@@ -33,8 +33,14 @@ interface EnhancedDealCardProps {
 }
 
 export function EnhancedDealCard({ deal, onDealClick }: EnhancedDealCardProps) {
-  // Calculate if deal is stale (7+ days in same stage)
+  // Calculate if deal is stale (7+ days in same stage, excluding terminal stages)
   const isStale = () => {
+    // Don't mark terminal stages as stale
+    const terminalStages = ['Closed Won', 'Closed Lost'];
+    if (deal.stage && terminalStages.includes(deal.stage.name)) {
+      return false;
+    }
+    
     const weekAgo = new Date();
     weekAgo.setDate(weekAgo.getDate() - 7);
     return new Date(deal.stage_entered_at) < weekAgo;
@@ -92,12 +98,12 @@ export function EnhancedDealCard({ deal, onDealClick }: EnhancedDealCardProps) {
       </div>
 
       {/* Deal Title and Company */}
-      <div className="mb-4">
-        <h3 className="font-semibold text-base mb-1 group-hover:text-primary transition-colors line-clamp-1">
+      <div className="mb-5">
+        <h3 className="font-semibold text-lg mb-1.5 group-hover:text-primary transition-colors line-clamp-1">
           {deal.title || deal.listing?.title || 'Untitled Deal'}
         </h3>
         {deal.contact_name && (
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-muted-foreground/80">
             {deal.contact_name}
             {deal.contact_email && (
               <span className="text-muted-foreground/60"> • {deal.contact_email}</span>
@@ -106,27 +112,24 @@ export function EnhancedDealCard({ deal, onDealClick }: EnhancedDealCardProps) {
         )}
       </div>
 
-      {/* Divider */}
-      <div className="border-t border-border/30 my-4" />
-
       {/* Key Metrics */}
-      <div className="grid grid-cols-3 gap-3 mb-4">
-        <div className="flex items-center gap-2">
-          <DollarSign className="h-4 w-4 text-muted-foreground/60" />
-          <div>
-            <p className="text-xs text-muted-foreground">Value</p>
-            <p className="text-sm font-semibold">
+      <div className="grid grid-cols-3 gap-4 mb-5">
+        <div className="flex items-start gap-2">
+          <DollarSign className="h-4 w-4 text-muted-foreground/50 mt-0.5" />
+          <div className="min-w-0">
+            <p className="text-xs text-muted-foreground/70 mb-0.5">Value</p>
+            <p className="text-base font-semibold text-foreground">
               {formatCompactCurrency(Number(deal.value) || 0)}
             </p>
           </div>
         </div>
 
         {deal.close_date && (
-          <div className="flex items-center gap-2">
-            <Calendar className="h-4 w-4 text-muted-foreground/60" />
-            <div>
-              <p className="text-xs text-muted-foreground">Closes</p>
-              <p className="text-sm font-semibold">
+          <div className="flex items-start gap-2">
+            <Calendar className="h-4 w-4 text-muted-foreground/50 mt-0.5" />
+            <div className="min-w-0">
+              <p className="text-xs text-muted-foreground/70 mb-0.5">Closes</p>
+              <p className="text-base font-semibold text-foreground">
                 {new Date(deal.close_date).toLocaleDateString('en-US', { 
                   month: 'short', 
                   day: 'numeric' 
@@ -136,11 +139,11 @@ export function EnhancedDealCard({ deal, onDealClick }: EnhancedDealCardProps) {
           </div>
         )}
 
-        <div className="flex items-center gap-2">
-          <Clock className="h-4 w-4 text-muted-foreground/60" />
-          <div>
-            <p className="text-xs text-muted-foreground">Updated</p>
-            <p className="text-sm font-semibold">
+        <div className="flex items-start gap-2">
+          <Clock className="h-4 w-4 text-muted-foreground/50 mt-0.5" />
+          <div className="min-w-0">
+            <p className="text-xs text-muted-foreground/70 mb-0.5">Updated</p>
+            <p className="text-base font-semibold text-foreground">
               {getRelativeTime(deal.updated_at)}
             </p>
           </div>
@@ -148,32 +151,32 @@ export function EnhancedDealCard({ deal, onDealClick }: EnhancedDealCardProps) {
       </div>
 
       {/* Progress Bar */}
-      <div className="mb-4">
+      <div className="mb-5">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-xs text-muted-foreground">Stage Progress</span>
-          <span className="text-xs font-medium">{progress}%</span>
+          <span className="text-xs text-muted-foreground/70">Stage Progress</span>
+          <span className="text-xs font-medium text-foreground">{progress}%</span>
         </div>
-        <Progress value={progress} className="h-1.5" />
+        <Progress value={progress} className="h-2" />
       </div>
 
       {/* Quick Action Indicators */}
-      <div className="flex items-center gap-3 text-xs">
+      <div className="flex items-center gap-4 text-xs">
         {deal.followed_up ? (
-          <div className="flex items-center gap-1.5 text-green-600 dark:text-green-400">
-            <CheckCircle2 className="h-3.5 w-3.5" />
-            <span>Followed up</span>
+          <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
+            <CheckCircle2 className="h-4 w-4" />
+            <span className="font-medium">Followed up</span>
           </div>
         ) : (
           <div className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400">
-            <AlertCircle className="h-3.5 w-3.5" />
-            <span>Needs follow-up</span>
+            <AlertCircle className="h-4 w-4" />
+            <span className="font-medium">Needs follow-up</span>
           </div>
         )}
         
         {isStale() && (
-          <div className="flex items-center gap-1.5 text-red-600 dark:text-red-400">
-            <Clock className="h-3.5 w-3.5" />
-            <span>Stale (7+ days)</span>
+          <div className="flex items-center gap-1.5 text-destructive">
+            <Clock className="h-4 w-4" />
+            <span className="font-medium">Stale (7+ days)</span>
           </div>
         )}
       </div>
