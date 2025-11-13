@@ -459,13 +459,66 @@ export function useUpdateDeal() {
 
   return useMutation({
     mutationFn: async ({ dealId, updates }: { dealId: string; updates: any }) => {
-      // Sanitize updates: strip undefined, convert 'undefined' or empty string for UUIDs to null
+      // Read-only fields that should never be updated (they come from joins/computed)
+      const readOnlyFields = [
+        'listing_real_company_name',
+        'real_company_name',
+        'listing_title',
+        'listing_revenue',
+        'listing_ebitda',
+        'listing_location',
+        'listing_category',
+        'stage_name',
+        'stage_color',
+        'stage_position',
+        'assigned_admin_name',
+        'assigned_admin_email',
+        'primary_owner_name',
+        'primary_owner_email',
+        'buyer_name',
+        'buyer_email',
+        'buyer_company',
+        'buyer_type',
+        'buyer_phone',
+        'buyer_id',
+        'total_tasks',
+        'pending_tasks',
+        'completed_tasks',
+        'pending_tasks_count',
+        'completed_tasks_count',
+        'activity_count',
+        'total_activities_count',
+        'company_deal_count',
+        'listing_deal_count',
+        'buyer_connection_count',
+        'buyer_priority_score',
+        'deal_id',
+        'deal_description',
+        'deal_value',
+        'deal_priority',
+        'deal_probability',
+        'deal_expected_close_date',
+        'deal_source',
+        'deal_created_at',
+        'deal_updated_at',
+        'deal_stage_entered_at',
+        'deal_followed_up',
+        'deal_followed_up_at',
+        'deal_followed_up_by',
+        'deal_negative_followed_up',
+        'deal_negative_followed_up_at',
+        'deal_negative_followed_up_by'
+      ];
+
+      // Sanitize updates: strip undefined, read-only fields, convert 'undefined' or empty string for UUIDs to null
       const safeUpdates = Object.fromEntries(
-        Object.entries(updates || {}).filter(([, v]) => v !== undefined).map(([k, v]) => {
-          if (v === 'undefined') return [k, null];
-          if (k === 'assigned_to' && (v === '' || v === undefined || v === 'unassigned')) return [k, null];
-          return [k, v];
-        })
+        Object.entries(updates || {})
+          .filter(([key, v]) => v !== undefined && !readOnlyFields.includes(key))
+          .map(([k, v]) => {
+            if (v === 'undefined') return [k, null];
+            if (k === 'assigned_to' && (v === '' || v === undefined || v === 'unassigned')) return [k, null];
+            return [k, v];
+          })
       );
 
       const { data, error } = await supabase
