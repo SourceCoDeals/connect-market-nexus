@@ -432,13 +432,18 @@ export function useUpdateDealStage() {
         });
       }
     },
-    onError: (error, _vars, context) => {
+    onError: (error: any, _vars, context) => {
+      // Don't show error toast for OWNER_WARNING - that's handled by the dialog
+      if (error?.type === 'OWNER_WARNING') {
+        return;
+      }
+      
       if (context?.previousDeals) {
         queryClient.setQueryData(['deals'], context.previousDeals);
       }
       toast({
         title: 'Error',
-        description: `Failed to update deal stage: ${error.message}`,
+        description: `Failed to update deal stage: ${error?.message || 'Unknown error'}`,
         variant: 'destructive',
       });
     },
@@ -519,7 +524,7 @@ export function useUpdateDeal() {
         description: 'Deal has been updated successfully.',
       });
     },
-    onError: (error, _, context) => {
+    onError: (error: any, _, context) => {
       // Rollback on error
       if (context?.previousDeals) {
         queryClient.setQueryData(['deals'], context.previousDeals);
@@ -527,7 +532,7 @@ export function useUpdateDeal() {
       
       toast({
         title: 'Error',
-        description: `Failed to update deal: ${error.message}`,
+        description: `Failed to update deal: ${error?.message || 'Unknown error'}`,
         variant: 'destructive',
       });
     },
