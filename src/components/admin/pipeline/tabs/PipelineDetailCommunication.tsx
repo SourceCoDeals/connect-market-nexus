@@ -48,7 +48,7 @@ export function PipelineDetailCommunication({ deal }: PipelineDetailCommunicatio
 
       const { data: allDeals } = await supabase
         .from('deals')
-        .select('id, title, listing_title, listing_real_company_name, stage_id, followed_up')
+        .select('id, title, stage_id, followed_up')
         .eq('contact_email', deal.contact_email)
         .neq('id', deal.deal_id);
 
@@ -263,7 +263,7 @@ export function PipelineDetailCommunication({ deal }: PipelineDetailCommunicatio
                         htmlFor={`deal-${otherDeal.id}`}
                         className="text-sm text-foreground cursor-pointer flex items-center gap-2"
                       >
-                        {otherDeal.listing_real_company_name || otherDeal.listing_title || otherDeal.title}
+                        {otherDeal.title}
                         {otherDeal.followed_up && (
                           <Badge variant="outline" className="text-xs">
                             <CheckCheck className="h-3 w-3 mr-1" />

@@ -466,7 +466,7 @@ export function useUpdateDeal() {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) throw new Error('Not authenticated');
 
-        const { data, error } = await supabase.rpc('update_deal_owner', {
+        const { data, error } = await (supabase as any).rpc('update_deal_owner', {
           p_deal_id: dealId,
           p_assigned_to: updates.assigned_to === 'unassigned' || updates.assigned_to === '' ? null : updates.assigned_to,
           p_actor_id: user.id
