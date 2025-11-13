@@ -12,6 +12,7 @@ import { BulkDealImportDialog } from '@/components/admin/BulkDealImportDialog';
 import { ManualUndoImportDialog } from '@/components/admin/ManualUndoImportDialog';
 import { useBulkDealImport } from '@/hooks/admin/use-bulk-deal-import';
 import { useNotificationEmailSender } from '@/hooks/admin/use-notification-email-sender';
+import { useDealOwnerNotifications } from '@/hooks/admin/use-deal-owner-notifications';
 
 
 
@@ -26,6 +27,9 @@ export function PipelineShell() {
   
   // Automatically send emails for pending notifications
   useNotificationEmailSender();
+  
+  // Listen for deal owner assignment/reassignment and send email notifications
+  useDealOwnerNotifications();
 
   const handleOpenCreateDeal = (stageId?: string) => {
     setPrefilledStageId(stageId);
