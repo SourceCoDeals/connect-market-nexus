@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { Deal } from './use-deals';
 import { useMarketplaceCompanies } from './use-marketplace-companies';
 
-export type DealStatusFilter = 'all' | 'new_inquiry' | 'info_sent' | 'buyer_seller_call' | 'due_diligence' | 'loi_submitted' | 'closed';
+export type DealStatusFilter = 'all' | 'active_only' | 'closed_won' | 'closed_lost' | 'closed' | string;
 export type BuyerTypeFilter = 'all' | 'privateEquity' | 'familyOffice' | 'searchFund' | 'corporate' | 'individual' | 'independentSponsor' | 'advisor' | 'businessOwner';
 export type ListingFilter = 'all' | string;
 export type CompanyFilter = string[]; // Changed to array for multiselect
@@ -46,27 +46,20 @@ export function useDealFilters(deals: Deal[], currentAdminId?: string) {
       );
     }
 
-    // Status filter - updated for new stages
+    // Status filter - dynamic stage filtering
     if (statusFilter !== 'all') {
-      switch (statusFilter) {
-        case 'new_inquiry':
-          filtered = filtered.filter(d => d.stage_name === 'New Inquiry');
-          break;
-        case 'info_sent':
-          filtered = filtered.filter(d => d.stage_name === 'Info Sent');
-          break;
-        case 'buyer_seller_call':
-          filtered = filtered.filter(d => d.stage_name === 'Buyer/Seller Call');
-          break;
-        case 'due_diligence':
-          filtered = filtered.filter(d => d.stage_name === 'Due Diligence');
-          break;
-        case 'loi_submitted':
-          filtered = filtered.filter(d => d.stage_name === 'LOI Submitted');
-          break;
-        case 'closed':
-          filtered = filtered.filter(d => d.stage_name && ['Closed Won', 'Closed Lost'].includes(d.stage_name));
-          break;
+      if (statusFilter === 'active_only') {
+        // Show all stages except closed
+        filtered = filtered.filter(d => d.stage_name && !['Closed Won', 'Closed Lost'].includes(d.stage_name));
+      } else if (statusFilter === 'closed_won') {
+        filtered = filtered.filter(d => d.stage_name === 'Closed Won');
+      } else if (statusFilter === 'closed_lost') {
+        filtered = filtered.filter(d => d.stage_name === 'Closed Lost');
+      } else if (statusFilter === 'closed') {
+        filtered = filtered.filter(d => d.stage_name && ['Closed Won', 'Closed Lost'].includes(d.stage_name));
+      } else {
+        // Filter by stage ID (for dynamic stages)
+        filtered = filtered.filter(d => d.stage_id === statusFilter);
       }
     }
 

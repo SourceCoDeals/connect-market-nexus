@@ -185,7 +185,7 @@ export function EnhancedDealsKanbanBoard({ onCreateDeal, onManageStages, onDealC
         <DealFilters
           deals={deals || []}
           searchQuery={searchQuery}
-          statusFilter={statusFilter}
+          statusFilter={statusFilter as any}
           buyerTypeFilter={buyerTypeFilter}
           listingFilter={listingFilter}
           adminFilter={adminFilter}

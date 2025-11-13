@@ -194,35 +194,110 @@ export function PipelineFilterPanel({ pipeline }: PipelineFilterPanelProps) {
                 <AccordionTrigger className="text-sm font-medium hover:no-underline py-3">
                   <div className="flex items-center gap-2">
                     <Target className="h-4 w-4" />
-                    Stage
+                    Deal Stage
                   </div>
                 </AccordionTrigger>
                 <AccordionContent className="pb-4">
                   <div className="space-y-2">
-                    {[
-                      { value: 'all', label: 'All Stages', icon: Target },
-                      { value: 'new_inquiry', label: 'New Inquiry', icon: Clock },
-                      { value: 'approved', label: 'Approved', icon: CheckCircle2 },
-                      { value: 'info_sent', label: 'Info Sent', icon: FileText },
-                      { value: 'buyer_seller_call', label: 'Buyer/Seller Call', icon: Users },
-                      { value: 'due_diligence', label: 'Due Diligence', icon: ShieldCheck },
-                      { value: 'loi_submitted', label: 'LOI Submitted', icon: FileText },
-                      { value: 'closed', label: 'Closed', icon: XCircle },
-                    ].map((status) => {
-                      const Icon = status.icon;
-                      return (
-                        <Button
-                          key={status.value}
-                          variant={pipeline.statusFilter === status.value ? 'default' : 'outline'}
-                          size="sm"
-                          className="w-full justify-start"
-                          onClick={() => pipeline.setStatusFilter(status.value as any)}
-                        >
-                          <Icon className="h-4 w-4 mr-2" />
-                          {status.label}
-                        </Button>
-                      );
-                    })}
+                    {/* All Stages */}
+                    <Button
+                      variant={pipeline.statusFilter === 'all' ? 'default' : 'outline'}
+                      size="sm"
+                      className="w-full justify-start"
+                      onClick={() => pipeline.setStatusFilter('all')}
+                    >
+                      <Target className="h-4 w-4 mr-2" />
+                      <span className="flex-1 text-left">All Stages</span>
+                      <Badge variant="secondary" className="ml-auto">
+                        {pipeline.deals.length}
+                      </Badge>
+                    </Button>
+
+                    {/* Active Only */}
+                    <Button
+                      variant={pipeline.statusFilter === 'active_only' ? 'default' : 'outline'}
+                      size="sm"
+                      className="w-full justify-start"
+                      onClick={() => pipeline.setStatusFilter('active_only')}
+                    >
+                      <CheckCircle2 className="h-4 w-4 mr-2" />
+                      <span className="flex-1 text-left">Active Only</span>
+                      <Badge variant="secondary" className="ml-auto">
+                        {pipeline.deals.filter(d => !['Closed Won', 'Closed Lost'].includes(d.stage_name || '')).length}
+                      </Badge>
+                    </Button>
+
+                    <Separator className="my-2" />
+
+                    {/* Dynamic stages from database (active stages only) */}
+                    {pipeline.stages
+                      .filter(stage => stage.is_active && (stage.stage_type === 'active' || !stage.stage_type))
+                      .map((stage) => {
+                        const stageDeals = pipeline.deals.filter(d => d.stage_id === stage.id);
+                        
+                        return (
+                          <Button
+                            key={stage.id}
+                            variant={pipeline.statusFilter === stage.id ? 'default' : 'outline'}
+                            size="sm"
+                            className="w-full justify-start gap-2"
+                            onClick={() => pipeline.setStatusFilter(stage.id)}
+                          >
+                            <div 
+                              className="w-2 h-2 rounded-full flex-shrink-0" 
+                              style={{ backgroundColor: stage.color }}
+                            />
+                            <span className="flex-1 text-left">{stage.name}</span>
+                            <Badge variant="secondary" className="ml-auto">
+                              {stageDeals.length}
+                            </Badge>
+                          </Button>
+                        );
+                      })}
+
+                    <Separator className="my-2" />
+
+                    {/* Closed Won */}
+                    <Button
+                      variant={pipeline.statusFilter === 'closed_won' ? 'default' : 'outline'}
+                      size="sm"
+                      className="w-full justify-start gap-2"
+                      onClick={() => pipeline.setStatusFilter('closed_won')}
+                    >
+                      <div className="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0" />
+                      <span className="flex-1 text-left">Closed Won</span>
+                      <Badge variant="secondary" className="ml-auto">
+                        {pipeline.deals.filter(d => d.stage_name === 'Closed Won').length}
+                      </Badge>
+                    </Button>
+
+                    {/* Closed Lost */}
+                    <Button
+                      variant={pipeline.statusFilter === 'closed_lost' ? 'default' : 'outline'}
+                      size="sm"
+                      className="w-full justify-start gap-2"
+                      onClick={() => pipeline.setStatusFilter('closed_lost')}
+                    >
+                      <div className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0" />
+                      <span className="flex-1 text-left">Closed Lost</span>
+                      <Badge variant="secondary" className="ml-auto">
+                        {pipeline.deals.filter(d => d.stage_name === 'Closed Lost').length}
+                      </Badge>
+                    </Button>
+
+                    {/* Closed (All) */}
+                    <Button
+                      variant={pipeline.statusFilter === 'closed' ? 'default' : 'outline'}
+                      size="sm"
+                      className="w-full justify-start gap-2"
+                      onClick={() => pipeline.setStatusFilter('closed')}
+                    >
+                      <XCircle className="h-4 w-4 mr-2" />
+                      <span className="flex-1 text-left">Closed (All)</span>
+                      <Badge variant="secondary" className="ml-auto">
+                        {pipeline.deals.filter(d => ['Closed Won', 'Closed Lost'].includes(d.stage_name || '')).length}
+                      </Badge>
+                    </Button>
                   </div>
                 </AccordionContent>
               </AccordionItem>
