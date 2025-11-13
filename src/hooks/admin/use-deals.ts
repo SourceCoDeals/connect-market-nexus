@@ -521,14 +521,21 @@ export function useUpdateDeal() {
           })
       );
 
+      console.log('[useUpdateDeal] Incoming updates:', updates);
+      console.log('[useUpdateDeal] Safe updates after filtering:', safeUpdates);
+
+      // Only select columns that actually exist in the deals table (not computed/joined fields)
       const { data, error } = await supabase
         .from('deals')
         .update(safeUpdates)
         .eq('id', dealId)
-        .select()
+        .select('id, assigned_to, stage_id, updated_at, nda_status, fee_agreement_status, followed_up, negative_followed_up')
         .single();
       
-      if (error) throw error;
+      if (error) {
+        console.error('[useUpdateDeal] Update error:', error);
+        throw error;
+      }
       return data;
     },
     onMutate: async ({ dealId, updates }) => {
