@@ -58,6 +58,22 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
+    // Get deal with listing details to show real company name
+    const { data: dealData } = await supabase
+      .from('deals')
+      .select(`
+        id,
+        title,
+        listing:listings(
+          title,
+          internal_company_name
+        )
+      `)
+      .eq('id', dealId)
+      .single();
+
+    const companyName = dealData?.listing?.internal_company_name || listingTitle || dealData?.listing?.title || 'Unknown Company';
+
     // Get modifying admin's email
     const { data: modifyingAdmin, error: adminError } = await supabase
       .from('profiles')
@@ -68,56 +84,79 @@ const handler = async (req: Request): Promise<Response> => {
     const subject = `🔔 Deal Update: ${modifyingAdminName} modified your deal`;
     
     const htmlContent = `
-      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-        <div style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; padding: 30px; border-radius: 12px; margin-bottom: 20px;">
-          <h1 style="margin: 0; font-size: 24px; font-weight: 600;">Deal Modified by Another Admin</h1>
-          <p style="margin: 10px 0 0 0; opacity: 0.9;">FYI: A deal you own has been updated</p>
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background: #ffffff;">
+        <!-- SourceCo Header -->
+        <div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: white; padding: 32px 24px; border-radius: 8px; margin-bottom: 24px;">
+          <div style="font-size: 13px; font-weight: 600; letter-spacing: 0.5px; color: #94a3b8; margin-bottom: 8px;">SOURCECO PIPELINE</div>
+          <h1 style="margin: 0; font-size: 24px; font-weight: 700; line-height: 1.3;">Deal Modified by Another Admin</h1>
+          <p style="margin: 8px 0 0 0; color: #cbd5e1; font-size: 14px;">FYI: A deal you own has been updated</p>
         </div>
         
-        <div style="background: #e0f2fe; border-left: 4px solid #0284c7; padding: 16px; border-radius: 4px; margin-bottom: 20px;">
-          <p style="margin: 0; color: #0c4a6e; font-weight: 500;">
+        <!-- Alert Box -->
+        <div style="background: #eff6ff; border-left: 4px solid #3b82f6; padding: 16px 20px; border-radius: 4px; margin-bottom: 24px;">
+          <p style="margin: 0; color: #1e40af; font-weight: 500; font-size: 14px;">
             Hi ${previousOwnerName}, ${modifyingAdminName} has made changes to a deal you own.
           </p>
         </div>
 
-        <div style="background: #f8fafc; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
-          <h2 style="margin: 0 0 15px 0; color: #1e293b; font-size: 18px;">Deal Information</h2>
+        <!-- Deal Information Card -->
+        <div style="background: #f8fafc; padding: 24px; border-radius: 8px; margin-bottom: 24px; border: 1px solid #e2e8f0;">
+          <h2 style="margin: 0 0 20px 0; color: #0f172a; font-size: 16px; font-weight: 700;">Deal Information</h2>
           
           <table style="width: 100%; border-collapse: collapse;">
             <tr>
-              <td style="padding: 8px 0; color: #475569; font-weight: 500;">Deal Title:</td>
-              <td style="padding: 8px 0; color: #1e293b;">${dealTitle}</td>
+              <td style="padding: 12px 0; color: #64748b; font-weight: 600; font-size: 13px; width: 140px;">Company:</td>
+              <td style="padding: 12px 0; color: #0f172a; font-size: 14px; font-weight: 600;">${companyName}</td>
             </tr>
-            ${listingTitle ? `
-            <tr>
-              <td style="padding: 8px 0; color: #475569; font-weight: 500;">Listing:</td>
-              <td style="padding: 8px 0; color: #1e293b;">${listingTitle}</td>
+            <tr style="border-top: 1px solid #e2e8f0;">
+              <td style="padding: 12px 0; color: #64748b; font-weight: 600; font-size: 13px;">Contact:</td>
+              <td style="padding: 12px 0; color: #0f172a; font-size: 14px;">${dealTitle}</td>
+            </tr>
+            ${listingTitle && listingTitle !== companyName ? `
+            <tr style="border-top: 1px solid #e2e8f0;">
+              <td style="padding: 12px 0; color: #64748b; font-weight: 600; font-size: 13px;">Listing:</td>
+              <td style="padding: 12px 0; color: #0f172a; font-size: 14px;">${listingTitle}</td>
             </tr>
             ` : ''}
-            <tr>
-              <td style="padding: 8px 0; color: #475569; font-weight: 500;">Modified By:</td>
-              <td style="padding: 8px 0; color: #1e293b;">${modifyingAdminName} ${modifyingAdmin ? `(${modifyingAdmin.email})` : ''}</td>
+            <tr style="border-top: 1px solid #e2e8f0;">
+              <td style="padding: 12px 0; color: #64748b; font-weight: 600; font-size: 13px;">Modified By:</td>
+              <td style="padding: 12px 0; color: #0f172a; font-size: 14px;">${modifyingAdminName} ${modifyingAdmin ? `<span style="color: #64748b;">(${modifyingAdmin.email})</span>` : ''}</td>
             </tr>
-            <tr>
-              <td style="padding: 8px 0; color: #475569; font-weight: 500;">Stage Change:</td>
-              <td style="padding: 8px 0; color: #1e293b;">
-                <span style="background: #f1f5f9; padding: 4px 8px; border-radius: 4px; margin-right: 4px;">${oldStageName}</span>
-                →
-                <span style="background: #dbeafe; padding: 4px 8px; border-radius: 4px; margin-left: 4px;">${newStageName}</span>
+            <tr style="border-top: 1px solid #e2e8f0;">
+              <td style="padding: 12px 0; color: #64748b; font-weight: 600; font-size: 13px;">Stage Change:</td>
+              <td style="padding: 12px 0; color: #0f172a; font-size: 14px;">
+                <span style="background: #e2e8f0; padding: 6px 12px; border-radius: 6px; margin-right: 6px; font-weight: 500; font-size: 13px;">${oldStageName}</span>
+                <span style="color: #64748b;">→</span>
+                <span style="background: #dbeafe; color: #1e40af; padding: 6px 12px; border-radius: 6px; margin-left: 6px; font-weight: 600; font-size: 13px;">${newStageName}</span>
               </td>
             </tr>
           </table>
         </div>
 
-        <div style="text-align: center; margin: 30px 0;">
-          <a href="https://marketplace.sourcecodeals.com/admin/pipeline" 
-             style="background: #3b82f6; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px; display: inline-block;">
-            View Deal in Pipeline
+        <!-- CTA Button -->
+        <div style="text-align: center; margin: 32px 0;">
+          <a href="https://marketplace.sourcecodeals.com/admin/pipeline?deal=${dealId}" 
+             style="background: #3b82f6; color: white; padding: 16px 32px; text-decoration: none; border-radius: 8px; font-weight: 700; font-size: 15px; display: inline-block; box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.3);">
+            View Deal Details →
           </a>
         </div>
 
-        <div style="background: #fef3c7; padding: 16px; border-radius: 8px; border-left: 4px solid #f59e0b;">
-          <h3 style="margin: 0 0 10px 0; color: #1e293b; font-size: 14px; font-weight: 600;">Why am I getting this?</h3>
+        <!-- Info Box -->
+        <div style="background: #fffbeb; padding: 16px 20px; border-radius: 6px; border-left: 4px solid #f59e0b; margin-bottom: 24px;">
+          <h3 style="margin: 0 0 8px 0; color: #92400e; font-size: 13px; font-weight: 700;">Why am I getting this?</h3>
+          <p style="margin: 0; color: #78350f; font-size: 13px; line-height: 1.6;">
+            You're assigned as the owner of this deal. When another admin makes changes, we notify you to keep everyone in sync. 
+            This is expected behavior and doesn't require any action unless you want to review the changes.
+          </p>
+        </div>
+
+        <!-- Footer -->
+        <div style="margin-top: 32px; padding-top: 24px; border-top: 1px solid #e2e8f0; text-align: center;">
+          <p style="margin: 0; color: #94a3b8; font-size: 12px; font-weight: 500;">This is an automated notification from SourceCo Pipeline</p>
+          <p style="margin: 8px 0 0 0; color: #cbd5e1; font-size: 11px;">Deal ID: ${dealId}</p>
+        </div>
+      </div>
+    `;
           <p style="margin: 0; color: #78350f; font-size: 14px;">
             You're assigned as the owner of this deal. When another admin makes changes, we notify you to keep everyone in sync. 
             This is expected behavior and doesn't require any action unless you want to review the changes.
