@@ -525,6 +525,11 @@ export function useUpdateDeal() {
       });
     },
     onError: (error: any, _, context) => {
+      // Don't show error toast for OWNER_WARNING - that's handled by the dialog
+      if (error?.type === 'OWNER_WARNING') {
+        return;
+      }
+      
       // Rollback on error
       if (context?.previousDeals) {
         queryClient.setQueryData(['deals'], context.previousDeals);
