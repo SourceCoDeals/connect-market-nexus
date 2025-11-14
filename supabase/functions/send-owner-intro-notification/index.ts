@@ -61,36 +61,68 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Get listing with primary owner
-    const { data: listing, error: listingError } = await supabase
-      .from('listings')
+    // Fetch deal with listing and both owners in ONE efficient query
+    const { data: deal, error: dealError } = await supabase
+      .from('deals')
       .select(`
         id,
         title,
-        internal_company_name,
-        primary_owner_id,
-        primary_owner:profiles!primary_owner_id (
+        listing:listings!deals_listing_id_fkey (
+          id,
+          title,
+          internal_company_name,
+          primary_owner_id,
+          primary_owner:profiles!listings_primary_owner_id_fkey (
+            id,
+            email,
+            first_name,
+            last_name
+          )
+        ),
+        deal_owner:profiles!deals_assigned_to_fkey (
           id,
           email,
           first_name,
           last_name
         )
       `)
-      .eq('id', listingId)
+      .eq('id', dealId)
       .single();
 
-    if (listingError || !listing) {
-      throw new Error(`Listing not found: ${listingId}`);
-    }
-
-    if (!listing.primary_owner_id || !listing.primary_owner) {
-      console.log('No primary owner assigned to listing, skipping notification');
+    if (dealError || !deal) {
+      console.error('Error fetching deal:', dealError);
       return new Response(
         JSON.stringify({ 
           success: false, 
-          message: 'No primary owner assigned' 
+          error: 'Deal not found or error fetching deal data' 
         }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const listing = deal.listing;
+
+    if (!listing) {
+      console.error('Deal is not linked to a listing');
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: 'This deal is not linked to a listing' 
+        }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Validate primary owner exists on listing
+    if (!listing.primary_owner_id || !listing.primary_owner) {
+      console.log('No primary owner assigned to listing, cannot send notification');
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: 'No primary owner configured for this listing',
+          message: 'The listing needs a primary owner to receive introduction emails' 
+        }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
