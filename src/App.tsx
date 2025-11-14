@@ -5,6 +5,8 @@ import {
   Navigate,
 } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { ComparisonProvider } from "@/context/ComparisonContext";
+import { ComparisonBar } from "@/components/comparison/ComparisonBar";
 
 import { AuthProvider } from "@/context/AuthContext";
 import { AnalyticsProvider } from "@/context/AnalyticsContext";
@@ -72,7 +74,9 @@ function App() {
               <SessionTrackingProvider>
                 <AnalyticsProvider>
                   <SimpleToastProvider>
-                    <Toaster />
+                    <ComparisonProvider>
+                      <Toaster />
+                      <ComparisonBar />
           <Routes>
             {/* Authentication routes - no protection needed */}
             <Route path="/login" element={<Login />} />
@@ -110,6 +114,7 @@ function App() {
             {/* Catch-all route for 404 Not Found */}
             <Route path="*" element={<NotFound />} />
           </Routes>
+                    </ComparisonProvider>
                 </SimpleToastProvider>
               </AnalyticsProvider>
             </SessionTrackingProvider>
