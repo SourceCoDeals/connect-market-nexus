@@ -162,7 +162,7 @@ export const PersonalNotesWidget: React.FC<PersonalNotesWidgetProps> = ({ listin
               <Button
                 onClick={saveNote}
                 disabled={isSaving || !content.trim()}
-                className="flex-1 h-10 bg-slate-900 hover:bg-slate-800 text-white font-medium text-[14px] tracking-[0.01em] transition-all duration-200 disabled:opacity-50 hover:scale-[1.01] active:scale-[0.99] focus:outline-none focus:ring-2 focus:ring-slate-200 focus:ring-offset-2"
+                className="flex-1 h-9 bg-sourceco-accent hover:bg-sourceco-accent/90 text-white font-medium text-[13px] tracking-[0.01em] shadow-sm shadow-sourceco-accent/20 transition-all duration-200 disabled:opacity-50 hover:scale-[1.01] active:scale-[0.99] focus:outline-none focus:ring-2 focus:ring-sourceco-accent/20 focus:ring-offset-2"
               >
                 {isSaving ? 'Saving...' : 'Save'}
               </Button>
@@ -172,7 +172,7 @@ export const PersonalNotesWidget: React.FC<PersonalNotesWidgetProps> = ({ listin
                   onClick={handleDelete}
                   disabled={isSaving}
                   variant="ghost"
-                  className="h-10 px-4 text-slate-500 hover:text-slate-700 hover:bg-slate-100 font-normal text-[14px] transition-all duration-200"
+                  className="h-9 px-4 text-slate-500 hover:text-slate-700 hover:bg-slate-100 font-normal text-[13px] transition-all duration-200"
                 >
                   Clear
                 </Button>
