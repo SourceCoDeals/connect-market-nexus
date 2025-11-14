@@ -135,11 +135,11 @@ export const PersonalNotesWidget: React.FC<PersonalNotesWidgetProps> = ({ listin
   if (!user) return null;
 
   return (
-    <div className="border border-sourceco-form bg-white rounded-lg">
-      <div className="p-4 border-b border-slate-100">
-        <h3 className="document-label">Private Investment Notes</h3>
-      </div>
-      <div className="p-4 space-y-3">
+    <div className="bg-gradient-to-b from-white via-white to-slate-50/40 border border-slate-200/70 rounded-xl p-6 shadow-[0_1px_3px_0_rgb(0_0_0_0.03),0_1px_2px_-1px_rgb(0_0_0_0.03)] hover:shadow-[0_4px_8px_0_rgb(0_0_0_0.04),0_2px_4px_-2px_rgb(0_0_0_0.04)] transition-shadow duration-300">
+      <h3 className="text-[11px] font-medium text-slate-500 uppercase tracking-[0.08em] mb-4">
+        Private Investment Notes
+      </h3>
+      <div className="space-y-4">
         {isLoading ? (
           <div className="py-6">
             <LoadingSpinner size="sm" variant="inline" showMessage message="Loading notes..." />
@@ -149,28 +149,28 @@ export const PersonalNotesWidget: React.FC<PersonalNotesWidgetProps> = ({ listin
             <Textarea
               value={content}
               onChange={(e) => setContent(e.target.value)}
-              placeholder="Add your private due diligence notes, investment thesis, follow-up items..."
-              className="min-h-[100px] text-xs border-slate-200 focus:border-slate-400 resize-none"
+              placeholder="Add notes, analysis, questions..."
+              disabled={isSaving}
+              className="min-h-[140px] resize-none border-slate-200 focus:border-slate-300 focus:ring-1 focus:ring-slate-200 text-[15px] leading-[1.6] placeholder:text-slate-400"
             />
 
-            <div className="flex gap-2">
+            <div className="flex gap-2 pt-3">
               <Button
                 onClick={saveNote}
                 disabled={isSaving || !content.trim()}
-                className="flex-1 text-xs h-8"
-                variant="outline"
+                className="flex-1 h-10 bg-slate-900 hover:bg-slate-800 text-white font-medium text-[14px] tracking-[0.01em] transition-all duration-200 disabled:opacity-50 hover:scale-[1.01] active:scale-[0.99] focus:outline-none focus:ring-2 focus:ring-slate-200 focus:ring-offset-2"
               >
-                {isSaving ? 'Saving...' : 'Save Notes'}
+                {isSaving ? 'Saving...' : 'Save'}
               </Button>
               
               {note && (
                 <Button
                   onClick={handleDelete}
                   disabled={isSaving}
-                  variant="outline"
-                  className="text-xs h-8 text-red-600 hover:text-red-700"
+                  variant="ghost"
+                  className="h-10 px-4 text-slate-500 hover:text-slate-700 hover:bg-slate-100 font-normal text-[14px] transition-all duration-200"
                 >
-                  Delete
+                  Clear
                 </Button>
               )}
             </div>

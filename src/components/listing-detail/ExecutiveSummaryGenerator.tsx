@@ -210,9 +210,11 @@ export const ExecutiveSummaryGenerator = ({ listing }: ExecutiveSummaryGenerator
   return (
     <button
       onClick={generatePDF}
-      className="text-sm text-slate-600 hover:text-slate-900 underline decoration-slate-300 hover:decoration-slate-500 underline-offset-2 transition-colors font-normal"
+      className="group inline-flex items-center gap-1.5 text-[14px] text-slate-600 hover:text-slate-900 transition-colors duration-200"
     >
-      Download executive summary
+      <span className="border-b border-slate-300 group-hover:border-slate-500 transition-colors duration-200">
+        Download executive summary
+      </span>
     </button>
   );
 };

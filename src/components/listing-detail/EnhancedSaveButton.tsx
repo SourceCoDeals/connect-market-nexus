@@ -39,12 +39,12 @@ export function EnhancedSaveButton({ listingId, onSave }: EnhancedSaveButtonProp
         {/* Direct save button */}
         <Button
           variant="outline"
-          size="default"
+          size="lg"
           onClick={handleQuickSave}
           disabled={isPending}
-          className="w-full h-10 border-slate-300 text-slate-700 hover:bg-slate-50 hover:border-slate-400 font-medium transition-all"
+          className="w-full h-11 border-slate-300 hover:border-slate-400 bg-white hover:bg-slate-50 text-slate-900 font-medium text-[15px] tracking-[0.01em] transition-all duration-200 hover:scale-[1.01] active:scale-[0.99] focus:outline-none focus:ring-2 focus:ring-slate-200 focus:ring-offset-2"
         >
-          {isSaved ? 'Saved' : 'Save this listing'}
+          {isSaved ? 'Saved' : 'Save'}
         </Button>
         
         {/* Save to collection as subtle secondary action */}
