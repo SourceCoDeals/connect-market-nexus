@@ -1761,6 +1761,55 @@ export type Database = {
           },
         ]
       }
+      interest_signals: {
+        Row: {
+          converted_at: string | null
+          converted_to_connection: boolean
+          created_at: string
+          id: string
+          listing_id: string
+          user_id: string
+        }
+        Insert: {
+          converted_at?: string | null
+          converted_to_connection?: boolean
+          created_at?: string
+          id?: string
+          listing_id: string
+          user_id: string
+        }
+        Update: {
+          converted_at?: string | null
+          converted_to_connection?: boolean
+          created_at?: string
+          id?: string
+          listing_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interest_signals_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interest_signals_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "unmapped_primary_owners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interest_signals_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       listing_analytics: {
         Row: {
           action_type: string
@@ -2741,6 +2790,67 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: []
+      }
+      similar_deal_alerts: {
+        Row: {
+          active: boolean
+          categories: string[]
+          created_at: string
+          id: string
+          locations: string[]
+          revenue_max: number | null
+          revenue_min: number | null
+          source_listing_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          active?: boolean
+          categories?: string[]
+          created_at?: string
+          id?: string
+          locations?: string[]
+          revenue_max?: number | null
+          revenue_min?: number | null
+          source_listing_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          active?: boolean
+          categories?: string[]
+          created_at?: string
+          id?: string
+          locations?: string[]
+          revenue_max?: number | null
+          revenue_min?: number | null
+          source_listing_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "similar_deal_alerts_source_listing_id_fkey"
+            columns: ["source_listing_id"]
+            isOneToOne: false
+            referencedRelation: "listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "similar_deal_alerts_source_listing_id_fkey"
+            columns: ["source_listing_id"]
+            isOneToOne: false
+            referencedRelation: "unmapped_primary_owners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "similar_deal_alerts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_activity: {
         Row: {
