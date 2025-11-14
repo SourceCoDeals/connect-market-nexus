@@ -1,8 +1,8 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import ConnectionRequestDialog from "@/components/connection/ConnectionRequestDialog";
 import { useRealtime } from "@/components/realtime/RealtimeProvider";
+import { Send } from "lucide-react";
 
 interface ConnectionButtonProps {
   connectionExists: boolean;
@@ -59,17 +59,17 @@ const ConnectionButton = ({
             disabled: false
           };
         default:
-          return {
-            text: "Request connection",
-            className: "bg-slate-900 text-white hover:bg-slate-800 border-none",
-            disabled: false
-          };
+      return {
+        text: "Request connection",
+        className: "bg-gradient-to-r from-sourceco-accent to-yellow-600 hover:from-sourceco-accent/90 hover:to-yellow-600/90 text-white border-none",
+        disabled: false
+      };
       }
     }
 
     return {
       text: "Request connection",
-      className: "bg-slate-900 text-white hover:bg-slate-800 border-none",
+      className: "bg-gradient-to-r from-sourceco-accent to-yellow-600 hover:from-sourceco-accent/90 hover:to-yellow-600/90 text-white border-none",
       disabled: false
     };
   };
@@ -106,9 +106,9 @@ const ConnectionButton = ({
         <Button
           onClick={handleButtonClick}
           disabled={isRequesting}
-          size="lg"
-          className="w-full h-12 bg-slate-900 hover:bg-slate-800 text-white font-medium text-[15px] tracking-[0.01em] transition-all duration-200 shadow-sm hover:shadow hover:scale-[1.01] active:scale-[0.99] focus:outline-none focus:ring-2 focus:ring-slate-200 focus:ring-offset-2"
+          className="w-full h-11 bg-gradient-to-r from-sourceco-accent to-yellow-600 hover:from-sourceco-accent/90 hover:to-yellow-600/90 text-white font-medium text-[14px] tracking-[0.02em] shadow-lg shadow-sourceco-accent/20 hover:shadow-xl hover:shadow-sourceco-accent/30 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
         >
+          <Send className="h-4 w-4" />
           {isRequesting ? "Sending request..." : "Explore other opportunities"}
         </Button>
       </div>
@@ -121,8 +121,9 @@ const ConnectionButton = ({
       <Button
         onClick={handleButtonClick}
         disabled={disabled || isRequesting}
-        className={`w-full h-11 text-[15px] font-medium tracking-wide transition-colors ${className}`}
+        className={`w-full h-11 font-medium text-[14px] tracking-[0.02em] shadow-lg shadow-sourceco-accent/20 hover:shadow-xl hover:shadow-sourceco-accent/30 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] ${className}`}
       >
+        <Send className="h-4 w-4" />
         {isRequesting ? "Sending request..." : buttonText}
       </Button>
 

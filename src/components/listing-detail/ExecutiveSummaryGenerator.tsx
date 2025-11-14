@@ -1,4 +1,5 @@
 import { formatCurrency } from "@/lib/currency-utils";
+import { FileDown } from "lucide-react";
 
 interface ExecutiveSummaryGeneratorProps {
   listing: any;
@@ -210,9 +211,10 @@ export const ExecutiveSummaryGenerator = ({ listing }: ExecutiveSummaryGenerator
   return (
     <button
       onClick={generatePDF}
-      className="group inline-flex items-center gap-1.5 text-[14px] text-slate-600 hover:text-slate-900 transition-colors duration-200"
+      className="group inline-flex items-center gap-1.5 text-[13px] text-slate-500 hover:text-sourceco-accent transition-colors duration-200"
     >
-      <span className="border-b border-slate-300 group-hover:border-slate-500 transition-colors duration-200">
+      <FileDown className="h-3.5 w-3.5" />
+      <span className="border-b border-slate-300 group-hover:border-sourceco-accent transition-colors duration-200">
         Download executive summary
       </span>
     </button>

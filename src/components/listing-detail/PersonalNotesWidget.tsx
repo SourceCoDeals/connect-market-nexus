@@ -6,6 +6,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
+import { FileEdit } from 'lucide-react';
 
 interface PersonalNotesWidgetProps {
   listingId: string;
@@ -135,10 +136,13 @@ export const PersonalNotesWidget: React.FC<PersonalNotesWidgetProps> = ({ listin
   if (!user) return null;
 
   return (
-    <div className="bg-gradient-to-b from-white via-white to-slate-50/40 border border-slate-200/70 rounded-xl p-6 shadow-[0_1px_3px_0_rgb(0_0_0_0.03),0_1px_2px_-1px_rgb(0_0_0_0.03)] hover:shadow-[0_4px_8px_0_rgb(0_0_0_0.04),0_2px_4px_-2px_rgb(0_0_0_0.04)] transition-shadow duration-300">
-      <h3 className="text-[11px] font-medium text-slate-500 uppercase tracking-[0.08em] mb-4">
-        Private Investment Notes
-      </h3>
+    <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-[0_2px_8px_0_rgb(0_0_0_0.04)] hover:shadow-[0_4px_12px_0_rgb(215_182_92_0.08)] transition-all duration-300">
+      <div className="flex items-center justify-between mb-3">
+        <h4 className="text-[13px] font-medium text-slate-700 tracking-[-0.01em]">
+          Investment Notes
+        </h4>
+        <FileEdit className="h-3.5 w-3.5 text-slate-400" />
+      </div>
       <div className="space-y-4">
         {isLoading ? (
           <div className="py-6">
@@ -146,13 +150,13 @@ export const PersonalNotesWidget: React.FC<PersonalNotesWidgetProps> = ({ listin
           </div>
         ) : (
           <>
-            <Textarea
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              placeholder="Add notes, analysis, questions..."
-              disabled={isSaving}
-              className="min-h-[140px] resize-none border-slate-200 focus:border-slate-300 focus:ring-1 focus:ring-slate-200 text-[15px] leading-[1.6] placeholder:text-slate-400"
-            />
+      <Textarea
+        value={content}
+        onChange={(e) => setContent(e.target.value)}
+        placeholder="Add private notes..."
+        disabled={isSaving}
+        className="min-h-[100px] resize-none border-slate-200 focus:border-sourceco-accent focus:ring-1 focus:ring-sourceco-accent/20 text-[13px] leading-[1.6] placeholder:text-slate-400 transition-colors"
+      />
 
             <div className="flex gap-2 pt-3">
               <Button
