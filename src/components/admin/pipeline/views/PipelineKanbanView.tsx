@@ -6,6 +6,7 @@ import { PipelineKanbanColumn } from './PipelineKanbanColumn';
 import { PipelineKanbanCardOverlay } from './PipelineKanbanCardOverlay';
 import { DealOwnerWarningDialog } from '@/components/admin/DealOwnerWarningDialog';
 import { AssignOwnerDialog } from '@/components/admin/AssignOwnerDialog';
+import { OwnerIntroConfirmationDialog } from '@/components/admin/OwnerIntroConfirmationDialog';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -22,6 +23,16 @@ export function PipelineKanbanView({ pipeline, onOpenCreateDeal }: PipelineKanba
   const [currentUserId, setCurrentUserId] = useState<string | undefined>();
   const [ownerWarning, setOwnerWarning] = useState<{ show: boolean; ownerName: string; dealTitle: string; dealId: string; stageId: string; } | null>(null);
   const [ownerAssignmentNeeded, setOwnerAssignmentNeeded] = useState<{ show: boolean; dealTitle: string; dealId: string; stageId: string; fromStage?: string; toStage?: string; } | null>(null);
+  const [ownerIntroConfirmation, setOwnerIntroConfirmation] = useState<{
+    show: boolean;
+    dealTitle: string;
+    dealId: string;
+    stageId: string;
+    dealOwner: { id: string; name: string; email: string } | null;
+    primaryOwner: { id: string; name: string; email: string } | null;
+    fromStage?: string;
+    toStage?: string;
+  } | null>(null);
   const updateDealStage = useUpdateDealStage();
   const updateDeal = useUpdateDeal();
   
@@ -77,18 +88,69 @@ export function PipelineKanbanView({ pipeline, onOpenCreateDeal }: PipelineKanba
 
     if (!deal || !targetStage || deal.stage_id === destStageId) { setActiveId(null); return; }
 
-    // Check if moving to "Owner intro requested" stage without an assigned owner
-    if (targetStage.name === 'Owner intro requested' && !deal.assigned_to) {
-      setOwnerAssignmentNeeded({
-        show: true,
-        dealTitle: deal.title,
-        dealId: deal.deal_id,
-        stageId: destStageId,
-        fromStage: deal.stage_name || undefined,
-        toStage: targetStage.name
-      });
-      setActiveId(null);
-      return;
+    // Check if moving to "Owner intro requested" - show confirmation dialog
+    if (targetStage.name === 'Owner intro requested') {
+      try {
+        // Fetch listing data to check for primary owner
+        const { data: listingData } = await supabase
+          .from('listings')
+          .select(`
+            primary_owner_id,
+            primary_owner:profiles!listings_primary_owner_id_fkey(first_name, last_name, email)
+          `)
+          .eq('id', deal.listing_id)
+          .single();
+        
+        // Fetch deal owner if assigned
+        let dealOwner = null;
+        if (deal.assigned_to) {
+          const { data: ownerData } = await supabase
+            .from('profiles')
+            .select('id, first_name, last_name, email')
+            .eq('id', deal.assigned_to)
+            .single();
+          
+          if (ownerData) {
+            dealOwner = {
+              id: ownerData.id,
+              name: `${ownerData.first_name || ''} ${ownerData.last_name || ''}`.trim() || ownerData.email,
+              email: ownerData.email
+            };
+          }
+        }
+        
+        // Format primary owner
+        const primaryOwner = listingData?.primary_owner ? {
+          id: listingData.primary_owner_id!,
+          name: `${listingData.primary_owner.first_name || ''} ${listingData.primary_owner.last_name || ''}`.trim() || listingData.primary_owner.email,
+          email: listingData.primary_owner.email
+        } : null;
+        
+        // Show confirmation dialog
+        setOwnerIntroConfirmation({
+          show: true,
+          dealTitle: deal.title,
+          dealId: deal.deal_id,
+          stageId: destStageId,
+          dealOwner,
+          primaryOwner,
+          fromStage: deal.stage_name || undefined,
+          toStage: targetStage.name
+        });
+        
+        setActiveId(null);
+        return;
+      } catch (error) {
+        console.error('Error checking owner intro requirements:', error);
+        const { toast } = await import('@/hooks/use-toast');
+        toast({
+          title: 'Error',
+          description: 'Failed to verify owner information. Please try again.',
+          variant: 'destructive',
+        });
+        setActiveId(null);
+        return;
+      }
     }
 
     // Check if this deal belongs to another owner BEFORE attempting the mutation
@@ -148,40 +210,66 @@ export function PipelineKanbanView({ pipeline, onOpenCreateDeal }: PipelineKanba
   const handleOwnerAssignmentConfirm = async (ownerId: string) => {
     if (!ownerAssignmentNeeded) return;
 
-    const deal = pipeline.deals.find(d => d.deal_id === ownerAssignmentNeeded.dealId);
-    const targetStage = stagesWithMetrics.find(s => s.id === ownerAssignmentNeeded.stageId);
-
-    if (!deal || !targetStage) {
-      console.error('[Owner Assignment] Deal or stage not found', { dealId: ownerAssignmentNeeded.dealId, stageId: ownerAssignmentNeeded.stageId });
-      setOwnerAssignmentNeeded(null);
-      return;
-    }
-
-    // First assign the owner
-    updateDeal.mutate(
-      {
+    try {
+      await updateDeal.mutateAsync({
         dealId: ownerAssignmentNeeded.dealId,
-        updates: { assigned_to: ownerId },
-      },
-      {
-        onSuccess: () => {
-          // After owner is assigned, proceed with stage move
-          updateDealStage.mutate({
-            dealId: ownerAssignmentNeeded.dealId,
-            stageId: ownerAssignmentNeeded.stageId,
-            fromStage: ownerAssignmentNeeded.fromStage,
-            toStage: ownerAssignmentNeeded.toStage,
-            currentAdminId: currentUserId,
-            skipOwnerCheck: true
-          });
-          setOwnerAssignmentNeeded(null);
-        },
-        onError: (error) => {
-          console.error('[Owner Assignment] Failed to assign owner:', error);
-          setOwnerAssignmentNeeded(null);
+        updates: { 
+          assigned_to: ownerId,
+          owner_assigned_at: new Date().toISOString(),
+          owner_assigned_by: currentUserId
         }
-      }
-    );
+      });
+
+      updateDealStage.mutate({
+        dealId: ownerAssignmentNeeded.dealId,
+        stageId: ownerAssignmentNeeded.stageId,
+        fromStage: ownerAssignmentNeeded.fromStage,
+        toStage: ownerAssignmentNeeded.toStage,
+        currentAdminId: currentUserId,
+        skipOwnerCheck: true
+      });
+
+      setOwnerAssignmentNeeded(null);
+    } catch (error) {
+      console.error('Failed to assign owner:', error);
+      const { toast } = await import('@/hooks/use-toast');
+      toast({
+        title: 'Error',
+        description: 'Failed to assign owner. Please try again.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleOwnerIntroConfirm = () => {
+    if (!ownerIntroConfirmation) return;
+    
+    updateDealStage.mutate({
+      dealId: ownerIntroConfirmation.dealId,
+      stageId: ownerIntroConfirmation.stageId,
+      fromStage: ownerIntroConfirmation.fromStage,
+      toStage: ownerIntroConfirmation.toStage,
+      currentAdminId: currentUserId,
+      skipOwnerCheck: true
+    });
+    
+    setOwnerIntroConfirmation(null);
+  };
+
+  const handleAssignOwnerFirst = () => {
+    if (!ownerIntroConfirmation) return;
+    
+    const savedState = { ...ownerIntroConfirmation };
+    setOwnerIntroConfirmation(null);
+    
+    setOwnerAssignmentNeeded({
+      show: true,
+      dealTitle: savedState.dealTitle,
+      dealId: savedState.dealId,
+      stageId: savedState.stageId,
+      fromStage: savedState.fromStage,
+      toStage: savedState.toStage
+    });
   };
   
   const scrollToStage = (direction: 'left' | 'right') => {
@@ -217,6 +305,17 @@ export function PipelineKanbanView({ pipeline, onOpenCreateDeal }: PipelineKanba
       </div>
       {ownerWarning && <DealOwnerWarningDialog open={ownerWarning.show} onOpenChange={(open) => !open && setOwnerWarning(null)} ownerName={ownerWarning.ownerName} dealTitle={ownerWarning.dealTitle} onConfirm={handleOwnerWarningConfirm} />}
       {ownerAssignmentNeeded && <AssignOwnerDialog open={ownerAssignmentNeeded.show} onOpenChange={(open) => !open && setOwnerAssignmentNeeded(null)} dealTitle={ownerAssignmentNeeded.dealTitle} onConfirm={handleOwnerAssignmentConfirm} />}
+      {ownerIntroConfirmation && (
+        <OwnerIntroConfirmationDialog
+          open={ownerIntroConfirmation.show}
+          onOpenChange={(open) => !open && setOwnerIntroConfirmation(null)}
+          dealTitle={ownerIntroConfirmation.dealTitle}
+          dealOwner={ownerIntroConfirmation.dealOwner}
+          primaryOwner={ownerIntroConfirmation.primaryOwner}
+          onConfirm={handleOwnerIntroConfirm}
+          onAssignOwner={handleAssignOwnerFirst}
+        />
+      )}
     </>
   );
 }

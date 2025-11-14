@@ -40,6 +40,27 @@ const handler = async (req: Request): Promise<Response> => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
+    // Check for recent notifications (last 5 minutes) to prevent duplicates
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+    const { data: recentNotif } = await supabase
+      .from('owner_intro_notifications')
+      .select('id, created_at')
+      .eq('deal_id', dealId)
+      .gte('created_at', fiveMinutesAgo)
+      .maybeSingle();
+
+    if (recentNotif) {
+      console.log('Notification already sent recently, skipping duplicate');
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          message: 'Notification already sent recently',
+          duplicate: true 
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // Get listing with primary owner
     const { data: listing, error: listingError } = await supabase
       .from('listings')
@@ -271,6 +292,8 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(
       JSON.stringify({ 
         success: true,
+        message: 'Owner intro notification sent successfully',
+        primary_owner_name: ownerName,
         message_id: emailResult.messageId,
         recipient: primaryOwner.email
       }),
