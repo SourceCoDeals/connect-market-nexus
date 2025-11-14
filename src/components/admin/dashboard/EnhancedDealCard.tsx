@@ -1,7 +1,7 @@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { CheckCircle2, Clock, Calendar, MessageSquare, Circle } from 'lucide-react';
+// No icon imports needed
 import { formatDistanceToNow } from 'date-fns';
 import { useState, useMemo } from 'react';
 import { cn } from '@/lib/utils';
@@ -28,7 +28,7 @@ interface Deal {
   followed_up?: boolean;
   stage_entered_at: string;
   updated_at: string;
-  close_date?: string;
+  expected_close_date?: string;
   probability?: number;
   contact_name?: string;
   contact_email?: string;
@@ -40,10 +40,7 @@ interface EnhancedDealCardProps {
 }
 
 export function EnhancedDealCard({ deal, onDealClick }: EnhancedDealCardProps) {
-  const [isAddingNote, setIsAddingNote] = useState(false);
   const { data: activities = [] } = useDealActivities(deal.id);
-  const updateDeal = useUpdateDeal();
-  const queryClient = useQueryClient();
   
   const terminalStages = ['Closed Won', 'Closed Lost'];
   const isClosed = deal.stage && terminalStages.includes(deal.stage.name);
@@ -63,17 +60,7 @@ export function EnhancedDealCard({ deal, onDealClick }: EnhancedDealCardProps) {
     [activities]
   );
 
-  // Get priority dot (minimal indicator)
-  const getPriorityDot = () => {
-    if (isClosed) return null;
-    if (isStale) {
-      return <div className="w-2 h-2 rounded-full bg-destructive" />;
-    }
-    if (!deal.followed_up) {
-      return <div className="w-2 h-2 rounded-full bg-amber-500" />;
-    }
-    return <div className="w-2 h-2 rounded-full bg-emerald-500" />;
-  };
+  // No priority dot needed - using text badges instead
 
   // Format relative time
   const getRelativeTime = (date: string) => {
@@ -92,37 +79,7 @@ export function EnhancedDealCard({ deal, onDealClick }: EnhancedDealCardProps) {
     return days;
   };
 
-  // Handle mark as followed up
-  const handleMarkFollowedUp = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    
-    await updateDeal.mutateAsync({
-      dealId: deal.id,
-      updates: {
-        followed_up: !deal.followed_up,
-      },
-    });
-
-    await logDealActivity({
-      dealId: deal.id,
-      activityType: 'follow_up',
-      title: 'Follow-up completed',
-      description: deal.followed_up ? 'Unmarked as followed up' : 'Marked as followed up',
-    });
-  };
-
-  // Handle quick note
-  const handleQuickNote = async (noteText: string) => {
-    await logDealActivity({
-      dealId: deal.id,
-      activityType: 'task_created',
-      title: 'Quick note added',
-      description: noteText,
-    });
-
-    setIsAddingNote(false);
-    queryClient.invalidateQueries({ queryKey: ['deal-activities', deal.id] });
-  };
+  // Quick actions removed - showing deal metrics instead
 
   // Closed deal simplified view
   if (isClosed) {
@@ -172,37 +129,46 @@ export function EnhancedDealCard({ deal, onDealClick }: EnhancedDealCardProps) {
   return (
     <Card 
       onClick={() => onDealClick(deal.id)}
-      className="group cursor-pointer hover:shadow-md transition-all duration-200 border-border/40 hover:border-border"
+      className="group cursor-pointer hover:shadow-sm transition-all duration-200"
     >
       {/* ZONE 1: Status Bar */}
-      <div className="flex items-center justify-between px-6 pt-4 pb-2">
-        <div className="flex items-center gap-2">
-          {getPriorityDot()}
-          <span className="text-xs text-muted-foreground/70">
+      <div className="flex items-center justify-between px-6 pt-4 pb-3">
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-slate-500">
             {getDaysInStage()} days in stage
           </span>
+          {isStale && (
+            <span className="text-xs px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
+              Stale
+            </span>
+          )}
+          {!deal.followed_up && !isStale && (
+            <span className="text-xs px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
+              Needs follow-up
+            </span>
+          )}
         </div>
         {deal.stage && (
-          <Badge variant="outline" className="text-xs">
+          <span className="text-xs font-medium text-slate-700 dark:text-slate-300">
             {deal.stage.name}
-          </Badge>
+          </span>
         )}
       </div>
 
       {/* ZONE 2: Core Info */}
       <div className="px-6 py-3 space-y-1">
-        <h3 className="font-semibold text-base leading-tight group-hover:text-primary transition-colors">
+        <h3 className="font-semibold text-base leading-tight text-slate-900 dark:text-slate-100">
           {deal.title || deal.listing?.title || 'Untitled Deal'}
         </h3>
-        <p className="text-sm text-muted-foreground/70">
+        <p className="text-sm text-slate-600 dark:text-slate-400">
           {deal.contact_name || 'No contact'}
-          {deal.contact_email && ` • ${deal.contact_email}`}
+          {deal.contact_email && ` · ${deal.contact_email}`}
         </p>
       </div>
 
       {/* ZONE 3: Activity Timeline */}
       {recentActivities.length > 0 && (
-        <div className="px-6 py-3 border-t border-border/30">
+        <div className="px-6 py-3 border-t border-slate-200 dark:border-slate-800">
           <div className="space-y-2">
             {recentActivities.map((activity) => (
               <ActivityTimelineItem key={activity.id} activity={activity} />
@@ -213,7 +179,7 @@ export function EnhancedDealCard({ deal, onDealClick }: EnhancedDealCardProps) {
                   e.stopPropagation();
                   onDealClick(deal.id);
                 }}
-                className="text-xs text-muted-foreground/60 hover:text-primary transition-colors"
+                className="text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-colors"
               >
                 View all {activities.length} activities →
               </button>
@@ -222,48 +188,41 @@ export function EnhancedDealCard({ deal, onDealClick }: EnhancedDealCardProps) {
         </div>
       )}
 
-      {/* ZONE 4: Quick Actions */}
-      <div className="px-6 pb-4 pt-3 border-t border-border/30">
-        {isAddingNote ? (
-          <QuickNoteInput 
-            onSubmit={handleQuickNote}
-            onCancel={() => setIsAddingNote(false)}
-          />
-        ) : (
-          <div className="flex items-center gap-2">
-            <Button 
-              size="sm" 
-              variant={deal.followed_up ? "secondary" : "ghost"}
-              onClick={handleMarkFollowedUp}
-              className="h-7 text-xs"
-            >
-              {deal.followed_up ? (
-                <>
-                  <CheckCircle2 className="h-3 w-3 mr-1" />
-                  Followed up
-                </>
-              ) : (
-                <>
-                  <Circle className="h-3 w-3 mr-1" />
-                  Mark followed up
-                </>
-              )}
-            </Button>
-            
-            <Button 
-              size="sm" 
-              variant="ghost"
-              onClick={(e) => {
-                e.stopPropagation();
-                setIsAddingNote(true);
-              }}
-              className="h-7 text-xs"
-            >
-              <MessageSquare className="h-3 w-3 mr-1" />
-              Note
-            </Button>
-          </div>
-        )}
+      {/* ZONE 4: Deal Metrics */}
+      <div className="px-6 pb-4 pt-3 border-t border-slate-200 dark:border-slate-800">
+        <div className="grid grid-cols-3 gap-4 text-center">
+          {deal.value && (
+            <div>
+              <p className="text-xs text-slate-500">Value</p>
+              <p className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                ${(Number(deal.value) / 1000).toFixed(0)}k
+              </p>
+            </div>
+          )}
+          {deal.probability && (
+            <div>
+              <p className="text-xs text-slate-500">Probability</p>
+              <p className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                {deal.probability}%
+              </p>
+            </div>
+          )}
+          {deal.expected_close_date && (
+            <div>
+              <p className="text-xs text-slate-500">Expected close</p>
+              <p className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                {new Date(deal.expected_close_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+              </p>
+            </div>
+          )}
+          {!deal.value && !deal.probability && !deal.expected_close_date && (
+            <div className="col-span-3">
+              <p className="text-xs text-slate-500">
+                Last updated {getRelativeTime(deal.updated_at)}
+              </p>
+            </div>
+          )}
+        </div>
       </div>
     </Card>
   );

@@ -5,7 +5,7 @@ import { DealPriorityBanner } from './DealPriorityBanner';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Briefcase, DollarSign, Target, Clock, Plus, Filter, ArrowUpDown } from 'lucide-react';
+// No icon imports needed
 import { formatCompactCurrency } from '@/lib/utils';
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -102,7 +102,6 @@ export function MyDealsTab() {
           {
             label: 'Active Deals',
             value: stats.activeDeals,
-            icon: <Briefcase className="h-5 w-5" />,
             description: 'Currently in pipeline',
             onClick: () => setFilter('active'),
             isActive: filter === 'active',
@@ -110,7 +109,6 @@ export function MyDealsTab() {
           {
             label: 'Need Attention',
             value: stats.needAttention,
-            icon: <Target className="h-5 w-5" />,
             description: 'Require follow-up',
             onClick: () => setFilter('needs-follow-up'),
             isActive: filter === 'needs-follow-up',
@@ -118,13 +116,11 @@ export function MyDealsTab() {
           {
             label: 'This Week',
             value: stats.thisWeek,
-            icon: <Clock className="h-5 w-5" />,
             description: 'Created or updated',
           },
           {
             label: 'Stale Deals',
             value: stats.staleDeals,
-            icon: <Clock className="h-5 w-5" />,
             description: '7+ days in stage',
             onClick: () => setFilter('stale'),
             isActive: filter === 'stale',
@@ -141,11 +137,10 @@ export function MyDealsTab() {
       )}
 
       {/* Quick Actions Bar */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-2 border-b border-border/50">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-2 border-b border-slate-200 dark:border-slate-800">
         <div className="flex items-center gap-3">
           <Select value={filter} onValueChange={setFilter}>
-            <SelectTrigger className="w-[180px] h-9 text-sm border-border/50">
-              <Filter className="h-3.5 w-3.5 mr-2" />
+            <SelectTrigger className="w-[180px] h-9 text-sm">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -158,8 +153,7 @@ export function MyDealsTab() {
           </Select>
 
           <Select value={sortBy} onValueChange={setSortBy}>
-            <SelectTrigger className="w-[160px] h-9 text-sm border-border/50">
-              <ArrowUpDown className="h-3.5 w-3.5 mr-2" />
+            <SelectTrigger className="w-[160px] h-9 text-sm">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -173,9 +167,8 @@ export function MyDealsTab() {
         <Button 
           size="sm"
           onClick={() => navigate('/admin/pipeline')}
-          className="h-9"
+          className="h-9 bg-foreground text-background hover:bg-foreground/90"
         >
-          <Plus className="h-3.5 w-3.5 mr-2" />
           Create Deal
         </Button>
       </div>
@@ -188,15 +181,15 @@ export function MyDealsTab() {
           ))}
         </div>
       ) : filteredAndSortedDeals.length === 0 ? (
-        <div className="text-center py-16 px-4 border border-dashed border-border/50 rounded-lg bg-muted/20">
-          <Briefcase className="h-12 w-12 mx-auto mb-4 text-muted-foreground/40" />
-          <h3 className="text-lg font-medium mb-2 text-foreground">
+        <div className="text-center py-16 px-4 border border-dashed border-slate-200 dark:border-slate-800 rounded-lg bg-slate-50 dark:bg-slate-900">
+          <div className="h-12 w-12 mx-auto mb-4 rounded-full bg-slate-100 dark:bg-slate-800" />
+          <h3 className="text-lg font-medium mb-2 text-slate-900 dark:text-slate-100">
             {filter === 'active' && deals && deals.length > 0 
-              ? '🎉 All caught up!' 
+              ? 'All caught up' 
               : 'No deals found'
             }
           </h3>
-          <p className="text-sm text-muted-foreground/70 max-w-md mx-auto mb-6">
+          <p className="text-sm text-slate-600 dark:text-slate-400 max-w-md mx-auto mb-6">
             {filter === 'active' && deals && deals.length > 0
               ? "No active deals need your attention right now. Great work!"
               : filter === 'all' && (!deals || deals.length === 0)
@@ -205,8 +198,10 @@ export function MyDealsTab() {
             }
           </p>
           {(!deals || deals.length === 0) && (
-            <Button onClick={() => navigate('/admin/pipeline')}>
-              <Plus className="h-4 w-4 mr-2" />
+            <Button 
+              onClick={() => navigate('/admin/pipeline')}
+              className="bg-foreground text-background hover:bg-foreground/90"
+            >
               View Pipeline
             </Button>
           )}
