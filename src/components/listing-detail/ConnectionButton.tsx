@@ -106,7 +106,8 @@ const ConnectionButton = ({
         <Button
           onClick={handleButtonClick}
           disabled={isRequesting}
-          className="w-full h-11 text-[15px] font-medium tracking-wide transition-colors bg-slate-900 hover:bg-slate-800 text-white"
+          size="lg"
+          className="w-full h-12 bg-slate-900 hover:bg-slate-800 text-white font-medium text-[15px] tracking-[0.01em] transition-all duration-200 shadow-sm hover:shadow hover:scale-[1.01] active:scale-[0.99] focus:outline-none focus:ring-2 focus:ring-slate-200 focus:ring-offset-2"
         >
           {isRequesting ? "Sending request..." : "Explore other opportunities"}
         </Button>

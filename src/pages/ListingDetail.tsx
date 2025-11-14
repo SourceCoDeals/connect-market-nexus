@@ -370,11 +370,11 @@ const ListingDetail = () => {
                 {userViewEnabled && (
                   <div className="sticky top-6 space-y-6 mt-6">
                     {/* Interested in This Deal? - Premium CTA */}
-                    <div className="bg-gradient-to-b from-white to-slate-50/30 border border-slate-200/60 rounded-xl p-6 shadow-[0_1px_3px_0_rgb(0_0_0_0.02),0_1px_2px_-1px_rgb(0_0_0_0.02)]">
-                      <div className="text-center space-y-5">
-                        <div className="space-y-2.5">
-                          <h3 className="text-xl font-normal text-slate-900 tracking-tight leading-tight">Interested in this opportunity?</h3>
-                          <p className="text-sm text-slate-600 leading-relaxed max-w-[280px] mx-auto">
+                    <div className="bg-gradient-to-b from-white via-white to-slate-50/40 border border-slate-200/70 rounded-xl p-6 shadow-[0_1px_3px_0_rgb(0_0_0_0.03),0_1px_2px_-1px_rgb(0_0_0_0.03)] hover:shadow-[0_4px_8px_0_rgb(0_0_0_0.04),0_2px_4px_-2px_rgb(0_0_0_0.04)] transition-shadow duration-300">
+                      <div className="text-center space-y-6">
+                        <div className="space-y-2">
+                          <h3 className="text-[22px] font-normal text-slate-900 tracking-[-0.01em] leading-[1.2]">Interested in this opportunity?</h3>
+                          <p className="text-[15px] text-slate-700 leading-[1.5] max-w-[260px] mx-auto">
                             Access detailed financials and business metrics
                           </p>
                         </div>
@@ -390,15 +390,15 @@ const ListingDetail = () => {
                         />
                         
                         {/* Enhanced Save and Share */}
-                        <div className="space-y-2.5 pt-1">
+                        <div className="space-y-3">
                           <EnhancedSaveButton 
                             listingId={id!} 
                             onSave={() => trackListingSave(id!)}
                           />
                           <Button
-                            variant="ghost"
-                            size="default"
-                            className="w-full h-10 text-slate-700 hover:bg-slate-100 font-normal transition-all"
+                            variant="outline"
+                            size="lg"
+                            className="w-full h-11 border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 font-normal text-[15px] tracking-[0.01em] transition-all duration-200 hover:scale-[1.01] active:scale-[0.99] focus:outline-none focus:ring-2 focus:ring-slate-200 focus:ring-offset-2"
                             onClick={() => setShowShareDialog(true)}
                           >
                             Share with colleague
@@ -406,14 +406,14 @@ const ListingDetail = () => {
                         </div>
                         
                         {/* Divider */}
-                        <div className="relative">
+                        <div className="relative py-2">
                           <div className="absolute inset-0 flex items-center">
-                            <div className="w-full border-t border-slate-200/80"></div>
+                            <div className="w-full border-t border-slate-200"></div>
                           </div>
                         </div>
                         
                         {/* Download Executive Summary */}
-                        <div className="flex justify-center">
+                        <div className="flex justify-center -mt-2">
                           <ExecutiveSummaryGenerator listing={listing} />
                         </div>
                       </div>
@@ -427,11 +427,11 @@ const ListingDetail = () => {
             ) : (
               <div className="sticky top-6 space-y-6">
                 {/* Interested in This Deal? - Premium CTA */}
-                <div className="bg-gradient-to-b from-white to-slate-50/30 border border-slate-200/60 rounded-xl p-6 shadow-[0_1px_3px_0_rgb(0_0_0_0.02),0_1px_2px_-1px_rgb(0_0_0_0.02)]">
-                  <div className="text-center space-y-5">
-                    <div className="space-y-2.5">
-                      <h3 className="text-xl font-normal text-slate-900 tracking-tight leading-tight">Interested in this opportunity?</h3>
-                      <p className="text-sm text-slate-600 leading-relaxed max-w-[280px] mx-auto">
+                <div className="bg-gradient-to-b from-white via-white to-slate-50/40 border border-slate-200/70 rounded-xl p-6 shadow-[0_1px_3px_0_rgb(0_0_0_0.03),0_1px_2px_-1px_rgb(0_0_0_0.03)] hover:shadow-[0_4px_8px_0_rgb(0_0_0_0.04),0_2px_4px_-2px_rgb(0_0_0_0.04)] transition-shadow duration-300">
+                  <div className="text-center space-y-6">
+                    <div className="space-y-2">
+                      <h3 className="text-[22px] font-normal text-slate-900 tracking-[-0.01em] leading-[1.2]">Interested in this opportunity?</h3>
+                      <p className="text-[15px] text-slate-700 leading-[1.5] max-w-[260px] mx-auto">
                         Access detailed financials and business metrics
                       </p>
                     </div>
@@ -447,15 +447,15 @@ const ListingDetail = () => {
                     />
                     
                     {/* Enhanced Save and Share */}
-                    <div className="space-y-2.5 pt-1">
+                    <div className="space-y-3">
                       <EnhancedSaveButton 
                         listingId={id!} 
                         onSave={() => trackListingSave(id!)}
                       />
                       <Button
-                        variant="ghost"
-                        size="default"
-                        className="w-full h-10 text-slate-700 hover:bg-slate-100 font-normal transition-all"
+                        variant="outline"
+                        size="lg"
+                        className="w-full h-11 border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 font-normal text-[15px] tracking-[0.01em] transition-all duration-200 hover:scale-[1.01] active:scale-[0.99] focus:outline-none focus:ring-2 focus:ring-slate-200 focus:ring-offset-2"
                         onClick={() => setShowShareDialog(true)}
                       >
                         Share with colleague
@@ -505,14 +505,14 @@ const ListingDetail = () => {
                     )}
                     
                     {/* Divider */}
-                    <div className="relative">
+                    <div className="relative py-2">
                       <div className="absolute inset-0 flex items-center">
-                        <div className="w-full border-t border-slate-200/80"></div>
+                        <div className="w-full border-t border-slate-200"></div>
                       </div>
                     </div>
                     
                     {/* Download Executive Summary */}
-                    <div className="flex justify-center">
+                    <div className="flex justify-center -mt-2">
                       <ExecutiveSummaryGenerator listing={listing} />
                     </div>
                   </div>
