@@ -3,12 +3,6 @@ import { Button } from '@/components/ui/button';
 import { useSavedStatus, useSaveListingMutation } from '@/hooks/marketplace/use-saved-listings';
 import { useListingSaveCount } from '@/hooks/use-collections';
 import { SaveToCollectionDialog } from './SaveToCollectionDialog';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 
 interface EnhancedSaveButtonProps {
   listingId: string;
@@ -42,31 +36,35 @@ export function EnhancedSaveButton({ listingId, onSave }: EnhancedSaveButtonProp
   return (
     <>
       <div className="space-y-2">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant={isSaved ? 'default' : 'outline'}
-              size="default"
-              disabled={isPending}
-              className={isSaved ? 'bg-foreground text-background hover:bg-foreground/90' : ''}
-            >
-              {isSaved ? 'Saved' : 'Save listing'}
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48">
-            <DropdownMenuItem onClick={handleQuickSave}>
-              {isSaved ? 'Remove from saved' : 'Quick save'}
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={handleSaveToCollection}>
-              Save to collection
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-
+        {/* Direct save button */}
+        <Button
+          variant="outline"
+          size="default"
+          onClick={handleQuickSave}
+          disabled={isPending}
+          className="w-full h-10 border-slate-300 text-slate-700 hover:bg-slate-50 hover:border-slate-400 font-medium transition-all"
+        >
+          {isSaved ? 'Saved' : 'Save this listing'}
+        </Button>
+        
+        {/* Save to collection as subtle secondary action */}
+        {isSaved && (
+          <button
+            onClick={handleSaveToCollection}
+            className="text-xs text-slate-500 hover:text-slate-700 underline decoration-slate-300 hover:decoration-slate-500 underline-offset-2 transition-colors font-normal w-full text-center"
+          >
+            Add to collection
+          </button>
+        )}
+        
+        {/* Social proof */}
         {saveCount !== undefined && saveCount > 0 && (
-          <p className="text-xs text-muted-foreground text-center">
-            {saveCount} {saveCount === 1 ? 'buyer has' : 'buyers have'} saved this
-          </p>
+          <div className="flex items-center justify-center gap-1.5 pt-1">
+            <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+            <p className="text-xs text-slate-500 font-medium">
+              {saveCount} {saveCount === 1 ? 'buyer' : 'buyers'} saved
+            </p>
+          </div>
         )}
       </div>
 

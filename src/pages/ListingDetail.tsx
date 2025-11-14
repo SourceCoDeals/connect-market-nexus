@@ -370,12 +370,12 @@ const ListingDetail = () => {
                 {userViewEnabled && (
                   <div className="sticky top-6 space-y-6 mt-6">
                     {/* Interested in This Deal? - Premium CTA */}
-                    <div className="bg-white border border-sourceco-form rounded-lg p-4 shadow-sm">
-                      <div className="text-center space-y-3">
-                        <div className="space-y-1">
-                          <h3 className="text-sm font-semibold text-slate-900">Interested in This Deal?</h3>
-                          <p className="text-xs text-slate-600">
-                            Get full access to detailed financials and business metrics
+                    <div className="bg-gradient-to-b from-white to-slate-50/30 border border-slate-200/60 rounded-xl p-6 shadow-[0_1px_3px_0_rgb(0_0_0_0.02),0_1px_2px_-1px_rgb(0_0_0_0.02)]">
+                      <div className="text-center space-y-5">
+                        <div className="space-y-2.5">
+                          <h3 className="text-xl font-normal text-slate-900 tracking-tight leading-tight">Interested in this opportunity?</h3>
+                          <p className="text-sm text-slate-600 leading-relaxed max-w-[280px] mx-auto">
+                            Access detailed financials and business metrics
                           </p>
                         </div>
                         
@@ -390,26 +390,31 @@ const ListingDetail = () => {
                         />
                         
                         {/* Enhanced Save and Share */}
-                        <div className="space-y-2">
+                        <div className="space-y-2.5 pt-1">
                           <EnhancedSaveButton 
                             listingId={id!} 
                             onSave={() => trackListingSave(id!)}
                           />
                           <Button
-                            variant="outline"
-                            size="sm"
-                            className="w-full"
+                            variant="ghost"
+                            size="default"
+                            className="w-full h-10 text-slate-700 hover:bg-slate-100 font-normal transition-all"
                             onClick={() => setShowShareDialog(true)}
                           >
-                            Forward to colleague
+                            Share with colleague
                           </Button>
                         </div>
                         
-                        {/* Download Executive Summary */}
-                        <div className="pt-3 border-t border-slate-100">
-                          <div className="flex justify-center">
-                            <ExecutiveSummaryGenerator listing={listing} />
+                        {/* Divider */}
+                        <div className="relative">
+                          <div className="absolute inset-0 flex items-center">
+                            <div className="w-full border-t border-slate-200/80"></div>
                           </div>
+                        </div>
+                        
+                        {/* Download Executive Summary */}
+                        <div className="flex justify-center">
+                          <ExecutiveSummaryGenerator listing={listing} />
                         </div>
                       </div>
                     </div>
@@ -422,12 +427,12 @@ const ListingDetail = () => {
             ) : (
               <div className="sticky top-6 space-y-6">
                 {/* Interested in This Deal? - Premium CTA */}
-                <div className="bg-white border border-sourceco-form rounded-lg p-4 shadow-sm">
-                  <div className="text-center space-y-3">
-                    <div className="space-y-1">
-                      <h3 className="text-sm font-semibold text-slate-900">Interested in This Deal?</h3>
-                      <p className="text-xs text-slate-600">
-                        Get full access to detailed financials and business metrics
+                <div className="bg-gradient-to-b from-white to-slate-50/30 border border-slate-200/60 rounded-xl p-6 shadow-[0_1px_3px_0_rgb(0_0_0_0.02),0_1px_2px_-1px_rgb(0_0_0_0.02)]">
+                  <div className="text-center space-y-5">
+                    <div className="space-y-2.5">
+                      <h3 className="text-xl font-normal text-slate-900 tracking-tight leading-tight">Interested in this opportunity?</h3>
+                      <p className="text-sm text-slate-600 leading-relaxed max-w-[280px] mx-auto">
+                        Access detailed financials and business metrics
                       </p>
                     </div>
                     
@@ -442,18 +447,18 @@ const ListingDetail = () => {
                     />
                     
                     {/* Enhanced Save and Share */}
-                    <div className="space-y-2">
+                    <div className="space-y-2.5 pt-1">
                       <EnhancedSaveButton 
                         listingId={id!} 
                         onSave={() => trackListingSave(id!)}
                       />
                       <Button
-                        variant="outline"
-                        size="sm"
-                        className="w-full"
+                        variant="ghost"
+                        size="default"
+                        className="w-full h-10 text-slate-700 hover:bg-slate-100 font-normal transition-all"
                         onClick={() => setShowShareDialog(true)}
                       >
-                        Forward to colleague
+                        Share with colleague
                       </Button>
                       <Button
                         variant="ghost"
@@ -481,7 +486,7 @@ const ListingDetail = () => {
                     
                     
                     {/* Market Context */}
-                    <div className="pt-3 border-t border-slate-100">
+                    <div className="pt-1">
                       <MarketContextCard
                         listingId={id!}
                         category={listing.category}
@@ -492,18 +497,23 @@ const ListingDetail = () => {
                     
                     {/* Recent Activity */}
                     {recentActivity !== undefined && recentActivity > 0 && (
-                      <div className="pt-3">
+                      <div className="pt-1">
                         <p className="text-xs text-muted-foreground border-l-2 border-border pl-3 py-2">
                           {recentActivity} {recentActivity === 1 ? 'buyer' : 'buyers'} took action on this listing in the last 48 hours
                         </p>
                       </div>
                     )}
                     
-                    {/* Download Executive Summary */}
-                    <div className="pt-3 border-t border-slate-100">
-                      <div className="flex justify-center">
-                        <ExecutiveSummaryGenerator listing={listing} />
+                    {/* Divider */}
+                    <div className="relative">
+                      <div className="absolute inset-0 flex items-center">
+                        <div className="w-full border-t border-slate-200/80"></div>
                       </div>
+                    </div>
+                    
+                    {/* Download Executive Summary */}
+                    <div className="flex justify-center">
+                      <ExecutiveSummaryGenerator listing={listing} />
                     </div>
                   </div>
                 </div>

@@ -1,4 +1,3 @@
-import { Download } from "lucide-react";
 import { formatCurrency } from "@/lib/currency-utils";
 
 interface ExecutiveSummaryGeneratorProps {
@@ -209,12 +208,11 @@ export const ExecutiveSummaryGenerator = ({ listing }: ExecutiveSummaryGenerator
   };
 
   return (
-    <button 
+    <button
       onClick={generatePDF}
-      className="text-xs text-slate-600 hover:text-slate-900 transition-colors duration-200 flex items-center justify-center gap-1"
+      className="text-sm text-slate-600 hover:text-slate-900 underline decoration-slate-300 hover:decoration-slate-500 underline-offset-2 transition-colors font-normal"
     >
-      <Download className="h-3 w-3" />
-      Download Executive Summary
+      Download executive summary
     </button>
   );
 };
