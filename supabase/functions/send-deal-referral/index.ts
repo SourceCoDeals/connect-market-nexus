@@ -145,23 +145,71 @@ serve(async (req: Request) => {
       </html>
     `;
 
-    // For now, log the email (replace with actual email service like Resend)
-    console.log("Would send email to:", recipientEmail);
-    console.log("Email content:", emailHtml);
+    // Send email via Brevo
+    const brevoApiKey = Deno.env.get('BREVO_API_KEY');
+    if (!brevoApiKey) {
+      throw new Error('BREVO_API_KEY not configured');
+    }
 
-    // TODO: Integrate with Resend or other email service
-    // const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
-    // await resend.emails.send({
-    //   from: "Marketplace <noreply@yourdomain.com>",
-    //   to: recipientEmail,
-    //   subject: `${referrerName} shared a business listing with you`,
-    //   html: emailHtml,
-    // });
+    const brevoPayload: any = {
+      sender: { 
+        name: "SourceCo Marketplace", 
+        email: "noreply@sourcecoals.com" 
+      },
+      to: [{ 
+        email: recipientEmail, 
+        name: recipientName || recipientEmail 
+      }],
+      subject: `${referrerName} shared a business opportunity with you`,
+      htmlContent: emailHtml,
+    };
+
+    // Add CC if requested
+    if (ccSelf && referrerEmail) {
+      brevoPayload.cc = [{ 
+        email: referrerEmail, 
+        name: referrerName 
+      }];
+    }
+
+    const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: {
+        'accept': 'application/json',
+        'api-key': brevoApiKey,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify(brevoPayload),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error('Brevo API error:', errorData);
+      throw new Error(`Failed to send email: ${response.statusText}`);
+    }
+
+    const emailResult = await response.json();
+    console.log('Email sent successfully via Brevo:', emailResult);
+
+    // Update referral record with sent timestamp
+    await supabase
+      .from('deal_referrals')
+      .update({ 
+        sent_at: new Date().toISOString(),
+        delivery_status: 'sent'
+      })
+      .eq('listing_id', listingId)
+      .eq('recipient_email', recipientEmail)
+      .eq('referrer_user_id', user.id);
 
     return new Response(
-      JSON.stringify({ success: true }),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      JSON.stringify({ 
+        success: true, 
+        message: 'Referral sent successfully',
+        messageId: emailResult.messageId
+      }),
+      { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
       }
     );
