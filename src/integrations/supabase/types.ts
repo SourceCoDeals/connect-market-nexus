@@ -855,9 +855,11 @@ export type Database = {
       }
       deal_referrals: {
         Row: {
+          cc_sender: boolean | null
           converted: boolean
           converted_at: string | null
           created_at: string
+          delivery_status: string | null
           id: string
           listing_id: string
           opened: boolean
@@ -866,11 +868,14 @@ export type Database = {
           recipient_email: string
           recipient_name: string | null
           referrer_user_id: string | null
+          sent_at: string | null
         }
         Insert: {
+          cc_sender?: boolean | null
           converted?: boolean
           converted_at?: string | null
           created_at?: string
+          delivery_status?: string | null
           id?: string
           listing_id: string
           opened?: boolean
@@ -879,11 +884,14 @@ export type Database = {
           recipient_email: string
           recipient_name?: string | null
           referrer_user_id?: string | null
+          sent_at?: string | null
         }
         Update: {
+          cc_sender?: boolean | null
           converted?: boolean
           converted_at?: string | null
           created_at?: string
+          delivery_status?: string | null
           id?: string
           listing_id?: string
           opened?: boolean
@@ -892,6 +900,7 @@ export type Database = {
           recipient_email?: string
           recipient_name?: string | null
           referrer_user_id?: string | null
+          sent_at?: string | null
         }
         Relationships: [
           {
@@ -1757,55 +1766,6 @@ export type Database = {
             columns: ["mapped_to_listing_id"]
             isOneToOne: false
             referencedRelation: "unmapped_primary_owners"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      interest_signals: {
-        Row: {
-          converted_at: string | null
-          converted_to_connection: boolean
-          created_at: string
-          id: string
-          listing_id: string
-          user_id: string
-        }
-        Insert: {
-          converted_at?: string | null
-          converted_to_connection?: boolean
-          created_at?: string
-          id?: string
-          listing_id: string
-          user_id: string
-        }
-        Update: {
-          converted_at?: string | null
-          converted_to_connection?: boolean
-          created_at?: string
-          id?: string
-          listing_id?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "interest_signals_listing_id_fkey"
-            columns: ["listing_id"]
-            isOneToOne: false
-            referencedRelation: "listings"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "interest_signals_listing_id_fkey"
-            columns: ["listing_id"]
-            isOneToOne: false
-            referencedRelation: "unmapped_primary_owners"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "interest_signals_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]

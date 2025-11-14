@@ -7,62 +7,85 @@ interface SimilarListingScore {
   score: number;
 }
 
-export function useSimilarListings(currentListing: Listing | undefined, limit = 4) {
+export function useSimilarListings(currentListing: Listing | undefined, limit = 10) {
   return useQuery({
     queryKey: ['similar-listings', currentListing?.id],
     queryFn: async () => {
       if (!currentListing) return [];
 
-      // Fetch active listings excluding the current one
       const { data: listings, error } = await supabase
         .from('listings')
         .select('*')
         .eq('status', 'active')
-        .is('deleted_at', null)
         .neq('id', currentListing.id);
 
       if (error) throw error;
-      if (!listings || listings.length === 0) return [];
+      if (!listings) return [];
+
+      // Get current listing categories as array
+      const currentCategories = Array.isArray(currentListing.categories) 
+        ? currentListing.categories 
+        : [currentListing.category];
 
       // Score each listing based on similarity
       const scoredListings: SimilarListingScore[] = listings.map((listing) => {
         let score = 0;
 
-        // Same category: +50
-        if (listing.category === currentListing.category) {
-          score += 50;
+        // Multi-category match (highest weight)
+        const listingCategories = Array.isArray(listing.categories)
+          ? listing.categories
+          : [listing.category];
+        
+        const hasCommonCategory = currentCategories.some(cat => 
+          listingCategories.includes(cat)
+        );
+        
+        if (hasCommonCategory) {
+          score += 60;
         }
 
-        // Revenue within 20%: +30
-        const revenueDiff = Math.abs(Number(listing.revenue) - Number(currentListing.revenue));
-        const revenueAvg = (Number(listing.revenue) + Number(currentListing.revenue)) / 2;
-        if (revenueAvg > 0 && (revenueDiff / revenueAvg) <= 0.2) {
-          score += 30;
+        // Revenue similarity (within 30% range)
+        const currentRevenue = Number(currentListing.revenue);
+        const listingRevenue = Number(listing.revenue);
+        const revenueDiff = Math.abs(listingRevenue - currentRevenue);
+        const revenueAvg = (listingRevenue + currentRevenue) / 2;
+        
+        if (revenueAvg > 0 && revenueDiff / revenueAvg < 0.3) {
+          score += 35;
         }
 
-        // Same or adjacent location (simplified): +20
+        // Location hierarchy
         if (listing.location === currentListing.location) {
-          score += 20;
-        } else if (listing.location?.includes(',') && currentListing.location?.includes(',')) {
-          // Check if same state/country
-          const listingParts = listing.location.split(',').map(p => p.trim());
-          const currentParts = currentListing.location.split(',').map(p => p.trim());
-          if (listingParts[listingParts.length - 1] === currentParts[currentParts.length - 1]) {
-            score += 10;
+          score += 25; // Exact match
+        } else if (
+          listing.location?.toLowerCase().includes('united states') &&
+          currentListing.location?.toLowerCase().includes('united states')
+        ) {
+          score += 10; // Same country
+        }
+
+        // EBITDA margin similarity (within 5 percentage points)
+        const currentRevNum = Number(currentListing.revenue);
+        const currentEbitdaNum = Number(currentListing.ebitda);
+        const listingRevNum = Number(listing.revenue);
+        const listingEbitdaNum = Number(listing.ebitda);
+
+        if (currentRevNum > 0 && listingRevNum > 0) {
+          const currentMargin = currentEbitdaNum / currentRevNum;
+          const listingMargin = listingEbitdaNum / listingRevNum;
+          const marginDiff = Math.abs(currentMargin - listingMargin);
+          
+          if (marginDiff < 0.05) {
+            score += 20;
           }
         }
 
-        // EBITDA margin similar (within 5%): +15
-        const listingMargin = Number(listing.ebitda) / Number(listing.revenue);
-        const currentMargin = Number(currentListing.ebitda) / Number(currentListing.revenue);
-        if (Math.abs(listingMargin - currentMargin) <= 0.05) {
+        // Recent activity bonus (listings created within 30 days)
+        const daysSinceCreated = Math.floor(
+          (Date.now() - new Date(listing.created_at).getTime()) / (1000 * 60 * 60 * 24)
+        );
+        if (daysSinceCreated < 30) {
           score += 15;
-        }
-
-        // Recently created (within 30 days): +10
-        const daysOld = (new Date().getTime() - new Date(listing.created_at).getTime()) / (1000 * 60 * 60 * 24);
-        if (daysOld <= 30) {
-          score += 10;
         }
 
         const formattedListing: Listing = {
@@ -77,10 +100,12 @@ export function useSimilarListings(currentListing: Listing | undefined, limit = 
           description_html: listing.description_html,
           description_json: listing.description_json,
           tags: listing.tags || [],
-          owner_notes: listing.owner_notes,
+          ownerNotes: listing.owner_notes,
           files: listing.files,
           created_at: listing.created_at,
           updated_at: listing.updated_at,
+          createdAt: listing.created_at,
+          updatedAt: listing.updated_at,
           image_url: listing.image_url,
           status: listing.status as ListingStatus,
           status_tag: listing.status_tag,
@@ -96,27 +121,19 @@ export function useSimilarListings(currentListing: Listing | undefined, limit = 
           internal_notes: listing.internal_notes,
           full_time_employees: listing.full_time_employees,
           part_time_employees: listing.part_time_employees,
-          ownerNotes: listing.owner_notes || '',
-          createdAt: listing.created_at,
-          updatedAt: listing.updated_at,
-          revenueFormatted: Number(listing.revenue).toLocaleString(),
-          ebitdaFormatted: Number(listing.ebitda).toLocaleString(),
         };
 
-        return {
-          listing: formattedListing,
-          score
-        };
+        return { listing: formattedListing, score };
       });
 
-      // Filter by minimum score and return top N
+      // Filter and sort by score - lower threshold, more results
       return scoredListings
-        .filter(item => item.score >= 70)
+        .filter((item) => item.score >= 65)
         .sort((a, b) => b.score - a.score)
         .slice(0, limit)
         .map(item => item.listing);
     },
     enabled: !!currentListing,
-    staleTime: 1000 * 60 * 5, // 5 minutes
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 }

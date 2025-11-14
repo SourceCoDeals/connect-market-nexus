@@ -7,6 +7,7 @@ interface ReferralData {
   recipientEmail: string;
   recipientName?: string;
   personalMessage?: string;
+  ccSelf?: boolean;
 }
 
 export function useSendDealReferral() {
@@ -26,6 +27,7 @@ export function useSendDealReferral() {
           recipient_email: data.recipientEmail,
           recipient_name: data.recipientName || null,
           personal_message: data.personalMessage || null,
+          cc_sender: data.ccSelf || false,
         });
 
       if (dbError) throw dbError;
@@ -37,6 +39,7 @@ export function useSendDealReferral() {
           recipientEmail: data.recipientEmail,
           recipientName: data.recipientName,
           personalMessage: data.personalMessage,
+          ccSelf: data.ccSelf,
         },
       });
 

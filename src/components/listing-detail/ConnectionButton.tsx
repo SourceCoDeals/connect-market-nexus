@@ -1,10 +1,9 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Send, Clock, CheckCircle2, XCircle, Wifi, ThumbsUp } from "lucide-react";
+import { Send, Clock, CheckCircle2, XCircle, Wifi } from "lucide-react";
 import ConnectionRequestDialog from "@/components/connection/ConnectionRequestDialog";
 import { useRealtime } from "@/components/realtime/RealtimeProvider";
-import { useInterestSignal, useExpressInterest, useWithdrawInterest } from "@/hooks/use-interest-signals";
 
 interface ConnectionButtonProps {
   connectionExists: boolean;
@@ -27,9 +26,6 @@ const ConnectionButton = ({
 }: ConnectionButtonProps) => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const { connectionsConnected } = useRealtime();
-  const { data: interestData } = useInterestSignal(listingId);
-  const { mutate: expressInterest, isPending: isExpressing } = useExpressInterest();
-  const { mutate: withdrawInterest } = useWithdrawInterest();
 
   const handleDialogSubmit = (message: string) => {
     handleRequestConnection(message);
@@ -142,31 +138,6 @@ const ConnectionButton = ({
 
   return (
     <div className="space-y-2">
-      {/* Express Interest Button (subtle, anonymous) */}
-      {!connectionExists && (
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => {
-            if (interestData?.hasExpressed) {
-              withdrawInterest(listingId);
-            } else {
-              expressInterest(listingId);
-            }
-          }}
-          disabled={isExpressing}
-          className="w-full text-xs"
-        >
-          <ThumbsUp className={`h-3 w-3 mr-1.5 ${interestData?.hasExpressed ? 'fill-current' : ''}`} />
-          {interestData?.hasExpressed ? 'Interest expressed' : 'Express interest'}
-          {interestData && interestData.count > 0 && (
-            <span className="ml-2 text-muted-foreground">
-              ({interestData.count} {interestData.count === 1 ? 'buyer' : 'buyers'})
-            </span>
-          )}
-        </Button>
-      )}
-
       {/* Main Connection Button */}
       <Button
         onClick={handleButtonClick}
