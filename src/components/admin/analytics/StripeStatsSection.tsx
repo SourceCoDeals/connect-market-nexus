@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 interface StatCardProps {
   label: string;
   value: string | number;
-  icon: React.ReactNode;
+  icon?: React.ReactNode;
   trend?: {
     value: number;
     isPositive: boolean;
@@ -27,18 +27,20 @@ function StatCard({ label, value, icon, trend, description, onClick, isActive }:
         isActive && "border-primary/50 bg-primary/5"
       )}
     >
-      {/* Header with icon and label */}
+      {/* Header with label */}
       <div className="flex items-center justify-between">
         <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
           {label}
         </span>
-        <div className={cn(
-          "transition-colors",
-          "text-muted-foreground/30",
-          onClick && isActive && "text-primary/50"
-        )}>
-          {icon}
-        </div>
+        {icon && (
+          <div className={cn(
+            "transition-colors",
+            "text-muted-foreground/30",
+            onClick && isActive && "text-primary/50"
+          )}>
+            {icon}
+          </div>
+        )}
       </div>
 
         {/* Main value */}
@@ -76,7 +78,7 @@ interface StripeStatsSectionProps {
   stats: Array<{
     label: string;
     value: string | number;
-    icon: React.ReactNode;
+    icon?: React.ReactNode;
     trend?: {
       value: number;
       isPositive: boolean;
