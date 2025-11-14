@@ -166,6 +166,13 @@ export type Database = {
             referencedRelation: "listings"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "alert_delivery_logs_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "unmapped_primary_owners"
+            referencedColumns: ["id"]
+          },
         ]
       }
       audit_logs: {
@@ -483,6 +490,13 @@ export type Database = {
             columns: ["listing_id"]
             isOneToOne: false
             referencedRelation: "listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "connection_requests_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "unmapped_primary_owners"
             referencedColumns: ["id"]
           },
           {
@@ -952,6 +966,8 @@ export type Database = {
           negative_followed_up: boolean | null
           negative_followed_up_at: string | null
           negative_followed_up_by: string | null
+          owner_assigned_at: string | null
+          owner_assigned_by: string | null
           priority: string | null
           probability: number | null
           source: string | null
@@ -986,6 +1002,8 @@ export type Database = {
           negative_followed_up?: boolean | null
           negative_followed_up_at?: string | null
           negative_followed_up_by?: string | null
+          owner_assigned_at?: string | null
+          owner_assigned_by?: string | null
           priority?: string | null
           probability?: number | null
           source?: string | null
@@ -1020,6 +1038,8 @@ export type Database = {
           negative_followed_up?: boolean | null
           negative_followed_up_at?: string | null
           negative_followed_up_by?: string | null
+          owner_assigned_at?: string | null
+          owner_assigned_by?: string | null
           priority?: string | null
           probability?: number | null
           source?: string | null
@@ -1063,6 +1083,20 @@ export type Database = {
             columns: ["listing_id"]
             isOneToOne: false
             referencedRelation: "listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deals_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "unmapped_primary_owners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deals_owner_assigned_by_fkey"
+            columns: ["owner_assigned_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
           {
@@ -1591,6 +1625,13 @@ export type Database = {
             referencedRelation: "listings"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "inbound_leads_mapped_to_listing_id_fkey"
+            columns: ["mapped_to_listing_id"]
+            isOneToOne: false
+            referencedRelation: "unmapped_primary_owners"
+            referencedColumns: ["id"]
+          },
         ]
       }
       listing_analytics: {
@@ -1654,6 +1695,13 @@ export type Database = {
             columns: ["listing_id"]
             isOneToOne: false
             referencedRelation: "listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "listing_analytics_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "unmapped_primary_owners"
             referencedColumns: ["id"]
           },
         ]
@@ -1724,6 +1772,7 @@ export type Database = {
           owner_notes: string | null
           ownership_structure: string | null
           part_time_employees: number | null
+          primary_owner_id: string | null
           revenue: number
           revenue_model_breakdown: Json | null
           seller_involvement_preference: string | null
@@ -1769,6 +1818,7 @@ export type Database = {
           owner_notes?: string | null
           ownership_structure?: string | null
           part_time_employees?: number | null
+          primary_owner_id?: string | null
           revenue: number
           revenue_model_breakdown?: Json | null
           seller_involvement_preference?: string | null
@@ -1814,6 +1864,7 @@ export type Database = {
           owner_notes?: string | null
           ownership_structure?: string | null
           part_time_employees?: number | null
+          primary_owner_id?: string | null
           revenue?: number
           revenue_model_breakdown?: Json | null
           seller_involvement_preference?: string | null
@@ -1827,7 +1878,15 @@ export type Database = {
           updated_at?: string
           visible_to_buyer_types?: string[] | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "listings_primary_owner_id_fkey"
+            columns: ["primary_owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       nda_logs: {
         Row: {
@@ -1908,6 +1967,81 @@ export type Database = {
           window_start?: string
         }
         Relationships: []
+      }
+      owner_intro_notifications: {
+        Row: {
+          created_at: string | null
+          deal_id: string
+          email_error: string | null
+          email_status: string | null
+          id: string
+          listing_id: string
+          metadata: Json | null
+          primary_owner_id: string
+          sent_at: string | null
+          sent_by: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          deal_id: string
+          email_error?: string | null
+          email_status?: string | null
+          id?: string
+          listing_id: string
+          metadata?: Json | null
+          primary_owner_id: string
+          sent_at?: string | null
+          sent_by?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          deal_id?: string
+          email_error?: string | null
+          email_status?: string | null
+          id?: string
+          listing_id?: string
+          metadata?: Json | null
+          primary_owner_id?: string
+          sent_at?: string | null
+          sent_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "owner_intro_notifications_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "owner_intro_notifications_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "owner_intro_notifications_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "unmapped_primary_owners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "owner_intro_notifications_primary_owner_id_fkey"
+            columns: ["primary_owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "owner_intro_notifications_sent_by_fkey"
+            columns: ["sent_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       page_views: {
         Row: {
@@ -2421,6 +2555,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "saved_listings_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "unmapped_primary_owners"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "saved_listings_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
@@ -2822,7 +2963,33 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      unmapped_primary_owners: {
+        Row: {
+          created_at: string | null
+          id: string | null
+          internal_company_name: string | null
+          internal_primary_owner: string | null
+          migration_status: string | null
+          title: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string | null
+          internal_company_name?: string | null
+          internal_primary_owner?: string | null
+          migration_status?: never
+          title?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string | null
+          internal_company_name?: string | null
+          internal_primary_owner?: string | null
+          migration_status?: never
+          title?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       assign_connection_request_decider: {
@@ -3095,6 +3262,14 @@ export type Database = {
         Args: { deal_id: string; new_stage_id: string }
         Returns: boolean
       }
+      move_deal_stage_with_ownership: {
+        Args: {
+          p_current_admin_id: string
+          p_deal_id: string
+          p_new_stage_id: string
+        }
+        Returns: Json
+      }
       normalize_company_name: {
         Args: { company_name: string }
         Returns: string
@@ -3173,6 +3348,10 @@ export type Database = {
       update_daily_metrics: {
         Args: { target_date?: string }
         Returns: undefined
+      }
+      update_deal_owner: {
+        Args: { p_actor_id?: string; p_assigned_to: string; p_deal_id: string }
+        Returns: Json
       }
       update_engagement_scores: { Args: never; Returns: undefined }
       update_fee_agreement_email_status: {

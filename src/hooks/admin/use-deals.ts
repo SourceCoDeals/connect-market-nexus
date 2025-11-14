@@ -424,10 +424,29 @@ export function useUpdateDealStage() {
               }
             });
             
-            if (result.data?.success) {
+            if (result.error) {
               toast({
-                title: 'Owner Notified',
-                description: 'The primary owner has been notified of this intro request.',
+                title: 'Notification Failed',
+                description: 'The owner intro email could not be sent. Please notify the owner manually.',
+                variant: 'destructive',
+              });
+            } else if (result.data?.success) {
+              if (result.data?.duplicate) {
+                toast({
+                  title: 'Already Notified',
+                  description: 'This owner was recently notified about this introduction.',
+                });
+              } else {
+                const ownerName = result.data.primary_owner_name || 'the primary owner';
+                toast({
+                  title: 'Owner Notified',
+                  description: `${ownerName} has been notified of this introduction request via email.`,
+                });
+              }
+            } else {
+              toast({
+                title: 'Stage Updated',
+                description: 'The stage was moved but notification status is unknown.',
               });
             }
           } catch (error) {
