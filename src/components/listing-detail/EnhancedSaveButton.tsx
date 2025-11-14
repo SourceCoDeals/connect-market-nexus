@@ -46,7 +46,7 @@ export function EnhancedSaveButton({ listingId, onSave }: EnhancedSaveButtonProp
           <DropdownMenuTrigger asChild>
             <Button
               variant={isSaved ? 'default' : 'outline'}
-              size="sm"
+              size="default"
               disabled={isPending}
               className={isSaved ? 'bg-foreground text-background hover:bg-foreground/90' : ''}
             >

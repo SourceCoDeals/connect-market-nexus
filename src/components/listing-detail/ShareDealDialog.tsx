@@ -28,6 +28,7 @@ export function ShareDealDialog({
   const [recipientEmail, setRecipientEmail] = useState('');
   const [recipientName, setRecipientName] = useState('');
   const [personalMessage, setPersonalMessage] = useState('');
+  const [ccSelf, setCcSelf] = useState(false);
   
   const { mutate: sendReferral, isPending } = useSendDealReferral();
 
@@ -42,12 +43,14 @@ export function ShareDealDialog({
         recipientEmail,
         recipientName: recipientName || undefined,
         personalMessage: personalMessage || undefined,
+        ccSelf,
       },
       {
         onSuccess: () => {
           setRecipientEmail('');
           setRecipientName('');
           setPersonalMessage('');
+          setCcSelf(false);
           onOpenChange(false);
         },
       }
@@ -105,6 +108,19 @@ export function ShareDealDialog({
               rows={3}
               className="resize-none text-sm"
             />
+          </div>
+
+          <div className="flex items-center space-x-2">
+            <input
+              type="checkbox"
+              id="ccSelf"
+              checked={ccSelf}
+              onChange={(e) => setCcSelf(e.target.checked)}
+              className="h-4 w-4 rounded border-input"
+            />
+            <Label htmlFor="ccSelf" className="text-sm font-normal cursor-pointer">
+              Send me a copy
+            </Label>
           </div>
 
           <div className="flex justify-end gap-2 pt-2">

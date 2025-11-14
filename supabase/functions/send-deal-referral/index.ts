@@ -11,6 +11,7 @@ interface ReferralRequest {
   recipientEmail: string;
   recipientName?: string;
   personalMessage?: string;
+  ccSelf?: boolean;
 }
 
 serve(async (req: Request) => {
@@ -36,7 +37,7 @@ serve(async (req: Request) => {
       throw new Error("Unauthorized");
     }
 
-    const { listingId, recipientEmail, recipientName, personalMessage }: ReferralRequest = 
+    const { listingId, recipientEmail, recipientName, personalMessage, ccSelf }: ReferralRequest = 
       await req.json();
 
     // Get listing details
@@ -58,6 +59,8 @@ serve(async (req: Request) => {
     const referrerName = profile 
       ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || profile.email
       : 'A colleague';
+    
+    const referrerEmail = profile?.email || '';
 
     // Format currency
     const formatCurrency = (amount: number) => {

@@ -22,8 +22,6 @@ import ConnectionButton from "@/components/listing-detail/ConnectionButton";
 import BlurredFinancialTeaser from "@/components/listing-detail/BlurredFinancialTeaser";
 import { EnhancedInvestorDashboard } from "@/components/listing-detail/EnhancedInvestorDashboard";
 import { CustomSection } from "@/components/listing-detail/CustomSection";
-import { CreateDealAlertDialog as LegacyCreateDealAlertDialog } from "@/components/deal-alerts/CreateDealAlertDialog";
-import { CreateDealAlertDialog } from "@/components/listing-detail/CreateDealAlertDialog";
 import { ExecutiveSummaryGenerator } from "@/components/listing-detail/ExecutiveSummaryGenerator";
 import { PersonalNotesWidget } from "@/components/listing-detail/PersonalNotesWidget";
 import { DealComparisonWidget } from "@/components/listing-detail/DealComparisonWidget";
@@ -33,7 +31,7 @@ import { EditableTitle } from "@/components/listing-detail/EditableTitle";
 import { EditableDescription } from "@/components/listing-detail/EditableDescription";
 import { CategoryLocationBadges } from "@/components/shared/CategoryLocationBadges";
 import { CalendarIcon, DocumentIcon, BuildingIcon } from "@/components/icons/MetricIcons";
-import { SimilarListingsSection } from "@/components/listing-detail/SimilarListingsSection";
+import { SimilarListingsCarousel } from "@/components/listing-detail/SimilarListingsCarousel";
 import { ShareDealDialog } from "@/components/listing-detail/ShareDealDialog";
 import { EnhancedSaveButton } from "@/components/listing-detail/EnhancedSaveButton";
 import { MarketContextCard } from '@/components/listing-detail/MarketContextCard';
@@ -44,7 +42,6 @@ import { useQueryClient } from "@tanstack/react-query";
 const ListingDetail = () => {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
-  const [showDealAlerts, setShowDealAlerts] = useState(false);
   const [showShareDialog, setShowShareDialog] = useState(false);
   const [userViewEnabled, setUserViewEnabled] = useState(false);
   const [editModeEnabled, setEditModeEnabled] = useState(false);
@@ -320,8 +317,8 @@ const ListingDetail = () => {
               </div>
             )}
 
-          {/* Similar Listings Section */}
-          {listing && <SimilarListingsSection currentListing={listing} />}
+          {/* Similar Listings Carousel */}
+          {listing && <SimilarListingsCarousel currentListing={listing} />}
 
           {/* Custom Sections */}
             {(listing as any).custom_sections && Array.isArray((listing as any).custom_sections) && (listing as any).custom_sections.length > 0 && (
@@ -417,28 +414,6 @@ const ListingDetail = () => {
                       </div>
                     </div>
 
-                    {/* Deal Alerts */}
-                    <div className="bg-white border border-sourceco-form rounded-lg p-4 shadow-sm">
-                      <div className="space-y-3">
-                        <div className="text-center space-y-1">
-                          <h4 className="text-sm font-semibold text-slate-900">Get Notified</h4>
-                          <p className="text-xs text-slate-600">
-                            Set up deal alerts based on your investment criteria
-                          </p>
-                        </div>
-                        <LegacyCreateDealAlertDialog
-                          trigger={
-                            <button className="w-full h-8 bg-white border border-sourceco-accent text-sourceco-accent hover:bg-sourceco-accent hover:text-white text-xs font-medium transition-all duration-300 flex items-center justify-center gap-2 rounded-md">
-                              <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-5 5-5-5h5v-5a7.5 7.5 0 1 0-15 0v5h5"/>
-                              </svg>
-                              Set Up Deal Alerts
-                            </button>
-                          }
-                        />
-                      </div>
-                    </div>
-
                     {/* Personal Notes Widget */}
                     <PersonalNotesWidget listingId={id!} />
                   </div>
@@ -504,15 +479,6 @@ const ListingDetail = () => {
                       </Button>
                     </div>
                     
-                    {/* Notify Me Button */}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="w-full"
-                      onClick={() => setShowDealAlerts(true)}
-                    >
-                      Notify me of similar opportunities
-                    </Button>
                     
                     {/* Market Context */}
                     <div className="pt-3 border-t border-slate-100">
@@ -542,28 +508,6 @@ const ListingDetail = () => {
                   </div>
                 </div>
 
-                {/* Deal Alerts */}
-                <div className="bg-white border border-sourceco-form rounded-lg p-4 shadow-sm">
-                  <div className="space-y-3">
-                    <div className="text-center space-y-1">
-                      <h4 className="text-sm font-semibold text-slate-900">Get Notified</h4>
-                      <p className="text-xs text-slate-600">
-                        Set up deal alerts based on your investment criteria
-                      </p>
-                    </div>
-                    <LegacyCreateDealAlertDialog
-                      trigger={
-                        <button className="w-full h-8 bg-white border border-sourceco-accent text-sourceco-accent hover:bg-sourceco-accent hover:text-white text-xs font-medium transition-all duration-300 flex items-center justify-center gap-2 rounded-md">
-                          <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-5 5-5-5h5v-5a7.5 7.5 0 1 0-15 0v5h5"/>
-                          </svg>
-                          Set Up Deal Alerts
-                        </button>
-                      }
-                    />
-                  </div>
-                </div>
-
                 {/* Personal Notes Widget */}
                 <PersonalNotesWidget listingId={id!} />
               </div>
@@ -574,25 +518,12 @@ const ListingDetail = () => {
       
       {/* Dialogs */}
       {listing && (
-        <>
-          <ShareDealDialog
-            open={showShareDialog}
-            onOpenChange={setShowShareDialog}
-            listingId={id!}
-            listingTitle={listing.title}
-          />
-          <CreateDealAlertDialog
-            open={showDealAlerts}
-            onOpenChange={setShowDealAlerts}
-            listing={{
-              id: listing.id,
-              title: listing.title,
-              category: listing.category,
-              location: listing.location,
-              revenue: listing.revenue,
-            }}
-          />
-        </>
+        <ShareDealDialog
+          open={showShareDialog}
+          onOpenChange={setShowShareDialog}
+          listingId={id!}
+          listingTitle={listing.title}
+        />
       )}
     </div>
   );
