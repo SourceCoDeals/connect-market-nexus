@@ -457,20 +457,21 @@ const ListingDetail = () => {
                       listingTitle={listing.title}
                     />
                     
-                    {/* Save Listing CTA */}
-                    <Button
-                      variant="outline"
-                      className="w-full h-8 bg-white border-sourceco-accent text-sourceco-accent hover:bg-sourceco-accent hover:text-white text-xs font-medium transition-all duration-300 rounded-md"
-                      onClick={handleToggleSave}
-                      disabled={isSaving || isSavedLoading}
-                    >
-                      <Bookmark
-                        className={`h-3 w-3 mr-1.5 ${
-                          isSaved ? "fill-current" : ""
-                        }`}
+                    {/* Enhanced Save and Share */}
+                    <div className="space-y-2">
+                      <EnhancedSaveButton 
+                        listingId={id!} 
+                        onSave={() => trackListingSave(id!)}
                       />
-                      {isSaved ? "Saved" : "Save Listing"}
-                    </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full"
+                        onClick={() => setShowShareDialog(true)}
+                      >
+                        Forward to colleague
+                      </Button>
+                    </div>
                     
                     {/* Download Executive Summary */}
                     <div className="pt-3 border-t border-slate-100">
