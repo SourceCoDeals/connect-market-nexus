@@ -22,7 +22,8 @@ import ConnectionButton from "@/components/listing-detail/ConnectionButton";
 import BlurredFinancialTeaser from "@/components/listing-detail/BlurredFinancialTeaser";
 import { EnhancedInvestorDashboard } from "@/components/listing-detail/EnhancedInvestorDashboard";
 import { CustomSection } from "@/components/listing-detail/CustomSection";
-import { CreateDealAlertDialog } from "@/components/deal-alerts/CreateDealAlertDialog";
+import { CreateDealAlertDialog as LegacyCreateDealAlertDialog } from "@/components/deal-alerts/CreateDealAlertDialog";
+import { CreateDealAlertDialog } from "@/components/listing-detail/CreateDealAlertDialog";
 import { ExecutiveSummaryGenerator } from "@/components/listing-detail/ExecutiveSummaryGenerator";
 import { PersonalNotesWidget } from "@/components/listing-detail/PersonalNotesWidget";
 import { DealComparisonWidget } from "@/components/listing-detail/DealComparisonWidget";
@@ -425,7 +426,7 @@ const ListingDetail = () => {
                             Set up deal alerts based on your investment criteria
                           </p>
                         </div>
-                        <CreateDealAlertDialog
+                        <LegacyCreateDealAlertDialog
                           trigger={
                             <button className="w-full h-8 bg-white border border-sourceco-accent text-sourceco-accent hover:bg-sourceco-accent hover:text-white text-xs font-medium transition-all duration-300 flex items-center justify-center gap-2 rounded-md">
                               <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -550,7 +551,7 @@ const ListingDetail = () => {
                         Set up deal alerts based on your investment criteria
                       </p>
                     </div>
-                    <CreateDealAlertDialog
+                    <LegacyCreateDealAlertDialog
                       trigger={
                         <button className="w-full h-8 bg-white border border-sourceco-accent text-sourceco-accent hover:bg-sourceco-accent hover:text-white text-xs font-medium transition-all duration-300 flex items-center justify-center gap-2 rounded-md">
                           <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
