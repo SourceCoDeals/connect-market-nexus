@@ -388,6 +388,7 @@ const ListingDetail = () => {
                           isAdmin={false}
                           handleRequestConnection={handleRequestConnection}
                           listingTitle={listing.title}
+                          listingId={id!}
                         />
                         
                         {/* Enhanced Save and Share */}
@@ -461,6 +462,7 @@ const ListingDetail = () => {
                       isAdmin={false}
                       handleRequestConnection={handleRequestConnection}
                       listingTitle={listing.title}
+                      listingId={id!}
                     />
                     
                     {/* Enhanced Save and Share */}
@@ -500,6 +502,16 @@ const ListingDetail = () => {
                         {isInComparison(id!) ? 'Remove from comparison' : 'Add to comparison'}
                       </Button>
                     </div>
+                    
+                    {/* Notify Me Button */}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full"
+                      onClick={() => setShowDealAlerts(true)}
+                    >
+                      Notify me of similar opportunities
+                    </Button>
                     
                     {/* Market Context */}
                     <div className="pt-3 border-t border-slate-100">
@@ -559,14 +571,27 @@ const ListingDetail = () => {
         </div>
       </div>
       
-      {/* Share Dialog */}
+      {/* Dialogs */}
       {listing && (
-        <ShareDealDialog
-          open={showShareDialog}
-          onOpenChange={setShowShareDialog}
-          listingId={id!}
-          listingTitle={listing.title}
-        />
+        <>
+          <ShareDealDialog
+            open={showShareDialog}
+            onOpenChange={setShowShareDialog}
+            listingId={id!}
+            listingTitle={listing.title}
+          />
+          <CreateDealAlertDialog
+            open={showDealAlerts}
+            onOpenChange={setShowDealAlerts}
+            listing={{
+              id: listing.id,
+              title: listing.title,
+              category: listing.category,
+              location: listing.location,
+              revenue: listing.revenue,
+            }}
+          />
+        </>
       )}
     </div>
   );
