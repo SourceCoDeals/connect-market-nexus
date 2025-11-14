@@ -1,0 +1,175 @@
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+interface ReferralRequest {
+  listingId: string;
+  recipientEmail: string;
+  recipientName?: string;
+  personalMessage?: string;
+}
+
+serve(async (req: Request) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      throw new Error("No authorization header");
+    }
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser(
+      authHeader.replace("Bearer ", "")
+    );
+
+    if (authError || !user) {
+      throw new Error("Unauthorized");
+    }
+
+    const { listingId, recipientEmail, recipientName, personalMessage }: ReferralRequest = 
+      await req.json();
+
+    // Get listing details
+    const { data: listing, error: listingError } = await supabase
+      .from("listings")
+      .select("title, category, location, revenue, ebitda")
+      .eq("id", listingId)
+      .single();
+
+    if (listingError) throw listingError;
+
+    // Get referrer profile
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("first_name, last_name, email")
+      .eq("id", user.id)
+      .single();
+
+    const referrerName = profile 
+      ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || profile.email
+      : 'A colleague';
+
+    // Format currency
+    const formatCurrency = (amount: number) => {
+      return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'USD',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+      }).format(amount);
+    };
+
+    // Create email HTML (Stripe-minimal style)
+    const emailHtml = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Deal Referral</title>
+        </head>
+        <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f8f9fa;">
+          <div style="max-width: 600px; margin: 40px auto; background-color: white; border: 1px solid #e2e8f0; border-radius: 8px;">
+            <div style="padding: 40px 32px;">
+              <h1 style="margin: 0 0 8px 0; font-size: 24px; font-weight: 600; color: #0f172a;">
+                ${referrerName} thought you'd be interested
+              </h1>
+              <p style="margin: 0 0 32px 0; font-size: 14px; color: #64748b;">
+                They shared a business listing with you
+              </p>
+
+              ${personalMessage ? `
+                <div style="margin-bottom: 32px; padding: 16px; background-color: #f8fafc; border-left: 2px solid #cbd5e1; border-radius: 4px;">
+                  <p style="margin: 0; font-size: 14px; color: #475569; font-style: italic;">
+                    "${personalMessage}"
+                  </p>
+                </div>
+              ` : ''}
+
+              <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 24px; margin-bottom: 32px;">
+                <h2 style="margin: 0 0 16px 0; font-size: 18px; font-weight: 600; color: #0f172a;">
+                  ${listing.title}
+                </h2>
+                
+                <div style="margin-bottom: 16px;">
+                  <div style="display: inline-block; padding: 4px 12px; background-color: #f1f5f9; border-radius: 4px; font-size: 12px; color: #475569; margin-right: 8px;">
+                    ${listing.category}
+                  </div>
+                  <div style="display: inline-block; padding: 4px 12px; background-color: #f1f5f9; border-radius: 4px; font-size: 12px; color: #475569;">
+                    ${listing.location}
+                  </div>
+                </div>
+
+                <div style="display: flex; justify-content: space-between; padding-top: 16px; border-top: 1px solid #e2e8f0;">
+                  <div>
+                    <p style="margin: 0 0 4px 0; font-size: 12px; color: #64748b;">Revenue</p>
+                    <p style="margin: 0; font-size: 16px; font-weight: 600; color: #0f172a;">
+                      ${formatCurrency(Number(listing.revenue))}
+                    </p>
+                  </div>
+                  <div style="text-align: right;">
+                    <p style="margin: 0 0 4px 0; font-size: 12px; color: #64748b;">EBITDA</p>
+                    <p style="margin: 0; font-size: 16px; font-weight: 600; color: #0f172a;">
+                      ${formatCurrency(Number(listing.ebitda))}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div style="text-align: center;">
+                <a href="${supabaseUrl.replace('.supabase.co', '')}/listing/${listingId}" 
+                   style="display: inline-block; padding: 12px 32px; background-color: #0f172a; color: white; text-decoration: none; border-radius: 6px; font-size: 14px; font-weight: 500;">
+                  View full listing
+                </a>
+              </div>
+
+              <p style="margin: 32px 0 0 0; font-size: 12px; color: #94a3b8; text-align: center;">
+                This listing was shared with you via our marketplace platform
+              </p>
+            </div>
+          </div>
+        </body>
+      </html>
+    `;
+
+    // For now, log the email (replace with actual email service like Resend)
+    console.log("Would send email to:", recipientEmail);
+    console.log("Email content:", emailHtml);
+
+    // TODO: Integrate with Resend or other email service
+    // const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
+    // await resend.emails.send({
+    //   from: "Marketplace <noreply@yourdomain.com>",
+    //   to: recipientEmail,
+    //   subject: `${referrerName} shared a business listing with you`,
+    //   html: emailHtml,
+    // });
+
+    return new Response(
+      JSON.stringify({ success: true }),
+      {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      }
+    );
+  } catch (error: any) {
+    console.error("Error sending referral:", error);
+    return new Response(
+      JSON.stringify({ error: error.message }),
+      {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 500,
+      }
+    );
+  }
+});

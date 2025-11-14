@@ -3,7 +3,6 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useMarketplace } from "@/hooks/use-marketplace";
 import { useAuth } from "@/context/AuthContext";
-import { useSavedStatus, useSaveListingMutation } from "@/hooks/marketplace/use-saved-listings";
 import { useAnalytics } from "@/context/AnalyticsContext";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -15,7 +14,6 @@ import {
   AlertTriangle,
   ImageIcon,
   MapPin,
-  Bookmark
 } from "lucide-react";
 import { DEFAULT_IMAGE } from "@/lib/storage-utils";
 import { formatCurrency } from "@/lib/currency-utils";
@@ -34,12 +32,16 @@ import { EditableTitle } from "@/components/listing-detail/EditableTitle";
 import { EditableDescription } from "@/components/listing-detail/EditableDescription";
 import { CategoryLocationBadges } from "@/components/shared/CategoryLocationBadges";
 import { CalendarIcon, DocumentIcon, BuildingIcon } from "@/components/icons/MetricIcons";
+import { SimilarListingsSection } from "@/components/listing-detail/SimilarListingsSection";
+import { ShareDealDialog } from "@/components/listing-detail/ShareDealDialog";
+import { EnhancedSaveButton } from "@/components/listing-detail/EnhancedSaveButton";
 
 
 const ListingDetail = () => {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
   const [showDealAlerts, setShowDealAlerts] = useState(false);
+  const [showShareDialog, setShowShareDialog] = useState(false);
   const [userViewEnabled, setUserViewEnabled] = useState(false);
   const [editModeEnabled, setEditModeEnabled] = useState(false);
   const { 
@@ -51,8 +53,6 @@ const ListingDetail = () => {
   const { data: listing, isLoading, error } = useListing(id);
   const { mutate: requestConnection, isPending: isRequesting } = useRequestConnection();
   const { data: connectionStatus } = useConnectionStatus(id);
-  const { data: isSaved, isLoading: isSavedLoading } = useSavedStatus(id);
-  const { mutate: toggleSave, isPending: isSaving } = useSaveListingMutation();
   const { trackListingView, trackListingSave, trackConnectionRequest } = useAnalytics();
   
   const isAdmin = user?.is_admin === true;
@@ -79,18 +79,6 @@ const ListingDetail = () => {
   // Extract connection status safely with fallbacks
   const connectionExists = connectionStatus?.exists || false;
   const connectionStatusValue = connectionStatus?.status || "";
-  
-  const handleToggleSave = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (id) {
-      trackListingSave(id);
-      toggleSave({ 
-        listingId: id, 
-        action: isSaved ? 'unsave' : 'save' 
-      });
-    }
-  };
 
   if (isLoading) {
     return (
@@ -325,7 +313,10 @@ const ListingDetail = () => {
               </div>
             )}
 
-            {/* Custom Sections */}
+          {/* Similar Listings Section */}
+          {listing && <SimilarListingsSection currentListing={listing} />}
+
+          {/* Custom Sections */}
             {(listing as any).custom_sections && Array.isArray((listing as any).custom_sections) && (listing as any).custom_sections.length > 0 && (
               <div className="document-section py-8 border-t border-slate-100">
                 <div className="space-y-6">
@@ -393,20 +384,21 @@ const ListingDetail = () => {
                           listingTitle={listing.title}
                         />
                         
-                        {/* Save Listing CTA */}
-                        <Button
-                          variant="outline"
-                          className="w-full h-8 bg-white border-sourceco-accent text-sourceco-accent hover:bg-sourceco-accent hover:text-white text-xs font-medium transition-all duration-300 rounded-md"
-                          onClick={handleToggleSave}
-                          disabled={isSaving || isSavedLoading}
-                        >
-                          <Bookmark
-                            className={`h-3 w-3 mr-1.5 ${
-                              isSaved ? "fill-current" : ""
-                            }`}
+                        {/* Enhanced Save and Share */}
+                        <div className="space-y-2">
+                          <EnhancedSaveButton 
+                            listingId={id!} 
+                            onSave={() => trackListingSave(id!)}
                           />
-                          {isSaved ? "Saved" : "Save Listing"}
-                        </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="w-full"
+                            onClick={() => setShowShareDialog(true)}
+                          >
+                            Forward to colleague
+                          </Button>
+                        </div>
                         
                         {/* Download Executive Summary */}
                         <div className="pt-3 border-t border-slate-100">
@@ -518,6 +510,16 @@ const ListingDetail = () => {
           </div>
         </div>
       </div>
+      
+      {/* Share Dialog */}
+      {listing && (
+        <ShareDealDialog
+          open={showShareDialog}
+          onOpenChange={setShowShareDialog}
+          listingId={id!}
+          listingTitle={listing.title}
+        />
+      )}
     </div>
   );
 };

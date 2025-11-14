@@ -238,6 +238,76 @@ export type Database = {
         }
         Relationships: []
       }
+      collection_items: {
+        Row: {
+          added_at: string
+          collection_id: string
+          id: string
+          listing_id: string
+        }
+        Insert: {
+          added_at?: string
+          collection_id: string
+          id?: string
+          listing_id: string
+        }
+        Update: {
+          added_at?: string
+          collection_id?: string
+          id?: string
+          listing_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "collection_items_collection_id_fkey"
+            columns: ["collection_id"]
+            isOneToOne: false
+            referencedRelation: "collections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "collection_items_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "collection_items_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "unmapped_primary_owners"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      collections: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       connection_request_contacts: {
         Row: {
           created_at: string
@@ -779,6 +849,63 @@ export type Database = {
             columns: ["deal_id"]
             isOneToOne: false
             referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      deal_referrals: {
+        Row: {
+          converted: boolean
+          converted_at: string | null
+          created_at: string
+          id: string
+          listing_id: string
+          opened: boolean
+          opened_at: string | null
+          personal_message: string | null
+          recipient_email: string
+          recipient_name: string | null
+          referrer_user_id: string | null
+        }
+        Insert: {
+          converted?: boolean
+          converted_at?: string | null
+          created_at?: string
+          id?: string
+          listing_id: string
+          opened?: boolean
+          opened_at?: string | null
+          personal_message?: string | null
+          recipient_email: string
+          recipient_name?: string | null
+          referrer_user_id?: string | null
+        }
+        Update: {
+          converted?: boolean
+          converted_at?: string | null
+          created_at?: string
+          id?: string
+          listing_id?: string
+          opened?: boolean
+          opened_at?: string | null
+          personal_message?: string | null
+          recipient_email?: string
+          recipient_name?: string | null
+          referrer_user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deal_referrals_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deal_referrals_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "unmapped_primary_owners"
             referencedColumns: ["id"]
           },
         ]
