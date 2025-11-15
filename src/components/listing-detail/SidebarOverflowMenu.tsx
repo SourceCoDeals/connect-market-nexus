@@ -19,6 +19,7 @@ interface SidebarOverflowMenuProps {
   isInComparison: boolean;
   onCompare: () => void;
   onDownload: () => void;
+  className?: string;
 }
 
 export const SidebarOverflowMenu = ({
@@ -26,6 +27,7 @@ export const SidebarOverflowMenu = ({
   isInComparison,
   onCompare,
   onDownload,
+  className,
 }: SidebarOverflowMenuProps) => {
   return (
     <DropdownMenu>
@@ -33,15 +35,15 @@ export const SidebarOverflowMenu = ({
         <Button
           variant="ghost"
           size="icon"
-          className="absolute top-6 right-6 h-5 w-5 opacity-0 group-hover:opacity-100 transition-all duration-300 text-slate-300 hover:text-slate-500 hover:bg-slate-50 rounded-md"
+          className={className ?? "absolute top-4 right-4 h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-slate-300 hover:text-slate-600 hover:bg-transparent"}
         >
-          <MoreHorizontal className="h-3 w-3" />
+          <MoreHorizontal className="h-4 w-4" />
         </Button>
       </DropdownMenuTrigger>
 
       <DropdownMenuContent 
         align="end" 
-        className="w-44 shadow-sm border-slate-200 rounded-lg p-1"
+        className="w-44 rounded-lg border border-slate-200 bg-white p-1 shadow-sm"
       >
         <DropdownMenuItem
           onClick={onCompare}
