@@ -395,15 +395,8 @@ const ListingDetail = () => {
                           <EnhancedSaveButton 
                             listingId={id!} 
                             onSave={() => trackListingSave(id!)}
+                            onShare={() => setShowShareDialog(true)}
                           />
-                          <Button
-                            variant="outline"
-                            onClick={() => setShowShareDialog(true)}
-                            className="w-full h-9 border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 font-medium text-[13px] tracking-[0.002em] transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-sourceco-accent/30 focus:ring-offset-2"
-                          >
-                            <Share2 className="h-3.5 w-3.5" />
-                            Share with colleague
-                          </Button>
                           <Button
                             variant="outline"
                             onClick={() => {
@@ -470,15 +463,8 @@ const ListingDetail = () => {
                       <EnhancedSaveButton 
                         listingId={id!} 
                         onSave={() => trackListingSave(id!)}
+                        onShare={() => setShowShareDialog(true)}
                       />
-                      <Button
-                        variant="outline"
-                        onClick={() => setShowShareDialog(true)}
-                        className="w-full h-10 border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50 text-slate-600 hover:text-slate-900 font-normal text-[13px] tracking-[0.01em] transition-all duration-200"
-                      >
-                        <Share2 className="h-3.5 w-3.5" />
-                        Share with colleague
-                      </Button>
                       <Button
                         variant="outline"
                         onClick={() => {
