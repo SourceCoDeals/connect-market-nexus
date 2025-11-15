@@ -28,44 +28,37 @@ export const SidebarOverflowMenu = ({
   onDownload,
 }: SidebarOverflowMenuProps) => {
   return (
-    <TooltipProvider>
-      <DropdownMenu>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-slate-400 hover:text-slate-700 hover:bg-slate-50 transition-colors duration-200"
-              >
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-          </TooltipTrigger>
-          <TooltipContent>More actions</TooltipContent>
-        </Tooltip>
-
-        <DropdownMenuContent 
-          align="end" 
-          className="w-48 shadow-lg border-slate-200 rounded-lg p-1"
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="absolute top-4 right-4 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-slate-300 hover:text-slate-600 hover:bg-transparent"
         >
-          <DropdownMenuItem
-            onClick={onCompare}
-            className="h-9 text-[13px] font-medium rounded-md cursor-pointer transition-colors duration-150"
-          >
-            <Scale className="h-3.5 w-3.5 mr-2" />
-            {isInComparison ? "Remove from compare" : "Add to compare"}
-          </DropdownMenuItem>
+          <MoreHorizontal className="h-3.5 w-3.5" />
+        </Button>
+      </DropdownMenuTrigger>
 
-          <DropdownMenuItem
-            onClick={onDownload}
-            className="h-9 text-[13px] font-medium rounded-md cursor-pointer transition-colors duration-150"
-          >
-            <FileDown className="h-3.5 w-3.5 mr-2" />
-            Download summary
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </TooltipProvider>
+      <DropdownMenuContent 
+        align="end" 
+        className="w-48 shadow-lg border-slate-200 rounded-lg p-1"
+      >
+        <DropdownMenuItem
+          onClick={onCompare}
+          className="h-9 text-[13px] font-medium rounded-md cursor-pointer transition-colors duration-150"
+        >
+          <Scale className="h-3.5 w-3.5 mr-2" />
+          {isInComparison ? "Remove from compare" : "Add to compare"}
+        </DropdownMenuItem>
+
+        <DropdownMenuItem
+          onClick={onDownload}
+          className="h-9 text-[13px] font-medium rounded-md cursor-pointer transition-colors duration-150"
+        >
+          <FileDown className="h-3.5 w-3.5 mr-2" />
+          Download summary
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 };

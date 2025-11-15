@@ -457,7 +457,7 @@ const ListingDetail = () => {
                 {userViewEnabled && (
                   <div className="sticky top-6 space-y-6 mt-6">
                     {/* Interested in This Deal? - Premium CTA */}
-                    <div className="relative bg-white border border-slate-200 rounded-lg p-4 shadow-[0_2px_8px_0_rgb(0_0_0_0.04)] hover:shadow-[0_4px_12px_0_rgb(0_0_0_0.06)] transition-all duration-300">
+                    <div className="group relative bg-white rounded-lg p-8 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
                       <SidebarOverflowMenu
                         listing={listing}
                         isInComparison={isInComparison(id!)}
@@ -465,13 +465,10 @@ const ListingDetail = () => {
                         onDownload={handleDownload}
                       />
                       
-                      <div className="text-center space-y-3.5">
-                        <div className="space-y-1">
-                          <h3 className="text-[15px] font-medium text-slate-900 tracking-[-0.02em] leading-tight">Interested in this opportunity?</h3>
-                          <p className="text-[12px] text-slate-500 leading-[1.4] tracking-[-0.005em]">
-                            Access detailed financials and business metrics
-                          </p>
-                        </div>
+                      <div className="space-y-6">
+                        <p className="text-sm text-slate-600 leading-relaxed">
+                          Access detailed financials and business metrics
+                        </p>
                         
                         <ConnectionButton 
                           connectionExists={connectionExists}
@@ -484,13 +481,11 @@ const ListingDetail = () => {
                         />
                         
                         {/* Enhanced Save and Share */}
-                        <div className="space-y-1.5">
-                          <EnhancedSaveButton 
-                            listingId={id!} 
-                            onSave={() => trackListingSave(id!)}
-                            onShare={() => setShowShareDialog(true)}
-                          />
-                        </div>
+                        <EnhancedSaveButton 
+                          listingId={id!} 
+                          onSave={() => trackListingSave(id!)}
+                          onShare={() => setShowShareDialog(true)}
+                        />
                       </div>
                     </div>
 
@@ -502,7 +497,7 @@ const ListingDetail = () => {
             ) : (
               <div className="sticky top-6 space-y-6">
                 {/* Interested in This Deal? - Premium CTA */}
-                <div className="relative bg-white border border-slate-200 rounded-lg p-5 shadow-[0_2px_8px_0_rgb(0_0_0_0.04)] hover:shadow-[0_4px_12px_0_rgb(215_182_92_0.08)] transition-all duration-300">
+                <div className="group relative bg-white rounded-lg p-8 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
                   <SidebarOverflowMenu
                     listing={listing}
                     isInComparison={isInComparison(id!)}
@@ -510,13 +505,10 @@ const ListingDetail = () => {
                     onDownload={handleDownload}
                   />
                   
-                  <div className="text-center space-y-4">
-                    <div className="space-y-1.5">
-                      <h3 className="text-[17px] font-medium text-slate-900 tracking-[-0.015em] leading-tight">Interested in this opportunity?</h3>
-                      <p className="text-[13px] text-slate-600 leading-[1.4] tracking-[0.001em]">
-                        Access detailed financials and business metrics
-                      </p>
-                    </div>
+                  <div className="space-y-6">
+                    <p className="text-sm text-slate-600 leading-relaxed">
+                      Access detailed financials and business metrics
+                    </p>
                     
                     <ConnectionButton 
                       connectionExists={connectionExists}
@@ -529,33 +521,31 @@ const ListingDetail = () => {
                     />
                     
                     {/* Enhanced Save and Share */}
-                    <div className="space-y-2">
-                      <EnhancedSaveButton 
-                        listingId={id!} 
-                        onSave={() => trackListingSave(id!)}
-                        onShare={() => setShowShareDialog(true)}
-                      />
-                    </div>
-                    
-                    {/* Market Context */}
-                    <div className="pt-1">
-                      <MarketContextCard
-                        listingId={id!}
-                        category={listing.category}
-                        revenue={listing.revenue}
-                        ebitda={listing.ebitda}
-                      />
-                    </div>
-                    
-                    {/* Recent Activity */}
-                    {recentActivity !== undefined && recentActivity > 0 && (
-                      <div className="pt-1">
-                        <p className="text-xs text-muted-foreground border-l-2 border-border pl-3 py-2">
-                          {recentActivity} {recentActivity === 1 ? 'buyer' : 'buyers'} took action on this listing in the last 48 hours
-                        </p>
-                      </div>
-                    )}
+                    <EnhancedSaveButton 
+                      listingId={id!} 
+                      onSave={() => trackListingSave(id!)}
+                      onShare={() => setShowShareDialog(true)}
+                    />
                   </div>
+                  
+                  {/* Market Context */}
+                  <div className="pt-6">
+                    <MarketContextCard
+                      listingId={id!}
+                      category={listing.category}
+                      revenue={listing.revenue}
+                      ebitda={listing.ebitda}
+                    />
+                  </div>
+                  
+                  {/* Recent Activity */}
+                  {recentActivity !== undefined && recentActivity > 0 && (
+                    <div className="pt-1">
+                      <p className="text-xs text-muted-foreground border-l-2 border-border pl-3 py-2">
+                        {recentActivity} {recentActivity === 1 ? 'buyer' : 'buyers'} took action on this listing in the last 48 hours
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 {/* Personal Notes Widget */}

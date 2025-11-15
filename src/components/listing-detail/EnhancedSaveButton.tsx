@@ -43,40 +43,34 @@ export function EnhancedSaveButton({ listingId, onSave, onShare }: EnhancedSaveB
   };
 
   return (
-    <TooltipProvider>
+    <>
       <div className="space-y-2">
-        {/* Horizontal layout: Save (75%) + Share (25%) */}
-        <div className="flex gap-1.5">
-          {/* Save button - Primary action, 75% width */}
-          <Button
-            variant="outline"
+        {/* Elegant text links */}
+        <div className="flex items-center gap-6 pt-5">
+          {/* Save link */}
+          <button
             onClick={handleQuickSave}
             disabled={isPending}
-            className="flex-[3] h-9 border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 font-medium text-[13px] tracking-[0.002em] transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-sourceco-accent/30 focus:ring-offset-2"
+            className="flex items-center gap-1.5 text-sm text-slate-600 hover:text-slate-900 transition-colors group"
           >
             <Bookmark className={cn(
-              "h-3.5 w-3.5 transition-colors",
-              isSaved ? "fill-slate-700 text-slate-700" : "text-slate-400"
+              "h-4 w-4 transition-colors",
+              isSaved ? "fill-slate-600 text-slate-600" : "text-slate-600"
             )} />
-            {isSaved ? 'Saved' : 'Save'}
-          </Button>
+            <span className="group-hover:underline decoration-slate-300">
+              {isSaved ? 'Saved' : 'Save'}
+            </span>
+          </button>
           
-          {/* Share button - Secondary action, 25% width, icon-only */}
+          {/* Share link */}
           {onShare && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="outline"
-                  onClick={onShare}
-                  className="flex-1 h-9 px-0 border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-sourceco-accent/30 focus:ring-offset-2"
-                >
-                  <Share2 className="h-3.5 w-3.5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Share with colleague</p>
-              </TooltipContent>
-            </Tooltip>
+            <button
+              onClick={onShare}
+              className="flex items-center gap-1.5 text-sm text-slate-600 hover:text-slate-900 transition-colors group"
+            >
+              <Share2 className="h-4 w-4" />
+              <span className="group-hover:underline decoration-slate-300">Share</span>
+            </button>
           )}
         </div>
         
@@ -84,7 +78,7 @@ export function EnhancedSaveButton({ listingId, onSave, onShare }: EnhancedSaveB
         {isSaved && (
           <button
             onClick={handleSaveToCollection}
-            className="text-xs text-slate-500 hover:text-slate-700 underline decoration-slate-300 hover:decoration-slate-500 underline-offset-2 transition-colors font-normal w-full text-center"
+            className="text-xs text-slate-500 hover:text-slate-700 underline decoration-slate-300 hover:decoration-slate-500 underline-offset-2 transition-colors font-normal w-full text-left"
           >
             Add to collection
           </button>
@@ -92,7 +86,7 @@ export function EnhancedSaveButton({ listingId, onSave, onShare }: EnhancedSaveB
         
         {/* Social proof */}
         {saveCount !== undefined && saveCount > 0 && (
-          <div className="flex items-center justify-center gap-1.5 text-[10px] text-slate-500 font-medium tracking-[0.05em] uppercase pt-1">
+          <div className="flex items-center gap-1.5 text-[10px] text-slate-500 font-medium tracking-wide uppercase pt-1">
             <span className="inline-block w-1 h-1 rounded-full bg-slate-400"></span>
             {saveCount} {saveCount === 1 ? 'buyer' : 'buyers'} saved
           </div>
@@ -105,6 +99,6 @@ export function EnhancedSaveButton({ listingId, onSave, onShare }: EnhancedSaveB
         listingId={listingId}
         onSaveComplete={onSave}
       />
-    </TooltipProvider>
+    </>
   );
 }
