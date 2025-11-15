@@ -12,7 +12,6 @@ interface ConnectionButtonProps {
   handleRequestConnection: (message?: string) => void;
   listingTitle?: string;
   listingId: string;
-  className?: string;
 }
 
 const ConnectionButton = ({
@@ -23,7 +22,6 @@ const ConnectionButton = ({
   handleRequestConnection,
   listingTitle,
   listingId,
-  className,
 }: ConnectionButtonProps) => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const { connectionsConnected } = useRealtime();
@@ -45,25 +43,25 @@ const ConnectionButton = ({
         case "pending":
           return {
             text: "Request pending",
-            buttonClassName: "bg-slate-100 text-slate-700 border border-slate-200 cursor-default hover:bg-slate-100",
+            className: "bg-slate-100 text-slate-700 border border-slate-200 cursor-default hover:bg-slate-100",
             disabled: true
           };
         case "approved":
           return {
             text: "Connected",
-            buttonClassName: "bg-emerald-50 text-emerald-700 border border-emerald-200 cursor-default hover:bg-emerald-50",
+            className: "bg-emerald-50 text-emerald-700 border border-emerald-200 cursor-default hover:bg-emerald-50",
             disabled: true
           };
         case "rejected":
           return {
             text: "Request again",
-            buttonClassName: "bg-slate-900 hover:bg-slate-800 text-white border-none",
+            className: "bg-slate-900 hover:bg-slate-800 text-white border-none",
             disabled: false
           };
         default:
       return {
         text: "Request connection",
-        buttonClassName: "bg-slate-900 hover:bg-slate-800 text-white border-none",
+        className: "bg-slate-900 hover:bg-slate-800 text-white border-none",
         disabled: false
       };
       }
@@ -71,12 +69,12 @@ const ConnectionButton = ({
 
     return {
       text: "Request connection",
-      buttonClassName: "bg-slate-900 hover:bg-slate-800 text-white border-none",
+      className: "bg-slate-900 hover:bg-slate-800 text-white border-none",
       disabled: false
     };
   };
 
-  const { text: buttonText, buttonClassName, disabled } = getButtonContent();
+  const { text: buttonText, className, disabled } = getButtonContent();
 
   if (isAdmin) {
     return (
@@ -123,9 +121,9 @@ const ConnectionButton = ({
       <Button
         onClick={handleButtonClick}
         disabled={disabled || isRequesting}
-        className={className || buttonClassName || "w-full h-10 bg-slate-900 text-white hover:bg-slate-800 rounded-md text-sm font-medium transition-colors duration-200"}
+        className={`w-full h-10 font-medium text-[13px] tracking-[0.002em] shadow-sm hover:shadow transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-sourceco-accent/30 focus:ring-offset-2 ${className}`}
       >
-        <Send className="h-4 w-4" />
+        <Send className="h-3.5 w-3.5" />
         {isRequesting ? "Sending request..." : buttonText}
       </Button>
 

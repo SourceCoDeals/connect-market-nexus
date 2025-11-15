@@ -23,7 +23,7 @@ import ConnectionButton from "@/components/listing-detail/ConnectionButton";
 import BlurredFinancialTeaser from "@/components/listing-detail/BlurredFinancialTeaser";
 import { EnhancedInvestorDashboard } from "@/components/listing-detail/EnhancedInvestorDashboard";
 import { CustomSection } from "@/components/listing-detail/CustomSection";
-import { SidebarOverflowMenu } from "@/components/listing-detail/SidebarOverflowMenu";
+import { ExecutiveSummaryGenerator } from "@/components/listing-detail/ExecutiveSummaryGenerator";
 import { PersonalNotesWidget } from "@/components/listing-detail/PersonalNotesWidget";
 import { DealComparisonWidget } from "@/components/listing-detail/DealComparisonWidget";
 import ListingStatusTag from "@/components/listing/ListingStatusTag";
@@ -79,92 +79,6 @@ const ListingDetail = () => {
       trackConnectionRequest(id);
       requestConnection({ listingId: id, message });
     }
-  };
-
-  const toggleComparison = () => {
-    if (id) {
-      if (isInComparison(id)) {
-        removeFromComparison(id);
-      } else {
-        addToComparison(listing);
-      }
-    }
-  };
-
-  const handleDownload = () => {
-    const summaryWindow = window.open('', '_blank');
-    if (!summaryWindow) return;
-
-    const htmlContent = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Executive Summary - ${listing.title}</title>
-          <style>
-            body { font-family: Arial, sans-serif; padding: 40px; max-width: 800px; margin: 0 auto; }
-            h1 { color: #1a202c; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; }
-            h2 { color: #2d3748; margin-top: 30px; }
-            .section { margin-bottom: 25px; }
-            .metric { display: inline-block; margin-right: 30px; margin-bottom: 15px; }
-            .label { font-weight: bold; color: #4a5568; }
-            .value { color: #1a202c; }
-            @media print {
-              body { padding: 20px; }
-              button { display: none; }
-            }
-          </style>
-        </head>
-        <body>
-          <h1>${listing.title}</h1>
-          
-          <div class="section">
-            <h2>Key Metrics</h2>
-            <div class="metric">
-              <span class="label">Revenue:</span>
-              <span class="value">${listing.revenueFormatted || 'N/A'}</span>
-            </div>
-            <div class="metric">
-              <span class="label">EBITDA:</span>
-              <span class="value">${listing.ebitdaFormatted || 'N/A'}</span>
-            </div>
-            <div class="metric">
-              <span class="label">Location:</span>
-              <span class="value">${listing.location}</span>
-            </div>
-            <div class="metric">
-              <span class="label">Category:</span>
-              <span class="value">${listing.category}</span>
-            </div>
-          </div>
-
-          <div class="section">
-            <h2>Business Overview</h2>
-            <p>${listing.description}</p>
-          </div>
-
-          ${listing.owner_notes ? `
-            <div class="section">
-              <h2>Additional Information</h2>
-              <p>${listing.owner_notes}</p>
-            </div>
-          ` : ''}
-
-          ${listing.tags && listing.tags.length > 0 ? `
-            <div class="section">
-              <h2>Tags</h2>
-              <p>${listing.tags.join(', ')}</p>
-            </div>
-          ` : ''}
-
-          <script>
-            window.print();
-          </script>
-        </body>
-      </html>
-    `;
-
-    summaryWindow.document.write(htmlContent);
-    summaryWindow.document.close();
   };
 
   // Extract connection status safely with fallbacks
@@ -455,39 +369,65 @@ const ListingDetail = () => {
                 
                 {/* Show user view components when toggled */}
                 {userViewEnabled && (
-                  <div className="sticky top-6 space-y-3 mt-6">
-                    {/* Section header with three-dots menu */}
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-sm font-medium text-slate-900">Request access</h3>
-                      <SidebarOverflowMenu
-                        listing={listing}
-                        isInComparison={isInComparison(id!)}
-                        onCompare={toggleComparison}
-                        onDownload={handleDownload}
-                        className="h-6 w-6 text-slate-400 hover:text-slate-700"
-                      />
-                    </div>
-                    
-                    {/* Premium CTA Card */}
-                    <div className="rounded-lg bg-white p-4">
-                      <ConnectionButton 
-                        connectionExists={connectionExists}
-                        connectionStatus={connectionStatusValue}
-                        isRequesting={isRequesting}
-                        isAdmin={false}
-                        handleRequestConnection={handleRequestConnection}
-                        listingTitle={listing.title}
-                        listingId={id!}
-                        className="w-full h-11 bg-slate-900 text-white hover:bg-slate-800 rounded-md text-[15px] font-medium transition-colors"
-                      />
-                      
-                      {/* Enhanced Save and Share */}
-                      <div className="mt-4">
-                        <EnhancedSaveButton 
-                          listingId={id!} 
-                          onSave={() => trackListingSave(id!)}
-                          onShare={() => setShowShareDialog(true)}
+                  <div className="sticky top-6 space-y-6 mt-6">
+                    {/* Interested in This Deal? - Premium CTA */}
+                    <div className="bg-white border border-slate-200 rounded-lg p-4 shadow-[0_2px_8px_0_rgb(0_0_0_0.04)] hover:shadow-[0_4px_12px_0_rgb(0_0_0_0.06)] transition-all duration-300">
+                      <div className="text-center space-y-3.5">
+                        <div className="space-y-1">
+                          <h3 className="text-[15px] font-medium text-slate-900 tracking-[-0.02em] leading-tight">Interested in this opportunity?</h3>
+                          <p className="text-[12px] text-slate-500 leading-[1.4] tracking-[-0.005em]">
+                            Access detailed financials and business metrics
+                          </p>
+                        </div>
+                        
+                        <ConnectionButton 
+                          connectionExists={connectionExists}
+                          connectionStatus={connectionStatusValue}
+                          isRequesting={isRequesting}
+                          isAdmin={false}
+                          handleRequestConnection={handleRequestConnection}
+                          listingTitle={listing.title}
+                          listingId={id!}
                         />
+                        
+                        {/* Enhanced Save and Share */}
+                        <div className="space-y-1.5">
+                          <EnhancedSaveButton 
+                            listingId={id!} 
+                            onSave={() => trackListingSave(id!)}
+                            onShare={() => setShowShareDialog(true)}
+                          />
+                          <Button
+                            variant="outline"
+                            onClick={() => {
+                              if (isInComparison(id!)) {
+                                removeFromComparison(id!);
+                              } else {
+                                addToComparison(listing);
+                              }
+                            }}
+                            className="w-full h-9 border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 font-medium text-[13px] tracking-[0.002em] transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-sourceco-accent/30 focus:ring-offset-2"
+                          >
+                            {isInComparison(id!) ? 'Remove from compare' : 'Add to compare'}
+                          </Button>
+                        </div>
+                        
+                        {/* Divider */}
+                        <div className="relative">
+                          <div className="absolute inset-0 flex items-center">
+                            <div className="w-full border-t border-slate-200/60"></div>
+                          </div>
+                          <div className="relative flex justify-center">
+                            <span className="bg-white px-3 text-[9px] text-slate-400 uppercase tracking-[0.1em] font-medium">
+                              Resources
+                            </span>
+                          </div>
+                        </div>
+                        
+                        {/* Download Executive Summary */}
+                        <div className="flex justify-center -mt-2">
+                          <ExecutiveSummaryGenerator listing={listing} />
+                        </div>
                       </div>
                     </div>
 
@@ -497,59 +437,86 @@ const ListingDetail = () => {
                 )}
               </>
             ) : (
-              <div className="sticky top-6 space-y-3">
-                {/* Section header with three-dots menu */}
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-medium text-slate-900">Request access</h3>
-                  <SidebarOverflowMenu
-                    listing={listing}
-                    isInComparison={isInComparison(id!)}
-                    onCompare={toggleComparison}
-                    onDownload={handleDownload}
-                    className="h-6 w-6 text-slate-400 hover:text-slate-700"
-                  />
-                </div>
-                
-                {/* Premium CTA Card */}
-                <div className="rounded-lg bg-white p-4">
-                  <ConnectionButton 
-                    connectionExists={connectionExists}
-                    connectionStatus={connectionStatusValue}
-                    isRequesting={isRequesting}
-                    isAdmin={false}
-                    handleRequestConnection={handleRequestConnection}
-                    listingTitle={listing.title}
-                    listingId={id!}
-                    className="w-full h-11 bg-slate-900 text-white hover:bg-slate-800 rounded-md text-[15px] font-medium transition-colors"
-                  />
-                  
-                  {/* Enhanced Save and Share */}
-                  <div className="mt-4">
-                    <EnhancedSaveButton 
-                      listingId={id!} 
-                      onSave={() => trackListingSave(id!)}
-                      onShare={() => setShowShareDialog(true)}
-                    />
-                  </div>
-                  
-                  {/* Market Context */}
-                  <div className="pt-6">
-                    <MarketContextCard
-                      listingId={id!}
-                      category={listing.category}
-                      revenue={listing.revenue}
-                      ebitda={listing.ebitda}
-                    />
-                  </div>
-                  
-                  {/* Recent Activity */}
-                  {recentActivity !== undefined && recentActivity > 0 && (
-                    <div className="pt-1">
-                      <p className="text-xs text-muted-foreground border-l-2 border-border pl-3 py-2">
-                        {recentActivity} {recentActivity === 1 ? 'buyer' : 'buyers'} took action on this listing in the last 48 hours
+              <div className="sticky top-6 space-y-6">
+                {/* Interested in This Deal? - Premium CTA */}
+                <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-[0_2px_8px_0_rgb(0_0_0_0.04)] hover:shadow-[0_4px_12px_0_rgb(215_182_92_0.08)] transition-all duration-300">
+                  <div className="text-center space-y-4">
+                    <div className="space-y-1.5">
+                      <h3 className="text-[17px] font-medium text-slate-900 tracking-[-0.015em] leading-tight">Interested in this opportunity?</h3>
+                      <p className="text-[13px] text-slate-600 leading-[1.4] tracking-[0.001em]">
+                        Access detailed financials and business metrics
                       </p>
                     </div>
-                  )}
+                    
+                    <ConnectionButton 
+                      connectionExists={connectionExists}
+                      connectionStatus={connectionStatusValue}
+                      isRequesting={isRequesting}
+                      isAdmin={false}
+                      handleRequestConnection={handleRequestConnection}
+                      listingTitle={listing.title}
+                      listingId={id!}
+                    />
+                    
+                    {/* Enhanced Save and Share */}
+                    <div className="space-y-2">
+                      <EnhancedSaveButton 
+                        listingId={id!} 
+                        onSave={() => trackListingSave(id!)}
+                        onShare={() => setShowShareDialog(true)}
+                      />
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          if (isInComparison(id!)) {
+                            removeFromComparison(id!);
+                          } else {
+                            addToComparison(listing);
+                          }
+                        }}
+                        className="w-full h-10 border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50 text-slate-600 hover:text-slate-900 font-normal text-[13px] tracking-[0.01em] transition-all duration-200"
+                      >
+                        {isInComparison(id!) ? 'Remove from compare' : 'Add to compare'}
+                      </Button>
+                    </div>
+                    
+                    
+                    {/* Market Context */}
+                    <div className="pt-1">
+                      <MarketContextCard
+                        listingId={id!}
+                        category={listing.category}
+                        revenue={listing.revenue}
+                        ebitda={listing.ebitda}
+                      />
+                    </div>
+                    
+                    {/* Recent Activity */}
+                    {recentActivity !== undefined && recentActivity > 0 && (
+                      <div className="pt-1">
+                        <p className="text-xs text-muted-foreground border-l-2 border-border pl-3 py-2">
+                          {recentActivity} {recentActivity === 1 ? 'buyer' : 'buyers'} took action on this listing in the last 48 hours
+                        </p>
+                      </div>
+                    )}
+                    
+                    {/* Divider */}
+                    <div className="relative">
+                      <div className="absolute inset-0 flex items-center">
+                        <div className="w-full border-t border-slate-200/60"></div>
+                      </div>
+                      <div className="relative flex justify-center">
+                        <span className="bg-white px-3 text-[10px] text-slate-400 uppercase tracking-widest font-medium">
+                          Resources
+                        </span>
+                      </div>
+                    </div>
+                    
+                    {/* Download Executive Summary */}
+                    <div className="flex justify-center -mt-2">
+                      <ExecutiveSummaryGenerator listing={listing} />
+                    </div>
+                  </div>
                 </div>
 
                 {/* Personal Notes Widget */}
