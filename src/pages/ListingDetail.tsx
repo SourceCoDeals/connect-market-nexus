@@ -455,9 +455,12 @@ const ListingDetail = () => {
                 
                 {/* Show user view components when toggled */}
                 {userViewEnabled && (
-                  <div className="sticky top-6 space-y-6 mt-6">
-                    {/* Interested in This Deal? - Premium CTA */}
-                    <div className="group relative bg-white rounded-xl p-10">
+                  <div className="sticky top-6 space-y-4 mt-6">
+                    {/* Title above card */}
+                    <h3 className="text-[13px] font-medium text-slate-900">Interested in this opportunity?</h3>
+                    
+                    {/* Premium CTA Card */}
+                    <div className="group relative bg-white rounded-lg p-6">
                       <SidebarOverflowMenu
                         listing={listing}
                         isInComparison={isInComparison(id!)}
@@ -465,9 +468,9 @@ const ListingDetail = () => {
                         onDownload={handleDownload}
                       />
                       
-                      <div className="space-y-8">
-                        <p className="text-[15px] text-slate-700 leading-relaxed font-light">
-                          Request access to view detailed financials, growth metrics, and connect with the seller
+                      <div className="space-y-6">
+                        <p className="text-[13px] text-slate-600 leading-relaxed">
+                          Request access
                         </p>
                         
                         <ConnectionButton 
@@ -478,7 +481,7 @@ const ListingDetail = () => {
                           handleRequestConnection={handleRequestConnection}
                           listingTitle={listing.title}
                           listingId={id!}
-                          className="w-full border border-slate-300 bg-white text-slate-900 hover:bg-slate-50 hover:border-slate-400 rounded-lg text-[15px] font-normal transition-all duration-200"
+                          className="w-full h-11 bg-slate-900 text-white hover:bg-slate-800 rounded-lg text-[15px] font-medium transition-all duration-200"
                         />
                         
                         {/* Enhanced Save and Share */}
@@ -496,9 +499,12 @@ const ListingDetail = () => {
                 )}
               </>
             ) : (
-              <div className="sticky top-6 space-y-6">
-                {/* Interested in This Deal? - Premium CTA */}
-                <div className="group relative bg-white rounded-xl p-10">
+              <div className="sticky top-6 space-y-4">
+                {/* Title above card */}
+                <h3 className="text-[13px] font-medium text-slate-900">Interested in this opportunity?</h3>
+                
+                {/* Premium CTA Card */}
+                <div className="group relative bg-white rounded-lg p-6">
                   <SidebarOverflowMenu
                     listing={listing}
                     isInComparison={isInComparison(id!)}
@@ -506,9 +512,9 @@ const ListingDetail = () => {
                     onDownload={handleDownload}
                   />
                   
-                  <div className="space-y-8">
-                    <p className="text-[15px] text-slate-700 leading-relaxed font-light">
-                      Request access to view detailed financials, growth metrics, and connect with the seller
+                  <div className="space-y-6">
+                    <p className="text-[13px] text-slate-600 leading-relaxed">
+                      Request access
                     </p>
                     
                     <ConnectionButton 
@@ -519,7 +525,7 @@ const ListingDetail = () => {
                       handleRequestConnection={handleRequestConnection}
                       listingTitle={listing.title}
                       listingId={id!}
-                      className="w-full border border-slate-300 bg-white text-slate-900 hover:bg-slate-50 hover:border-slate-400 rounded-lg text-[15px] font-normal transition-all duration-200"
+                      className="w-full h-11 bg-slate-900 text-white hover:bg-slate-800 rounded-lg text-[15px] font-medium transition-all duration-200"
                     />
                     
                     {/* Enhanced Save and Share */}
