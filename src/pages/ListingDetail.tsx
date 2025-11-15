@@ -24,7 +24,7 @@ import BlurredFinancialTeaser from "@/components/listing-detail/BlurredFinancial
 import { EnhancedInvestorDashboard } from "@/components/listing-detail/EnhancedInvestorDashboard";
 import { CustomSection } from "@/components/listing-detail/CustomSection";
 import { ExecutiveSummaryGenerator } from "@/components/listing-detail/ExecutiveSummaryGenerator";
-import { PersonalNotesWidget } from "@/components/listing-detail/PersonalNotesWidget";
+
 import { DealComparisonWidget } from "@/components/listing-detail/DealComparisonWidget";
 import ListingStatusTag from "@/components/listing/ListingStatusTag";
 import { AdminListingSidebar } from "@/components/listing-detail/AdminListingSidebar";
@@ -431,8 +431,6 @@ const ListingDetail = () => {
                       </div>
                     </div>
 
-                    {/* Personal Notes Widget */}
-                    <PersonalNotesWidget listingId={id!} />
                   </div>
                 )}
               </>
@@ -519,8 +517,6 @@ const ListingDetail = () => {
                   </div>
                 </div>
 
-                {/* Personal Notes Widget */}
-                <PersonalNotesWidget listingId={id!} />
               </div>
             )}
           </div>
