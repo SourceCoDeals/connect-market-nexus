@@ -457,7 +457,7 @@ const ListingDetail = () => {
                 {userViewEnabled && (
                   <div className="sticky top-6 space-y-6 mt-6">
                     {/* Interested in This Deal? - Premium CTA */}
-                    <div className="group relative bg-white rounded-lg p-8 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+                    <div className="group relative bg-white rounded-xl p-10">
                       <SidebarOverflowMenu
                         listing={listing}
                         isInComparison={isInComparison(id!)}
@@ -465,9 +465,9 @@ const ListingDetail = () => {
                         onDownload={handleDownload}
                       />
                       
-                      <div className="space-y-6">
-                        <p className="text-sm text-slate-600 leading-relaxed">
-                          Access detailed financials and business metrics
+                      <div className="space-y-8">
+                        <p className="text-[15px] text-slate-700 leading-relaxed font-light">
+                          Request access to view detailed financials, growth metrics, and connect with the seller
                         </p>
                         
                         <ConnectionButton 
@@ -478,6 +478,7 @@ const ListingDetail = () => {
                           handleRequestConnection={handleRequestConnection}
                           listingTitle={listing.title}
                           listingId={id!}
+                          className="w-full border border-slate-300 bg-white text-slate-900 hover:bg-slate-50 hover:border-slate-400 rounded-lg text-[15px] font-normal transition-all duration-200"
                         />
                         
                         {/* Enhanced Save and Share */}
@@ -497,7 +498,7 @@ const ListingDetail = () => {
             ) : (
               <div className="sticky top-6 space-y-6">
                 {/* Interested in This Deal? - Premium CTA */}
-                <div className="group relative bg-white rounded-lg p-8 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+                <div className="group relative bg-white rounded-xl p-10">
                   <SidebarOverflowMenu
                     listing={listing}
                     isInComparison={isInComparison(id!)}
@@ -505,9 +506,9 @@ const ListingDetail = () => {
                     onDownload={handleDownload}
                   />
                   
-                  <div className="space-y-6">
-                    <p className="text-sm text-slate-600 leading-relaxed">
-                      Access detailed financials and business metrics
+                  <div className="space-y-8">
+                    <p className="text-[15px] text-slate-700 leading-relaxed font-light">
+                      Request access to view detailed financials, growth metrics, and connect with the seller
                     </p>
                     
                     <ConnectionButton 
@@ -518,6 +519,7 @@ const ListingDetail = () => {
                       handleRequestConnection={handleRequestConnection}
                       listingTitle={listing.title}
                       listingId={id!}
+                      className="w-full border border-slate-300 bg-white text-slate-900 hover:bg-slate-50 hover:border-slate-400 rounded-lg text-[15px] font-normal transition-all duration-200"
                     />
                     
                     {/* Enhanced Save and Share */}
