@@ -371,11 +371,11 @@ const ListingDetail = () => {
                 {userViewEnabled && (
                   <div className="sticky top-6 space-y-6 mt-6">
                     {/* Interested in This Deal? - Premium CTA */}
-                    <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-[0_2px_8px_0_rgb(0_0_0_0.04)] hover:shadow-[0_4px_12px_0_rgb(215_182_92_0.08)] transition-all duration-300">
-                      <div className="text-center space-y-4">
-                        <div className="space-y-1.5">
-                          <h3 className="text-[17px] font-medium text-slate-900 tracking-[-0.015em] leading-tight">Interested in this opportunity?</h3>
-                          <p className="text-[13px] text-slate-600 leading-[1.4] tracking-[0.001em]">
+                    <div className="bg-white border border-slate-200 rounded-lg p-4 shadow-[0_2px_8px_0_rgb(0_0_0_0.04)] hover:shadow-[0_4px_12px_0_rgb(0_0_0_0.06)] transition-all duration-300">
+                      <div className="text-center space-y-3.5">
+                        <div className="space-y-1">
+                          <h3 className="text-[15px] font-medium text-slate-900 tracking-[-0.02em] leading-tight">Interested in this opportunity?</h3>
+                          <p className="text-[12px] text-slate-500 leading-[1.4] tracking-[-0.005em]">
                             Access detailed financials and business metrics
                           </p>
                         </div>
@@ -391,7 +391,7 @@ const ListingDetail = () => {
                         />
                         
                         {/* Enhanced Save and Share */}
-                        <div className="space-y-2">
+                        <div className="space-y-1.5">
                           <EnhancedSaveButton 
                             listingId={id!} 
                             onSave={() => trackListingSave(id!)}
@@ -399,7 +399,7 @@ const ListingDetail = () => {
                           <Button
                             variant="outline"
                             onClick={() => setShowShareDialog(true)}
-                            className="w-full h-10 border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50 text-slate-600 hover:text-slate-900 font-normal text-[13px] tracking-[0.01em] transition-all duration-200"
+                            className="w-full h-9 border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 font-medium text-[13px] tracking-[0.002em] transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-sourceco-accent/30 focus:ring-offset-2"
                           >
                             <Share2 className="h-3.5 w-3.5" />
                             Share with colleague
@@ -413,7 +413,7 @@ const ListingDetail = () => {
                                 addToComparison(listing);
                               }
                             }}
-                            className="w-full h-10 border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50 text-slate-600 hover:text-slate-900 font-normal text-[13px] tracking-[0.01em] transition-all duration-200"
+                            className="w-full h-9 border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 font-medium text-[13px] tracking-[0.002em] transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-sourceco-accent/30 focus:ring-offset-2"
                           >
                             {isInComparison(id!) ? 'Remove from compare' : 'Add to compare'}
                           </Button>
@@ -425,7 +425,7 @@ const ListingDetail = () => {
                             <div className="w-full border-t border-slate-200/60"></div>
                           </div>
                           <div className="relative flex justify-center">
-                            <span className="bg-white px-3 text-[10px] text-slate-400 uppercase tracking-widest font-medium">
+                            <span className="bg-white px-3 text-[9px] text-slate-400 uppercase tracking-[0.1em] font-medium">
                               Resources
                             </span>
                           </div>
