@@ -25,7 +25,7 @@ import { EnhancedInvestorDashboard } from "@/components/listing-detail/EnhancedI
 import { CustomSection } from "@/components/listing-detail/CustomSection";
 import { ExecutiveSummaryGenerator } from "@/components/listing-detail/ExecutiveSummaryGenerator";
 
-import { DealComparisonWidget } from "@/components/listing-detail/DealComparisonWidget";
+
 import ListingStatusTag from "@/components/listing/ListingStatusTag";
 import { AdminListingSidebar } from "@/components/listing-detail/AdminListingSidebar";
 import { EditableTitle } from "@/components/listing-detail/EditableTitle";
@@ -36,7 +36,7 @@ import { SimilarListingsCarousel } from "@/components/listing-detail/SimilarList
 import { ShareDealDialog } from "@/components/listing-detail/ShareDealDialog";
 import { EnhancedSaveButton } from "@/components/listing-detail/EnhancedSaveButton";
 import { MarketContextCard } from '@/components/listing-detail/MarketContextCard';
-import { useComparison } from '@/context/ComparisonContext';
+
 import { useListingActivity } from '@/hooks/use-listing-activity';
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -47,7 +47,7 @@ const ListingDetail = () => {
   const [userViewEnabled, setUserViewEnabled] = useState(false);
   const [editModeEnabled, setEditModeEnabled] = useState(false);
   const queryClient = useQueryClient();
-  const { addToComparison, removeFromComparison, isInComparison } = useComparison();
+  
   const { 
     useListing, 
     useRequestConnection, 
@@ -397,19 +397,6 @@ const ListingDetail = () => {
                             onSave={() => trackListingSave(id!)}
                             onShare={() => setShowShareDialog(true)}
                           />
-                          <Button
-                            variant="outline"
-                            onClick={() => {
-                              if (isInComparison(id!)) {
-                                removeFromComparison(id!);
-                              } else {
-                                addToComparison(listing);
-                              }
-                            }}
-                            className="w-full h-9 border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 font-medium text-[13px] tracking-[0.002em] transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-sourceco-accent/30 focus:ring-offset-2"
-                          >
-                            {isInComparison(id!) ? 'Remove from compare' : 'Add to compare'}
-                          </Button>
                         </div>
                         
                         {/* Divider */}
@@ -463,19 +450,6 @@ const ListingDetail = () => {
                         onSave={() => trackListingSave(id!)}
                         onShare={() => setShowShareDialog(true)}
                       />
-                      <Button
-                        variant="outline"
-                        onClick={() => {
-                          if (isInComparison(id!)) {
-                            removeFromComparison(id!);
-                          } else {
-                            addToComparison(listing);
-                          }
-                        }}
-                        className="w-full h-10 border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50 text-slate-600 hover:text-slate-900 font-normal text-[13px] tracking-[0.01em] transition-all duration-200"
-                      >
-                        {isInComparison(id!) ? 'Remove from compare' : 'Add to compare'}
-                      </Button>
                     </div>
                     
                     
