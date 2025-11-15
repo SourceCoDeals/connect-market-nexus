@@ -44,20 +44,20 @@ export function EnhancedSaveButton({ listingId, onSave, onShare }: EnhancedSaveB
 
   return (
     <>
-      <div className="space-y-2">
+      <div className="space-y-3">
         {/* Elegant text links */}
-        <div className="flex items-center gap-6 pt-5">
+        <div className="flex items-center gap-8">
           {/* Save link */}
           <button
             onClick={handleQuickSave}
             disabled={isPending}
-            className="flex items-center gap-1.5 text-sm text-slate-600 hover:text-slate-900 transition-colors group"
+            className="flex items-center gap-2 text-[13px] text-slate-500 hover:text-slate-700 transition-colors group"
           >
             <Bookmark className={cn(
-              "h-4 w-4 transition-colors",
-              isSaved ? "fill-slate-600 text-slate-600" : "text-slate-600"
+              "h-[15px] w-[15px] transition-all",
+              isSaved ? "fill-slate-500 text-slate-500" : "text-slate-400"
             )} />
-            <span className="group-hover:underline decoration-slate-300">
+            <span className="group-hover:underline decoration-slate-300 underline-offset-2">
               {isSaved ? 'Saved' : 'Save'}
             </span>
           </button>
@@ -66,30 +66,29 @@ export function EnhancedSaveButton({ listingId, onSave, onShare }: EnhancedSaveB
           {onShare && (
             <button
               onClick={onShare}
-              className="flex items-center gap-1.5 text-sm text-slate-600 hover:text-slate-900 transition-colors group"
+              className="flex items-center gap-2 text-[13px] text-slate-500 hover:text-slate-700 transition-colors group"
             >
-              <Share2 className="h-4 w-4" />
-              <span className="group-hover:underline decoration-slate-300">Share</span>
+              <Share2 className="h-[15px] w-[15px] text-slate-400" />
+              <span className="group-hover:underline decoration-slate-300 underline-offset-2">Share</span>
             </button>
           )}
         </div>
+        
+        {/* Social proof */}
+        {saveCount !== undefined && saveCount > 0 && (
+          <div className="flex items-center gap-1.5 text-[11px] text-slate-400 font-normal pt-1">
+            {saveCount} {saveCount === 1 ? 'person has' : 'people have'} saved this
+          </div>
+        )}
         
         {/* Save to collection as subtle secondary action */}
         {isSaved && (
           <button
             onClick={handleSaveToCollection}
-            className="text-xs text-slate-500 hover:text-slate-700 underline decoration-slate-300 hover:decoration-slate-500 underline-offset-2 transition-colors font-normal w-full text-left"
+            className="text-[11px] text-slate-400 hover:text-slate-600 underline decoration-slate-300 hover:decoration-slate-400 underline-offset-2 transition-colors font-normal w-full text-left"
           >
             Add to collection
           </button>
-        )}
-        
-        {/* Social proof */}
-        {saveCount !== undefined && saveCount > 0 && (
-          <div className="flex items-center gap-1.5 text-[10px] text-slate-500 font-medium tracking-wide uppercase pt-1">
-            <span className="inline-block w-1 h-1 rounded-full bg-slate-400"></span>
-            {saveCount} {saveCount === 1 ? 'buyer' : 'buyers'} saved
-          </div>
         )}
       </div>
 
