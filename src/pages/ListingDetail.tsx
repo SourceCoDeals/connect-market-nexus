@@ -457,7 +457,14 @@ const ListingDetail = () => {
                 {userViewEnabled && (
                   <div className="sticky top-6 space-y-6 mt-6">
                     {/* Interested in This Deal? - Premium CTA */}
-                    <div className="bg-white border border-slate-200 rounded-lg p-4 shadow-[0_2px_8px_0_rgb(0_0_0_0.04)] hover:shadow-[0_4px_12px_0_rgb(0_0_0_0.06)] transition-all duration-300">
+                    <div className="relative bg-white border border-slate-200 rounded-lg p-4 shadow-[0_2px_8px_0_rgb(0_0_0_0.04)] hover:shadow-[0_4px_12px_0_rgb(0_0_0_0.06)] transition-all duration-300">
+                      <SidebarOverflowMenu
+                        listing={listing}
+                        isInComparison={isInComparison(id!)}
+                        onCompare={toggleComparison}
+                        onDownload={handleDownload}
+                      />
+                      
                       <div className="text-center space-y-3.5">
                         <div className="space-y-1">
                           <h3 className="text-[15px] font-medium text-slate-900 tracking-[-0.02em] leading-tight">Interested in this opportunity?</h3>
@@ -483,19 +490,6 @@ const ListingDetail = () => {
                             onSave={() => trackListingSave(id!)}
                             onShare={() => setShowShareDialog(true)}
                           />
-                          <Button
-                            variant="outline"
-                            onClick={() => {
-                              if (isInComparison(id!)) {
-                                removeFromComparison(id!);
-                              } else {
-                                addToComparison(listing);
-                              }
-                            }}
-                            className="w-full h-9 border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 font-medium text-[13px] tracking-[0.002em] transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-sourceco-accent/30 focus:ring-offset-2"
-                          >
-                            {isInComparison(id!) ? 'Remove from compare' : 'Add to compare'}
-                          </Button>
                         </div>
                       </div>
                     </div>
@@ -508,7 +502,14 @@ const ListingDetail = () => {
             ) : (
               <div className="sticky top-6 space-y-6">
                 {/* Interested in This Deal? - Premium CTA */}
-                <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-[0_2px_8px_0_rgb(0_0_0_0.04)] hover:shadow-[0_4px_12px_0_rgb(215_182_92_0.08)] transition-all duration-300">
+                <div className="relative bg-white border border-slate-200 rounded-lg p-5 shadow-[0_2px_8px_0_rgb(0_0_0_0.04)] hover:shadow-[0_4px_12px_0_rgb(215_182_92_0.08)] transition-all duration-300">
+                  <SidebarOverflowMenu
+                    listing={listing}
+                    isInComparison={isInComparison(id!)}
+                    onCompare={toggleComparison}
+                    onDownload={handleDownload}
+                  />
+                  
                   <div className="text-center space-y-4">
                     <div className="space-y-1.5">
                       <h3 className="text-[17px] font-medium text-slate-900 tracking-[-0.015em] leading-tight">Interested in this opportunity?</h3>
@@ -534,21 +535,7 @@ const ListingDetail = () => {
                         onSave={() => trackListingSave(id!)}
                         onShare={() => setShowShareDialog(true)}
                       />
-                      <Button
-                        variant="outline"
-                        onClick={() => {
-                          if (isInComparison(id!)) {
-                            removeFromComparison(id!);
-                          } else {
-                            addToComparison(listing);
-                          }
-                        }}
-                        className="w-full h-10 border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50 text-slate-600 hover:text-slate-900 font-normal text-[13px] tracking-[0.01em] transition-all duration-200"
-                      >
-                        {isInComparison(id!) ? 'Remove from compare' : 'Add to compare'}
-                      </Button>
                     </div>
-                    
                     
                     {/* Market Context */}
                     <div className="pt-1">
