@@ -496,6 +496,7 @@ const ListingDetail = () => {
                           >
                             {isInComparison(id!) ? 'Remove from compare' : 'Add to compare'}
                           </Button>
+                        </div>
                       </div>
                     </div>
 
