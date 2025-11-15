@@ -23,7 +23,7 @@ import ConnectionButton from "@/components/listing-detail/ConnectionButton";
 import BlurredFinancialTeaser from "@/components/listing-detail/BlurredFinancialTeaser";
 import { EnhancedInvestorDashboard } from "@/components/listing-detail/EnhancedInvestorDashboard";
 import { CustomSection } from "@/components/listing-detail/CustomSection";
-import { ExecutiveSummaryGenerator } from "@/components/listing-detail/ExecutiveSummaryGenerator";
+import { SidebarOverflowMenu } from "@/components/listing-detail/SidebarOverflowMenu";
 import { PersonalNotesWidget } from "@/components/listing-detail/PersonalNotesWidget";
 import { DealComparisonWidget } from "@/components/listing-detail/DealComparisonWidget";
 import ListingStatusTag from "@/components/listing/ListingStatusTag";
@@ -79,6 +79,92 @@ const ListingDetail = () => {
       trackConnectionRequest(id);
       requestConnection({ listingId: id, message });
     }
+  };
+
+  const toggleComparison = () => {
+    if (id) {
+      if (isInComparison(id)) {
+        removeFromComparison(id);
+      } else {
+        addToComparison(listing);
+      }
+    }
+  };
+
+  const handleDownload = () => {
+    const summaryWindow = window.open('', '_blank');
+    if (!summaryWindow) return;
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Executive Summary - ${listing.title}</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 40px; max-width: 800px; margin: 0 auto; }
+            h1 { color: #1a202c; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; }
+            h2 { color: #2d3748; margin-top: 30px; }
+            .section { margin-bottom: 25px; }
+            .metric { display: inline-block; margin-right: 30px; margin-bottom: 15px; }
+            .label { font-weight: bold; color: #4a5568; }
+            .value { color: #1a202c; }
+            @media print {
+              body { padding: 20px; }
+              button { display: none; }
+            }
+          </style>
+        </head>
+        <body>
+          <h1>${listing.title}</h1>
+          
+          <div class="section">
+            <h2>Key Metrics</h2>
+            <div class="metric">
+              <span class="label">Revenue:</span>
+              <span class="value">${listing.revenueFormatted || 'N/A'}</span>
+            </div>
+            <div class="metric">
+              <span class="label">EBITDA:</span>
+              <span class="value">${listing.ebitdaFormatted || 'N/A'}</span>
+            </div>
+            <div class="metric">
+              <span class="label">Location:</span>
+              <span class="value">${listing.location}</span>
+            </div>
+            <div class="metric">
+              <span class="label">Category:</span>
+              <span class="value">${listing.category}</span>
+            </div>
+          </div>
+
+          <div class="section">
+            <h2>Business Overview</h2>
+            <p>${listing.description}</p>
+          </div>
+
+          ${listing.owner_notes ? `
+            <div class="section">
+              <h2>Additional Information</h2>
+              <p>${listing.owner_notes}</p>
+            </div>
+          ` : ''}
+
+          ${listing.tags && listing.tags.length > 0 ? `
+            <div class="section">
+              <h2>Tags</h2>
+              <p>${listing.tags.join(', ')}</p>
+            </div>
+          ` : ''}
+
+          <script>
+            window.print();
+          </script>
+        </body>
+      </html>
+    `;
+
+    summaryWindow.document.write(htmlContent);
+    summaryWindow.document.close();
   };
 
   // Extract connection status safely with fallbacks
@@ -410,24 +496,6 @@ const ListingDetail = () => {
                           >
                             {isInComparison(id!) ? 'Remove from compare' : 'Add to compare'}
                           </Button>
-                        </div>
-                        
-                        {/* Divider */}
-                        <div className="relative">
-                          <div className="absolute inset-0 flex items-center">
-                            <div className="w-full border-t border-slate-200/60"></div>
-                          </div>
-                          <div className="relative flex justify-center">
-                            <span className="bg-white px-3 text-[9px] text-slate-400 uppercase tracking-[0.1em] font-medium">
-                              Resources
-                            </span>
-                          </div>
-                        </div>
-                        
-                        {/* Download Executive Summary */}
-                        <div className="flex justify-center -mt-2">
-                          <ExecutiveSummaryGenerator listing={listing} />
-                        </div>
                       </div>
                     </div>
 
@@ -499,23 +567,6 @@ const ListingDetail = () => {
                         </p>
                       </div>
                     )}
-                    
-                    {/* Divider */}
-                    <div className="relative">
-                      <div className="absolute inset-0 flex items-center">
-                        <div className="w-full border-t border-slate-200/60"></div>
-                      </div>
-                      <div className="relative flex justify-center">
-                        <span className="bg-white px-3 text-[10px] text-slate-400 uppercase tracking-widest font-medium">
-                          Resources
-                        </span>
-                      </div>
-                    </div>
-                    
-                    {/* Download Executive Summary */}
-                    <div className="flex justify-center -mt-2">
-                      <ExecutiveSummaryGenerator listing={listing} />
-                    </div>
                   </div>
                 </div>
 
