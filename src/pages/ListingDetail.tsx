@@ -455,36 +455,34 @@ const ListingDetail = () => {
                 
                 {/* Show user view components when toggled */}
                 {userViewEnabled && (
-                  <div className="sticky top-6 space-y-4 mt-6">
-                    {/* Title above card */}
-                    <h3 className="text-[13px] font-medium text-slate-900">Interested in this opportunity?</h3>
-                    
-                    {/* Premium CTA Card */}
-                    <div className="group relative bg-white rounded-lg p-6">
+                  <div className="sticky top-6 space-y-3 mt-6">
+                    {/* Section header with three-dots menu */}
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-medium text-slate-900">Request access</h3>
                       <SidebarOverflowMenu
                         listing={listing}
                         isInComparison={isInComparison(id!)}
                         onCompare={toggleComparison}
                         onDownload={handleDownload}
+                        className="h-6 w-6 text-slate-400 hover:text-slate-700"
+                      />
+                    </div>
+                    
+                    {/* Premium CTA Card */}
+                    <div className="rounded-lg bg-white p-4">
+                      <ConnectionButton 
+                        connectionExists={connectionExists}
+                        connectionStatus={connectionStatusValue}
+                        isRequesting={isRequesting}
+                        isAdmin={false}
+                        handleRequestConnection={handleRequestConnection}
+                        listingTitle={listing.title}
+                        listingId={id!}
+                        className="w-full h-11 bg-slate-900 text-white hover:bg-slate-800 rounded-md text-[15px] font-medium transition-colors"
                       />
                       
-                      <div className="space-y-6">
-                        <p className="text-[13px] text-slate-600 leading-relaxed">
-                          Request access
-                        </p>
-                        
-                        <ConnectionButton 
-                          connectionExists={connectionExists}
-                          connectionStatus={connectionStatusValue}
-                          isRequesting={isRequesting}
-                          isAdmin={false}
-                          handleRequestConnection={handleRequestConnection}
-                          listingTitle={listing.title}
-                          listingId={id!}
-                          className="w-full h-11 bg-slate-900 text-white hover:bg-slate-800 rounded-lg text-[15px] font-medium transition-all duration-200"
-                        />
-                        
-                        {/* Enhanced Save and Share */}
+                      {/* Enhanced Save and Share */}
+                      <div className="mt-4">
                         <EnhancedSaveButton 
                           listingId={id!} 
                           onSave={() => trackListingSave(id!)}
@@ -499,36 +497,34 @@ const ListingDetail = () => {
                 )}
               </>
             ) : (
-              <div className="sticky top-6 space-y-4">
-                {/* Title above card */}
-                <h3 className="text-[13px] font-medium text-slate-900">Interested in this opportunity?</h3>
-                
-                {/* Premium CTA Card */}
-                <div className="group relative bg-white rounded-lg p-6">
+              <div className="sticky top-6 space-y-3">
+                {/* Section header with three-dots menu */}
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-medium text-slate-900">Request access</h3>
                   <SidebarOverflowMenu
                     listing={listing}
                     isInComparison={isInComparison(id!)}
                     onCompare={toggleComparison}
                     onDownload={handleDownload}
+                    className="h-6 w-6 text-slate-400 hover:text-slate-700"
+                  />
+                </div>
+                
+                {/* Premium CTA Card */}
+                <div className="rounded-lg bg-white p-4">
+                  <ConnectionButton 
+                    connectionExists={connectionExists}
+                    connectionStatus={connectionStatusValue}
+                    isRequesting={isRequesting}
+                    isAdmin={false}
+                    handleRequestConnection={handleRequestConnection}
+                    listingTitle={listing.title}
+                    listingId={id!}
+                    className="w-full h-11 bg-slate-900 text-white hover:bg-slate-800 rounded-md text-[15px] font-medium transition-colors"
                   />
                   
-                  <div className="space-y-6">
-                    <p className="text-[13px] text-slate-600 leading-relaxed">
-                      Request access
-                    </p>
-                    
-                    <ConnectionButton 
-                      connectionExists={connectionExists}
-                      connectionStatus={connectionStatusValue}
-                      isRequesting={isRequesting}
-                      isAdmin={false}
-                      handleRequestConnection={handleRequestConnection}
-                      listingTitle={listing.title}
-                      listingId={id!}
-                      className="w-full h-11 bg-slate-900 text-white hover:bg-slate-800 rounded-lg text-[15px] font-medium transition-all duration-200"
-                    />
-                    
-                    {/* Enhanced Save and Share */}
+                  {/* Enhanced Save and Share */}
+                  <div className="mt-4">
                     <EnhancedSaveButton 
                       listingId={id!} 
                       onSave={() => trackListingSave(id!)}
