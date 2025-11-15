@@ -136,9 +136,9 @@ export const PersonalNotesWidget: React.FC<PersonalNotesWidgetProps> = ({ listin
   if (!user) return null;
 
   return (
-    <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-[0_2px_8px_0_rgb(0_0_0_0.04)] hover:shadow-[0_4px_12px_0_rgb(215_182_92_0.08)] transition-all duration-300">
+    <div className="bg-white border border-slate-200 rounded-lg p-4 shadow-[0_2px_8px_0_rgb(0_0_0_0.04)] hover:shadow-[0_4px_12px_0_rgb(0_0_0_0.06)] transition-all duration-300">
       <div className="flex items-center justify-between mb-3">
-        <h4 className="text-[13px] font-medium text-slate-700 tracking-[-0.01em]">
+        <h4 className="text-[12px] font-semibold text-slate-700 tracking-[-0.01em]">
           Investment Notes
         </h4>
         <FileEdit className="h-3.5 w-3.5 text-slate-400" />
@@ -155,14 +155,14 @@ export const PersonalNotesWidget: React.FC<PersonalNotesWidgetProps> = ({ listin
         onChange={(e) => setContent(e.target.value)}
         placeholder="Add private notes..."
         disabled={isSaving}
-        className="min-h-[100px] resize-none border-slate-200 focus:border-sourceco-accent focus:ring-1 focus:ring-sourceco-accent/20 text-[13px] leading-[1.6] placeholder:text-slate-400 transition-colors"
+        className="min-h-[100px] resize-none border-slate-200 focus:border-slate-300 focus:ring-2 focus:ring-sourceco-accent/30 text-[13px] leading-[1.6] placeholder:text-slate-400 transition-colors"
       />
 
             <div className="flex gap-2 pt-3">
               <Button
                 onClick={saveNote}
                 disabled={isSaving || !content.trim()}
-                className="flex-1 h-9 bg-sourceco-accent hover:bg-sourceco-accent/90 text-white font-medium text-[13px] tracking-[0.01em] shadow-sm shadow-sourceco-accent/20 transition-all duration-200 disabled:opacity-50 hover:scale-[1.01] active:scale-[0.99] focus:outline-none focus:ring-2 focus:ring-sourceco-accent/20 focus:ring-offset-2"
+                className="flex-1 h-8 bg-slate-900 hover:bg-slate-800 text-white font-medium text-[13px] tracking-[0.002em] shadow-sm transition-all duration-200 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-sourceco-accent/30 focus:ring-offset-2"
               >
                 {isSaving ? 'Saving...' : 'Save'}
               </Button>
@@ -172,7 +172,7 @@ export const PersonalNotesWidget: React.FC<PersonalNotesWidgetProps> = ({ listin
                   onClick={handleDelete}
                   disabled={isSaving}
                   variant="ghost"
-                  className="h-9 px-4 text-slate-500 hover:text-slate-700 hover:bg-slate-100 font-normal text-[13px] transition-all duration-200"
+                  className="h-8 px-4 text-slate-500 hover:text-slate-700 hover:bg-slate-100 font-medium text-[13px] transition-all duration-200"
                 >
                   Clear
                 </Button>

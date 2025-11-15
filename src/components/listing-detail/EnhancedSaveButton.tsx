@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { useSavedStatus, useSaveListingMutation } from '@/hooks/marketplace/use-saved-listings';
 import { useListingSaveCount } from '@/hooks/use-collections';
 import { SaveToCollectionDialog } from './SaveToCollectionDialog';
-import { Heart } from 'lucide-react';
+import { Bookmark } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface EnhancedSaveButtonProps {
@@ -43,11 +43,11 @@ export function EnhancedSaveButton({ listingId, onSave }: EnhancedSaveButtonProp
           variant="outline"
           onClick={handleQuickSave}
           disabled={isPending}
-          className="w-full h-10 border-slate-300 hover:border-sourceco-accent bg-white hover:bg-sourceco-accent/5 text-slate-700 hover:text-slate-900 font-normal text-[13px] tracking-[0.01em] transition-all duration-200 group"
+          className="w-full h-9 border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 font-medium text-[13px] tracking-[0.002em] transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-sourceco-accent/30 focus:ring-offset-2"
         >
-          <Heart className={cn(
+          <Bookmark className={cn(
             "h-3.5 w-3.5 transition-colors",
-            isSaved ? "fill-sourceco-accent text-sourceco-accent" : "text-slate-400 group-hover:text-sourceco-accent"
+            isSaved ? "fill-slate-700 text-slate-700" : "text-slate-400"
           )} />
           {isSaved ? 'Saved' : 'Save'}
         </Button>
@@ -64,8 +64,8 @@ export function EnhancedSaveButton({ listingId, onSave }: EnhancedSaveButtonProp
         
         {/* Social proof */}
         {saveCount !== undefined && saveCount > 0 && (
-          <div className="flex items-center justify-center gap-1.5 text-[11px] text-slate-500 font-medium tracking-wide uppercase pt-1">
-            <span className="inline-block w-1 h-1 rounded-full bg-sourceco-accent"></span>
+          <div className="flex items-center justify-center gap-1.5 text-[10px] text-slate-500 font-medium tracking-[0.05em] uppercase pt-1">
+            <span className="inline-block w-1 h-1 rounded-full bg-slate-400"></span>
             {saveCount} {saveCount === 1 ? 'buyer' : 'buyers'} saved
           </div>
         )}

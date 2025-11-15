@@ -209,14 +209,14 @@ export const ExecutiveSummaryGenerator = ({ listing }: ExecutiveSummaryGenerator
   };
 
   return (
-    <button
-      onClick={generatePDF}
-      className="group inline-flex items-center gap-1.5 text-[13px] text-slate-500 hover:text-sourceco-accent transition-colors duration-200"
-    >
-      <FileDown className="h-3.5 w-3.5" />
-      <span className="border-b border-slate-300 group-hover:border-sourceco-accent transition-colors duration-200">
-        Download executive summary
-      </span>
-    </button>
+      <button
+        onClick={generatePDF}
+        className="group inline-flex items-center gap-1.5 text-[12px] text-slate-500 hover:text-slate-900 transition-colors duration-200"
+      >
+        <FileDown className="h-3 w-3" />
+        <span className="border-b border-slate-300 group-hover:border-slate-600 transition-colors duration-200">
+          Download executive summary
+        </span>
+      </button>
   );
 };
