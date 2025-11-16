@@ -2,7 +2,9 @@ import { ImageIcon, MapPin, Calendar } from "lucide-react";
 import ListingStatusTag from "@/components/listing/ListingStatusTag";
 import { CategoryLocationBadges } from "@/components/shared/CategoryLocationBadges";
 import { EditableTitle } from "@/components/listing-detail/EditableTitle";
+import { FinancialMetrics } from "@/components/listing-detail/FinancialMetrics";
 import { getListingImage } from "@/lib/listing-image-utils";
+import { formatCurrency } from "@/lib/currency-utils";
 import { Listing } from "@/types";
 
 interface ListingHeaderProps {
@@ -75,7 +77,7 @@ export function ListingHeader({
         </div>
 
         {/* Right - Core Info */}
-        <div className="flex-1 space-y-3">
+        <div className="flex-1 space-y-4">
           {/* Title */}
           <div>
             <EditableTitle
@@ -95,8 +97,19 @@ export function ListingHeader({
             />
           </div>
 
+          {/* Financial Metrics - Stripe-style premium */}
+          <div className="pt-2">
+            <FinancialMetrics 
+              revenue={listing.revenue}
+              ebitda={listing.ebitda}
+              formatCurrency={formatCurrency}
+              fullTimeEmployees={listing.full_time_employees}
+              partTimeEmployees={listing.part_time_employees}
+            />
+          </div>
+
           {/* Listed Date */}
-          <div className="text-[11px] text-slate-400">
+          <div className="text-[11px] text-slate-400 pt-1">
             {formatListedDate()}
           </div>
         </div>
