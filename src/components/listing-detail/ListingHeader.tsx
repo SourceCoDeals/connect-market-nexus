@@ -101,7 +101,7 @@ export function ListingHeader({
           </div>
 
           {/* Financial Metrics - Premium card-based design */}
-          <div className="mt-4">
+          <div className="mt-5">
             <FinancialMetrics 
               revenue={listing.revenue}
               ebitda={listing.ebitda}
