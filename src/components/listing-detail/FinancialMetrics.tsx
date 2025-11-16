@@ -50,17 +50,17 @@ export function FinancialMetrics({
       {metrics.map((metric, index) => (
         <div 
           key={index}
-          className="bg-[#F8F6F3] border border-[#EBE8E3] rounded-2xl px-6 py-5 shadow-sm hover:shadow-md hover:bg-[#FDFCFA] hover:border-[#E5E2DC] transition-all duration-200 flex flex-col gap-2"
+          className="bg-[#F8F6F3] border border-[#EBE8E3] rounded-2xl px-5 py-4 shadow-sm hover:shadow-md hover:bg-[#FDFCFA] hover:border-[#E5E2DC] transition-all duration-200 flex flex-col gap-2.5 min-w-0"
         >
           {/* VALUE FIRST - Premium hierarchy */}
-          <div className="text-2xl md:text-3xl font-bold text-slate-900 tracking-tight leading-none tabular-nums">
+          <div className="text-xl md:text-2xl lg:text-[28px] font-bold text-slate-900 tracking-tight leading-none tabular-nums break-words">
             {metric.value}
           </div>
           
           {/* LABEL SECOND with info icon */}
-          <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-[0.12em] flex items-center gap-1.5">
-            {metric.label}
-            <Info className="w-3.5 h-3.5 text-slate-400 opacity-60 hover:opacity-100 transition-opacity cursor-help" />
+          <div className="text-[10px] md:text-[11px] font-semibold text-slate-500 uppercase tracking-[0.1em] flex items-center gap-1.5 flex-wrap">
+            <span className="whitespace-nowrap">{metric.label}</span>
+            <Info className="w-3.5 h-3.5 text-slate-400 opacity-60 hover:opacity-100 transition-opacity cursor-help flex-shrink-0" />
           </div>
         </div>
       ))}
