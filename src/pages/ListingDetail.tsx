@@ -34,9 +34,7 @@ import { CalendarIcon, DocumentIcon, BuildingIcon } from "@/components/icons/Met
 import { SimilarListingsCarousel } from "@/components/listing-detail/SimilarListingsCarousel";
 import { ShareDealDialog } from "@/components/listing-detail/ShareDealDialog";
 import { EnhancedSaveButton } from "@/components/listing-detail/EnhancedSaveButton";
-import { MarketContextCard } from '@/components/listing-detail/MarketContextCard';
 
-import { useListingActivity } from '@/hooks/use-listing-activity';
 import { useQueryClient } from "@tanstack/react-query";
 
 const ListingDetail = () => {
@@ -57,7 +55,6 @@ const ListingDetail = () => {
   const { mutate: requestConnection, isPending: isRequesting } = useRequestConnection();
   const { data: connectionStatus } = useConnectionStatus(id);
   const { trackListingView, trackListingSave, trackConnectionRequest } = useAnalytics();
-  const { data: recentActivity } = useListingActivity(id || '');
   
   const isAdmin = user?.is_admin === true;
   const showAdminView = isAdmin && !userViewEnabled;
@@ -393,26 +390,6 @@ const ListingDetail = () => {
                         onShare={() => setShowShareDialog(true)}
                       />
                     </div>
-                    
-                    
-                    {/* Market Context */}
-                    <div className="pt-1">
-                      <MarketContextCard
-                        listingId={id!}
-                        category={listing.category}
-                        revenue={listing.revenue}
-                        ebitda={listing.ebitda}
-                      />
-                    </div>
-                    
-                    {/* Recent Activity */}
-                    {recentActivity !== undefined && recentActivity > 0 && (
-                      <div className="pt-1">
-                        <p className="text-xs text-muted-foreground border-l-2 border-border pl-3 py-2">
-                          {recentActivity} {recentActivity === 1 ? 'buyer' : 'buyers'} took action on this listing in the last 48 hours
-                        </p>
-                      </div>
-                    )}
                     
                     {/* Divider */}
                     <div className="relative">
