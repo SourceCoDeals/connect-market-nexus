@@ -65,23 +65,6 @@ export function EnhancedInvestorDashboard({ listing, formatCurrency }: EnhancedI
 
   return (
     <div className="space-y-5">
-      {/* Financial Summary - Investment Grade Minimal */}
-      <div className="space-y-3">
-        <h2 className="text-[13px] font-semibold text-slate-900 tracking-tight">Financial Snapshot</h2>
-        
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {metrics.map((metric, index) => (
-            <div key={index} className="bg-slate-50/50 border border-slate-100 rounded-lg px-4 py-3.5 space-y-1">
-              <div className="text-[10px] font-medium text-slate-500 uppercase tracking-wider">
-                {metric.label}
-              </div>
-              <div className="text-xl font-semibold text-slate-900 tracking-tight">
-                {metric.value}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
 
       {/* Revenue Model Breakdown */}
       {listing.revenue_model_breakdown && Object.keys(listing.revenue_model_breakdown).length > 0 && (
