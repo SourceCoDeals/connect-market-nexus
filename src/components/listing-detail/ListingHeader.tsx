@@ -60,7 +60,7 @@ export function ListingHeader({
       {/* Horizontal Image + Info Layout */}
       <div className="flex flex-col lg:flex-row gap-4">
         {/* Left - Image */}
-        <div className="flex-shrink-0 w-full lg:w-[140px] h-[180px] md:h-[140px] lg:h-[140px] border border-slate-200/60 bg-slate-50 rounded-lg overflow-hidden transition-all duration-200 hover:border-slate-300/80">
+        <div className="flex-shrink-0 w-full lg:w-[160px] h-[180px] md:h-[160px] lg:h-[160px] border border-slate-200/60 bg-slate-50 rounded-lg overflow-hidden transition-all duration-200 hover:border-slate-300/80">
           {imageData.type === 'image' ? (
             <img
               src={imageData.value}
