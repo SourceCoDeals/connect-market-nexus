@@ -77,7 +77,7 @@ export function ListingHeader({
         </div>
 
         {/* Right - Core Info */}
-        <div className="flex-1 space-y-4">
+        <div className="flex-1 flex flex-col justify-end space-y-4">
           {/* Title */}
           <div>
             <EditableTitle
