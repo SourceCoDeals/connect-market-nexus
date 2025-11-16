@@ -35,11 +35,11 @@ export function ListingHeader({
   };
 
   return (
-    <div className="space-y-6 mb-8">
+    <div className="space-y-4 mb-6">
       {/* Top Badges Row */}
       <div className="flex items-center gap-2 flex-wrap">
         {listing.status_tag && (
-          <ListingStatusTag status={listing.status_tag} />
+          <ListingStatusTag status={listing.status_tag} variant="inline" />
         )}
         <CategoryLocationBadges 
           acquisitionType={listing.acquisition_type}
@@ -58,9 +58,9 @@ export function ListingHeader({
       </div>
 
       {/* Horizontal Image + Info Layout */}
-      <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
+      <div className="flex flex-col lg:flex-row gap-6">
         {/* Left - Image */}
-        <div className="flex-shrink-0 w-full lg:w-[360px] h-[240px] lg:h-[360px] border border-slate-200 bg-slate-50 rounded-lg overflow-hidden">
+        <div className="flex-shrink-0 w-full lg:w-[240px] h-[200px] md:h-[220px] lg:h-[240px] border border-slate-200/60 bg-slate-50 rounded-xl overflow-hidden transition-all duration-200 hover:border-slate-300/80 hover:shadow-sm">
           {imageData.type === 'image' ? (
             <img
               src={imageData.value}
@@ -78,18 +78,20 @@ export function ListingHeader({
         </div>
 
         {/* Right - Core Info */}
-        <div className="flex-1 flex flex-col justify-center space-y-4">
+        <div className="flex-1 flex flex-col justify-center space-y-3">
           {/* Category as Text */}
-          <div className="text-xs uppercase tracking-wider text-slate-500 font-medium">
+          <div className="text-xs uppercase tracking-wider text-slate-500 font-medium leading-none">
             {listing.category}
           </div>
 
           {/* Title */}
-          <EditableTitle
-            listingId={listing.id}
-            initialValue={listing.title}
-            isEditing={isAdmin && editModeEnabled && !userViewEnabled}
-          />
+          <div className="-mt-1">
+            <EditableTitle
+              listingId={listing.id}
+              initialValue={listing.title}
+              isEditing={isAdmin && editModeEnabled && !userViewEnabled}
+            />
+          </div>
 
           {/* Location */}
           <div className="flex items-center gap-2 text-slate-600">
@@ -98,7 +100,7 @@ export function ListingHeader({
           </div>
 
           {/* Listed Date */}
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white border border-slate-200 shadow-sm w-fit">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-50 border border-slate-200/80 w-fit">
             <Calendar className="w-4 h-4 text-slate-500" />
             <span className="text-xs font-medium text-slate-700 tracking-wide">
               {formatListedDate()}
