@@ -44,17 +44,17 @@ export function FinancialMetrics({
   ];
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
       {metrics.map((metric, index) => (
         <div 
           key={index} 
-          className="bg-slate-50/50 border border-slate-200/60 rounded-xl px-5 py-4 transition-all hover:bg-slate-50 hover:border-slate-300/60"
+          className="bg-white border-2 border-slate-100 rounded-2xl px-6 py-5 transition-all duration-200 hover:bg-slate-50/30 hover:border-slate-200 hover:shadow-md shadow-sm h-full"
         >
-          <div className="space-y-2">
+          <div className="space-y-3 h-full flex flex-col">
             <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
               {metric.label}
             </div>
-            <div className="text-[32px] font-bold text-slate-900 tracking-tight leading-none">
+            <div className="text-2xl md:text-3xl lg:text-[32px] font-bold text-slate-900 tracking-tight leading-none tabular-nums">
               {metric.value}
             </div>
           </div>
