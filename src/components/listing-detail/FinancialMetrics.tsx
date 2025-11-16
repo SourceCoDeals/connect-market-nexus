@@ -32,7 +32,7 @@ export function FinancialMetrics({
       value: formatCurrency(revenue),
     },
     {
-      label: "Cash Flow",
+      label: "EBITDA",
       value: formatCurrency(ebitda),
     },
     {
