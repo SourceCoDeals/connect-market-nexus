@@ -37,7 +37,7 @@ export function ListingHeader({
   };
 
   return (
-    <div className="space-y-2.5 mb-3">
+    <div className="space-y-4 mb-3">
       {/* Top Badges Row - Only Status Tag + Acquisition Type */}
       <div className="flex items-center gap-2 flex-wrap">
         {listing.status_tag && (
