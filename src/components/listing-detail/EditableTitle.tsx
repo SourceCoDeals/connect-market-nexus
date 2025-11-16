@@ -32,7 +32,7 @@ export function EditableTitle({ listingId, initialValue, isEditing }: EditableTi
   };
 
   if (!isEditing) {
-    return <h1 className="text-2xl font-semibold text-slate-900 leading-tight tracking-tight">{initialValue}</h1>;
+    return <h1 className="text-[22px] font-semibold text-slate-900 leading-tight tracking-tight">{initialValue}</h1>;
   }
 
   if (isActive) {
@@ -41,7 +41,7 @@ export function EditableTitle({ listingId, initialValue, isEditing }: EditableTi
         <Input
           value={value}
           onChange={(e) => setValue(e.target.value)}
-          className="text-2xl font-semibold text-slate-900 border-2 border-sourceco-accent leading-tight"
+          className="text-[22px] font-semibold text-slate-900 border-2 border-sourceco-accent leading-tight"
           autoFocus
           disabled={isPending}
         />
@@ -72,7 +72,7 @@ export function EditableTitle({ listingId, initialValue, isEditing }: EditableTi
 
   return (
     <h1
-      className="text-2xl font-semibold text-slate-900 leading-tight tracking-tight cursor-pointer hover:bg-sourceco-accent/10 rounded px-2 -mx-2 transition-colors"
+      className="text-[22px] font-semibold text-slate-900 leading-tight tracking-tight cursor-pointer hover:bg-sourceco-accent/10 rounded px-2 -mx-2 transition-colors"
       onClick={() => setIsActive(true)}
     >
       {initialValue}
