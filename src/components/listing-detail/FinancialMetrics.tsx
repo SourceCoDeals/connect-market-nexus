@@ -69,19 +69,21 @@ export function FinancialMetrics({
               {metric.tooltip ? (
                 <Tooltip delayDuration={200}>
                   <TooltipTrigger asChild>
-                    <Info className="w-3 h-3 text-slate-400 opacity-40 hover:opacity-70 transition-opacity cursor-help flex-shrink-0" />
+                    <Info className="w-4 h-4 text-gray-500 hover:text-gray-700 transition-colors cursor-help flex-shrink-0" strokeWidth={2} />
                   </TooltipTrigger>
                   <TooltipContent 
                     side="top" 
                     align="center"
                     sideOffset={8}
-                    className="max-w-sm p-4 text-xs leading-relaxed"
+                    className="max-w-sm bg-gray-900 text-white border-gray-800 p-4"
                   >
-                    {metric.tooltip}
+                    <div className="text-xs leading-relaxed text-gray-200">
+                      {metric.tooltip}
+                    </div>
                   </TooltipContent>
                 </Tooltip>
               ) : (
-                <Info className="w-3 h-3 text-slate-400 opacity-40 transition-opacity flex-shrink-0" />
+                <Info className="w-4 h-4 text-gray-400 transition-colors flex-shrink-0" strokeWidth={2} />
               )}
             </div>
           </div>
