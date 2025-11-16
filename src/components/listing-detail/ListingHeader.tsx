@@ -58,7 +58,7 @@ export function ListingHeader({
       </div>
 
       {/* Horizontal Image + Info Layout */}
-      <div className="flex flex-col lg:flex-row gap-4">
+      <div className="flex flex-col lg:flex-row gap-4 lg:items-start">
         {/* Left - Image */}
         <div className="flex-shrink-0 w-full lg:w-[200px] h-[200px] md:h-[200px] lg:h-[200px] border border-slate-200/60 bg-slate-50 rounded-lg overflow-hidden transition-all duration-200 hover:border-slate-300/80">
           {imageData.type === 'image' ? (
@@ -78,7 +78,7 @@ export function ListingHeader({
         </div>
 
         {/* Right - Core Info */}
-        <div className="flex-1 flex flex-col justify-center space-y-2">
+        <div className="flex-1 space-y-2">
           {/* Category as Text */}
           <div className="text-[11px] uppercase tracking-wider text-slate-500 font-medium leading-none">
             {listing.category}
@@ -93,15 +93,16 @@ export function ListingHeader({
             />
           </div>
 
-          {/* Location */}
-          <div className="flex items-center gap-1.5 text-slate-600">
-            <MapPin className="w-3.5 h-3.5" />
-            <span className="text-sm">{listing.location}</span>
-          </div>
-
-          {/* Listed Date - Ultra subtle footer */}
-          <div className="text-[11px] text-slate-400 pt-1">
-            {formatListedDate()}
+          {/* Location & Listed Date Row */}
+          <div className="flex items-center gap-3 text-slate-600">
+            <div className="flex items-center gap-1.5">
+              <MapPin className="w-3.5 h-3.5" />
+              <span className="text-sm">{listing.location}</span>
+            </div>
+            <span className="text-slate-300">•</span>
+            <div className="text-[11px] text-slate-400">
+              {formatListedDate()}
+            </div>
           </div>
         </div>
       </div>
