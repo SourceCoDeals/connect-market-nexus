@@ -198,18 +198,18 @@ export const CategoryLocationBadges = ({
       <AcquisitionTypeBadge type={acquisitionType} />
       
       {standardCategories.map((standardCategory, index) => (
-        <div key={index} className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-white border border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.06)]">
+        <div key={index} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white border border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.06)]">
           {getCategoryIcon(standardCategory)}
-          <span className="text-[10px] font-medium text-slate-700 tracking-[0.02em]">
+          <span className="text-[11px] font-medium text-slate-700 tracking-[0.02em]">
             {standardCategory}
           </span>
         </div>
       ))}
       
       {standardLocation && (
-        <div className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-white border border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.06)]">
+        <div className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white border border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.06)]">
           {getLocationIcon(standardLocation)}
-          <span className="text-[10px] font-medium text-slate-700 tracking-[0.02em]">
+          <span className="text-[11px] font-medium text-slate-700 tracking-[0.02em]">
             {standardLocation}
           </span>
         </div>
