@@ -131,6 +131,16 @@ const ListingDetail = () => {
 
   return (
     <div className="document-content min-h-screen bg-white">
+      {/* Navigation */}
+      <div className="max-w-7xl mx-auto px-8 py-3">
+        <Link
+          to="/marketplace"
+          className="inline-flex items-center text-xs text-slate-600 hover:text-slate-900 transition-colors font-medium"
+        >
+          <ChevronLeft className="mr-1 h-3 w-3" />
+          Back to Marketplace
+        </Link>
+      </div>
       
       {/* Main Content - 1600px Premium Container */}
       <div className="max-w-7xl mx-auto px-8 py-8">
@@ -286,17 +296,6 @@ const ListingDetail = () => {
 
           {/* Right Column - 30% Premium Sticky Sidebar */}
           <div className="col-span-4">
-            {/* Back to Marketplace Link */}
-            <div className="mb-4">
-              <Link 
-                to="/" 
-                className="inline-flex items-center text-xs text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <ChevronLeft className="mr-1 h-3 w-3" />
-                Back to Marketplace
-              </Link>
-            </div>
-            
             {isAdmin ? (
               <>
                 <AdminListingSidebar 

@@ -10,19 +10,19 @@ interface ListingStatusTagProps {
 
 const STATUS_CONFIG = {
   just_listed: {
-    bgClass: "bg-[#0a0a0a] text-white border-[#0a0a0a]",
+    bgClass: "bg-slate-700 text-white border-slate-600",
   },
   reviewing_buyers: {
-    bgClass: "bg-[#0a0a0a] text-white border-[#0a0a0a]",
+    bgClass: "bg-slate-600 text-white border-slate-500",
   },
   in_diligence: {
-    bgClass: "bg-[#0a0a0a] text-white border-[#0a0a0a]",
+    bgClass: "bg-slate-500 text-white border-slate-400",
   },
   under_loi: {
-    bgClass: "bg-[#0a0a0a] text-white border-[#0a0a0a]",
+    bgClass: "bg-slate-700 text-white border-slate-600",
   },
   accepted_offer: {
-    bgClass: "bg-[#0a0a0a] text-white border-[#0a0a0a]",
+    bgClass: "bg-success text-success-foreground border-success",
   },
 } as const;
 
@@ -38,7 +38,7 @@ const ListingStatusTag = ({ status, className, variant = 'absolute' }: ListingSt
     <Badge
       variant="default"
       className={cn(
-        "px-2.5 py-1.5 text-[10px] font-bold rounded-lg uppercase tracking-[0.08em]",
+        "px-2.5 py-1.5 text-[10px] font-medium rounded-lg uppercase tracking-[0.02em]",
         "inline-flex items-center shadow-[0_1px_2px_rgba(0,0,0,0.12)] border",
         variant === 'absolute' && "absolute bottom-3 left-3 z-10",
         config.bgClass,

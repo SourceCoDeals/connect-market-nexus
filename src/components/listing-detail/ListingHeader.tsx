@@ -38,45 +38,42 @@ export function ListingHeader({
 
   return (
     <div className="space-y-2.5 mb-3">
+      {/* Top Badges Row - Only Status Tag + Acquisition Type */}
+      <div className="flex items-center gap-2 flex-wrap">
+        {listing.status_tag && (
+          <ListingStatusTag status={listing.status_tag} variant="inline" />
+        )}
+        <CategoryLocationBadges 
+          acquisitionType={listing.acquisition_type}
+          variant="default"
+        />
+        {isInactive && isAdmin && (
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-red-50 border border-red-200">
+            <span className="text-[10px] font-medium text-red-700 tracking-[0.02em]">
+              Inactive
+            </span>
+          </div>
+        )}
+      </div>
+
       {/* Horizontal Image + Info Layout */}
       <div className="flex flex-col lg:flex-row gap-4 lg:items-stretch">
-        {/* Left - Image with badges above */}
-        <div className="flex-shrink-0 w-full lg:w-[200px]">
-          {/* Badges stacked above image */}
-          <div className="flex flex-col gap-1.5 mb-2">
-            {listing.status_tag && (
-              <ListingStatusTag status={listing.status_tag} variant="inline" />
-            )}
-            <CategoryLocationBadges 
-              acquisitionType={listing.acquisition_type}
-              variant="default"
+        {/* Left - Image */}
+        <div className="flex-shrink-0 w-full lg:w-[200px] h-[200px] md:h-[200px] lg:h-[200px] border border-slate-200/60 bg-slate-50 rounded-lg overflow-hidden transition-all duration-200 hover:border-slate-300/80">
+          {imageData.type === 'image' ? (
+            <img
+              src={imageData.value}
+              alt={listing.title}
+              className="w-full h-full object-cover"
             />
-            {isInactive && isAdmin && (
-              <div className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-red-50 border border-red-200">
-                <span className="text-[10px] font-medium text-red-700 tracking-[0.02em]">
-                  Inactive
-                </span>
-              </div>
-            )}
-          </div>
-          
-          {/* Image */}
-          <div className="w-full h-[200px] md:h-[200px] lg:h-[200px] border border-slate-200/60 bg-slate-50 rounded-lg overflow-hidden transition-all duration-200 hover:border-slate-300/80">
-            {imageData.type === 'image' ? (
-              <img
-                src={imageData.value}
-                alt={listing.title}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div 
-                className="w-full h-full flex items-center justify-center"
-                style={{ background: imageData.value }}
-              >
-                <ImageIcon className="h-16 w-16 text-white opacity-40" />
-              </div>
-            )}
-          </div>
+          ) : (
+            <div 
+              className="w-full h-full flex items-center justify-center"
+              style={{ background: imageData.value }}
+            >
+              <ImageIcon className="h-16 w-16 text-white opacity-40" />
+            </div>
+          )}
         </div>
 
         {/* Right - Core Info */}
