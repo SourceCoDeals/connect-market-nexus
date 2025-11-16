@@ -67,12 +67,14 @@ export function FinancialMetrics({
             <div className="text-[9px] font-medium text-slate-500 uppercase tracking-[0.08em] leading-tight flex items-center gap-1">
               <span className="whitespace-nowrap">{metric.label}</span>
               {metric.tooltip ? (
-                <Tooltip delayDuration={200}>
+                <Tooltip delayDuration={0}>
                   <TooltipTrigger asChild>
-                    <Info className="w-4 h-4 text-gray-500 hover:text-gray-700 transition-colors cursor-help flex-shrink-0" strokeWidth={2} />
+                    <button className="inline-flex items-center justify-center rounded-full p-1 hover:bg-gray-100 transition-colors">
+                      <Info className="w-4 h-4 text-gray-500 hover:text-gray-700 flex-shrink-0" strokeWidth={2} />
+                    </button>
                   </TooltipTrigger>
                   <TooltipContent 
-                    side="top" 
+                    side="right" 
                     align="center"
                     sideOffset={8}
                     className="max-w-sm bg-gray-900 text-white border-gray-800 p-4"
