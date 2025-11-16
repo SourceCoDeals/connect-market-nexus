@@ -46,21 +46,21 @@ export function FinancialMetrics({
   ];
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 md:gap-3.5 w-full">
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 w-full">
       {metrics.map((metric, index) => (
         <div 
           key={index}
-          className="bg-white border border-slate-200/40 rounded-lg px-4 py-3.5 hover:border-slate-300/50 hover:shadow-[0_2px_8px_rgba(0,0,0,0.04)] transition-all duration-200 ease-out flex flex-col gap-2 min-w-0 select-none"
+          className="bg-white border border-slate-200/50 rounded-xl px-5 py-4 hover:border-slate-300/60 hover:shadow-[0_4px_12px_rgba(0,0,0,0.06)] transition-all duration-300 ease-out flex flex-col gap-2.5 min-w-0 select-none"
         >
           {/* VALUE FIRST - Apple-precision typography */}
-          <div className="text-lg md:text-xl lg:text-[22px] font-semibold text-slate-950 tracking-[-0.02em] leading-none tabular-nums truncate">
+          <div className="text-xl md:text-2xl lg:text-[26px] font-semibold text-slate-950 tracking-[-0.02em] leading-none tabular-nums break-words">
             {metric.value}
           </div>
           
           {/* LABEL SECOND - Refined minimal */}
-          <div className="text-[9px] md:text-[10px] font-medium text-slate-500 uppercase tracking-[0.08em] leading-tight flex items-center gap-1">
-            <span className="truncate">{metric.label}</span>
-            <Info className="w-3 h-3 text-slate-400/80 opacity-40 hover:opacity-70 transition-opacity cursor-help flex-shrink-0" />
+          <div className="text-[10px] font-medium text-slate-500 uppercase tracking-[0.1em] leading-tight flex items-center gap-1.5">
+            <span className="whitespace-nowrap">{metric.label}</span>
+            <Info className="w-3.5 h-3.5 text-slate-400/80 opacity-40 hover:opacity-80 transition-opacity cursor-help flex-shrink-0" />
           </div>
         </div>
       ))}
