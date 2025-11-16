@@ -369,7 +369,7 @@
 }
 
 .document-content {
-  @apply bg-sourceco-background;
+  @apply bg-white;
 }
 
 /* Custom sections styling */
