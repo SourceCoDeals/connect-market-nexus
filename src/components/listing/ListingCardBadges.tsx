@@ -49,23 +49,23 @@ const getLocationIcon = (location: string) => {
       loc.includes('midwest') || loc.includes('southwest') || 
       loc.includes('western') || loc.includes('west coast') || 
       loc.includes('east coast')) {
-    return <USFlagIcon className="w-3.5 h-3.5 text-slate-500" />;
+    return <USFlagIcon className="w-4 h-4 text-slate-500" />;
   }
   
-  if (loc.includes('canada')) return <CanadaIcon className="w-3.5 h-3.5 text-slate-500" />;
-  if (loc.includes('north america')) return <NorthAmericaIcon className="w-3.5 h-3.5 text-slate-500" />;
-  if (loc.includes('europe')) return <EuropeIcon className="w-3.5 h-3.5 text-slate-500" />;
+  if (loc.includes('canada')) return <CanadaIcon className="w-4 h-4 text-slate-500" />;
+  if (loc.includes('north america')) return <NorthAmericaIcon className="w-4 h-4 text-slate-500" />;
+  if (loc.includes('europe')) return <EuropeIcon className="w-4 h-4 text-slate-500" />;
   if (loc.includes('united kingdom') || loc === 'uk' || loc.includes('britain')) {
-    return <UKIcon className="w-3.5 h-3.5 text-slate-500" />;
+    return <UKIcon className="w-4 h-4 text-slate-500" />;
   }
   if (loc.includes('asia') || loc.includes('pacific')) {
-    return <AsiaPacificIcon className="w-3.5 h-3.5 text-slate-500" />;
+    return <AsiaPacificIcon className="w-4 h-4 text-slate-500" />;
   }
   if (loc.includes('global') || loc.includes('international')) {
-    return <GlobalIcon className="w-3.5 h-3.5 text-slate-500" />;
+    return <GlobalIcon className="w-4 h-4 text-slate-500" />;
   }
   
-  return <MapPinIcon className="w-3.5 h-3.5 text-slate-500" />;
+  return <MapPinIcon className="w-4 h-4 text-slate-500" />;
 };
 
 // Helper function to get category icon based on category string
@@ -73,64 +73,64 @@ const getCategoryIcon = (category: string) => {
   const cat = category.toLowerCase();
   
   if (cat.includes('technology') || cat.includes('software')) {
-    return <TechnologyIcon className="w-3.5 h-3.5 text-slate-500" />;
+    return <TechnologyIcon className="w-4 h-4 text-slate-500" />;
   }
   if (cat.includes('healthcare') || cat.includes('medical')) {
-    return <HealthcareIcon className="w-3.5 h-3.5 text-slate-500" />;
+    return <HealthcareIcon className="w-4 h-4 text-slate-500" />;
   }
   if (cat.includes('manufacturing')) {
-    return <ManufacturingIcon className="w-3.5 h-3.5 text-slate-500" />;
+    return <ManufacturingIcon className="w-4 h-4 text-slate-500" />;
   }
   if (cat.includes('finance') || cat.includes('insurance')) {
-    return <FinanceIcon className="w-3.5 h-3.5 text-slate-500" />;
+    return <FinanceIcon className="w-4 h-4 text-slate-500" />;
   }
   if (cat.includes('retail') || cat.includes('e-commerce')) {
-    return <RetailIcon className="w-3.5 h-3.5 text-slate-500" />;
+    return <RetailIcon className="w-4 h-4 text-slate-500" />;
   }
   if (cat.includes('real estate')) {
-    return <RealEstateIcon className="w-3.5 h-3.5 text-slate-500" />;
+    return <RealEstateIcon className="w-4 h-4 text-slate-500" />;
   }
   if (cat.includes('food') || cat.includes('beverage')) {
-    return <FoodBeverageIcon className="w-3.5 h-3.5 text-slate-500" />;
+    return <FoodBeverageIcon className="w-4 h-4 text-slate-500" />;
   }
   if (cat.includes('professional services')) {
-    return <ProfessionalServicesIcon className="w-3.5 h-3.5 text-slate-500" />;
+    return <ProfessionalServicesIcon className="w-4 h-4 text-slate-500" />;
   }
   if (cat.includes('construction')) {
-    return <ConstructionIcon className="w-3.5 h-3.5 text-slate-500" />;
+    return <ConstructionIcon className="w-4 h-4 text-slate-500" />;
   }
   if (cat.includes('transportation') || cat.includes('logistics')) {
-    return <TransportationIcon className="w-3.5 h-3.5 text-slate-500" />;
+    return <TransportationIcon className="w-4 h-4 text-slate-500" />;
   }
   if (cat.includes('education')) {
-    return <EducationIcon className="w-3.5 h-3.5 text-slate-500" />;
+    return <EducationIcon className="w-4 h-4 text-slate-500" />;
   }
   if (cat.includes('hospitality') || cat.includes('tourism')) {
-    return <HospitalityIcon className="w-3.5 h-3.5 text-slate-500" />;
+    return <HospitalityIcon className="w-4 h-4 text-slate-500" />;
   }
   if (cat.includes('energy') || cat.includes('utilities')) {
-    return <EnergyIcon className="w-3.5 h-3.5 text-slate-500" />;
+    return <EnergyIcon className="w-4 h-4 text-slate-500" />;
   }
   if (cat.includes('media') || cat.includes('entertainment')) {
-    return <MediaIcon className="w-3.5 h-3.5 text-slate-500" />;
+    return <MediaIcon className="w-4 h-4 text-slate-500" />;
   }
   if (cat.includes('automotive')) {
-    return <AutomotiveIcon className="w-3.5 h-3.5 text-slate-500" />;
+    return <AutomotiveIcon className="w-4 h-4 text-slate-500" />;
   }
   if (cat.includes('agriculture')) {
-    return <AgricultureIcon className="w-3.5 h-3.5 text-slate-500" />;
+    return <AgricultureIcon className="w-4 h-4 text-slate-500" />;
   }
   if (cat.includes('telecommunications')) {
-    return <TelecommunicationsIcon className="w-3.5 h-3.5 text-slate-500" />;
+    return <TelecommunicationsIcon className="w-4 h-4 text-slate-500" />;
   }
   if (cat.includes('consumer goods')) {
-    return <ConsumerGoodsIcon className="w-3.5 h-3.5 text-slate-500" />;
+    return <ConsumerGoodsIcon className="w-4 h-4 text-slate-500" />;
   }
   if (cat.includes('business services')) {
-    return <BusinessServicesIcon className="w-3.5 h-3.5 text-slate-500" />;
+    return <BusinessServicesIcon className="w-4 h-4 text-slate-500" />;
   }
   
-  return <DefaultCategoryIcon className="w-3.5 h-3.5 text-slate-500" />;
+  return <DefaultCategoryIcon className="w-4 h-4 text-slate-500" />;
 };
 
 const ListingCardBadges = ({ location, categories = [], acquisitionType }: ListingCardBadgesProps) => {
@@ -148,7 +148,7 @@ const ListingCardBadges = ({ location, categories = [], acquisitionType }: Listi
           className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white border border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.06)]"
         >
           {getCategoryIcon(cat)}
-          <span className="text-[10px] font-medium text-slate-700 tracking-[0.02em]">
+          <span className="text-[11px] font-medium text-slate-700 tracking-[0.02em]">
             {cat}
           </span>
         </div>
@@ -157,7 +157,7 @@ const ListingCardBadges = ({ location, categories = [], acquisitionType }: Listi
       {/* Location badge */}
       <div className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white border border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.06)]">
         {getLocationIcon(location)}
-        <span className="text-[10px] font-medium text-slate-700 tracking-[0.02em]">
+        <span className="text-[11px] font-medium text-slate-700 tracking-[0.02em]">
           {location}
         </span>
       </div>
