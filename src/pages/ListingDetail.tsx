@@ -133,7 +133,7 @@ const ListingDetail = () => {
   const imageUrl = listing?.image_url || DEFAULT_IMAGE;
 
   return (
-    <div className="document-content min-h-screen bg-sourceco-background">
+    <div className="document-content min-h-screen bg-white">
       {/* Navigation */}
       <div className="max-w-7xl mx-auto px-8 py-3">
         <Link

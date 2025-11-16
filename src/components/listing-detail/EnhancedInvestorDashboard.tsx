@@ -64,31 +64,22 @@ export function EnhancedInvestorDashboard({ listing, formatCurrency }: EnhancedI
   ];
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       {/* Financial Summary - Clean Minimal Grid */}
-      <div className="space-y-3">
-        <div className="flex items-center gap-2.5">
-          <ChartIcon className="w-[15px] h-[15px] text-slate-500" />
-          <span className="text-[16px] font-semibold text-slate-900 tracking-tight">Financial Snapshot</span>
-        </div>
+      <div className="space-y-4">
+        <h2 className="text-sm font-semibold text-slate-900 tracking-tight">Financial Snapshot</h2>
         
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-6">
-          {metrics.map((metric, index) => {
-            const Icon = metric.icon;
-            return (
-              <div key={index} className="bg-slate-50 border border-slate-200 rounded-lg p-4 space-y-2">
-                <div className="flex items-center gap-2">
-                  <Icon className="w-[14px] h-[14px] text-slate-400" />
-                  <span className="text-[12px] font-semibold text-slate-500 uppercase tracking-wider">
-                    {metric.label}
-                  </span>
-                </div>
-                <div className="text-2xl font-semibold text-slate-900 tracking-tight">
-                  {metric.value}
-                </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-5">
+          {metrics.map((metric, index) => (
+            <div key={index} className="space-y-1.5">
+              <div className="text-[11px] font-medium text-slate-500 uppercase tracking-wider">
+                {metric.label}
               </div>
-            );
-          })}
+              <div className="text-2xl font-semibold text-slate-900 tracking-tight">
+                {metric.value}
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 
