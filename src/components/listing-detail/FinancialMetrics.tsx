@@ -1,5 +1,5 @@
 import { Info } from "lucide-react";
-import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface FinancialMetricsProps {
   revenue: number;
@@ -51,39 +51,42 @@ export function FinancialMetrics({
   ];
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-2.5 w-full">
-      {metrics.map((metric, index) => (
-        <div 
-          key={index}
-          className="bg-white border border-slate-200/50 rounded-lg px-3.5 py-3 hover:border-slate-300/60 hover:shadow-[0_2px_8px_rgba(0,0,0,0.05)] transition-all duration-250 ease-out flex flex-col gap-1.5 min-w-0"
-        >
-          {/* VALUE FIRST */}
-          <div className="text-base md:text-lg font-semibold text-slate-950 tracking-tight leading-none tabular-nums whitespace-nowrap overflow-hidden text-ellipsis">
-            {metric.value}
+    <TooltipProvider>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-2.5 w-full">
+        {metrics.map((metric, index) => (
+          <div 
+            key={index}
+            className="bg-white border border-slate-200/50 rounded-lg px-3.5 py-3 hover:border-slate-300/60 hover:shadow-[0_2px_8px_rgba(0,0,0,0.05)] transition-all duration-250 ease-out flex flex-col gap-1.5 min-w-0"
+          >
+            {/* VALUE FIRST */}
+            <div className="text-base md:text-lg font-semibold text-slate-950 tracking-tight leading-none tabular-nums whitespace-nowrap overflow-hidden text-ellipsis">
+              {metric.value}
+            </div>
+            
+            {/* LABEL SECOND */}
+            <div className="text-[9px] font-medium text-slate-500 uppercase tracking-[0.08em] leading-tight flex items-center gap-1">
+              <span className="whitespace-nowrap">{metric.label}</span>
+              {metric.tooltip ? (
+                <Tooltip delayDuration={200}>
+                  <TooltipTrigger asChild>
+                    <Info className="w-3 h-3 text-slate-400 opacity-40 hover:opacity-70 transition-opacity cursor-help flex-shrink-0" />
+                  </TooltipTrigger>
+                  <TooltipContent 
+                    side="top" 
+                    align="center"
+                    sideOffset={8}
+                    className="max-w-sm p-4 text-xs leading-relaxed"
+                  >
+                    {metric.tooltip}
+                  </TooltipContent>
+                </Tooltip>
+              ) : (
+                <Info className="w-3 h-3 text-slate-400 opacity-40 transition-opacity flex-shrink-0" />
+              )}
+            </div>
           </div>
-          
-          {/* LABEL SECOND */}
-          <div className="text-[9px] font-medium text-slate-500 uppercase tracking-[0.08em] leading-tight flex items-center gap-1">
-            <span className="whitespace-nowrap">{metric.label}</span>
-            {metric.tooltip ? (
-              <HoverCard openDelay={200}>
-                <HoverCardTrigger asChild>
-                  <Info className="w-3 h-3 text-slate-400 opacity-40 hover:opacity-70 transition-opacity cursor-help flex-shrink-0" />
-                </HoverCardTrigger>
-                <HoverCardContent 
-                  side="top" 
-                  align="center"
-                  className="w-[280px] p-3 text-xs text-slate-700 leading-relaxed"
-                >
-                  {metric.tooltip}
-                </HoverCardContent>
-              </HoverCard>
-            ) : (
-              <Info className="w-3 h-3 text-slate-400 opacity-40 transition-opacity flex-shrink-0" />
-            )}
-          </div>
-        </div>
-      ))}
-    </div>
+        ))}
+      </div>
+    </TooltipProvider>
   );
 }
