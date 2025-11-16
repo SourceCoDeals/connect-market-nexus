@@ -77,31 +77,37 @@ export function ListingHeader({
         </div>
 
         {/* Right - Core Info */}
-        <div className="flex-1 flex flex-col justify-end space-y-4">
-          {/* Title */}
-          <div>
-            <EditableTitle
-              listingId={listing.id}
-              initialValue={listing.title}
-              isEditing={isAdmin && editModeEnabled && !userViewEnabled}
-            />
-          </div>
+        <div className="flex-1 flex flex-col">
+          {/* Title and badges at top */}
+          <div className="space-y-4">
+            {/* Title */}
+            <div>
+              <EditableTitle
+                listingId={listing.id}
+                initialValue={listing.title}
+                isEditing={isAdmin && editModeEnabled && !userViewEnabled}
+              />
+            </div>
 
-          {/* Category & Location Badges with Listed Date */}
-          <div className="flex items-center gap-3 flex-wrap">
-            <CategoryLocationBadges 
-              categories={listing.categories}
-              category={listing.category}
-              location={listing.location}
-              variant="default"
-            />
-            <div className="text-xs text-slate-400/80">
-              {formatListedDate()}
+            {/* Category & Location Badges with Listed Date */}
+            <div className="flex items-center gap-3 flex-wrap">
+              <CategoryLocationBadges 
+                categories={listing.categories}
+                category={listing.category}
+                location={listing.location}
+                variant="default"
+              />
+              <div className="text-xs text-slate-400/80">
+                {formatListedDate()}
+              </div>
             </div>
           </div>
 
-          {/* Financial Metrics - Premium card-based design */}
-          <div className="mt-5">
+          {/* Spacer to push metrics to bottom */}
+          <div className="flex-1" />
+
+          {/* Financial Metrics - Aligned with image bottom */}
+          <div>
             <FinancialMetrics 
               revenue={listing.revenue}
               ebitda={listing.ebitda}
