@@ -95,13 +95,13 @@ export function ListingHeader({
               location={listing.location}
               variant="default"
             />
-            <div className="text-[11px] text-slate-400">
+            <div className="text-xs text-slate-400/80">
               {formatListedDate()}
             </div>
           </div>
 
           {/* Financial Metrics - Premium card-based design */}
-          <div className="mt-5">
+          <div className="mt-4">
             <FinancialMetrics 
               revenue={listing.revenue}
               ebitda={listing.ebitda}
