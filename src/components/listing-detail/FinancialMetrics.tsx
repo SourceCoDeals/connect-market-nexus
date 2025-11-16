@@ -43,10 +43,12 @@ export function FinancialMetrics({
     {
       label: "Margin",
       value: `${ebitdaMargin.toFixed(1)}%`,
+      tooltip: undefined,
     },
     ...(hasEmployees ? [{
       label: "Team",
       value: employeesDisplay(),
+      tooltip: undefined,
     }] : []),
   ];
 
@@ -86,9 +88,7 @@ export function FinancialMetrics({
                     </div>
                   </TooltipContent>
                 </Tooltip>
-              ) : (
-                <Info className="w-4 h-4 text-gray-400 transition-colors flex-shrink-0" strokeWidth={2} />
-              )}
+              ) : null}
             </div>
           </div>
         ))}
