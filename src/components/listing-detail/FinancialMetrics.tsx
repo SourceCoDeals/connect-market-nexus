@@ -86,7 +86,7 @@ export function FinancialMetrics({
                         Off-Market Deal
                       </p>
                       <p className="text-gray-200">
-                        Financials range from owner estimates to verified documentation. Verification level varies by owner readiness and will be confirmed in your intro call.
+                        Financials range from owner estimates to verified documentation. Verification level varies by owner readiness and will be confirmed in your intro call and due diligence process.
                       </p>
                     </div>
                   </TooltipContent>
