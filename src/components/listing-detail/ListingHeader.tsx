@@ -36,16 +36,13 @@ export function ListingHeader({
 
   return (
     <div className="space-y-2.5 mb-3">
-      {/* Top Badges Row */}
+      {/* Top Badges Row - Only Status Tag + Acquisition Type */}
       <div className="flex items-center gap-2 flex-wrap">
         {listing.status_tag && (
           <ListingStatusTag status={listing.status_tag} variant="inline" />
         )}
         <CategoryLocationBadges 
           acquisitionType={listing.acquisition_type}
-          categories={listing.categories}
-          category={listing.category}
-          location={listing.location}
           variant="default"
         />
         {isInactive && isAdmin && (
@@ -78,14 +75,9 @@ export function ListingHeader({
         </div>
 
         {/* Right - Core Info */}
-        <div className="flex-1 space-y-2">
-          {/* Category as Text */}
-          <div className="text-[11px] uppercase tracking-wider text-slate-500 font-medium leading-none">
-            {listing.category}
-          </div>
-
+        <div className="flex-1 space-y-3">
           {/* Title */}
-          <div className="-mt-0.5">
+          <div>
             <EditableTitle
               listingId={listing.id}
               initialValue={listing.title}
@@ -93,16 +85,19 @@ export function ListingHeader({
             />
           </div>
 
-          {/* Location & Listed Date Row */}
-          <div className="flex items-center gap-3 text-slate-600">
-            <div className="flex items-center gap-1.5">
-              <MapPin className="w-3.5 h-3.5" />
-              <span className="text-sm">{listing.location}</span>
-            </div>
-            <span className="text-slate-300">•</span>
-            <div className="text-[11px] text-slate-400">
-              {formatListedDate()}
-            </div>
+          {/* Category & Location Badges */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <CategoryLocationBadges 
+              categories={listing.categories}
+              category={listing.category}
+              location={listing.location}
+              variant="default"
+            />
+          </div>
+
+          {/* Listed Date */}
+          <div className="text-[11px] text-slate-400">
+            {formatListedDate()}
           </div>
         </div>
       </div>
