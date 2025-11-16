@@ -1,6 +1,5 @@
 import { Info } from "lucide-react";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Badge } from "@/components/ui/badge";
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 
 interface FinancialMetricsProps {
   revenue: number;
@@ -32,10 +31,22 @@ export function FinancialMetrics({
 
   const financialTooltip = "Off-market financials vary by deal stage. Figures shown are owner-provided and subject to verification during diligence.";
   
-  const verificationBadge = {
-    'verified': { label: 'Verified', variant: 'success' as const, icon: '🟢' },
-    'owner-provided': { label: 'Owner-Provided', variant: 'secondary' as const, icon: '🟡' },
-    'early-stage': { label: 'Early Stage', variant: 'outline' as const, icon: '⚪' }
+  const verificationConfig = {
+    'verified': { 
+      label: 'Verified', 
+      dotColor: 'bg-emerald-500',
+      textColor: 'text-slate-700'
+    },
+    'owner-provided': { 
+      label: 'Owner-Provided', 
+      dotColor: 'bg-amber-500',
+      textColor: 'text-slate-600'
+    },
+    'early-stage': { 
+      label: 'Early Stage', 
+      dotColor: 'bg-slate-400',
+      textColor: 'text-slate-500'
+    }
   }[verificationLevel];
 
   const metrics = [
@@ -60,44 +71,49 @@ export function FinancialMetrics({
   ];
 
   return (
-    <TooltipProvider>
-      <div className="space-y-2.5">
-        <Badge variant={verificationBadge.variant} className="text-[10px] px-2 py-0.5">
-          <span className="mr-1">{verificationBadge.icon}</span>
-          {verificationBadge.label}
-        </Badge>
-        
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-2.5 w-full">
-          {metrics.map((metric, index) => (
-            <div 
-              key={index}
-              className="bg-white border border-slate-200/50 rounded-lg px-3.5 py-3 hover:border-slate-300/60 hover:shadow-[0_2px_8px_rgba(0,0,0,0.05)] transition-all duration-250 ease-out flex flex-col gap-1.5 min-w-0"
-            >
-              {/* VALUE FIRST - Tight minimal hierarchy */}
-              <div className="text-base md:text-lg font-semibold text-slate-950 tracking-tight leading-none tabular-nums whitespace-nowrap overflow-hidden text-ellipsis">
-                {metric.value}
-              </div>
-              
-              {/* LABEL SECOND - Ultra minimal */}
-              <div className="text-[9px] font-medium text-slate-500 uppercase tracking-[0.08em] leading-tight flex items-center gap-1">
-                <span className="whitespace-nowrap">{metric.label}</span>
-                {metric.tooltip ? (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Info className="w-3 h-3 text-slate-400 opacity-40 hover:opacity-70 transition-opacity cursor-help flex-shrink-0" />
-                    </TooltipTrigger>
-                    <TooltipContent className="max-w-[280px] text-xs">
-                      <p>{metric.tooltip}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                ) : (
-                  <Info className="w-3 h-3 text-slate-400 opacity-40 hover:opacity-70 transition-opacity cursor-help flex-shrink-0" />
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
+    <div className="space-y-2.5">
+      {/* Minimal verification badge - Apple-level design */}
+      <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-slate-50/80 border border-slate-200/60">
+        <div className={`w-1.5 h-1.5 rounded-full ${verificationConfig.dotColor}`} />
+        <span className={`text-[10px] font-medium tracking-wide ${verificationConfig.textColor}`}>
+          {verificationConfig.label}
+        </span>
       </div>
-    </TooltipProvider>
+      
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-2.5 w-full">
+        {metrics.map((metric, index) => (
+          <div 
+            key={index}
+            className="bg-white border border-slate-200/50 rounded-lg px-3.5 py-3 hover:border-slate-300/60 hover:shadow-[0_2px_8px_rgba(0,0,0,0.05)] transition-all duration-250 ease-out flex flex-col gap-1.5 min-w-0"
+          >
+            {/* VALUE FIRST - Tight minimal hierarchy */}
+            <div className="text-base md:text-lg font-semibold text-slate-950 tracking-tight leading-none tabular-nums whitespace-nowrap overflow-hidden text-ellipsis">
+              {metric.value}
+            </div>
+            
+            {/* LABEL SECOND - Ultra minimal */}
+            <div className="text-[9px] font-medium text-slate-500 uppercase tracking-[0.08em] leading-tight flex items-center gap-1">
+              <span className="whitespace-nowrap">{metric.label}</span>
+              {metric.tooltip ? (
+                <HoverCard openDelay={200}>
+                  <HoverCardTrigger asChild>
+                    <Info className="w-3 h-3 text-slate-400 opacity-40 hover:opacity-70 transition-opacity cursor-help flex-shrink-0" />
+                  </HoverCardTrigger>
+                  <HoverCardContent 
+                    side="top" 
+                    align="center"
+                    className="w-[280px] p-3 text-xs text-slate-700 leading-relaxed"
+                  >
+                    {metric.tooltip}
+                  </HoverCardContent>
+                </HoverCard>
+              ) : (
+                <Info className="w-3 h-3 text-slate-400 opacity-40 hover:opacity-70 transition-opacity cursor-help flex-shrink-0" />
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
