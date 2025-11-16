@@ -57,7 +57,7 @@ export function ListingHeader({
       </div>
 
       {/* Horizontal Image + Info Layout */}
-      <div className="flex flex-col lg:flex-row gap-4 lg:items-start">
+      <div className="flex flex-col lg:flex-row gap-4 lg:items-stretch">
         {/* Left - Image */}
         <div className="flex-shrink-0 w-full lg:w-[200px] h-[200px] md:h-[200px] lg:h-[200px] border border-slate-200/60 bg-slate-50 rounded-lg overflow-hidden transition-all duration-200 hover:border-slate-300/80">
           {imageData.type === 'image' ? (
@@ -77,7 +77,7 @@ export function ListingHeader({
         </div>
 
         {/* Right - Core Info */}
-        <div className="flex-1 flex flex-col">
+        <div className="flex-1 flex flex-col lg:min-h-[200px]">
           {/* Title and badges at top */}
           <div className="space-y-4">
             {/* Title */}
