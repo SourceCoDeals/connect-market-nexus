@@ -13,16 +13,16 @@ const STATUS_CONFIG = {
     bgClass: "bg-slate-700 text-white border-slate-600",
   },
   reviewing_buyers: {
-    bgClass: "bg-blue-600 text-white border-blue-500",
+    bgClass: "bg-slate-600 text-white border-slate-500",
   },
   in_diligence: {
-    bgClass: "bg-amber-600 text-white border-amber-500",
+    bgClass: "bg-slate-500 text-white border-slate-400",
   },
   under_loi: {
-    bgClass: "bg-purple-600 text-white border-purple-500",
+    bgClass: "bg-slate-700 text-white border-slate-600",
   },
   accepted_offer: {
-    bgClass: "bg-emerald-600 text-white border-emerald-500",
+    bgClass: "bg-success text-success-foreground border-success",
   },
 } as const;
 
