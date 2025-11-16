@@ -35,7 +35,7 @@ export function ListingHeader({
   };
 
   return (
-    <div className="space-y-3 mb-4">
+    <div className="space-y-2.5 mb-3">
       {/* Top Badges Row */}
       <div className="flex items-center gap-2 flex-wrap">
         {listing.status_tag && (
@@ -58,9 +58,9 @@ export function ListingHeader({
       </div>
 
       {/* Horizontal Image + Info Layout */}
-      <div className="flex flex-col lg:flex-row gap-5">
+      <div className="flex flex-col lg:flex-row gap-4">
         {/* Left - Image */}
-        <div className="flex-shrink-0 w-full lg:w-[180px] h-[200px] md:h-[180px] lg:h-[180px] border border-slate-200/60 bg-slate-50 rounded-xl overflow-hidden transition-all duration-200 hover:border-slate-300/80 hover:shadow-sm">
+        <div className="flex-shrink-0 w-full lg:w-[140px] h-[180px] md:h-[140px] lg:h-[140px] border border-slate-200/60 bg-slate-50 rounded-lg overflow-hidden transition-all duration-200 hover:border-slate-300/80">
           {imageData.type === 'image' ? (
             <img
               src={imageData.value}
@@ -78,14 +78,14 @@ export function ListingHeader({
         </div>
 
         {/* Right - Core Info */}
-        <div className="flex-1 flex flex-col justify-center space-y-2.5">
+        <div className="flex-1 flex flex-col justify-center space-y-2">
           {/* Category as Text */}
-          <div className="text-xs uppercase tracking-wider text-slate-500 font-medium leading-none">
+          <div className="text-[11px] uppercase tracking-wider text-slate-500 font-medium leading-none">
             {listing.category}
           </div>
 
           {/* Title */}
-          <div className="-mt-1">
+          <div className="-mt-0.5">
             <EditableTitle
               listingId={listing.id}
               initialValue={listing.title}
@@ -94,15 +94,14 @@ export function ListingHeader({
           </div>
 
           {/* Location */}
-          <div className="flex items-center gap-2 text-slate-600">
-            <MapPin className="w-4 h-4" />
-            <span className="text-sm font-medium">{listing.location}</span>
+          <div className="flex items-center gap-1.5 text-slate-600">
+            <MapPin className="w-3.5 h-3.5" />
+            <span className="text-sm">{listing.location}</span>
           </div>
 
-          {/* Listed Date - Plain text, subtle */}
-          <div className="flex items-center gap-1.5 text-xs text-slate-500">
-            <Calendar className="w-3.5 h-3.5" />
-            <span>{formatListedDate()}</span>
+          {/* Listed Date - Ultra subtle footer */}
+          <div className="text-[11px] text-slate-400 pt-1">
+            {formatListedDate()}
           </div>
         </div>
       </div>
