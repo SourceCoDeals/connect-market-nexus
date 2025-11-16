@@ -27,7 +27,7 @@ export function FinancialMetrics({
     return `${ft + pt}`;
   };
 
-  const financialTooltip = "Off-market financials vary by deal stage. Figures shown are owner-provided and subject to verification during diligence.";
+  const financialTooltip = "Off-market deal - financials range from owner estimates to verified documentation. Verification level varies by owner readiness and will be confirmed in your intro call.";
 
   const metrics = [
     {
@@ -77,8 +77,10 @@ export function FinancialMetrics({
                     sideOffset={8}
                     className="max-w-sm bg-gray-900 text-white border-gray-800 p-4"
                   >
-                    <div className="text-xs leading-relaxed text-gray-200">
-                      {metric.tooltip}
+                    <div className="space-y-2.5 text-xs leading-relaxed">
+                      <p className="text-gray-200">
+                        {metric.tooltip}
+                      </p>
                     </div>
                   </TooltipContent>
                 </Tooltip>
