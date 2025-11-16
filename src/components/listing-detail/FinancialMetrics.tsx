@@ -82,8 +82,11 @@ export function FinancialMetrics({
                     className="max-w-sm bg-gray-900 text-white border-gray-800 p-4"
                   >
                     <div className="space-y-2.5 text-xs leading-relaxed">
+                      <p className="font-semibold text-white">
+                        Off-Market Deal
+                      </p>
                       <p className="text-gray-200">
-                        {metric.tooltip}
+                        Financials range from owner estimates to verified documentation. Verification level varies by owner readiness and will be confirmed in your intro call.
                       </p>
                     </div>
                   </TooltipContent>
