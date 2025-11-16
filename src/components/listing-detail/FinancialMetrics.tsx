@@ -46,21 +46,21 @@ export function FinancialMetrics({
   ];
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 w-full">
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-2.5 w-full">
       {metrics.map((metric, index) => (
         <div 
           key={index}
-          className="bg-white border border-slate-200/50 rounded-xl px-5 py-4 hover:border-slate-300/60 hover:shadow-[0_4px_12px_rgba(0,0,0,0.06)] transition-all duration-300 ease-out flex flex-col gap-2.5 min-w-0 select-none"
+          className="bg-white border border-slate-200/50 rounded-lg px-3.5 py-3 hover:border-slate-300/60 hover:shadow-[0_2px_8px_rgba(0,0,0,0.05)] transition-all duration-250 ease-out flex flex-col gap-1.5 min-w-0"
         >
-          {/* VALUE FIRST - Apple-precision typography */}
-          <div className="text-xl md:text-2xl lg:text-[26px] font-semibold text-slate-950 tracking-[-0.02em] leading-none tabular-nums break-words">
+          {/* VALUE FIRST - Tight minimal hierarchy */}
+          <div className="text-base md:text-lg font-semibold text-slate-950 tracking-tight leading-none tabular-nums whitespace-nowrap overflow-hidden text-ellipsis">
             {metric.value}
           </div>
           
-          {/* LABEL SECOND - Refined minimal */}
-          <div className="text-[10px] font-medium text-slate-500 uppercase tracking-[0.1em] leading-tight flex items-center gap-1.5">
+          {/* LABEL SECOND - Ultra minimal */}
+          <div className="text-[9px] font-medium text-slate-500 uppercase tracking-[0.08em] leading-tight flex items-center gap-1">
             <span className="whitespace-nowrap">{metric.label}</span>
-            <Info className="w-3.5 h-3.5 text-slate-400/80 opacity-40 hover:opacity-80 transition-opacity cursor-help flex-shrink-0" />
+            <Info className="w-3 h-3 text-slate-400 opacity-40 hover:opacity-70 transition-opacity cursor-help flex-shrink-0" />
           </div>
         </div>
       ))}
