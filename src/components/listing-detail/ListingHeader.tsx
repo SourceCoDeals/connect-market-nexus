@@ -38,11 +38,8 @@ export function ListingHeader({
 
   return (
     <div className="space-y-2.5 mb-3">
-      {/* Top Badges Row - Only Status Tag + Acquisition Type */}
+      {/* Top Badges Row - Only Acquisition Type (Status Tag moved to image) */}
       <div className="flex items-center gap-2 flex-wrap">
-        {listing.status_tag && (
-          <ListingStatusTag status={listing.status_tag} variant="inline" />
-        )}
         <CategoryLocationBadges 
           acquisitionType={listing.acquisition_type}
           variant="default"
@@ -59,19 +56,26 @@ export function ListingHeader({
       {/* Horizontal Image + Info Layout */}
       <div className="flex flex-col lg:flex-row gap-4 lg:items-stretch">
         {/* Left - Image */}
-        <div className="flex-shrink-0 w-full lg:w-[200px] h-[200px] md:h-[200px] lg:h-[200px] border border-slate-200/60 bg-slate-50 rounded-lg overflow-hidden transition-all duration-200 hover:border-slate-300/80">
-          {imageData.type === 'image' ? (
-            <img
-              src={imageData.value}
-              alt={listing.title}
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <div 
-              className="w-full h-full flex items-center justify-center"
-              style={{ background: imageData.value }}
-            >
-              <ImageIcon className="h-16 w-16 text-white opacity-40" />
+        <div className="flex-shrink-0 w-full lg:w-[200px] h-[200px] md:h-[200px] lg:h-[200px] border border-slate-200/60 bg-slate-50 rounded-lg overflow-visible relative transition-all duration-200 hover:border-slate-300/80">
+          <div className="w-full h-full rounded-lg overflow-hidden">
+            {imageData.type === 'image' ? (
+              <img
+                src={imageData.value}
+                alt={listing.title}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div 
+                className="w-full h-full flex items-center justify-center"
+                style={{ background: imageData.value }}
+              >
+                <ImageIcon className="h-16 w-16 text-white opacity-40" />
+              </div>
+            )}
+          </div>
+          {listing.status_tag && (
+            <div className="absolute bottom-0 left-3 transform translate-y-1/2 z-10">
+              <ListingStatusTag status={listing.status_tag} variant="inline" />
             </div>
           )}
         </div>
