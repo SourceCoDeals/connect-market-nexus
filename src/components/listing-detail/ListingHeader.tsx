@@ -41,6 +41,13 @@ export function ListingHeader({
         {listing.status_tag && (
           <ListingStatusTag status={listing.status_tag} />
         )}
+        <CategoryLocationBadges 
+          acquisitionType={listing.acquisition_type}
+          categories={listing.categories}
+          category={listing.category}
+          location={listing.location}
+          variant="default"
+        />
         {isInactive && isAdmin && (
           <div className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-red-50 border border-red-200">
             <span className="text-[10px] font-medium text-red-700 tracking-[0.02em]">
@@ -72,14 +79,10 @@ export function ListingHeader({
 
         {/* Right - Core Info */}
         <div className="flex-1 flex flex-col justify-center space-y-4">
-          {/* Category & Location Badges */}
-          <CategoryLocationBadges 
-            acquisitionType={listing.acquisition_type}
-            categories={listing.categories}
-            category={listing.category}
-            location={listing.location}
-            variant="default"
-          />
+          {/* Category as Text */}
+          <div className="text-xs uppercase tracking-wider text-slate-500 font-medium">
+            {listing.category}
+          </div>
 
           {/* Title */}
           <EditableTitle
