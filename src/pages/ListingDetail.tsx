@@ -24,9 +24,8 @@ import BlurredFinancialTeaser from "@/components/listing-detail/BlurredFinancial
 import { EnhancedInvestorDashboard } from "@/components/listing-detail/EnhancedInvestorDashboard";
 import { CustomSection } from "@/components/listing-detail/CustomSection";
 import { ExecutiveSummaryGenerator } from "@/components/listing-detail/ExecutiveSummaryGenerator";
+import { ListingHeader } from "@/components/listing-detail/ListingHeader";
 
-
-import ListingStatusTag from "@/components/listing/ListingStatusTag";
 import { AdminListingSidebar } from "@/components/listing-detail/AdminListingSidebar";
 import { EditableTitle } from "@/components/listing-detail/EditableTitle";
 import { EditableDescription } from "@/components/listing-detail/EditableDescription";
@@ -149,74 +148,17 @@ const ListingDetail = () => {
       {/* Main Content - 1600px Premium Container */}
       <div className="max-w-7xl mx-auto px-8 py-8">
         <div className="grid grid-cols-12 gap-8">
-          {/* Left Column - 75% */}
-          <div className="col-span-9 space-y-0">
+          {/* Left Column - 70% */}
+          <div className="col-span-8 space-y-0">
             
-            {/* Hero Image */}
-            <div className="relative w-full h-[240px] border border-sourceco-form bg-sourceco-form mb-6 rounded-lg">
-              <div className="w-full h-full overflow-hidden rounded-lg">
-                {imageUrl ? (
-                  <img
-                    src={imageUrl}
-                    alt={listing.title}
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      const target = e.target as HTMLImageElement;
-                      target.onerror = null;
-                      target.src = DEFAULT_IMAGE;
-                    }}
-                  />
-                ) : (
-                  <div className="w-full h-full bg-sourceco-form flex items-center justify-center">
-                    <ImageIcon className="h-12 w-12 text-slate-500" />
-                  </div>
-                )}
-              </div>
-              <ListingStatusTag status={listing.status_tag} />
-            </div>
-
-            {/* Header Section - Correct Hierarchy */}
-            <div className="space-y-4 mb-8">
-              {/* Title */}
-              <EditableTitle
-                listingId={listing.id}
-                initialValue={listing.title}
-                isEditing={isAdmin && editModeEnabled && !userViewEnabled}
-              />
-              
-              {/* Location, Category & Listed Date - Ultra Clean */}
-              <div className="flex items-center gap-3 flex-wrap">
-                <CategoryLocationBadges 
-                  acquisitionType={listing.acquisition_type}
-                  categories={listing.categories}
-                  category={listing.category}
-                  location={listing.location}
-                  variant="default"
-                />
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white border border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.06)]">
-                <CalendarIcon className="w-4 h-4 text-slate-500" />
-                <span className="text-[11px] font-medium text-slate-700 tracking-[0.02em]">
-                  {(() => {
-                    const listedDate = new Date(listing.created_at);
-                    const now = new Date();
-                    const daysDiff = Math.floor((now.getTime() - listedDate.getTime()) / (1000 * 3600 * 24));
-                    if (daysDiff === 0) return "Listed today";
-                    if (daysDiff === 1) return "Listed yesterday";
-                    if (daysDiff < 7) return `Listed ${daysDiff}d ago`;
-                    if (daysDiff < 30) return `Listed ${Math.floor(daysDiff / 7)}w ago`;
-                    return "Listed 30+ days ago";
-                  })()}
-                </span>
-              </div>
-                {isInactive && isAdmin && (
-                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-red-50 border border-red-200">
-                    <span className="text-[10px] font-medium text-red-700 tracking-[0.02em]">
-                      Inactive
-                    </span>
-                  </div>
-                )}
-              </div>
-            </div>
+            {/* Horizontal Header */}
+            <ListingHeader
+              listing={listing}
+              isAdmin={isAdmin}
+              editModeEnabled={editModeEnabled}
+              userViewEnabled={userViewEnabled}
+              isInactive={isInactive}
+            />
 
             {/* Financial Summary */}
             <div className="pt-8">
@@ -355,8 +297,8 @@ const ListingDetail = () => {
             )}
           </div>
 
-          {/* Right Column - 25% Premium Sticky Sidebar */}
-          <div className="col-span-3">
+          {/* Right Column - 30% Premium Sticky Sidebar */}
+          <div className="col-span-4">
             {isAdmin ? (
               <>
                 <AdminListingSidebar 

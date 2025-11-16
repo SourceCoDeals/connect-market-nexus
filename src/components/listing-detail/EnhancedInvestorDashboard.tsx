@@ -76,7 +76,7 @@ export function EnhancedInvestorDashboard({ listing, formatCurrency }: EnhancedI
           {metrics.map((metric, index) => {
             const Icon = metric.icon;
             return (
-              <div key={index} className="space-y-2">
+              <div key={index} className="bg-slate-50 border border-slate-200 rounded-lg p-4 space-y-2">
                 <div className="flex items-center gap-2">
                   <Icon className="w-[14px] h-[14px] text-slate-400" />
                   <span className="text-[12px] font-semibold text-slate-500 uppercase tracking-wider">
