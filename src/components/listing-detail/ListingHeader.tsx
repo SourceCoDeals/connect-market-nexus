@@ -87,18 +87,21 @@ export function ListingHeader({
             />
           </div>
 
-          {/* Category & Location Badges */}
-          <div className="flex items-center gap-2 flex-wrap">
+          {/* Category & Location Badges with Listed Date */}
+          <div className="flex items-center gap-3 flex-wrap">
             <CategoryLocationBadges 
               categories={listing.categories}
               category={listing.category}
               location={listing.location}
               variant="default"
             />
+            <div className="text-[11px] text-slate-400">
+              {formatListedDate()}
+            </div>
           </div>
 
-          {/* Financial Metrics - Stripe-style premium */}
-          <div className="pt-2">
+          {/* Financial Metrics - Premium card-based design */}
+          <div className="mt-5">
             <FinancialMetrics 
               revenue={listing.revenue}
               ebitda={listing.ebitda}
@@ -106,11 +109,6 @@ export function ListingHeader({
               fullTimeEmployees={listing.full_time_employees}
               partTimeEmployees={listing.part_time_employees}
             />
-          </div>
-
-          {/* Listed Date */}
-          <div className="text-[11px] text-slate-400 pt-1">
-            {formatListedDate()}
           </div>
         </div>
       </div>
