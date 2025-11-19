@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import { EditorBasicInfoSection } from "./editor-sections/EditorBasicInfoSection";
 import { EditorDescriptionSection } from "./editor-sections/EditorDescriptionSection";
 import { EditorFinancialSection } from "./editor-sections/EditorFinancialSection";
+import { EditorMetricsSection } from "./editor-sections/EditorMetricsSection";
 import { EditorVisualsSection } from "./editor-sections/EditorVisualsSection";
 import { EditorInternalSection } from "./editor-sections/EditorInternalSection";
 import { EditorLivePreview } from "./editor-sections/EditorLivePreview";
@@ -47,6 +48,20 @@ const listingFormSchema = z.object({
   internal_contact_info: z.string().optional(),
   internal_notes: z.string().optional(),
   
+  // Metrics fields
+  custom_metric_label: z.string().optional(),
+  custom_metric_value: z.string().optional(),
+  custom_metric_subtitle: z.string().optional(),
+  metric_3_type: z.enum(['employees', 'custom']).default('employees'),
+  metric_3_custom_label: z.string().optional(),
+  metric_3_custom_value: z.string().optional(),
+  metric_3_custom_subtitle: z.string().optional(),
+  revenue_metric_subtitle: z.string().optional(),
+  ebitda_metric_subtitle: z.string().optional(),
+  
+  // Deal advisor
+  presented_by_admin_id: z.string().uuid().nullable().optional(),
+  
   // Buyer visibility control
   visible_to_buyer_types: z.array(z.enum([
     'privateEquity',
@@ -76,6 +91,16 @@ type ListingFormInput = {
   status: "active" | "inactive";
   status_tag?: string | null;
   visible_to_buyer_types?: string[] | null;
+  custom_metric_label?: string;
+  custom_metric_value?: string;
+  custom_metric_subtitle?: string;
+  metric_3_type?: 'employees' | 'custom';
+  metric_3_custom_label?: string;
+  metric_3_custom_value?: string;
+  metric_3_custom_subtitle?: string;
+  revenue_metric_subtitle?: string;
+  ebitda_metric_subtitle?: string;
+  presented_by_admin_id?: string | null;
   internal_company_name?: string;
   primary_owner_id?: string | null;
   internal_salesforce_link?: string;
@@ -98,17 +123,27 @@ const convertListingToFormInput = (listing?: AdminListing): ListingFormInput => 
     categories: listing?.categories || (listing?.category ? [listing.category] : []),
     acquisition_type: listing?.acquisition_type || null,
     location: listing?.location || "",
-    revenue: listing?.revenue ? formatNumber(Number(listing.revenue)) : "",
-    ebitda: listing?.ebitda ? formatNumber(Number(listing.ebitda)) : "",
-    full_time_employees: listing?.full_time_employees || undefined,
-    part_time_employees: listing?.part_time_employees || undefined,
+    revenue: listing?.revenue?.toString() || "0",
+    ebitda: listing?.ebitda?.toString() || "0",
+    full_time_employees: listing?.full_time_employees || 0,
+    part_time_employees: listing?.part_time_employees || 0,
     description: listing?.description || "",
-    description_html: listing?.description_html || "",
-    description_json: listing?.description_json || null,
-    owner_notes: listing?.owner_notes || "",
+    description_html: listing?.description_html,
+    description_json: listing?.description_json,
+    owner_notes: listing?.owner_notes,
     status: listing?.status || "active",
-    status_tag: listing?.status_tag ?? null,
+    status_tag: listing?.status_tag || null,
     visible_to_buyer_types: listing?.visible_to_buyer_types || null,
+    custom_metric_label: listing?.custom_metric_label || "",
+    custom_metric_value: listing?.custom_metric_value || "",
+    custom_metric_subtitle: listing?.custom_metric_subtitle || "",
+    metric_3_type: listing?.metric_3_type || 'employees',
+    metric_3_custom_label: listing?.metric_3_custom_label || "",
+    metric_3_custom_value: listing?.metric_3_custom_value || "",
+    metric_3_custom_subtitle: listing?.metric_3_custom_subtitle || "",
+    revenue_metric_subtitle: listing?.revenue_metric_subtitle || "",
+    ebitda_metric_subtitle: listing?.ebitda_metric_subtitle || "",
+    presented_by_admin_id: listing?.presented_by_admin_id || null,
     internal_company_name: listing?.internal_company_name || "",
     primary_owner_id: listing?.primary_owner_id || null,
     internal_salesforce_link: listing?.internal_salesforce_link || "",
@@ -191,6 +226,16 @@ export function ImprovedListingEditor({
         status: formData.status,
         status_tag: formData.status_tag && formData.status_tag !== "none" ? formData.status_tag : null,
         visible_to_buyer_types: (formData.visible_to_buyer_types || null) as ('privateEquity' | 'corporate' | 'familyOffice' | 'searchFund' | 'individual' | 'independentSponsor' | 'advisor' | 'businessOwner')[] | null,
+        custom_metric_label: formData.custom_metric_label || null,
+        custom_metric_value: formData.custom_metric_value || null,
+        custom_metric_subtitle: formData.custom_metric_subtitle || null,
+        metric_3_type: formData.metric_3_type || 'employees',
+        metric_3_custom_label: formData.metric_3_custom_label || null,
+        metric_3_custom_value: formData.metric_3_custom_value || null,
+        metric_3_custom_subtitle: formData.metric_3_custom_subtitle || null,
+        revenue_metric_subtitle: formData.revenue_metric_subtitle || null,
+        ebitda_metric_subtitle: formData.ebitda_metric_subtitle || null,
+        presented_by_admin_id: formData.presented_by_admin_id || null,
         internal_company_name: formData.internal_company_name || null,
         primary_owner_id: formData.primary_owner_id || null,
         internal_salesforce_link: formData.internal_salesforce_link || null,
@@ -272,6 +317,7 @@ export function ImprovedListingEditor({
               <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-8">
                 <EditorBasicInfoSection form={form} />
                 <EditorFinancialSection form={form} />
+                <EditorMetricsSection form={form} />
                 <EditorDescriptionSection form={form} />
                 <EditorVisualsSection
                   imagePreview={imagePreview}
