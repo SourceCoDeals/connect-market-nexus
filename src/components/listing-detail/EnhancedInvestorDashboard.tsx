@@ -84,7 +84,7 @@ export function EnhancedInvestorDashboard({ listing, formatCurrency }: EnhancedI
       {/* Investment Thesis */}
       {listing.investment_thesis && (
         <div className="space-y-4 pt-8 border-t border-slate-100">
-          <span className="document-label">Investment Thesis</span>
+          <h2 className="text-sm font-medium leading-5">Investment Thesis</h2>
           <p className="document-subtitle leading-relaxed">{listing.investment_thesis}</p>
         </div>
       )}
@@ -92,7 +92,7 @@ export function EnhancedInvestorDashboard({ listing, formatCurrency }: EnhancedI
       {/* Growth Drivers */}
       {listing.growth_drivers && listing.growth_drivers.length > 0 && (
         <div className="space-y-4 pt-8 border-t border-slate-100">
-          <span className="document-label">Growth Catalysts</span>
+          <h2 className="text-sm font-medium leading-5">Growth Catalysts</h2>
           <div className="space-y-2">
             {listing.growth_drivers.map((driver, index) => (
               <div key={index} className="document-subtitle">
@@ -106,7 +106,7 @@ export function EnhancedInvestorDashboard({ listing, formatCurrency }: EnhancedI
       {/* Risk Factors */}
       {listing.key_risks && listing.key_risks.length > 0 && (
         <div className="space-y-4 pt-8 border-t border-slate-100">
-          <span className="document-label">Risk Factors</span>
+          <h2 className="text-sm font-medium leading-5">Risk Factors</h2>
           <div className="space-y-2">
             {listing.key_risks.map((risk, index) => (
               <div key={index} className="document-subtitle">

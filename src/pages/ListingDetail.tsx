@@ -135,7 +135,7 @@ const ListingDetail = () => {
   const imageUrl = listing?.image_url || DEFAULT_IMAGE;
 
   return (
-    <div className="document-content min-h-screen bg-white">
+    <div className="document-content min-h-screen" style={{ backgroundColor: '#FCFBFA' }}>
       {/* Navigation */}
       <div className="max-w-7xl mx-auto px-8 py-3">
         <Link
@@ -213,10 +213,7 @@ const ListingDetail = () => {
             {/* Business Overview */}
             <div className="py-8 border-t border-slate-100">
               <div className="space-y-4">
-                <div className="flex items-center gap-2.5">
-                  <DocumentIcon className="w-[15px] h-[15px] text-slate-500" />
-                  <span className="text-[15px] font-semibold text-slate-900 tracking-tight">Business Overview</span>
-                </div>
+                <h2 className="text-sm font-medium leading-5">Business Overview</h2>
                 <div className="prose max-w-none">
                   <EditableDescription
                     listingId={listing.id}
@@ -232,10 +229,7 @@ const ListingDetail = () => {
             {((listing as any).ownership_structure || (listing as any).seller_motivation) && (
               <div className="document-section py-8 border-t border-slate-100">
                 <div className="space-y-5">
-                  <div className="flex items-center gap-2.5 mb-4">
-                    <BuildingIcon className="w-[15px] h-[15px] text-slate-500" />
-                    <span className="text-[15px] font-semibold text-slate-900 tracking-tight">Ownership & Transaction Overview</span>
-                  </div>
+                  <h2 className="text-sm font-medium leading-5 mb-4">Ownership & Transaction Overview</h2>
                   
                   <div className="bg-sourceco-background rounded-lg p-6 space-y-6">
                     <div className="flex items-start gap-4">
