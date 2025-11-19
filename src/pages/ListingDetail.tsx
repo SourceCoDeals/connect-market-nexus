@@ -30,7 +30,7 @@ import { EnhancedFinancialGrid } from "@/components/listing-detail/EnhancedFinan
 import { DealAdvisorCard } from "@/components/listing-detail/DealAdvisorCard";
 import { ListingChatInterface } from "@/components/listing-detail/ListingChatInterface";
 
-import { AdminListingSidebar } from "@/components/listing-detail/AdminListingSidebar";
+
 import { EditableTitle } from "@/components/listing-detail/EditableTitle";
 import { EditableDescription } from "@/components/listing-detail/EditableDescription";
 import { CategoryLocationBadges } from "@/components/shared/CategoryLocationBadges";
@@ -46,8 +46,6 @@ const ListingDetail = () => {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
   const [showShareDialog, setShowShareDialog] = useState(false);
-  const [userViewEnabled, setUserViewEnabled] = useState(false);
-  const [editModeEnabled, setEditModeEnabled] = useState(false);
   const [showChat, setShowChat] = useState(false);
   const queryClient = useQueryClient();
   
@@ -63,7 +61,6 @@ const ListingDetail = () => {
   const { trackListingView, trackListingSave, trackConnectionRequest } = useAnalytics();
   
   const isAdmin = user?.is_admin === true;
-  const showAdminView = isAdmin && !userViewEnabled;
 
   useEffect(() => {
     document.title = listing ? `${listing.title} | Marketplace` : "Listing Detail | Marketplace";
@@ -158,8 +155,8 @@ const ListingDetail = () => {
             <ListingHeader
               listing={listing}
               isAdmin={isAdmin}
-              editModeEnabled={editModeEnabled}
-              userViewEnabled={userViewEnabled}
+              editModeEnabled={false}
+              userViewEnabled={false}
               isInactive={isInactive}
             />
 
@@ -204,7 +201,7 @@ const ListingDetail = () => {
             </div>
 
             {/* Internal Company Information - Admin Only */}
-            {showAdminView && listing && (
+            {isAdmin && listing && (
               <InternalCompanyInfoDisplay listing={listing} />
             )}
 
@@ -225,7 +222,7 @@ const ListingDetail = () => {
                     listingId={listing.id}
                     initialHtml={listing.description_html}
                     initialPlain={listing.description}
-                    isEditing={isAdmin && editModeEnabled && !userViewEnabled}
+                    isEditing={false}
                   />
                 </div>
               </div>
@@ -341,72 +338,7 @@ const ListingDetail = () => {
 
           {/* Sidebar - 30% */}
           <div className="lg:col-span-3">
-            {isAdmin ? (
-              <>
-                <AdminListingSidebar 
-                  listing={listing}
-                  onUserViewToggle={setUserViewEnabled}
-                  userViewEnabled={userViewEnabled}
-                  onEditModeToggle={setEditModeEnabled}
-                  editModeEnabled={editModeEnabled}
-                />
-                
-                {/* Show user view components when toggled */}
-                {userViewEnabled && (
-                  <div className="sticky top-6 space-y-6 mt-6">
-                    {/* Interested in This Deal? - Premium CTA */}
-                    <div className="bg-white border border-slate-200 rounded-lg p-4 shadow-[0_2px_8px_0_rgb(0_0_0_0.04)] hover:shadow-[0_4px_12px_0_rgb(0_0_0_0.06)] transition-all duration-300">
-                      <div className="text-center space-y-3.5">
-                        <div className="space-y-1">
-                          <h3 className="text-[15px] font-medium text-slate-900 tracking-[-0.02em] leading-tight">Interested in this opportunity?</h3>
-                          <p className="text-[12px] text-slate-500 leading-[1.4] tracking-[-0.005em]">
-                            Access detailed financials and business metrics
-                          </p>
-                        </div>
-                        
-                        <ConnectionButton 
-                          connectionExists={connectionExists}
-                          connectionStatus={connectionStatusValue}
-                          isRequesting={isRequesting}
-                          isAdmin={false}
-                          handleRequestConnection={handleRequestConnection}
-                          listingTitle={listing.title}
-                          listingId={id!}
-                        />
-                        
-                        {/* Enhanced Save and Share */}
-                        <div className="space-y-1.5">
-                          <EnhancedSaveButton 
-                            listingId={id!} 
-                            onSave={() => trackListingSave(id!)}
-                            onShare={() => setShowShareDialog(true)}
-                          />
-                        </div>
-                        
-                        {/* Divider */}
-                        <div className="relative">
-                          <div className="absolute inset-0 flex items-center">
-                            <div className="w-full border-t border-slate-200/60"></div>
-                          </div>
-                          <div className="relative flex justify-center">
-                            <span className="bg-white px-3 text-[9px] text-slate-400 uppercase tracking-[0.1em] font-medium">
-                              Resources
-                            </span>
-                          </div>
-                        </div>
-                        
-                        {/* Download Executive Summary */}
-                        <div className="flex justify-center -mt-2">
-                          <ExecutiveSummaryGenerator listing={listing} />
-                        </div>
-                      </div>
-                    </div>
-
-                  </div>
-                )}
-              </>
-            ) : (
-              <div className="sticky top-32 space-y-8">
+            <div className="sticky top-32 space-y-8">
                 {/* Interested in This Deal? - Premium CTA */}
                 <div className="bg-white/50 border border-slate-200/60 rounded-lg p-6 shadow-sm">
                   <div className="text-center mb-6">
@@ -480,8 +412,7 @@ const ListingDetail = () => {
                   </h4>
                   <ExecutiveSummaryGenerator listing={listing} />
                 </div>
-              </div>
-            )}
+            </div>
           </div>
         </div>
       </div>
@@ -499,4 +430,4 @@ const ListingDetail = () => {
   );
 };
 
-  export default ListingDetail;
+export default ListingDetail;
