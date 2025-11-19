@@ -15,6 +15,7 @@ import {
   ImageIcon,
   MapPin,
   Share2,
+  ExternalLink,
 } from "lucide-react";
 import { DEFAULT_IMAGE } from "@/lib/storage-utils";
 import { formatCurrency } from "@/lib/currency-utils";
@@ -392,17 +393,17 @@ const ListingDetail = () => {
                 )}
               </>
             ) : (
-              <div className="sticky top-6 space-y-6">
+              <div className="sticky top-32 space-y-8">
                 {/* Interested in This Deal? - Premium CTA */}
-                <div className="bg-white rounded-lg p-6 shadow-sm">
-                  <div className="space-y-5">
-                    <div className="space-y-2">
-                      <h3 className="text-xl font-semibold text-slate-900">Interested in This Deal?</h3>
-                      <p className="text-sm text-slate-600 leading-relaxed">
-                        Access detailed financials and business metrics
-                      </p>
-                    </div>
-                    
+                <div className="bg-white/50 border border-slate-200/60 rounded-lg p-6 shadow-sm">
+                  <div className="text-center mb-6">
+                    <h3 className="text-base font-medium text-foreground mb-2">Interested in This Deal?</h3>
+                    <p className="text-xs text-foreground/70 leading-relaxed">
+                      Get full access to detailed financials and business metrics
+                    </p>
+                  </div>
+                  
+                  <div className="space-y-3">
                     <ConnectionButton 
                       connectionExists={connectionExists}
                       connectionStatus={connectionStatusValue}
@@ -414,62 +415,58 @@ const ListingDetail = () => {
                     />
                     
                     {/* Enhanced Save and Share */}
-                    <div className="space-y-2">
-                      <EnhancedSaveButton 
-                        listingId={id!} 
-                        onSave={() => trackListingSave(id!)}
-                        onShare={() => setShowShareDialog(true)}
-                      />
-                    </div>
+                    <EnhancedSaveButton 
+                      listingId={id!} 
+                      onSave={() => trackListingSave(id!)}
+                      onShare={() => setShowShareDialog(true)}
+                    />
                   </div>
                 </div>
 
                 {/* Exclusive Deal Flow */}
-                <div className="bg-slate-50 rounded-lg p-6">
-                  <div className="space-y-4">
-                    <h4 className="text-lg font-semibold text-slate-900">Exclusive Deal Flow</h4>
-                    <p className="text-sm text-slate-600 leading-relaxed">
-                      Get notified about new opportunities matching your investment criteria
-                    </p>
-                    <a 
-                      href="/marketplace" 
-                      className="inline-flex items-center gap-2 text-sm font-medium text-[#D8B75D] hover:text-[#C5A54A] transition-colors"
-                    >
-                      <span>Browse Marketplace</span>
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                      </svg>
-                    </a>
+                <div className="bg-white/50 border border-slate-200/60 rounded-lg p-6 shadow-sm">
+                  <div className="mt-6 pt-4 border-t border-slate-200/50">
+                    <div className="text-center space-y-3">
+                      <div className="space-y-1">
+                        <p className="text-xs font-medium text-foreground">Exclusive Deal Flow</p>
+                        <p className="text-xs text-foreground/70 leading-relaxed">
+                          Access 50+ vetted founder-led businesses with $2M-50M revenue. Off-market opportunities from our proprietary network.
+                        </p>
+                      </div>
+                      <Button 
+                        variant="outline" 
+                        className="w-full text-xs h-8 border-[#D7B65C]/30 text-[#D7B65C] hover:bg-[#D7B65C]/10 hover:border-[#D7B65C]/50"
+                        onClick={() => window.location.href = '/marketplace'}
+                      >
+                        <ExternalLink size={12} className="mr-2" />
+                        Browse Marketplace
+                      </Button>
+                    </div>
                   </div>
                 </div>
 
                 {/* DEAL PRESENTED BY */}
-                <div className="bg-white rounded-lg p-6 shadow-sm">
-                  <div className="space-y-4">
-                    <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-[0.15em]">
-                      Deal Presented By
-                    </div>
-                    <div className="flex items-start gap-4">
-                      <div className="w-14 h-14 rounded-full bg-slate-200 flex-shrink-0" />
-                      <div className="flex-1 min-w-0 space-y-2">
-                        <div>
-                          <div className="font-semibold text-slate-900">Deal Team</div>
-                          <div className="text-sm text-slate-600">Investment Advisor</div>
-                        </div>
-                        <div className="text-sm text-slate-600 space-y-1">
-                          <div>contact@example.com</div>
-                          <div>(555) 123-4567</div>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    {/* Download Executive Summary */}
-                    <div className="pt-4 border-t border-slate-200">
-                      <ExecutiveSummaryGenerator listing={listing} />
+                <div className="bg-white/40 border border-slate-200/60 rounded-lg p-6 shadow-sm">
+                  <h4 className="text-xs font-medium text-foreground mb-4 uppercase tracking-wider">
+                    Deal Presented By
+                  </h4>
+                  <div className="flex items-start space-x-3">
+                    <div className="w-12 h-12 rounded-full overflow-hidden border border-slate-200/40 bg-slate-200 flex-shrink-0" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-foreground">Deal Team</p>
+                      <p className="text-xs text-foreground/70">Investment Advisor</p>
                     </div>
                   </div>
+                  <div className="mt-4 space-y-2">
+                    <div className="text-xs text-foreground/70">contact@example.com</div>
+                    <div className="text-xs text-foreground/70">(555) 123-4567</div>
+                  </div>
+                  
+                  {/* Download Executive Summary */}
+                  <div className="pt-4 border-t border-slate-200/50 mt-4">
+                    <ExecutiveSummaryGenerator listing={listing} />
+                  </div>
                 </div>
-
               </div>
             )}
           </div>
