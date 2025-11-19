@@ -81,7 +81,7 @@ const MyRequests = () => {
   // Set selected deal from URL parameter or default to first request
   useEffect(() => {
     if (requests && requests.length > 0) {
-      const requestIdFromUrl = searchParams.get('request');
+      const requestIdFromUrl = searchParams.get('request') || searchParams.get('deal');
       if (requestIdFromUrl && requests.find(r => r.id === requestIdFromUrl)) {
         setSelectedDeal(requestIdFromUrl);
       } else if (!selectedDeal) {

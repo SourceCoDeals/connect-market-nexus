@@ -360,9 +360,9 @@ const ListingDetail = () => {
                     />
                     
                     {/* Link to My Deals when request is pending */}
-                    {connectionExists && connectionStatusValue === 'pending' && (
+                    {connectionExists && connectionStatusValue === 'pending' && connectionStatus?.id && (
                       <Link
-                        to="/my-requests"
+                        to={`/my-requests?deal=${connectionStatus.id}`}
                         className="block w-full text-center text-xs text-muted-foreground hover:text-foreground transition-colors py-2 px-3 rounded-md hover:bg-slate-50 border border-transparent hover:border-slate-200"
                       >
                         View request status in My Deals →
