@@ -1,4 +1,4 @@
-import { ImageIcon } from "lucide-react";
+import { ImageIcon, MapPin } from "lucide-react";
 import ListingStatusTag from "@/components/listing/ListingStatusTag";
 import { CategoryLocationBadges } from "@/components/shared/CategoryLocationBadges";
 import { EditableTitle } from "@/components/listing-detail/EditableTitle";
@@ -89,15 +89,26 @@ export function ListingHeader({
           )}
         </div>
 
-        {/* Category & Location Badges with Listed Date */}
-        <div className="flex items-center gap-3 flex-wrap">
+        {/* Location with Icon */}
+        <div className="flex items-center gap-2 text-sm text-slate-600">
+          <MapPin className="w-4 h-4" />
+          <span className="uppercase tracking-wide font-medium">{listing.location}</span>
+        </div>
+
+        {/* Description */}
+        <div className="text-[15px] leading-relaxed text-slate-700 max-w-3xl">
+          {listing.description}
+        </div>
+
+        {/* Category Badges & Listed Date */}
+        <div className="flex items-center gap-3 flex-wrap text-sm text-slate-500">
           <CategoryLocationBadges 
             categories={listing.categories}
             category={listing.category}
-            location={listing.location}
             variant="default"
           />
-          <div className="text-sm text-slate-500">
+          <span>•</span>
+          <div>
             {formatListedDate()}
           </div>
         </div>
