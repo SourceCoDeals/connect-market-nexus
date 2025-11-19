@@ -229,6 +229,7 @@ export const useListing = (id: string | undefined) => {
           const listing: Listing = {
             ...data,
             categories: data.categories || (data.category ? [data.category] : []),
+            metric_3_type: (data.metric_3_type as 'employees' | 'custom') || 'employees',
             ownerNotes: data.owner_notes || '',
             createdAt: data.created_at,
             updatedAt: data.updated_at,
@@ -237,7 +238,7 @@ export const useListing = (id: string | undefined) => {
               revenue: (data.ebitda / data.revenue).toFixed(2),
               value: '0'
             } : undefined,
-            revenueFormatted: new Intl.NumberFormat('en-US', { 
+            revenueFormatted: new Intl.NumberFormat('en-US', {
               style: 'currency', 
               currency: 'USD',
               minimumFractionDigits: 0,

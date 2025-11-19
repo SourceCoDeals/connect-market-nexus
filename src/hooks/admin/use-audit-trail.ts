@@ -86,11 +86,8 @@ export function useAuditTrail(filters: AuditFilters = {}) {
           approved_by,
           rejected_by,
           on_hold_by,
-          profiles!connection_requests_user_id_fkey(first_name, last_name),
-          approvedByAdmin:profiles!connection_requests_approved_by_fkey(first_name, last_name, email),
-          rejectedByAdmin:profiles!connection_requests_rejected_by_fkey(first_name, last_name, email),
-          onHoldByAdmin:profiles!connection_requests_on_hold_by_fkey(first_name, last_name, email),
-          listings(title)
+          user_id,
+          listing_id
         `)
         .not('decision_at', 'is', null)
         .order('decision_at', { ascending: false })

@@ -192,9 +192,10 @@ export function useMarketIntelligence(daysBack: number = 30) {
           : typeof profile.target_locations === 'string' 
             ? profile.target_locations.split(',').map(l => l.trim()) 
             : [];
-        const userEngagement = (profile.listing_analytics?.length || 0) + 
-                              (profile.saved_listings?.length || 0) + 
-                              (profile.connection_requests?.length || 0);
+        const listingAnalytics = Array.isArray(profile.listing_analytics) ? profile.listing_analytics : [];
+        const savedListings = Array.isArray(profile.saved_listings) ? profile.saved_listings : [];
+        const connectionRequests = Array.isArray(profile.connection_requests) ? profile.connection_requests : [];
+        const userEngagement = listingAnalytics.length + savedListings.length + connectionRequests.length;
         
         locations.forEach(location => {
           if (!locationMap.has(location)) {
