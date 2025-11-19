@@ -78,17 +78,8 @@ export function ListingHeader({
 
         {/* Right - Core Info */}
         <div className="flex-1 flex flex-col lg:min-h-[200px]">
-          {/* Title and badges at top */}
+          {/* Labels and title - labels first */}
           <div className="space-y-4">
-            {/* Title */}
-            <div>
-              <EditableTitle
-                listingId={listing.id}
-                initialValue={listing.title}
-                isEditing={isAdmin && editModeEnabled && !userViewEnabled}
-              />
-            </div>
-
             {/* Category & Location Badges with Listed Date */}
             <div className="flex items-center gap-3 flex-wrap">
               <CategoryLocationBadges 
@@ -100,6 +91,15 @@ export function ListingHeader({
               <div className="text-xs text-slate-400/80">
                 {formatListedDate()}
               </div>
+            </div>
+
+            {/* Title */}
+            <div>
+              <EditableTitle
+                listingId={listing.id}
+                initialValue={listing.title}
+                isEditing={isAdmin && editModeEnabled && !userViewEnabled}
+              />
             </div>
           </div>
 

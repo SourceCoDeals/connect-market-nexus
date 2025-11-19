@@ -56,10 +56,10 @@ export function FinancialMetrics({
         {metrics.map((metric, index) => (
           <div 
             key={index}
-            className="bg-white border border-slate-200/50 rounded-lg px-3.5 py-3 hover:border-slate-300/60 hover:shadow-[0_2px_8px_rgba(0,0,0,0.05)] transition-all duration-250 ease-out flex flex-col gap-1.5 min-w-0"
+            className="bg-transparent px-3.5 py-3 flex flex-col gap-1.5 min-w-0"
           >
             {/* VALUE FIRST */}
-            <div className="text-base md:text-lg font-semibold text-slate-950 tracking-tight leading-none tabular-nums whitespace-nowrap overflow-hidden text-ellipsis">
+            <div className="text-xl md:text-2xl font-normal text-slate-950 tracking-tight leading-none tabular-nums whitespace-nowrap overflow-hidden text-ellipsis">
               {metric.value}
             </div>
             
