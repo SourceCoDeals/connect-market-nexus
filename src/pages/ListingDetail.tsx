@@ -27,6 +27,8 @@ import { CustomSection } from "@/components/listing-detail/CustomSection";
 import { ExecutiveSummaryGenerator } from "@/components/listing-detail/ExecutiveSummaryGenerator";
 import { ListingHeader } from "@/components/listing-detail/ListingHeader";
 import { EnhancedFinancialGrid } from "@/components/listing-detail/EnhancedFinancialGrid";
+import { DealAdvisorCard } from "@/components/listing-detail/DealAdvisorCard";
+import { ListingChatInterface } from "@/components/listing-detail/ListingChatInterface";
 
 import { AdminListingSidebar } from "@/components/listing-detail/AdminListingSidebar";
 import { EditableTitle } from "@/components/listing-detail/EditableTitle";
@@ -45,6 +47,7 @@ const ListingDetail = () => {
   const [showShareDialog, setShowShareDialog] = useState(false);
   const [userViewEnabled, setUserViewEnabled] = useState(false);
   const [editModeEnabled, setEditModeEnabled] = useState(false);
+  const [showChat, setShowChat] = useState(false);
   const queryClient = useQueryClient();
   
   const { 
@@ -162,31 +165,41 @@ const ListingDetail = () => {
             {/* Enhanced Financial Grid */}
             <div className="mt-6">
               <EnhancedFinancialGrid
-              metrics={[
-                {
-                  label: "2024 Revenue",
-                  value: formatCurrency(listing.revenue),
-                  subtitle: listing.category,
-                  tooltip: "Financials range from owner estimates to verified documentation. Verification level varies by owner readiness and will be confirmed in your intro call and due diligence process."
-                },
-                {
-                  label: "EBITDA",
-                  value: formatCurrency(listing.ebitda),
-                  subtitle: `~${listing.revenue > 0 ? ((listing.ebitda / listing.revenue) * 100).toFixed(1) : '0'}% margin profile`,
-                  tooltip: "Financials range from owner estimates to verified documentation. Verification level varies by owner readiness and will be confirmed in your intro call and due diligence process."
-                },
-                {
-                  label: "Business Model",
-                  value: listing.acquisition_type === 'add_on' ? 'Add-On' : listing.acquisition_type === 'platform' ? 'Platform' : 'Platform',
-                  subtitle: listing.acquisition_type === 'add_on' ? 'Strategic acquisition opportunity' : 'Platform investment'
-                },
-                {
-                  label: "Market Coverage",
-                  value: listing.location,
-                  subtitle: (listing.categories && listing.categories.length > 0) ? listing.categories.join(', ') : listing.category
-                }
-              ]}
-            />
+                metrics={[
+                  {
+                    label: "2024 Revenue",
+                    value: formatCurrency(listing.revenue),
+                    subtitle: listing.revenue_metric_subtitle || listing.category,
+                    tooltip: "Financials range from owner estimates to verified documentation. Verification level varies by owner readiness and will be confirmed in your intro call and due diligence process."
+                  },
+                  {
+                    label: "EBITDA",
+                    value: formatCurrency(listing.ebitda),
+                    subtitle: listing.ebitda_metric_subtitle || `~${listing.revenue > 0 ? ((listing.ebitda / listing.revenue) * 100).toFixed(1) : '0'}% margin profile`,
+                    tooltip: "Financials range from owner estimates to verified documentation. Verification level varies by owner readiness and will be confirmed in your intro call and due diligence process."
+                  },
+                  // Metric 3: Employees or Custom
+                  listing.metric_3_type === 'custom' && listing.metric_3_custom_label ? {
+                    label: listing.metric_3_custom_label,
+                    value: listing.metric_3_custom_value || '',
+                    subtitle: listing.metric_3_custom_subtitle
+                  } : {
+                    label: "Team Size",
+                    value: `${(listing.full_time_employees || 0) + (listing.part_time_employees || 0)}`,
+                    subtitle: `${listing.full_time_employees || 0} FT, ${listing.part_time_employees || 0} PT`
+                  },
+                  // Metric 4: Custom only (optional)
+                  listing.custom_metric_label && listing.custom_metric_value ? {
+                    label: listing.custom_metric_label,
+                    value: listing.custom_metric_value,
+                    subtitle: listing.custom_metric_subtitle
+                  } : {
+                    label: "Market Coverage",
+                    value: listing.location,
+                    subtitle: (listing.categories && listing.categories.length > 0) ? listing.categories.join(', ') : listing.category
+                  }
+                ]}
+              />
             </div>
 
             {/* Financial Summary */}
@@ -445,27 +458,27 @@ const ListingDetail = () => {
                   </div>
                 </div>
 
-                {/* DEAL PRESENTED BY */}
+                {/* Deal Advisor Card */}
+                <DealAdvisorCard
+                  presentedByAdminId={(listing as any).presented_by_admin_id}
+                  listingId={id!}
+                  onContactClick={() => setShowChat(!showChat)}
+                />
+
+                {/* Chat Interface */}
+                {showChat && connectionStatusValue === 'approved' && connectionStatus && (
+                  <ListingChatInterface
+                    connectionRequestId={connectionStatus.id!}
+                    onClose={() => setShowChat(false)}
+                  />
+                )}
+                
+                {/* Download Executive Summary */}
                 <div className="bg-white/40 border border-slate-200/60 rounded-lg p-6 shadow-sm">
                   <h4 className="text-xs font-medium text-foreground mb-4 uppercase tracking-wider">
-                    Deal Presented By
+                    Executive Summary
                   </h4>
-                  <div className="flex items-start space-x-3">
-                    <div className="w-12 h-12 rounded-full overflow-hidden border border-slate-200/40 bg-slate-200 flex-shrink-0" />
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-foreground">Deal Team</p>
-                      <p className="text-xs text-foreground/70">Investment Advisor</p>
-                    </div>
-                  </div>
-                  <div className="mt-4 space-y-2">
-                    <div className="text-xs text-foreground/70">contact@example.com</div>
-                    <div className="text-xs text-foreground/70">(555) 123-4567</div>
-                  </div>
-                  
-                  {/* Download Executive Summary */}
-                  <div className="pt-4 border-t border-slate-200/50 mt-4">
-                    <ExecutiveSummaryGenerator listing={listing} />
-                  </div>
+                  <ExecutiveSummaryGenerator listing={listing} />
                 </div>
               </div>
             )}

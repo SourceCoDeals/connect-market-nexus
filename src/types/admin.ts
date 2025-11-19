@@ -48,6 +48,21 @@ export interface AdminListing {
   seller_involvement_preference?: string;
   timeline_preference?: string;
   visible_to_buyer_types?: string[] | null;
+  
+  // Enhanced metrics fields
+  custom_metric_label?: string | null;
+  custom_metric_value?: string | null;
+  custom_metric_subtitle?: string | null;
+  metric_3_type?: 'employees' | 'custom';
+  metric_3_custom_label?: string | null;
+  metric_3_custom_value?: string | null;
+  metric_3_custom_subtitle?: string | null;
+  revenue_metric_subtitle?: string | null;
+  ebitda_metric_subtitle?: string | null;
+  
+  // Deal advisor
+  presented_by_admin_id?: string | null;
+  
   created_at: string;
   updated_at: string;
 }
@@ -93,6 +108,20 @@ export interface CreateListingData {
   seller_involvement_preference?: string;
   timeline_preference?: string;
   visible_to_buyer_types?: string[] | null;
+  
+  // Enhanced metrics fields
+  custom_metric_label?: string | null;
+  custom_metric_value?: string | null;
+  custom_metric_subtitle?: string | null;
+  metric_3_type?: 'employees' | 'custom';
+  metric_3_custom_label?: string | null;
+  metric_3_custom_value?: string | null;
+  metric_3_custom_subtitle?: string | null;
+  revenue_metric_subtitle?: string | null;
+  ebitda_metric_subtitle?: string | null;
+  
+  // Deal advisor
+  presented_by_admin_id?: string | null;
 }
 
 export interface AdminConnectionRequest {

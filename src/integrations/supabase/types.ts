@@ -1842,6 +1842,126 @@ export type Database = {
           },
         ]
       }
+      listing_conversations: {
+        Row: {
+          admin_id: string | null
+          connection_request_id: string
+          created_at: string
+          id: string
+          listing_id: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          admin_id?: string | null
+          connection_request_id: string
+          created_at?: string
+          id?: string
+          listing_id: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          admin_id?: string | null
+          connection_request_id?: string
+          created_at?: string
+          id?: string
+          listing_id?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "listing_conversations_admin_id_fkey"
+            columns: ["admin_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "listing_conversations_connection_request_id_fkey"
+            columns: ["connection_request_id"]
+            isOneToOne: true
+            referencedRelation: "connection_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "listing_conversations_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "listing_conversations_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "unmapped_primary_owners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "listing_conversations_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      listing_messages: {
+        Row: {
+          attachments: Json | null
+          conversation_id: string
+          created_at: string
+          id: string
+          is_internal_note: boolean
+          message_text: string
+          read_at: string | null
+          sender_id: string
+          sender_type: string
+        }
+        Insert: {
+          attachments?: Json | null
+          conversation_id: string
+          created_at?: string
+          id?: string
+          is_internal_note?: boolean
+          message_text: string
+          read_at?: string | null
+          sender_id: string
+          sender_type: string
+        }
+        Update: {
+          attachments?: Json | null
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          is_internal_note?: boolean
+          message_text?: string
+          read_at?: string | null
+          sender_id?: string
+          sender_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "listing_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "listing_conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "listing_messages_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       listing_personal_notes: {
         Row: {
           content: string | null
@@ -1881,6 +2001,9 @@ export type Database = {
           categories: string[] | null
           category: string
           created_at: string
+          custom_metric_label: string | null
+          custom_metric_subtitle: string | null
+          custom_metric_value: string | null
           custom_sections: Json | null
           customer_concentration: number | null
           deal_identifier: string | null
@@ -1889,6 +2012,7 @@ export type Database = {
           description_html: string | null
           description_json: Json | null
           ebitda: number
+          ebitda_metric_subtitle: string | null
           files: string[] | null
           full_time_employees: number | null
           growth_drivers: Json | null
@@ -1905,11 +2029,17 @@ export type Database = {
           location: string
           management_depth: string | null
           market_position: Json | null
+          metric_3_custom_label: string | null
+          metric_3_custom_subtitle: string | null
+          metric_3_custom_value: string | null
+          metric_3_type: string | null
           owner_notes: string | null
           ownership_structure: string | null
           part_time_employees: number | null
+          presented_by_admin_id: string | null
           primary_owner_id: string | null
           revenue: number
+          revenue_metric_subtitle: string | null
           revenue_model_breakdown: Json | null
           seller_involvement_preference: string | null
           seller_motivation: string | null
@@ -1927,6 +2057,9 @@ export type Database = {
           categories?: string[] | null
           category: string
           created_at?: string
+          custom_metric_label?: string | null
+          custom_metric_subtitle?: string | null
+          custom_metric_value?: string | null
           custom_sections?: Json | null
           customer_concentration?: number | null
           deal_identifier?: string | null
@@ -1935,6 +2068,7 @@ export type Database = {
           description_html?: string | null
           description_json?: Json | null
           ebitda: number
+          ebitda_metric_subtitle?: string | null
           files?: string[] | null
           full_time_employees?: number | null
           growth_drivers?: Json | null
@@ -1951,11 +2085,17 @@ export type Database = {
           location: string
           management_depth?: string | null
           market_position?: Json | null
+          metric_3_custom_label?: string | null
+          metric_3_custom_subtitle?: string | null
+          metric_3_custom_value?: string | null
+          metric_3_type?: string | null
           owner_notes?: string | null
           ownership_structure?: string | null
           part_time_employees?: number | null
+          presented_by_admin_id?: string | null
           primary_owner_id?: string | null
           revenue: number
+          revenue_metric_subtitle?: string | null
           revenue_model_breakdown?: Json | null
           seller_involvement_preference?: string | null
           seller_motivation?: string | null
@@ -1973,6 +2113,9 @@ export type Database = {
           categories?: string[] | null
           category?: string
           created_at?: string
+          custom_metric_label?: string | null
+          custom_metric_subtitle?: string | null
+          custom_metric_value?: string | null
           custom_sections?: Json | null
           customer_concentration?: number | null
           deal_identifier?: string | null
@@ -1981,6 +2124,7 @@ export type Database = {
           description_html?: string | null
           description_json?: Json | null
           ebitda?: number
+          ebitda_metric_subtitle?: string | null
           files?: string[] | null
           full_time_employees?: number | null
           growth_drivers?: Json | null
@@ -1997,11 +2141,17 @@ export type Database = {
           location?: string
           management_depth?: string | null
           market_position?: Json | null
+          metric_3_custom_label?: string | null
+          metric_3_custom_subtitle?: string | null
+          metric_3_custom_value?: string | null
+          metric_3_type?: string | null
           owner_notes?: string | null
           ownership_structure?: string | null
           part_time_employees?: number | null
+          presented_by_admin_id?: string | null
           primary_owner_id?: string | null
           revenue?: number
+          revenue_metric_subtitle?: string | null
           revenue_model_breakdown?: Json | null
           seller_involvement_preference?: string | null
           seller_motivation?: string | null
@@ -2015,6 +2165,13 @@ export type Database = {
           visible_to_buyer_types?: string[] | null
         }
         Relationships: [
+          {
+            foreignKeyName: "listings_presented_by_admin_id_fkey"
+            columns: ["presented_by_admin_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "listings_primary_owner_id_fkey"
             columns: ["primary_owner_id"]

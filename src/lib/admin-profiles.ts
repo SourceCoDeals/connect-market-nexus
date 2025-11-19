@@ -20,6 +20,13 @@ export const ADMIN_PROFILES: Record<string, AdminProfile> = {
     title: 'Founder & CEO',
     phone: '',
     calendlyUrl: ''
+  },
+  'tomos.mughan@sourceco.com': {
+    email: 'tomos.mughan@sourceco.com',
+    name: 'Tomos Mughan',
+    title: 'CEO',
+    phone: '',
+    calendlyUrl: ''
   }
 };
 

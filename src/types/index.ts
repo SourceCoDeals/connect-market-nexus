@@ -169,6 +169,18 @@ export interface Listing {
   full_time_employees?: number;
   part_time_employees?: number;
   
+  // Enhanced metrics
+  custom_metric_label?: string | null;
+  custom_metric_value?: string | null;
+  custom_metric_subtitle?: string | null;
+  metric_3_type?: 'employees' | 'custom';
+  metric_3_custom_label?: string | null;
+  metric_3_custom_value?: string | null;
+  metric_3_custom_subtitle?: string | null;
+  revenue_metric_subtitle?: string | null;
+  ebitda_metric_subtitle?: string | null;
+  presented_by_admin_id?: string | null;
+  
   // Computed properties (aliases for snake_case properties)
   readonly ownerNotes: string;
   readonly createdAt: string;
