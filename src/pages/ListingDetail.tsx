@@ -380,23 +380,26 @@ const ListingDetail = () => {
                   </div>
                 </div>
 
-                {/* Exclusive Deal Flow Card */}
-                <div className="bg-gradient-to-br from-slate-50 to-white p-6 rounded-lg border border-slate-200/60 shadow-sm hover:shadow-md transition-all duration-300">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="h-10 w-10 rounded-full bg-gradient-to-br from-slate-600 to-slate-700 flex items-center justify-center">
-                      <Sparkles className="h-5 w-5 text-white" />
+                {/* Exclusive Deal Flow */}
+                <div className="bg-white/50 border border-slate-200/60 rounded-lg p-6 shadow-sm">
+                  <div className="mt-6 pt-4 border-t border-slate-200/50">
+                    <div className="text-center space-y-3">
+                      <div className="space-y-1">
+                        <p className="text-xs font-medium text-foreground">Want More Deals Like This One?</p>
+                        <p className="text-xs text-foreground/70 leading-relaxed">
+                          Get 4-10 pre-qualified owner meetings monthly with off-market opportunities matching your exact investment thesis. We source deals like this one—vetted, exclusive, and aligned with your revenue range, industry focus, and geography—before they hit the market.
+                        </p>
+                      </div>
+                      <Button 
+                        variant="outline" 
+                        className="w-full text-xs h-8 border-[#D7B65C]/30 text-[#D7B65C] hover:bg-[#D7B65C]/10 hover:border-[#D7B65C]/50"
+                        onClick={() => setShowDealSourcingDialog(true)}
+                      >
+                        <ExternalLink size={12} className="mr-2" />
+                        Get My Custom Deal Flow
+                      </Button>
                     </div>
-                    <h3 className="font-semibold text-foreground">Want More Deals Like This One?</h3>
                   </div>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Get 4-10 pre-qualified owner meetings monthly with off-market opportunities matching your exact investment thesis. We source deals like this one—vetted, exclusive, and aligned with your revenue range, industry focus, and geography—before they hit the market.
-                  </p>
-                  <Button 
-                    className="w-full bg-foreground text-background hover:bg-foreground/90"
-                    onClick={() => setShowDealSourcingDialog(true)}
-                  >
-                    Get My Custom Deal Flow
-                  </Button>
                 </div>
 
                 {/* Deal Advisor Card */}
