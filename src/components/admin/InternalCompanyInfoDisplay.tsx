@@ -1,9 +1,11 @@
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Shield, Building, User, Link as LinkIcon, FileText, Clipboard, ExternalLink } from "lucide-react";
+import { Shield, Building, User, Link as LinkIcon, FileText, Clipboard, ExternalLink, Users } from "lucide-react";
 import { AdminListing } from "@/types/admin";
 import { useSourceCoAdmins } from "@/hooks/admin/use-source-co-admins";
+import { StatusTagSwitcher } from "@/components/admin/StatusTagSwitcher";
+import { useAdminListings } from "@/hooks/admin/use-admin-listings";
 
 interface InternalCompanyInfoDisplayProps {
   listing: AdminListing;
@@ -11,37 +13,19 @@ interface InternalCompanyInfoDisplayProps {
 
 export function InternalCompanyInfoDisplay({ listing }: InternalCompanyInfoDisplayProps) {
   const { data: sourceCoAdmins } = useSourceCoAdmins();
-  // Debug logging
-  console.log('🔍 InternalCompanyInfoDisplay - Listing data:', {
-    id: listing?.id,
-    deal_identifier: listing?.deal_identifier,
-    internal_company_name: listing?.internal_company_name,
-    internal_primary_owner: listing?.internal_primary_owner,
-    internal_salesforce_link: listing?.internal_salesforce_link,
-    internal_deal_memo_link: listing?.internal_deal_memo_link,
-    internal_contact_info: listing?.internal_contact_info,
-    internal_notes: listing?.internal_notes,
-    allKeys: Object.keys(listing || {})
-  });
-
-  // Find the primary owner details
-  const primaryOwner = sourceCoAdmins?.find(admin => admin.id === listing?.primary_owner_id);
+  const { useUpdateListing } = useAdminListings();
+  const { mutate: updateListing } = useUpdateListing();
   
-  // Only show if there's any internal information
-  const hasInternalInfo = listing?.deal_identifier || 
-    listing?.internal_company_name || 
-    listing?.primary_owner_id ||
-    listing?.internal_primary_owner || 
-    listing?.internal_salesforce_link || 
-    listing?.internal_deal_memo_link || 
-    listing?.internal_contact_info || 
-    listing?.internal_notes;
+  const handleStatusChange = (newStatus: string | null) => {
+    updateListing({
+      id: listing.id,
+      listing: {
+        status_tag: newStatus,
+      },
+    });
+  };
 
-  console.log('🔍 hasInternalInfo:', hasInternalInfo);
-
-  if (!hasInternalInfo) {
-    return null;
-  }
+  const primaryOwner = sourceCoAdmins?.find(admin => admin.id === listing?.primary_owner_id);
 
   return (
     <Card className="border-slate-200 bg-slate-50/30 dark:border-slate-700 dark:bg-slate-900/30 mt-4">
@@ -55,7 +39,46 @@ export function InternalCompanyInfoDisplay({ listing }: InternalCompanyInfoDispl
         </CardTitle>
       </CardHeader>
       
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-6">
+        {/* Listing Status */}
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <FileText className="h-4 w-4 text-slate-600 dark:text-slate-400" />
+            <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Listing Status</h3>
+          </div>
+          <StatusTagSwitcher
+            currentValue={listing.status_tag || null}
+            onChange={handleStatusChange}
+            className="w-full"
+          />
+        </div>
+
+        {/* Buyer Visibility */}
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <Users className="h-4 w-4 text-slate-600 dark:text-slate-400" />
+            <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Buyer Visibility</h3>
+          </div>
+          <div className="text-sm bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700 p-3">
+            {!listing.visible_to_buyer_types || listing.visible_to_buyer_types.length === 0 ? (
+              <div className="text-slate-600 dark:text-slate-400">
+                Visible to <span className="font-medium text-slate-900 dark:text-slate-100">all buyer types</span>
+              </div>
+            ) : (
+              <div>
+                <div className="text-slate-700 dark:text-slate-300 font-medium mb-2">Restricted to:</div>
+                <div className="flex flex-wrap gap-2">
+                  {listing.visible_to_buyer_types.map((type) => (
+                    <Badge key={type} variant="secondary" className="text-xs">
+                      {type}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* Deal Identifier */}
         {listing.deal_identifier && (
           <div className="flex items-center gap-3 p-3 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700">
