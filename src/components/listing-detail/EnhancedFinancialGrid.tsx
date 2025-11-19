@@ -15,7 +15,7 @@ interface EnhancedFinancialGridProps {
 export function EnhancedFinancialGrid({ metrics }: EnhancedFinancialGridProps) {
   return (
     <TooltipProvider>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 py-10 border-y border-slate-200/60">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 py-12 border-y border-slate-200/60">
         {metrics.map((metric, index) => (
           <div 
             key={index}

@@ -51,7 +51,7 @@ export function ListingHeader({
       </div>
 
       {/* Full-Width Hero Image */}
-      <div className="w-full h-[200px] md:h-[300px] lg:h-[400px] border border-slate-200/60 bg-slate-50 rounded-xl overflow-hidden transition-all duration-200 hover:border-slate-300/80">
+      <div className="w-full h-[180px] md:h-[200px] lg:h-[220px] border border-slate-200/60 bg-slate-50 rounded-xl overflow-hidden transition-all duration-200 hover:border-slate-300/80">
         {imageData.type === 'image' ? (
           <img
             src={imageData.value}
@@ -73,11 +73,13 @@ export function ListingHeader({
         {/* Title with inline Add-On/Platform badge */}
         <div className="flex items-start gap-3 flex-wrap">
           <div className="flex-1 min-w-0">
-            <EditableTitle
-              listingId={listing.id}
-              initialValue={listing.title}
-              isEditing={isAdmin && editModeEnabled && !userViewEnabled}
-            />
+            <div className="text-3xl md:text-4xl font-bold text-slate-950 tracking-tight leading-tight">
+              <EditableTitle
+                listingId={listing.id}
+                initialValue={listing.title}
+                isEditing={isAdmin && editModeEnabled && !userViewEnabled}
+              />
+            </div>
           </div>
           {listing.acquisition_type && (
             <div className="flex-shrink-0">
@@ -96,7 +98,7 @@ export function ListingHeader({
         </div>
 
         {/* Description */}
-        <div className="text-[15px] leading-relaxed text-slate-700 max-w-3xl">
+        <div className="text-[15px] leading-relaxed text-slate-700 max-w-3xl line-clamp-3">
           {listing.description}
         </div>
 

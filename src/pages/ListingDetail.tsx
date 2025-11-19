@@ -392,11 +392,11 @@ const ListingDetail = () => {
             ) : (
               <div className="sticky top-6 space-y-6">
                 {/* Interested in This Deal? - Premium CTA */}
-                <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-[0_2px_8px_0_rgb(0_0_0_0.04)] hover:shadow-[0_4px_12px_0_rgb(215_182_92_0.08)] transition-all duration-300">
-                  <div className="text-center space-y-4">
-                    <div className="space-y-1.5">
-                      <h3 className="text-[17px] font-medium text-slate-900 tracking-[-0.015em] leading-tight">Interested in this opportunity?</h3>
-                      <p className="text-[13px] text-slate-600 leading-[1.4] tracking-[0.001em]">
+                <div className="bg-white rounded-lg p-6 shadow-sm">
+                  <div className="space-y-5">
+                    <div className="space-y-2">
+                      <h3 className="text-xl font-semibold text-slate-900">Interested in This Deal?</h3>
+                      <p className="text-sm text-slate-600 leading-relaxed">
                         Access detailed financials and business metrics
                       </p>
                     </div>
@@ -419,21 +419,50 @@ const ListingDetail = () => {
                         onShare={() => setShowShareDialog(true)}
                       />
                     </div>
-                    
-                    {/* Divider */}
-                    <div className="relative">
-                      <div className="absolute inset-0 flex items-center">
-                        <div className="w-full border-t border-slate-200/60"></div>
-                      </div>
-                      <div className="relative flex justify-center">
-                        <span className="bg-white px-3 text-[10px] text-slate-400 uppercase tracking-widest font-medium">
-                          Resources
-                        </span>
+                  </div>
+                </div>
+
+                {/* Exclusive Deal Flow */}
+                <div className="bg-slate-50 rounded-lg p-6">
+                  <div className="space-y-4">
+                    <h4 className="text-lg font-semibold text-slate-900">Exclusive Deal Flow</h4>
+                    <p className="text-sm text-slate-600 leading-relaxed">
+                      Get notified about new opportunities matching your investment criteria
+                    </p>
+                    <a 
+                      href="/marketplace" 
+                      className="inline-flex items-center gap-2 text-sm font-medium text-[#D8B75D] hover:text-[#C5A54A] transition-colors"
+                    >
+                      <span>Browse Marketplace</span>
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </a>
+                  </div>
+                </div>
+
+                {/* DEAL PRESENTED BY */}
+                <div className="bg-white rounded-lg p-6 shadow-sm">
+                  <div className="space-y-4">
+                    <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-[0.15em]">
+                      Deal Presented By
+                    </div>
+                    <div className="flex items-start gap-4">
+                      <div className="w-14 h-14 rounded-full bg-slate-200 flex-shrink-0" />
+                      <div className="flex-1 min-w-0 space-y-2">
+                        <div>
+                          <div className="font-semibold text-slate-900">Deal Team</div>
+                          <div className="text-sm text-slate-600">Investment Advisor</div>
+                        </div>
+                        <div className="text-sm text-slate-600 space-y-1">
+                          <div>contact@example.com</div>
+                          <div>(555) 123-4567</div>
+                        </div>
                       </div>
                     </div>
                     
                     {/* Download Executive Summary */}
-                    <div className="flex justify-center -mt-2">
+                    <div className="pt-4 border-t border-slate-200">
                       <ExecutiveSummaryGenerator listing={listing} />
                     </div>
                   </div>
