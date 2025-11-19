@@ -10,7 +10,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { useSendDealReferral } from '@/hooks/use-deal-referrals';
 
 interface ShareDealDialogProps {
   open: boolean;
@@ -26,35 +25,34 @@ export function ShareDealDialog({
   listingTitle,
 }: ShareDealDialogProps) {
   const [recipientEmail, setRecipientEmail] = useState('');
-  const [recipientName, setRecipientName] = useState('');
   const [personalMessage, setPersonalMessage] = useState('');
-  const [ccSelf, setCcSelf] = useState(false);
-  
-  const { mutate: sendReferral, isPending } = useSendDealReferral();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleCompose = (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!recipientEmail) return;
 
-    sendReferral(
-      {
-        listingId,
-        recipientEmail,
-        recipientName: recipientName || undefined,
-        personalMessage: personalMessage || undefined,
-        ccSelf,
-      },
-      {
-        onSuccess: () => {
-          setRecipientEmail('');
-          setRecipientName('');
-          setPersonalMessage('');
-          setCcSelf(false);
-          onOpenChange(false);
-        },
-      }
-    );
+    const listingUrl = `${window.location.origin}/listing/${listingId}`;
+    
+    const subject = `Check out this deal: ${listingTitle}`;
+    
+    let body = '';
+    if (personalMessage) {
+      body += `${personalMessage}\n\n`;
+    }
+    body += `I thought you might be interested in this deal:\n\n`;
+    body += `${listingTitle}\n`;
+    body += `${listingUrl}\n\n`;
+    body += `Note: You'll need an approved account to view the listing details.\n`;
+    
+    const mailtoLink = `mailto:${encodeURIComponent(recipientEmail)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    
+    window.location.href = mailtoLink;
+    
+    // Reset form and close dialog
+    setRecipientEmail('');
+    setPersonalMessage('');
+    onOpenChange(false);
   };
 
   return (
@@ -66,10 +64,10 @@ export function ShareDealDialog({
             Share {listingTitle} with someone who might be interested
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleCompose} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="email" className="text-sm font-medium">
-              Email address
+              Colleague's email address
             </Label>
             <Input
               id="email"
@@ -78,20 +76,6 @@ export function ShareDealDialog({
               value={recipientEmail}
               onChange={(e) => setRecipientEmail(e.target.value)}
               required
-              className="h-9"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="name" className="text-sm font-medium">
-              Name (optional)
-            </Label>
-            <Input
-              id="name"
-              type="text"
-              placeholder="Their name"
-              value={recipientName}
-              onChange={(e) => setRecipientName(e.target.value)}
               className="h-9"
             />
           </div>
@@ -110,36 +94,22 @@ export function ShareDealDialog({
             />
           </div>
 
-          <div className="flex items-center space-x-2">
-            <input
-              type="checkbox"
-              id="ccSelf"
-              checked={ccSelf}
-              onChange={(e) => setCcSelf(e.target.checked)}
-              className="h-4 w-4 rounded border-input"
-            />
-            <Label htmlFor="ccSelf" className="text-sm font-normal cursor-pointer">
-              Send me a copy
-            </Label>
-          </div>
-
           <div className="flex justify-end gap-2 pt-2">
             <Button
               type="button"
               variant="outline"
               onClick={() => onOpenChange(false)}
-              disabled={isPending}
               size="sm"
             >
               Cancel
             </Button>
             <Button
               type="submit"
-              disabled={isPending || !recipientEmail}
+              disabled={!recipientEmail}
               size="sm"
               className="bg-foreground text-background hover:bg-foreground/90"
             >
-              {isPending ? 'Sending...' : 'Send'}
+              Open in Email Client
             </Button>
           </div>
         </form>

@@ -62,9 +62,9 @@ export function EnhancedSaveButton({ listingId, onSave, onShare }: EnhancedSaveB
                 <Share2 className="h-3.5 w-3.5" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>
-              <p>Share with colleague</p>
-            </TooltipContent>
+          <TooltipContent>
+            <p>Email to colleague</p>
+          </TooltipContent>
           </Tooltip>
         )}
       </div>
