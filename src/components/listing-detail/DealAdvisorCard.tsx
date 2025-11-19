@@ -2,6 +2,7 @@ import { User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAdminProfiles } from '@/hooks/admin/use-admin-profiles';
 import { useConnectionStatus } from '@/hooks/marketplace/use-connections';
+import { getAdminProfile } from '@/lib/admin-profiles';
 
 interface DealAdvisorCardProps {
   presentedByAdminId: string | null | undefined;
@@ -13,13 +14,35 @@ export function DealAdvisorCard({ presentedByAdminId, listingId, onContactClick 
   const { data: adminProfiles } = useAdminProfiles();
   const { data: connectionStatus } = useConnectionStatus(listingId);
   
-  // Default to Tomos Mughan for now
-  const advisorProfile = presentedByAdminId && adminProfiles?.[presentedByAdminId]
-    ? adminProfiles[presentedByAdminId]
-    : {
-        displayName: 'Tomos Mughan',
-        email: 'tomos.mughan@sourceco.com',
+  // Get the advisor profile from database admin profiles
+  let advisorProfile = {
+    displayName: 'Tomos Mughan',
+    title: 'CEO',
+    email: 'tomos.mughan@sourceco.com',
+  };
+
+  if (presentedByAdminId) {
+    // Try to get from admin profiles hook first (database)
+    if (adminProfiles?.[presentedByAdminId]) {
+      const dbProfile = adminProfiles[presentedByAdminId];
+      const staticProfile = getAdminProfile(dbProfile.email);
+      advisorProfile = {
+        displayName: `${dbProfile.first_name} ${dbProfile.last_name}`.trim() || dbProfile.email,
+        title: staticProfile?.title || 'Advisor',
+        email: dbProfile.email,
       };
+    } else {
+      // Try to get from static admin profiles (using email as ID)
+      const staticProfile = getAdminProfile(presentedByAdminId);
+      if (staticProfile) {
+        advisorProfile = {
+          displayName: staticProfile.name,
+          title: staticProfile.title,
+          email: staticProfile.email,
+        };
+      }
+    }
+  }
 
   const hasActiveConnection = connectionStatus?.status === 'approved';
 
@@ -41,7 +64,7 @@ export function DealAdvisorCard({ presentedByAdminId, listingId, onContactClick 
             {advisorProfile.displayName}
           </div>
           <div className="text-xs text-muted-foreground">
-            CEO, SourceCo
+            {advisorProfile.title}
           </div>
         </div>
       </div>
@@ -51,7 +74,7 @@ export function DealAdvisorCard({ presentedByAdminId, listingId, onContactClick 
         disabled={!hasActiveConnection}
         className="w-full text-xs h-9 bg-[#D7B65C] hover:bg-[#D7B65C]/90 text-slate-900 disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        {hasActiveConnection ? 'Contact Tomos' : 'Request Connection to Contact'}
+        {hasActiveConnection ? `Contact ${advisorProfile.displayName.split(' ')[0]}` : 'Request Connection to Contact'}
       </Button>
       
       {!hasActiveConnection && (
