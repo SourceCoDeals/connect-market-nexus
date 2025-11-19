@@ -19,7 +19,7 @@ const AcquisitionTypeBadge = ({ type, className = "" }: AcquisitionTypeBadgeProp
 
   return (
     <div className={`inline-flex items-center px-3 py-1.5 rounded-md bg-[#C5A572] ${className}`}>
-      <span className="text-[10px] font-bold text-black uppercase tracking-[0.12em]">
+      <span className="text-[10px] font-medium text-black uppercase tracking-[0.12em]">
         {label}
       </span>
     </div>
