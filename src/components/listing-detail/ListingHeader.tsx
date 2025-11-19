@@ -35,8 +35,8 @@ export function ListingHeader({
   };
 
   return (
-    <div className="space-y-4 mb-8">
-      {/* Top Badges Row - Status Tag + Acquisition Type */}
+    <div className="space-y-2 mb-8">
+      {/* Top Badges Row - Status Tag */}
       <div className="flex items-center gap-2 flex-wrap">
         {listing.status_tag && (
           <ListingStatusTag status={listing.status_tag} variant="inline" />
@@ -69,11 +69,11 @@ export function ListingHeader({
       </div>
 
       {/* Title Section */}
-      <div className="space-y-3">
+      <div className="space-y-3 mt-4">
         {/* Title with inline Add-On/Platform badge */}
         <div className="flex items-start gap-3 flex-wrap">
           <div className="flex-1 min-w-0">
-            <h1 className="text-3xl font-light text-foreground leading-tight">
+            <h1 className="text-3xl font-normal text-foreground leading-tight">
               <EditableTitle
                 listingId={listing.id}
                 initialValue={listing.title}
@@ -81,7 +81,7 @@ export function ListingHeader({
               />
             </h1>
           </div>
-          {listing.acquisition_type && listing.status_tag && (
+          {listing.acquisition_type && (
             <div className="flex-shrink-0">
               <CategoryLocationBadges 
                 acquisitionType={listing.acquisition_type}
