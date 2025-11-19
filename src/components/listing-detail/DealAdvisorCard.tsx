@@ -13,10 +13,9 @@ import {
 interface DealAdvisorCardProps {
   presentedByAdminId: string | null | undefined;
   listingId: string;
-  onContactClick: () => void;
 }
 
-export function DealAdvisorCard({ presentedByAdminId, listingId, onContactClick }: DealAdvisorCardProps) {
+export function DealAdvisorCard({ presentedByAdminId, listingId }: DealAdvisorCardProps) {
   const { data: adminProfiles } = useAdminProfiles();
   const { data: connectionStatus } = useConnectionStatus(listingId);
   
@@ -50,7 +49,7 @@ export function DealAdvisorCard({ presentedByAdminId, listingId, onContactClick 
     }
   }
 
-  const hasActiveConnection = connectionStatus?.status === 'approved';
+  const displayName = advisorProfile.displayName.split(' ')[0];
 
   return (
     <div className="bg-white/40 border border-slate-200/60 rounded-lg p-4 shadow-sm">
@@ -80,21 +79,16 @@ export function DealAdvisorCard({ presentedByAdminId, listingId, onContactClick 
         <Tooltip>
           <TooltipTrigger asChild>
             <button
-              onClick={hasActiveConnection ? onContactClick : undefined}
-              disabled={!hasActiveConnection}
-              className="group flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-muted-foreground"
+              disabled={true}
+              className="group flex items-center gap-1.5 text-[11px] text-muted-foreground transition-colors opacity-50 cursor-not-allowed"
             >
-              <span>
-                {hasActiveConnection ? `Contact ${advisorProfile.displayName.split(' ')[0]}` : 'Request connection to contact'}
-              </span>
-              <ArrowRight className="w-3 h-3 transition-transform group-hover:translate-x-0.5" />
+              <span>Contact {displayName}</span>
+              <ArrowRight className="w-3 h-3" />
             </button>
           </TooltipTrigger>
-          {!hasActiveConnection && (
-            <TooltipContent side="bottom" className="text-xs max-w-[200px]">
-              <p>Submit a connection request to unlock direct communication</p>
-            </TooltipContent>
-          )}
+          <TooltipContent side="bottom" className="text-xs max-w-[240px]">
+            <p>Request a connection and {displayName} will be in touch shortly with next steps</p>
+          </TooltipContent>
         </Tooltip>
       </TooltipProvider>
     </div>

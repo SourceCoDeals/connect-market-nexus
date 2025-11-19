@@ -28,7 +28,7 @@ import { ExecutiveSummaryGenerator } from "@/components/listing-detail/Executive
 import { ListingHeader } from "@/components/listing-detail/ListingHeader";
 import { EnhancedFinancialGrid } from "@/components/listing-detail/EnhancedFinancialGrid";
 import { DealAdvisorCard } from "@/components/listing-detail/DealAdvisorCard";
-import { ListingChatInterface } from "@/components/listing-detail/ListingChatInterface";
+
 
 
 import { EditableTitle } from "@/components/listing-detail/EditableTitle";
@@ -46,7 +46,7 @@ const ListingDetail = () => {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
   const [showShareDialog, setShowShareDialog] = useState(false);
-  const [showChat, setShowChat] = useState(false);
+  
   const queryClient = useQueryClient();
   
   const { 
@@ -394,16 +394,7 @@ const ListingDetail = () => {
                 <DealAdvisorCard
                   presentedByAdminId={(listing as any).presented_by_admin_id}
                   listingId={id!}
-                  onContactClick={() => setShowChat(!showChat)}
                 />
-
-                {/* Chat Interface */}
-                {showChat && connectionStatusValue === 'approved' && connectionStatus && (
-                  <ListingChatInterface
-                    connectionRequestId={connectionStatus.id!}
-                    onClose={() => setShowChat(false)}
-                  />
-                )}
                 
                 {/* Download Executive Summary */}
                 <div className="bg-white/40 border border-slate-200/60 rounded-lg p-6 shadow-sm">
