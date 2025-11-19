@@ -2078,6 +2078,10 @@ export type Database = {
           metric_3_custom_subtitle: string | null
           metric_3_custom_value: string | null
           metric_3_type: string | null
+          metric_4_custom_label: string | null
+          metric_4_custom_subtitle: string | null
+          metric_4_custom_value: string | null
+          metric_4_type: string | null
           owner_notes: string | null
           ownership_structure: string | null
           part_time_employees: number | null
@@ -2134,6 +2138,10 @@ export type Database = {
           metric_3_custom_subtitle?: string | null
           metric_3_custom_value?: string | null
           metric_3_type?: string | null
+          metric_4_custom_label?: string | null
+          metric_4_custom_subtitle?: string | null
+          metric_4_custom_value?: string | null
+          metric_4_type?: string | null
           owner_notes?: string | null
           ownership_structure?: string | null
           part_time_employees?: number | null
@@ -2190,6 +2198,10 @@ export type Database = {
           metric_3_custom_subtitle?: string | null
           metric_3_custom_value?: string | null
           metric_3_type?: string | null
+          metric_4_custom_label?: string | null
+          metric_4_custom_subtitle?: string | null
+          metric_4_custom_value?: string | null
+          metric_4_type?: string | null
           owner_notes?: string | null
           ownership_structure?: string | null
           part_time_employees?: number | null

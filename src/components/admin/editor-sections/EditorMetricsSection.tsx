@@ -9,51 +9,52 @@ interface EditorMetricsSectionProps {
 
 export function EditorMetricsSection({ form }: EditorMetricsSectionProps) {
   const metric3Type = form.watch('metric_3_type') || 'employees';
+  const metric4Type = form.watch('metric_4_type') || 'ebitda_margin';
 
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-base font-semibold mb-4">Financial Metrics Display</h3>
+        <h3 className="text-base font-semibold mb-4">Metrics Display Configuration</h3>
         <p className="text-sm text-muted-foreground mb-4">
-          Customize how the 4 financial metrics appear on the listing detail page.
+          Customize how the 4 key metrics appear on the listing detail page.
         </p>
       </div>
 
       {/* Metric 1: Revenue */}
       <div className="space-y-3 p-4 border rounded-lg bg-muted/20">
-        <h4 className="text-sm font-medium">Metric 1: Revenue</h4>
+        <h4 className="text-sm font-medium">Metric 1: Annual Revenue</h4>
         <div className="space-y-2">
           <Label htmlFor="revenue_metric_subtitle" className="text-xs">Subtitle (optional)</Label>
           <Input
             id="revenue_metric_subtitle"
-            placeholder="e.g., Last 12 Months"
+            placeholder="e.g., Last 12 Months, Trailing Twelve Months"
             {...form.register('revenue_metric_subtitle')}
             className="text-sm"
           />
           <p className="text-xs text-muted-foreground">
-            Appears below the revenue value. Leave empty for default.
+            Appears below the revenue value. Defaults to category if empty.
           </p>
         </div>
       </div>
 
       {/* Metric 2: EBITDA */}
       <div className="space-y-3 p-4 border rounded-lg bg-muted/20">
-        <h4 className="text-sm font-medium">Metric 2: EBITDA</h4>
+        <h4 className="text-sm font-medium">Metric 2: Annual EBITDA</h4>
         <div className="space-y-2">
           <Label htmlFor="ebitda_metric_subtitle" className="text-xs">Subtitle (optional)</Label>
           <Input
             id="ebitda_metric_subtitle"
-            placeholder="e.g., Adjusted EBITDA"
+            placeholder="e.g., Adjusted EBITDA, Normalized Earnings"
             {...form.register('ebitda_metric_subtitle')}
             className="text-sm"
           />
           <p className="text-xs text-muted-foreground">
-            Appears below the EBITDA value. Leave empty for default.
+            Appears below the EBITDA value. Defaults to margin percentage if empty.
           </p>
         </div>
       </div>
 
-      {/* Metric 3: Employees or Custom */}
+      {/* Metric 3: Team Size or Custom */}
       <div className="space-y-3 p-4 border rounded-lg bg-muted/20">
         <h4 className="text-sm font-medium">Metric 3</h4>
         
@@ -109,41 +110,77 @@ export function EditorMetricsSection({ form }: EditorMetricsSectionProps) {
         )}
       </div>
 
-      {/* Metric 4: Custom */}
+      {/* Metric 4: EBITDA Margin or Custom */}
       <div className="space-y-3 p-4 border rounded-lg bg-muted/20">
-        <h4 className="text-sm font-medium">Metric 4: Custom</h4>
-        <div className="space-y-3">
-          <div className="space-y-2">
-            <Label htmlFor="custom_metric_label" className="text-xs">Label</Label>
-            <Input
-              id="custom_metric_label"
-              placeholder="e.g., Gross Margin"
-              {...form.register('custom_metric_label')}
-              className="text-sm"
-            />
+        <h4 className="text-sm font-medium">Metric 4</h4>
+        
+        <RadioGroup
+          value={metric4Type}
+          onValueChange={(value) => form.setValue('metric_4_type', value)}
+          className="space-y-2"
+        >
+          <div className="flex items-center space-x-2">
+            <RadioGroupItem value="ebitda_margin" id="metric4-ebitda" />
+            <Label htmlFor="metric4-ebitda" className="text-sm font-normal cursor-pointer">
+              EBITDA Margin (Calculated automatically)
+            </Label>
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="custom_metric_value" className="text-xs">Value</Label>
-            <Input
-              id="custom_metric_value"
-              placeholder="e.g., 45%"
-              {...form.register('custom_metric_value')}
-              className="text-sm"
-            />
+          <div className="flex items-center space-x-2">
+            <RadioGroupItem value="custom" id="metric4-custom" />
+            <Label htmlFor="metric4-custom" className="text-sm font-normal cursor-pointer">
+              Custom Metric
+            </Label>
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="custom_metric_subtitle" className="text-xs">Subtitle (optional)</Label>
-            <Input
-              id="custom_metric_subtitle"
-              placeholder="e.g., Industry leading"
-              {...form.register('custom_metric_subtitle')}
-              className="text-sm"
-            />
+        </RadioGroup>
+
+        {metric4Type === 'ebitda_margin' && (
+          <div className="space-y-2 mt-3 pl-6 border-l-2">
+            <div className="space-y-2">
+              <Label htmlFor="metric_4_custom_subtitle" className="text-xs">Subtitle (optional)</Label>
+              <Input
+                id="metric_4_custom_subtitle"
+                placeholder="e.g., Profitability metric, Margin profile"
+                {...form.register('metric_4_custom_subtitle')}
+                className="text-sm"
+              />
+              <p className="text-xs text-muted-foreground">
+                Margin is calculated automatically from EBITDA ÷ Revenue
+              </p>
+            </div>
           </div>
-          <p className="text-xs text-muted-foreground">
-            If left empty, this metric will not be displayed.
-          </p>
-        </div>
+        )}
+
+        {metric4Type === 'custom' && (
+          <div className="space-y-3 mt-3 pl-6 border-l-2">
+            <div className="space-y-2">
+              <Label htmlFor="metric_4_custom_label" className="text-xs">Label</Label>
+              <Input
+                id="metric_4_custom_label"
+                placeholder="e.g., Gross Margin, ARR Growth"
+                {...form.register('metric_4_custom_label')}
+                className="text-sm"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="metric_4_custom_value" className="text-xs">Value</Label>
+              <Input
+                id="metric_4_custom_value"
+                placeholder="e.g., 45%, $2.5M"
+                {...form.register('metric_4_custom_value')}
+                className="text-sm"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="metric_4_custom_subtitle" className="text-xs">Subtitle (optional)</Label>
+              <Input
+                id="metric_4_custom_subtitle"
+                placeholder="e.g., Industry leading, Year over year"
+                {...form.register('metric_4_custom_subtitle')}
+                className="text-sm"
+              />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

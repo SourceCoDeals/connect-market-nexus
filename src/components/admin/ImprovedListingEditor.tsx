@@ -57,6 +57,10 @@ const listingFormSchema = z.object({
   metric_3_custom_label: z.string().optional(),
   metric_3_custom_value: z.string().optional(),
   metric_3_custom_subtitle: z.string().optional(),
+  metric_4_type: z.enum(['ebitda_margin', 'custom']).default('ebitda_margin'),
+  metric_4_custom_label: z.string().optional(),
+  metric_4_custom_value: z.string().optional(),
+  metric_4_custom_subtitle: z.string().optional(),
   revenue_metric_subtitle: z.string().optional(),
   ebitda_metric_subtitle: z.string().optional(),
   
@@ -96,6 +100,10 @@ type ListingFormInput = {
   metric_3_custom_label?: string;
   metric_3_custom_value?: string;
   metric_3_custom_subtitle?: string;
+  metric_4_type?: 'ebitda_margin' | 'custom';
+  metric_4_custom_label?: string;
+  metric_4_custom_value?: string;
+  metric_4_custom_subtitle?: string;
   revenue_metric_subtitle?: string;
   ebitda_metric_subtitle?: string;
   presented_by_admin_id?: string | null;
@@ -139,6 +147,10 @@ const convertListingToFormInput = (listing?: AdminListing): ListingFormInput => 
     metric_3_custom_label: listing?.metric_3_custom_label || "",
     metric_3_custom_value: listing?.metric_3_custom_value || "",
     metric_3_custom_subtitle: listing?.metric_3_custom_subtitle || "",
+    metric_4_type: (listing?.metric_4_type || 'ebitda_margin') as 'ebitda_margin' | 'custom',
+    metric_4_custom_label: listing?.metric_4_custom_label || "",
+    metric_4_custom_value: listing?.metric_4_custom_value || "",
+    metric_4_custom_subtitle: listing?.metric_4_custom_subtitle || "",
     revenue_metric_subtitle: listing?.revenue_metric_subtitle || "",
     ebitda_metric_subtitle: listing?.ebitda_metric_subtitle || "",
     presented_by_admin_id: listing?.presented_by_admin_id || null,
@@ -231,6 +243,10 @@ export function ImprovedListingEditor({
         metric_3_custom_label: formData.metric_3_custom_label || null,
         metric_3_custom_value: formData.metric_3_custom_value || null,
         metric_3_custom_subtitle: formData.metric_3_custom_subtitle || null,
+        metric_4_type: formData.metric_4_type || 'ebitda_margin',
+        metric_4_custom_label: formData.metric_4_custom_label || null,
+        metric_4_custom_value: formData.metric_4_custom_value || null,
+        metric_4_custom_subtitle: formData.metric_4_custom_subtitle || null,
         revenue_metric_subtitle: formData.revenue_metric_subtitle || null,
         ebitda_metric_subtitle: formData.ebitda_metric_subtitle || null,
         presented_by_admin_id: formData.presented_by_admin_id || null,

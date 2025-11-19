@@ -185,15 +185,15 @@ const ListingDetail = () => {
                     value: `${(listing.full_time_employees || 0) + (listing.part_time_employees || 0)}`,
                     subtitle: `${listing.full_time_employees || 0} FT, ${listing.part_time_employees || 0} PT`
                   },
-                  // Metric 4: Custom only (optional)
-                  listing.custom_metric_label && listing.custom_metric_value ? {
-                    label: listing.custom_metric_label,
-                    value: listing.custom_metric_value,
-                    subtitle: listing.custom_metric_subtitle
+                  // Metric 4: EBITDA Margin (default) or Custom
+                  listing.metric_4_type === 'custom' && listing.metric_4_custom_label ? {
+                    label: listing.metric_4_custom_label,
+                    value: listing.metric_4_custom_value || '',
+                    subtitle: listing.metric_4_custom_subtitle
                   } : {
-                    label: "Market Coverage",
-                    value: listing.location,
-                    subtitle: (listing.categories && listing.categories.length > 0) ? listing.categories.join(', ') : listing.category
+                    label: "EBITDA Margin",
+                    value: listing.revenue > 0 ? `${((listing.ebitda / listing.revenue) * 100).toFixed(1)}%` : '0%',
+                    subtitle: listing.metric_4_custom_subtitle || "Profitability metric"
                   }
                 ]}
               />
