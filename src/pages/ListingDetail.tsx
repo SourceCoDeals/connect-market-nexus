@@ -16,6 +16,7 @@ import {
   MapPin,
   Share2,
   ExternalLink,
+  Sparkles,
 } from "lucide-react";
 import { DEFAULT_IMAGE } from "@/lib/storage-utils";
 import { formatCurrency } from "@/lib/currency-utils";
@@ -28,8 +29,7 @@ import { ExecutiveSummaryGenerator } from "@/components/listing-detail/Executive
 import { ListingHeader } from "@/components/listing-detail/ListingHeader";
 import { EnhancedFinancialGrid } from "@/components/listing-detail/EnhancedFinancialGrid";
 import { DealAdvisorCard } from "@/components/listing-detail/DealAdvisorCard";
-
-
+import { DealSourcingCriteriaDialog } from "@/components/listing-detail/DealSourcingCriteriaDialog";
 
 import { EditableTitle } from "@/components/listing-detail/EditableTitle";
 import { EditableDescription } from "@/components/listing-detail/EditableDescription";
@@ -44,6 +44,7 @@ import { useQueryClient } from "@tanstack/react-query";
 const ListingDetail = () => {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
+  const [showDealSourcingDialog, setShowDealSourcingDialog] = useState(false);
   
   const queryClient = useQueryClient();
   
@@ -379,26 +380,23 @@ const ListingDetail = () => {
                   </div>
                 </div>
 
-                {/* Exclusive Deal Flow */}
-                <div className="bg-white/50 border border-slate-200/60 rounded-lg p-6 shadow-sm">
-                  <div className="mt-6 pt-4 border-t border-slate-200/50">
-                    <div className="text-center space-y-3">
-                      <div className="space-y-1">
-                        <p className="text-xs font-medium text-foreground">Exclusive Deal Flow</p>
-                        <p className="text-xs text-foreground/70 leading-relaxed">
-                          Access 50+ vetted founder-led businesses with $2M-50M revenue. Off-market opportunities from our proprietary network.
-                        </p>
-                      </div>
-                      <Button 
-                        variant="outline" 
-                        className="w-full text-xs h-8 border-[#D7B65C]/30 text-[#D7B65C] hover:bg-[#D7B65C]/10 hover:border-[#D7B65C]/50"
-                        onClick={() => window.location.href = '/marketplace'}
-                      >
-                        <ExternalLink size={12} className="mr-2" />
-                        Browse Marketplace
-                      </Button>
+                {/* Exclusive Deal Flow Card */}
+                <div className="bg-gradient-to-br from-slate-50 to-white p-6 rounded-lg border border-slate-200/60 shadow-sm hover:shadow-md transition-all duration-300">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="h-10 w-10 rounded-full bg-gradient-to-br from-slate-600 to-slate-700 flex items-center justify-center">
+                      <Sparkles className="h-5 w-5 text-white" />
                     </div>
+                    <h3 className="font-semibold text-foreground">Want More Deals Like This One?</h3>
                   </div>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Get 4-10 pre-qualified owner meetings monthly with off-market opportunities matching your exact investment thesis. We source deals like this one—vetted, exclusive, and aligned with your revenue range, industry focus, and geography—before they hit the market.
+                  </p>
+                  <Button 
+                    className="w-full bg-foreground text-background hover:bg-foreground/90"
+                    onClick={() => setShowDealSourcingDialog(true)}
+                  >
+                    Get My Custom Deal Flow
+                  </Button>
                 </div>
 
                 {/* Deal Advisor Card */}
@@ -418,6 +416,12 @@ const ListingDetail = () => {
           </div>
         </div>
       </div>
+      
+      <DealSourcingCriteriaDialog 
+        open={showDealSourcingDialog}
+        onOpenChange={setShowDealSourcingDialog}
+        user={user}
+      />
     </div>
   );
 };

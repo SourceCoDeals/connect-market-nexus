@@ -919,6 +919,48 @@ export type Database = {
           },
         ]
       }
+      deal_sourcing_requests: {
+        Row: {
+          additional_notes: string | null
+          business_categories: string[] | null
+          buyer_type: string | null
+          created_at: string | null
+          id: string
+          investment_thesis: string | null
+          revenue_max: string | null
+          revenue_min: string | null
+          target_locations: string[] | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          additional_notes?: string | null
+          business_categories?: string[] | null
+          buyer_type?: string | null
+          created_at?: string | null
+          id?: string
+          investment_thesis?: string | null
+          revenue_max?: string | null
+          revenue_min?: string | null
+          target_locations?: string[] | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          additional_notes?: string | null
+          business_categories?: string[] | null
+          buyer_type?: string | null
+          created_at?: string | null
+          id?: string
+          investment_thesis?: string | null
+          revenue_max?: string | null
+          revenue_min?: string | null
+          target_locations?: string[] | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       deal_stages: {
         Row: {
           automation_rules: Json | null
