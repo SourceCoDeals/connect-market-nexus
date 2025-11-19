@@ -36,7 +36,7 @@ export function ListingHeader({
 
   return (
     <div className="mb-8">
-      {/* Top Badges Row - Status Tag */}
+      {/* Top Badges Row - Status Tag, Inactive, Add-On/Platform */}
       <div className="flex items-center gap-2 flex-wrap">
         {listing.status_tag && (
           <ListingStatusTag status={listing.status_tag} variant="inline" />
@@ -47,6 +47,12 @@ export function ListingHeader({
               Inactive
             </span>
           </div>
+        )}
+        {listing.acquisition_type && (
+          <CategoryLocationBadges 
+            acquisitionType={listing.acquisition_type}
+            variant="default"
+          />
         )}
       </div>
 
@@ -70,8 +76,8 @@ export function ListingHeader({
 
       {/* Title Section */}
       <div className="mt-6 mb-8">
-        {/* Title with inline Add-On/Platform badge */}
-        <div className="flex items-center gap-3 flex-wrap mb-3">
+        {/* Title */}
+        <div className="mb-3">
           <h1 className="!text-[30px] !leading-[38px] !font-[300] !tracking-tight text-foreground">
             <EditableTitle
               listingId={listing.id}
@@ -79,14 +85,6 @@ export function ListingHeader({
               isEditing={isAdmin && editModeEnabled && !userViewEnabled}
             />
           </h1>
-          {listing.acquisition_type && (
-            <div className="flex-shrink-0">
-              <CategoryLocationBadges 
-                acquisitionType={listing.acquisition_type}
-                variant="default"
-              />
-            </div>
-          )}
         </div>
 
         {/* Location, Industry, and Listed Date - All in one row */}
