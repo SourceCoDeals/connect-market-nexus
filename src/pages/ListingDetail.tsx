@@ -359,6 +359,16 @@ const ListingDetail = () => {
                       listingId={id!}
                     />
                     
+                    {/* Link to My Deals when request is pending */}
+                    {connectionExists && connectionStatusValue === 'pending' && (
+                      <Link
+                        to="/my-requests"
+                        className="block w-full text-center text-xs text-muted-foreground hover:text-foreground transition-colors py-2 px-3 rounded-md hover:bg-slate-50 border border-transparent hover:border-slate-200"
+                      >
+                        View request status in My Deals →
+                      </Link>
+                    )}
+                    
                     {/* Enhanced Save and Share */}
                     <EnhancedSaveButton 
                       listingId={id!} 
