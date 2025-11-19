@@ -15,54 +15,52 @@ interface EnhancedFinancialGridProps {
 export function EnhancedFinancialGrid({ metrics }: EnhancedFinancialGridProps) {
   return (
     <TooltipProvider>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 py-12 border-y border-slate-200/60">
+      <div className="grid grid-cols-4 gap-8 border-b border-border/30 pb-8">
         {metrics.map((metric, index) => (
           <div 
             key={index}
-            className="flex flex-col gap-2"
+            className="space-y-2"
           >
             {/* Label with tooltip */}
-            <div className="flex items-center gap-1.5">
-              <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-[0.1em] leading-none">
-                {metric.label}
+            <div className="space-y-1">
+              <div className="flex items-center gap-1.5">
+                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">
+                  {metric.label}
+                </p>
+                {metric.tooltip && (
+                  <Tooltip delayDuration={0}>
+                    <TooltipTrigger asChild>
+                      <button className="inline-flex items-center justify-center rounded-full p-0.5 hover:bg-gray-100 transition-colors">
+                        <Info className="w-3 h-3 text-gray-400 hover:text-gray-600 flex-shrink-0" strokeWidth={2} />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent 
+                      side="top" 
+                      align="center"
+                      sideOffset={8}
+                      className="max-w-sm bg-gray-900 text-white border-gray-800 p-4"
+                    >
+                      <div className="space-y-2.5 text-xs leading-relaxed">
+                        <p className="font-semibold text-white">
+                          Off-Market Deal
+                        </p>
+                        <p className="text-gray-200">
+                          {metric.tooltip}
+                        </p>
+                      </div>
+                    </TooltipContent>
+                  </Tooltip>
+                )}
               </div>
-              {metric.tooltip && (
-                <Tooltip delayDuration={0}>
-                  <TooltipTrigger asChild>
-                    <button className="inline-flex items-center justify-center rounded-full p-0.5 hover:bg-gray-100 transition-colors">
-                      <Info className="w-3 h-3 text-gray-400 hover:text-gray-600 flex-shrink-0" strokeWidth={2} />
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent 
-                    side="top" 
-                    align="center"
-                    sideOffset={8}
-                    className="max-w-sm bg-gray-900 text-white border-gray-800 p-4"
-                  >
-                    <div className="space-y-2.5 text-xs leading-relaxed">
-                      <p className="font-semibold text-white">
-                        Off-Market Deal
-                      </p>
-                      <p className="text-gray-200">
-                        {metric.tooltip}
-                      </p>
-                    </div>
-                  </TooltipContent>
-                </Tooltip>
+              
+              {/* Value */}
+              <p className="text-2xl font-light text-foreground">{metric.value}</p>
+              
+              {/* Subtitle */}
+              {metric.subtitle && (
+                <p className="text-xs text-muted-foreground">{metric.subtitle}</p>
               )}
             </div>
-            
-            {/* Value */}
-            <div className="text-[32px] lg:text-[36px] font-normal text-slate-950 tracking-tight leading-none tabular-nums mt-2">
-              {metric.value}
-            </div>
-            
-            {/* Subtitle */}
-            {metric.subtitle && (
-              <div className="text-[13px] text-slate-600 leading-snug mt-1.5">
-                {metric.subtitle}
-              </div>
-            )}
           </div>
         ))}
       </div>
