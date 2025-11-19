@@ -69,7 +69,7 @@ export function ListingHeader({
       </div>
 
       {/* Title Section */}
-      <div className="space-y-3 mt-6 mb-6">
+      <div className="space-y-3 mt-4 mb-6">
         {/* Title with inline Add-On/Platform badge */}
         <div className="flex items-center gap-3 flex-wrap">
           <h1 className="text-[30px] leading-[38px] font-[300] text-foreground">
