@@ -51,7 +51,7 @@ export function ListingHeader({
       </div>
 
       {/* Full-Width Hero Image */}
-      <div className="w-full h-[180px] md:h-[200px] lg:h-[220px] border border-slate-200/60 bg-slate-50 rounded-xl overflow-hidden transition-all duration-200 hover:border-slate-300/80">
+      <div className="w-full h-48 border border-slate-200/40 bg-slate-50 rounded-lg overflow-hidden shadow-sm">
         {imageData.type === 'image' ? (
           <img
             src={imageData.value}
@@ -73,13 +73,13 @@ export function ListingHeader({
         {/* Title with inline Add-On/Platform badge */}
         <div className="flex items-start gap-3 flex-wrap">
           <div className="flex-1 min-w-0">
-            <div className="text-3xl md:text-4xl font-bold text-slate-950 tracking-tight leading-tight">
+            <h1 className="text-3xl font-light text-foreground leading-tight">
               <EditableTitle
                 listingId={listing.id}
                 initialValue={listing.title}
                 isEditing={isAdmin && editModeEnabled && !userViewEnabled}
               />
-            </div>
+            </h1>
           </div>
           {listing.acquisition_type && (
             <div className="flex-shrink-0">
@@ -92,25 +92,25 @@ export function ListingHeader({
         </div>
 
         {/* Location with Icon */}
-        <div className="flex items-center gap-2 text-sm text-slate-600">
-          <MapPin className="w-4 h-4" />
-          <span className="uppercase tracking-wide font-medium">{listing.location}</span>
+        <div className="flex items-center text-foreground/80 mb-1">
+          <MapPin size={12} className="mr-1" />
+          <span className="text-xs font-semibold tracking-wide uppercase">{listing.location}</span>
         </div>
 
         {/* Description */}
-        <div className="text-[15px] leading-relaxed text-slate-700 max-w-3xl line-clamp-3">
+        <div className="text-foreground/80 text-sm font-normal leading-relaxed max-w-2xl line-clamp-3">
           {listing.description}
         </div>
 
         {/* Category Badges & Listed Date */}
-        <div className="flex items-center gap-3 flex-wrap text-sm text-slate-500">
+        <div className="flex items-center gap-3 flex-wrap text-sm text-muted-foreground">
           <CategoryLocationBadges 
             categories={listing.categories}
             category={listing.category}
             variant="default"
           />
           <span>•</span>
-          <div>
+          <div className="text-sm text-muted-foreground">
             {formatListedDate()}
           </div>
         </div>
