@@ -8,10 +8,9 @@ interface EditableTitleProps {
   listingId: string;
   initialValue: string;
   isEditing: boolean;
-  className?: string;
 }
 
-export function EditableTitle({ listingId, initialValue, isEditing, className }: EditableTitleProps) {
+export function EditableTitle({ listingId, initialValue, isEditing }: EditableTitleProps) {
   const [isActive, setIsActive] = useState(false);
   const [value, setValue] = useState(initialValue);
   const { useUpdateListing } = useAdminListings();
@@ -33,7 +32,7 @@ export function EditableTitle({ listingId, initialValue, isEditing, className }:
   };
 
   if (!isEditing) {
-    return <h1 className={className || "text-[22px] font-semibold text-slate-900 leading-tight tracking-tight"}>{initialValue}</h1>;
+    return <h1 className="text-[22px] font-semibold text-slate-900 leading-tight tracking-tight">{initialValue}</h1>;
   }
 
   if (isActive) {
@@ -73,7 +72,7 @@ export function EditableTitle({ listingId, initialValue, isEditing, className }:
 
   return (
     <h1
-      className={className || "text-[22px] font-semibold text-slate-900 leading-tight tracking-tight cursor-pointer hover:bg-sourceco-accent/10 rounded px-2 -mx-2 transition-colors"}
+      className="text-[22px] font-semibold text-slate-900 leading-tight tracking-tight cursor-pointer hover:bg-sourceco-accent/10 rounded px-2 -mx-2 transition-colors"
       onClick={() => setIsActive(true)}
     >
       {initialValue}

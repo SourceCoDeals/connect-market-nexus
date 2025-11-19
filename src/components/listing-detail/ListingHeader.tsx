@@ -1,6 +1,7 @@
-import { ImageIcon, MapPin } from "lucide-react";
+import { ImageIcon } from "lucide-react";
+import ListingStatusTag from "@/components/listing/ListingStatusTag";
+import { CategoryLocationBadges } from "@/components/shared/CategoryLocationBadges";
 import { EditableTitle } from "@/components/listing-detail/EditableTitle";
-import { ListingIdBadge } from "@/components/listing-detail/ListingIdBadge";
 import { getListingImage } from "@/lib/listing-image-utils";
 import { Listing } from "@/types";
 
@@ -20,23 +21,37 @@ export function ListingHeader({
   isInactive 
 }: ListingHeaderProps) {
   const imageData = getListingImage(listing.image_url, listing.category);
+  
+  // Format listed date
+  const formatListedDate = () => {
+    const listedDate = new Date(listing.created_at);
+    const now = new Date();
+    const daysDiff = Math.floor((now.getTime() - listedDate.getTime()) / (1000 * 3600 * 24));
+    if (daysDiff === 0) return "Listed today";
+    if (daysDiff === 1) return "Listed yesterday";
+    if (daysDiff < 7) return `Listed ${daysDiff}d ago`;
+    if (daysDiff < 30) return `Listed ${Math.floor(daysDiff / 7)}w ago`;
+    return "Listed 30+ days ago";
+  };
 
   return (
-    <div className="space-y-6">
-      {/* Top Badges Row - Listing ID + Confidential */}
+    <div className="space-y-6 mb-8">
+      {/* Top Badges Row - Status Tag + Acquisition Type */}
       <div className="flex items-center gap-2 flex-wrap">
-        <ListingIdBadge listingId={listing.id} showConfidential={true} />
+        {listing.status_tag && (
+          <ListingStatusTag status={listing.status_tag} variant="inline" />
+        )}
         {isInactive && isAdmin && (
-          <div className="inline-flex items-center px-3 py-1.5 rounded-md bg-red-50 border border-red-200">
-            <span className="text-xs font-semibold text-red-700 tracking-wide">
-              INACTIVE
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-red-50 border border-red-200">
+            <span className="text-[10px] font-medium text-red-700 tracking-[0.02em]">
+              Inactive
             </span>
           </div>
         )}
       </div>
 
       {/* Full-Width Hero Image */}
-      <div className="w-full h-[200px] md:h-[300px] lg:h-[400px] border border-slate-200/60 bg-slate-50 rounded-xl overflow-hidden">
+      <div className="w-full h-[200px] md:h-[300px] lg:h-[400px] border border-slate-200/60 bg-slate-50 rounded-xl overflow-hidden transition-all duration-200 hover:border-slate-300/80">
         {imageData.type === 'image' ? (
           <img
             src={imageData.value}
@@ -53,29 +68,39 @@ export function ListingHeader({
         )}
       </div>
 
-      {/* Title with Location */}
-      <div className="space-y-3">
-        <div className="flex items-start gap-3">
+      {/* Title Section */}
+      <div className="space-y-4">
+        {/* Title with inline Add-On/Platform badge */}
+        <div className="flex items-start gap-3 flex-wrap">
           <div className="flex-1 min-w-0">
             <EditableTitle
               listingId={listing.id}
               initialValue={listing.title}
               isEditing={isAdmin && editModeEnabled && !userViewEnabled}
-              className="text-3xl lg:text-4xl font-semibold text-slate-950 tracking-tight"
             />
           </div>
-        </div>
-        
-        {/* Location with icon */}
-        <div className="flex items-center gap-2 text-slate-600">
-          <MapPin className="h-4 w-4 flex-shrink-0" />
-          <span className="text-base">{listing.location}</span>
+          {listing.acquisition_type && (
+            <div className="flex-shrink-0">
+              <CategoryLocationBadges 
+                acquisitionType={listing.acquisition_type}
+                variant="default"
+              />
+            </div>
+          )}
         </div>
 
-        {/* Subtitle/Description - first line of description */}
-        <p className="text-base text-slate-600 leading-relaxed line-clamp-2">
-          {listing.category} business with strong market position and consistent revenue growth.
-        </p>
+        {/* Category & Location Badges with Listed Date */}
+        <div className="flex items-center gap-3 flex-wrap">
+          <CategoryLocationBadges 
+            categories={listing.categories}
+            category={listing.category}
+            location={listing.location}
+            variant="default"
+          />
+          <div className="text-sm text-slate-500">
+            {formatListedDate()}
+          </div>
+        </div>
       </div>
     </div>
   );
