@@ -25,6 +25,7 @@ import { EnhancedInvestorDashboard } from "@/components/listing-detail/EnhancedI
 import { CustomSection } from "@/components/listing-detail/CustomSection";
 import { ExecutiveSummaryGenerator } from "@/components/listing-detail/ExecutiveSummaryGenerator";
 import { ListingHeader } from "@/components/listing-detail/ListingHeader";
+import { EnhancedFinancialGrid } from "@/components/listing-detail/EnhancedFinancialGrid";
 
 import { AdminListingSidebar } from "@/components/listing-detail/AdminListingSidebar";
 import { EditableTitle } from "@/components/listing-detail/EditableTitle";
@@ -155,6 +156,34 @@ const ListingDetail = () => {
               editModeEnabled={editModeEnabled}
               userViewEnabled={userViewEnabled}
               isInactive={isInactive}
+            />
+
+            {/* Enhanced Financial Grid */}
+            <EnhancedFinancialGrid 
+              metrics={[
+                {
+                  label: "2024 Revenue",
+                  value: formatCurrency(listing.revenue),
+                  subtitle: listing.category,
+                  tooltip: "Financials range from owner estimates to verified documentation. Verification level varies by owner readiness and will be confirmed in your intro call and due diligence process."
+                },
+                {
+                  label: "EBITDA",
+                  value: formatCurrency(listing.ebitda),
+                  subtitle: `~${listing.revenue > 0 ? ((listing.ebitda / listing.revenue) * 100).toFixed(1) : '0'}% margin profile`,
+                  tooltip: "Financials range from owner estimates to verified documentation. Verification level varies by owner readiness and will be confirmed in your intro call and due diligence process."
+                },
+                {
+                  label: "Business Model",
+                  value: listing.acquisition_type === 'add_on' ? 'Add-On' : listing.acquisition_type === 'platform' ? 'Platform' : 'Platform',
+                  subtitle: listing.acquisition_type === 'add_on' ? 'Strategic acquisition opportunity' : 'Platform investment'
+                },
+                {
+                  label: "Market Coverage",
+                  value: listing.location,
+                  subtitle: (listing.categories && listing.categories.length > 0) ? listing.categories.join(', ') : listing.category
+                }
+              ]}
             />
 
             {/* Financial Summary */}

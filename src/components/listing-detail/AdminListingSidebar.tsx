@@ -33,14 +33,14 @@ export function AdminListingSidebar({
   };
 
   return (
-    <div className="sticky top-6 space-y-4">
+    <div className="sticky top-6 space-y-6">
       {/* View Controls - Always visible to admins */}
       {!userViewEnabled && (
-        <div className="bg-white border border-sourceco-form rounded-lg p-4 shadow-sm space-y-3">
+        <div className="bg-white rounded-xl p-5 shadow-sm border border-slate-200/60 space-y-4">
           {/* User View Toggle */}
-          <div className="flex items-center justify-between pb-3 border-b border-sourceco-form">
-            <div className="flex items-center gap-2">
-              <Eye className="h-4 w-4 text-slate-600" />
+          <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+            <div className="flex items-center gap-2.5">
+              <Eye className="h-4 w-4 text-slate-500" />
               <Label htmlFor="user-view" className="text-sm font-medium text-slate-900 cursor-pointer">
                 User View
               </Label>
@@ -54,8 +54,8 @@ export function AdminListingSidebar({
 
           {/* Edit Mode Toggle */}
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Edit className="h-4 w-4 text-slate-600" />
+            <div className="flex items-center gap-2.5">
+              <Edit className="h-4 w-4 text-slate-500" />
               <Label htmlFor="edit-mode" className="text-sm font-medium text-slate-900 cursor-pointer">
                 Edit Mode
               </Label>
@@ -71,10 +71,10 @@ export function AdminListingSidebar({
 
       {/* Status Tag Control - Hide in user view */}
       {!userViewEnabled && (
-        <div className="bg-white border border-sourceco-form rounded-lg p-4 shadow-sm">
-          <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <FileText className="h-4 w-4 text-slate-600" />
+        <div className="bg-white rounded-xl p-5 shadow-sm border border-slate-200/60">
+          <div className="space-y-4">
+            <div className="flex items-center gap-2.5">
+              <FileText className="h-4 w-4 text-slate-500" />
               <h3 className="text-sm font-semibold text-slate-900">Listing Status</h3>
             </div>
             <StatusTagSwitcher
@@ -88,49 +88,38 @@ export function AdminListingSidebar({
 
       {/* Buyer Visibility Control - Hide in user view */}
       {!userViewEnabled && (
-        <div className="bg-white border border-sourceco-form rounded-lg p-4 shadow-sm">
-          <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <Users className="h-4 w-4 text-slate-600" />
+        <div className="bg-white rounded-xl p-5 shadow-sm border border-slate-200/60">
+          <div className="space-y-4">
+            <div className="flex items-center gap-2.5">
+              <Users className="h-4 w-4 text-slate-500" />
               <h3 className="text-sm font-semibold text-slate-900">Buyer Visibility</h3>
             </div>
             
-            <div className="space-y-3 text-xs">
+            <div className="space-y-3 text-sm">
               {!listing.visible_to_buyer_types || listing.visible_to_buyer_types.length === 0 ? (
                 <div>
-                  <div className="flex items-center gap-1.5 text-slate-500 mb-1">
-                    <Users className="h-3 w-3" />
+                  <div className="flex items-center gap-2 text-slate-600 mb-1.5">
+                    <Users className="h-3.5 w-3.5" />
                     <span className="font-medium">Visibility</span>
                   </div>
-                  <p className="text-slate-900 pl-4">All Buyer Types 🌐</p>
+                  <p className="text-slate-900 pl-5">All Buyer Types 🌐</p>
                 </div>
               ) : (
                 <div>
-                  <div className="flex items-center gap-1.5 text-slate-500 mb-1">
-                    <Users className="h-3 w-3" />
-                    <span className="font-medium">Restricted Visibility</span>
+                  <div className="flex items-center gap-2 text-slate-600 mb-1.5">
+                    <Users className="h-3.5 w-3.5" />
+                    <span className="font-medium">Visible To</span>
                   </div>
-                  <div className="pl-4 space-y-1">
-                    <p className="text-slate-600 mb-2">
-                      Visible to {listing.visible_to_buyer_types.length} buyer type{listing.visible_to_buyer_types.length > 1 ? 's' : ''}:
-                    </p>
-                    {listing.visible_to_buyer_types.map((type) => {
-                      const labels: Record<string, string> = {
-                        privateEquity: 'Private Equity',
-                        corporate: 'Corporate',
-                        familyOffice: 'Family Office',
-                        searchFund: 'Search Fund',
-                        individual: 'Individual',
-                        independentSponsor: 'Independent Sponsor',
-                        advisor: 'Advisor',
-                        businessOwner: 'Business Owner'
-                      };
-                      return (
-                        <div key={type} className="text-slate-900">
-                          • {labels[type] || type}
-                        </div>
-                      );
-                    })}
+                  <div className="pl-5 space-y-1">
+                    {listing.visible_to_buyer_types.map((type, index) => (
+                      <p key={index} className="text-slate-900">
+                        {type === 'searcher' && '🔍 Searchers'}
+                        {type === 'independent_sponsor' && '💼 Independent Sponsors'}
+                        {type === 'family_office' && '🏛️ Family Offices'}
+                        {type === 'private_equity' && '📈 Private Equity'}
+                        {type === 'strategic' && '🎯 Strategic Buyers'}
+                      </p>
+                    ))}
                   </div>
                 </div>
               )}
@@ -139,80 +128,76 @@ export function AdminListingSidebar({
         </div>
       )}
 
-      {/* Internal Company Information - Hide in user view */}
-      {!userViewEnabled && (listing.internal_company_name || 
-        listing.internal_primary_owner || 
-        listing.internal_contact_info ||
-        listing.internal_salesforce_link ||
-        listing.internal_deal_memo_link) && (
-        <div className="bg-white border border-sourceco-form rounded-lg p-4 shadow-sm">
-          <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <Building2 className="h-4 w-4 text-slate-600" />
+      {/* Internal Information */}
+      {!userViewEnabled && (
+        <div className="bg-white rounded-xl p-5 shadow-sm border border-slate-200/60">
+          <div className="space-y-4">
+            <div className="flex items-center gap-2.5 mb-1">
+              <Building2 className="h-4 w-4 text-slate-500" />
               <h3 className="text-sm font-semibold text-slate-900">Internal Information</h3>
             </div>
-            
-            <div className="space-y-3 text-xs">
+
+            <div className="space-y-4 text-sm">
               {listing.internal_company_name && (
                 <div>
-                  <div className="flex items-center gap-1.5 text-slate-500 mb-1">
-                    <Building2 className="h-3 w-3" />
-                    <span className="font-medium">Company Name</span>
+                  <div className="flex items-center gap-2 text-slate-600 mb-1.5">
+                    <Building2 className="h-3.5 w-3.5" />
+                    <span className="font-medium">Company</span>
                   </div>
-                  <p className="text-slate-900 pl-4">{listing.internal_company_name}</p>
+                  <p className="text-slate-900 pl-5 break-words">{listing.internal_company_name}</p>
                 </div>
               )}
-              
+
               {listing.internal_primary_owner && (
                 <div>
-                  <div className="flex items-center gap-1.5 text-slate-500 mb-1">
-                    <User className="h-3 w-3" />
-                    <span className="font-medium">Primary Owner</span>
+                  <div className="flex items-center gap-2 text-slate-600 mb-1.5">
+                    <User className="h-3.5 w-3.5" />
+                    <span className="font-medium">Owner</span>
                   </div>
-                  <p className="text-slate-900 pl-4">{listing.internal_primary_owner}</p>
+                  <p className="text-slate-900 pl-5 break-words">{listing.internal_primary_owner}</p>
                 </div>
               )}
-              
+
               {listing.internal_contact_info && (
                 <div>
-                  <div className="flex items-center gap-1.5 text-slate-500 mb-1">
-                    <Mail className="h-3 w-3" />
-                    <span className="font-medium">Contact Info</span>
+                  <div className="flex items-center gap-2 text-slate-600 mb-1.5">
+                    <Mail className="h-3.5 w-3.5" />
+                    <span className="font-medium">Contact</span>
                   </div>
-                  <p className="text-slate-900 pl-4 break-words">{listing.internal_contact_info}</p>
+                  <p className="text-slate-900 pl-5 break-words text-xs">{listing.internal_contact_info}</p>
                 </div>
               )}
-              
+
               {listing.internal_salesforce_link && (
                 <div>
-                  <div className="flex items-center gap-1.5 text-slate-500 mb-1">
-                    <LinkIcon className="h-3 w-3" />
+                  <div className="flex items-center gap-2 text-slate-600 mb-1.5">
+                    <LinkIcon className="h-3.5 w-3.5" />
                     <span className="font-medium">Salesforce</span>
                   </div>
                   <a 
-                    href={listing.internal_salesforce_link}
-                    target="_blank"
+                    href={listing.internal_salesforce_link} 
+                    target="_blank" 
                     rel="noopener noreferrer"
-                    className="text-sourceco-accent hover:underline pl-4 block break-all"
+                    className="text-blue-600 hover:text-blue-700 underline pl-5 break-all text-xs"
                   >
-                    View in Salesforce →
+                    View in Salesforce
                   </a>
                 </div>
               )}
-              
+
               {listing.internal_deal_memo_link && (
                 <div>
-                  <div className="flex items-center gap-1.5 text-slate-500 mb-1">
-                    <FileText className="h-3 w-3" />
+                  <div className="flex items-center gap-2 text-slate-600 mb-1.5">
+                    <FileText className="h-3.5 w-3.5" />
                     <span className="font-medium">Deal Memo</span>
                   </div>
                   <a 
-                    href={listing.internal_deal_memo_link}
-                    target="_blank"
+                    href={listing.internal_deal_memo_link} 
+                    target="_blank" 
                     rel="noopener noreferrer"
-                    className="text-sourceco-accent hover:underline pl-4 block break-all"
+                    className="text-blue-600 hover:text-blue-700 underline pl-5 break-all text-xs"
                   >
-                    View Deal Memo →
+                    View Deal Memo
                   </a>
                 </div>
               )}
@@ -221,18 +206,12 @@ export function AdminListingSidebar({
         </div>
       )}
 
-      {/* Help Text - Hide in user view */}
-      {!userViewEnabled && (
-        <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs text-slate-600">
-          {editModeEnabled ? (
-            <p>
-              <span className="font-medium text-slate-900">Edit Mode Active:</span> Click on listing content to edit in place. Changes save automatically.
-            </p>
-          ) : (
-            <p>
-              <span className="font-medium text-slate-900">Admin View:</span> Toggle "User View" to see the listing as buyers see it.
-            </p>
-          )}
+      {/* Edit Mode Help Text */}
+      {!userViewEnabled && editModeEnabled && (
+        <div className="bg-blue-50 rounded-xl p-4 border border-blue-100">
+          <p className="text-xs text-blue-900 leading-relaxed">
+            <strong className="font-semibold">Edit Mode Active:</strong> Click on any text field to edit it directly. Changes are saved automatically.
+          </p>
         </div>
       )}
     </div>
