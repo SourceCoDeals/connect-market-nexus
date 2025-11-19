@@ -159,7 +159,8 @@ const ListingDetail = () => {
             />
 
             {/* Enhanced Financial Grid */}
-            <EnhancedFinancialGrid 
+            <div className="mt-6">
+              <EnhancedFinancialGrid
               metrics={[
                 {
                   label: "2024 Revenue",
@@ -185,6 +186,7 @@ const ListingDetail = () => {
                 }
               ]}
             />
+            </div>
 
             {/* Financial Summary */}
             <div>
