@@ -121,9 +121,8 @@ const ConnectionButton = ({
       <Button
         onClick={handleButtonClick}
         disabled={disabled || isRequesting}
-        className={`w-full h-11 font-semibold text-sm tracking-[0.002em] rounded-lg shadow-sm hover:shadow transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#D8B75D]/30 focus:ring-offset-2 ${className}`}
+        className={`w-full bg-[#D7B65C] hover:bg-[#D7B65C]/90 text-slate-900 font-medium text-xs py-2.5 h-auto rounded-md transition-colors duration-200 ${className}`}
       >
-        <Send className="h-4 w-4" />
         {isRequesting ? "Sending request..." : buttonText}
       </Button>
 
