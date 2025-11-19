@@ -87,7 +87,7 @@ export function DealAdvisorCard({ presentedByAdminId, listingId }: DealAdvisorCa
             </button>
           </TooltipTrigger>
           <TooltipContent side="bottom" className="text-xs max-w-[240px]">
-            <p>Request a connection and {displayName} will be in touch shortly with next steps</p>
+            <p>This deal is presented by {displayName}, who will be in touch with next steps shortly after you request full deal details</p>
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
