@@ -925,6 +925,7 @@ export type Database = {
           business_categories: string[] | null
           buyer_type: string | null
           created_at: string | null
+          custom_message: string | null
           id: string
           investment_thesis: string | null
           revenue_max: string | null
@@ -938,6 +939,7 @@ export type Database = {
           business_categories?: string[] | null
           buyer_type?: string | null
           created_at?: string | null
+          custom_message?: string | null
           id?: string
           investment_thesis?: string | null
           revenue_max?: string | null
@@ -951,6 +953,7 @@ export type Database = {
           business_categories?: string[] | null
           buyer_type?: string | null
           created_at?: string | null
+          custom_message?: string | null
           id?: string
           investment_thesis?: string | null
           revenue_max?: string | null
