@@ -35,7 +35,7 @@ export function ListingHeader({
   };
 
   return (
-    <div className="space-y-2 mb-8">
+    <div className="mb-8">
       {/* Top Badges Row - Status Tag */}
       <div className="flex items-center gap-2 flex-wrap">
         {listing.status_tag && (
@@ -51,7 +51,7 @@ export function ListingHeader({
       </div>
 
       {/* Full-Width Hero Image */}
-      <div className="w-full h-56 border border-slate-200/40 bg-slate-50 rounded-lg overflow-hidden shadow-sm">
+      <div className="w-full h-56 border border-slate-200/40 bg-slate-50 rounded-lg overflow-hidden shadow-sm mt-2">
         {imageData.type === 'image' ? (
           <img
             src={imageData.value}
@@ -69,9 +69,9 @@ export function ListingHeader({
       </div>
 
       {/* Title Section */}
-      <div className="space-y-3 mt-4 mb-6">
+      <div className="mt-5 mb-8">
         {/* Title with inline Add-On/Platform badge */}
-        <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex items-center gap-3 flex-wrap mb-3">
           <h1 className="text-[30px] leading-[38px] font-[300] text-foreground">
             <EditableTitle
               listingId={listing.id}
@@ -90,7 +90,7 @@ export function ListingHeader({
         </div>
 
         {/* Location, Industry, and Listed Date - All in one row */}
-        <div className="flex items-center gap-3 flex-wrap text-foreground/80">
+        <div className="flex items-center gap-3 flex-wrap text-foreground/80 mb-3">
           <div className="flex items-center">
             <MapPin size={12} className="mr-1" />
             <span className="text-xs font-semibold tracking-wide uppercase">{listing.location}</span>
