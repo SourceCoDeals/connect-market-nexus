@@ -3,7 +3,7 @@ import { Input } from "@/components/ui/input";
 import { UseFormReturn } from "react-hook-form";
 import { EnhancedMultiCategorySelect } from "@/components/ui/enhanced-category-select";
 import { EnhancedMultiLocationSelect } from "@/components/ui/enhanced-location-select";
-import { Building2, Tag, Target } from "lucide-react";
+import { Building2, Tag, Target, UserCog } from "lucide-react";
 import { EditorBuyerVisibilitySection } from "./EditorBuyerVisibilitySection";
 import {
   Select,
@@ -15,6 +15,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import AcquisitionTypeBadge from "@/components/listing/AcquisitionTypeBadge";
 import ListingStatusTag from "@/components/listing/ListingStatusTag";
+import { useAdminProfiles } from "@/hooks/admin/use-admin-profiles";
+import { ADMIN_PROFILES } from "@/lib/admin-profiles";
 
 interface EditorBasicInfoSectionProps {
   form: UseFormReturn<any>;
@@ -187,6 +189,46 @@ export function EditorBasicInfoSection({ form }: EditorBasicInfoSectionProps) {
                   </SelectItem>
                 </SelectContent>
               </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="presented_by_admin_id"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel className="text-sm font-medium flex items-center gap-2">
+                <UserCog className="h-4 w-4" />
+                Deal Presented By
+              </FormLabel>
+              <Select
+                onValueChange={(value) => field.onChange(value === "none" ? null : value)}
+                defaultValue={field.value || "none"}
+              >
+                <FormControl>
+                  <SelectTrigger className="h-11 bg-background border-border">
+                    <SelectValue placeholder="Select advisor" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent className="bg-background z-50">
+                  <SelectItem value="none">
+                    <span className="text-sm text-muted-foreground">Default (Primary Owner)</span>
+                  </SelectItem>
+                  {Object.entries(ADMIN_PROFILES).map(([email, profile]) => (
+                    <SelectItem key={email} value={email}>
+                      <div className="flex flex-col">
+                        <span className="text-sm font-medium">{profile.name}</span>
+                        <span className="text-xs text-muted-foreground">{profile.title}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Admin who will be shown as presenting this deal to buyers
+              </p>
               <FormMessage />
             </FormItem>
           )}

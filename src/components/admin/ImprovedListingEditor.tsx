@@ -43,6 +43,7 @@ const listingFormSchema = z.object({
   // Admin-only internal fields
   internal_company_name: z.string().optional(),
   primary_owner_id: z.string().uuid().nullable().optional(),
+  presented_by_admin_id: z.string().email().nullable().optional(),
   internal_salesforce_link: z.string().optional(),
   internal_deal_memo_link: z.string().optional(),
   internal_contact_info: z.string().optional(),
@@ -58,9 +59,6 @@ const listingFormSchema = z.object({
   metric_3_custom_subtitle: z.string().optional(),
   revenue_metric_subtitle: z.string().optional(),
   ebitda_metric_subtitle: z.string().optional(),
-  
-  // Deal advisor
-  presented_by_admin_id: z.string().uuid().nullable().optional(),
   
   // Buyer visibility control
   visible_to_buyer_types: z.array(z.enum([
