@@ -204,8 +204,8 @@ const ListingDetail = () => {
             </div>
 
             {/* Internal Company Information - Admin Only */}
-            {showAdminView && (
-              <InternalCompanyInfoDisplay listing={listing as any} />
+            {showAdminView && listing && (
+              <InternalCompanyInfoDisplay listing={listing} />
             )}
 
             {/* Financial Summary */}
