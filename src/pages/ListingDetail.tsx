@@ -149,9 +149,9 @@ const ListingDetail = () => {
       
       {/* Main Content */}
       <div className="max-w-5xl mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-10 gap-[42px]">
-          {/* Main Content - 70% */}
-          <div className="lg:col-span-7 space-y-8">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_310px] gap-[42px]">
+          {/* Main Content */}
+          <div className="space-y-8">
             
             {/* Horizontal Header */}
             <ListingHeader
@@ -333,8 +333,8 @@ const ListingDetail = () => {
             )}
           </div>
 
-          {/* Sidebar - 30% */}
-          <div className="lg:col-span-3">
+          {/* Sidebar */}
+          <div>
             {isAdmin ? (
               <>
                 <AdminListingSidebar 
