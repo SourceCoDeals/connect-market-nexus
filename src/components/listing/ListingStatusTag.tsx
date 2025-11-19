@@ -38,7 +38,7 @@ const ListingStatusTag = ({ status, className, variant = 'absolute' }: ListingSt
     <Badge
       variant="default"
       className={cn(
-        "px-2.5 py-1 text-[9px] font-normal rounded-md uppercase tracking-[0.08em]",
+        "px-2.5 py-1 text-[9px] font-semibold rounded-md uppercase tracking-[0.12em]",
         "inline-flex items-center border-0 shadow-none",
         variant === 'absolute' && "absolute bottom-3 left-3 z-10",
         config.bgClass,
