@@ -15,7 +15,7 @@ interface EnhancedFinancialGridProps {
 export function EnhancedFinancialGrid({ metrics }: EnhancedFinancialGridProps) {
   return (
     <TooltipProvider>
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 py-8 border-y border-slate-200/60">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 py-10 border-y border-slate-200/60">
         {metrics.map((metric, index) => (
           <div 
             key={index}
@@ -23,7 +23,7 @@ export function EnhancedFinancialGrid({ metrics }: EnhancedFinancialGridProps) {
           >
             {/* Label with tooltip */}
             <div className="flex items-center gap-1.5">
-              <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-[0.08em]">
+              <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-[0.1em] leading-none">
                 {metric.label}
               </div>
               {metric.tooltip && (
@@ -53,13 +53,13 @@ export function EnhancedFinancialGrid({ metrics }: EnhancedFinancialGridProps) {
             </div>
             
             {/* Value */}
-            <div className="text-3xl lg:text-4xl font-normal text-slate-950 tracking-tight leading-none tabular-nums">
+            <div className="text-[32px] lg:text-[36px] font-normal text-slate-950 tracking-tight leading-none tabular-nums mt-2">
               {metric.value}
             </div>
             
             {/* Subtitle */}
             {metric.subtitle && (
-              <div className="text-sm text-slate-600 leading-snug">
+              <div className="text-[13px] text-slate-600 leading-snug mt-1.5">
                 {metric.subtitle}
               </div>
             )}
