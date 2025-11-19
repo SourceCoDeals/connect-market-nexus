@@ -417,7 +417,7 @@
 }
 
 .prose h2 {
-  @apply text-[22px] font-bold text-slate-900 mt-6 mb-2;
+  @apply text-sm font-medium leading-5 mt-8 mb-4 pt-8 border-t border-slate-100;
 }
 
 .prose h3 {
