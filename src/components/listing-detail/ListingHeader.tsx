@@ -35,9 +35,9 @@ export function ListingHeader({
   };
 
   return (
-    <div className="mb-8">
+    <div className="mb-8 -mt-12 pt-12">
       {/* Top Badges Row - Status Tag, Inactive, Add-On/Platform */}
-      <div className="flex items-center gap-2 flex-wrap">
+      <div className="flex items-center gap-2 flex-wrap mb-2">
         {listing.status_tag && (
           <ListingStatusTag status={listing.status_tag} variant="inline" />
         )}
@@ -57,7 +57,7 @@ export function ListingHeader({
       </div>
 
       {/* Full-Width Hero Image */}
-      <div className="w-full h-56 border border-slate-200/40 bg-slate-50 rounded-lg overflow-hidden shadow-sm mt-2">
+      <div className="w-full h-56 border border-slate-200/40 bg-slate-50 rounded-lg overflow-hidden shadow-sm">
         {imageData.type === 'image' ? (
           <img
             src={imageData.value}
