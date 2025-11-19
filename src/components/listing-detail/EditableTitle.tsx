@@ -32,7 +32,7 @@ export function EditableTitle({ listingId, initialValue, isEditing }: EditableTi
   };
 
   if (!isEditing) {
-    return <h1 className="text-[22px] font-semibold text-slate-900 leading-tight tracking-tight">{initialValue}</h1>;
+    return <span>{initialValue}</span>;
   }
 
   if (isActive) {
@@ -71,11 +71,11 @@ export function EditableTitle({ listingId, initialValue, isEditing }: EditableTi
   }
 
   return (
-    <h1
-      className="text-[22px] font-semibold text-slate-900 leading-tight tracking-tight cursor-pointer hover:bg-sourceco-accent/10 rounded px-2 -mx-2 transition-colors"
+    <span
+      className="cursor-pointer hover:bg-sourceco-accent/10 rounded px-2 -mx-2 transition-colors inline-block"
       onClick={() => setIsActive(true)}
     >
       {initialValue}
-    </h1>
+    </span>
   );
 }
