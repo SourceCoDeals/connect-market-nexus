@@ -22,9 +22,9 @@ const AcquisitionTypeBadge = ({ type, className = "" }: AcquisitionTypeBadgeProp
   const { label, icon: Icon } = config[type];
 
   return (
-    <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#D8B75D] ${className}`}>
+    <div className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-[#D8B75D] ${className}`}>
       <Icon className="w-3 h-3 text-[#000000]" strokeWidth={2.5} />
-      <span className="text-[11px] font-semibold text-[#000000] uppercase tracking-[0.1em] leading-none">
+      <span className="text-[11px] font-semibold text-[#000000] uppercase tracking-[0.05em] leading-none">
         {label}
       </span>
     </div>
