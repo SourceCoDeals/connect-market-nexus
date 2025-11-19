@@ -57,6 +57,10 @@ export interface AdminListing {
   metric_3_custom_label?: string | null;
   metric_3_custom_value?: string | null;
   metric_3_custom_subtitle?: string | null;
+  metric_4_type?: string | null;
+  metric_4_custom_label?: string | null;
+  metric_4_custom_value?: string | null;
+  metric_4_custom_subtitle?: string | null;
   revenue_metric_subtitle?: string | null;
   ebitda_metric_subtitle?: string | null;
   
