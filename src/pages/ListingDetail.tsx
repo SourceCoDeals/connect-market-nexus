@@ -159,32 +159,7 @@ const ListingDetail = () => {
             />
 
             {/* Enhanced Financial Grid */}
-            <EnhancedFinancialGrid 
-              metrics={[
-                {
-                  label: "2024 Revenue",
-                  value: formatCurrency(listing.revenue),
-                  subtitle: listing.category,
-                  tooltip: "Financials range from owner estimates to verified documentation. Verification level varies by owner readiness and will be confirmed in your intro call and due diligence process."
-                },
-                {
-                  label: "EBITDA",
-                  value: formatCurrency(listing.ebitda),
-                  subtitle: `~${listing.revenue > 0 ? ((listing.ebitda / listing.revenue) * 100).toFixed(1) : '0'}% margin profile`,
-                  tooltip: "Financials range from owner estimates to verified documentation. Verification level varies by owner readiness and will be confirmed in your intro call and due diligence process."
-                },
-                {
-                  label: "Business Model",
-                  value: listing.acquisition_type === 'add_on' ? 'Add-On' : listing.acquisition_type === 'platform' ? 'Platform' : 'Platform',
-                  subtitle: listing.acquisition_type === 'add_on' ? 'Strategic acquisition opportunity' : 'Platform investment'
-                },
-                {
-                  label: "Market Coverage",
-                  value: listing.location,
-                  subtitle: (listing.categories && listing.categories.length > 0) ? listing.categories.join(', ') : listing.category
-                }
-              ]}
-            />
+            <EnhancedFinancialGrid listing={listing} />
 
             {/* Financial Summary */}
             <div className="pt-8">
