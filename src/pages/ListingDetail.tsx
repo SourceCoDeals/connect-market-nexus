@@ -187,7 +187,7 @@ const ListingDetail = () => {
             />
 
             {/* Financial Summary */}
-            <div className="pt-8">
+            <div>
               <EnhancedInvestorDashboard 
                 listing={listing}
                 formatCurrency={formatCurrency}
