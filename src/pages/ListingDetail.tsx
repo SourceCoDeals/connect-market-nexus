@@ -387,7 +387,7 @@ const ListingDetail = () => {
                       <div className="space-y-1">
                         <p className="text-xs font-medium text-foreground">Want More Deals Like This One?</p>
                         <p className="text-xs text-foreground/70 leading-relaxed">
-                          Get 4-10 pre-qualified owner meetings monthly with off-market opportunities matching your exact investment thesis. We source deals like this one—vetted, exclusive, and aligned with your revenue range, industry focus, and geography—before they hit the market.
+                          Get 4-10 pre-qualified owner meetings monthly with off-market opportunities matching your exact investment thesis. We source deals like this one that are vetted, exclusive, and aligned with your revenue range, industry focus, and geography before they hit the market.
                         </p>
                       </div>
                       <Button 
