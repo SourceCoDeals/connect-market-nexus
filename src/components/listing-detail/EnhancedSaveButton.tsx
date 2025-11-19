@@ -11,11 +11,14 @@ import {
 
 interface EnhancedSaveButtonProps {
   listingId: string;
+  listingTitle: string;
+  revenue: number;
+  ebitda: number;
+  location: string;
   onSave?: () => void;
-  onShare?: () => void;
 }
 
-export function EnhancedSaveButton({ listingId, onSave, onShare }: EnhancedSaveButtonProps) {
+export function EnhancedSaveButton({ listingId, listingTitle, revenue, ebitda, location, onSave }: EnhancedSaveButtonProps) {
   const { data: isSaved } = useSavedStatus(listingId);
   const { mutate: toggleSave, isPending } = useSaveListingMutation();
 
@@ -31,6 +34,24 @@ export function EnhancedSaveButton({ listingId, onSave, onShare }: EnhancedSaveB
         },
       }
     );
+  };
+
+  const handleShare = () => {
+    const listingUrl = `${window.location.origin}/listing/${listingId}`;
+    
+    const subject = `Check out this deal: ${listingTitle}`;
+    
+    let body = `I thought you might be interested in this deal:\n\n`;
+    body += `${listingTitle}\n`;
+    body += `Location: ${location}\n`;
+    body += `Annual Revenue: ${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(revenue)}\n`;
+    body += `Annual EBITDA: ${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(ebitda)}\n\n`;
+    body += `View listing: ${listingUrl}\n\n`;
+    body += `Note: You'll need an approved account to view the listing details.\n`;
+    
+    const mailtoLink = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    
+    window.location.href = mailtoLink;
   };
 
   return (
@@ -51,22 +72,20 @@ export function EnhancedSaveButton({ listingId, onSave, onShare }: EnhancedSaveB
         </Button>
         
         {/* Share button - Secondary action, 25% width, icon-only */}
-        {onShare && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="outline"
-                onClick={onShare}
-                className="flex-1 h-9 px-0 border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-sourceco-accent/30 focus:ring-offset-2"
-              >
-                <Share2 className="h-3.5 w-3.5" />
-              </Button>
-            </TooltipTrigger>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="outline"
+              onClick={handleShare}
+              className="flex-1 h-9 px-0 border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-sourceco-accent/30 focus:ring-offset-2"
+            >
+              <Share2 className="h-3.5 w-3.5" />
+            </Button>
+          </TooltipTrigger>
           <TooltipContent>
             <p>Email to colleague</p>
           </TooltipContent>
-          </Tooltip>
-        )}
+        </Tooltip>
       </div>
     </TooltipProvider>
   );

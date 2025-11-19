@@ -36,7 +36,6 @@ import { EditableDescription } from "@/components/listing-detail/EditableDescrip
 import { CategoryLocationBadges } from "@/components/shared/CategoryLocationBadges";
 import { CalendarIcon, DocumentIcon, BuildingIcon } from "@/components/icons/MetricIcons";
 import { SimilarListingsCarousel } from "@/components/listing-detail/SimilarListingsCarousel";
-import { ShareDealDialog } from "@/components/listing-detail/ShareDealDialog";
 import { EnhancedSaveButton } from "@/components/listing-detail/EnhancedSaveButton";
 import { InternalCompanyInfoDisplay } from "@/components/admin/InternalCompanyInfoDisplay";
 
@@ -45,7 +44,6 @@ import { useQueryClient } from "@tanstack/react-query";
 const ListingDetail = () => {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
-  const [showShareDialog, setShowShareDialog] = useState(false);
   
   const queryClient = useQueryClient();
   
@@ -371,9 +369,12 @@ const ListingDetail = () => {
                     
                     {/* Enhanced Save and Share */}
                     <EnhancedSaveButton 
-                      listingId={id!} 
+                      listingId={id!}
+                      listingTitle={listing.title}
+                      revenue={listing.revenue}
+                      ebitda={listing.ebitda}
+                      location={listing.location}
                       onSave={() => trackListingSave(id!)}
-                      onShare={() => setShowShareDialog(true)}
                     />
                   </div>
                 </div>
@@ -417,16 +418,6 @@ const ListingDetail = () => {
           </div>
         </div>
       </div>
-      
-      {/* Dialogs */}
-      {listing && (
-        <ShareDealDialog
-          open={showShareDialog}
-          onOpenChange={setShowShareDialog}
-          listingId={id!}
-          listingTitle={listing.title}
-        />
-      )}
     </div>
   );
 };
