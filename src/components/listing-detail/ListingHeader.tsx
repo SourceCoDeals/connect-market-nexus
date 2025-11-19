@@ -35,9 +35,27 @@ export function ListingHeader({
   };
 
   return (
-    <div className="mb-8">
-      {/* Top Badges Row - Status Tag, Inactive, Add-On/Platform */}
-      <div className="flex items-center gap-2 flex-wrap">
+    <div className="mb-8 relative">
+      {/* Image positioned at top */}
+      <div className="absolute top-0 left-0 right-0 w-full h-56 border border-slate-200/40 bg-slate-50 rounded-lg overflow-hidden shadow-sm">
+        {imageData.type === 'image' ? (
+          <img
+            src={imageData.value}
+            alt={listing.title}
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <div 
+            className="w-full h-full flex items-center justify-center"
+            style={{ background: imageData.value }}
+          >
+            <ImageIcon className="h-24 w-24 text-white opacity-40" />
+          </div>
+        )}
+      </div>
+
+      {/* Top Badges Row - Status Tag, Inactive, Add-On/Platform - will overflow on image */}
+      <div className="flex items-center gap-2 flex-wrap relative z-10 pt-3 px-3">
         {listing.status_tag && (
           <ListingStatusTag status={listing.status_tag} variant="inline" />
         )}
@@ -56,26 +74,8 @@ export function ListingHeader({
         )}
       </div>
 
-      {/* Full-Width Hero Image */}
-      <div className="w-full h-56 border border-slate-200/40 bg-slate-50 rounded-lg overflow-hidden shadow-sm mt-2">
-        {imageData.type === 'image' ? (
-          <img
-            src={imageData.value}
-            alt={listing.title}
-            className="w-full h-full object-cover"
-          />
-        ) : (
-          <div 
-            className="w-full h-full flex items-center justify-center"
-            style={{ background: imageData.value }}
-          >
-            <ImageIcon className="h-24 w-24 text-white opacity-40" />
-          </div>
-        )}
-      </div>
-
-      {/* Title Section */}
-      <div className="mt-6 mb-8">
+      {/* Title Section - positioned below image */}
+      <div className="mt-[15.5rem] mb-8">
         {/* Title */}
         <div className="mb-3">
           <h1 className="!text-[30px] !leading-[38px] !font-[300] !tracking-tight text-foreground">
