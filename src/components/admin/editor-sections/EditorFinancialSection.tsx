@@ -130,13 +130,13 @@ export function EditorFinancialSection({ form }: EditorFinancialSectionProps) {
             <FormLabel className="text-sm font-medium">Investment Context (Internal)</FormLabel>
             <FormControl>
               <Textarea
-                placeholder="Key investment highlights, deal rationale, exit considerations..."
-                className="min-h-[100px] bg-background border-border focus:border-sourceco-accent transition-colors resize-none"
+                placeholder="Internal notes about the business context, investment highlights, or key points for buyers..."
+                className="min-h-[100px] resize-none"
                 {...field}
               />
             </FormControl>
             <FormDescription>
-              Internal notes visible only to admins
+              Internal notes visible only to admins during deal discussions
             </FormDescription>
             <FormMessage />
           </FormItem>
