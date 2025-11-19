@@ -38,6 +38,7 @@ import { CalendarIcon, DocumentIcon, BuildingIcon } from "@/components/icons/Met
 import { SimilarListingsCarousel } from "@/components/listing-detail/SimilarListingsCarousel";
 import { ShareDealDialog } from "@/components/listing-detail/ShareDealDialog";
 import { EnhancedSaveButton } from "@/components/listing-detail/EnhancedSaveButton";
+import { InternalCompanyInfoDisplay } from "@/components/admin/InternalCompanyInfoDisplay";
 
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -201,6 +202,11 @@ const ListingDetail = () => {
                 ]}
               />
             </div>
+
+            {/* Internal Company Information - Admin Only */}
+            {showAdminView && (
+              <InternalCompanyInfoDisplay listing={listing as any} />
+            )}
 
             {/* Financial Summary */}
             <div>

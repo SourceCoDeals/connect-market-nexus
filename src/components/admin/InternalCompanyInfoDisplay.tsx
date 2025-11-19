@@ -3,12 +3,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Shield, Building, User, Link as LinkIcon, FileText, Clipboard, ExternalLink } from "lucide-react";
 import { AdminListing } from "@/types/admin";
+import { useSourceCoAdmins } from "@/hooks/admin/use-source-co-admins";
 
 interface InternalCompanyInfoDisplayProps {
   listing: AdminListing;
 }
 
 export function InternalCompanyInfoDisplay({ listing }: InternalCompanyInfoDisplayProps) {
+  const { data: sourceCoAdmins } = useSourceCoAdmins();
   // Debug logging
   console.log('🔍 InternalCompanyInfoDisplay - Listing data:', {
     id: listing?.id,
@@ -22,9 +24,13 @@ export function InternalCompanyInfoDisplay({ listing }: InternalCompanyInfoDispl
     allKeys: Object.keys(listing || {})
   });
 
+  // Find the primary owner details
+  const primaryOwner = sourceCoAdmins?.find(admin => admin.id === listing?.primary_owner_id);
+  
   // Only show if there's any internal information
   const hasInternalInfo = listing?.deal_identifier || 
     listing?.internal_company_name || 
+    listing?.primary_owner_id ||
     listing?.internal_primary_owner || 
     listing?.internal_salesforce_link || 
     listing?.internal_deal_memo_link || 
@@ -75,12 +81,14 @@ export function InternalCompanyInfoDisplay({ listing }: InternalCompanyInfoDispl
             </div>
           )}
 
-          {listing.internal_primary_owner && (
+          {(primaryOwner || listing.internal_primary_owner) && (
             <div className="flex items-start gap-3">
               <User className="h-5 w-5 text-slate-600 dark:text-slate-400 flex-shrink-0 mt-0.5" />
               <div>
-                <div className="font-medium text-sm text-slate-700 dark:text-slate-300">Primary Owner</div>
-                <div className="text-sm text-slate-900 dark:text-slate-100">{listing.internal_primary_owner}</div>
+                <div className="font-medium text-sm text-slate-700 dark:text-slate-300">Primary Owner/Lead</div>
+                <div className="text-sm text-slate-900 dark:text-slate-100">
+                  {primaryOwner ? `${primaryOwner.displayName} (${primaryOwner.email})` : listing.internal_primary_owner}
+                </div>
               </div>
             </div>
           )}
