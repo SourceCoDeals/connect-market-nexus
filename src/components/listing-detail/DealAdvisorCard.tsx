@@ -1,8 +1,14 @@
-import { User } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { ArrowRight } from 'lucide-react';
 import { useAdminProfiles } from '@/hooks/admin/use-admin-profiles';
 import { useConnectionStatus } from '@/hooks/marketplace/use-connections';
 import { getAdminProfile } from '@/lib/admin-profiles';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 interface DealAdvisorCardProps {
   presentedByAdminId: string | null | undefined;
@@ -47,41 +53,50 @@ export function DealAdvisorCard({ presentedByAdminId, listingId, onContactClick 
   const hasActiveConnection = connectionStatus?.status === 'approved';
 
   return (
-    <div className="bg-white/40 border border-slate-200/60 rounded-lg p-6 shadow-sm">
-      <h4 className="text-xs font-medium text-foreground mb-4 uppercase tracking-wider">
+    <div className="bg-white/40 border border-slate-200/60 rounded-lg p-4 shadow-sm">
+      <h4 className="text-[10px] font-medium text-foreground mb-3 uppercase tracking-wider">
         Deal Presented By
       </h4>
       
-      <div className="flex items-start gap-3 mb-4">
-        {/* Avatar */}
-        <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-          <User className="h-6 w-6 text-primary" />
-        </div>
+      <div className="flex items-start gap-2.5 mb-3">
+        <Avatar className="w-10 h-10 flex-shrink-0">
+          <AvatarImage src="/avatars/tomos-mughan.jpg" alt={advisorProfile.displayName} />
+          <AvatarFallback className="bg-primary/10 text-primary text-xs">
+            {advisorProfile.displayName.split(' ').map(n => n[0]).join('')}
+          </AvatarFallback>
+        </Avatar>
         
-        {/* Info */}
-        <div>
-          <div className="font-medium text-sm text-foreground">
+        <div className="min-w-0">
+          <div className="font-medium text-xs text-foreground leading-tight">
             {advisorProfile.displayName}
           </div>
-          <div className="text-xs text-muted-foreground">
+          <div className="text-[10px] text-muted-foreground leading-tight mt-0.5">
             {advisorProfile.title}
           </div>
         </div>
       </div>
 
-      <Button
-        onClick={onContactClick}
-        disabled={!hasActiveConnection}
-        className="w-full text-xs h-9 bg-[#D7B65C] hover:bg-[#D7B65C]/90 text-slate-900 disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        {hasActiveConnection ? `Contact ${advisorProfile.displayName.split(' ')[0]}` : 'Request Connection to Contact'}
-      </Button>
-      
-      {!hasActiveConnection && (
-        <p className="text-xs text-muted-foreground mt-2 text-center">
-          Submit a connection request to unlock direct communication
-        </p>
-      )}
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              onClick={hasActiveConnection ? onContactClick : undefined}
+              disabled={!hasActiveConnection}
+              className="group flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-muted-foreground"
+            >
+              <span>
+                {hasActiveConnection ? `Contact ${advisorProfile.displayName.split(' ')[0]}` : 'Request connection to contact'}
+              </span>
+              <ArrowRight className="w-3 h-3 transition-transform group-hover:translate-x-0.5" />
+            </button>
+          </TooltipTrigger>
+          {!hasActiveConnection && (
+            <TooltipContent side="bottom" className="text-xs max-w-[200px]">
+              <p>Submit a connection request to unlock direct communication</p>
+            </TooltipContent>
+          )}
+        </Tooltip>
+      </TooltipProvider>
     </div>
   );
 }
