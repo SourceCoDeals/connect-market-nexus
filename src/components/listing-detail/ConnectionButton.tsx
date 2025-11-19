@@ -69,7 +69,7 @@ const ConnectionButton = ({
 
     return {
       text: "Request Full Deal Details",
-      className: "bg-[#D8B75D] hover:bg-[#C5A54A] text-white border-none",
+      className: "bg-[#D8B75D] hover:bg-[#C5A54A] text-slate-900 border-none",
       disabled: false
     };
   };
