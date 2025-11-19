@@ -69,10 +69,10 @@ export function ListingHeader({
       </div>
 
       {/* Title Section */}
-      <div className="mt-5 mb-8">
+      <div className="mt-6 mb-8">
         {/* Title with inline Add-On/Platform badge */}
         <div className="flex items-center gap-3 flex-wrap mb-3">
-          <h1 className="text-[30px] leading-[38px] font-[300] text-foreground">
+          <h1 className="!text-[30px] !leading-[38px] !font-[300] text-foreground">
             <EditableTitle
               listingId={listing.id}
               initialValue={listing.title}
