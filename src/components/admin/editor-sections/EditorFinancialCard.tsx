@@ -38,7 +38,7 @@ export function EditorFinancialCard({ form }: EditorFinancialCardProps) {
                     value={field.value?.toString() || ''}
                     onChange={(value) => {
                       const digits = value.replace(/\D/g, '');
-                      field.onChange(digits ? Number(digits) : 0);
+                      field.onChange(digits || '');
                     }}
                     currencyMode="auto"
                     fieldType="revenue"
@@ -72,7 +72,7 @@ export function EditorFinancialCard({ form }: EditorFinancialCardProps) {
                     value={field.value?.toString() || ''}
                     onChange={(value) => {
                       const digits = value.replace(/\D/g, '');
-                      field.onChange(digits ? Number(digits) : 0);
+                      field.onChange(digits || '');
                     }}
                     currencyMode="auto"
                     fieldType="revenue"
