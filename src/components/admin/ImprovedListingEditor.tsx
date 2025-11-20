@@ -209,6 +209,10 @@ export function ImprovedListingEditor({
 
   const handleSubmit = async (formData: ListingFormValues) => {
     try {
+      console.log('[EDITOR] Raw form data from Zod:', formData);
+      console.log('[EDITOR] Revenue type:', typeof formData.revenue, 'Value:', formData.revenue);
+      console.log('[EDITOR] EBITDA type:', typeof formData.ebitda, 'Value:', formData.ebitda);
+      
       if (imageError) {
         toast({
           variant: "destructive",
@@ -251,6 +255,10 @@ export function ImprovedListingEditor({
         internal_notes: formData.internal_notes || null,
       };
       
+      console.log('[EDITOR] Transformed data being sent:', transformedData);
+      console.log('[EDITOR] Is image changed:', isImageChanged);
+      console.log('[EDITOR] Selected image:', selectedImage);
+      
       await onSubmit(transformedData, isImageChanged ? selectedImage : undefined);
       
       if (!listing) {
@@ -260,7 +268,7 @@ export function ImprovedListingEditor({
         setIsImageChanged(false);
       }
     } catch (error: any) {
-      console.error("Error submitting listing:", error);
+      console.error('[EDITOR] Form submission error:', error);
       toast({
         variant: "destructive",
         title: "Error",

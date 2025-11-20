@@ -155,9 +155,16 @@ const EnhancedAdminListings = () => {
   };
 
   const handleFormSubmit = async (data: any, image?: File | null, sendDealAlerts?: boolean) => {
+    console.log('[FORM SUBMIT] Editing listing:', editingListing);
+    console.log('[FORM SUBMIT] Data received:', data);
+    console.log('[FORM SUBMIT] Image provided:', !!image);
+    
     if (editingListing) {
+      console.log('[FORM SUBMIT] Calling updateListing with ID:', editingListing.id);
+      console.log('[FORM SUBMIT] Listing data:', data);
       updateListing({ id: editingListing.id, listing: data, image });
     } else {
+      console.log('[FORM SUBMIT] Calling createListing');
       createListing({ listing: data, image, sendDealAlerts });
     }
   };

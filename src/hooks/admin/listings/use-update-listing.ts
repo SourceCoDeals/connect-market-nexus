@@ -22,7 +22,9 @@ export function useUpdateListing() {
       image?: File | null;
     }) => {
       try {
-        // Updating listing
+        console.log('[UPDATE LISTING] Starting update for listing ID:', id);
+        console.log('[UPDATE LISTING] Data being sent:', listing);
+        console.log('[UPDATE LISTING] Image provided:', !!image);
         
         // Ensure bucket exists before attempting upload
         if (image) {
@@ -48,11 +50,17 @@ export function useUpdateListing() {
           .select()
           .single();
         
+        console.log('[UPDATE LISTING] Supabase response - data:', data);
+        console.log('[UPDATE LISTING] Supabase response - error:', error);
+        
         if (error) {
-          console.error("Error updating listing:", error);
+          console.error("[UPDATE LISTING] Error updating listing:", error);
           throw error;
         }
-        if (!data) throw new Error('No data returned from update');
+        if (!data) {
+          console.error('[UPDATE LISTING] No data returned - possibly no rows matched!');
+          throw new Error('Update failed: No listing found with that ID or insufficient permissions. Please verify the listing exists and you have admin access.');
+        }
         
         // Listing updated successfully
         
