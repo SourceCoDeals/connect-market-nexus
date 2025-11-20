@@ -1,5 +1,7 @@
-import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/context/AuthContext';
+import { useTabAwareQuery } from '@/hooks/use-tab-aware-query';
+import { toast } from '@/hooks/use-toast';
 
 export interface DealSourcingRequest {
   id: string;
@@ -36,9 +38,33 @@ export interface DealSourcingFilters {
 }
 
 export const useDealSourcingRequests = (filters?: DealSourcingFilters) => {
-  return useQuery({
-    queryKey: ['deal-sourcing-requests', filters],
-    queryFn: async () => {
+  const { user, authChecked, isAdmin } = useAuth();
+
+  // Get cached auth state for more stable query enabling
+  const cachedAuthState = (() => {
+    try {
+      const cached = localStorage.getItem('auth-state');
+      return cached ? JSON.parse(cached) : null;
+    } catch {
+      return null;
+    }
+  })();
+
+  const isAdminUser = isAdmin || cachedAuthState?.is_admin === true;
+  const shouldEnable = (authChecked || cachedAuthState) && isAdminUser;
+
+  return useTabAwareQuery(
+    ['deal-sourcing-requests', filters],
+    async () => {
+      if (!isAdminUser) {
+        toast({
+          title: "Access Denied",
+          description: "Admin authentication required to view deal sourcing requests.",
+          variant: "destructive",
+        });
+        throw new Error('Admin authentication required');
+      }
+
       let query = supabase
         .from('deal_sourcing_requests')
         .select(`
@@ -84,7 +110,15 @@ export const useDealSourcingRequests = (filters?: DealSourcingFilters) => {
 
       const { data, error } = await query;
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching deal sourcing requests:', error);
+        toast({
+          title: "Error Loading Requests",
+          description: error.message || "Failed to load deal sourcing requests. Please try again.",
+          variant: "destructive",
+        });
+        throw error;
+      }
 
       // Transform data to include user info
       return (data || []).map((request: any) => ({
@@ -99,7 +133,13 @@ export const useDealSourcingRequests = (filters?: DealSourcingFilters) => {
           : request.assigned_admin?.email,
       })) as DealSourcingRequest[];
     },
-  });
+    {
+      enabled: shouldEnable,
+      staleTime: 30 * 1000, // 30 seconds
+      retry: 2,
+      refetchOnMount: true,
+    }
+  );
 };
 
 export const useUpdateDealSourcingRequest = () => {

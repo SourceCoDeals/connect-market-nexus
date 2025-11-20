@@ -41,3 +41,7 @@ export const invalidateAssociatedRequests = (queryClient: QueryClient, requestId
   }
   return queryClient.invalidateQueries({ queryKey: ['associated-requests'] });
 };
+
+export const invalidateDealSourcingRequests = (queryClient: QueryClient) => {
+  return queryClient.invalidateQueries({ queryKey: ['deal-sourcing-requests'] });
+};
