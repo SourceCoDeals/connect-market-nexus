@@ -69,6 +69,10 @@
     --ring: 222.2 84% 4.9%;
     --radius: 0.5rem;
     
+    /* Notification badge color - vibrant gold */
+    --notification: 43 85% 55%;
+    --notification-foreground: 0 0% 100%;
+    
     /* Premium design tokens - Updated to SourceCo colors */
     --premium-primary: 43 38% 56%; /* SourceCo gold instead of blue */
     --premium-primary-foreground: 0 0% 100%;

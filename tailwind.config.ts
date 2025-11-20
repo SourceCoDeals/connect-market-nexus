@@ -97,6 +97,10 @@ export default {
 				'status-completed': {
 					DEFAULT: 'hsl(var(--status-completed))',
 					foreground: 'hsl(var(--status-completed-foreground))'
+				},
+				notification: {
+					DEFAULT: 'hsl(var(--notification))',
+					foreground: 'hsl(var(--notification-foreground))'
 				}
 			},
 			borderRadius: {
