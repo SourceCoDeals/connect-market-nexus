@@ -85,6 +85,18 @@ export default {
 				warning: {
 					DEFAULT: 'hsl(var(--warning))',
 					foreground: 'hsl(var(--warning-foreground))'
+				},
+				'status-required': {
+					DEFAULT: 'hsl(var(--status-required))',
+					foreground: 'hsl(var(--status-required-foreground))'
+				},
+				'status-sent': {
+					DEFAULT: 'hsl(var(--status-sent))',
+					foreground: 'hsl(var(--status-sent-foreground))'
+				},
+				'status-completed': {
+					DEFAULT: 'hsl(var(--status-completed))',
+					foreground: 'hsl(var(--status-completed-foreground))'
 				}
 			},
 			borderRadius: {
