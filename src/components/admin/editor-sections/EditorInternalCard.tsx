@@ -80,7 +80,7 @@ export function EditorInternalCard({ form, dealIdentifier }: EditorInternalCardP
           <div className={EDITOR_DESIGN.microLabel}>Owner</div>
           <FormField
             control={form.control}
-            name="internal_primary_owner"
+            name="primary_owner_id"
             render={({ field }) => (
               <FormItem>
                 <Select onValueChange={field.onChange} value={field.value || ''}>
@@ -113,7 +113,7 @@ export function EditorInternalCard({ form, dealIdentifier }: EditorInternalCardP
           <div className={EDITOR_DESIGN.microLabel}>Presenter</div>
           <FormField
             control={form.control}
-            name="presented_by_admin"
+            name="presented_by_admin_id"
             render={({ field }) => (
               <FormItem>
                 <Select onValueChange={field.onChange} value={field.value || ''}>
