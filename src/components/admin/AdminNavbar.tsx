@@ -111,7 +111,7 @@ export function AdminNavbar({ className }: AdminNavbarProps) {
                   >
                     {item.icon}
                     <span className="font-medium flex-1">{item.label}</span>
-                    {'badge' in item && item.badge && item.badge > 0 && (
+                    {item.badge !== undefined && item.badge > 0 && (
                       <Badge 
                         className="h-5 min-w-[20px] px-2 flex items-center justify-center text-[10px] font-bold tracking-wide ml-auto bg-notification text-notification-foreground border-notification shadow-sm"
                       >

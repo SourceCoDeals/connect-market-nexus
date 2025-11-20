@@ -177,7 +177,7 @@ const NavLink = ({ to, icon, label, isActive, collapsed, badge }: NavLinkProps) 
         <>
           <span className="flex-1 truncate">{label}</span>
           
-          {badge && badge > 0 && (
+          {badge > 0 && (
             <Badge 
               className="h-5 min-w-[20px] px-2 flex items-center justify-center text-[10px] font-bold tracking-wide bg-notification text-notification-foreground border-notification shadow-sm"
             >
@@ -192,7 +192,7 @@ const NavLink = ({ to, icon, label, isActive, collapsed, badge }: NavLinkProps) 
       )}
       
       {/* Collapsed state: show badge as dot indicator */}
-      {collapsed && badge && badge > 0 && (
+      {collapsed && badge > 0 && (
         <div className="absolute top-1 right-1 h-2 w-2 bg-notification rounded-full" />
       )}
       
