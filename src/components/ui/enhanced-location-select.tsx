@@ -90,7 +90,7 @@ export function EnhancedMultiLocationSelect({
           <div className="flex items-center min-w-0">
             {value.length > 0 ? (
               <span className="text-sm truncate">
-                {value[0]}
+                {value.join(', ')}
               </span>
             ) : (
               <span className="text-muted-foreground">{placeholder}</span>
