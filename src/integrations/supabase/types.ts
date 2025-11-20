@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_connection_requests_views: {
+        Row: {
+          admin_id: string
+          created_at: string | null
+          id: string
+          last_viewed_at: string
+          updated_at: string | null
+        }
+        Insert: {
+          admin_id: string
+          created_at?: string | null
+          id?: string
+          last_viewed_at?: string
+          updated_at?: string | null
+        }
+        Update: {
+          admin_id?: string
+          created_at?: string | null
+          id?: string
+          last_viewed_at?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       admin_deal_sourcing_views: {
         Row: {
           admin_id: string
@@ -149,6 +173,30 @@ export type Database = {
           signature_html?: string
           signature_text?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      admin_users_views: {
+        Row: {
+          admin_id: string
+          created_at: string | null
+          id: string
+          last_viewed_at: string
+          updated_at: string | null
+        }
+        Insert: {
+          admin_id: string
+          created_at?: string | null
+          id?: string
+          last_viewed_at?: string
+          updated_at?: string | null
+        }
+        Update: {
+          admin_id?: string
+          created_at?: string | null
+          id?: string
+          last_viewed_at?: string
+          updated_at?: string | null
         }
         Relationships: []
       }

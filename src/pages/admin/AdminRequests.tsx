@@ -26,11 +26,13 @@ import { ViewSwitcher } from "@/components/admin/ViewSwitcher";
 import { InboundLeadsTable } from "@/components/admin/InboundLeadsTable";
 import { useInboundLeadsQuery, useMapLeadToListing, useConvertLeadToRequest, useArchiveInboundLead } from "@/hooks/admin/use-inbound-leads";
 import { supabase } from "@/integrations/supabase/client";
+import { useMarkConnectionRequestsViewed } from "@/hooks/admin/use-mark-connection-requests-viewed";
 
 
 const AdminRequests = () => {
   const queryClient = useQueryClient();
   const { useConnectionRequests, useConnectionRequestsMutation, sendConnectionApprovalEmail, sendConnectionRejectionEmail, sendCustomApprovalEmail } = useAdmin();
+  const { markAsViewed } = useMarkConnectionRequestsViewed();
   
   const { data: requests = [], isLoading, error, refetch } = useConnectionRequests();
   const { data: inboundLeads = [], isLoading: isLeadsLoading } = useInboundLeadsQuery();
@@ -51,6 +53,11 @@ const AdminRequests = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedUserForApprovalEmail, setSelectedUserForApprovalEmail] = useState<any>(null);
   const [isApprovalEmailDialogOpen, setIsApprovalEmailDialogOpen] = useState(false);
+
+  // Mark connection requests as viewed when component mounts
+  useEffect(() => {
+    markAsViewed();
+  }, []);
 
   // Realtime subscriptions for instant updates
   useEffect(() => {

@@ -18,3 +18,7 @@ export { useNonMarketplaceUsers } from './use-non-marketplace-users';
 export * from './use-deal-sourcing-requests';
 export * from './use-unviewed-deal-sourcing';
 export * from './use-mark-deal-sourcing-viewed';
+export * from './use-unviewed-connection-requests';
+export * from './use-mark-connection-requests-viewed';
+export * from './use-unviewed-users';
+export * from './use-mark-users-viewed';
