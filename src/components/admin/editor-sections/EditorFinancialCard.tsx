@@ -36,7 +36,10 @@ export function EditorFinancialCard({ form }: EditorFinancialCardProps) {
                 <FormControl>
                   <EnhancedCurrencyInput
                     value={field.value?.toString() || ''}
-                    onChange={(value) => field.onChange(Number(value))}
+                    onChange={(value) => {
+                      const digits = value.replace(/\D/g, '');
+                      field.onChange(digits ? Number(digits) : 0);
+                    }}
                     currencyMode="auto"
                     fieldType="revenue"
                     showSuffix={true}
@@ -67,7 +70,10 @@ export function EditorFinancialCard({ form }: EditorFinancialCardProps) {
                 <FormControl>
                   <EnhancedCurrencyInput
                     value={field.value?.toString() || ''}
-                    onChange={(value) => field.onChange(Number(value))}
+                    onChange={(value) => {
+                      const digits = value.replace(/\D/g, '');
+                      field.onChange(digits ? Number(digits) : 0);
+                    }}
                     currencyMode="auto"
                     fieldType="revenue"
                     showSuffix={true}
