@@ -173,7 +173,7 @@ const NavLink = ({ to, icon, label, isActive, collapsed, badge }: NavLinkProps) 
           
           {badge && badge > 0 && (
             <Badge 
-              className="h-5 min-w-[20px] px-1.5 flex items-center justify-center text-[10px] font-semibold bg-notification text-notification-foreground border-notification"
+              className="h-5 min-w-[20px] px-2 flex items-center justify-center text-[10px] font-bold tracking-wide bg-notification text-notification-foreground border-notification shadow-sm"
             >
               {badge > 9 ? '9+' : badge}
             </Badge>
