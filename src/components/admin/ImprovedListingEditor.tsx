@@ -128,8 +128,8 @@ const convertListingToFormInput = (listing?: AdminListing): ListingFormInput => 
     categories: listing?.categories || (listing?.category ? [listing.category] : []),
     acquisition_type: listing?.acquisition_type || 'add_on',
     location: listing?.location || "",
-    revenue: listing?.revenue?.toString() || "0",
-    ebitda: listing?.ebitda?.toString() || "0",
+    revenue: listing?.revenue ? listing.revenue.toString() : "",
+    ebitda: listing?.ebitda ? listing.ebitda.toString() : "",
     full_time_employees: listing?.full_time_employees || 0,
     part_time_employees: listing?.part_time_employees || 0,
     description: listing?.description || "",
@@ -276,14 +276,14 @@ export function ImprovedListingEditor({
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-slate-50/30">
-      <div className="max-w-[1800px] mx-auto px-10 py-8">
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)}>
-            {/* TOP BAR - Critical fields */}
-            <EditorTopBar form={form} />
-            
-            {/* MAIN CONTENT - Card grid */}
-            <div className="grid grid-cols-[1fr_480px] gap-6 mb-6">
+    <div className="max-w-[1920px] mx-auto px-12 py-8">
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(handleSubmit)}>
+          {/* TOP BAR - Critical fields */}
+          <EditorTopBar form={form} />
+          
+          {/* MAIN CONTENT - Card grid */}
+          <div className="grid grid-cols-[1fr_540px] gap-8 mb-6">
               {/* Left: Financial */}
               <EditorFinancialCard form={form} />
               
