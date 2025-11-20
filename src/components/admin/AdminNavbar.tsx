@@ -107,7 +107,7 @@ export function AdminNavbar({ className }: AdminNavbarProps) {
                     <span className="font-medium flex-1">{item.label}</span>
                     {'badge' in item && item.badge && item.badge > 0 && (
                       <Badge 
-                        className="h-5 min-w-[20px] px-1.5 flex items-center justify-center text-[10px] font-semibold ml-auto bg-notification text-notification-foreground border-notification"
+                        className="h-5 min-w-[20px] px-2 flex items-center justify-center text-[10px] font-bold tracking-wide ml-auto bg-notification text-notification-foreground border-notification shadow-sm"
                       >
                         {item.badge > 9 ? '9+' : item.badge}
                       </Badge>
