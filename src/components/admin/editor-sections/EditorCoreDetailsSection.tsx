@@ -15,8 +15,8 @@ export function EditorCoreDetailsSection({ form }: EditorCoreDetailsSectionProps
 
   return (
     <div className={EDITOR_DESIGN.sectionSpacing}>
-      <div className={EDITOR_DESIGN.sectionBorder}>
-        <h3 className={EDITOR_DESIGN.sectionHeader}>Core Details</h3>
+      <div className="pb-3 mb-4 border-b border-border/40">
+        <h3 className="text-sm font-medium text-foreground">Core Details</h3>
       </div>
 
       <FormField

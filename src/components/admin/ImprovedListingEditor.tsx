@@ -11,12 +11,12 @@ import { Loader2, Save, Eye } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // Import section components
-import { EditorCoreDetailsSection } from "./editor-sections/EditorCoreDetailsSection";
+import { EditorTopBar } from "./editor-sections/EditorTopBar";
+import { EditorFinancialCard } from "./editor-sections/EditorFinancialCard";
 import { EditorDescriptionSection } from "./editor-sections/EditorDescriptionSection";
-import { EditorFinancialAndMetricsSection } from "./editor-sections/EditorFinancialAndMetricsSection";
 import { EditorVisualsSection } from "./editor-sections/EditorVisualsSection";
-import { EditorInternalDataSection } from "./editor-sections/EditorInternalDataSection";
-import { EditorLivePreview } from "./editor-sections/EditorLivePreview";
+import { EditorInternalCard } from "./editor-sections/EditorInternalCard";
+import { EDITOR_DESIGN } from "@/lib/editor-design-system";
 
 // Form schema
 const listingFormSchema = z.object({
@@ -171,7 +171,6 @@ export function ImprovedListingEditor({
   const [imagePreview, setImagePreview] = useState<string | null>(listing?.image_url || null);
   const [isImageChanged, setIsImageChanged] = useState(false);
   const [imageError, setImageError] = useState<string | null>(null);
-  const [showPreview, setShowPreview] = useState(false);
 
   const form = useForm<ListingFormInput>({
     resolver: zodResolver(listingFormSchema),
@@ -276,97 +275,62 @@ export function ImprovedListingEditor({
   };
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="flex items-center justify-between px-8 py-6 border-b border-border bg-background sticky top-0 z-10">
-        <div>
-          <h2 className="text-2xl font-light tracking-tight text-foreground">
-            {listing ? "Edit Listing" : "Create New Listing"}
-          </h2>
-          <p className="text-sm text-muted-foreground mt-1">
-            {listing ? "Update listing information and details" : "Add a new business to the marketplace"}
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => setShowPreview(!showPreview)}
-            className="gap-2"
-          >
-            <Eye className="h-4 w-4" />
-            {showPreview ? "Hide Preview" : "Show Preview"}
-          </Button>
-          <Button
-            onClick={form.handleSubmit(handleSubmit)}
-            disabled={isLoading || !!imageError}
-            className="gap-2 bg-sourceco-accent hover:bg-sourceco-accent/90 text-sourceco-accent-foreground"
-          >
-            {isLoading ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Saving...
-              </>
-            ) : (
-              <>
-                <Save className="h-4 w-4" />
-                {listing ? "Update Listing" : "Create Listing"}
-              </>
-            )}
-          </Button>
-        </div>
-      </div>
-
-      {/* Two-panel layout */}
-      <div className="flex-1 flex overflow-hidden relative">
-        {/* Main Editor Panel */}
-        <div className={cn(
-          "flex-1 overflow-y-auto transition-all duration-300",
-          showPreview ? "lg:mr-[460px]" : "mr-0"
-        )}>
-          <div className="max-w-6xl mx-auto px-6 sm:px-8 lg:px-12 py-8">
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(handleSubmit)}>
-                <div className="grid grid-cols-1 lg:grid-cols-[1.5fr_1fr] gap-8 pb-24">
-                  {/* Left Column: Listing Data */}
-                  <div className="space-y-8">
-                    <EditorCoreDetailsSection form={form} />
-                    
-                    <EditorFinancialAndMetricsSection form={form} />
-                    
-                    <EditorDescriptionSection form={form} />
-                    
-                    <EditorVisualsSection
-                      imagePreview={imagePreview}
-                      imageError={imageError}
-                      onImageSelect={handleImageSelect}
-                      onRemoveImage={handleRemoveImage}
-                    />
-                  </div>
-
-                  {/* Right Column: Internal Admin Data */}
-                  <div>
-                    <EditorInternalDataSection 
-                      form={form} 
-                      dealIdentifier={listing?.deal_identifier}
-                    />
-                  </div>
-                </div>
-              </form>
-            </Form>
-          </div>
-        </div>
-
-        {/* Live Preview Panel */}
-        {showPreview && (
-          <div className="hidden lg:block fixed top-16 right-0 w-[460px] h-[calc(100vh-4rem)] bg-muted/30 border-l border-border overflow-y-auto z-40">
-            <EditorLivePreview
-              formValues={form.watch()}
-              imagePreview={imagePreview}
-            />
-          </div>
-        )}
+    <div className="min-h-screen bg-gradient-to-b from-white to-slate-50/30">
+      <div className={cn(EDITOR_DESIGN.maxWidth, "mx-auto", EDITOR_DESIGN.contentPadding)}>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(handleSubmit)}>
+            {/* TOP BAR - Critical fields */}
+            <EditorTopBar form={form} />
+            
+            {/* MAIN CONTENT - Card grid */}
+            <div className={cn("grid grid-cols-[1fr_380px]", EDITOR_DESIGN.cardSpacing, "mb-6")}>
+              {/* Left: Financial */}
+              <EditorFinancialCard form={form} />
+              
+              {/* Right: Internal */}
+              <EditorInternalCard form={form} dealIdentifier={listing?.deal_identifier} />
+            </div>
+            
+            {/* FULL WIDTH - Description */}
+            <div className="mb-6">
+              <EditorDescriptionSection form={form} />
+            </div>
+            
+            {/* FULL WIDTH - Image */}
+            <div className="mb-6">
+              <EditorVisualsSection
+                imagePreview={imagePreview}
+                imageError={imageError}
+                onImageSelect={handleImageSelect}
+                onRemoveImage={handleRemoveImage}
+              />
+            </div>
+            
+            {/* FOOTER - Actions */}
+            <div className="flex items-center justify-between pt-6 border-t border-border/30">
+              <div className="text-sm text-muted-foreground">
+                {listing ? `Last updated: ${new Date(listing.updated_at).toLocaleDateString()}` : 'Draft'}
+              </div>
+              <Button 
+                type="submit" 
+                disabled={isLoading || !!imageError}
+                className="gap-2"
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save className="h-4 w-4" />
+                    {listing ? "Update Listing" : "Create Listing"}
+                  </>
+                )}
+              </Button>
+            </div>
+          </form>
+        </Form>
       </div>
     </div>
   );
