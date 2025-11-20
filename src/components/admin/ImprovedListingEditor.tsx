@@ -14,11 +14,9 @@ import { cn } from "@/lib/utils";
 // Import section components
 import { EditorCoreDetailsSection } from "./editor-sections/EditorCoreDetailsSection";
 import { EditorDescriptionSection } from "./editor-sections/EditorDescriptionSection";
-import { EditorFinancialSection } from "./editor-sections/EditorFinancialSection";
-import { EditorMetricsSection } from "./editor-sections/EditorMetricsSection";
+import { EditorFinancialAndMetricsSection } from "./editor-sections/EditorFinancialAndMetricsSection";
 import { EditorVisualsSection } from "./editor-sections/EditorVisualsSection";
-import { EditorInternalSection } from "./editor-sections/EditorInternalSection";
-import { EditorAdvancedSection } from "./editor-sections/EditorAdvancedSection";
+import { EditorInternalDataSection } from "./editor-sections/EditorInternalDataSection";
 import { EditorLivePreview } from "./editor-sections/EditorLivePreview";
 
 // Form schema
