@@ -9,7 +9,8 @@ import {
   MessageSquare, 
   ShoppingBag,
   Menu,
-  X
+  X,
+  Sparkles
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetClose } from "@/components/ui/sheet";
@@ -49,6 +50,12 @@ export function AdminNavbar({ className }: AdminNavbarProps) {
       label: "Connection Requests",
       icon: <MessageSquare className="h-4 w-4 mr-2" />,
       active: location.pathname.includes('/admin/requests')
+    },
+    {
+      to: "/admin/deal-sourcing",
+      label: "Deal Sourcing",
+      icon: <Sparkles className="h-4 w-4 mr-2" />,
+      active: location.pathname.includes('/admin/deal-sourcing')
     },
     {
       to: "/marketplace",
