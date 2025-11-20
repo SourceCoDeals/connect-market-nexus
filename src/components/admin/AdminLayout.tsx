@@ -173,8 +173,7 @@ const NavLink = ({ to, icon, label, isActive, collapsed, badge }: NavLinkProps) 
           
           {badge && badge > 0 && (
             <Badge 
-              variant="destructive" 
-              className="h-5 min-w-[20px] px-1.5 flex items-center justify-center text-[10px] font-semibold"
+              className="h-5 min-w-[20px] px-1.5 flex items-center justify-center text-[10px] font-semibold bg-sourceco text-sourceco-foreground border-sourceco"
             >
               {badge > 9 ? '9+' : badge}
             </Badge>
@@ -188,7 +187,7 @@ const NavLink = ({ to, icon, label, isActive, collapsed, badge }: NavLinkProps) 
       
       {/* Collapsed state: show badge as dot indicator */}
       {collapsed && badge && badge > 0 && (
-        <div className="absolute top-1 right-1 h-2 w-2 bg-destructive rounded-full" />
+        <div className="absolute top-1 right-1 h-2 w-2 bg-sourceco rounded-full" />
       )}
       
       {/* Tooltip for collapsed state */}
