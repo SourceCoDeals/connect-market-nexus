@@ -10,7 +10,8 @@ import {
   ChevronRight,
   GitBranch,
   Menu,
-  X
+  X,
+  Sparkles
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AdminNavbar } from "./AdminNavbar";
@@ -93,6 +94,13 @@ const AdminLayout = () => {
               icon={<MessageSquare className="h-4 w-4" />}
               label="Connection Requests"
               isActive={location.pathname.includes('/admin/requests')}
+              collapsed={sidebarCollapsed}
+            />
+            <NavLink 
+              to="/admin/deal-sourcing" 
+              icon={<Sparkles className="h-4 w-4" />}
+              label="Deal Sourcing"
+              isActive={location.pathname.includes('/admin/deal-sourcing')}
               collapsed={sidebarCollapsed}
             />
             <NavLink 

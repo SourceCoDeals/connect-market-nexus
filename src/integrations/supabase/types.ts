@@ -922,47 +922,77 @@ export type Database = {
       deal_sourcing_requests: {
         Row: {
           additional_notes: string | null
+          admin_notes: string | null
+          assigned_to: string | null
           business_categories: string[] | null
           buyer_type: string | null
+          converted_to_deal_id: string | null
           created_at: string | null
           custom_message: string | null
+          followed_up_at: string | null
           id: string
           investment_thesis: string | null
           revenue_max: string | null
           revenue_min: string | null
+          status: string | null
           target_locations: string[] | null
           updated_at: string | null
           user_id: string
         }
         Insert: {
           additional_notes?: string | null
+          admin_notes?: string | null
+          assigned_to?: string | null
           business_categories?: string[] | null
           buyer_type?: string | null
+          converted_to_deal_id?: string | null
           created_at?: string | null
           custom_message?: string | null
+          followed_up_at?: string | null
           id?: string
           investment_thesis?: string | null
           revenue_max?: string | null
           revenue_min?: string | null
+          status?: string | null
           target_locations?: string[] | null
           updated_at?: string | null
           user_id: string
         }
         Update: {
           additional_notes?: string | null
+          admin_notes?: string | null
+          assigned_to?: string | null
           business_categories?: string[] | null
           buyer_type?: string | null
+          converted_to_deal_id?: string | null
           created_at?: string | null
           custom_message?: string | null
+          followed_up_at?: string | null
           id?: string
           investment_thesis?: string | null
           revenue_max?: string | null
           revenue_min?: string | null
+          status?: string | null
           target_locations?: string[] | null
           updated_at?: string | null
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "deal_sourcing_requests_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deal_sourcing_requests_converted_to_deal_id_fkey"
+            columns: ["converted_to_deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       deal_stages: {
         Row: {

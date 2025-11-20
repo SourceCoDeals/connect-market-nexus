@@ -15,3 +15,4 @@ export * from './use-marketplace-companies';
 export * from './use-associated-requests';
 export * from './use-admin-notifications';
 export { useNonMarketplaceUsers } from './use-non-marketplace-users';
+export * from './use-deal-sourcing-requests';

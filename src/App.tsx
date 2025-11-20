@@ -31,6 +31,7 @@ import AdminListings from "@/pages/admin/AdminListings";
 import AdminUsers from "@/pages/admin/AdminUsers";
 import FirmAgreements from "@/pages/admin/FirmAgreements";
 import AdminRequests from "@/pages/admin/AdminRequests";
+import AdminDealSourcing from "@/pages/admin/AdminDealSourcing";
 import AdminPipeline from "@/pages/admin/AdminPipeline";
 import AdminNotifications from "@/pages/admin/AdminNotifications";
 import AuthCallback from "@/pages/auth/callback";
@@ -103,6 +104,7 @@ function App() {
               <Route path="users" element={<AdminUsers />} />
               <Route path="firm-agreements" element={<FirmAgreements />} />
               <Route path="requests" element={<AdminRequests />} />
+              <Route path="deal-sourcing" element={<AdminDealSourcing />} />
               <Route path="pipeline" element={<AdminPipeline />} />
               <Route path="notifications" element={<AdminNotifications />} />
             </Route>
