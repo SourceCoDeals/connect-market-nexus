@@ -85,7 +85,7 @@ export const DealSourcingCriteriaDialog = ({ open, onOpenChange, user }: DealSou
   };
 
   const renderFormView = () => (
-    <DialogContent className="max-w-[680px] sm:max-w-[95vw] px-0 py-0 gap-0 overflow-hidden">
+    <DialogContent className="max-w-[95vw] sm:max-w-[680px] px-0 py-0 gap-0 overflow-hidden">
       <div className="px-4 sm:px-8 pt-6 sm:pt-8 pb-4 sm:pb-6 border-b border-border/10">
         <DialogHeader className="space-y-2 sm:space-y-3">
           <div className="flex items-center gap-2">
@@ -290,7 +290,7 @@ export const DealSourcingCriteriaDialog = ({ open, onOpenChange, user }: DealSou
   );
 
   const renderSuccessView = () => (
-    <DialogContent className="max-w-[480px] sm:max-w-[90vw] px-6 sm:px-8 py-6 sm:py-8">
+    <DialogContent className="max-w-[90vw] sm:max-w-[480px] px-6 sm:px-8 py-6 sm:py-8">
       <div className="flex flex-col items-center text-center space-y-5 sm:space-y-6">
         <div className="rounded-full bg-green-50 p-3 sm:p-4"><CheckCircle2 className="h-10 w-10 sm:h-12 sm:w-12 text-green-600" /></div>
         <div className="space-y-2 sm:space-y-3">
