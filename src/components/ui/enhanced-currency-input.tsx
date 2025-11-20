@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
@@ -55,26 +55,23 @@ export const EnhancedCurrencyInput = React.forwardRef<HTMLInputElement, Enhanced
     placeholder,
     ...props 
   }, ref) => {
-    // Debug logging
-    console.log('[EnhancedCurrencyInput] Received props:', { value, fieldType });
-    
     const [displayValue, setDisplayValue] = useState<string>(() => {
       const stringValue = String(value || "");
-      console.log('[EnhancedCurrencyInput] Initializing displayValue from:', stringValue);
       if (stringValue && stringValue !== '0' && stringValue !== '') {
-        const formatted = formatCurrency(stringValue, currencyMode);
-        console.log('[EnhancedCurrencyInput] Formatted to:', formatted);
-        return formatted;
+        return formatCurrency(stringValue, currencyMode);
       }
-      console.log('[EnhancedCurrencyInput] Setting displayValue to empty string');
       return '';
     });
     const [isFocused, setIsFocused] = useState(false);
+    const prevValueRef = useRef<string>();
 
-    // Update display value when prop value changes
+    // Update display value when prop value changes (only if not focused and value actually changed)
     useEffect(() => {
-      if (!isFocused) {
-        const stringValue = String(value);
+      const stringValue = String(value || "");
+      
+      if (!isFocused && stringValue !== prevValueRef.current) {
+        prevValueRef.current = stringValue;
+        
         if (stringValue && stringValue !== '0' && stringValue !== '') {
           setDisplayValue(formatCurrency(stringValue, currencyMode));
         } else {
