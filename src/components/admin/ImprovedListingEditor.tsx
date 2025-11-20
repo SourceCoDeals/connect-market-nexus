@@ -172,7 +172,7 @@ export function ImprovedListingEditor({
   const [isImageChanged, setIsImageChanged] = useState(false);
   const [imageError, setImageError] = useState<string | null>(null);
 
-  const form = useForm<ListingFormInput>({
+  const form = useForm<ListingFormInput, any, ListingFormValues>({
     resolver: zodResolver(listingFormSchema),
     defaultValues: convertListingToFormInput(listing),
   });
@@ -207,7 +207,7 @@ export function ImprovedListingEditor({
     setImageError(null);
   };
 
-  const handleSubmit = async (formData: ListingFormInput) => {
+  const handleSubmit = async (formData: ListingFormValues) => {
     try {
       if (imageError) {
         toast({
@@ -219,13 +219,8 @@ export function ImprovedListingEditor({
       }
       
       const transformedData: ListingFormValues & { description_html?: string; description_json?: any } = {
-        title: formData.title,
-        categories: formData.categories,
+        ...formData,
         acquisition_type: (formData.acquisition_type === 'add_on' || formData.acquisition_type === 'platform') ? formData.acquisition_type : null,
-        location: formData.location,
-        revenue: parseCurrency(formData.revenue),
-        ebitda: parseCurrency(formData.ebitda),
-        full_time_employees: formData.full_time_employees,
         part_time_employees: formData.part_time_employees,
         description: formData.description,
         description_html: formData.description_html,
