@@ -65,7 +65,7 @@ export const DealSourcingCriteriaDialog = ({ open, onOpenChange, user }: DealSou
         description: "We'll be in touch with matching opportunities soon.",
       });
 
-      setDialogState('success');
+      setDialogState('calendar');
     } catch (error) {
       console.error("Error submitting deal sourcing request:", error);
       toast({
@@ -289,13 +289,63 @@ export const DealSourcingCriteriaDialog = ({ open, onOpenChange, user }: DealSou
     </DialogContent>
   );
 
+  const renderCalendarView = () => (
+    <DialogContent className="max-w-[95vw] sm:max-w-[720px] px-0 py-0 gap-0 overflow-hidden">
+      <div className="px-4 sm:px-8 pt-6 sm:pt-8 pb-4 sm:pb-6 border-b border-border/10">
+        <DialogHeader className="space-y-2 sm:space-y-3">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 text-green-600" />
+            <DialogTitle className="text-[22px] sm:text-[28px] font-[300] tracking-tight text-foreground leading-[28px] sm:leading-[34px]">
+              Request Submitted Successfully
+            </DialogTitle>
+          </div>
+          <DialogDescription className="text-[14px] sm:text-[15px] font-normal text-foreground/60 leading-[1.65]">
+            Schedule a discovery call with our team to discuss your deal criteria, or skip and we'll reach out via email.
+          </DialogDescription>
+        </DialogHeader>
+      </div>
+
+      <ScrollArea className="max-h-[calc(85vh-180px)]">
+        <div className="px-4 sm:px-8 py-4 sm:py-6">
+          <div className="w-full bg-background rounded-lg overflow-hidden border border-border/10">
+            <iframe
+              src="https://tidycal.com/tomosmughan/30-minute-meeting"
+              style={{ 
+                width: '100%', 
+                height: '600px',
+                border: 'none'
+              }}
+              title="Schedule a Meeting"
+            />
+          </div>
+        </div>
+      </ScrollArea>
+
+      <div className="px-4 sm:px-8 py-4 sm:py-6 border-t border-border/10 bg-muted/30 flex flex-col sm:flex-row gap-3">
+        <Button 
+          onClick={() => setDialogState('success')} 
+          variant="outline"
+          className="w-full sm:w-auto h-10 sm:h-11 text-[13px] sm:text-[14px] font-medium"
+        >
+          Skip for now
+        </Button>
+        <Button 
+          onClick={() => setDialogState('success')} 
+          className="w-full sm:flex-1 h-10 sm:h-11 bg-[#D8B75D] hover:bg-[#C5A54A] text-slate-900 font-semibold text-[13px] sm:text-[14px] tracking-wide transition-all duration-200"
+        >
+          Done
+        </Button>
+      </div>
+    </DialogContent>
+  );
+
   const renderSuccessView = () => (
     <DialogContent className="max-w-[90vw] sm:max-w-[480px] px-6 sm:px-8 py-6 sm:py-8">
       <div className="flex flex-col items-center text-center space-y-5 sm:space-y-6">
         <div className="rounded-full bg-green-50 p-3 sm:p-4"><CheckCircle2 className="h-10 w-10 sm:h-12 sm:w-12 text-green-600" /></div>
         <div className="space-y-2 sm:space-y-3">
           <DialogTitle className="text-[22px] sm:text-[28px] font-[300] tracking-tight text-foreground leading-[28px] sm:leading-[34px]">We'll Be In Touch Soon</DialogTitle>
-          <DialogDescription className="text-[14px] sm:text-[15px] font-normal text-foreground/60 leading-[1.65] max-w-[400px]">Our team will review your criteria and reach out with tailored opportunities. You'll receive a calendar link to schedule your discovery call.</DialogDescription>
+          <DialogDescription className="text-[14px] sm:text-[15px] font-normal text-foreground/60 leading-[1.65] max-w-[400px]">Our team will review your criteria and reach out with tailored opportunities within 24-48 hours.</DialogDescription>
         </div>
         <Button onClick={handleClose} className="w-full h-10 sm:h-11 bg-[#D8B75D] hover:bg-[#C5A54A] text-slate-900 font-semibold text-[13px] sm:text-[14px] tracking-wide transition-all duration-200">Close</Button>
       </div>
@@ -305,6 +355,7 @@ export const DealSourcingCriteriaDialog = ({ open, onOpenChange, user }: DealSou
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       {dialogState === 'form' && renderFormView()}
+      {dialogState === 'calendar' && renderCalendarView()}
       {dialogState === 'success' && renderSuccessView()}
     </Dialog>
   );
