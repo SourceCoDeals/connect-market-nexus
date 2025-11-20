@@ -7,9 +7,11 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { ChevronDown, ChevronUp, Sparkles, CheckCircle2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Sparkles, CheckCircle2, Loader2 } from "lucide-react";
 import { User as AppUser } from "@/types";
 import { Link } from "react-router-dom";
+import { useQueryClient } from '@tanstack/react-query';
+import { cn } from "@/lib/utils";
 
 interface DealSourcingCriteriaDialogProps {
   open: boolean;
@@ -21,11 +23,13 @@ type DialogState = 'form' | 'calendar' | 'success';
 
 export const DealSourcingCriteriaDialog = ({ open, onOpenChange, user }: DealSourcingCriteriaDialogProps) => {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [dialogState, setDialogState] = useState<DialogState>('form');
   const [isCollapsibleOpen, setIsCollapsibleOpen] = useState(false);
   const [customMessage, setCustomMessage] = useState("");
   const [showAllIndustries, setShowAllIndustries] = useState(false);
+  const [calendarLoaded, setCalendarLoaded] = useState(false);
 
   const INITIAL_INDUSTRIES_DISPLAY = 3;
 
@@ -60,28 +64,39 @@ export const DealSourcingCriteriaDialog = ({ open, onOpenChange, user }: DealSou
 
       if (error) throw error;
 
+      // Invalidate admin dashboard queries
+      queryClient.invalidateQueries({ queryKey: ['deal-sourcing-requests'] });
+
       toast({
-        title: "Request submitted",
-        description: "We'll be in touch with matching opportunities soon.",
+        title: "✅ Request Submitted Successfully",
+        description: "Redirecting you to schedule a discovery call...",
+        duration: 4000,
       });
 
-      setDialogState('calendar');
+      // Add smooth transition delay
+      setTimeout(() => {
+        setDialogState('calendar');
+        setIsSubmitting(false);
+      }, 500);
     } catch (error) {
       console.error("Error submitting deal sourcing request:", error);
       toast({
-        title: "Error",
-        description: "Failed to submit your request. Please try again.",
+        title: "❌ Submission Failed",
+        description: error instanceof Error ? error.message : "Please try again or contact support.",
         variant: "destructive",
+        duration: 6000,
       });
-    } finally {
       setIsSubmitting(false);
     }
   };
 
   const handleClose = () => {
     onOpenChange(false);
-    setDialogState('form');
-    setCustomMessage("");
+    setTimeout(() => {
+      setDialogState('form');
+      setCustomMessage("");
+      setCalendarLoaded(false);
+    }, 200);
   };
 
   const renderFormView = () => (
@@ -283,7 +298,14 @@ export const DealSourcingCriteriaDialog = ({ open, onOpenChange, user }: DealSou
 
       <div className="px-4 sm:px-8 py-4 sm:py-6 border-t border-border/10 bg-muted/30">
         <Button onClick={handleGetMyDeals} disabled={isSubmitting} className="w-full h-10 sm:h-11 bg-[#D8B75D] hover:bg-[#C5A54A] text-slate-900 font-semibold text-[13px] sm:text-[14px] tracking-wide transition-all duration-200">
-          {isSubmitting ? "Submitting..." : "Get My Deals"}
+          {isSubmitting ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Submitting...
+            </>
+          ) : (
+            "Get My Deals"
+          )}
         </Button>
       </div>
     </DialogContent>
@@ -307,13 +329,24 @@ export const DealSourcingCriteriaDialog = ({ open, onOpenChange, user }: DealSou
 
       <ScrollArea className="max-h-[calc(85vh-180px)]">
         <div className="px-4 sm:px-8 py-4 sm:py-6">
-          <div className="w-full bg-background rounded-lg overflow-hidden border border-border/10">
+          <div className="relative w-full bg-background rounded-lg overflow-hidden border border-border/10">
+            {!calendarLoaded && (
+              <div className="absolute inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm z-10">
+                <div className="flex flex-col items-center gap-3">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  <p className="text-sm text-muted-foreground">Loading calendar...</p>
+                </div>
+              </div>
+            )}
             <iframe
               src="https://tidycal.com/tomosmughan/30-minute-meeting"
+              onLoad={() => setCalendarLoaded(true)}
               style={{ 
                 width: '100%', 
                 height: '600px',
-                border: 'none'
+                border: 'none',
+                opacity: calendarLoaded ? 1 : 0,
+                transition: 'opacity 0.3s ease-in-out'
               }}
               title="Schedule a Meeting"
             />
@@ -340,23 +373,56 @@ export const DealSourcingCriteriaDialog = ({ open, onOpenChange, user }: DealSou
   );
 
   const renderSuccessView = () => (
-    <DialogContent className="max-w-[90vw] sm:max-w-[480px] px-6 sm:px-8 py-6 sm:py-8">
-      <div className="flex flex-col items-center text-center space-y-5 sm:space-y-6">
-        <div className="rounded-full bg-green-50 p-3 sm:p-4"><CheckCircle2 className="h-10 w-10 sm:h-12 sm:w-12 text-green-600" /></div>
-        <div className="space-y-2 sm:space-y-3">
-          <DialogTitle className="text-[22px] sm:text-[28px] font-[300] tracking-tight text-foreground leading-[28px] sm:leading-[34px]">We'll Be In Touch Soon</DialogTitle>
-          <DialogDescription className="text-[14px] sm:text-[15px] font-normal text-foreground/60 leading-[1.65] max-w-[400px]">Our team will review your criteria and reach out with tailored opportunities within 24-48 hours.</DialogDescription>
+    <DialogContent className="max-w-[95vw] sm:max-w-[520px] px-0 py-0 gap-0">
+      <div className="px-6 sm:px-8 py-8 sm:py-10 text-center space-y-4">
+        <DialogHeader className="space-y-3 sm:space-y-4">
+          <div className="flex flex-col items-center gap-3">
+            <div className="rounded-full bg-green-100 p-3 animate-in zoom-in duration-300">
+              <CheckCircle2 className="h-10 w-10 sm:h-12 sm:w-12 text-green-600" />
+            </div>
+            <DialogTitle className="text-[24px] sm:text-[28px] font-[300] tracking-tight text-foreground">
+              All Set!
+            </DialogTitle>
+          </div>
+          <DialogDescription className="text-[15px] sm:text-[16px] font-normal text-foreground/70 leading-[1.65] max-w-md mx-auto">
+            Our team will review your criteria and reach out with tailored opportunities within 24-48 hours.
+          </DialogDescription>
+          <div className="pt-2">
+            <p className="text-sm text-muted-foreground">
+              You can also check your dashboard for real-time updates on matching deals.
+            </p>
+          </div>
+        </DialogHeader>
+
+        <div className="pt-4">
+          <Button onClick={handleClose} className="w-full sm:w-auto px-8 h-11 bg-[#D8B75D] hover:bg-[#C5A54A] text-slate-900 font-semibold">
+            Close
+          </Button>
         </div>
-        <Button onClick={handleClose} className="w-full h-10 sm:h-11 bg-[#D8B75D] hover:bg-[#C5A54A] text-slate-900 font-semibold text-[13px] sm:text-[14px] tracking-wide transition-all duration-200">Close</Button>
       </div>
     </DialogContent>
   );
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      {dialogState === 'form' && renderFormView()}
-      {dialogState === 'calendar' && renderCalendarView()}
-      {dialogState === 'success' && renderSuccessView()}
+    <Dialog open={open} onOpenChange={handleClose}>
+      <div className={cn(
+        "transition-opacity duration-300",
+        dialogState === 'form' ? "opacity-100" : "opacity-0 hidden"
+      )}>
+        {dialogState === 'form' && renderFormView()}
+      </div>
+      <div className={cn(
+        "transition-opacity duration-300",
+        dialogState === 'calendar' ? "opacity-100" : "opacity-0 hidden"
+      )}>
+        {dialogState === 'calendar' && renderCalendarView()}
+      </div>
+      <div className={cn(
+        "transition-opacity duration-300",
+        dialogState === 'success' ? "opacity-100" : "opacity-0 hidden"
+      )}>
+        {dialogState === 'success' && renderSuccessView()}
+      </div>
     </Dialog>
   );
 };
