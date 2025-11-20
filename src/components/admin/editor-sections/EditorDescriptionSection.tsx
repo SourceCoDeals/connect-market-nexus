@@ -1,7 +1,7 @@
-import { FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
+import { FormField, FormItem, FormControl, FormMessage } from "@/components/ui/form";
 import { UseFormReturn } from "react-hook-form";
 import { PremiumRichTextEditor } from "@/components/ui/premium-rich-text-editor";
-import { FileText } from "lucide-react";
+import { EDITOR_DESIGN } from "@/lib/editor-design-system";
 
 interface EditorDescriptionSectionProps {
   form: UseFormReturn<any>;
@@ -9,15 +9,9 @@ interface EditorDescriptionSectionProps {
 
 export function EditorDescriptionSection({ form }: EditorDescriptionSectionProps) {
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-3 pb-3 border-b border-border">
-        <div className="p-2 rounded-lg bg-sourceco-muted">
-          <FileText className="h-5 w-5 text-sourceco-accent" />
-        </div>
-        <div>
-          <h3 className="text-lg font-medium text-foreground">Business Description</h3>
-          <p className="text-sm text-muted-foreground">Detailed overview and investment highlights</p>
-        </div>
+    <div className={EDITOR_DESIGN.sectionSpacing}>
+      <div className={EDITOR_DESIGN.sectionBorder}>
+        <h3 className={EDITOR_DESIGN.sectionHeader}>Business Description</h3>
       </div>
 
       <FormField
