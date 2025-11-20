@@ -141,7 +141,159 @@ export const DealSourcingCriteriaDialog = ({ open, onOpenChange, user }: DealSou
   );
 
   const renderAdditionalFields = () => {
-    return null;
+    if (!user) return null;
+
+    const fields: Array<{ label: string; value: any; key?: string }> = [];
+
+    // Deal Structure & Preferences
+    if (user.deal_structure_preference) {
+      fields.push({
+        label: 'Deal Structure Preference',
+        value: user.deal_structure_preference,
+        key: 'deal_structure_preference'
+      });
+    }
+
+    if (user.investment_size) {
+      const size = Array.isArray(user.investment_size) 
+        ? user.investment_size.join(', ')
+        : user.investment_size;
+      fields.push({
+        label: 'Investment Size',
+        value: size.includes('$') ? size : `$${size}`,
+      });
+    }
+
+    if (user.target_deal_size_min || user.target_deal_size_max) {
+      const min = user.target_deal_size_min ? `$${user.target_deal_size_min.toLocaleString()}` : '';
+      const max = user.target_deal_size_max ? `$${user.target_deal_size_max.toLocaleString()}` : '';
+      fields.push({
+        label: 'Target Deal Size',
+        value: min && max ? `${min} - ${max}` : min || max,
+      });
+    }
+
+    // Financial Profile
+    if (user.fund_size) {
+      fields.push({
+        label: 'Fund Size',
+        value: `$${parseInt(user.fund_size).toLocaleString()}`,
+      });
+    }
+
+    if (user.aum) {
+      fields.push({
+        label: 'Assets Under Management',
+        value: `$${parseInt(user.aum).toLocaleString()}`,
+      });
+    }
+
+    // Specific Requirements
+    if (user.company_type) {
+      fields.push({
+        label: 'Preferred Company Type',
+        value: user.company_type,
+      });
+    }
+
+    if (user.years_in_business) {
+      fields.push({
+        label: 'Minimum Years in Business',
+        value: user.years_in_business,
+      });
+    }
+
+    if (user.preferred_entry_strategy) {
+      fields.push({
+        label: 'Entry Strategy',
+        value: user.preferred_entry_strategy,
+        key: 'preferred_entry_strategy'
+      });
+    }
+
+    if (user.preferred_deal_structure) {
+      fields.push({
+        label: 'Deal Structure',
+        value: user.preferred_deal_structure,
+        key: 'preferred_deal_structure'
+      });
+    }
+
+    // Operational Preferences
+    if (typeof user.willing_to_relocate === 'boolean') {
+      fields.push({
+        label: 'Willing to Relocate',
+        value: user.willing_to_relocate ? 'Yes' : 'No',
+      });
+    }
+
+    if (typeof user.partner_in_operations === 'boolean') {
+      fields.push({
+        label: 'Partner in Operations',
+        value: user.partner_in_operations ? 'Yes' : 'No',
+      });
+    }
+
+    if (user.ownership_status) {
+      fields.push({
+        label: 'Ownership Status',
+        value: user.ownership_status,
+      });
+    }
+
+    if (typeof user.interest_in_franchises === 'boolean') {
+      fields.push({
+        label: 'Interest in Franchises',
+        value: user.interest_in_franchises ? 'Yes' : 'No',
+      });
+    }
+
+    // Special Criteria
+    if (user.search_fund_status) {
+      fields.push({
+        label: 'Search Fund Status',
+        value: user.search_fund_status,
+      });
+    }
+
+    if (typeof user.add_on_only === 'boolean' && user.add_on_only) {
+      fields.push({
+        label: 'Investment Focus',
+        value: 'Add-on acquisitions only',
+      });
+    }
+
+    if (typeof user.platform_only === 'boolean' && user.platform_only) {
+      fields.push({
+        label: 'Investment Focus',
+        value: 'Platform companies only',
+      });
+    }
+
+    if (user.additional_thesis_details) {
+      fields.push({
+        label: 'Additional Criteria',
+        value: user.additional_thesis_details,
+        key: 'additional_thesis_details'
+      });
+    }
+
+    if (fields.length === 0) return null;
+
+    return (
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-5">
+        {fields.map((field, idx) => (
+          <div key={idx} className="space-y-2">
+            <div className="text-[10px] font-semibold text-foreground/40 uppercase tracking-[0.08em]">
+              {field.label}
+            </div>
+            <div className="text-[14px] text-foreground/90">
+              {field.value}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
   };
 
   const renderFormView = () => (

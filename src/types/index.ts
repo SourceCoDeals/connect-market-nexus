@@ -107,6 +107,22 @@ export interface User {
   exclusions?: string[];
   include_keywords?: string[];
   
+  // Additional investment criteria fields
+  company_type?: string;
+  years_in_business?: number;
+  preferred_entry_strategy?: string;
+  preferred_deal_structure?: string;
+  willing_to_relocate?: boolean;
+  partner_in_operations?: boolean;
+  ownership_status?: string;
+  interest_in_franchises?: boolean;
+  search_fund_status?: string;
+  add_on_only?: boolean;
+  platform_only?: boolean;
+  additional_thesis_details?: string;
+  ebitda_min?: string;
+  ebitda_max?: string;
+  
   // Fee agreement tracking
   fee_agreement_signed?: boolean;
   fee_agreement_signed_at?: string;
