@@ -16,8 +16,8 @@ const EnhancedAdminListings = () => {
   const { data: listings = [], isLoading, refetch } = useListings();
   const { mutate: toggleStatus } = useToggleListingStatus();
   const { mutate: deleteListing } = useDeleteListing();
-  const { mutate: createListing, isPending: isCreating } = useCreateListing();
-  const { mutate: updateListing, isPending: isUpdating } = useUpdateListing();
+  const { mutateAsync: createListing, isPending: isCreating } = useCreateListing();
+  const { mutateAsync: updateListing, isPending: isUpdating } = useUpdateListing();
   
   const [searchQuery, setSearchQuery] = useState("");
   const [filters, setFilters] = useState({
@@ -159,13 +159,23 @@ const EnhancedAdminListings = () => {
     console.log('[FORM SUBMIT] Data received:', data);
     console.log('[FORM SUBMIT] Image provided:', !!image);
     
-    if (editingListing) {
-      console.log('[FORM SUBMIT] Calling updateListing with ID:', editingListing.id);
-      console.log('[FORM SUBMIT] Listing data:', data);
-      updateListing({ id: editingListing.id, listing: data, image });
-    } else {
-      console.log('[FORM SUBMIT] Calling createListing');
-      createListing({ listing: data, image, sendDealAlerts });
+    try {
+      if (editingListing) {
+        console.log('[FORM SUBMIT] Calling updateListing with ID:', editingListing.id);
+        console.log('[FORM SUBMIT] Listing data:', data);
+        await updateListing({ id: editingListing.id, listing: data, image });
+        // Success! Close the form after update completes
+        handleFormClose();
+      } else {
+        console.log('[FORM SUBMIT] Calling createListing');
+        await createListing({ listing: data, image, sendDealAlerts });
+        // Success! Close the form after creation completes
+        handleFormClose();
+      }
+    } catch (error) {
+      console.error('[FORM SUBMIT] Mutation failed:', error);
+      // Error handling is done by the mutation hooks' onError callbacks
+      // Form stays open so user can fix issues
     }
   };
 
@@ -182,7 +192,7 @@ const EnhancedAdminListings = () => {
   const handleFormClose = () => {
     setIsCreateFormOpen(false);
     setEditingListing(null);
-    refetch();
+    // No need to refetch - mutation hooks handle cache invalidation
   };
 
   if (isCreateFormOpen || editingListing) {

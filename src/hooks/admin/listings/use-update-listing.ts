@@ -112,10 +112,14 @@ export function useUpdateListing() {
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-listings'] });
-      queryClient.invalidateQueries({ queryKey: ['listings'] });
-      queryClient.invalidateQueries({ queryKey: ['listing'] }); // Invalidate single listing queries too
-      queryClient.invalidateQueries({ queryKey: ['deals'] }); // Invalidate deals to sync real company name changes
+      // Small delay to ensure DB transaction is committed
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ['admin-listings'] });
+        queryClient.invalidateQueries({ queryKey: ['listings'] });
+        queryClient.invalidateQueries({ queryKey: ['listing'] }); // Invalidate single listing queries too
+        queryClient.invalidateQueries({ queryKey: ['deals'] }); // Invalidate deals to sync real company name changes
+      }, 100);
+      
       toast({
         title: 'Listing Updated',
         description: 'The listing has been updated successfully.',
