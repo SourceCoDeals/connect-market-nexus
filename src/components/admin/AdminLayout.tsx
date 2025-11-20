@@ -14,15 +14,18 @@ import {
   Sparkles
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { AdminNavbar } from "./AdminNavbar";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useState } from "react";
+import { useUnviewedDealSourcingCount } from "@/hooks/admin/use-unviewed-deal-sourcing";
 
 const AdminLayout = () => {
   const { user } = useAuth();
   const location = useLocation();
   const isMobile = useIsMobile();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const { unviewedCount } = useUnviewedDealSourcingCount();
 
   return (
     <div className="flex min-h-screen w-full bg-background">
@@ -102,6 +105,7 @@ const AdminLayout = () => {
               label="Deal Sourcing"
               isActive={location.pathname.includes('/admin/deal-sourcing')}
               collapsed={sidebarCollapsed}
+              badge={unviewedCount}
             />
             <NavLink 
               to="/admin/pipeline" 
@@ -142,9 +146,10 @@ interface NavLinkProps {
   label: string;
   isActive: boolean;
   collapsed?: boolean;
+  badge?: number;
 }
 
-const NavLink = ({ to, icon, label, isActive, collapsed }: NavLinkProps) => {
+const NavLink = ({ to, icon, label, isActive, collapsed, badge }: NavLinkProps) => {
   return (
     <Link
       to={to}
@@ -165,10 +170,25 @@ const NavLink = ({ to, icon, label, isActive, collapsed }: NavLinkProps) => {
       {!collapsed && (
         <>
           <span className="flex-1 truncate">{label}</span>
-          {!isActive && (
+          
+          {badge && badge > 0 && (
+            <Badge 
+              variant="destructive" 
+              className="h-5 min-w-[20px] px-1.5 flex items-center justify-center text-[10px] font-semibold"
+            >
+              {badge > 9 ? '9+' : badge}
+            </Badge>
+          )}
+          
+          {!isActive && !badge && (
             <ChevronRight className="h-4 w-4 opacity-50 transition-transform group-hover:translate-x-1" />
           )}
         </>
+      )}
+      
+      {/* Collapsed state: show badge as dot indicator */}
+      {collapsed && badge && badge > 0 && (
+        <div className="absolute top-1 right-1 h-2 w-2 bg-destructive rounded-full" />
       )}
       
       {/* Tooltip for collapsed state */}

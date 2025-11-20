@@ -1,4 +1,3 @@
-
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
@@ -13,9 +12,11 @@ import {
   Sparkles
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetClose } from "@/components/ui/sheet";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { AdminNotificationBell } from "./AdminNotificationBell";
+import { useUnviewedDealSourcingCount } from "@/hooks/admin/use-unviewed-deal-sourcing";
 
 interface AdminNavbarProps {
   className?: string;
@@ -25,6 +26,7 @@ export function AdminNavbar({ className }: AdminNavbarProps) {
   const { user } = useAuth();
   const location = useLocation();
   const isMobile = useIsMobile();
+  const { unviewedCount } = useUnviewedDealSourcingCount();
 
   const navItems = [
     {
@@ -55,7 +57,8 @@ export function AdminNavbar({ className }: AdminNavbarProps) {
       to: "/admin/deal-sourcing",
       label: "Deal Sourcing",
       icon: <Sparkles className="h-4 w-4 mr-2" />,
-      active: location.pathname.includes('/admin/deal-sourcing')
+      active: location.pathname.includes('/admin/deal-sourcing'),
+      badge: unviewedCount
     },
     {
       to: "/marketplace",
@@ -101,7 +104,15 @@ export function AdminNavbar({ className }: AdminNavbarProps) {
                     )}
                   >
                     {item.icon}
-                    <span className="font-medium">{item.label}</span>
+                    <span className="font-medium flex-1">{item.label}</span>
+                    {'badge' in item && item.badge && item.badge > 0 && (
+                      <Badge 
+                        variant="destructive" 
+                        className="h-5 min-w-[20px] px-1.5 flex items-center justify-center text-[10px] font-semibold ml-auto"
+                      >
+                        {item.badge > 9 ? '9+' : item.badge}
+                      </Badge>
+                    )}
                   </Link>
                 </SheetClose>
               ))}

@@ -1,17 +1,24 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DealSourcingRequestsTable } from '@/components/admin/DealSourcingRequestsTable';
 import { useDealSourcingRequests, DealSourcingFilters } from '@/hooks/admin/use-deal-sourcing-requests';
+import { useMarkDealSourcingAsViewed } from '@/hooks/admin/use-mark-deal-sourcing-viewed';
 import { Loader2, Sparkles } from 'lucide-react';
 
 export default function AdminDealSourcing() {
   const [filters, setFilters] = useState<DealSourcingFilters>({});
   const { data: requests, isLoading } = useDealSourcingRequests(filters);
+  const markAsViewed = useMarkDealSourcingAsViewed();
 
   const newRequests = requests?.filter(r => r.status === 'new') || [];
   const activeRequests = requests?.filter(r => ['reviewing', 'contacted', 'scheduled_call'].includes(r.status)) || [];
   const convertedRequests = requests?.filter(r => r.status === 'converted_to_deal') || [];
+
+  // Mark as viewed when component mounts
+  useEffect(() => {
+    markAsViewed.mutate();
+  }, []);
 
   return (
     <div className="space-y-6">
