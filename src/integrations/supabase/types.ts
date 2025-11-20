@@ -2061,6 +2061,7 @@ export type Database = {
           files: string[] | null
           full_time_employees: number | null
           growth_drivers: Json | null
+          hero_description: string | null
           id: string
           image_url: string | null
           internal_company_name: string | null
@@ -2121,6 +2122,7 @@ export type Database = {
           files?: string[] | null
           full_time_employees?: number | null
           growth_drivers?: Json | null
+          hero_description?: string | null
           id?: string
           image_url?: string | null
           internal_company_name?: string | null
@@ -2181,6 +2183,7 @@ export type Database = {
           files?: string[] | null
           full_time_employees?: number | null
           growth_drivers?: Json | null
+          hero_description?: string | null
           id?: string
           image_url?: string | null
           internal_company_name?: string | null

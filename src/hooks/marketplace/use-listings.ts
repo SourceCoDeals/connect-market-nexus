@@ -32,7 +32,7 @@ export const useListings = (filters: FilterOptions = {}) => {
           // Start building the query
           let query = supabase
             .from('listings')
-            .select('*', { count: 'exact' });
+            .select('*, hero_description', { count: 'exact' });
           
           // Always filter to only show active, non-deleted listings in the marketplace
           query = query
@@ -208,7 +208,7 @@ export const useListing = (id: string | undefined) => {
           
           const { data, error } = await supabase
             .from('listings')
-            .select('*')
+            .select('*, hero_description')
             .eq('id', id)
             .is('deleted_at', null)
             .maybeSingle();

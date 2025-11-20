@@ -15,6 +15,7 @@ export interface AdminListing {
   description: string;
   description_html?: string;
   description_json?: any;
+  hero_description?: string | null;
   tags: string[];
   owner_notes?: string;
   files?: string[];
@@ -81,6 +82,7 @@ export interface CreateListingData {
   full_time_employees?: number;
   part_time_employees?: number;
   description: string;
+  hero_description?: string | null;
   tags?: string[];
   owner_notes?: string;
   status?: 'active' | 'inactive';
