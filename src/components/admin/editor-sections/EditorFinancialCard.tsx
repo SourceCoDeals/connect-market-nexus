@@ -31,23 +31,26 @@ export function EditorFinancialCard({ form }: EditorFinancialCardProps) {
           <FormField
             control={form.control}
             name="revenue"
-            render={({ field }) => (
-              <FormItem>
-                <FormControl>
-                  <EnhancedCurrencyInput
-                    value={field.value?.toString() || ''}
-                    onChange={(value) => {
-                      const digits = value.replace(/\D/g, '');
-                      field.onChange(digits ? Number(digits) : 0);
-                    }}
-                    currencyMode="auto"
-                    fieldType="revenue"
-                    showSuffix={true}
-                    className={cn(EDITOR_DESIGN.compactHeight, "text-sm font-medium", EDITOR_DESIGN.inputBg)}
-                  />
-                </FormControl>
-              </FormItem>
-            )}
+            render={({ field }) => {
+              console.log('[EditorFinancialCard] Revenue field.value:', field.value, typeof field.value);
+              return (
+                <FormItem>
+                  <FormControl>
+                    <EnhancedCurrencyInput
+                      value={field.value?.toString() || ''}
+                      onChange={(value) => {
+                        const digits = value.replace(/\D/g, '');
+                        field.onChange(digits ? Number(digits) : 0);
+                      }}
+                      currencyMode="auto"
+                      fieldType="revenue"
+                      showSuffix={true}
+                      className={cn(EDITOR_DESIGN.compactHeight, "text-sm font-medium", EDITOR_DESIGN.inputBg)}
+                    />
+                  </FormControl>
+                </FormItem>
+              );
+            }}
           />
           <input
             placeholder="Subtitle"
