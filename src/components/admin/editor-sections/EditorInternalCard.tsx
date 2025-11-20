@@ -148,9 +148,20 @@ export function EditorInternalCard({ form, dealIdentifier }: EditorInternalCardP
             className={cn(EDITOR_DESIGN.miniHeight, "text-xs font-mono", EDITOR_DESIGN.inputBg)}
           />
           <Input
-            placeholder="Deal Memo URL"
+            placeholder="Company URL"
             {...form.register('internal_deal_memo_link')}
             className={cn(EDITOR_DESIGN.miniHeight, "text-xs font-mono", EDITOR_DESIGN.inputBg)}
+          />
+        </div>
+        
+        {/* Investment Context */}
+        <div className={cn("pt-3", EDITOR_DESIGN.subtleDivider, EDITOR_DESIGN.microFieldSpacing)}>
+          <div className={EDITOR_DESIGN.microLabel}>Investment Context</div>
+          <Textarea
+            rows={3}
+            placeholder="Why is this a good deal? Key thesis points..."
+            {...form.register('owner_notes')}
+            className={cn("text-xs resize-none", EDITOR_DESIGN.inputBg, EDITOR_DESIGN.inputBorder, "rounded p-2")}
           />
         </div>
         
@@ -165,12 +176,12 @@ export function EditorInternalCard({ form, dealIdentifier }: EditorInternalCardP
           />
         </div>
         
-        {/* Notes */}
+        {/* Internal Notes */}
         <div className={EDITOR_DESIGN.microFieldSpacing}>
-          <div className={EDITOR_DESIGN.microLabel}>Notes</div>
+          <div className={EDITOR_DESIGN.microLabel}>Internal Notes</div>
           <Textarea
             rows={3}
-            placeholder="Internal notes..."
+            placeholder="Additional internal context..."
             {...form.register('internal_notes')}
             className={cn("text-xs resize-none", EDITOR_DESIGN.inputBg, EDITOR_DESIGN.inputBorder, "rounded p-2")}
           />
@@ -213,17 +224,18 @@ export function EditorInternalCard({ form, dealIdentifier }: EditorInternalCardP
             name="status_tag"
             render={({ field }) => (
               <FormItem>
-                <Select onValueChange={field.onChange} value={field.value || 'none'}>
+                <Select onValueChange={field.onChange} value={field.value || ''}>
                   <FormControl>
                     <SelectTrigger className={cn(EDITOR_DESIGN.miniHeight, "text-sm", EDITOR_DESIGN.inputBg)}>
-                      <SelectValue placeholder="Select tag" />
+                      <SelectValue placeholder="No tag" />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value="none">None</SelectItem>
-                    <SelectItem value="featured">Featured</SelectItem>
-                    <SelectItem value="new">New</SelectItem>
-                    <SelectItem value="hot">Hot Deal</SelectItem>
+                    <SelectItem value="">No tag</SelectItem>
+                    <SelectItem value="Just Listed">Just Listed</SelectItem>
+                    <SelectItem value="Price Reduced">Price Reduced</SelectItem>
+                    <SelectItem value="Featured">Featured</SelectItem>
+                    <SelectItem value="Hot Deal">Hot Deal</SelectItem>
                   </SelectContent>
                 </Select>
               </FormItem>
@@ -231,14 +243,20 @@ export function EditorInternalCard({ form, dealIdentifier }: EditorInternalCardP
           />
         </div>
         
-        {/* Visibility */}
+        {/* Visibility - Hide From */}
         <div className={cn("pt-3", EDITOR_DESIGN.subtleDivider)}>
-          <div className={cn(EDITOR_DESIGN.microLabel, "mb-2")}>Visible To</div>
+          <div className={cn(EDITOR_DESIGN.microLabel, "mb-1")}>Hide From</div>
+          <p className="text-[10px] text-muted-foreground/60 mb-2">Visible to all by default. Select buyer types to hide this listing from.</p>
           <div className="flex flex-wrap gap-1.5">
             {BUYER_TYPES.map((type) => (
               <label
                 key={type.value}
-                className={cn(EDITOR_DESIGN.chipCheckbox)}
+                className={cn(
+                  "inline-flex items-center gap-1.5 px-2 py-1 rounded border text-xs cursor-pointer transition-colors",
+                  visibleToBuyerTypes.includes(type.value)
+                    ? "border-red-300 bg-red-50 text-red-700"
+                    : "border-border/40 bg-white/50 hover:border-primary/20"
+                )}
               >
                 <Checkbox
                   checked={visibleToBuyerTypes.includes(type.value)}

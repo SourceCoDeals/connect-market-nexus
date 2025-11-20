@@ -114,7 +114,7 @@ export function EditorFinancialCard({ form }: EditorFinancialCardProps) {
       </div>
       
       {/* Metrics row */}
-      <div className="grid grid-cols-2 gap-4 pb-6 mb-6 border-b border-border/30">
+      <div className="grid grid-cols-2 gap-4">
         {/* Metric 3 */}
         <div className="flex items-start justify-between">
           <div className="space-y-1.5 flex-1">
@@ -143,7 +143,7 @@ export function EditorFinancialCard({ form }: EditorFinancialCardProps) {
                 </button>
               </div>
             </div>
-            {metric3Type === 'custom' && (
+            {metric3Type === 'custom' ? (
               <div className="space-y-1.5 pt-1">
                 <Input
                   placeholder="Label"
@@ -160,6 +160,10 @@ export function EditorFinancialCard({ form }: EditorFinancialCardProps) {
                   {...form.register('metric_3_custom_subtitle')}
                   className={cn(EDITOR_DESIGN.microHeight, EDITOR_DESIGN.compactInputText, EDITOR_DESIGN.inputBg, "border-dashed")}
                 />
+              </div>
+            ) : (
+              <div className="pt-1 text-sm text-muted-foreground">
+                {form.watch('full_time_employees') || 0} FT + {form.watch('part_time_employees') || 0} PT
               </div>
             )}
           </div>
@@ -193,7 +197,7 @@ export function EditorFinancialCard({ form }: EditorFinancialCardProps) {
                 </button>
               </div>
             </div>
-            {metric4Type === 'custom' && (
+            {metric4Type === 'custom' ? (
               <div className="space-y-1.5 pt-1">
                 <Input
                   placeholder="Label"
@@ -211,20 +215,13 @@ export function EditorFinancialCard({ form }: EditorFinancialCardProps) {
                   className={cn(EDITOR_DESIGN.microHeight, EDITOR_DESIGN.compactInputText, EDITOR_DESIGN.inputBg, "border-dashed")}
                 />
               </div>
+            ) : (
+              <div className="pt-1 text-sm text-muted-foreground">
+                {calculatedMargin}% EBITDA Margin
+              </div>
             )}
           </div>
         </div>
-      </div>
-      
-      {/* Context */}
-      <div className="space-y-2">
-        <div className={EDITOR_DESIGN.microLabel}>Investment Context (internal)</div>
-        <Textarea
-          rows={2}
-          placeholder="Why is this a good deal? Key thesis points..."
-          {...form.register('owner_notes')}
-          className={cn("text-xs resize-none", EDITOR_DESIGN.inputBg, EDITOR_DESIGN.inputBorder, "rounded p-2")}
-        />
       </div>
     </div>
   );

@@ -126,7 +126,7 @@ const convertListingToFormInput = (listing?: AdminListing): ListingFormInput => 
   return {
     title: listing?.title || "",
     categories: listing?.categories || (listing?.category ? [listing.category] : []),
-    acquisition_type: listing?.acquisition_type || null,
+    acquisition_type: listing?.acquisition_type || 'add_on',
     location: listing?.location || "",
     revenue: listing?.revenue?.toString() || "0",
     ebitda: listing?.ebitda?.toString() || "0",
@@ -276,14 +276,14 @@ export function ImprovedListingEditor({
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-slate-50/30">
-      <div className={cn(EDITOR_DESIGN.maxWidth, "mx-auto", EDITOR_DESIGN.contentPadding)}>
+      <div className="max-w-[1800px] mx-auto px-10 py-8">
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)}>
             {/* TOP BAR - Critical fields */}
             <EditorTopBar form={form} />
             
             {/* MAIN CONTENT - Card grid */}
-            <div className={cn("grid grid-cols-[1fr_380px]", EDITOR_DESIGN.cardSpacing, "mb-6")}>
+            <div className="grid grid-cols-[1fr_480px] gap-6 mb-6">
               {/* Left: Financial */}
               <EditorFinancialCard form={form} />
               

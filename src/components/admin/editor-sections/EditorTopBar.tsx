@@ -98,18 +98,6 @@ export function EditorTopBar({ form }: EditorTopBarProps) {
             >
               Add-on
             </button>
-            <button
-              type="button"
-              onClick={() => form.setValue('acquisition_type', null)}
-              className={cn(
-                "px-3 py-1.5 rounded text-sm font-medium transition-all",
-                !acquisitionType || (acquisitionType !== 'platform' && acquisitionType !== 'add_on')
-                  ? "bg-white text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              —
-            </button>
           </div>
           
           {/* Status indicator */}
