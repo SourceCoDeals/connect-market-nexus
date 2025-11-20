@@ -3823,6 +3823,7 @@ export type Database = {
         Returns: boolean
       }
       refresh_analytics_views: { Args: never; Returns: undefined }
+      reset_all_admin_notifications: { Args: never; Returns: undefined }
       restore_deal: { Args: { deal_id: string }; Returns: boolean }
       restore_profile_data_automated: {
         Args: never
