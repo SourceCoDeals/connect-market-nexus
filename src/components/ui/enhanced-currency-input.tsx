@@ -55,11 +55,18 @@ export const EnhancedCurrencyInput = React.forwardRef<HTMLInputElement, Enhanced
     placeholder,
     ...props 
   }, ref) => {
+    // Debug logging
+    console.log('[EnhancedCurrencyInput] Received props:', { value, fieldType });
+    
     const [displayValue, setDisplayValue] = useState<string>(() => {
       const stringValue = String(value || "");
+      console.log('[EnhancedCurrencyInput] Initializing displayValue from:', stringValue);
       if (stringValue && stringValue !== '0' && stringValue !== '') {
-        return formatCurrency(stringValue, currencyMode);
+        const formatted = formatCurrency(stringValue, currencyMode);
+        console.log('[EnhancedCurrencyInput] Formatted to:', formatted);
+        return formatted;
       }
+      console.log('[EnhancedCurrencyInput] Setting displayValue to empty string');
       return '';
     });
     const [isFocused, setIsFocused] = useState(false);
