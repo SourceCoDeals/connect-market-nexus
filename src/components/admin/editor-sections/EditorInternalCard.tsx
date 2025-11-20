@@ -224,14 +224,14 @@ export function EditorInternalCard({ form, dealIdentifier }: EditorInternalCardP
             name="status_tag"
             render={({ field }) => (
               <FormItem>
-                <Select onValueChange={field.onChange} value={field.value || ''}>
+                <Select onValueChange={field.onChange} value={field.value || 'none'}>
                   <FormControl>
                     <SelectTrigger className={cn(EDITOR_DESIGN.miniHeight, "text-sm", EDITOR_DESIGN.inputBg)}>
                       <SelectValue placeholder="No tag" />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value="">No tag</SelectItem>
+                    <SelectItem value="none">No tag</SelectItem>
                     <SelectItem value="Just Listed">Just Listed</SelectItem>
                     <SelectItem value="Price Reduced">Price Reduced</SelectItem>
                     <SelectItem value="Featured">Featured</SelectItem>
