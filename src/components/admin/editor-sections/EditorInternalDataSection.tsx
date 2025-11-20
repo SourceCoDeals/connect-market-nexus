@@ -61,7 +61,7 @@ export function EditorInternalDataSection({ form, dealIdentifier }: EditorIntern
       {/* Primary Owner */}
       <FormField
         control={form.control}
-        name="internal_primary_owner"
+        name="primary_owner_id"
         render={({ field }) => (
           <FormItem>
             <FormLabel className="text-sm font-medium">Primary Owner</FormLabel>
@@ -93,7 +93,7 @@ export function EditorInternalDataSection({ form, dealIdentifier }: EditorIntern
       {/* Presented By */}
       <FormField
         control={form.control}
-        name="presented_by_admin"
+        name="presented_by_admin_id"
         render={({ field }) => (
           <FormItem>
             <FormLabel className="text-sm font-medium">Presented By</FormLabel>
