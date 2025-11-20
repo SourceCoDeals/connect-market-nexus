@@ -101,11 +101,11 @@ export const DealSourcingCriteriaDialog = ({ open, onOpenChange, user }: DealSou
 
   const renderFormView = () => (
     <DialogContent className="max-w-[92vw] w-full sm:max-w-[600px] lg:max-w-[680px] px-0 py-0 gap-0 overflow-hidden">
-      <div className="px-4 sm:px-8 pt-6 sm:pt-8 pb-4 sm:pb-6 border-b border-border/10">
-        <DialogHeader className="space-y-2 sm:space-y-3">
+      <div className="px-4 sm:px-6 lg:px-8 pt-5 sm:pt-6 pb-3 sm:pb-4 border-b border-border/10">
+        <DialogHeader className="space-y-2">
           <div className="flex items-center gap-2">
             <Sparkles className="h-4 w-4 sm:h-5 sm:w-5 text-[#D8B75D]" />
-            <DialogTitle className="text-[22px] sm:text-[28px] font-[300] tracking-tight text-foreground leading-[28px] sm:leading-[34px]">
+            <DialogTitle className="text-[22px] sm:text-[26px] font-[300] tracking-tight text-foreground leading-[28px] sm:leading-[32px]">
               Let Us Source Deals for You
             </DialogTitle>
           </div>
@@ -117,8 +117,8 @@ export const DealSourcingCriteriaDialog = ({ open, onOpenChange, user }: DealSou
         </DialogHeader>
       </div>
 
-      <ScrollArea className="max-h-[calc(85vh-180px)]">
-        <div className="px-4 sm:px-8 py-4 sm:py-6 space-y-4 sm:space-y-6">
+      <ScrollArea className="max-h-[calc(65vh-160px)] sm:max-h-[calc(70vh-160px)]">
+        <div className="px-4 sm:px-6 lg:px-8 py-4 sm:py-5 space-y-3.5 sm:space-y-4">
           <div className="pb-3 sm:pb-4 border-b border-border/10">
             <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 text-[13px] sm:text-[15px]">
               <span className="font-semibold text-foreground">{user?.company_name || 'Your Company'}</span>
@@ -298,7 +298,7 @@ export const DealSourcingCriteriaDialog = ({ open, onOpenChange, user }: DealSou
         </div>
       </ScrollArea>
 
-      <div className="px-4 sm:px-8 py-4 sm:py-6 border-t border-border/10 bg-muted/30">
+      <div className="px-4 sm:px-6 lg:px-8 py-3.5 sm:py-4 border-t border-border/10 bg-muted/30">
         <Button onClick={handleGetMyDeals} disabled={isSubmitting} className="w-full h-10 sm:h-11 bg-[#D8B75D] hover:bg-[#C5A54A] text-slate-900 font-semibold text-[13px] sm:text-[14px] tracking-wide transition-all duration-200">
           {isSubmitting ? (
             <>
