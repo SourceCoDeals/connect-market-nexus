@@ -100,7 +100,7 @@ export const DealSourcingCriteriaDialog = ({ open, onOpenChange, user }: DealSou
   };
 
   const renderFormView = () => (
-    <DialogContent className="max-w-[95vw] sm:max-w-[680px] px-0 py-0 gap-0 overflow-hidden">
+    <DialogContent className="max-w-[92vw] w-full sm:max-w-[600px] lg:max-w-[680px] px-0 py-0 gap-0 overflow-hidden">
       <div className="px-4 sm:px-8 pt-6 sm:pt-8 pb-4 sm:pb-6 border-b border-border/10">
         <DialogHeader className="space-y-2 sm:space-y-3">
           <div className="flex items-center gap-2">
@@ -109,10 +109,10 @@ export const DealSourcingCriteriaDialog = ({ open, onOpenChange, user }: DealSou
               Let Us Source Deals for You
             </DialogTitle>
           </div>
-          <DialogDescription className="text-[13px] sm:text-[14px] font-normal text-foreground/70 leading-[1.6] max-w-[580px]">
+          <DialogDescription className="text-[13px] sm:text-[14px] font-normal text-foreground/70 leading-[1.6]">
             From this form to qualified owner targets ready for conversations in 30 days.
             <br /><br />
-            Gain 100% off-market visibility with our plug-in proprietary sourcing engine. We deliver 4-10 pre-qualified, exclusive owner meetings monthly by uncovering off-market opportunities invisible to standard sourcing methods—each one vetted by our in-house M&A team and aligned with your revenue range, industry thesis, and geography.
+            Gain 100% off-market visibility with our plug-in proprietary sourcing engine. We deliver 4-10 pre-qualified, exclusive owner meetings monthly by uncovering off-market opportunities invisible to standard sourcing methods. Each one vetted by our in-house M&A team and aligned with your revenue range, industry thesis, and geography.
           </DialogDescription>
         </DialogHeader>
       </div>
@@ -314,7 +314,7 @@ export const DealSourcingCriteriaDialog = ({ open, onOpenChange, user }: DealSou
   );
 
   const renderCalendarView = () => (
-    <DialogContent className="max-w-[95vw] sm:max-w-[720px] px-0 py-0 gap-0 overflow-hidden">
+    <DialogContent className="max-w-[92vw] w-full sm:max-w-[660px] lg:max-w-[720px] px-0 py-0 gap-0 overflow-hidden">
       <div className="px-4 sm:px-8 pt-6 sm:pt-8 pb-4 sm:pb-6 border-b border-border/10">
         <DialogHeader className="space-y-2 sm:space-y-3">
           <div className="flex items-center gap-2">
