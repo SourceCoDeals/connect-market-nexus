@@ -2,12 +2,13 @@ import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { ChevronDown, ChevronUp, Sparkles, CheckCircle2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Sparkles, CheckCircle2, Pencil, Check, X } from "lucide-react";
 import { User as AppUser } from "@/types";
 import { Link } from "react-router-dom";
 
@@ -25,6 +26,66 @@ export const DealSourcingCriteriaDialog = ({ open, onOpenChange, user }: DealSou
   const [dialogState, setDialogState] = useState<DialogState>('form');
   const [isCollapsibleOpen, setIsCollapsibleOpen] = useState(false);
   const [customMessage, setCustomMessage] = useState("");
+  const [showAllIndustries, setShowAllIndustries] = useState(false);
+  const [editingField, setEditingField] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState<string>("");
+
+  const INITIAL_INDUSTRIES_DISPLAY = 3;
+
+  const formatBuyerType = (type: string) => {
+    const typeMap: { [key: string]: string } = {
+      'privateEquity': 'Private Equity',
+      'familyOffice': 'Family Office',
+      'individualBuyer': 'Individual Buyer',
+      'searchFund': 'Search Fund',
+      'strategicBuyer': 'Strategic Buyer',
+      'ventureCapital': 'Venture Capital',
+    };
+    return typeMap[type] || type;
+  };
+
+  const startEditing = (field: string, currentValue: string) => {
+    setEditingField(field);
+    setEditValue(currentValue);
+  };
+
+  const cancelEditing = () => {
+    setEditingField(null);
+    setEditValue("");
+  };
+
+  const handleFieldEdit = async (field: string) => {
+    if (!user || !editValue.trim()) {
+      cancelEditing();
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ [field]: editValue.trim() })
+        .eq('id', user.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Updated",
+        description: "Your profile has been updated successfully.",
+      });
+
+      // Refresh the user data
+      window.location.reload();
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update profile. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      cancelEditing();
+    }
+  };
 
   const handleGetMyDeals = async () => {
     if (!user) return;
@@ -66,47 +127,109 @@ export const DealSourcingCriteriaDialog = ({ open, onOpenChange, user }: DealSou
     onOpenChange(false);
   };
 
-  const renderCriticalFields = () => (
-    <div className="space-y-5 pb-6 border-b border-border/10">
-      {/* Buyer Type */}
-      {user?.buyer_type && (
-        <div className="space-y-2">
-          <div className="text-[10px] font-semibold text-foreground/40 uppercase tracking-[0.08em]">
-            Buyer Type
-          </div>
-          <Badge variant="secondary" className="text-[13px] font-medium px-3 py-1 bg-background border-border/30">
-            {user.buyer_type}
-          </Badge>
-        </div>
-      )}
+  const renderCriticalFields = () => {
+    const industries = user?.business_categories && Array.isArray(user.business_categories) ? user.business_categories : [];
+    const displayedIndustries = showAllIndustries ? industries : industries.slice(0, INITIAL_INDUSTRIES_DISPLAY);
+    const hasMoreIndustries = industries.length > INITIAL_INDUSTRIES_DISPLAY;
 
-      {/* Target Industries */}
-      {user?.business_categories && Array.isArray(user.business_categories) && user.business_categories.length > 0 && (
-        <div className="space-y-2.5">
-          <div className="text-[10px] font-semibold text-foreground/40 uppercase tracking-[0.08em]">
-            Target Industries
+    return (
+      <div className="space-y-5 pb-6 border-b border-border/10">
+        {/* Sophisticated Buyer Identity Header */}
+        {user && (
+          <div className="space-y-2">
+            <div className="text-[10px] font-semibold text-foreground/40 uppercase tracking-[0.08em]">
+              Buyer Type
+            </div>
+            <div className="text-[15px] font-medium text-foreground leading-relaxed">
+              {user.company_name && <span className="font-semibold">{user.company_name}</span>}
+              {user.company_name && user.buyer_type && <span className="text-foreground/40 mx-2">•</span>}
+              {user.buyer_type && <span>{formatBuyerType(user.buyer_type)}</span>}
+              {user.job_title && (
+                <>
+                  <span className="text-foreground/40 mx-2">•</span>
+                  <span className="text-foreground/70">{user.job_title}</span>
+                </>
+              )}
+            </div>
           </div>
-          <div className="flex flex-wrap gap-2">
-            {user.business_categories.map((category, idx) => (
-              <Badge key={idx} variant="outline" className="text-[12px] font-normal px-2.5 py-1 bg-background border-border/30">
-                {category}
-              </Badge>
-            ))}
-          </div>
-        </div>
-      )}
+        )}
 
-      {/* Geographic Focus */}
-      {user?.target_locations && Array.isArray(user.target_locations) && user.target_locations.length > 0 && (
-        <div className="space-y-2.5">
-          <div className="text-[10px] font-semibold text-foreground/40 uppercase tracking-[0.08em]">
-            Geographic Focus
+        {/* Target Industries with Show More/Less */}
+        {industries.length > 0 && (
+          <div className="space-y-2.5">
+            <div className="text-[10px] font-semibold text-foreground/40 uppercase tracking-[0.08em]">
+              Target Industries
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {displayedIndustries.map((category, idx) => (
+                <Badge key={idx} variant="outline" className="text-[12px] font-normal px-2.5 py-1 bg-background border-border/30">
+                  {category}
+                </Badge>
+              ))}
+            </div>
+            {hasMoreIndustries && (
+              <button
+                onClick={() => setShowAllIndustries(!showAllIndustries)}
+                className="text-[12px] text-foreground/60 hover:text-foreground font-medium transition-colors underline underline-offset-2"
+              >
+                {showAllIndustries ? `Show less` : `Show ${industries.length - INITIAL_INDUSTRIES_DISPLAY} more`}
+              </button>
+            )}
           </div>
-          <div className="text-[15px] font-normal text-foreground">
-            {user.target_locations.join(', ')}
+        )}
+
+        {/* Geographic Focus with Inline Edit */}
+        {user?.target_locations && Array.isArray(user.target_locations) && user.target_locations.length > 0 && (
+          <div className="space-y-2.5">
+            <div className="flex items-center justify-between">
+              <div className="text-[10px] font-semibold text-foreground/40 uppercase tracking-[0.08em]">
+                Geographic Focus
+              </div>
+              {editingField !== 'target_locations' && (
+                <button
+                  onClick={() => {
+                    const locations = Array.isArray(user.target_locations) 
+                      ? user.target_locations.join(', ') 
+                      : user.target_locations || '';
+                    startEditing('target_locations', locations);
+                  }}
+                  className="text-foreground/40 hover:text-foreground transition-colors"
+                >
+                  <Pencil className="h-3 w-3" />
+                </button>
+              )}
+            </div>
+            {editingField === 'target_locations' ? (
+              <div className="flex gap-2 items-center">
+                <Input
+                  value={editValue}
+                  onChange={(e) => setEditValue(e.target.value)}
+                  className="text-[14px]"
+                  placeholder="Separate locations with commas"
+                />
+                <Button
+                  size="sm"
+                  onClick={() => handleFieldEdit('target_locations')}
+                  className="h-8 w-8 p-0"
+                >
+                  <Check className="h-4 w-4" />
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={cancelEditing}
+                  className="h-8 w-8 p-0"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            ) : (
+              <div className="text-[15px] font-normal text-foreground">
+                {Array.isArray(user.target_locations) ? user.target_locations.join(', ') : user.target_locations}
+              </div>
+            )}
           </div>
-        </div>
-      )}
+        )}
 
       {/* Revenue Target */}
       {(user?.revenue_range_min || user?.revenue_range_max) && (
@@ -126,19 +249,56 @@ export const DealSourcingCriteriaDialog = ({ open, onOpenChange, user }: DealSou
         </div>
       )}
 
-      {/* Investment Thesis */}
-      {user?.ideal_target_description && (
-        <div className="space-y-3 pt-2">
-          <div className="text-[10px] font-semibold text-foreground/40 uppercase tracking-[0.08em]">
-            Investment Thesis
+        {/* Investment Thesis with Inline Edit */}
+        {user?.ideal_target_description && (
+          <div className="space-y-3 pt-2">
+            <div className="flex items-center justify-between">
+              <div className="text-[10px] font-semibold text-foreground/40 uppercase tracking-[0.08em]">
+                Investment Thesis
+              </div>
+              {editingField !== 'ideal_target_description' && (
+                <button
+                  onClick={() => startEditing('ideal_target_description', user.ideal_target_description || '')}
+                  className="text-foreground/40 hover:text-foreground transition-colors"
+                >
+                  <Pencil className="h-3 w-3" />
+                </button>
+              )}
+            </div>
+            {editingField === 'ideal_target_description' ? (
+              <div className="flex flex-col gap-2">
+                <Textarea
+                  value={editValue}
+                  onChange={(e) => setEditValue(e.target.value)}
+                  className="text-[14px] min-h-[100px]"
+                  placeholder="Describe your investment thesis..."
+                />
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    onClick={() => handleFieldEdit('ideal_target_description')}
+                  >
+                    <Check className="h-4 w-4 mr-1" /> Save
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={cancelEditing}
+                  >
+                    <X className="h-4 w-4 mr-1" /> Cancel
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="text-[15px] font-normal text-foreground/90 leading-[1.6]">
+                {user.ideal_target_description}
+              </div>
+            )}
           </div>
-          <div className="text-[15px] font-normal text-foreground/90 leading-[1.6]">
-            {user.ideal_target_description}
-          </div>
-        </div>
-      )}
-    </div>
-  );
+        )}
+      </div>
+    );
+  };
 
   const renderAdditionalFields = () => {
     if (!user) return null;
