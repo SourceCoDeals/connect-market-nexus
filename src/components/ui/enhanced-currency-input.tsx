@@ -55,7 +55,13 @@ export const EnhancedCurrencyInput = React.forwardRef<HTMLInputElement, Enhanced
     placeholder,
     ...props 
   }, ref) => {
-    const [displayValue, setDisplayValue] = useState<string>("");
+    const [displayValue, setDisplayValue] = useState<string>(() => {
+      const stringValue = String(value || "");
+      if (stringValue && stringValue !== '0' && stringValue !== '') {
+        return formatCurrency(stringValue, currencyMode);
+      }
+      return '';
+    });
     const [isFocused, setIsFocused] = useState(false);
 
     // Update display value when prop value changes

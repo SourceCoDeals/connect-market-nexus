@@ -9,6 +9,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { EDITOR_DESIGN } from "@/lib/editor-design-system";
 import { cn } from "@/lib/utils";
+import { STATUS_TAGS } from "@/constants/statusTags";
 
 interface EditorInternalCardProps {
   form: UseFormReturn<any>;
@@ -232,10 +233,11 @@ export function EditorInternalCard({ form, dealIdentifier }: EditorInternalCardP
                   </FormControl>
                   <SelectContent>
                     <SelectItem value="none">No tag</SelectItem>
-                    <SelectItem value="Just Listed">Just Listed</SelectItem>
-                    <SelectItem value="Price Reduced">Price Reduced</SelectItem>
-                    <SelectItem value="Featured">Featured</SelectItem>
-                    <SelectItem value="Hot Deal">Hot Deal</SelectItem>
+                    {STATUS_TAGS.map((tag) => (
+                      <SelectItem key={tag.value} value={tag.value}>
+                        {tag.label}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </FormItem>
