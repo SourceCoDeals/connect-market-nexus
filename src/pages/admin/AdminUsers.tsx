@@ -22,6 +22,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useNonMarketplaceUsers } from "@/hooks/admin/use-non-marketplace-users";
 import { NonMarketplaceUsersTable } from "@/components/admin/NonMarketplaceUsersTable";
 import { UserViewSwitcher } from "@/components/admin/UserViewSwitcher";
+import { useMarkUsersViewed } from "@/hooks/admin/use-mark-users-viewed";
 
 type UserView = 'marketplace' | 'non-marketplace';
 
@@ -34,6 +35,12 @@ const AdminUsers = () => {
   const { isConnected } = useRealtimeAdmin();
   const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
   const [activeView, setActiveView] = useState<UserView>('marketplace');
+  const { markAsViewed } = useMarkUsersViewed();
+
+  // Mark users as viewed when component mounts
+  useEffect(() => {
+    markAsViewed();
+  }, []);
 
   // Update filtered users when usersData changes
   useEffect(() => {

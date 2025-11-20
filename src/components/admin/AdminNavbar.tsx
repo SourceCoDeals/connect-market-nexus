@@ -17,6 +17,8 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetClose 
 import { useIsMobile } from "@/hooks/use-mobile";
 import { AdminNotificationBell } from "./AdminNotificationBell";
 import { useUnviewedDealSourcingCount } from "@/hooks/admin/use-unviewed-deal-sourcing";
+import { useUnviewedConnectionRequests } from "@/hooks/admin/use-unviewed-connection-requests";
+import { useUnviewedUsers } from "@/hooks/admin/use-unviewed-users";
 
 interface AdminNavbarProps {
   className?: string;
@@ -26,7 +28,9 @@ export function AdminNavbar({ className }: AdminNavbarProps) {
   const { user } = useAuth();
   const location = useLocation();
   const isMobile = useIsMobile();
-  const { unviewedCount } = useUnviewedDealSourcingCount();
+  const { unviewedCount: unviewedDealSourcingCount } = useUnviewedDealSourcingCount();
+  const { unviewedCount: unviewedConnectionRequestsCount } = useUnviewedConnectionRequests();
+  const { unviewedCount: unviewedUsersCount } = useUnviewedUsers();
 
   const navItems = [
     {
@@ -39,7 +43,8 @@ export function AdminNavbar({ className }: AdminNavbarProps) {
       to: "/admin/users",
       label: "Users",
       icon: <Users className="h-4 w-4 mr-2" />,
-      active: location.pathname.includes('/admin/users')
+      active: location.pathname.includes('/admin/users'),
+      badge: unviewedUsersCount
     },
     {
       to: "/admin/listings",
@@ -51,14 +56,15 @@ export function AdminNavbar({ className }: AdminNavbarProps) {
       to: "/admin/requests",
       label: "Connection Requests",
       icon: <MessageSquare className="h-4 w-4 mr-2" />,
-      active: location.pathname.includes('/admin/requests')
+      active: location.pathname.includes('/admin/requests'),
+      badge: unviewedConnectionRequestsCount
     },
     {
       to: "/admin/deal-sourcing",
       label: "Deal Sourcing",
       icon: <Sparkles className="h-4 w-4 mr-2" />,
       active: location.pathname.includes('/admin/deal-sourcing'),
-      badge: unviewedCount
+      badge: unviewedDealSourcingCount
     },
     {
       to: "/marketplace",

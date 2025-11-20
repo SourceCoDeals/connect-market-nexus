@@ -19,13 +19,17 @@ import { AdminNavbar } from "./AdminNavbar";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useState } from "react";
 import { useUnviewedDealSourcingCount } from "@/hooks/admin/use-unviewed-deal-sourcing";
+import { useUnviewedConnectionRequests } from "@/hooks/admin/use-unviewed-connection-requests";
+import { useUnviewedUsers } from "@/hooks/admin/use-unviewed-users";
 
 const AdminLayout = () => {
   const { user } = useAuth();
   const location = useLocation();
   const isMobile = useIsMobile();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const { unviewedCount } = useUnviewedDealSourcingCount();
+  const { unviewedCount: unviewedDealSourcingCount } = useUnviewedDealSourcingCount();
+  const { unviewedCount: unviewedConnectionRequestsCount } = useUnviewedConnectionRequests();
+  const { unviewedCount: unviewedUsersCount } = useUnviewedUsers();
 
   return (
     <div className="flex min-h-screen w-full bg-background">
@@ -84,6 +88,7 @@ const AdminLayout = () => {
               label="Users"
               isActive={location.pathname.includes('/admin/users')}
               collapsed={sidebarCollapsed}
+              badge={unviewedUsersCount}
             />
             <NavLink 
               to="/admin/listings" 
@@ -98,6 +103,7 @@ const AdminLayout = () => {
               label="Connection Requests"
               isActive={location.pathname.includes('/admin/requests')}
               collapsed={sidebarCollapsed}
+              badge={unviewedConnectionRequestsCount}
             />
             <NavLink 
               to="/admin/deal-sourcing" 
@@ -105,7 +111,7 @@ const AdminLayout = () => {
               label="Deal Sourcing"
               isActive={location.pathname.includes('/admin/deal-sourcing')}
               collapsed={sidebarCollapsed}
-              badge={unviewedCount}
+              badge={unviewedDealSourcingCount}
             />
             <NavLink 
               to="/admin/pipeline" 
