@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import { EditorTopBar } from "./editor-sections/EditorTopBar";
 import { EditorFinancialCard } from "./editor-sections/EditorFinancialCard";
 import { EditorDescriptionSection } from "./editor-sections/EditorDescriptionSection";
+import { EditorHeroDescriptionSection } from "./editor-sections/EditorHeroDescriptionSection";
 import { EditorVisualsSection } from "./editor-sections/EditorVisualsSection";
 import { EditorInternalCard } from "./editor-sections/EditorInternalCard";
 import { EDITOR_DESIGN } from "@/lib/editor-design-system";
@@ -35,6 +36,7 @@ const listingFormSchema = z.object({
   description: z.string().min(20, "Description must be at least 20 characters"),
   description_html: z.string().optional(),
   description_json: z.any().optional(),
+  hero_description: z.string().max(500, "Hero description must be 500 characters or less").nullable().optional(),
   owner_notes: z.string().optional(),
   status: z.enum(["active", "inactive"]).default("active"),
   status_tag: z.string().nullable().optional(),
@@ -88,6 +90,7 @@ type ListingFormInput = {
   description: string;
   description_html?: string;
   description_json?: any;
+  hero_description?: string | null;
   owner_notes?: string;
   status: "active" | "inactive";
   status_tag?: string | null;
@@ -135,6 +138,7 @@ const convertListingToFormInput = (listing?: AdminListing): ListingFormInput => 
     description: listing?.description || "",
     description_html: listing?.description_html,
     description_json: listing?.description_json,
+    hero_description: listing?.hero_description || null,
     owner_notes: listing?.owner_notes,
     status: listing?.status || "active",
     status_tag: listing?.status_tag || null,
@@ -229,6 +233,7 @@ export function ImprovedListingEditor({
         description: formData.description,
         description_html: formData.description_html,
         description_json: formData.description_json,
+        hero_description: formData.hero_description?.trim() || null,
         owner_notes: formData.owner_notes,
         status: formData.status,
         status_tag: formData.status_tag && formData.status_tag !== "none" ? formData.status_tag : null,
@@ -297,6 +302,11 @@ export function ImprovedListingEditor({
             {/* FULL WIDTH - Description */}
             <div className="mb-6">
               <EditorDescriptionSection form={form} />
+            </div>
+            
+            {/* FULL WIDTH - Hero Description */}
+            <div className="mb-6">
+              <EditorHeroDescriptionSection form={form} />
             </div>
             
             {/* FULL WIDTH - Image */}

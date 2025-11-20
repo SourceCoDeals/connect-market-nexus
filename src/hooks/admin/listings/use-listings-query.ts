@@ -40,7 +40,7 @@ export function useListingsQuery(status?: 'active' | 'inactive' | 'all') {
           
           let query = supabase
             .from('listings')
-            .select('*')
+            .select('*, hero_description')
             .is('deleted_at', null);
           
           if (status && status !== 'all') {
