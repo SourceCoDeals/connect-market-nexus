@@ -2,6 +2,7 @@ import { FormField, FormItem, FormControl, FormMessage } from "@/components/ui/f
 import { UseFormReturn } from "react-hook-form";
 import { PremiumRichTextEditor } from "@/components/ui/premium-rich-text-editor";
 import { EDITOR_DESIGN } from "@/lib/editor-design-system";
+import { cn } from "@/lib/utils";
 
 interface EditorDescriptionSectionProps {
   form: UseFormReturn<any>;
@@ -9,9 +10,9 @@ interface EditorDescriptionSectionProps {
 
 export function EditorDescriptionSection({ form }: EditorDescriptionSectionProps) {
   return (
-    <div className={EDITOR_DESIGN.sectionSpacing}>
-      <div className={EDITOR_DESIGN.sectionBorder}>
-        <h3 className={EDITOR_DESIGN.sectionHeader}>Business Description</h3>
+    <div className={cn(EDITOR_DESIGN.cardBg, EDITOR_DESIGN.cardBorder, "rounded-lg", EDITOR_DESIGN.cardPadding)}>
+      <div className={cn(EDITOR_DESIGN.microHeader, "mb-4")}>
+        Description
       </div>
 
       <FormField
