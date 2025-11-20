@@ -14,6 +14,38 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_deal_sourcing_views: {
+        Row: {
+          admin_id: string
+          created_at: string | null
+          id: string
+          last_viewed_at: string
+          updated_at: string | null
+        }
+        Insert: {
+          admin_id: string
+          created_at?: string | null
+          id?: string
+          last_viewed_at?: string
+          updated_at?: string | null
+        }
+        Update: {
+          admin_id?: string
+          created_at?: string | null
+          id?: string
+          last_viewed_at?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "admin_deal_sourcing_views_admin_id_fkey"
+            columns: ["admin_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       admin_notifications: {
         Row: {
           action_url: string | null
