@@ -68,10 +68,13 @@ export function EnhancedMultiLocationSelect({
 }: EnhancedMultiLocationSelectProps) {
   const [open, setOpen] = useState(false);
 
+  // Ensure value is always an array
+  const normalizedValue = Array.isArray(value) ? value : (value ? [value] : []);
+
   const handleSelect = (location: string) => {
     // For single selection mode
-    if (value.includes(location)) {
-      onValueChange(value.filter((v) => v !== location));
+    if (normalizedValue.includes(location)) {
+      onValueChange(normalizedValue.filter((v) => v !== location));
     } else {
       // Replace existing selection with new one (single select behavior)
       onValueChange([location]);
@@ -88,9 +91,9 @@ export function EnhancedMultiLocationSelect({
           className={cn("w-full justify-between h-11", className)}
         >
           <div className="flex items-center min-w-0">
-            {value.length > 0 ? (
+            {normalizedValue.length > 0 ? (
               <span className="text-sm truncate">
-                {value.join(', ')}
+                {normalizedValue.join(', ')}
               </span>
             ) : (
               <span className="text-muted-foreground">{placeholder}</span>
@@ -115,7 +118,7 @@ export function EnhancedMultiLocationSelect({
                     <Check
                       className={cn(
                         "h-4 w-4 shrink-0",
-                        value.includes(location) ? "opacity-100" : "opacity-0"
+                        normalizedValue.includes(location) ? "opacity-100" : "opacity-0"
                       )}
                     />
                     <div className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white border border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.06)]">
