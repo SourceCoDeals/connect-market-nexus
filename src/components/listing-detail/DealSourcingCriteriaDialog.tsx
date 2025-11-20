@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ChevronDown, ChevronUp, Sparkles, CheckCircle2 } from "lucide-react";
@@ -45,7 +46,6 @@ export const DealSourcingCriteriaDialog = ({ open, onOpenChange, user }: DealSou
 
       if (error) throw error;
 
-      // Transition to calendar state
       setDialogState('calendar');
     } catch (error) {
       console.error("Error submitting deal sourcing request:", error);
@@ -67,26 +67,28 @@ export const DealSourcingCriteriaDialog = ({ open, onOpenChange, user }: DealSou
   };
 
   const renderCriticalFields = () => (
-    <div className="space-y-3">
+    <div className="space-y-5 pb-6 border-b border-border/10">
       {/* Buyer Type */}
-      <div className="bg-slate-50/30 rounded-lg p-3 border border-slate-100">
-        <div className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1.5">
-          Buyer Type
+      {user?.buyer_type && (
+        <div className="space-y-2">
+          <div className="text-[10px] font-semibold text-foreground/40 uppercase tracking-[0.08em]">
+            Buyer Type
+          </div>
+          <Badge variant="secondary" className="text-[13px] font-medium px-3 py-1 bg-background border-border/30">
+            {user.buyer_type}
+          </Badge>
         </div>
-        <Badge variant="secondary" className="text-sm font-medium">
-          {user?.buyer_type || "Not specified"}
-        </Badge>
-      </div>
+      )}
 
       {/* Target Industries */}
       {user?.business_categories && Array.isArray(user.business_categories) && user.business_categories.length > 0 && (
-        <div className="bg-slate-50/30 rounded-lg p-3 border border-slate-100">
-          <div className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1.5">
+        <div className="space-y-2.5">
+          <div className="text-[10px] font-semibold text-foreground/40 uppercase tracking-[0.08em]">
             Target Industries
           </div>
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex flex-wrap gap-2">
             {user.business_categories.map((category, idx) => (
-              <Badge key={idx} variant="outline" className="text-xs bg-white">
+              <Badge key={idx} variant="outline" className="text-[12px] font-normal px-2.5 py-1 bg-background border-border/30">
                 {category}
               </Badge>
             ))}
@@ -96,33 +98,29 @@ export const DealSourcingCriteriaDialog = ({ open, onOpenChange, user }: DealSou
 
       {/* Geographic Focus */}
       {user?.target_locations && Array.isArray(user.target_locations) && user.target_locations.length > 0 && (
-        <div className="bg-slate-50/30 rounded-lg p-3 border border-slate-100">
-          <div className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1.5">
+        <div className="space-y-2.5">
+          <div className="text-[10px] font-semibold text-foreground/40 uppercase tracking-[0.08em]">
             Geographic Focus
           </div>
-          <div className="flex flex-wrap gap-1.5">
-            {user.target_locations.map((location, idx) => (
-              <Badge key={idx} variant="outline" className="text-xs bg-white">
-                {location}
-              </Badge>
-            ))}
+          <div className="text-[15px] font-normal text-foreground">
+            {user.target_locations.join(', ')}
           </div>
         </div>
       )}
 
       {/* Revenue Target */}
       {(user?.revenue_range_min || user?.revenue_range_max) && (
-        <div className="bg-slate-50/30 rounded-lg p-3 border border-slate-100">
-          <div className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1.5">
+        <div className="space-y-2">
+          <div className="text-[10px] font-semibold text-foreground/40 uppercase tracking-[0.08em]">
             Revenue Target
           </div>
-          <div className="text-sm text-slate-900 font-medium">
+          <div className="text-[15px] font-normal text-foreground tabular-nums">
             {user.revenue_range_min && user.revenue_range_max
-              ? `${user.revenue_range_min} - ${user.revenue_range_max}`
+              ? `$${parseInt(user.revenue_range_min).toLocaleString()} - $${parseInt(user.revenue_range_max).toLocaleString()}`
               : user.revenue_range_min
-              ? `${user.revenue_range_min}+`
+              ? `$${parseInt(user.revenue_range_min).toLocaleString()}+`
               : user.revenue_range_max
-              ? `Up to ${user.revenue_range_max}`
+              ? `Up to $${parseInt(user.revenue_range_max).toLocaleString()}`
               : "Not specified"}
           </div>
         </div>
@@ -130,11 +128,11 @@ export const DealSourcingCriteriaDialog = ({ open, onOpenChange, user }: DealSou
 
       {/* Investment Thesis */}
       {user?.ideal_target_description && (
-        <div className="bg-slate-50/30 rounded-lg p-3 border border-slate-100">
-          <div className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1.5">
+        <div className="space-y-3 pt-2">
+          <div className="text-[10px] font-semibold text-foreground/40 uppercase tracking-[0.08em]">
             Investment Thesis
           </div>
-          <div className="text-sm text-slate-900 leading-relaxed">
+          <div className="text-[15px] font-normal text-foreground/90 leading-[1.6]">
             {user.ideal_target_description}
           </div>
         </div>
@@ -143,292 +141,163 @@ export const DealSourcingCriteriaDialog = ({ open, onOpenChange, user }: DealSou
   );
 
   const renderAdditionalFields = () => {
-    const fields: { label: string; value: any }[] = [];
-
-    // Deal Intent
-    if (user?.deal_intent) {
-      fields.push({ label: "Deal Intent", value: user.deal_intent });
-    }
-
-    // Exclusions
-    if (user?.exclusions && user.exclusions.length > 0) {
-      fields.push({ label: "Exclusions", value: user.exclusions });
-    }
-
-    // Include Keywords
-    if (user?.include_keywords && user.include_keywords.length > 0) {
-      fields.push({ label: "Include Keywords", value: user.include_keywords });
-    }
-
-    // LinkedIn Profile
-    if (user?.linkedin_profile) {
-      fields.push({ label: "LinkedIn", value: user.linkedin_profile });
-    }
-
-    // Company Name
-    if (user?.company_name) {
-      fields.push({ label: "Company", value: user.company_name });
-    }
-
-    // Job Title
-    if (user?.job_title) {
-      fields.push({ label: "Job Title", value: user.job_title });
-    }
-
-    // Buyer-type-specific fields
-    switch (user?.buyer_type) {
-      case "privateEquity":
-        if (user?.deploying_capital_now) {
-          fields.push({ label: "Deploying Capital Now", value: user.deploying_capital_now });
-        }
-        if (user?.portfolio_company_addon) {
-          fields.push({ label: "Portfolio Company Add-on", value: user.portfolio_company_addon });
-        }
-        if (user?.fund_size) {
-          fields.push({ label: "Fund Size", value: user.fund_size });
-        }
-        if (user?.aum) {
-          fields.push({ label: "AUM", value: user.aum });
-        }
-        break;
-
-      case "corporate":
-        if (user?.integration_plan) {
-          fields.push({ label: "Integration Plan", value: user.integration_plan });
-        }
-        if (user?.deal_size_band) {
-          fields.push({ label: "Deal Size Band", value: user.deal_size_band });
-        }
-        if (user?.owning_business_unit) {
-          fields.push({ label: "Owning Business Unit", value: user.owning_business_unit });
-        }
-        if (user?.corpdev_intent) {
-          fields.push({ label: "CorpDev Intent", value: user.corpdev_intent });
-        }
-        break;
-
-      case "familyOffice":
-        if (user?.discretion_type) {
-          fields.push({ label: "Discretion Type", value: user.discretion_type });
-        }
-        if (user?.permanent_capital !== undefined) {
-          fields.push({ label: "Permanent Capital", value: user.permanent_capital ? "Yes" : "No" });
-        }
-        if (user?.operating_company_targets) {
-          fields.push({ label: "Operating Company Targets", value: user.operating_company_targets });
-        }
-        break;
-
-      case "independentSponsor":
-        if (user?.committed_equity_band) {
-          fields.push({ label: "Committed Equity Band", value: user.committed_equity_band });
-        }
-        if (user?.equity_source) {
-          fields.push({ label: "Equity Source", value: user.equity_source });
-        }
-        if (user?.deployment_timing) {
-          fields.push({ label: "Deployment Timing", value: user.deployment_timing });
-        }
-        if (user?.backers_summary) {
-          fields.push({ label: "Backers Summary", value: user.backers_summary });
-        }
-        break;
-
-      case "searchFund":
-        if (user?.search_type) {
-          fields.push({ label: "Search Type", value: user.search_type });
-        }
-        if (user?.acq_equity_band) {
-          fields.push({ label: "Acquisition Equity Band", value: user.acq_equity_band });
-        }
-        if (user?.financing_plan) {
-          fields.push({ label: "Financing Plan", value: user.financing_plan });
-        }
-        if (user?.search_stage) {
-          fields.push({ label: "Search Stage", value: user.search_stage });
-        }
-        if (user?.anchor_investors_summary) {
-          fields.push({ label: "Anchor Investors", value: user.anchor_investors_summary });
-        }
-        break;
-
-      case "individual":
-        if (user?.max_equity_today_band) {
-          fields.push({ label: "Max Equity Today", value: user.max_equity_today_band });
-        }
-        if (user?.uses_bank_finance) {
-          fields.push({ label: "Uses Bank Finance", value: user.uses_bank_finance });
-        }
-        if (user?.funding_source) {
-          fields.push({ label: "Funding Source", value: user.funding_source });
-        }
-        break;
-    }
-
-    if (fields.length === 0) return null;
-
-    return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        {fields.map((field, idx) => (
-          <div key={idx} className="bg-slate-50/30 rounded-lg p-3 border border-slate-100">
-            <div className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1.5">
-              {field.label}
-            </div>
-            <div className="text-sm text-slate-900">
-              {Array.isArray(field.value) ? (
-                <div className="flex flex-wrap gap-1.5">
-                  {field.value.map((item, i) => (
-                    <Badge key={i} variant="outline" className="text-xs bg-white">
-                      {item}
-                    </Badge>
-                  ))}
-                </div>
-              ) : (
-                field.value
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
-    );
+    return null;
   };
 
   const renderFormView = () => (
-    <>
-      <DialogHeader>
-        <DialogTitle className="text-xl font-semibold text-slate-900">
-          Get Your Custom Deal Flow
-        </DialogTitle>
-        <DialogDescription className="text-sm text-slate-600 leading-relaxed">
-          Review your investment criteria below and we'll schedule a call to discuss tailored opportunities
-        </DialogDescription>
-      </DialogHeader>
+    <DialogContent className="max-w-[580px] px-0 pb-0">
+      {/* Fixed Header */}
+      <div className="px-8 pt-6 pb-4">
+        <DialogHeader>
+          <DialogTitle className="text-[28px] font-[300] tracking-tight text-foreground leading-[34px] mb-2">
+            Get Your Custom Deal Flow
+          </DialogTitle>
+          <DialogDescription className="text-[15px] font-normal text-foreground/60 leading-relaxed max-w-[520px]">
+            Review your investment criteria below and we'll schedule a call to discuss tailored opportunities
+          </DialogDescription>
+        </DialogHeader>
+      </div>
 
-      <div className="space-y-6 py-4">
-        {/* Critical Profile Fields */}
-        {renderCriticalFields()}
+      {/* Scrollable Content Area */}
+      <ScrollArea className="max-h-[calc(85vh-180px)] px-8">
+        <div className="space-y-6 pb-6">
+          {/* Critical Profile Fields */}
+          {renderCriticalFields()}
 
-        {/* Collapsible Additional Profile */}
-        {renderAdditionalFields() && (
-          <Collapsible open={isCollapsibleOpen} onOpenChange={setIsCollapsibleOpen}>
-            <CollapsibleTrigger asChild>
-              <Button variant="ghost" size="sm" className="w-full justify-between text-slate-600 hover:text-slate-900">
-                <span className="text-sm">View complete profile</span>
-                {isCollapsibleOpen ? (
-                  <ChevronUp className="h-4 w-4" />
-                ) : (
-                  <ChevronDown className="h-4 w-4" />
-                )}
-              </Button>
-            </CollapsibleTrigger>
-            <CollapsibleContent className="space-y-3 pt-3">
-              {renderAdditionalFields()}
-            </CollapsibleContent>
-          </Collapsible>
-        )}
+          {/* Collapsible Additional Profile */}
+          {renderAdditionalFields() && (
+            <Collapsible open={isCollapsibleOpen} onOpenChange={setIsCollapsibleOpen}>
+              <CollapsibleTrigger asChild>
+                <button className="w-full flex items-center justify-between py-3 px-4 -mx-4 rounded-lg hover:bg-muted/40 transition-all duration-150 ease-out group">
+                  <span className="text-[13px] font-medium text-foreground/70 group-hover:text-foreground transition-colors">
+                    View complete profile
+                  </span>
+                  {isCollapsibleOpen ? (
+                    <ChevronUp className="h-4 w-4 text-foreground/50 group-hover:text-foreground transition-colors" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4 text-foreground/50 group-hover:text-foreground transition-colors" />
+                  )}
+                </button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="pt-4">
+                {renderAdditionalFields()}
+              </CollapsibleContent>
+            </Collapsible>
+          )}
 
-        <p className="text-xs text-slate-500 text-center">
-          Need to update your profile?{" "}
-          <Link to="/profile" className="text-slate-700 hover:text-slate-900 underline">
-            Edit your criteria
-          </Link>
-        </p>
+          {/* Edit Profile Link */}
+          <div className="pt-2 pb-4 border-b border-border/10">
+            <p className="text-[12px] text-foreground/50 text-center">
+              Need to update your profile?{" "}
+              <Link to="/profile" className="text-foreground/70 hover:text-foreground underline underline-offset-2 font-medium transition-colors">
+                Edit your criteria
+              </Link>
+            </p>
+          </div>
 
-        {/* Custom Message Field */}
-        <div className="space-y-2 pt-4 border-t border-slate-200/60">
-          <label htmlFor="customMessage" className="text-sm font-medium text-slate-700 block">
-            Additional Context (Optional)
-          </label>
-          <Textarea
-            id="customMessage"
-            placeholder="Tell us more about what you're looking for, deal structures you prefer, or any specific requirements..."
-            rows={3}
-            value={customMessage}
-            onChange={(e) => setCustomMessage(e.target.value)}
-            className="resize-none border-slate-200/60 bg-slate-50/30 focus:bg-white transition-colors text-sm"
-          />
+          {/* Custom Message Field */}
+          <div className="space-y-3 pt-2">
+            <label htmlFor="customMessage" className="text-[13px] font-medium text-foreground/80 block">
+              Additional Context <span className="text-foreground/40 font-normal">(Optional)</span>
+            </label>
+            <Textarea
+              id="customMessage"
+              placeholder="Tell us more about what you're looking for, deal structures you prefer, or any specific requirements..."
+              rows={4}
+              value={customMessage}
+              onChange={(e) => setCustomMessage(e.target.value)}
+              className="resize-none border-border/30 bg-background focus:bg-background focus:border-border text-[14px] leading-relaxed min-h-[100px] transition-all duration-150"
+            />
+            <p className="text-[11px] text-foreground/40 leading-relaxed">
+              Share specific deal structures, timing requirements, or other preferences to help us source better matches
+            </p>
+          </div>
         </div>
+      </ScrollArea>
 
-        {/* Primary CTA */}
+      {/* Fixed Footer with CTA */}
+      <div className="px-8 py-5 border-t border-border/20 bg-background/80 backdrop-blur-sm">
         <Button
           onClick={handleGetMyDeals}
           disabled={isSubmitting}
-          className="w-full h-12 bg-[#D8B75D] hover:bg-[#C5A54A] text-slate-900 font-semibold text-sm tracking-wide shadow-md hover:shadow-lg transition-all duration-200"
+          className="w-full h-12 bg-[#D8B75D] hover:bg-[#C5A54A] text-slate-900 font-semibold text-[14px] tracking-wide shadow-sm hover:shadow-md transition-all duration-200"
         >
           {isSubmitting ? "Submitting..." : "Get My Deals"}
           <Sparkles className="h-4 w-4 ml-2" />
         </Button>
       </div>
-    </>
+    </DialogContent>
   );
 
   const renderCalendarView = () => (
-    <>
+    <DialogContent className="max-w-[580px] px-8 py-6">
       <DialogHeader>
-        <DialogTitle className="text-xl font-semibold text-slate-900">
+        <DialogTitle className="text-[28px] font-[300] tracking-tight text-foreground leading-[34px] mb-2">
           Schedule Your Discovery Call
         </DialogTitle>
-        <DialogDescription className="text-sm text-slate-600 leading-relaxed">
-          Choose a time that works best for you to discuss your investment criteria and deal flow
+        <DialogDescription className="text-[15px] font-normal text-foreground/60 leading-relaxed">
+          Book a time that works for you to discuss your custom deal flow
         </DialogDescription>
       </DialogHeader>
 
-      <div className="py-4 space-y-4">
-        <div className="w-full h-[600px] rounded-lg overflow-hidden border border-slate-200/60 bg-white">
-          <iframe
-            src="https://tidycal.com/tomosmughan/30-minute-meeting"
-            width="100%"
-            height="100%"
-            frameBorder="0"
-            className="bg-white"
-            title="Schedule a meeting"
-          />
-        </div>
-
-        <div className="text-center">
-          <button
-            onClick={() => setDialogState('success')}
-            className="text-sm text-slate-600 hover:text-slate-900 underline"
-          >
-            Skip for now
-          </button>
-        </div>
+      <div className="my-6 rounded-lg overflow-hidden border border-border/20">
+        <iframe
+          src="https://calendly.com/your-calendly-link"
+          width="100%"
+          height="650"
+          frameBorder="0"
+          className="bg-background"
+        />
       </div>
-    </>
+
+      <div className="flex justify-between items-center pt-4 border-t border-border/10">
+        <button
+          onClick={() => setDialogState('success')}
+          className="text-[13px] text-foreground/50 hover:text-foreground/80 transition-colors underline underline-offset-2"
+        >
+          Skip for now
+        </button>
+        <Button
+          onClick={() => setDialogState('success')}
+          className="bg-[#D8B75D] hover:bg-[#C5A54A] text-slate-900 font-semibold text-[14px] px-6"
+        >
+          Done
+        </Button>
+      </div>
+    </DialogContent>
   );
 
   const renderSuccessView = () => (
-    <div className="py-8 text-center space-y-6">
-      <div className="flex justify-center">
-        <div className="w-16 h-16 rounded-full bg-emerald-50 border-2 border-emerald-200 flex items-center justify-center">
-          <CheckCircle2 className="h-8 w-8 text-emerald-600" />
+    <DialogContent className="max-w-[480px] px-8 py-8">
+      <div className="flex flex-col items-center text-center space-y-6">
+        <div className="rounded-full bg-green-50 p-4">
+          <CheckCircle2 className="h-12 w-12 text-green-600" />
         </div>
-      </div>
+        
+        <div className="space-y-3">
+          <DialogTitle className="text-[28px] font-[300] tracking-tight text-foreground leading-[34px]">
+            We'll Be In Touch Soon
+          </DialogTitle>
+          <DialogDescription className="text-[15px] font-normal text-foreground/60 leading-[1.65] max-w-[400px]">
+            Our team will review your criteria and reach out with tailored opportunities that match your investment thesis.
+          </DialogDescription>
+        </div>
 
-      <div className="space-y-2">
-        <h3 className="text-2xl font-semibold text-slate-900">You're All Set!</h3>
-        <p className="text-sm text-slate-600 leading-relaxed max-w-md mx-auto">
-          We'll review your criteria and start sourcing exclusive opportunities. If you scheduled a call, we'll speak soon. 
-          Otherwise, we'll reach out within 48 hours.
-        </p>
+        <Button
+          onClick={handleClose}
+          className="w-full h-11 bg-[#D8B75D] hover:bg-[#C5A54A] text-slate-900 font-semibold text-[14px] tracking-wide transition-all duration-200"
+        >
+          Close
+        </Button>
       </div>
-
-      <Button
-        onClick={handleClose}
-        className="bg-[#D8B75D] hover:bg-[#C5A54A] text-slate-900 font-semibold px-8"
-      >
-        Return to Listing
-      </Button>
-    </div>
+    </DialogContent>
   );
 
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-3xl bg-white border border-slate-200/60 shadow-lg rounded-xl">
-        {dialogState === 'form' && renderFormView()}
-        {dialogState === 'calendar' && renderCalendarView()}
-        {dialogState === 'success' && renderSuccessView()}
-      </DialogContent>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      {dialogState === 'form' && renderFormView()}
+      {dialogState === 'calendar' && renderCalendarView()}
+      {dialogState === 'success' && renderSuccessView()}
     </Dialog>
   );
 };
