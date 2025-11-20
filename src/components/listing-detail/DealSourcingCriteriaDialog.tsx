@@ -109,8 +109,10 @@ export const DealSourcingCriteriaDialog = ({ open, onOpenChange, user }: DealSou
               Let Us Source Deals for You
             </DialogTitle>
           </div>
-          <DialogDescription className="text-[14px] sm:text-[15px] font-normal text-foreground/60 leading-[1.65]">
-            Based on your profile, we'll curate exclusive off-market opportunities that align with your investment criteria.
+          <DialogDescription className="text-[13px] sm:text-[14px] font-normal text-foreground/70 leading-[1.6] max-w-[580px]">
+            From this form to qualified owner targets ready for conversations in 30 days.
+            <br /><br />
+            Gain 100% off-market visibility with our plug-in proprietary sourcing engine. We deliver 4-10 pre-qualified, exclusive owner meetings monthly by uncovering off-market opportunities invisible to standard sourcing methods—each one vetted by our in-house M&A team and aligned with your revenue range, industry thesis, and geography.
           </DialogDescription>
         </DialogHeader>
       </div>
