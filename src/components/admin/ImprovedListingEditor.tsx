@@ -6,9 +6,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { AdminListing } from "@/types/admin";
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { parseCurrency, formatNumber } from "@/lib/currency-utils";
-import { Loader2, Save, Eye, ChevronDown } from "lucide-react";
+import { Loader2, Save, Eye } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // Import section components
@@ -173,11 +172,6 @@ export function ImprovedListingEditor({
   const [isImageChanged, setIsImageChanged] = useState(false);
   const [imageError, setImageError] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(false);
-  
-  // Collapsible states
-  const [coreDetailsOpen, setCoreDetailsOpen] = useState(!listing); // Open for new listings
-  const [visualsOpen, setVisualsOpen] = useState(false);
-  const [advancedOpen, setAdvancedOpen] = useState(false);
 
   const form = useForm<ListingFormInput>({
     resolver: zodResolver(listingFormSchema),
@@ -333,95 +327,32 @@ export function ImprovedListingEditor({
         )}>
           <div className="max-w-6xl mx-auto px-6 sm:px-8 lg:px-12 py-8">
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-8">
-                {/* 1. Core Listing Details - Collapsible */}
-                <Collapsible open={coreDetailsOpen} onOpenChange={setCoreDetailsOpen}>
-                  <div className="border rounded-lg">
-                    <CollapsibleTrigger asChild>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        className="w-full flex items-center justify-between p-6 hover:bg-muted/50 transition-colors"
-                      >
-                        <span className="text-base font-semibold">Core Listing Details</span>
-                        <ChevronDown className={cn(
-                          "h-5 w-5 text-muted-foreground transition-transform",
-                          coreDetailsOpen && "rotate-180"
-                        )} />
-                      </Button>
-                    </CollapsibleTrigger>
-                    <CollapsibleContent className="px-6 pb-6">
-                      <EditorCoreDetailsSection form={form} />
-                    </CollapsibleContent>
+              <form onSubmit={form.handleSubmit(handleSubmit)}>
+                <div className="grid grid-cols-1 lg:grid-cols-[1.5fr_1fr] gap-8 pb-24">
+                  {/* Left Column: Listing Data */}
+                  <div className="space-y-8">
+                    <EditorCoreDetailsSection form={form} />
+                    
+                    <EditorFinancialAndMetricsSection form={form} />
+                    
+                    <EditorDescriptionSection form={form} />
+                    
+                    <EditorVisualsSection
+                      imagePreview={imagePreview}
+                      imageError={imageError}
+                      onImageSelect={handleImageSelect}
+                      onRemoveImage={handleRemoveImage}
+                    />
                   </div>
-                </Collapsible>
 
-                {/* 2. Financial Snapshot - Always Expanded */}
-                <div className="border rounded-lg p-6">
-                  <EditorFinancialSection form={form} />
-                </div>
-
-                {/* 3. Metrics Display Configuration - Always Expanded */}
-                <div className="border rounded-lg p-6">
-                  <EditorMetricsSection form={form} />
-                </div>
-
-                {/* 4. Business Description - Always Expanded */}
-                <div className="border rounded-lg p-6">
-                  <EditorDescriptionSection form={form} />
-                </div>
-
-                {/* 5. Visual Assets - Collapsible */}
-                <Collapsible open={visualsOpen} onOpenChange={setVisualsOpen}>
-                  <div className="border rounded-lg">
-                    <CollapsibleTrigger asChild>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        className="w-full flex items-center justify-between p-6 hover:bg-muted/50 transition-colors"
-                      >
-                        <span className="text-base font-semibold">Visual Assets</span>
-                        <ChevronDown className={cn(
-                          "h-5 w-5 text-muted-foreground transition-transform",
-                          visualsOpen && "rotate-180"
-                        )} />
-                      </Button>
-                    </CollapsibleTrigger>
-                    <CollapsibleContent className="px-6 pb-6">
-                      <EditorVisualsSection
-                        imagePreview={imagePreview}
-                        imageError={imageError}
-                        onImageSelect={handleImageSelect}
-                        onRemoveImage={handleRemoveImage}
-                      />
-                    </CollapsibleContent>
+                  {/* Right Column: Internal Admin Data */}
+                  <div>
+                    <EditorInternalDataSection 
+                      form={form} 
+                      dealIdentifier={listing?.deal_identifier}
+                    />
                   </div>
-                </Collapsible>
-
-                {/* 6. Internal Admin Data - Already Collapsible */}
-                <EditorInternalSection form={form} dealIdentifier={listing?.deal_identifier} />
-
-                {/* 7. Advanced Settings - Collapsible */}
-                <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
-                  <div className="border rounded-lg">
-                    <CollapsibleTrigger asChild>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        className="w-full flex items-center justify-between p-6 hover:bg-muted/50 transition-colors"
-                      >
-                        <span className="text-base font-semibold">Advanced Settings</span>
-                        <ChevronDown className={cn(
-                          "h-5 w-5 text-muted-foreground transition-transform",
-                          advancedOpen && "rotate-180"
-                        )} />
-                      </Button>
-                    </CollapsibleTrigger>
-                    <CollapsibleContent className="px-6 pb-6">
-                      <EditorAdvancedSection form={form} />
-                    </CollapsibleContent>
-                  </div>
-                </Collapsible>
+                </div>
               </form>
             </Form>
           </div>
