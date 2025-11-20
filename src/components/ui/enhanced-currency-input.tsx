@@ -62,10 +62,10 @@ export const EnhancedCurrencyInput = React.forwardRef<HTMLInputElement, Enhanced
     useEffect(() => {
       if (!isFocused) {
         const stringValue = String(value);
-        if (stringValue && stringValue !== '0') {
+        if (stringValue && stringValue !== '0' && stringValue !== '') {
           setDisplayValue(formatCurrency(stringValue, currencyMode));
         } else {
-          setDisplayValue(stringValue);
+          setDisplayValue('');
         }
       }
     }, [value, isFocused, currencyMode]);
