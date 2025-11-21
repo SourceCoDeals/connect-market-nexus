@@ -16,6 +16,7 @@ interface ConnectionNotificationRequest {
   listingTitle: string;
   listingId: string;
   message?: string;
+  requestId?: string;
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -24,6 +25,8 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
+    const requestData: ConnectionNotificationRequest = await req.json();
+    
     const {
       type,
       recipientEmail,
@@ -32,14 +35,16 @@ const handler = async (req: Request): Promise<Response> => {
       requesterEmail,
       listingTitle,
       listingId,
-      message
-    }: ConnectionNotificationRequest = await req.json();
+      message,
+      requestId
+    } = requestData;
 
     console.log("Sending connection notification:", {
       type,
       recipientEmail,
       requesterName,
-      listingTitle
+      listingTitle,
+      requestId
     });
 
     const loginUrl = `https://marketplace.sourcecodeals.com/login`;
@@ -155,8 +160,11 @@ const handler = async (req: Request): Promise<Response> => {
 
     const brevoApiKey = Deno.env.get("BREVO_API_KEY");
     if (!brevoApiKey) {
+      console.error("BREVO_API_KEY not configured - cannot send email");
       throw new Error("BREVO_API_KEY not configured");
     }
+    
+    console.log("Using Brevo API to send email to:", recipientEmail);
 
     const emailResponse = await fetch("https://api.brevo.com/v3/smtp/email", {
       method: "POST",
@@ -168,7 +176,7 @@ const handler = async (req: Request): Promise<Response> => {
       body: JSON.stringify({
         sender: {
           name: "SourceCo Marketplace",
-          email: "noreply@sourcecodeals.com"
+          email: "adam.haile@sourcecodeals.com"
         },
         to: [{
           email: recipientEmail,
@@ -190,11 +198,22 @@ const handler = async (req: Request): Promise<Response> => {
 
     if (!emailResponse.ok) {
       const errorText = await emailResponse.text();
-      console.error("Error sending email via Brevo:", errorText);
+      console.error("Error sending email via Brevo:", {
+        status: emailResponse.status,
+        statusText: emailResponse.statusText,
+        error: errorText,
+        recipient: recipientEmail,
+        type
+      });
       throw new Error(`Brevo API error: ${errorText}`);
     }
 
-    console.log("Connection notification sent successfully");
+    const responseData = await emailResponse.json();
+    console.log("Connection notification sent successfully:", {
+      type,
+      recipient: recipientEmail,
+      messageId: responseData.messageId
+    });
 
     return new Response(
       JSON.stringify({ 
