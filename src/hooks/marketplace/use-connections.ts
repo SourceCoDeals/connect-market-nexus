@@ -79,39 +79,25 @@ export const useRequestConnection = () => {
             body: userConfirmationPayload
           });
 
-          // Send admin notification about new connection request
-          // Query for owner/admin emails to notify
-          const { data: adminProfiles } = await supabase
-            .from('profiles')
-            .select('email, first_name, last_name')
-            .eq('is_admin', true)
-            .limit(10);
-
-          // Send notification to all admins/owners
-          if (adminProfiles && adminProfiles.length > 0) {
-            for (const adminProfile of adminProfiles) {
-              try {
-                const adminNotificationPayload = {
-                  type: 'admin_notification',
-                  recipientEmail: adminProfile.email,
-                  recipientName: adminProfile.first_name 
-                    ? `${adminProfile.first_name} ${adminProfile.last_name || ''}`.trim()
-                    : 'Admin',
-                  requesterName: `${userData.first_name || ''} ${userData.last_name || ''}`.trim(),
-                  requesterEmail: userData.email,
-                  listingTitle: listingData.title,
-                  listingId: listingData.id,
-                  message: message || '',
-                  requestId: requestId
-                };
-                
-                await supabase.functions.invoke('send-connection-notification', {
-                  body: adminNotificationPayload
-                });
-              } catch (adminNotifError) {
-                console.error(`Failed to send admin notification to ${adminProfile.email}:`, adminNotifError);
-              }
-            }
+          // Send admin notification about new connection request to ahaile14@gmail.com only
+          try {
+            const adminNotificationPayload = {
+              type: 'admin_notification',
+              recipientEmail: 'ahaile14@gmail.com',
+              recipientName: 'Adam Haile',
+              requesterName: `${userData.first_name || ''} ${userData.last_name || ''}`.trim(),
+              requesterEmail: userData.email,
+              listingTitle: listingData.title,
+              listingId: listingData.id,
+              message: message || '',
+              requestId: requestId
+            };
+            
+            await supabase.functions.invoke('send-connection-notification', {
+              body: adminNotificationPayload
+            });
+          } catch (adminNotifError) {
+            console.error('Failed to send admin notification to ahaile14@gmail.com:', adminNotifError);
           }
         } catch (notificationError) {
           // Log the error but don't fail the whole request
