@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "@/hooks/use-toast";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
@@ -19,12 +19,12 @@ import { EditorVisualsSection } from "./editor-sections/EditorVisualsSection";
 import { EditorInternalCard } from "./editor-sections/EditorInternalCard";
 import { EDITOR_DESIGN } from "@/lib/editor-design-system";
 
-// Form schema
+// Form schema - location accepts array from select component and transforms to string
 const listingFormSchema = z.object({
   title: z.string().min(5, "Title must be at least 5 characters").max(100),
   categories: z.array(z.string()).min(1, "Please select at least one category"),
   acquisition_type: z.enum(['add_on', 'platform']).nullable().optional(),
-  location: z.string().min(2, "Location is required"),
+  location: z.array(z.string()).min(1, "Location is required").transform((val) => val[0] || ''),
   revenue: z.string()
     .transform((val) => parseCurrency(val))
     .refine((val) => val >= 0, "Revenue cannot be negative"),
@@ -82,7 +82,7 @@ type ListingFormInput = {
   title: string;
   categories: string[];
   acquisition_type?: 'add_on' | 'platform' | string | null;
-  location: string;
+  location: string[]; // Array for form input, transformed to string by Zod
   revenue: string;
   ebitda: string;
   full_time_employees?: number;
@@ -130,7 +130,7 @@ const convertListingToFormInput = (listing?: AdminListing): ListingFormInput => 
     title: listing?.title || "",
     categories: listing?.categories || (listing?.category ? [listing.category] : []),
     acquisition_type: listing?.acquisition_type || 'add_on',
-    location: listing?.location || "",
+    location: listing?.location ? [listing.location] : [], // Convert string to array for select component
     revenue: listing?.revenue ? listing.revenue.toString() : "",
     ebitda: listing?.ebitda ? listing.ebitda.toString() : "",
     full_time_employees: listing?.full_time_employees || 0,
@@ -180,6 +180,13 @@ export function ImprovedListingEditor({
     resolver: zodResolver(listingFormSchema),
     defaultValues: convertListingToFormInput(listing),
   });
+
+  // Debug form validation errors
+  useEffect(() => {
+    if (Object.keys(form.formState.errors).length > 0) {
+      console.log('[FORM] Validation errors:', form.formState.errors);
+    }
+  }, [form.formState.errors]);
 
   const handleImageSelect = (file: File | null) => {
     if (file) {

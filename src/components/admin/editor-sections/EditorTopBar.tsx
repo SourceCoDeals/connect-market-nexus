@@ -1,4 +1,4 @@
-import { FormField, FormItem, FormControl } from "@/components/ui/form";
+import { FormField, FormItem, FormControl, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { UseFormReturn } from "react-hook-form";
 import { EnhancedMultiCategorySelect } from "@/components/ui/enhanced-category-select";
@@ -49,6 +49,7 @@ export function EditorTopBar({ form }: EditorTopBarProps) {
                       onValueChange={field.onChange}
                     />
                   </FormControl>
+                  <FormMessage />
                 </FormItem>
               )}
             />
@@ -63,10 +64,11 @@ export function EditorTopBar({ form }: EditorTopBarProps) {
                 <FormItem>
                   <FormControl>
                     <EnhancedMultiLocationSelect
-                      value={field.value || []}
+                      value={Array.isArray(field.value) ? field.value : (field.value ? [field.value] : [])}
                       onValueChange={field.onChange}
                     />
                   </FormControl>
+                  <FormMessage />
                 </FormItem>
               )}
             />
