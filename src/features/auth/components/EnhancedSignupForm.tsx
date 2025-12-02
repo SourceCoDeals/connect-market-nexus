@@ -39,7 +39,7 @@ export const EnhancedSignupForm: React.FC = () => {
   const [currentStep, setCurrentStep] = useState(0);
 
   const form = useForm<SignupFormData>({
-    resolver: zodResolver(signupFormSchema),
+    resolver: zodResolver(signupFormSchema as any),
     defaultValues: {
       email: '',
       password: '',

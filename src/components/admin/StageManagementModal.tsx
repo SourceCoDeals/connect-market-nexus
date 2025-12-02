@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
+import { z } from 'zod/v3';
 import {
   DndContext,
   closestCenter,
@@ -307,7 +307,7 @@ export const StageManagementModal = ({ open, onOpenChange }: StageManagementModa
   }, [stages]);
 
   const form = useForm<StageFormData>({
-    resolver: zodResolver(stageSchema),
+    resolver: zodResolver(stageSchema as any),
     defaultValues: {
       name: '',
       description: '',
@@ -316,7 +316,7 @@ export const StageManagementModal = ({ open, onOpenChange }: StageManagementModa
   });
 
   const editForm = useForm<StageFormData>({
-    resolver: zodResolver(stageSchema),
+    resolver: zodResolver(stageSchema as any),
   });
 
   React.useEffect(() => {

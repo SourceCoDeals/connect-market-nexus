@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from 'zod/v3';
 import type { User } from '@/types';
 
 // Protected signup flow states - NEVER MODIFY WITHOUT TEAM APPROVAL
