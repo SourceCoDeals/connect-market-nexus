@@ -219,6 +219,7 @@ export function ImprovedListingEditor({
   };
 
   const onValidationError = (errors: any) => {
+    console.log('[FORM] onValidationError called with:', errors);
     const errorCount = Object.keys(errors).length;
     const errorFields = Object.keys(errors).join(', ');
     toast({
@@ -226,6 +227,46 @@ export function ImprovedListingEditor({
       title: "Validation Error",
       description: `Please fix ${errorCount} error(s): ${errorFields}`,
     });
+  };
+
+  // Manual submit handler that validates first and shows errors
+  const handleFormSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    console.log('[FORM] Manual submit triggered');
+    
+    const isValid = await form.trigger();
+    console.log('[FORM] Validation result:', isValid);
+    console.log('[FORM] Current errors:', form.formState.errors);
+    
+    if (!isValid) {
+      const errors = form.formState.errors;
+      const errorCount = Object.keys(errors).length;
+      const errorFields = Object.keys(errors).map(key => {
+        const error = errors[key as keyof typeof errors];
+        return `${key}: ${(error as any)?.message || 'Invalid'}`;
+      }).join(', ');
+      
+      toast({
+        variant: "destructive",
+        title: "Please fix the following errors",
+        description: errorFields || "Form validation failed",
+      });
+      return;
+    }
+    
+    // Get form values and call the submit handler
+    const formData = form.getValues();
+    console.log('[FORM] Form data before transform:', formData);
+    
+    // Manual transformation since we're bypassing zodResolver's transform
+    const transformedLocation = Array.isArray(formData.location) 
+      ? formData.location[0] || '' 
+      : formData.location || '';
+    
+    await handleSubmit({
+      ...formData,
+      location: transformedLocation,
+    } as any);
   };
 
   const handleSubmit = async (formData: ListingFormValues) => {
@@ -303,7 +344,7 @@ export function ImprovedListingEditor({
     <div className="min-h-screen bg-gradient-to-b from-white to-slate-50/30">
     <div className="max-w-[1920px] mx-auto px-12 py-8">
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(handleSubmit, onValidationError)}>
+        <form onSubmit={handleFormSubmit}>
           {/* TOP BAR - Critical fields */}
           <EditorTopBar form={form} />
           
