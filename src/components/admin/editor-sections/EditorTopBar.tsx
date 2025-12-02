@@ -30,6 +30,7 @@ export function EditorTopBar({ form }: EditorTopBarProps) {
                   value={field.value || ''}
                 />
               </FormControl>
+              <FormMessage />
             </FormItem>
           )}
         />
