@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
+import * as z from 'zod/v3';
 import {
   Dialog,
   DialogContent,
@@ -119,7 +119,7 @@ export function CreateDealModal({ open, onOpenChange, prefilledStageId, onDealCr
   } | null>(null);
 
   const form = useForm<CreateDealFormData>({
-    resolver: zodResolver(createDealSchema),
+    resolver: zodResolver(createDealSchema as any),
     defaultValues: {
       title: '',
       description: '',

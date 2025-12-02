@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
+import { z } from 'zod/v3';
 import {
   Dialog,
   DialogContent,
@@ -49,7 +49,7 @@ export function PipelineViewDialog({ open, onOpenChange }: PipelineViewDialogPro
   const [orderedStageIds, setOrderedStageIds] = useState<string[]>([]);
 
   const form = useForm<ViewFormData>({
-    resolver: zodResolver(viewSchema),
+    resolver: zodResolver(viewSchema as any),
     defaultValues: {
       name: '',
       description: '',

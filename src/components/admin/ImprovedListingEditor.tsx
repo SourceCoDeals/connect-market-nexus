@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { toast } from "@/hooks/use-toast";
-import { z } from "zod";
+import { z } from "zod/v3";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { AdminListing } from "@/types/admin";
@@ -177,7 +177,7 @@ export function ImprovedListingEditor({
   const [imageError, setImageError] = useState<string | null>(null);
 
   const form = useForm<ListingFormInput, any, ListingFormValues>({
-    resolver: zodResolver(listingFormSchema),
+    resolver: zodResolver(listingFormSchema as any),
     defaultValues: convertListingToFormInput(listing),
   });
 
@@ -232,41 +232,46 @@ export function ImprovedListingEditor({
   // Manual submit handler that validates first and shows errors
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('[FORM] Manual submit triggered');
     
-    const isValid = await form.trigger();
-    console.log('[FORM] Validation result:', isValid);
-    console.log('[FORM] Current errors:', form.formState.errors);
-    
-    if (!isValid) {
-      const errors = form.formState.errors;
-      const errorCount = Object.keys(errors).length;
-      const errorFields = Object.keys(errors).map(key => {
-        const error = errors[key as keyof typeof errors];
-        return `${key}: ${(error as any)?.message || 'Invalid'}`;
-      }).join(', ');
+    try {
+      const isValid = await form.trigger();
       
+      if (!isValid) {
+        const errors = form.formState.errors;
+        const errorCount = Object.keys(errors).length;
+        const errorFields = Object.keys(errors).map(key => {
+          const error = errors[key as keyof typeof errors];
+          return `${key}: ${(error as any)?.message || 'Invalid'}`;
+        }).join(', ');
+        
+        toast({
+          variant: "destructive",
+          title: "Please fix the following errors",
+          description: errorFields || "Form validation failed",
+        });
+        return;
+      }
+      
+      // Get form values and call the submit handler
+      const formData = form.getValues();
+      
+      // Manual transformation since we're bypassing zodResolver's transform
+      const transformedLocation = Array.isArray(formData.location) 
+        ? formData.location[0] || '' 
+        : formData.location || '';
+      
+      await handleSubmit({
+        ...formData,
+        location: transformedLocation,
+      } as any);
+    } catch (error) {
+      console.error('[FORM] Validation error caught:', error);
       toast({
         variant: "destructive",
-        title: "Please fix the following errors",
-        description: errorFields || "Form validation failed",
+        title: "Validation Error",
+        description: "Please check all required fields are filled correctly.",
       });
-      return;
     }
-    
-    // Get form values and call the submit handler
-    const formData = form.getValues();
-    console.log('[FORM] Form data before transform:', formData);
-    
-    // Manual transformation since we're bypassing zodResolver's transform
-    const transformedLocation = Array.isArray(formData.location) 
-      ? formData.location[0] || '' 
-      : formData.location || '';
-    
-    await handleSubmit({
-      ...formData,
-      location: transformedLocation,
-    } as any);
   };
 
   const handleSubmit = async (formData: ListingFormValues) => {
