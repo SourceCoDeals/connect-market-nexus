@@ -17,20 +17,20 @@ export function EditorDescriptionSection({ form }: EditorDescriptionSectionProps
 
       <FormField
         control={form.control}
-        name="description_html"
+        name="description"
         render={({ field }) => (
           <FormItem>
             <FormControl>
               <PremiumRichTextEditor
-                content={field.value || form.getValues('description') || ''}
+                content={form.getValues('description_html') || field.value || ''}
                 onChange={(html, json) => {
-                  field.onChange(html);
+                  form.setValue('description_html', html);
                   form.setValue('description_json', json);
-                  // Keep plain text for backwards compatibility
+                  // Extract plain text and set the validated 'description' field
                   const tempDiv = document.createElement('div');
                   tempDiv.innerHTML = html;
                   const plainText = tempDiv.textContent || tempDiv.innerText || '';
-                  form.setValue('description', plainText);
+                  field.onChange(plainText);
                 }}
               />
             </FormControl>

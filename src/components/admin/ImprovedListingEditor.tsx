@@ -218,6 +218,16 @@ export function ImprovedListingEditor({
     setImageError(null);
   };
 
+  const onValidationError = (errors: any) => {
+    const errorCount = Object.keys(errors).length;
+    const errorFields = Object.keys(errors).join(', ');
+    toast({
+      variant: "destructive",
+      title: "Validation Error",
+      description: `Please fix ${errorCount} error(s): ${errorFields}`,
+    });
+  };
+
   const handleSubmit = async (formData: ListingFormValues) => {
     try {
       console.log('[EDITOR] Raw form data from Zod:', formData);
@@ -293,7 +303,7 @@ export function ImprovedListingEditor({
     <div className="min-h-screen bg-gradient-to-b from-white to-slate-50/30">
     <div className="max-w-[1920px] mx-auto px-12 py-8">
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(handleSubmit)}>
+        <form onSubmit={form.handleSubmit(handleSubmit, onValidationError)}>
           {/* TOP BAR - Critical fields */}
           <EditorTopBar form={form} />
           
