@@ -39,6 +39,47 @@ interface DatabaseListingInsert {
   owner_notes: string | null;
   status: 'active' | 'inactive';
   image_url: string | null;
+  
+  // Employee metrics
+  full_time_employees?: number | null;
+  part_time_employees?: number | null;
+  
+  // Hero & Status
+  hero_description?: string | null;
+  status_tag?: string | null;
+  visible_to_buyer_types?: string[] | null;
+  
+  // Internal company info
+  internal_company_name?: string | null;
+  internal_salesforce_link?: string | null;
+  internal_deal_memo_link?: string | null;
+  internal_contact_info?: string | null;
+  internal_notes?: string | null;
+  
+  // Ownership
+  primary_owner_id?: string | null;
+  presented_by_admin_id?: string | null;
+  
+  // Custom metrics (metric 2)
+  custom_metric_label?: string | null;
+  custom_metric_value?: string | null;
+  custom_metric_subtitle?: string | null;
+  
+  // Metric 3
+  metric_3_type?: string | null;
+  metric_3_custom_label?: string | null;
+  metric_3_custom_value?: string | null;
+  metric_3_custom_subtitle?: string | null;
+  
+  // Metric 4
+  metric_4_type?: string | null;
+  metric_4_custom_label?: string | null;
+  metric_4_custom_value?: string | null;
+  metric_4_custom_subtitle?: string | null;
+  
+  // Revenue/EBITDA subtitles
+  revenue_metric_subtitle?: string | null;
+  ebitda_metric_subtitle?: string | null;
 }
 
 /**
@@ -86,7 +127,48 @@ export function useRobustListingCreation() {
           tags: sanitizedTags,
           owner_notes: listing.owner_notes ? sanitizeStringField(listing.owner_notes) : null,
           status: listing.status || 'active',
-          image_url: null
+          image_url: null,
+          
+          // Employee metrics
+          full_time_employees: listing.full_time_employees || null,
+          part_time_employees: listing.part_time_employees || null,
+          
+          // Hero & Status
+          hero_description: listing.hero_description || null,
+          status_tag: listing.status_tag || null,
+          visible_to_buyer_types: listing.visible_to_buyer_types || null,
+          
+          // Internal company info
+          internal_company_name: listing.internal_company_name || null,
+          internal_salesforce_link: listing.internal_salesforce_link || null,
+          internal_deal_memo_link: listing.internal_deal_memo_link || null,
+          internal_contact_info: listing.internal_contact_info || null,
+          internal_notes: listing.internal_notes || null,
+          
+          // Ownership
+          primary_owner_id: listing.primary_owner_id || null,
+          presented_by_admin_id: listing.presented_by_admin_id || null,
+          
+          // Custom metrics (metric 2)
+          custom_metric_label: listing.custom_metric_label || null,
+          custom_metric_value: listing.custom_metric_value || null,
+          custom_metric_subtitle: listing.custom_metric_subtitle || null,
+          
+          // Metric 3
+          metric_3_type: listing.metric_3_type || null,
+          metric_3_custom_label: listing.metric_3_custom_label || null,
+          metric_3_custom_value: listing.metric_3_custom_value || null,
+          metric_3_custom_subtitle: listing.metric_3_custom_subtitle || null,
+          
+          // Metric 4
+          metric_4_type: listing.metric_4_type || null,
+          metric_4_custom_label: listing.metric_4_custom_label || null,
+          metric_4_custom_value: listing.metric_4_custom_value || null,
+          metric_4_custom_subtitle: listing.metric_4_custom_subtitle || null,
+          
+          // Revenue/EBITDA subtitles
+          revenue_metric_subtitle: listing.revenue_metric_subtitle || null,
+          ebitda_metric_subtitle: listing.ebitda_metric_subtitle || null,
         };
 
         console.log('📋 Sanitized listing data:', JSON.stringify(databaseInsert, null, 2));
