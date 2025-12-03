@@ -168,86 +168,73 @@ const AdminUsers = () => {
 
       {/* Main content with generous padding */}
       <div className="px-8 py-8">
-        {/* Conditional Content Based on Primary View */}
-        {primaryView === 'buyers' ? (
-          <>
-            <EnhancedUserManagement
-              users={usersData}
-              onApprove={approveUser}
-              onMakeAdmin={makeAdmin}
-              onRevokeAdmin={revokeAdmin}
-              onDelete={deleteUser}
-              isLoading={isLoading}
-              onFilteredUsersChange={setFilteredUsers}
-            />
+        {/* EnhancedUserManagement - hidden when on owners view to prevent unmounting */}
+        <div className={primaryView === 'owners' ? 'hidden' : ''}>
+          <EnhancedUserManagement
+            users={usersData}
+            onApprove={approveUser}
+            onMakeAdmin={makeAdmin}
+            onRevokeAdmin={revokeAdmin}
+            onDelete={deleteUser}
+            isLoading={isLoading}
+            onFilteredUsersChange={setFilteredUsers}
+          />
+        </div>
 
-            {/* Buyer Tables */}
-            <div className="mt-6 bg-card rounded-lg border overflow-hidden">
-              {/* View Switcher - just above table */}
-              <div className="px-4 py-3 border-b bg-muted/30">
-                <UserViewSwitcher
-                  primaryView={primaryView}
-                  secondaryView={secondaryView}
-                  onPrimaryViewChange={setPrimaryView}
-                  onSecondaryViewChange={setSecondaryView}
-                  marketplaceCount={usersData.length}
-                  nonMarketplaceCount={nonMarketplaceUsers.length}
-                  ownerLeadsCount={ownerLeads.length}
-                />
-              </div>
-              {secondaryView === 'marketplace' ? (
-                isMobile ? (
-                  <div className="p-4">
-                    <MobileUsersTable
-                      users={filteredUsers}
-                      onApprove={approveUser}
-                      onMakeAdmin={makeAdmin}
-                      onRevokeAdmin={revokeAdmin}
-                      onDelete={deleteUser}
-                      isLoading={isLoading}
-                      onSendFeeAgreement={() => {}}
-                      onSendNDAEmail={() => {}}
-                    />
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <UsersTable
-                      users={filteredUsers}
-                      onApprove={approveUser}
-                      onMakeAdmin={makeAdmin}
-                      onRevokeAdmin={revokeAdmin}
-                      onDelete={deleteUser}
-                      isLoading={isLoading}
-                    />
-                  </div>
-                )
-              ) : (
-                <NonMarketplaceUsersTable
-                  users={nonMarketplaceUsers}
-                  isLoading={isLoadingNonMarketplace}
-                  filters={{}}
-                />
-              )}
-            </div>
-          </>
-        ) : (
-          /* Owner Leads Table */
-          <div className="bg-card rounded-lg border overflow-hidden">
-            {/* View Switcher - just above table */}
-            <div className="px-4 py-3 border-b bg-muted/30">
-              <UserViewSwitcher
-                primaryView={primaryView}
-                secondaryView={secondaryView}
-                onPrimaryViewChange={setPrimaryView}
-                onSecondaryViewChange={setSecondaryView}
-                marketplaceCount={usersData.length}
-                nonMarketplaceCount={nonMarketplaceUsers.length}
-                ownerLeadsCount={ownerLeads.length}
-              />
-            </div>
-            <OwnerLeadsTable />
+        {/* Stable table container - only inner content changes */}
+        <div className={`bg-card rounded-lg border overflow-hidden ${primaryView === 'buyers' ? 'mt-6' : ''}`}>
+          {/* Single View Switcher - always in same location */}
+          <div className="px-4 py-3 border-b bg-muted/30">
+            <UserViewSwitcher
+              primaryView={primaryView}
+              secondaryView={secondaryView}
+              onPrimaryViewChange={setPrimaryView}
+              onSecondaryViewChange={setSecondaryView}
+              marketplaceCount={usersData.length}
+              nonMarketplaceCount={nonMarketplaceUsers.length}
+              ownerLeadsCount={ownerLeads.length}
+            />
           </div>
-        )}
+
+          {/* Table content - only this part swaps */}
+          {primaryView === 'buyers' ? (
+            secondaryView === 'marketplace' ? (
+              isMobile ? (
+                <div className="p-4">
+                  <MobileUsersTable
+                    users={filteredUsers}
+                    onApprove={approveUser}
+                    onMakeAdmin={makeAdmin}
+                    onRevokeAdmin={revokeAdmin}
+                    onDelete={deleteUser}
+                    isLoading={isLoading}
+                    onSendFeeAgreement={() => {}}
+                    onSendNDAEmail={() => {}}
+                  />
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <UsersTable
+                    users={filteredUsers}
+                    onApprove={approveUser}
+                    onMakeAdmin={makeAdmin}
+                    onRevokeAdmin={revokeAdmin}
+                    onDelete={deleteUser}
+                    isLoading={isLoading}
+                  />
+                </div>
+              )
+            ) : (
+              <NonMarketplaceUsersTable
+                users={nonMarketplaceUsers}
+                isLoading={isLoadingNonMarketplace}
+                filters={{}}
+              />
+            )
+          ) : (
+            <OwnerLeadsTable />
+          )}
+        </div>
 
         {/* All user action dialogs */}
         <ApprovalEmailDialog />
