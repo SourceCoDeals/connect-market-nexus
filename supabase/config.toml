@@ -114,3 +114,5 @@ verify_jwt = true
 verify_jwt = false
 [functions.notify-deal-owner-change]
 verify_jwt = false
+[functions.send-owner-inquiry-notification]
+verify_jwt = false
