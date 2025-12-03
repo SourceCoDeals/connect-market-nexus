@@ -2,8 +2,7 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useAdmin } from "@/hooks/use-admin";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Search, AlertCircle, RefreshCw, Building2, Settings } from "lucide-react";
+import { AlertCircle, RefreshCw, Building2, Loader2 } from "lucide-react";
 import { UsersTable } from "@/components/admin/UsersTable";
 import { MobileUsersTable } from "@/components/admin/MobileUsersTable";
 import { User } from "@/types";
@@ -13,19 +12,18 @@ import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useRealtimeAdmin } from "@/hooks/use-realtime-admin";
 import { EnhancedUserManagement } from "@/components/admin/EnhancedUserManagement";
-import { BulkVerificationEmailSender } from "@/components/admin/BulkVerificationEmailSender";
-import { ProfileDataInspector } from "@/components/admin/ProfileDataInspector";
-import { ProfileDataRecovery } from "@/components/admin/ProfileDataRecovery";
-import { AutomatedDataRestoration } from "@/components/admin/AutomatedDataRestoration";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useNonMarketplaceUsers } from "@/hooks/admin/use-non-marketplace-users";
-import { OwnerLeadsTable } from "@/components/admin/OwnerLeadsTable";
 import { NonMarketplaceUsersTable } from "@/components/admin/NonMarketplaceUsersTable";
 import { UserViewSwitcher } from "@/components/admin/UserViewSwitcher";
 import { useMarkUsersViewed } from "@/hooks/admin/use-mark-users-viewed";
-import { useOwnerLeads } from "@/hooks/admin/use-owner-leads";
+import { useOwnerLeads, useUpdateOwnerLeadStatus } from "@/hooks/admin/use-owner-leads";
+import { useUpdateOwnerLeadNotes } from "@/hooks/admin/use-update-owner-lead-notes";
 import { useMarkOwnerLeadsViewed } from "@/hooks/admin/use-mark-owner-leads-viewed";
+import { OwnerLeadsStats } from "@/components/admin/OwnerLeadsStats";
+import { OwnerLeadsFilters } from "@/components/admin/OwnerLeadsFilters";
+import { OwnerLeadsTableContent } from "@/components/admin/OwnerLeadsTableContent";
+import { OwnerLead } from "@/hooks/admin/use-owner-leads";
 
 type PrimaryView = 'buyers' | 'owners';
 type SecondaryView = 'marketplace' | 'non-marketplace';
@@ -34,11 +32,14 @@ const AdminUsers = () => {
   const { users } = useAdmin();
   const { data: usersData = [], isLoading, error, refetch } = users;
   const { data: nonMarketplaceUsers = [], isLoading: isLoadingNonMarketplace } = useNonMarketplaceUsers();
-  const { data: ownerLeads = [] } = useOwnerLeads();
+  const { data: ownerLeads = [], isLoading: isLoadingOwnerLeads } = useOwnerLeads();
+  const updateOwnerStatus = useUpdateOwnerLeadStatus();
+  const updateOwnerNotes = useUpdateOwnerLeadNotes();
   const { toast } = useToast();
   const isMobile = useIsMobile();
   const { isConnected } = useRealtimeAdmin();
   const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
+  const [filteredOwnerLeads, setFilteredOwnerLeads] = useState<OwnerLead[]>([]);
   const [primaryView, setPrimaryView] = useState<PrimaryView>('buyers');
   const [secondaryView, setSecondaryView] = useState<SecondaryView>('marketplace');
   const { markAsViewed: markUsersAsViewed } = useMarkUsersViewed();
@@ -61,6 +62,11 @@ const AdminUsers = () => {
     setFilteredUsers(usersData);
   }, [usersData]);
 
+  // Update filtered owner leads when ownerLeads changes
+  useEffect(() => {
+    setFilteredOwnerLeads(ownerLeads);
+  }, [ownerLeads]);
+
   const {
     handleUserApproval,
     handleMakeAdmin,
@@ -73,7 +79,6 @@ const AdminUsers = () => {
     isLoading: isActionLoading
   } = UserActions({ onUserStatusUpdated: () => refetch() });
   
-  // Handle errors and show user feedback
   useEffect(() => {
     if (error) {
       toast({
@@ -91,16 +96,20 @@ const AdminUsers = () => {
       description: 'Reloading user data...',
     });
   };
-  
 
-
-  // User action handlers
   const approveUser = (user: User) => handleUserApproval(user);
   const makeAdmin = (user: User) => handleMakeAdmin(user);
   const revokeAdmin = (user: User) => handleRevokeAdmin(user);
   const deleteUser = (user: User) => handleDeleteUser(user);
 
-  // Error state with better UX
+  const handleOwnerStatusChange = (id: string, status: string) => {
+    updateOwnerStatus.mutate({ id, status });
+  };
+
+  const handleOwnerNotesUpdate = (id: string, notes: string) => {
+    updateOwnerNotes.mutate({ id, notes });
+  };
+
   if (error) {
     return (
       <div className="p-4 md:p-8 max-w-7xl mx-auto">
@@ -124,9 +133,11 @@ const AdminUsers = () => {
     );
   }
 
+  const isCurrentlyLoading = primaryView === 'buyers' ? isLoading : isLoadingOwnerLeads;
+
   return (
     <div className="min-h-screen bg-background">
-      {/* Stripe-style header with generous padding */}
+      {/* Header */}
       <div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-40">
         <div className="px-8 py-6">
           <div className="flex items-start justify-between">
@@ -139,10 +150,8 @@ const AdminUsers = () => {
                 }
               </p>
             </div>
-            
           </div>
 
-          {/* Subtle navigation tabs */}
           <Tabs defaultValue="users" className="mt-6">
             <TabsList className="h-auto p-0 bg-transparent border-0 gap-6">
               <TabsTrigger 
@@ -166,9 +175,9 @@ const AdminUsers = () => {
         </div>
       </div>
 
-      {/* Main content with generous padding */}
+      {/* Main content */}
       <div className="px-8 py-8">
-        {/* Primary View Switcher - ALWAYS at top, fixed position */}
+        {/* View Switcher - FIXED POSITION */}
         <div className="mb-6">
           <UserViewSwitcher
             primaryView={primaryView}
@@ -181,9 +190,9 @@ const AdminUsers = () => {
           />
         </div>
 
-        {/* Buyers View Content */}
-        {primaryView === 'buyers' && (
-          <>
+        {/* Stats Section - CONSISTENT STRUCTURE */}
+        <div className="mb-6">
+          {primaryView === 'buyers' ? (
             <EnhancedUserManagement
               users={usersData}
               onApprove={approveUser}
@@ -193,53 +202,77 @@ const AdminUsers = () => {
               isLoading={isLoading}
               onFilteredUsersChange={setFilteredUsers}
             />
-
-            <div className="mt-6 bg-card rounded-lg border overflow-hidden">
-              {secondaryView === 'marketplace' ? (
-                isMobile ? (
-                  <div className="p-4">
-                    <MobileUsersTable
-                      users={filteredUsers}
-                      onApprove={approveUser}
-                      onMakeAdmin={makeAdmin}
-                      onRevokeAdmin={revokeAdmin}
-                      onDelete={deleteUser}
-                      isLoading={isLoading}
-                      onSendFeeAgreement={() => {}}
-                      onSendNDAEmail={() => {}}
-                    />
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <UsersTable
-                      users={filteredUsers}
-                      onApprove={approveUser}
-                      onMakeAdmin={makeAdmin}
-                      onRevokeAdmin={revokeAdmin}
-                      onDelete={deleteUser}
-                      isLoading={isLoading}
-                    />
-                  </div>
-                )
-              ) : (
-                <NonMarketplaceUsersTable
-                  users={nonMarketplaceUsers}
-                  isLoading={isLoadingNonMarketplace}
-                  filters={{}}
-                />
-              )}
+          ) : (
+            <div className="space-y-6">
+              <OwnerLeadsStats leads={ownerLeads} />
+              <OwnerLeadsFilters 
+                leads={ownerLeads} 
+                onFilteredLeadsChange={setFilteredOwnerLeads} 
+              />
             </div>
-          </>
-        )}
+          )}
+        </div>
 
-        {/* Owners View Content */}
-        {primaryView === 'owners' && (
-          <div className="bg-card rounded-lg border overflow-hidden">
-            <OwnerLeadsTable />
-          </div>
-        )}
+        {/* Table Container - SAME WRAPPER FOR ALL */}
+        <div className="bg-card rounded-lg border overflow-hidden">
+          {isCurrentlyLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : primaryView === 'buyers' ? (
+            secondaryView === 'marketplace' ? (
+              isMobile ? (
+                <div className="p-4">
+                  <MobileUsersTable
+                    users={filteredUsers}
+                    onApprove={approveUser}
+                    onMakeAdmin={makeAdmin}
+                    onRevokeAdmin={revokeAdmin}
+                    onDelete={deleteUser}
+                    isLoading={isLoading}
+                    onSendFeeAgreement={() => {}}
+                    onSendNDAEmail={() => {}}
+                  />
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <UsersTable
+                    users={filteredUsers}
+                    onApprove={approveUser}
+                    onMakeAdmin={makeAdmin}
+                    onRevokeAdmin={revokeAdmin}
+                    onDelete={deleteUser}
+                    isLoading={isLoading}
+                  />
+                </div>
+              )
+            ) : (
+              <NonMarketplaceUsersTable
+                users={nonMarketplaceUsers}
+                isLoading={isLoadingNonMarketplace}
+                filters={{}}
+              />
+            )
+          ) : filteredOwnerLeads.length === 0 ? (
+            <div className="text-center py-12">
+              <Building2 className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
+              <h3 className="text-lg font-medium text-foreground mb-1">No owner inquiries yet</h3>
+              <p className="text-sm text-muted-foreground">
+                Owner inquiries from the /sell form will appear here.
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <OwnerLeadsTableContent
+                leads={filteredOwnerLeads}
+                onStatusChange={handleOwnerStatusChange}
+                onNotesUpdate={handleOwnerNotesUpdate}
+              />
+            </div>
+          )}
+        </div>
 
-        {/* All user action dialogs */}
+        {/* Dialogs */}
         <ApprovalEmailDialog />
         <AdminDialog />
         <RevokeAdminDialog />
@@ -248,6 +281,5 @@ const AdminUsers = () => {
     </div>
   );
 };
-
 
 export default AdminUsers;
