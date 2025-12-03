@@ -612,9 +612,9 @@ const Signup = () => {
     switch (currentStep) {
       case 0:
         return (
-          <div className="space-y-5">
-            <div className="space-y-2">
-              <Label htmlFor="email" className="text-sm text-foreground">Email</Label>
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="email" className="text-xs text-muted-foreground">Email</Label>
               <Input
                 id="email"
                 name="email"
@@ -622,12 +622,11 @@ const Signup = () => {
                 placeholder="name@company.com"
                 value={formData.email}
                 onChange={handleInputChange}
-                className="h-11"
                 required
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="password" className="text-sm text-foreground">Password</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="password" className="text-xs text-muted-foreground">Password</Label>
               <Input
                 id="password"
                 name="password"
@@ -635,12 +634,11 @@ const Signup = () => {
                 placeholder="Minimum 6 characters"
                 value={formData.password}
                 onChange={handleInputChange}
-                className="h-11"
                 required
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="confirmPassword" className="text-sm text-foreground">Confirm Password</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="confirmPassword" className="text-xs text-muted-foreground">Confirm Password</Label>
               <Input
                 id="confirmPassword"
                 name="confirmPassword"
@@ -648,7 +646,6 @@ const Signup = () => {
                 placeholder="••••••••"
                 value={formData.confirmPassword}
                 onChange={handleInputChange}
-                className="h-11"
                 required
               />
             </div>
@@ -656,92 +653,85 @@ const Signup = () => {
         );
       case 1:
         return (
-          <div className="space-y-5">
-            <div className="grid grid-cols-2 gap-5">
-              <div className="space-y-2">
-                <Label htmlFor="firstName" className="text-sm text-foreground">First Name</Label>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="firstName" className="text-xs text-muted-foreground">First Name</Label>
                 <Input
                   id="firstName"
                   name="firstName"
                   placeholder="John"
                   value={formData.firstName}
                   onChange={handleInputChange}
-                  className="h-11"
                   required
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="lastName" className="text-sm text-foreground">Last Name</Label>
+              <div className="space-y-1.5">
+                <Label htmlFor="lastName" className="text-xs text-muted-foreground">Last Name</Label>
                 <Input
                   id="lastName"
                   name="lastName"
                   placeholder="Doe"
                   value={formData.lastName}
                   onChange={handleInputChange}
-                  className="h-11"
                   required
                 />
               </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="company" className="text-sm text-foreground">Company</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="company" className="text-xs text-muted-foreground">Company</Label>
               <Input
                 id="company"
                 name="company"
                 placeholder="Acme Inc."
                 value={formData.company}
                 onChange={handleInputChange}
-                className="h-11"
                 required
               />
             </div>
-            <div className="grid grid-cols-2 gap-5">
-              <div className="space-y-2">
-                <Label htmlFor="phoneNumber" className="text-sm text-foreground">Phone</Label>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="phoneNumber" className="text-xs text-muted-foreground">Phone</Label>
                 <Input
                   id="phoneNumber"
                   name="phoneNumber"
                   placeholder="(123) 456-7890"
                   value={formData.phoneNumber}
                   onChange={handleInputChange}
-                  className="h-11"
                   required
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="jobTitle" className="text-sm text-foreground">Job Title</Label>
+              <div className="space-y-1.5">
+                <Label htmlFor="jobTitle" className="text-xs text-muted-foreground">Job Title</Label>
                 <Input
                   id="jobTitle"
                   name="jobTitle"
                   placeholder="e.g., Partner, VP"
                   value={formData.jobTitle || ""}
                   onChange={handleInputChange}
-                  className="h-11"
                 />
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-5">
-              <div className="space-y-2">
-                <Label htmlFor="website" className="text-sm text-foreground">Website</Label>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="website" className="text-xs text-muted-foreground">Website</Label>
                 <Input
                   id="website"
                   name="website"
                   placeholder="example.com"
                   value={formData.website}
                   onChange={handleInputChange}
-                  className="h-11"
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="linkedinProfile" className="text-sm text-foreground">LinkedIn</Label>
+              <div className="space-y-1.5">
+                <Label htmlFor="linkedinProfile" className="text-xs text-muted-foreground">LinkedIn</Label>
                 <Input
                   id="linkedinProfile"
                   name="linkedinProfile"
                   placeholder="linkedin.com/in/..."
                   value={formData.linkedinProfile}
                   onChange={handleInputChange}
-                  className="h-11"
                 />
               </div>
             </div>
@@ -749,14 +739,14 @@ const Signup = () => {
         );
       case 2:
         return (
-          <div className="space-y-5">
-            <div className="space-y-2">
-              <Label htmlFor="buyerType" className="text-sm text-foreground">Type of Buyer</Label>
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="buyerType" className="text-xs text-muted-foreground">Type of Buyer</Label>
               <Select
                 onValueChange={handleBuyerTypeChange}
                 value={formData.buyerType}
               >
-                <SelectTrigger className="w-full h-11">
+                <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select buyer type" />
                 </SelectTrigger>
                 <SelectContent>
@@ -771,9 +761,9 @@ const Signup = () => {
             
             {/* Conditional fields based on buyer type */}
             {formData.buyerType === "corporate" && (
-              <div className="space-y-5 pt-2">
-                <div className="space-y-2">
-                  <Label htmlFor="estimatedRevenue" className="text-sm text-foreground">Estimated Revenue</Label>
+              <div className="space-y-4 pt-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="estimatedRevenue" className="text-xs text-muted-foreground">Estimated Revenue</Label>
                   <EnhancedCurrencyInput
                     value={formData.estimatedRevenue}
                     onChange={(value) => setFormData((prev) => ({ ...prev, estimatedRevenue: value }))}
@@ -782,25 +772,24 @@ const Signup = () => {
                   />
                 </div>
                 
-                <div className="space-y-2">
-                  <Label htmlFor="owningBusinessUnit" className="text-sm text-foreground">Business Unit</Label>
+                <div className="space-y-1.5">
+                  <Label htmlFor="owningBusinessUnit" className="text-xs text-muted-foreground">Business Unit</Label>
                   <Input
                     id="owningBusinessUnit"
                     name="owningBusinessUnit"
                     placeholder="e.g., Digital Services Division"
                     value={formData.owningBusinessUnit || ""}
                     onChange={handleInputChange}
-                    className="h-11"
                   />
                 </div>
                 
-                <div className="space-y-2">
-                  <Label htmlFor="dealSizeBand" className="text-sm text-foreground">Deal Size (EV)</Label>
+                <div className="space-y-1.5">
+                  <Label htmlFor="dealSizeBand" className="text-xs text-muted-foreground">Deal Size (EV)</Label>
                   <Select
                     value={formData.dealSizeBand || ""}
                     onValueChange={(value) => setFormData((prev) => ({ ...prev, dealSizeBand: value }))}
                   >
-                    <SelectTrigger className="h-11">
+                    <SelectTrigger>
                       <SelectValue placeholder="Select deal size range" />
                     </SelectTrigger>
                     <SelectContent>
@@ -813,9 +802,9 @@ const Signup = () => {
                   </Select>
                 </div>
                 
-                <div className="space-y-2">
-                  <Label className="text-sm text-foreground">Integration Plan</Label>
-                  <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Integration Plan</Label>
+                  <div className="grid grid-cols-2 gap-2">
                     {INTEGRATION_PLAN_OPTIONS.map((option) => (
                       <div key={option.value} className="flex items-center space-x-2">
                         <Checkbox
@@ -829,7 +818,7 @@ const Signup = () => {
                             setFormData(prev => ({ ...prev, integrationPlan: updated }));
                           }}
                         />
-                        <Label htmlFor={`integration-${option.value}`} className="text-xs">
+                        <Label htmlFor={`integration-${option.value}`} className="text-xs font-normal">
                           {option.label}
                         </Label>
                       </div>
@@ -837,13 +826,13 @@ const Signup = () => {
                   </div>
                 </div>
                 
-                <div className="space-y-2">
-                  <Label htmlFor="corpdevIntent" className="text-sm text-foreground">Speed/Intent</Label>
+                <div className="space-y-1.5">
+                  <Label htmlFor="corpdevIntent" className="text-xs text-muted-foreground">Speed/Intent</Label>
                   <Select
                     value={formData.corpdevIntent || ""}
                     onValueChange={(value) => setFormData((prev) => ({ ...prev, corpdevIntent: value }))}
                   >
-                    <SelectTrigger className="h-11">
+                    <SelectTrigger>
                       <SelectValue placeholder="Select your current approach" />
                     </SelectTrigger>
                     <SelectContent>
@@ -860,8 +849,8 @@ const Signup = () => {
             
             {formData.buyerType === "privateEquity" && (
               <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="fundSize">Fund Size</Label>
+                <div className="space-y-1.5">
+                  <Label htmlFor="fundSize" className="text-xs text-muted-foreground">Fund Size</Label>
                   <EnhancedCurrencyInput
                     value={formData.fundSize}
                     onChange={(value) => setFormData((prev) => ({ ...prev, fundSize: value }))}
@@ -869,11 +858,8 @@ const Signup = () => {
                     currencyMode="millions"
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="investmentSize">{FIELD_HELPERS.investmentSize.label}</Label>
-                  <p className="text-xs text-muted-foreground">
-                    {FIELD_HELPERS.investmentSize.description}
-                  </p>
+                <div className="space-y-1.5">
+                  <Label htmlFor="investmentSize" className="text-xs text-muted-foreground">{FIELD_HELPERS.investmentSize.label}</Label>
                   <InvestmentSizeSelect
                     value={formData.investmentSize}
                     onValueChange={(value) => setFormData((prev) => ({ ...prev, investmentSize: value }))}
@@ -881,8 +867,8 @@ const Signup = () => {
                     multiSelect={true}
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="aum">Assets Under Management</Label>
+                <div className="space-y-1.5">
+                  <Label htmlFor="aum" className="text-xs text-muted-foreground">Assets Under Management</Label>
                   <EnhancedCurrencyInput
                     value={formData.aum}
                     onChange={(value) => setFormData((prev) => ({ ...prev, aum: value }))}
@@ -891,9 +877,8 @@ const Signup = () => {
                   />
                 </div>
                 
-                <div className="space-y-2">
-                  <Label htmlFor="portfolioCompanyAddon">Which portfolio company would this be an add-on to (if any)? <span className="text-xs text-muted-foreground">(optional)</span></Label>
-                  <p className="text-xs text-muted-foreground">Name the existing portfolio company for potential add-on acquisitions</p>
+                <div className="space-y-1.5">
+                  <Label htmlFor="portfolioCompanyAddon" className="text-xs text-muted-foreground">Portfolio company add-on</Label>
                   <Input
                     id="portfolioCompanyAddon"
                     name="portfolioCompanyAddon"
@@ -903,9 +888,8 @@ const Signup = () => {
                   />
                 </div>
                 
-                <div className="space-y-2">
-                  <Label htmlFor="deployingCapitalNow">Deploying capital now? <span className="text-red-500">*</span></Label>
-                  <p className="text-xs text-muted-foreground">Current capital deployment status</p>
+                <div className="space-y-1.5">
+                  <Label htmlFor="deployingCapitalNow" className="text-xs text-muted-foreground">Deploying capital now?</Label>
                   <Select
                     value={formData.deployingCapitalNow || ""}
                     onValueChange={(value) => setFormData((prev) => ({ ...prev, deployingCapitalNow: value }))}
@@ -927,8 +911,8 @@ const Signup = () => {
             
             {formData.buyerType === "familyOffice" && (
               <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="fundSize">Fund Size</Label>
+                <div className="space-y-1.5">
+                  <Label htmlFor="fundSize" className="text-xs text-muted-foreground">Fund Size</Label>
                   <EnhancedCurrencyInput
                     value={formData.fundSize}
                     onChange={(value) => setFormData((prev) => ({ ...prev, fundSize: value }))}
@@ -936,11 +920,8 @@ const Signup = () => {
                     currencyMode="millions"
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="investmentSize">{FIELD_HELPERS.investmentSize.label}</Label>
-                  <p className="text-xs text-muted-foreground">
-                    {FIELD_HELPERS.investmentSize.description}
-                  </p>
+                <div className="space-y-1.5">
+                  <Label htmlFor="investmentSize" className="text-xs text-muted-foreground">{FIELD_HELPERS.investmentSize.label}</Label>
                   <InvestmentSizeSelect
                     value={formData.investmentSize}
                     onValueChange={(value) => setFormData((prev) => ({ ...prev, investmentSize: value }))}
@@ -948,8 +929,8 @@ const Signup = () => {
                     multiSelect={true}
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="aum">Assets Under Management</Label>
+                <div className="space-y-1.5">
+                  <Label htmlFor="aum" className="text-xs text-muted-foreground">Assets Under Management</Label>
                   <EnhancedCurrencyInput
                     value={formData.aum}
                     onChange={(value) => setFormData((prev) => ({ ...prev, aum: value }))}
@@ -958,9 +939,8 @@ const Signup = () => {
                   />
                 </div>
                 
-                <div className="space-y-2">
-                  <Label htmlFor="discretionType">Decision authority <span className="text-red-500">*</span></Label>
-                  <p className="text-xs text-muted-foreground">Your decision-making authority level</p>
+                <div className="space-y-1.5">
+                  <Label htmlFor="discretionType" className="text-xs text-muted-foreground">Decision authority</Label>
                   <Select
                     value={formData.discretionType || ""}
                     onValueChange={(value) => setFormData((prev) => ({ ...prev, discretionType: value }))}
@@ -978,23 +958,19 @@ const Signup = () => {
                   </Select>
                 </div>
                 
-                <div className="space-y-2">
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="permanentCapital"
-                      checked={formData.permanentCapital || false}
-                      onCheckedChange={(checked) => setFormData(prev => ({ ...prev, permanentCapital: checked as boolean }))}
-                    />
-                    <Label htmlFor="permanentCapital" className="text-sm">
-                      Permanent capital <span className="text-xs text-muted-foreground">(optional)</span>
-                    </Label>
-                  </div>
-                  <p className="text-xs text-muted-foreground">Check if you have permanent capital available</p>
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="permanentCapital"
+                    checked={formData.permanentCapital || false}
+                    onCheckedChange={(checked) => setFormData(prev => ({ ...prev, permanentCapital: checked as boolean }))}
+                  />
+                  <Label htmlFor="permanentCapital" className="text-xs font-normal">
+                    Permanent capital
+                  </Label>
                 </div>
                 
-                <div className="space-y-2">
-                  <Label>If you have an operating company this would add onto, name it <span className="text-xs text-muted-foreground">(optional - max 3)</span></Label>
-                  <p className="text-xs text-muted-foreground">List operating companies for potential add-on opportunities</p>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Operating company add-ons</Label>
                   <ChipInput
                     value={formData.operatingCompanyTargets || []}
                     onChange={(companies) => setFormData(prev => ({ ...prev, operatingCompanyTargets: companies.slice(0, 3) }))}
@@ -1006,9 +982,8 @@ const Signup = () => {
             
             {formData.buyerType === "searchFund" && (
               <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="searchType">Search type <span className="text-red-500">*</span></Label>
-                  <p className="text-xs text-muted-foreground">Type of search fund structure</p>
+                <div className="space-y-1.5">
+                  <Label htmlFor="searchType" className="text-xs text-muted-foreground">Search type</Label>
                   <Select
                     value={formData.searchType || ""}
                     onValueChange={(value) => setFormData((prev) => ({ ...prev, searchType: value }))}
@@ -1026,9 +1001,8 @@ const Signup = () => {
                   </Select>
                 </div>
                 
-                <div className="space-y-2">
-                  <Label htmlFor="acqEquityBand">Equity available for the acquisition at close <span className="text-red-500">*</span></Label>
-                  <p className="text-xs text-muted-foreground">Amount of equity capital you can deploy at closing</p>
+                <div className="space-y-1.5">
+                  <Label htmlFor="acqEquityBand" className="text-xs text-muted-foreground">Equity available at close</Label>
                   <Select
                     value={formData.acqEquityBand || ""}
                     onValueChange={(value) => setFormData((prev) => ({ ...prev, acqEquityBand: value }))}
@@ -1046,9 +1020,8 @@ const Signup = () => {
                   </Select>
                 </div>
                 
-                <div className="space-y-2">
-                  <Label>Financing plan (select all that apply) <span className="text-red-500">*</span></Label>
-                  <p className="text-xs text-muted-foreground">Choose all financing sources you plan to use</p>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Financing plan</Label>
                   <div className="grid grid-cols-2 gap-2">
                     {FINANCING_PLAN_OPTIONS.map((option) => (
                       <div key={option.value} className="flex items-center space-x-2">
@@ -1063,7 +1036,7 @@ const Signup = () => {
                             setFormData(prev => ({ ...prev, financingPlan: updated }));
                           }}
                         />
-                        <Label htmlFor={`financing-${option.value}`} className="text-xs">
+                        <Label htmlFor={`financing-${option.value}`} className="text-xs font-normal">
                           {option.label}
                         </Label>
                       </div>
@@ -1071,23 +1044,19 @@ const Signup = () => {
                   </div>
                 </div>
                 
-                <div className="space-y-2">
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="flexSub2mEbitda"
-                      checked={formData.flexSub2mEbitda || false}
-                      onCheckedChange={(checked) => setFormData(prev => ({ ...prev, flexSub2mEbitda: checked as boolean }))}
-                    />
-                    <Label htmlFor="flexSub2mEbitda" className="text-sm">
-                      Flexible on size? (can pursue &lt; $2M EBITDA) <span className="text-red-500">*</span>
-                    </Label>
-                  </div>
-                  <p className="text-xs text-muted-foreground">Check if willing to consider smaller deals below $2M EBITDA</p>
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="flexSub2mEbitda"
+                    checked={formData.flexSub2mEbitda || false}
+                    onCheckedChange={(checked) => setFormData(prev => ({ ...prev, flexSub2mEbitda: checked as boolean }))}
+                  />
+                  <Label htmlFor="flexSub2mEbitda" className="text-xs font-normal">
+                    Flexible on size? (can pursue &lt; $2M EBITDA)
+                  </Label>
                 </div>
                 
-                <div className="space-y-2">
-                  <Label htmlFor="anchorInvestorsSummary">Anchor investors / committed backers (one line, optional)</Label>
-                  <p className="text-xs text-muted-foreground">List your committed investors or backers</p>
+                <div className="space-y-1.5">
+                  <Label htmlFor="anchorInvestorsSummary" className="text-xs text-muted-foreground">Anchor investors / backers</Label>
                   <Input
                     id="anchorInvestorsSummary"
                     name="anchorInvestorsSummary"
@@ -1097,9 +1066,8 @@ const Signup = () => {
                   />
                 </div>
                 
-                <div className="space-y-2">
-                  <Label htmlFor="searchStage">Stage of search <span className="text-xs text-muted-foreground">(optional)</span></Label>
-                  <p className="text-xs text-muted-foreground">Current stage of your search process</p>
+                <div className="space-y-1.5">
+                  <Label htmlFor="searchStage" className="text-xs text-muted-foreground">Stage of search</Label>
                   <Select
                     value={formData.searchStage || ""}
                     onValueChange={(value) => setFormData((prev) => ({ ...prev, searchStage: value }))}
@@ -1121,9 +1089,8 @@ const Signup = () => {
             
             {formData.buyerType === "individual" && (
               <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="fundingSource">Funding source <span className="text-red-500">*</span></Label>
-                  <p className="text-xs text-muted-foreground">Primary source of acquisition funding</p>
+                <div className="space-y-1.5">
+                  <Label htmlFor="fundingSource" className="text-xs text-muted-foreground">Funding source</Label>
                   <Select
                     value={formData.fundingSource}
                     onValueChange={(value) => setFormData((prev) => ({ ...prev, fundingSource: value }))}
@@ -1141,9 +1108,8 @@ const Signup = () => {
                   </Select>
                 </div>
                 
-                <div className="space-y-2">
-                  <Label htmlFor="usesBank">Will you use SBA/bank financing? <span className="text-red-500">*</span></Label>
-                  <p className="text-xs text-muted-foreground">Planning to use debt financing for acquisition</p>
+                <div className="space-y-1.5">
+                  <Label htmlFor="usesBank" className="text-xs text-muted-foreground">Will you use SBA/bank financing?</Label>
                   <Select
                     value={formData.usesBank || ""}
                     onValueChange={(value) => setFormData((prev) => ({ ...prev, usesBank: value }))}
@@ -1161,9 +1127,8 @@ const Signup = () => {
                   </Select>
                 </div>
                 
-                <div className="space-y-2">
-                  <Label htmlFor="maxEquityToday">Max equity you can commit today <span className="text-xs text-muted-foreground">(optional)</span></Label>
-                  <p className="text-xs text-muted-foreground">Maximum equity investment you can make today</p>
+                <div className="space-y-1.5">
+                  <Label htmlFor="maxEquityToday" className="text-xs text-muted-foreground">Max equity you can commit today</Label>
                   <Select
                     value={formData.maxEquityToday || ""}
                     onValueChange={(value) => setFormData((prev) => ({ ...prev, maxEquityToday: value }))}
@@ -1185,9 +1150,8 @@ const Signup = () => {
             
             {formData.buyerType === "independentSponsor" && (
               <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="committedEquityBand">Committed equity available today <span className="text-red-500">*</span></Label>
-                  <p className="text-xs text-muted-foreground">Amount of equity capital you have committed and available now</p>
+                <div className="space-y-1.5">
+                  <Label htmlFor="committedEquityBand" className="text-xs text-muted-foreground">Committed equity available</Label>
                   <Select
                     value={formData.committedEquityBand || ""}
                     onValueChange={(value) => setFormData((prev) => ({ ...prev, committedEquityBand: value }))}
@@ -1205,9 +1169,8 @@ const Signup = () => {
                   </Select>
                 </div>
                 
-                <div className="space-y-2">
-                  <Label>Source of equity <span className="text-red-500">* (select all that apply)</span></Label>
-                  <p className="text-xs text-muted-foreground">Choose all sources of your equity capital</p>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Source of equity</Label>
                   <div className="grid grid-cols-2 gap-2">
                     {EQUITY_SOURCE_OPTIONS.map((option) => (
                       <div key={option.value} className="flex items-center space-x-2">
@@ -1222,7 +1185,7 @@ const Signup = () => {
                             setFormData(prev => ({ ...prev, equitySource: updated }));
                           }}
                         />
-                        <Label htmlFor={`equity-source-${option.value}`} className="text-xs">
+                        <Label htmlFor={`equity-source-${option.value}`} className="text-xs font-normal">
                           {option.label}
                         </Label>
                       </div>
@@ -1230,23 +1193,19 @@ const Signup = () => {
                   </div>
                 </div>
                 
-                <div className="space-y-2">
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="flexSubxmEbitda"
-                      checked={formData.flexSubxmEbitda || false}
-                      onCheckedChange={(checked) => setFormData(prev => ({ ...prev, flexSubxmEbitda: checked as boolean }))}
-                    />
-                    <Label htmlFor="flexSubxmEbitda" className="text-sm">
-                      Flexible on size? <span className="text-red-500">*</span>
-                    </Label>
-                  </div>
-                  <p className="text-xs text-muted-foreground">Check if willing to consider smaller deals below typical thresholds</p>
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="flexSubxmEbitda"
+                    checked={formData.flexSubxmEbitda || false}
+                    onCheckedChange={(checked) => setFormData(prev => ({ ...prev, flexSubxmEbitda: checked as boolean }))}
+                  />
+                  <Label htmlFor="flexSubxmEbitda" className="text-xs font-normal">
+                    Flexible on size?
+                  </Label>
                 </div>
                 
-                <div className="space-y-2">
-                  <Label htmlFor="backersSummary">Representative backers (one line) <span className="text-xs text-muted-foreground">(optional)</span></Label>
-                  <p className="text-xs text-muted-foreground">List your key backers or funding sources</p>
+                <div className="space-y-1.5">
+                  <Label htmlFor="backersSummary" className="text-xs text-muted-foreground">Representative backers</Label>
                   <Input
                     id="backersSummary"
                     name="backersSummary"
@@ -1256,9 +1215,8 @@ const Signup = () => {
                   />
                 </div>
                 
-                <div className="space-y-2">
-                  <Label htmlFor="deploymentTiming">Readiness window <span className="text-xs text-muted-foreground">(optional)</span></Label>
-                  <p className="text-xs text-muted-foreground">Timeline for deploying capital</p>
+                <div className="space-y-1.5">
+                  <Label htmlFor="deploymentTiming" className="text-xs text-muted-foreground">Readiness window</Label>
                   <Select
                     value={formData.deploymentTiming || ""}
                     onValueChange={(value) => setFormData((prev) => ({ ...prev, deploymentTiming: value }))}
@@ -1280,9 +1238,8 @@ const Signup = () => {
             
             {formData.buyerType === "advisor" && (
               <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="onBehalfOfBuyer">Are you inquiring on behalf of a capitalized buyer with discretion? <span className="text-red-500">*</span></Label>
-                  <p className="text-xs text-muted-foreground">Representing a buyer with committed capital and decision authority</p>
+                <div className="space-y-1.5">
+                  <Label htmlFor="onBehalfOfBuyer" className="text-xs text-muted-foreground">Inquiring on behalf of a capitalized buyer?</Label>
                   <Select
                     value={formData.onBehalfOfBuyer || ""}
                     onValueChange={(value) => setFormData((prev) => ({ ...prev, onBehalfOfBuyer: value }))}
@@ -1302,9 +1259,8 @@ const Signup = () => {
                 
                 {formData.onBehalfOfBuyer === "yes" && (
                   <>
-                    <div className="space-y-2">
-                      <Label htmlFor="buyerRole">Buyer role <span className="text-red-500">*</span></Label>
-                      <p className="text-xs text-muted-foreground">Type of buyer you're representing</p>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="buyerRole" className="text-xs text-muted-foreground">Buyer role</Label>
                       <Select
                         value={formData.buyerRole || ""}
                         onValueChange={(value) => setFormData((prev) => ({ ...prev, buyerRole: value }))}
@@ -1322,9 +1278,8 @@ const Signup = () => {
                       </Select>
                     </div>
                     
-                    <div className="space-y-2">
-                      <Label htmlFor="buyerOrgUrl">Buyer organization website <span className="text-red-500">*</span></Label>
-                      <p className="text-xs text-muted-foreground">Website of the organization you're representing</p>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="buyerOrgUrl" className="text-xs text-muted-foreground">Buyer organization website</Label>
                       <Input
                         id="buyerOrgUrl"
                         name="buyerOrgUrl"
@@ -1337,9 +1292,8 @@ const Signup = () => {
                   </>
                 )}
                 
-                <div className="space-y-2">
-                  <Label htmlFor="mandateBlurb">Mandate in one line (≤140 chars) <span className="text-xs text-muted-foreground">(optional)</span></Label>
-                  <p className="text-xs text-muted-foreground">Brief description of your client's acquisition mandate</p>
+                <div className="space-y-1.5">
+                  <Label htmlFor="mandateBlurb" className="text-xs text-muted-foreground">Mandate in one line (≤140 chars)</Label>
                   <Input
                     id="mandateBlurb"
                     name="mandateBlurb"
@@ -1348,16 +1302,14 @@ const Signup = () => {
                     value={formData.mandateBlurb || ""}
                     onChange={handleInputChange}
                   />
-                  <p className="text-xs text-muted-foreground">{(formData.mandateBlurb || "").length}/140 characters</p>
                 </div>
               </div>
             )}
             
             {formData.buyerType === "businessOwner" && (
               <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="ownerIntent">Why are you here? (≤140 chars) <span className="text-red-500">*</span></Label>
-                  <p className="text-xs text-muted-foreground">Brief description of your purpose (e.g., "Valuation", "Open to intros")</p>
+                <div className="space-y-1.5">
+                  <Label htmlFor="ownerIntent" className="text-xs text-muted-foreground">Why are you here? (≤140 chars)</Label>
                   <Input
                     id="ownerIntent"
                     name="ownerIntent"
@@ -1366,12 +1318,10 @@ const Signup = () => {
                     value={formData.ownerIntent || ""}
                     onChange={handleInputChange}
                   />
-                  <p className="text-xs text-muted-foreground">{(formData.ownerIntent || "").length}/140 characters</p>
                 </div>
                 
-                <div className="space-y-2">
-                  <Label htmlFor="ownerTimeline">Timeline <span className="text-xs text-muted-foreground">(optional)</span></Label>
-                  <p className="text-xs text-muted-foreground">Expected timeline for any potential transaction</p>
+                <div className="space-y-1.5">
+                  <Label htmlFor="ownerTimeline" className="text-xs text-muted-foreground">Timeline</Label>
                   <Select
                     value={formData.ownerTimeline || ""}
                     onValueChange={(value) => setFormData((prev) => ({ ...prev, ownerTimeline: value }))}
@@ -1394,9 +1344,9 @@ const Signup = () => {
         );
       case 3:
         return (
-          <div className="space-y-6">
-            <div className="space-y-2">
-              <Label htmlFor="idealTargetDescription" className="text-sm text-foreground">
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="idealTargetDescription" className="text-xs text-muted-foreground">
                 {FIELD_HELPERS.idealTargetDescription.label}
               </Label>
               <Textarea
@@ -1409,8 +1359,8 @@ const Signup = () => {
               />
             </div>
 
-            <div className="space-y-2">
-              <Label className="text-sm text-foreground">
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">
                 {FIELD_HELPERS.businessCategories.label}
               </Label>
               <EnhancedMultiCategorySelect
@@ -1421,8 +1371,8 @@ const Signup = () => {
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="targetLocations" className="text-sm text-foreground">
+            <div className="space-y-1.5">
+              <Label htmlFor="targetLocations" className="text-xs text-muted-foreground">
                 {FIELD_HELPERS.targetLocations.label}
               </Label>
               <EnhancedMultiLocationSelect
@@ -1435,8 +1385,8 @@ const Signup = () => {
 
             {/* Independent sponsor deal size ranges */}
             {formData.buyerType === "independentSponsor" && (
-              <div className="space-y-2">
-                <Label className="text-sm text-foreground">
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">
                   {FIELD_HELPERS.targetDealSize.label}
                 </Label>
                 <Select
@@ -1457,7 +1407,7 @@ const Signup = () => {
                     }
                   }}
                 >
-                  <SelectTrigger className="h-11">
+                  <SelectTrigger>
                     <SelectValue placeholder="Select deal size range" />
                   </SelectTrigger>
                   <SelectContent>
@@ -1473,16 +1423,16 @@ const Signup = () => {
 
             {/* Only show revenue range if buyer type is not Private Equity or Independent Sponsor */}
             {formData.buyerType !== "privateEquity" && formData.buyerType !== "independentSponsor" && (
-              <div className="space-y-2">
-                <Label className="text-sm text-foreground">
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">
                   {FIELD_HELPERS.revenueRange.label}
                 </Label>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-3">
                   <Select
                     value={formData.revenueRangeMin}
                     onValueChange={(value) => setFormData(prev => ({ ...prev, revenueRangeMin: value }))}
                   >
-                    <SelectTrigger className="h-11">
+                    <SelectTrigger>
                       <SelectValue placeholder="Minimum" />
                     </SelectTrigger>
                     <SelectContent>
@@ -1497,7 +1447,7 @@ const Signup = () => {
                     value={formData.revenueRangeMax}
                     onValueChange={(value) => setFormData(prev => ({ ...prev, revenueRangeMax: value }))}
                   >
-                    <SelectTrigger className="h-11">
+                    <SelectTrigger>
                       <SelectValue placeholder="Maximum" />
                     </SelectTrigger>
                     <SelectContent>
@@ -1512,8 +1462,8 @@ const Signup = () => {
               </div>
             )}
 
-            <div className="space-y-2">
-              <Label htmlFor="specificBusinessSearch" className="text-sm text-foreground">
+            <div className="space-y-1.5">
+              <Label htmlFor="specificBusinessSearch" className="text-xs text-muted-foreground">
                 {FIELD_HELPERS.specificBusinessSearch.label}
               </Label>
               <Textarea
@@ -1527,19 +1477,19 @@ const Signup = () => {
             </div>
 
             {/* Deal Intent */}
-            <div className="space-y-2">
-              <Label className="text-sm text-foreground">
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">
                 {FIELD_HELPERS.dealIntent.label}
               </Label>
               <RadioGroup
                 value={formData.dealIntent || ""}
                 onValueChange={(value) => setFormData(prev => ({ ...prev, dealIntent: value }))}
-                className="space-y-2"
+                className="space-y-1.5"
               >
                 {DEAL_INTENT_OPTIONS.map((option) => (
                   <div key={option.value} className="flex items-center space-x-2">
                     <RadioGroupItem value={option.value} id={option.value} />
-                    <Label htmlFor={option.value} className="font-normal cursor-pointer text-sm">
+                    <Label htmlFor={option.value} className="font-normal cursor-pointer text-xs">
                       {option.label}
                     </Label>
                   </div>
@@ -1548,8 +1498,8 @@ const Signup = () => {
             </div>
 
             {/* Hard Exclusions */}
-            <div className="space-y-2">
-              <Label className="text-sm text-foreground">
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">
                 {FIELD_HELPERS.exclusions.label}
               </Label>
               <ChipInput
@@ -1561,8 +1511,8 @@ const Signup = () => {
             </div>
 
             {/* Include Keywords */}
-            <div className="space-y-2">
-              <Label className="text-sm text-foreground">
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">
                 {FIELD_HELPERS.includeKeywords.label}
               </Label>
               <ChipInput
@@ -1583,14 +1533,14 @@ const Signup = () => {
     <div className="space-y-8 pr-8">
       {/* Welcome Header */}
       <div className="space-y-4">
-        <h2 className="text-xl font-semibold tracking-tight text-foreground">
+        <h2 className="text-lg font-semibold tracking-tight text-foreground">
           Welcome to SourceCo
         </h2>
-        <p className="text-sm text-muted-foreground leading-relaxed">
+        <p className="text-xs text-muted-foreground leading-relaxed">
           Stop wasting time on unqualified opportunities. Access pre-vetted businesses 
           with verified financials and motivated sellers ready to transact.
         </p>
-        <p className="text-sm text-muted-foreground leading-relaxed">
+        <p className="text-xs text-muted-foreground leading-relaxed">
           Join our network of acquirers who source deals directly from owners—before 
           they go to brokers or public listings.
         </p>
@@ -1641,7 +1591,7 @@ const Signup = () => {
       </Card>
 
       {/* Value Props */}
-      <div className="space-y-3 text-xs text-muted-foreground">
+      <div className="space-y-2 text-xs text-muted-foreground">
         <div className="flex items-center space-x-2">
           <div className="w-1.5 h-1.5 rounded-full bg-primary/40" />
           <span>Break free from broker gatekeepers</span>
@@ -1666,12 +1616,12 @@ const Signup = () => {
       backLinkText="Back to selection"
     >
       <Card className="border-0 shadow-none bg-transparent">
-        <CardHeader className="space-y-6 pb-8 px-0">
+        <CardHeader className="space-y-4 pb-6 px-0">
           <div>
-            <CardTitle className="text-2xl font-semibold tracking-tight">
+            <CardTitle className="text-xl font-semibold tracking-tight">
               Create your account
             </CardTitle>
-            <CardDescription className="text-sm text-muted-foreground mt-1">
+            <CardDescription className="text-xs text-muted-foreground mt-1">
               {steps[currentStep]}
             </CardDescription>
           </div>
