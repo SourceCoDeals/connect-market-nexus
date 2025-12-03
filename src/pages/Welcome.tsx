@@ -29,7 +29,7 @@ const Welcome = () => {
         </h2>
         <p className="text-sm text-muted-foreground leading-relaxed">
           SourceCo is a private marketplace connecting qualified acquirers with off-market 
-          business opportunities in the $1M–$50M revenue range.
+          business opportunities in the $1M-$50M revenue range.
         </p>
         <p className="text-sm text-muted-foreground leading-relaxed">
           We source deals directly from owners considering an exit—before they go to brokers 
@@ -90,7 +90,7 @@ const Welcome = () => {
         </div>
         <div className="flex items-center space-x-2">
           <div className="w-1.5 h-1.5 rounded-full bg-primary/40" />
-          <span>$1M – $50M+ revenue companies</span>
+          <span>$1M - $50M+ revenue companies</span>
         </div>
         <div className="flex items-center space-x-2">
           <div className="w-1.5 h-1.5 rounded-full bg-primary/40" />
@@ -108,12 +108,12 @@ const Welcome = () => {
           <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-foreground leading-tight">
             Access Off-Market Businesses
             <span className="block text-muted-foreground font-normal text-base sm:text-lg mt-1">
-              $1M – $50M+ Revenue
+              $1M - $50M+ Revenue
             </span>
           </h1>
           <p className="text-sm text-muted-foreground leading-relaxed max-w-md">
             Skip the auction process. Connect directly with business owners considering 
-            a sale—before they go to market.
+            a sale - before they go to market.
           </p>
         </div>
 
