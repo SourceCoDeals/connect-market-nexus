@@ -152,10 +152,10 @@ const Login = () => {
             <div className="text-sm text-center text-muted-foreground">
               <span>Don't have an account? </span>
               <Link
-                to="/signup"
+                to="/welcome"
                 className="text-primary font-medium hover:underline"
               >
-                Sign up
+                Get started
               </Link>
             </div>
           </CardFooter>

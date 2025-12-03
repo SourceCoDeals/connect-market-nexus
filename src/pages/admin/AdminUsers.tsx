@@ -20,6 +20,7 @@ import { AutomatedDataRestoration } from "@/components/admin/AutomatedDataRestor
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useNonMarketplaceUsers } from "@/hooks/admin/use-non-marketplace-users";
+import { OwnerLeadsTable } from "@/components/admin/OwnerLeadsTable";
 import { NonMarketplaceUsersTable } from "@/components/admin/NonMarketplaceUsersTable";
 import { UserViewSwitcher } from "@/components/admin/UserViewSwitcher";
 import { useMarkUsersViewed } from "@/hooks/admin/use-mark-users-viewed";
@@ -135,6 +136,12 @@ const AdminUsers = () => {
                 Users
               </TabsTrigger>
               <TabsTrigger 
+                value="owner-leads"
+                className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-0 pb-2 pt-0 font-medium text-sm data-[state=active]:text-foreground text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Owner Leads
+              </TabsTrigger>
+              <TabsTrigger 
                 value="firms"
                 asChild
                 className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-0 pb-2 pt-0 font-medium text-sm data-[state=active]:text-foreground text-muted-foreground hover:text-foreground transition-colors"
@@ -145,6 +152,12 @@ const AdminUsers = () => {
                 </Link>
               </TabsTrigger>
             </TabsList>
+            
+            <TabsContent value="owner-leads" className="mt-0">
+              <div className="px-8 py-6">
+                <OwnerLeadsTable />
+              </div>
+            </TabsContent>
           </Tabs>
         </div>
       </div>

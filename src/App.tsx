@@ -14,9 +14,12 @@ import SessionTrackingProvider from "@/components/SessionTrackingProvider";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import MainLayout from "@/components/MainLayout";
 import AdminLayout from "@/components/admin/AdminLayout";
+import Welcome from "@/pages/Welcome";
 import Login from "@/pages/Login";
 import Signup from "@/pages/Signup";
 import SignupSuccess from "@/pages/SignupSuccess";
+import OwnerInquiry from "@/pages/OwnerInquiry";
+import OwnerInquirySuccess from "@/pages/OwnerInquirySuccess";
 import ForgotPassword from "@/pages/ForgotPassword";
 import ResetPassword from "@/pages/ResetPassword";
 import PendingApproval from "@/pages/PendingApproval";
@@ -75,6 +78,11 @@ function App() {
                   <SimpleToastProvider>
                       <Toaster />
           <Routes>
+            {/* Public entry point - persona selection */}
+            <Route path="/welcome" element={<Welcome />} />
+            <Route path="/sell" element={<OwnerInquiry />} />
+            <Route path="/sell/success" element={<OwnerInquirySuccess />} />
+            
             {/* Authentication routes - no protection needed */}
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
