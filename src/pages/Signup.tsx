@@ -8,6 +8,7 @@ import sfcLogo from '@/assets/sfc-logo.png';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { AuthLayout } from "@/components/layout/AuthLayout";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { BuyerType, User } from "@/types";
@@ -1624,196 +1625,176 @@ const Signup = () => {
     }
   };
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
-      <div className="container mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 min-h-screen items-center max-w-7xl mx-auto">
-          
-          {/* Left Column - Signup Form */}
-          <div className="flex flex-col justify-center space-y-8">
-            {/* Back Link */}
-            <Link 
-              to="/welcome" 
-              className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors w-fit"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="m15 18-6-6 6-6"/>
-              </svg>
-              Back to selection
-            </Link>
+  const rightContent = (
+    <div className="space-y-8 pr-8">
+      {/* Welcome Header */}
+      <div className="space-y-4">
+        <h2 className="text-xl font-semibold tracking-tight text-foreground">
+          Welcome to SourceCo
+        </h2>
+        <p className="text-sm text-muted-foreground leading-relaxed">
+          Stop wasting time on unqualified opportunities. Access pre-vetted businesses 
+          with verified financials and motivated sellers ready to transact.
+        </p>
+        <p className="text-sm text-muted-foreground leading-relaxed">
+          Join our network of acquirers who source deals directly from owners—before 
+          they go to brokers or public listings.
+        </p>
+      </div>
 
-            {/* Brand Header */}
-            <div className="flex items-center space-x-3 mb-2">
+      {/* Testimonial */}
+      <Card className="bg-background/80 border border-border/50 shadow-sm">
+        <CardContent className="p-5 space-y-3">
+          <div className="flex items-start space-x-3">
+            <div className="w-9 h-9 rounded-full overflow-hidden bg-muted flex-shrink-0">
               <img 
-                src="/lovable-uploads/b879fa06-6a99-4263-b973-b9ced4404acb.png" 
-                alt="SourceCo Logo" 
-                className="h-8 w-8"
+                src={bradDaughertyImage} 
+                alt="Brad Daughterty"
+                className="w-full h-full object-cover"
               />
-              <div>
-                <h1 className="text-xl font-semibold tracking-tight">SourceCo</h1>
-                <p className="text-sm text-muted-foreground font-light">Marketplace</p>
-              </div>
             </div>
-
-            <Card className="border-none shadow-lg">
-              <CardHeader className="space-y-2 pb-6">
-                <CardTitle className="text-xl font-semibold">
-                  Create your account
-                </CardTitle>
-                <CardDescription className="text-xs text-muted-foreground">
-                  Step {currentStep + 1} of {steps.length}: {steps[currentStep]}
-                </CardDescription>
-                
-                {/* Progress bar */}
-                <div className="w-full bg-muted h-1 rounded-full mt-3">
-                  <div
-                    className="bg-primary h-1 rounded-full transition-all duration-300"
-                    style={{
-                      width: `${((currentStep + 1) / steps.length) * 100}%`,
-                    }}
-                  />
+            <div className="space-y-2 flex-1 relative">
+              <blockquote className="text-xs text-foreground leading-relaxed italic">
+                "SourceCo's technology-driven sourcing process consistently delivered a 
+                robust pipeline of qualified opportunities, resulting in multiple LOIs and 
+                a closed deal with more to come."
+              </blockquote>
+              <div className="space-y-0.5">
+                <div className="text-xs font-medium text-foreground">
+                  Brad Daughterty
                 </div>
-              </CardHeader>
-              
-              <CardContent className="space-y-6">
-                {validationErrors.length > 0 && (
-                  <div className="bg-destructive/10 border border-destructive/20 text-destructive p-3 rounded-lg">
-                    <ul className="list-disc pl-4 space-y-1 text-xs">
-                      {validationErrors.map((error, index) => (
-                        <li key={index}>{error}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-                
-                <form onSubmit={handleSubmit} className="space-y-5">
-                  {renderStepContent()}
-                </form>
-              </CardContent>
-              
-              <CardFooter className="flex flex-col space-y-4 pt-6">
-                <div className="flex justify-between w-full">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={handlePrevious}
-                    disabled={currentStep === 0 || isLoading || isSubmitting}
-                    className="text-xs"
+                <div className="text-[11px] text-muted-foreground">
+                  CFO, <a 
+                    href="https://sportsfacilities.com/" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="hover:underline"
                   >
-                    Back
-                  </Button>
-                  
-                  {currentStep === steps.length - 1 ? (
-                    <Button
-                      type="submit"
-                      onClick={handleSubmit}
-                      disabled={isLoading || isSubmitting}
-                      size="sm"
-                      className="text-xs font-medium"
-                    >
-                      {isLoading || isSubmitting ? "Creating account..." : "Create account"}
-                    </Button>
-                  ) : (
-                    <Button
-                      type="button"
-                      onClick={handleNext}
-                      disabled={isLoading || isSubmitting}
-                      size="sm"
-                      className="text-xs font-medium"
-                    >
-                      Continue
-                    </Button>
-                  )}
+                    Sports Facilities Companies
+                  </a>
                 </div>
-                
-                <div className="text-xs text-center text-muted-foreground">
-                  <span>Already have an account? </span>
-                  <Link
-                    to="/login"
-                    className="text-primary font-medium hover:underline transition-colors"
-                  >
-                    Sign in
-                  </Link>
-                </div>
-              </CardFooter>
-            </Card>
-          </div>
-
-          {/* Right Column - Why SourceCo */}
-          <div className="hidden lg:flex flex-col justify-center space-y-8 pl-8">
-            <div className="space-y-6">
-              <div className="space-y-3">
-                <h2 className="text-2xl font-semibold tracking-tight text-foreground">
-                  Why SourceCo?
-                </h2>
-                <p className="text-sm text-muted-foreground leading-relaxed max-w-md">
-                  Stop wasting time on unqualified opportunities. Access pre-vetted businesses 
-                  with verified financials and motivated sellers ready to transact.
-                </p>
               </div>
-
-              <Card className="bg-gradient-to-br from-muted/30 to-muted/10 border border-border/50 shadow-sm">
-                <CardContent className="p-6 space-y-4">
-                  <div className="flex items-start space-x-3">
-                    <div className="w-10 h-10 rounded-full overflow-hidden bg-muted flex-shrink-0">
-                      <img 
-                        src={bradDaughertyImage} 
-                        alt="Brad Daughterty"
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                    <div className="space-y-2 flex-1 relative">
-                      <blockquote className="text-sm text-foreground leading-relaxed italic">
-                        "SourceCo's technology-driven sourcing process consistently delivered a robust pipeline of qualified opportunities, resulting in multiple LOIs and a closed deal with more to come. Their team clearly understood our investment thesis and effectively conveyed our value to owners."
-                      </blockquote>
-                      <div className="space-y-1">
-                        <div className="text-xs font-medium text-foreground">
-                          Brad Daughterty
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          Chief Financial Officer, <a 
-                            href="https://sportsfacilities.com/" 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="hover:underline transition-all duration-200"
-                          >
-                            Sports Facilities Companies
-                          </a>
-                        </div>
-                      </div>
-                      <div className="absolute bottom-0 right-0">
-                        <img 
-                          src={sfcLogo} 
-                          alt="Sports Facilities Companies"
-                          className="h-6 w-auto opacity-70"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <div className="grid grid-cols-1 gap-4 text-xs text-muted-foreground">
-                <div className="flex items-center space-x-2">
-                  <div className="w-1.5 h-1.5 rounded-full bg-primary/40" />
-                  <span>Break free from broker gatekeepers</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <div className="w-1.5 h-1.5 rounded-full bg-primary/40" />
-                  <span>Connect directly with motivated sellers</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <div className="w-1.5 h-1.5 rounded-full bg-primary/40" />
-                  <span>Transform reactive to proactive sourcing</span>
-                </div>
+              <div className="absolute bottom-0 right-0">
+                <img 
+                  src={sfcLogo} 
+                  alt="Sports Facilities Companies"
+                  className="h-5 w-auto opacity-60"
+                />
               </div>
             </div>
           </div>
+        </CardContent>
+      </Card>
 
+      {/* Value Props */}
+      <div className="space-y-3 text-xs text-muted-foreground">
+        <div className="flex items-center space-x-2">
+          <div className="w-1.5 h-1.5 rounded-full bg-primary/40" />
+          <span>Break free from broker gatekeepers</span>
+        </div>
+        <div className="flex items-center space-x-2">
+          <div className="w-1.5 h-1.5 rounded-full bg-primary/40" />
+          <span>Connect directly with motivated sellers</span>
+        </div>
+        <div className="flex items-center space-x-2">
+          <div className="w-1.5 h-1.5 rounded-full bg-primary/40" />
+          <span>Transform reactive to proactive sourcing</span>
         </div>
       </div>
     </div>
+  );
+
+  return (
+    <AuthLayout 
+      rightContent={rightContent}
+      showBackLink
+      backLinkTo="/welcome"
+      backLinkText="Back to selection"
+    >
+      <Card className="border-none shadow-lg">
+        <CardHeader className="space-y-2 pb-6">
+          <CardTitle className="text-xl font-semibold">
+            Create your account
+          </CardTitle>
+          <CardDescription className="text-xs text-muted-foreground">
+            Step {currentStep + 1} of {steps.length}: {steps[currentStep]}
+          </CardDescription>
+          
+          {/* Progress bar */}
+          <div className="w-full bg-muted h-1 rounded-full mt-3">
+            <div
+              className="bg-primary h-1 rounded-full transition-all duration-300"
+              style={{
+                width: `${((currentStep + 1) / steps.length) * 100}%`,
+              }}
+            />
+          </div>
+        </CardHeader>
+        
+        <CardContent className="space-y-6">
+          {validationErrors.length > 0 && (
+            <div className="bg-destructive/10 border border-destructive/20 text-destructive p-3 rounded-lg">
+              <ul className="list-disc pl-4 space-y-1 text-xs">
+                {validationErrors.map((error, index) => (
+                  <li key={index}>{error}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          
+          <form onSubmit={handleSubmit} className="space-y-5">
+            {renderStepContent()}
+          </form>
+        </CardContent>
+        
+        <CardFooter className="flex flex-col space-y-4 pt-6">
+          <div className="flex justify-between w-full">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={handlePrevious}
+              disabled={currentStep === 0 || isLoading || isSubmitting}
+              className="text-xs"
+            >
+              Back
+            </Button>
+            
+            {currentStep === steps.length - 1 ? (
+              <Button
+                type="submit"
+                onClick={handleSubmit}
+                disabled={isLoading || isSubmitting}
+                size="sm"
+                className="text-xs font-medium"
+              >
+                {isLoading || isSubmitting ? "Creating account..." : "Create account"}
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                onClick={handleNext}
+                disabled={isLoading || isSubmitting}
+                size="sm"
+                className="text-xs font-medium"
+              >
+                Continue
+              </Button>
+            )}
+          </div>
+          
+          <div className="text-xs text-center text-muted-foreground">
+            <span>Already have an account? </span>
+            <Link
+              to="/login"
+              className="text-primary font-medium hover:underline transition-colors"
+            >
+              Sign in
+            </Link>
+          </div>
+        </CardFooter>
+      </Card>
+    </AuthLayout>
   );
 };
 
