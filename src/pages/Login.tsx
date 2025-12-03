@@ -58,7 +58,7 @@ const Login = () => {
   // Simple loading state
   if (!authChecked && isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-muted/30">
+      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
         <div className="flex flex-col items-center gap-4">
           <div className="w-16 h-16 border-4 border-t-primary border-r-transparent border-b-transparent border-l-transparent rounded-full animate-spin"></div>
           <p className="text-muted-foreground">Loading...</p>
@@ -68,98 +68,106 @@ const Login = () => {
   }
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-muted/30">
-      <div className="w-full max-w-md space-y-6">
-        {/* Brand Header */}
-        <div className="flex flex-col items-center space-y-3">
-          <div className="flex items-center">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
+      {/* Centered Logo Header */}
+      <header className="w-full py-6 px-4">
+        <div className="max-w-5xl mx-auto flex justify-center">
+          <Link to="/welcome" className="flex items-center space-x-2">
             <img 
               src="/lovable-uploads/b879fa06-6a99-4263-b973-b9ced4404acb.png" 
               alt="SourceCo Logo" 
-              className="h-10 w-10 mr-3"
+              className="h-8 w-8"
             />
-            <div className="text-center">
-              <h1 className="text-2xl font-bold">SourceCo</h1>
-              <p className="text-lg text-muted-foreground font-light">Marketplace</p>
+            <div className="flex items-baseline">
+              <span className="text-xl font-semibold tracking-tight">SourceCo</span>
+              <span className="text-sm text-muted-foreground font-light ml-1.5">Marketplace</span>
             </div>
-          </div>
+          </Link>
         </div>
+      </header>
 
-        <Card>
-          <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl font-bold text-center">
-              Sign in to Marketplace
-            </CardTitle>
-            <CardDescription className="text-center">
-              Enter your email and password to access your account
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {error && (
-                <div className="bg-destructive/15 p-3 rounded-md flex items-start gap-2 text-sm text-destructive">
-                  <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                  <div>{error}</div>
-                </div>
-              )}
-              
-              <div className="space-y-2">
-                <label htmlFor="email" className="text-sm font-medium">
-                  Email
-                </label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="name@company.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  disabled={isSubmitting}
-                />
-              </div>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <label htmlFor="password" className="text-sm font-medium">
-                    Password
+      {/* Main Content */}
+      <div className="container mx-auto px-4 pb-12">
+        <div className="max-w-md mx-auto pt-8">
+          <Card className="border-none shadow-lg">
+            <CardHeader className="space-y-1">
+              <CardTitle className="text-xl font-semibold text-center">
+                Sign in to Marketplace
+              </CardTitle>
+              <CardDescription className="text-xs text-center">
+                Enter your email and password to access your account
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                {error && (
+                  <div className="bg-destructive/15 p-3 rounded-md flex items-start gap-2 text-xs text-destructive">
+                    <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                    <div>{error}</div>
+                  </div>
+                )}
+                
+                <div className="space-y-2">
+                  <label htmlFor="email" className="text-xs font-medium">
+                    Email
                   </label>
-                  <Link
-                    to="/forgot-password"
-                    className="text-sm text-primary hover:underline"
-                  >
-                    Forgot password?
-                  </Link>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="name@company.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    disabled={isSubmitting}
+                    className="text-sm"
+                  />
                 </div>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label htmlFor="password" className="text-xs font-medium">
+                      Password
+                    </label>
+                    <Link
+                      to="/forgot-password"
+                      className="text-xs text-primary hover:underline"
+                    >
+                      Forgot password?
+                    </Link>
+                  </div>
+                  <Input
+                    id="password"
+                    type="password"
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    disabled={isSubmitting}
+                    className="text-sm"
+                  />
+                </div>
+                <Button
+                  type="submit"
+                  className="w-full"
+                  size="sm"
                   disabled={isSubmitting}
-                />
+                >
+                  {isSubmitting ? "Signing in..." : "Sign in"}
+                </Button>
+              </form>
+            </CardContent>
+            <CardFooter className="flex flex-col space-y-4">
+              <div className="text-xs text-center text-muted-foreground">
+                <span>Don't have an account? </span>
+                <Link
+                  to="/welcome"
+                  className="text-primary font-medium hover:underline"
+                >
+                  Get started
+                </Link>
               </div>
-              <Button
-                type="submit"
-                className="w-full"
-                disabled={isSubmitting}
-              >
-                {isSubmitting ? "Signing in..." : "Sign in"}
-              </Button>
-            </form>
-          </CardContent>
-          <CardFooter className="flex flex-col space-y-4">
-            <div className="text-sm text-center text-muted-foreground">
-              <span>Don't have an account? </span>
-              <Link
-                to="/welcome"
-                className="text-primary font-medium hover:underline"
-              >
-                Get started
-              </Link>
-            </div>
-          </CardFooter>
-        </Card>
+            </CardFooter>
+          </Card>
+        </div>
       </div>
     </div>
   );
