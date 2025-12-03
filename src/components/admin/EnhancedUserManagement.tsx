@@ -313,6 +313,10 @@ export function EnhancedUserManagement({
               </div>
             </div>
 
+            {/* Results count */}
+            <div className="text-sm text-muted-foreground pt-2">
+              Showing <span className="font-medium text-foreground">{filteredUsers.length}</span> of <span className="font-medium text-foreground">{analytics.total}</span> users
+            </div>
           </div>
 
           {/* Bulk Actions */}
