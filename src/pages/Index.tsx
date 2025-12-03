@@ -48,8 +48,8 @@ const Index = () => {
                 ) : (
                   <>
                     <Button asChild size="lg" className="px-8">
-                      <Link to="/signup">
-                        Join & Get Deal Alerts
+                      <Link to="/welcome">
+                        Get Started
                       </Link>
                     </Button>
                     <Button asChild variant="outline" size="lg">
@@ -144,7 +144,7 @@ const Index = () => {
                     </Button>
                   ) : (
                     <Button asChild size="lg">
-                      <Link to="/signup">Create Account</Link>
+                      <Link to="/welcome">Get Started</Link>
                     </Button>
                   )}
                 </div>

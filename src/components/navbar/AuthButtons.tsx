@@ -9,7 +9,7 @@ const AuthButtons = () => {
         <Link to="/login">Log In</Link>
       </Button>
       <Button asChild>
-        <Link to="/signup">Sign Up</Link>
+        <Link to="/welcome">Get Started</Link>
       </Button>
     </div>
   );

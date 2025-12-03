@@ -72,7 +72,7 @@ export default function ForgotPassword() {
         </CardContent>
         <CardFooter className="flex justify-between text-sm text-muted-foreground">
           <Link to="/login" className="text-primary hover:underline">Back to sign in</Link>
-          <Link to="/signup" className="hover:underline">Create account</Link>
+          <Link to="/welcome" className="hover:underline">Get started</Link>
         </CardFooter>
       </Card>
     </main>
