@@ -14,7 +14,7 @@ import { Label } from "@/components/ui/label";
 import { BuyerType, User } from "@/types";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
-import { Separator } from "@/components/ui/separator";
+
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ChipInput } from "@/components/ui/chip-input";
 import { parseCurrency } from "@/lib/currency-utils";
@@ -614,7 +614,7 @@ const Signup = () => {
         return (
           <div className="space-y-5">
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-sm font-medium">Work Email</Label>
+              <Label htmlFor="email" className="text-sm text-foreground">Email</Label>
               <Input
                 id="email"
                 name="email"
@@ -627,21 +627,20 @@ const Signup = () => {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password" className="text-sm font-medium">Password</Label>
+              <Label htmlFor="password" className="text-sm text-foreground">Password</Label>
               <Input
                 id="password"
                 name="password"
                 type="password"
-                placeholder="••••••••"
+                placeholder="Minimum 6 characters"
                 value={formData.password}
                 onChange={handleInputChange}
                 className="h-11"
                 required
               />
-              <p className="text-xs text-muted-foreground">Minimum 6 characters</p>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="confirmPassword" className="text-sm font-medium">Confirm Password</Label>
+              <Label htmlFor="confirmPassword" className="text-sm text-foreground">Confirm Password</Label>
               <Input
                 id="confirmPassword"
                 name="confirmPassword"
@@ -660,7 +659,7 @@ const Signup = () => {
           <div className="space-y-5">
             <div className="grid grid-cols-2 gap-5">
               <div className="space-y-2">
-                <Label htmlFor="firstName" className="text-sm font-medium">First Name</Label>
+                <Label htmlFor="firstName" className="text-sm text-foreground">First Name</Label>
                 <Input
                   id="firstName"
                   name="firstName"
@@ -672,7 +671,7 @@ const Signup = () => {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="lastName" className="text-sm font-medium">Last Name</Label>
+                <Label htmlFor="lastName" className="text-sm text-foreground">Last Name</Label>
                 <Input
                   id="lastName"
                   name="lastName"
@@ -685,7 +684,7 @@ const Signup = () => {
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="company" className="text-sm font-medium">Company</Label>
+              <Label htmlFor="company" className="text-sm text-foreground">Company</Label>
               <Input
                 id="company"
                 name="company"
@@ -698,7 +697,7 @@ const Signup = () => {
             </div>
             <div className="grid grid-cols-2 gap-5">
               <div className="space-y-2">
-                <Label htmlFor="phoneNumber" className="text-sm font-medium">Phone</Label>
+                <Label htmlFor="phoneNumber" className="text-sm text-foreground">Phone</Label>
                 <Input
                   id="phoneNumber"
                   name="phoneNumber"
@@ -710,9 +709,7 @@ const Signup = () => {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="jobTitle" className="text-sm font-medium">
-                  Job Title <span className="text-muted-foreground font-normal">(optional)</span>
-                </Label>
+                <Label htmlFor="jobTitle" className="text-sm text-foreground">Job Title</Label>
                 <Input
                   id="jobTitle"
                   name="jobTitle"
@@ -724,20 +721,9 @@ const Signup = () => {
               </div>
             </div>
 
-            <Separator className="my-2" />
-            
-            <div className="space-y-1">
-              <p className="text-sm font-medium text-foreground">Professional Profile</p>
-              <p className="text-xs text-muted-foreground">
-                Helps owners understand your investment background
-              </p>
-            </div>
-
             <div className="grid grid-cols-2 gap-5">
               <div className="space-y-2">
-                <Label htmlFor="website" className="text-sm font-medium">
-                  Website <span className="text-muted-foreground font-normal">(optional)</span>
-                </Label>
+                <Label htmlFor="website" className="text-sm text-foreground">Website</Label>
                 <Input
                   id="website"
                   name="website"
@@ -748,9 +734,7 @@ const Signup = () => {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="linkedinProfile" className="text-sm font-medium">
-                  LinkedIn <span className="text-muted-foreground font-normal">(optional)</span>
-                </Label>
+                <Label htmlFor="linkedinProfile" className="text-sm text-foreground">LinkedIn</Label>
                 <Input
                   id="linkedinProfile"
                   name="linkedinProfile"
@@ -767,7 +751,7 @@ const Signup = () => {
         return (
           <div className="space-y-5">
             <div className="space-y-2">
-              <Label htmlFor="buyerType" className="text-sm font-medium">Type of Buyer</Label>
+              <Label htmlFor="buyerType" className="text-sm text-foreground">Type of Buyer</Label>
               <Select
                 onValueChange={handleBuyerTypeChange}
                 value={formData.buyerType}
@@ -789,7 +773,7 @@ const Signup = () => {
             {formData.buyerType === "corporate" && (
               <div className="space-y-5 pt-2">
                 <div className="space-y-2">
-                  <Label htmlFor="estimatedRevenue" className="text-sm font-medium">Estimated Revenue</Label>
+                  <Label htmlFor="estimatedRevenue" className="text-sm text-foreground">Estimated Revenue</Label>
                   <EnhancedCurrencyInput
                     value={formData.estimatedRevenue}
                     onChange={(value) => setFormData((prev) => ({ ...prev, estimatedRevenue: value }))}
@@ -799,9 +783,7 @@ const Signup = () => {
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="owningBusinessUnit" className="text-sm font-medium">
-                    Business Unit <span className="text-muted-foreground font-normal">(optional)</span>
-                  </Label>
+                  <Label htmlFor="owningBusinessUnit" className="text-sm text-foreground">Business Unit</Label>
                   <Input
                     id="owningBusinessUnit"
                     name="owningBusinessUnit"
@@ -813,9 +795,7 @@ const Signup = () => {
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="dealSizeBand" className="text-sm font-medium">
-                    Deal Size (EV) <span className="text-destructive">*</span>
-                  </Label>
+                  <Label htmlFor="dealSizeBand" className="text-sm text-foreground">Deal Size (EV)</Label>
                   <Select
                     value={formData.dealSizeBand || ""}
                     onValueChange={(value) => setFormData((prev) => ({ ...prev, dealSizeBand: value }))}
@@ -834,9 +814,7 @@ const Signup = () => {
                 </div>
                 
                 <div className="space-y-2">
-                  <Label className="text-sm font-medium">
-                    Integration Plan <span className="text-muted-foreground font-normal">(optional)</span>
-                  </Label>
+                  <Label className="text-sm text-foreground">Integration Plan</Label>
                   <div className="grid grid-cols-2 gap-3">
                     {INTEGRATION_PLAN_OPTIONS.map((option) => (
                       <div key={option.value} className="flex items-center space-x-2">
@@ -860,13 +838,12 @@ const Signup = () => {
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="corpdevIntent">Speed/intent <span className="text-xs text-muted-foreground">(optional)</span></Label>
-                  <p className="text-xs text-muted-foreground">Current acquisition timeline and urgency</p>
+                  <Label htmlFor="corpdevIntent" className="text-sm text-foreground">Speed/Intent</Label>
                   <Select
                     value={formData.corpdevIntent || ""}
                     onValueChange={(value) => setFormData((prev) => ({ ...prev, corpdevIntent: value }))}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="h-11">
                       <SelectValue placeholder="Select your current approach" />
                     </SelectTrigger>
                     <SelectContent>
@@ -1418,20 +1395,10 @@ const Signup = () => {
       case 3:
         return (
           <div className="space-y-6">
-            <div className="text-center space-y-2">
-              <h3 className="text-lg font-semibold">Let's build your buyer profile</h3>
-              <p className="text-sm text-muted-foreground">
-                This helps us understand what type of targets you're looking for and show you hand-picked deals that align with your criteria.
-              </p>
-            </div>
-
             <div className="space-y-2">
-              <Label htmlFor="idealTargetDescription">
+              <Label htmlFor="idealTargetDescription" className="text-sm text-foreground">
                 {FIELD_HELPERS.idealTargetDescription.label}
               </Label>
-              <p className="text-xs text-muted-foreground">
-                {FIELD_HELPERS.idealTargetDescription.description}
-              </p>
               <Textarea
                 id="idealTargetDescription"
                 name="idealTargetDescription"
@@ -1442,13 +1409,10 @@ const Signup = () => {
               />
             </div>
 
-            <div className="space-y-4">
-              <Label className="text-base font-medium">
+            <div className="space-y-2">
+              <Label className="text-sm text-foreground">
                 {FIELD_HELPERS.businessCategories.label}
               </Label>
-              <p className="text-xs text-muted-foreground">
-                {FIELD_HELPERS.businessCategories.description}
-              </p>
               <EnhancedMultiCategorySelect
                 value={formData.businessCategories}
                 onValueChange={(selected) => setFormData(prev => ({ ...prev, businessCategories: selected }))}
@@ -1458,12 +1422,9 @@ const Signup = () => {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="targetLocations">
+              <Label htmlFor="targetLocations" className="text-sm text-foreground">
                 {FIELD_HELPERS.targetLocations.label}
               </Label>
-              <p className="text-xs text-muted-foreground">
-                {FIELD_HELPERS.targetLocations.description}
-              </p>
               <EnhancedMultiLocationSelect
                 value={Array.isArray(formData.targetLocations) ? formData.targetLocations : []}
                 onValueChange={(selected) => setFormData(prev => ({ ...prev, targetLocations: selected }))}
@@ -1474,39 +1435,73 @@ const Signup = () => {
 
             {/* Independent sponsor deal size ranges */}
             {formData.buyerType === "independentSponsor" && (
-              <div className="space-y-4">
-                <Label className="text-base font-medium">
+              <div className="space-y-2">
+                <Label className="text-sm text-foreground">
                   {FIELD_HELPERS.targetDealSize.label}
                 </Label>
-                <p className="text-xs text-muted-foreground">
-                  {FIELD_HELPERS.targetDealSize.description}
-                </p>
-                <div className="space-y-2">
-                  <Label htmlFor="targetDealSizeRange">Target Deal Size Range</Label>
+                <Select
+                  value={formData.targetDealSizeMin && formData.targetDealSizeMax 
+                    ? `${formData.targetDealSizeMin}-${formData.targetDealSizeMax}`
+                    : ""}
+                  onValueChange={(value) => {
+                    const range = DEAL_SIZE_RANGES.find(r => r.value === value);
+                    if (range) {
+                      const parts = range.value.split(' - ');
+                      const min = parts[0]?.replace(/[^0-9]/g, '') || "";
+                      const max = parts[1]?.replace(/[^0-9]/g, '') || "";
+                      setFormData(prev => ({ 
+                        ...prev, 
+                        targetDealSizeMin: min ? `${min}000000` : "",
+                        targetDealSizeMax: max ? `${max}000000` : ""
+                      }));
+                    }
+                  }}
+                >
+                  <SelectTrigger className="h-11">
+                    <SelectValue placeholder="Select deal size range" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {DEAL_SIZE_RANGES.map((range) => (
+                      <SelectItem key={range.value} value={range.value}>
+                        {range.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {/* Only show revenue range if buyer type is not Private Equity or Independent Sponsor */}
+            {formData.buyerType !== "privateEquity" && formData.buyerType !== "independentSponsor" && (
+              <div className="space-y-2">
+                <Label className="text-sm text-foreground">
+                  {FIELD_HELPERS.revenueRange.label}
+                </Label>
+                <div className="grid grid-cols-2 gap-4">
                   <Select
-                    value={formData.targetDealSizeMin && formData.targetDealSizeMax 
-                      ? `${formData.targetDealSizeMin}-${formData.targetDealSizeMax}`
-                      : ""}
-                    onValueChange={(value) => {
-                      const range = DEAL_SIZE_RANGES.find(r => r.value === value);
-                      if (range) {
-                        // Parse range like "$1M - $5M" into min and max
-                        const parts = range.value.split(' - ');
-                        const min = parts[0]?.replace(/[^0-9]/g, '') || "";
-                        const max = parts[1]?.replace(/[^0-9]/g, '') || "";
-                        setFormData(prev => ({ 
-                          ...prev, 
-                          targetDealSizeMin: min ? `${min}000000` : "",
-                          targetDealSizeMax: max ? `${max}000000` : ""
-                        }));
-                      }
-                    }}
+                    value={formData.revenueRangeMin}
+                    onValueChange={(value) => setFormData(prev => ({ ...prev, revenueRangeMin: value }))}
                   >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select deal size range" />
+                    <SelectTrigger className="h-11">
+                      <SelectValue placeholder="Minimum" />
                     </SelectTrigger>
                     <SelectContent>
-                      {DEAL_SIZE_RANGES.map((range) => (
+                      {REVENUE_RANGES.map((range) => (
+                        <SelectItem key={range.value} value={range.value}>
+                          {range.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select
+                    value={formData.revenueRangeMax}
+                    onValueChange={(value) => setFormData(prev => ({ ...prev, revenueRangeMax: value }))}
+                  >
+                    <SelectTrigger className="h-11">
+                      <SelectValue placeholder="Maximum" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {REVENUE_RANGES.map((range) => (
                         <SelectItem key={range.value} value={range.value}>
                           {range.label}
                         </SelectItem>
@@ -1517,63 +1512,10 @@ const Signup = () => {
               </div>
             )}
 
-            {/* Only show revenue range if buyer type is not Private Equity or Independent Sponsor */}
-            {formData.buyerType !== "privateEquity" && formData.buyerType !== "independentSponsor" && (
-              <div className="space-y-4">
-                <Label className="text-base font-medium">
-                  {FIELD_HELPERS.revenueRange.label}
-                </Label>
-                <p className="text-xs text-muted-foreground">
-                  {FIELD_HELPERS.revenueRange.description}
-                </p>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="revenueRangeMin">{FIELD_HELPERS.revenueRange.minLabel}</Label>
-                    <Select
-                      value={formData.revenueRangeMin}
-                      onValueChange={(value) => setFormData(prev => ({ ...prev, revenueRangeMin: value }))}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select minimum" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {REVENUE_RANGES.map((range) => (
-                          <SelectItem key={range.value} value={range.value}>
-                            {range.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="revenueRangeMax">{FIELD_HELPERS.revenueRange.maxLabel}</Label>
-                    <Select
-                      value={formData.revenueRangeMax}
-                      onValueChange={(value) => setFormData(prev => ({ ...prev, revenueRangeMax: value }))}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select maximum" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {REVENUE_RANGES.map((range) => (
-                          <SelectItem key={range.value} value={range.value}>
-                            {range.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              </div>
-            )}
-
             <div className="space-y-2">
-              <Label htmlFor="specificBusinessSearch">
+              <Label htmlFor="specificBusinessSearch" className="text-sm text-foreground">
                 {FIELD_HELPERS.specificBusinessSearch.label}
               </Label>
-              <p className="text-xs text-muted-foreground">
-                {FIELD_HELPERS.specificBusinessSearch.description}
-              </p>
               <Textarea
                 id="specificBusinessSearch"
                 name="specificBusinessSearch"
@@ -1586,12 +1528,9 @@ const Signup = () => {
 
             {/* Deal Intent */}
             <div className="space-y-2">
-              <Label className="text-base font-medium">
+              <Label className="text-sm text-foreground">
                 {FIELD_HELPERS.dealIntent.label}
               </Label>
-              <p className="text-xs text-muted-foreground">
-                {FIELD_HELPERS.dealIntent.description}
-              </p>
               <RadioGroup
                 value={formData.dealIntent || ""}
                 onValueChange={(value) => setFormData(prev => ({ ...prev, dealIntent: value }))}
@@ -1600,7 +1539,7 @@ const Signup = () => {
                 {DEAL_INTENT_OPTIONS.map((option) => (
                   <div key={option.value} className="flex items-center space-x-2">
                     <RadioGroupItem value={option.value} id={option.value} />
-                    <Label htmlFor={option.value} className="font-normal cursor-pointer">
+                    <Label htmlFor={option.value} className="font-normal cursor-pointer text-sm">
                       {option.label}
                     </Label>
                   </div>
@@ -1610,12 +1549,9 @@ const Signup = () => {
 
             {/* Hard Exclusions */}
             <div className="space-y-2">
-              <Label className="text-base font-medium">
+              <Label className="text-sm text-foreground">
                 {FIELD_HELPERS.exclusions.label}
               </Label>
-              <p className="text-xs text-muted-foreground">
-                {FIELD_HELPERS.exclusions.description}
-              </p>
               <ChipInput
                 value={formData.exclusions || []}
                 onChange={(value) => setFormData(prev => ({ ...prev, exclusions: value }))}
@@ -1626,12 +1562,9 @@ const Signup = () => {
 
             {/* Include Keywords */}
             <div className="space-y-2">
-              <Label className="text-base font-medium">
+              <Label className="text-sm text-foreground">
                 {FIELD_HELPERS.includeKeywords.label}
               </Label>
-              <p className="text-xs text-muted-foreground">
-                {FIELD_HELPERS.includeKeywords.description}
-              </p>
               <ChipInput
                 value={formData.includeKeywords || []}
                 onChange={(value) => setFormData(prev => ({ ...prev, includeKeywords: value }))}

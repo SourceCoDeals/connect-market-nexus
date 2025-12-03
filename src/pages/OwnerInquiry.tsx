@@ -191,9 +191,7 @@ const OwnerInquiry = () => {
             {/* Name & Email Row */}
             <div className="grid md:grid-cols-2 gap-5">
               <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">
-                  Full Name <span className="text-destructive">*</span>
-                </label>
+                <label className="text-sm text-foreground">Full Name</label>
                 <Input
                   value={formData.name}
                   onChange={(e) => handleChange("name", e.target.value)}
@@ -204,9 +202,7 @@ const OwnerInquiry = () => {
               </div>
               
               <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">
-                  Email Address <span className="text-destructive">*</span>
-                </label>
+                <label className="text-sm text-foreground">Email Address</label>
                 <Input
                   type="email"
                   value={formData.email}
@@ -221,9 +217,7 @@ const OwnerInquiry = () => {
             {/* Phone & Company Row */}
             <div className="grid md:grid-cols-2 gap-5">
               <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">
-                  Phone Number <span className="text-destructive">*</span>
-                </label>
+                <label className="text-sm text-foreground">Phone Number</label>
                 <Input
                   type="tel"
                   value={formData.phone}
@@ -235,9 +229,7 @@ const OwnerInquiry = () => {
               </div>
               
               <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">
-                  Company Name <span className="text-destructive">*</span>
-                </label>
+                <label className="text-sm text-foreground">Company Name</label>
                 <Input
                   value={formData.companyName}
                   onChange={(e) => handleChange("companyName", e.target.value)}
@@ -250,9 +242,7 @@ const OwnerInquiry = () => {
 
             {/* Website (optional) */}
             <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">
-                Business Website <span className="text-muted-foreground font-normal">(optional)</span>
-              </label>
+              <label className="text-sm text-foreground">Business Website</label>
               <Input
                 type="url"
                 value={formData.businessWebsite}
@@ -265,9 +255,7 @@ const OwnerInquiry = () => {
             {/* Revenue & Timeline Row */}
             <div className="grid md:grid-cols-2 gap-5">
               <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">
-                  Estimated Annual Revenue <span className="text-destructive">*</span>
-                </label>
+                <label className="text-sm text-foreground">Estimated Annual Revenue</label>
                 <Select 
                   value={formData.revenueRange} 
                   onValueChange={(value) => handleChange("revenueRange", value)}
@@ -287,9 +275,7 @@ const OwnerInquiry = () => {
               </div>
               
               <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">
-                  Timeline <span className="text-destructive">*</span>
-                </label>
+                <label className="text-sm text-foreground">Timeline</label>
                 <Select 
                   value={formData.saleTimeline} 
                   onValueChange={(value) => handleChange("saleTimeline", value)}
@@ -311,9 +297,7 @@ const OwnerInquiry = () => {
 
             {/* Description */}
             <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">
-                Tell us about your business <span className="text-muted-foreground font-normal">(optional)</span>
-              </label>
+              <label className="text-sm text-foreground">Tell us about your business</label>
               <Textarea
                 value={formData.description}
                 onChange={(e) => handleChange("description", e.target.value)}
