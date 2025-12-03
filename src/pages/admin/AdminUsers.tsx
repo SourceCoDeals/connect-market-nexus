@@ -168,73 +168,76 @@ const AdminUsers = () => {
 
       {/* Main content with generous padding */}
       <div className="px-8 py-8">
-        {/* EnhancedUserManagement - hidden when on owners view to prevent unmounting */}
-        <div className={primaryView === 'owners' ? 'hidden' : ''}>
-          <EnhancedUserManagement
-            users={usersData}
-            onApprove={approveUser}
-            onMakeAdmin={makeAdmin}
-            onRevokeAdmin={revokeAdmin}
-            onDelete={deleteUser}
-            isLoading={isLoading}
-            onFilteredUsersChange={setFilteredUsers}
+        {/* Primary View Switcher - ALWAYS at top, fixed position */}
+        <div className="mb-6">
+          <UserViewSwitcher
+            primaryView={primaryView}
+            secondaryView={secondaryView}
+            onPrimaryViewChange={setPrimaryView}
+            onSecondaryViewChange={setSecondaryView}
+            marketplaceCount={usersData.length}
+            nonMarketplaceCount={nonMarketplaceUsers.length}
+            ownerLeadsCount={ownerLeads.length}
           />
         </div>
 
-        {/* Stable table container - only inner content changes */}
-        <div className={`bg-card rounded-lg border overflow-hidden ${primaryView === 'buyers' ? 'mt-6' : ''}`}>
-          {/* Single View Switcher - always in same location */}
-          <div className="px-4 py-3 border-b bg-muted/30">
-            <UserViewSwitcher
-              primaryView={primaryView}
-              secondaryView={secondaryView}
-              onPrimaryViewChange={setPrimaryView}
-              onSecondaryViewChange={setSecondaryView}
-              marketplaceCount={usersData.length}
-              nonMarketplaceCount={nonMarketplaceUsers.length}
-              ownerLeadsCount={ownerLeads.length}
+        {/* Buyers View Content */}
+        {primaryView === 'buyers' && (
+          <>
+            <EnhancedUserManagement
+              users={usersData}
+              onApprove={approveUser}
+              onMakeAdmin={makeAdmin}
+              onRevokeAdmin={revokeAdmin}
+              onDelete={deleteUser}
+              isLoading={isLoading}
+              onFilteredUsersChange={setFilteredUsers}
             />
-          </div>
 
-          {/* Table content - only this part swaps */}
-          {primaryView === 'buyers' ? (
-            secondaryView === 'marketplace' ? (
-              isMobile ? (
-                <div className="p-4">
-                  <MobileUsersTable
-                    users={filteredUsers}
-                    onApprove={approveUser}
-                    onMakeAdmin={makeAdmin}
-                    onRevokeAdmin={revokeAdmin}
-                    onDelete={deleteUser}
-                    isLoading={isLoading}
-                    onSendFeeAgreement={() => {}}
-                    onSendNDAEmail={() => {}}
-                  />
-                </div>
+            <div className="mt-6 bg-card rounded-lg border overflow-hidden">
+              {secondaryView === 'marketplace' ? (
+                isMobile ? (
+                  <div className="p-4">
+                    <MobileUsersTable
+                      users={filteredUsers}
+                      onApprove={approveUser}
+                      onMakeAdmin={makeAdmin}
+                      onRevokeAdmin={revokeAdmin}
+                      onDelete={deleteUser}
+                      isLoading={isLoading}
+                      onSendFeeAgreement={() => {}}
+                      onSendNDAEmail={() => {}}
+                    />
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <UsersTable
+                      users={filteredUsers}
+                      onApprove={approveUser}
+                      onMakeAdmin={makeAdmin}
+                      onRevokeAdmin={revokeAdmin}
+                      onDelete={deleteUser}
+                      isLoading={isLoading}
+                    />
+                  </div>
+                )
               ) : (
-                <div className="overflow-x-auto">
-                  <UsersTable
-                    users={filteredUsers}
-                    onApprove={approveUser}
-                    onMakeAdmin={makeAdmin}
-                    onRevokeAdmin={revokeAdmin}
-                    onDelete={deleteUser}
-                    isLoading={isLoading}
-                  />
-                </div>
-              )
-            ) : (
-              <NonMarketplaceUsersTable
-                users={nonMarketplaceUsers}
-                isLoading={isLoadingNonMarketplace}
-                filters={{}}
-              />
-            )
-          ) : (
+                <NonMarketplaceUsersTable
+                  users={nonMarketplaceUsers}
+                  isLoading={isLoadingNonMarketplace}
+                  filters={{}}
+                />
+              )}
+            </div>
+          </>
+        )}
+
+        {/* Owners View Content */}
+        {primaryView === 'owners' && (
+          <div className="bg-card rounded-lg border overflow-hidden">
             <OwnerLeadsTable />
-          )}
-        </div>
+          </div>
+        )}
 
         {/* All user action dialogs */}
         <ApprovalEmailDialog />
