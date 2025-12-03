@@ -631,7 +631,7 @@ const Signup = () => {
                 id="password"
                 name="password"
                 type="password"
-                placeholder="Minimum 6 characters"
+                placeholder="••••••••"
                 value={formData.password}
                 onChange={handleInputChange}
                 required
@@ -1649,15 +1649,15 @@ const Signup = () => {
           </form>
         </CardContent>
         
-        <CardFooter className="flex flex-col space-y-6 pt-8 px-0">
+        <CardFooter className="flex flex-col space-y-4 pt-6 px-0">
           {/* Navigation buttons */}
-          <div className="w-full space-y-4">
+          <div className="w-full space-y-3">
             {currentStep === steps.length - 1 ? (
               <Button
                 type="submit"
                 onClick={handleSubmit}
                 disabled={isLoading || isSubmitting}
-                className="w-full h-11 text-sm font-medium"
+                className="w-full text-sm font-medium"
               >
                 {isLoading || isSubmitting ? "Creating account..." : "Create account"}
               </Button>
@@ -1666,7 +1666,7 @@ const Signup = () => {
                 type="button"
                 onClick={handleNext}
                 disabled={isLoading || isSubmitting}
-                className="w-full h-11 text-sm font-medium"
+                className="w-full text-sm font-medium"
               >
                 Continue
               </Button>
@@ -1677,15 +1677,15 @@ const Signup = () => {
                 type="button"
                 onClick={handlePrevious}
                 disabled={isLoading || isSubmitting}
-                className="w-full text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center justify-center gap-2"
+                className="w-full text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center justify-center gap-2"
               >
-                <ArrowLeft className="w-4 h-4" />
+                <ArrowLeft className="w-3.5 h-3.5" />
                 Back to previous step
               </button>
             )}
           </div>
           
-          <div className="text-sm text-center text-muted-foreground">
+          <div className="text-xs text-center text-muted-foreground">
             <span>Already have an account? </span>
             <Link
               to="/login"
