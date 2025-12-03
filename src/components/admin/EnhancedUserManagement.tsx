@@ -313,12 +313,6 @@ export function EnhancedUserManagement({
               </div>
             </div>
 
-            {/* Results count - Stripe style */}
-            <div className="flex items-center justify-between text-sm pt-2 border-t">
-              <p className="text-muted-foreground">
-                Showing <span className="font-medium text-foreground">{filteredUsers.length}</span> of <span className="font-medium text-foreground">{analytics.total}</span> users
-              </p>
-            </div>
           </div>
 
           {/* Bulk Actions */}
