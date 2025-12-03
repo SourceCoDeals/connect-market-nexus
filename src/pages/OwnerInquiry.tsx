@@ -176,35 +176,35 @@ const OwnerInquiry = () => {
       backLinkTo="/welcome"
       backLinkText="Back to selection"
     >
-      <Card className="border-none shadow-lg">
-        <CardHeader className="space-y-2 pb-6">
-          <CardTitle className="text-xl font-semibold">
+      <Card className="border-0 shadow-none bg-transparent">
+        <CardHeader className="space-y-1 pb-8 px-0">
+          <CardTitle className="text-2xl font-semibold tracking-tight">
             Let's start the conversation
           </CardTitle>
-          <CardDescription className="text-xs text-muted-foreground">
-            Tell us about your business. A member of our team will reach out within 24-48 hours.
+          <CardDescription className="text-sm text-muted-foreground">
+            A member of our team will reach out within 24-48 hours.
           </CardDescription>
         </CardHeader>
         
-        <CardContent className="space-y-5">
-          <form onSubmit={handleSubmit} className="space-y-5">
+        <CardContent className="px-0">
+          <form onSubmit={handleSubmit} className="space-y-6">
             {/* Name & Email Row */}
-            <div className="grid md:grid-cols-2 gap-4">
+            <div className="grid md:grid-cols-2 gap-5">
               <div className="space-y-2">
-                <label className="text-xs font-medium text-foreground">
+                <label className="text-sm font-medium text-foreground">
                   Full Name <span className="text-destructive">*</span>
                 </label>
                 <Input
                   value={formData.name}
                   onChange={(e) => handleChange("name", e.target.value)}
                   placeholder="John Smith"
-                  className={`text-sm ${errors.name ? "border-destructive" : ""}`}
+                  className={`h-11 ${errors.name ? "border-destructive" : ""}`}
                 />
                 {errors.name && <p className="text-xs text-destructive">{errors.name}</p>}
               </div>
               
               <div className="space-y-2">
-                <label className="text-xs font-medium text-foreground">
+                <label className="text-sm font-medium text-foreground">
                   Email Address <span className="text-destructive">*</span>
                 </label>
                 <Input
@@ -212,16 +212,16 @@ const OwnerInquiry = () => {
                   value={formData.email}
                   onChange={(e) => handleChange("email", e.target.value)}
                   placeholder="john@company.com"
-                  className={`text-sm ${errors.email ? "border-destructive" : ""}`}
+                  className={`h-11 ${errors.email ? "border-destructive" : ""}`}
                 />
                 {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
               </div>
             </div>
 
             {/* Phone & Company Row */}
-            <div className="grid md:grid-cols-2 gap-4">
+            <div className="grid md:grid-cols-2 gap-5">
               <div className="space-y-2">
-                <label className="text-xs font-medium text-foreground">
+                <label className="text-sm font-medium text-foreground">
                   Phone Number <span className="text-destructive">*</span>
                 </label>
                 <Input
@@ -229,20 +229,20 @@ const OwnerInquiry = () => {
                   value={formData.phone}
                   onChange={(e) => handleChange("phone", e.target.value)}
                   placeholder="(555) 123-4567"
-                  className={`text-sm ${errors.phone ? "border-destructive" : ""}`}
+                  className={`h-11 ${errors.phone ? "border-destructive" : ""}`}
                 />
                 {errors.phone && <p className="text-xs text-destructive">{errors.phone}</p>}
               </div>
               
               <div className="space-y-2">
-                <label className="text-xs font-medium text-foreground">
+                <label className="text-sm font-medium text-foreground">
                   Company Name <span className="text-destructive">*</span>
                 </label>
                 <Input
                   value={formData.companyName}
                   onChange={(e) => handleChange("companyName", e.target.value)}
                   placeholder="Acme Industries"
-                  className={`text-sm ${errors.companyName ? "border-destructive" : ""}`}
+                  className={`h-11 ${errors.companyName ? "border-destructive" : ""}`}
                 />
                 {errors.companyName && <p className="text-xs text-destructive">{errors.companyName}</p>}
               </div>
@@ -250,7 +250,7 @@ const OwnerInquiry = () => {
 
             {/* Website (optional) */}
             <div className="space-y-2">
-              <label className="text-xs font-medium text-foreground">
+              <label className="text-sm font-medium text-foreground">
                 Business Website <span className="text-muted-foreground font-normal">(optional)</span>
               </label>
               <Input
@@ -258,21 +258,21 @@ const OwnerInquiry = () => {
                 value={formData.businessWebsite}
                 onChange={(e) => handleChange("businessWebsite", e.target.value)}
                 placeholder="https://www.yourcompany.com"
-                className="text-sm"
+                className="h-11"
               />
             </div>
 
             {/* Revenue & Timeline Row */}
-            <div className="grid md:grid-cols-2 gap-4">
+            <div className="grid md:grid-cols-2 gap-5">
               <div className="space-y-2">
-                <label className="text-xs font-medium text-foreground">
+                <label className="text-sm font-medium text-foreground">
                   Estimated Annual Revenue <span className="text-destructive">*</span>
                 </label>
                 <Select 
                   value={formData.revenueRange} 
                   onValueChange={(value) => handleChange("revenueRange", value)}
                 >
-                  <SelectTrigger className={`text-sm ${errors.revenueRange ? "border-destructive" : ""}`}>
+                  <SelectTrigger className={`h-11 ${errors.revenueRange ? "border-destructive" : ""}`}>
                     <SelectValue placeholder="Select range" />
                   </SelectTrigger>
                   <SelectContent>
@@ -287,14 +287,14 @@ const OwnerInquiry = () => {
               </div>
               
               <div className="space-y-2">
-                <label className="text-xs font-medium text-foreground">
+                <label className="text-sm font-medium text-foreground">
                   Timeline <span className="text-destructive">*</span>
                 </label>
                 <Select 
                   value={formData.saleTimeline} 
                   onValueChange={(value) => handleChange("saleTimeline", value)}
                 >
-                  <SelectTrigger className={`text-sm ${errors.saleTimeline ? "border-destructive" : ""}`}>
+                  <SelectTrigger className={`h-11 ${errors.saleTimeline ? "border-destructive" : ""}`}>
                     <SelectValue placeholder="Select timeline" />
                   </SelectTrigger>
                   <SelectContent>
@@ -311,39 +311,36 @@ const OwnerInquiry = () => {
 
             {/* Description */}
             <div className="space-y-2">
-              <label className="text-xs font-medium text-foreground">
+              <label className="text-sm font-medium text-foreground">
                 Tell us about your business <span className="text-muted-foreground font-normal">(optional)</span>
               </label>
               <Textarea
                 value={formData.description}
                 onChange={(e) => handleChange("description", e.target.value)}
                 placeholder="Brief description of your business, industry, and what makes it unique..."
-                rows={3}
-                className="text-sm resize-none"
+                rows={4}
+                className="resize-none"
               />
             </div>
 
             {/* Submit Button */}
             <Button 
               type="submit" 
-              className="w-full"
-              size="sm"
+              className="w-full h-11 text-sm font-medium"
               disabled={isSubmitting}
             >
               {isSubmitting ? "Submitting..." : "Submit Inquiry"}
             </Button>
+            
+            <p className="text-xs text-center text-muted-foreground pt-2">
+              By submitting, you agree to be contacted by our team.
+            </p>
           </form>
         </CardContent>
-        
-        <CardFooter className="flex flex-col pt-4">
-          <p className="text-xs text-center text-muted-foreground">
-            By submitting, you agree to be contacted by our team.
-          </p>
-        </CardFooter>
       </Card>
 
       {/* Alternative CTA */}
-      <div className="text-xs text-muted-foreground mt-6">
+      <div className="text-sm text-muted-foreground mt-8">
         Looking to acquire a business instead?{" "}
         <Link to="/signup" className="text-primary font-medium hover:underline">
           Create a buyer account

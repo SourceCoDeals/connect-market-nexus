@@ -19,6 +19,8 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ChipInput } from "@/components/ui/chip-input";
 import { parseCurrency } from "@/lib/currency-utils";
 import { processUrl, isValidUrlFormat } from "@/lib/url-utils";
+import { StepIndicator } from "@/components/ui/step-indicator";
+import { ArrowLeft } from "lucide-react";
 
 const steps = [
   "Account Information",
@@ -610,10 +612,9 @@ const Signup = () => {
     switch (currentStep) {
       case 0:
         return (
-          <div className="space-y-4">
+          <div className="space-y-5">
             <div className="space-y-2">
-               <Label htmlFor="email">Work Email</Label>
-               <p className="text-xs text-muted-foreground">Please provide your work email address</p>
+              <Label htmlFor="email" className="text-sm font-medium">Work Email</Label>
               <Input
                 id="email"
                 name="email"
@@ -621,11 +622,12 @@ const Signup = () => {
                 placeholder="name@company.com"
                 value={formData.email}
                 onChange={handleInputChange}
+                className="h-11"
                 required
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password" className="text-sm font-medium">Password</Label>
               <Input
                 id="password"
                 name="password"
@@ -633,135 +635,150 @@ const Signup = () => {
                 placeholder="••••••••"
                 value={formData.password}
                 onChange={handleInputChange}
+                className="h-11"
+                required
+              />
+              <p className="text-xs text-muted-foreground">Minimum 6 characters</p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword" className="text-sm font-medium">Confirm Password</Label>
+              <Input
+                id="confirmPassword"
+                name="confirmPassword"
+                type="password"
+                placeholder="••••••••"
+                value={formData.confirmPassword}
+                onChange={handleInputChange}
+                className="h-11"
                 required
               />
             </div>
-              <div className="space-y-2">
-                <Label htmlFor="confirmPassword">Confirm Password</Label>
-                <Input
-                  id="confirmPassword"
-                  name="confirmPassword"
-                  type="password"
-                  placeholder="••••••••"
-                  value={formData.confirmPassword}
-                  onChange={handleInputChange}
-                  required
-                />
-                <div className="text-right text-xs">
-                  <Link to="/forgot-password" className="text-primary hover:underline">Forgot password?</Link>
-                </div>
-              </div>
           </div>
         );
       case 1:
         return (
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-5">
+            <div className="grid grid-cols-2 gap-5">
               <div className="space-y-2">
-                <Label htmlFor="firstName">First Name</Label>
+                <Label htmlFor="firstName" className="text-sm font-medium">First Name</Label>
                 <Input
                   id="firstName"
                   name="firstName"
                   placeholder="John"
                   value={formData.firstName}
                   onChange={handleInputChange}
+                  className="h-11"
                   required
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="lastName">Last Name</Label>
+                <Label htmlFor="lastName" className="text-sm font-medium">Last Name</Label>
                 <Input
                   id="lastName"
                   name="lastName"
                   placeholder="Doe"
                   value={formData.lastName}
                   onChange={handleInputChange}
+                  className="h-11"
                   required
                 />
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="company">Company</Label>
+              <Label htmlFor="company" className="text-sm font-medium">Company</Label>
               <Input
                 id="company"
                 name="company"
                 placeholder="Acme Inc."
                 value={formData.company}
                 onChange={handleInputChange}
+                className="h-11"
                 required
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="phoneNumber">Phone</Label>
-              <Input
-                id="phoneNumber"
-                name="phoneNumber"
-                placeholder="(123) 456-7890"
-                value={formData.phoneNumber}
-                onChange={handleInputChange}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-               <Label htmlFor="jobTitle">Job Title <span className="text-xs text-muted-foreground">(optional)</span></Label>
-               <Input
-                 id="jobTitle"
-                 name="jobTitle"
-                 placeholder="e.g., Partner, VP Business Development, Investment Associate"
-                value={formData.jobTitle || ""}
-                onChange={handleInputChange}
-              />
+            <div className="grid grid-cols-2 gap-5">
+              <div className="space-y-2">
+                <Label htmlFor="phoneNumber" className="text-sm font-medium">Phone</Label>
+                <Input
+                  id="phoneNumber"
+                  name="phoneNumber"
+                  placeholder="(123) 456-7890"
+                  value={formData.phoneNumber}
+                  onChange={handleInputChange}
+                  className="h-11"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="jobTitle" className="text-sm font-medium">
+                  Job Title <span className="text-muted-foreground font-normal">(optional)</span>
+                </Label>
+                <Input
+                  id="jobTitle"
+                  name="jobTitle"
+                  placeholder="e.g., Partner, VP"
+                  value={formData.jobTitle || ""}
+                  onChange={handleInputChange}
+                  className="h-11"
+                />
+              </div>
             </div>
 
-            <Separator className="my-6" />
-            <div className="text-sm text-muted-foreground mb-4">
-              <strong>Professional Profile (Strongly encouraged)</strong>
-              <p className="text-xs mt-1">
-                Owners tell us this is extremely important in helping them see how their business aligns with your unique investment criteria.
+            <Separator className="my-2" />
+            
+            <div className="space-y-1">
+              <p className="text-sm font-medium text-foreground">Professional Profile</p>
+              <p className="text-xs text-muted-foreground">
+                Helps owners understand your investment background
               </p>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="website">Website</Label>
-              <Input
-                id="website"
-                name="website"
-                placeholder="https://www.example.com"
-                value={formData.website}
-                onChange={handleInputChange}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="linkedinProfile">LinkedIn Profile</Label>
-              <Input
-                id="linkedinProfile"
-                name="linkedinProfile"
-                placeholder="https://linkedin.com/in/yourprofile"
-                value={formData.linkedinProfile}
-                onChange={handleInputChange}
-              />
+            <div className="grid grid-cols-2 gap-5">
+              <div className="space-y-2">
+                <Label htmlFor="website" className="text-sm font-medium">
+                  Website <span className="text-muted-foreground font-normal">(optional)</span>
+                </Label>
+                <Input
+                  id="website"
+                  name="website"
+                  placeholder="example.com"
+                  value={formData.website}
+                  onChange={handleInputChange}
+                  className="h-11"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="linkedinProfile" className="text-sm font-medium">
+                  LinkedIn <span className="text-muted-foreground font-normal">(optional)</span>
+                </Label>
+                <Input
+                  id="linkedinProfile"
+                  name="linkedinProfile"
+                  placeholder="linkedin.com/in/..."
+                  value={formData.linkedinProfile}
+                  onChange={handleInputChange}
+                  className="h-11"
+                />
+              </div>
             </div>
           </div>
         );
       case 2:
         return (
-          <div className="space-y-4">
+          <div className="space-y-5">
             <div className="space-y-2">
-              <Label htmlFor="buyerType">Type of Buyer</Label>
+              <Label htmlFor="buyerType" className="text-sm font-medium">Type of Buyer</Label>
               <Select
                 onValueChange={handleBuyerTypeChange}
                 value={formData.buyerType}
               >
-                <SelectTrigger className="w-full">
+                <SelectTrigger className="w-full h-11">
                   <SelectValue placeholder="Select buyer type" />
                 </SelectTrigger>
                 <SelectContent>
                   {buyerTypeOptions.map((option) => (
                     <SelectItem key={option.value} value={option.value}>
-                      <div className="space-y-1">
-                        <div className="font-medium">{option.label}</div>
-                        <div className="text-xs text-muted-foreground">{option.description}</div>
-                      </div>
+                      {option.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -770,9 +787,9 @@ const Signup = () => {
             
             {/* Conditional fields based on buyer type */}
             {formData.buyerType === "corporate" && (
-              <div className="space-y-4">
+              <div className="space-y-5 pt-2">
                 <div className="space-y-2">
-                  <Label htmlFor="estimatedRevenue">Estimated Revenue</Label>
+                  <Label htmlFor="estimatedRevenue" className="text-sm font-medium">Estimated Revenue</Label>
                   <EnhancedCurrencyInput
                     value={formData.estimatedRevenue}
                     onChange={(value) => setFormData((prev) => ({ ...prev, estimatedRevenue: value }))}
@@ -782,25 +799,28 @@ const Signup = () => {
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="owningBusinessUnit">Owning business unit / brand <span className="text-xs text-muted-foreground">(optional)</span></Label>
-                  <p className="text-xs text-muted-foreground">Which business unit or brand would this acquisition fall under?</p>
+                  <Label htmlFor="owningBusinessUnit" className="text-sm font-medium">
+                    Business Unit <span className="text-muted-foreground font-normal">(optional)</span>
+                  </Label>
                   <Input
                     id="owningBusinessUnit"
                     name="owningBusinessUnit"
                     placeholder="e.g., Digital Services Division"
                     value={formData.owningBusinessUnit || ""}
                     onChange={handleInputChange}
+                    className="h-11"
                   />
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="dealSizeBand">Deal size (EV) <span className="text-red-500">*</span></Label>
-                  <p className="text-xs text-muted-foreground">Enterprise value range you're targeting</p>
+                  <Label htmlFor="dealSizeBand" className="text-sm font-medium">
+                    Deal Size (EV) <span className="text-destructive">*</span>
+                  </Label>
                   <Select
                     value={formData.dealSizeBand || ""}
                     onValueChange={(value) => setFormData((prev) => ({ ...prev, dealSizeBand: value }))}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="h-11">
                       <SelectValue placeholder="Select deal size range" />
                     </SelectTrigger>
                     <SelectContent>
@@ -814,9 +834,10 @@ const Signup = () => {
                 </div>
                 
                 <div className="space-y-2">
-                  <Label>Integration plan <span className="text-xs text-muted-foreground">(optional - select all that apply)</span></Label>
-                  <p className="text-xs text-muted-foreground">How would you integrate this acquisition?</p>
-                  <div className="grid grid-cols-2 gap-2">
+                  <Label className="text-sm font-medium">
+                    Integration Plan <span className="text-muted-foreground font-normal">(optional)</span>
+                  </Label>
+                  <div className="grid grid-cols-2 gap-3">
                     {INTEGRATION_PLAN_OPTIONS.map((option) => (
                       <div key={option.value} className="flex items-center space-x-2">
                         <Checkbox
@@ -1711,30 +1732,28 @@ const Signup = () => {
       backLinkTo="/welcome"
       backLinkText="Back to selection"
     >
-      <Card className="border-none shadow-lg">
-        <CardHeader className="space-y-2 pb-6">
-          <CardTitle className="text-xl font-semibold">
-            Create your account
-          </CardTitle>
-          <CardDescription className="text-xs text-muted-foreground">
-            Step {currentStep + 1} of {steps.length}: {steps[currentStep]}
-          </CardDescription>
-          
-          {/* Progress bar */}
-          <div className="w-full bg-muted h-1 rounded-full mt-3">
-            <div
-              className="bg-primary h-1 rounded-full transition-all duration-300"
-              style={{
-                width: `${((currentStep + 1) / steps.length) * 100}%`,
-              }}
-            />
+      <Card className="border-0 shadow-none bg-transparent">
+        <CardHeader className="space-y-6 pb-8 px-0">
+          <div>
+            <CardTitle className="text-2xl font-semibold tracking-tight">
+              Create your account
+            </CardTitle>
+            <CardDescription className="text-sm text-muted-foreground mt-1">
+              {steps[currentStep]}
+            </CardDescription>
           </div>
+          
+          {/* Step Indicator */}
+          <StepIndicator 
+            currentStep={currentStep} 
+            totalSteps={steps.length} 
+          />
         </CardHeader>
         
-        <CardContent className="space-y-6">
+        <CardContent className="px-0">
           {validationErrors.length > 0 && (
-            <div className="bg-destructive/10 border border-destructive/20 text-destructive p-3 rounded-lg">
-              <ul className="list-disc pl-4 space-y-1 text-xs">
+            <div className="bg-destructive/10 border border-destructive/20 text-destructive p-4 rounded-lg mb-6">
+              <ul className="list-disc pl-4 space-y-1 text-sm">
                 {validationErrors.map((error, index) => (
                   <li key={index}>{error}</li>
                 ))}
@@ -1742,31 +1761,20 @@ const Signup = () => {
             </div>
           )}
           
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form onSubmit={handleSubmit} className="space-y-6">
             {renderStepContent()}
           </form>
         </CardContent>
         
-        <CardFooter className="flex flex-col space-y-4 pt-6">
-          <div className="flex justify-between w-full">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={handlePrevious}
-              disabled={currentStep === 0 || isLoading || isSubmitting}
-              className="text-xs"
-            >
-              Back
-            </Button>
-            
+        <CardFooter className="flex flex-col space-y-6 pt-8 px-0">
+          {/* Navigation buttons */}
+          <div className="w-full space-y-4">
             {currentStep === steps.length - 1 ? (
               <Button
                 type="submit"
                 onClick={handleSubmit}
                 disabled={isLoading || isSubmitting}
-                size="sm"
-                className="text-xs font-medium"
+                className="w-full h-11 text-sm font-medium"
               >
                 {isLoading || isSubmitting ? "Creating account..." : "Create account"}
               </Button>
@@ -1775,15 +1783,26 @@ const Signup = () => {
                 type="button"
                 onClick={handleNext}
                 disabled={isLoading || isSubmitting}
-                size="sm"
-                className="text-xs font-medium"
+                className="w-full h-11 text-sm font-medium"
               >
                 Continue
               </Button>
             )}
+            
+            {currentStep > 0 && (
+              <button
+                type="button"
+                onClick={handlePrevious}
+                disabled={isLoading || isSubmitting}
+                className="w-full text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center justify-center gap-2"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Back to previous step
+              </button>
+            )}
           </div>
           
-          <div className="text-xs text-center text-muted-foreground">
+          <div className="text-sm text-center text-muted-foreground">
             <span>Already have an account? </span>
             <Link
               to="/login"
