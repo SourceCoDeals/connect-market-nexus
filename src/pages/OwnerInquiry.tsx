@@ -247,7 +247,7 @@ const OwnerInquiry = () => {
                 type="url"
                 value={formData.businessWebsite}
                 onChange={(e) => handleChange("businessWebsite", e.target.value)}
-                placeholder="https://www.yourcompany.com"
+                placeholder="yourcompany.com"
               />
             </div>
 
@@ -260,7 +260,7 @@ const OwnerInquiry = () => {
                   onValueChange={(value) => handleChange("revenueRange", value)}
                 >
                   <SelectTrigger className={errors.revenueRange ? "border-destructive" : ""}>
-                    <SelectValue placeholder="Select range" />
+                    <SelectValue placeholder="Select..." />
                   </SelectTrigger>
                   <SelectContent>
                     {REVENUE_RANGES.map(range => (
@@ -280,7 +280,7 @@ const OwnerInquiry = () => {
                   onValueChange={(value) => handleChange("saleTimeline", value)}
                 >
                   <SelectTrigger className={errors.saleTimeline ? "border-destructive" : ""}>
-                    <SelectValue placeholder="Select timeline" />
+                    <SelectValue placeholder="Select..." />
                   </SelectTrigger>
                   <SelectContent>
                     {SALE_TIMELINES.map(timeline => (

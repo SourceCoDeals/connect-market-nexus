@@ -747,7 +747,7 @@ const Signup = () => {
                 value={formData.buyerType}
               >
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select buyer type" />
+                  <SelectValue placeholder="Select..." />
                 </SelectTrigger>
                 <SelectContent>
                   {buyerTypeOptions.map((option) => (
@@ -790,7 +790,7 @@ const Signup = () => {
                     onValueChange={(value) => setFormData((prev) => ({ ...prev, dealSizeBand: value }))}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select deal size range" />
+                      <SelectValue placeholder="Select..." />
                     </SelectTrigger>
                     <SelectContent>
                       {DEAL_SIZE_BAND_OPTIONS.map((option) => (
@@ -833,7 +833,7 @@ const Signup = () => {
                     onValueChange={(value) => setFormData((prev) => ({ ...prev, corpdevIntent: value }))}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select your current approach" />
+                      <SelectValue placeholder="Select..." />
                     </SelectTrigger>
                     <SelectContent>
                       {CORPDEV_INTENT_OPTIONS.map((option) => (
@@ -895,7 +895,7 @@ const Signup = () => {
                     onValueChange={(value) => setFormData((prev) => ({ ...prev, deployingCapitalNow: value }))}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select deployment status" />
+                      <SelectValue placeholder="Select..." />
                     </SelectTrigger>
                     <SelectContent>
                       {DEPLOYING_CAPITAL_OPTIONS.map((option) => (
@@ -946,7 +946,7 @@ const Signup = () => {
                     onValueChange={(value) => setFormData((prev) => ({ ...prev, discretionType: value }))}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select authority type" />
+                      <SelectValue placeholder="Select..." />
                     </SelectTrigger>
                     <SelectContent>
                       {DISCRETION_TYPE_OPTIONS.map((option) => (
@@ -989,7 +989,7 @@ const Signup = () => {
                     onValueChange={(value) => setFormData((prev) => ({ ...prev, searchType: value }))}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select search type" />
+                      <SelectValue placeholder="Select..." />
                     </SelectTrigger>
                     <SelectContent>
                       {SEARCH_TYPE_OPTIONS.map((option) => (
@@ -1008,7 +1008,7 @@ const Signup = () => {
                     onValueChange={(value) => setFormData((prev) => ({ ...prev, acqEquityBand: value }))}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select equity amount" />
+                      <SelectValue placeholder="Select..." />
                     </SelectTrigger>
                     <SelectContent>
                       {ACQ_EQUITY_BAND_OPTIONS.map((option) => (
@@ -1073,7 +1073,7 @@ const Signup = () => {
                     onValueChange={(value) => setFormData((prev) => ({ ...prev, searchStage: value }))}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select search stage" />
+                      <SelectValue placeholder="Select..." />
                     </SelectTrigger>
                     <SelectContent>
                       {SEARCH_STAGE_OPTIONS.map((option) => (
@@ -1096,7 +1096,7 @@ const Signup = () => {
                     onValueChange={(value) => setFormData((prev) => ({ ...prev, fundingSource: value }))}
                   >
                     <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select funding source" />
+                      <SelectValue placeholder="Select..." />
                     </SelectTrigger>
                     <SelectContent>
                       {INDIVIDUAL_FUNDING_SOURCE_OPTIONS.map((option) => (
@@ -1115,7 +1115,7 @@ const Signup = () => {
                     onValueChange={(value) => setFormData((prev) => ({ ...prev, usesBank: value }))}
                   >
                     <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select option" />
+                      <SelectValue placeholder="Select..." />
                     </SelectTrigger>
                     <SelectContent>
                       {USES_BANK_FINANCE_OPTIONS.map((option) => (
@@ -1134,7 +1134,7 @@ const Signup = () => {
                     onValueChange={(value) => setFormData((prev) => ({ ...prev, maxEquityToday: value }))}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select equity range" />
+                      <SelectValue placeholder="Select..." />
                     </SelectTrigger>
                     <SelectContent>
                       {MAX_EQUITY_TODAY_OPTIONS.map((option) => (
@@ -1157,7 +1157,7 @@ const Signup = () => {
                     onValueChange={(value) => setFormData((prev) => ({ ...prev, committedEquityBand: value }))}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select equity amount" />
+                      <SelectValue placeholder="Select..." />
                     </SelectTrigger>
                     <SelectContent>
                       {COMMITTED_EQUITY_BAND_OPTIONS.map((option) => (
@@ -1222,7 +1222,7 @@ const Signup = () => {
                     onValueChange={(value) => setFormData((prev) => ({ ...prev, deploymentTiming: value }))}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select deployment timing" />
+                      <SelectValue placeholder="Select..." />
                     </SelectTrigger>
                     <SelectContent>
                       {DEPLOYMENT_TIMING_OPTIONS.map((option) => (
@@ -1245,7 +1245,7 @@ const Signup = () => {
                     onValueChange={(value) => setFormData((prev) => ({ ...prev, onBehalfOfBuyer: value }))}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select option" />
+                      <SelectValue placeholder="Select..." />
                     </SelectTrigger>
                     <SelectContent>
                       {ON_BEHALF_OPTIONS.map((option) => (
@@ -1266,7 +1266,7 @@ const Signup = () => {
                         onValueChange={(value) => setFormData((prev) => ({ ...prev, buyerRole: value }))}
                       >
                         <SelectTrigger>
-                          <SelectValue placeholder="Select buyer type" />
+                          <SelectValue placeholder="Select..." />
                         </SelectTrigger>
                         <SelectContent>
                           {BUYER_ROLE_OPTIONS.map((option) => (
@@ -1327,7 +1327,7 @@ const Signup = () => {
                     onValueChange={(value) => setFormData((prev) => ({ ...prev, ownerTimeline: value }))}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select timeline" />
+                      <SelectValue placeholder="Select..." />
                     </SelectTrigger>
                     <SelectContent>
                       {OWNER_TIMELINE_OPTIONS.map((option) => (
@@ -1408,7 +1408,7 @@ const Signup = () => {
                   }}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select deal size range" />
+                    <SelectValue placeholder="Select..." />
                   </SelectTrigger>
                   <SelectContent>
                     {DEAL_SIZE_RANGES.map((range) => (
@@ -1433,7 +1433,7 @@ const Signup = () => {
                     onValueChange={(value) => setFormData(prev => ({ ...prev, revenueRangeMin: value }))}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Minimum" />
+                      <SelectValue placeholder="Select..." />
                     </SelectTrigger>
                     <SelectContent>
                       {REVENUE_RANGES.map((range) => (
@@ -1448,7 +1448,7 @@ const Signup = () => {
                     onValueChange={(value) => setFormData(prev => ({ ...prev, revenueRangeMax: value }))}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Maximum" />
+                      <SelectValue placeholder="Select..." />
                     </SelectTrigger>
                     <SelectContent>
                       {REVENUE_RANGES.map((range) => (
