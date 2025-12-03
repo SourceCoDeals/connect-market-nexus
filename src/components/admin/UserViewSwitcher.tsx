@@ -1,5 +1,5 @@
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 interface UserViewSwitcherProps {
   primaryView: 'buyers' | 'owners';
@@ -21,74 +21,87 @@ export function UserViewSwitcher({
   ownerLeadsCount
 }: UserViewSwitcherProps) {
   return (
-    <div className="space-y-3">
+    <div className="flex items-center gap-6">
       {/* Primary Level: Buyers / Owners */}
-      <div className="inline-flex items-center gap-1 border border-border rounded-md p-0.5 bg-background">
-        <Button
-          variant="ghost"
-          size="sm"
+      <div className="inline-flex items-center rounded-lg bg-muted/50 p-1">
+        <button
           onClick={() => onPrimaryViewChange('buyers')}
-          className={`h-9 px-3 text-sm font-medium transition-all ${
+          className={cn(
+            "inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
             primaryView === 'buyers'
-              ? 'bg-background shadow-sm border border-border text-foreground font-semibold'
-              : 'bg-transparent text-muted-foreground hover:bg-muted/50 border-transparent'
-          }`}
+              ? 'bg-background text-foreground shadow-sm'
+              : 'text-muted-foreground hover:text-foreground'
+          )}
         >
           Buyers
-          <Badge variant="secondary" className="ml-2 h-5 px-2 text-xs font-medium bg-muted text-muted-foreground">
+          <Badge variant="secondary" className={cn(
+            "h-5 min-w-[28px] justify-center px-1.5 text-xs font-medium",
+            primaryView === 'buyers' ? 'bg-muted' : 'bg-transparent'
+          )}>
             {marketplaceCount + nonMarketplaceCount}
           </Badge>
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
+        </button>
+        <button
           onClick={() => onPrimaryViewChange('owners')}
-          className={`h-9 px-3 text-sm font-medium transition-all ${
+          className={cn(
+            "inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
             primaryView === 'owners'
-              ? 'bg-background shadow-sm border border-border text-foreground font-semibold'
-              : 'bg-transparent text-muted-foreground hover:bg-muted/50 border-transparent'
-          }`}
+              ? 'bg-background text-foreground shadow-sm'
+              : 'text-muted-foreground hover:text-foreground'
+          )}
         >
           Owners
-          <Badge variant="secondary" className="ml-2 h-5 px-2 text-xs font-medium bg-muted text-muted-foreground">
+          <Badge variant="secondary" className={cn(
+            "h-5 min-w-[28px] justify-center px-1.5 text-xs font-medium",
+            primaryView === 'owners' ? 'bg-muted' : 'bg-transparent'
+          )}>
             {ownerLeadsCount}
           </Badge>
-        </Button>
+        </button>
       </div>
 
-      {/* Secondary Level: Marketplace / Non-Marketplace (only visible when Buyers is active) */}
+      {/* Divider */}
       {primaryView === 'buyers' && (
-        <div className="inline-flex items-center gap-1 border border-border rounded-md p-0.5 bg-muted/30">
-          <Button
-            variant="ghost"
-            size="sm"
+        <div className="h-5 w-px bg-border" />
+      )}
+
+      {/* Secondary Level: Marketplace / Non-Marketplace (only for Buyers) */}
+      {primaryView === 'buyers' && (
+        <div className="inline-flex items-center rounded-lg bg-muted/50 p-1">
+          <button
             onClick={() => onSecondaryViewChange('marketplace')}
-            className={`h-8 px-3 text-xs font-medium transition-all ${
+            className={cn(
+              "inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
               secondaryView === 'marketplace'
-                ? 'bg-background shadow-sm border border-border text-foreground font-semibold'
-                : 'bg-transparent text-muted-foreground hover:bg-muted/50 border-transparent'
-            }`}
+                ? 'bg-background text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
+            )}
           >
-            Marketplace Users
-            <Badge variant="secondary" className="ml-2 h-4 px-1.5 text-[10px] font-medium bg-muted text-muted-foreground">
+            Marketplace
+            <Badge variant="secondary" className={cn(
+              "h-5 min-w-[28px] justify-center px-1.5 text-xs font-medium",
+              secondaryView === 'marketplace' ? 'bg-muted' : 'bg-transparent'
+            )}>
               {marketplaceCount}
             </Badge>
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
+          </button>
+          <button
             onClick={() => onSecondaryViewChange('non-marketplace')}
-            className={`h-8 px-3 text-xs font-medium transition-all ${
+            className={cn(
+              "inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
               secondaryView === 'non-marketplace'
-                ? 'bg-background shadow-sm border border-border text-foreground font-semibold'
-                : 'bg-transparent text-muted-foreground hover:bg-muted/50 border-transparent'
-            }`}
+                ? 'bg-background text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
+            )}
           >
-            Non-Marketplace Contacts
-            <Badge variant="secondary" className="ml-2 h-4 px-1.5 text-[10px] font-medium bg-muted text-muted-foreground">
+            Non-Marketplace
+            <Badge variant="secondary" className={cn(
+              "h-5 min-w-[28px] justify-center px-1.5 text-xs font-medium",
+              secondaryView === 'non-marketplace' ? 'bg-muted' : 'bg-transparent'
+            )}>
               {nonMarketplaceCount}
             </Badge>
-          </Button>
+          </button>
         </div>
       )}
     </div>
